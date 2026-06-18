@@ -1,0 +1,590 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/token-overlay.schema.json",
+  "title": "Aureline M5 token-overlay round-trip portability audit",
+  "description": "Boundary schema for the M5 token-overlay portability audit emitted by the aureline-shell token_overlays module. The audit promotes the per-token overlay state frozen in schemas/design/token_overlay.schema.json into a portable, inspectable, downgrade-safe object. It carries one token-overlay descriptor per override scope (theme_package_default, imported_theme, extension_contributed, user_global, profile, workspace, policy_managed) whose entries record the token, family, declared scope, value state (inherited/overridden/deprecated/unmapped), validation result, provenance, portability flags, disclosed-downgrade class, and an explicit fallback chain; a winning-versus-shadowed resolution table that names which scope's value won for each token and why; and an export/import/sync round-trip proof that traces every portable entry across the channels. Acceptance: overrides MUST be scope-explicit; an unsupported token MUST survive as an inert or downgraded entry with a disclosed downgrade note instead of being silently dropped, rewritten, or treated as fully supported; resolution MUST name exactly one winning scope (the highest-precedence contributing scope) and list every shadowed entry; the round trip MUST be lossless for portable entries with scope preserved; and overlays MUST stay structured rather than flattened into opaque blobs. The overlay-scope, value-state, validation, fallback-step, and token-family vocabularies are a re-export projection of the canonical token_overlay_record in schemas/design/token_overlay.schema.json; this lane mints no parallel token vocabulary. Raw token values, raw rendered screenshots, raw URLs, raw absolute paths, and raw user content never cross this boundary; this schema carries opaque ids, typed vocabulary, small counts, and short privacy-safe labels only. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/ux/m5/token-overlay-sync-import/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/token_overlay_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/token_overlay_portability_report_record" },
+    { "$ref": "#/$defs/token_overlay_portability_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the M5 token-overlay portability contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_token_overlays:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support bundles. Raw URLs, raw paths, and raw user content never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short privacy-safe label or note text."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp."
+    },
+    "source_schema_ref": {
+      "type": "string",
+      "const": "schemas/ux/token-overlay.schema.json"
+    },
+    "canonical_overlay_schema_ref": {
+      "type": "string",
+      "const": "schemas/design/token_overlay.schema.json",
+      "description": "Schema ref for the canonical per-token overlay-state record this lane re-exports from."
+    },
+    "override_scope": {
+      "type": "string",
+      "enum": [
+        "theme_package_default",
+        "imported_theme",
+        "extension_contributed",
+        "user_global",
+        "profile",
+        "workspace",
+        "policy_managed"
+      ],
+      "description": "Re-exported from the overlay_scope_class vocabulary in schemas/design/token_overlay.schema.json without modification."
+    },
+    "value_state": {
+      "type": "string",
+      "enum": ["inherited", "overridden", "deprecated", "unmapped"],
+      "description": "Re-exported from the value_state_class vocabulary in schemas/design/token_overlay.schema.json without modification."
+    },
+    "validation_state": {
+      "type": "string",
+      "enum": [
+        "valid",
+        "valid_with_warnings",
+        "inert_unresolved",
+        "blocked_policy",
+        "rolled_back"
+      ],
+      "description": "Re-exported from the validation_state_class vocabulary in schemas/design/token_overlay.schema.json without modification."
+    },
+    "provenance_class": {
+      "type": "string",
+      "enum": [
+        "authored_in_product",
+        "imported_from_theme_package",
+        "contributed_by_extension",
+        "applied_by_policy",
+        "migrated_from_legacy_settings",
+        "synced_from_device"
+      ]
+    },
+    "portability_class": {
+      "type": "string",
+      "enum": [
+        "fully_portable",
+        "portable_with_downgrade",
+        "scope_local_non_portable",
+        "rides_theme_package"
+      ]
+    },
+    "downgrade_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "inert_unsupported_token",
+        "deprecated_alias_pending_replacement",
+        "policy_capped",
+        "scope_demoted",
+        "value_unsupported_kept_placeholder"
+      ],
+      "description": "The single disclosed-downgrade vocabulary. 'none' means fully supported and preserved; every other value is a disclosed downgrade that keeps an unsupported token alive instead of dropping it."
+    },
+    "fallback_step_kind": {
+      "type": "string",
+      "enum": [
+        "theme_package_default",
+        "scope_override",
+        "deprecated_alias",
+        "inert_placeholder"
+      ],
+      "description": "Re-exported from the fallback_step_kind vocabulary in schemas/design/token_overlay.schema.json without modification."
+    },
+    "token_family": {
+      "type": "string",
+      "enum": [
+        "color_brand",
+        "color_functional_accent",
+        "color_neutral",
+        "color_state",
+        "color_semantic_theme",
+        "color_syntax",
+        "color_diff",
+        "color_chart",
+        "typography_role",
+        "typography_scale",
+        "text_rule",
+        "spacing",
+        "sizing",
+        "radius",
+        "border_stroke",
+        "elevation",
+        "opacity_scrim",
+        "layer_portal_order",
+        "motion_duration",
+        "motion_easing",
+        "motion_restriction",
+        "density",
+        "icon_treatment",
+        "semantic_status",
+        "trust_visual_state"
+      ],
+      "description": "Re-exported from the token_family_class vocabulary in schemas/design/token_overlay.schema.json without modification."
+    },
+    "round_trip_channel": {
+      "type": "string",
+      "enum": ["export_bundle", "import_bundle", "sync_push", "sync_pull"]
+    },
+    "entry_disposition": {
+      "type": "string",
+      "enum": ["preserved", "downgraded", "dropped", "rewritten"]
+    },
+    "blocking_finding": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "entry_missing_explanation",
+            "entry_fallback_chain_empty",
+            "entry_scope_not_explicit",
+            "entry_deprecated_without_replacement",
+            "entry_unmapped_without_placeholder",
+            "entry_unsupported_treated_as_supported",
+            "entry_portability_inconsistent",
+            "overlay_flattened_to_opaque_blob",
+            "overlay_has_no_entries",
+            "overlay_scope_mismatch",
+            "resolved_token_no_winner",
+            "resolved_token_wrong_winner",
+            "resolved_token_shadowed_not_inspectable",
+            "round_trip_stage_dropped_entries",
+            "round_trip_stage_rewrote_entries",
+            "round_trip_entry_dropped",
+            "round_trip_entry_rewritten",
+            "round_trip_scope_lost",
+            "round_trip_downgrade_not_disclosed"
+          ]
+        }
+      }
+    },
+    "portability_flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "portability_class",
+        "exportable",
+        "syncable",
+        "survives_unsupported_target"
+      ],
+      "properties": {
+        "portability_class": { "$ref": "#/$defs/portability_class" },
+        "exportable": { "type": "boolean" },
+        "syncable": { "type": "boolean" },
+        "survives_unsupported_target": { "type": "boolean" }
+      }
+    },
+    "fallback_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_id", "step_index", "step_scope", "step_kind", "applied"],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "step_index": { "type": "integer", "minimum": 0 },
+        "step_scope": { "$ref": "#/$defs/override_scope" },
+        "step_kind": { "$ref": "#/$defs/fallback_step_kind" },
+        "target_token_ref": { "$ref": "#/$defs/opaque_id" },
+        "applied": { "type": "boolean" }
+      }
+    },
+    "token_override_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "entry_id",
+        "token_ref",
+        "token_family",
+        "declared_scope",
+        "value_state",
+        "validation_state",
+        "provenance",
+        "portability",
+        "downgrade_class",
+        "fallback_chain",
+        "explanation",
+        "blocking_findings"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_token_overlay_override_entry_record"
+        },
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "token_ref": { "$ref": "#/$defs/opaque_id" },
+        "token_family": { "$ref": "#/$defs/token_family" },
+        "declared_scope": { "$ref": "#/$defs/override_scope" },
+        "value_state": { "$ref": "#/$defs/value_state" },
+        "validation_state": { "$ref": "#/$defs/validation_state" },
+        "provenance": { "$ref": "#/$defs/provenance_class" },
+        "portability": { "$ref": "#/$defs/portability_flags" },
+        "downgrade_class": { "$ref": "#/$defs/downgrade_class" },
+        "fallback_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fallback_step" }
+        },
+        "deprecated_replacement_ref": { "$ref": "#/$defs/opaque_id" },
+        "unmapped_source_slot_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_overlay_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "explanation": { "$ref": "#/$defs/short_text" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        }
+      }
+    },
+    "scope_overlay_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "overlay_id",
+        "scope",
+        "appearance_session_ref",
+        "structured",
+        "validation_state",
+        "entries",
+        "entry_count",
+        "downgraded_count",
+        "blocking_findings"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_token_overlay_scope_overlay_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "overlay_id": { "$ref": "#/$defs/opaque_id" },
+        "scope": { "$ref": "#/$defs/override_scope" },
+        "appearance_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "structured": { "type": "boolean" },
+        "validation_state": { "$ref": "#/$defs/validation_state" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/token_override_entry_record" }
+        },
+        "entry_count": { "type": "integer", "minimum": 0 },
+        "downgraded_count": { "type": "integer", "minimum": 0 },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        }
+      }
+    },
+    "shadowed_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "entry_ref", "value_state", "reason"],
+      "properties": {
+        "scope": { "$ref": "#/$defs/override_scope" },
+        "entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "value_state": { "$ref": "#/$defs/value_state" },
+        "reason": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "resolved_token_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "token_ref",
+        "token_family",
+        "winning_scope",
+        "winning_entry_ref",
+        "winning_value_state",
+        "shadowed",
+        "precedence_explained",
+        "blocking_findings"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_token_overlay_resolved_token_record"
+        },
+        "token_ref": { "$ref": "#/$defs/opaque_id" },
+        "token_family": { "$ref": "#/$defs/token_family" },
+        "winning_scope": { "$ref": "#/$defs/override_scope" },
+        "winning_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "winning_value_state": { "$ref": "#/$defs/value_state" },
+        "shadowed": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shadowed_entry" }
+        },
+        "precedence_explained": { "$ref": "#/$defs/short_text" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        }
+      }
+    },
+    "round_trip_stage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "stage_id",
+        "sequence_index",
+        "channel",
+        "target_support_profile",
+        "input_entry_count",
+        "output_entry_count",
+        "preserved_count",
+        "downgraded_count",
+        "dropped_count",
+        "rewritten_count",
+        "scope_preserved",
+        "blocking_findings"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_token_overlay_round_trip_stage_record"
+        },
+        "stage_id": { "$ref": "#/$defs/opaque_id" },
+        "sequence_index": { "type": "integer", "minimum": 0 },
+        "channel": { "$ref": "#/$defs/round_trip_channel" },
+        "target_support_profile": { "$ref": "#/$defs/short_text" },
+        "input_entry_count": { "type": "integer", "minimum": 0 },
+        "output_entry_count": { "type": "integer", "minimum": 0 },
+        "preserved_count": { "type": "integer", "minimum": 0 },
+        "downgraded_count": { "type": "integer", "minimum": 0 },
+        "dropped_count": { "type": "integer", "minimum": 0 },
+        "rewritten_count": { "type": "integer", "minimum": 0 },
+        "scope_preserved": { "type": "boolean" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        }
+      }
+    },
+    "round_trip_entry_trace_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "entry_ref",
+        "token_ref",
+        "origin_scope",
+        "final_scope",
+        "disposition",
+        "downgrade_class",
+        "channels_traversed",
+        "survived",
+        "explanation",
+        "blocking_findings"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_token_overlay_round_trip_entry_trace_record"
+        },
+        "entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "token_ref": { "$ref": "#/$defs/opaque_id" },
+        "origin_scope": { "$ref": "#/$defs/override_scope" },
+        "final_scope": { "$ref": "#/$defs/override_scope" },
+        "disposition": { "$ref": "#/$defs/entry_disposition" },
+        "downgrade_class": { "$ref": "#/$defs/downgrade_class" },
+        "channels_traversed": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/round_trip_channel" }
+        },
+        "survived": { "type": "boolean" },
+        "explanation": { "$ref": "#/$defs/short_text" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        }
+      }
+    },
+    "round_trip_proof_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "proof_id",
+        "stages",
+        "entry_traces",
+        "portable_entry_count",
+        "unsupported_preserved_count",
+        "lossless",
+        "blocking_findings"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_token_overlay_round_trip_proof_record"
+        },
+        "proof_id": { "$ref": "#/$defs/opaque_id" },
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/round_trip_stage_record" }
+        },
+        "entry_traces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/round_trip_entry_trace_record" }
+        },
+        "portable_entry_count": { "type": "integer", "minimum": 0 },
+        "unsupported_preserved_count": { "type": "integer", "minimum": 0 },
+        "lossless": { "type": "boolean" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_blocking_findings",
+        "entry_findings",
+        "overlay_findings",
+        "resolution_findings",
+        "round_trip_findings"
+      ],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "entry_findings": { "type": "integer", "minimum": 0 },
+        "overlay_findings": { "type": "integer", "minimum": 0 },
+        "resolution_findings": { "type": "integer", "minimum": 0 },
+        "round_trip_findings": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "token_overlay_portability_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "canonical_overlay_schema_ref",
+        "appearance_session_ref",
+        "overlays",
+        "resolved_tokens",
+        "round_trip",
+        "findings_summary",
+        "blocking_findings",
+        "total_override_count",
+        "downgraded_override_count",
+        "inert_override_count",
+        "scope_covered_count",
+        "round_trip_lossless",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_token_overlay_portability_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/opaque_id" },
+        "source_schema_ref": { "$ref": "#/$defs/source_schema_ref" },
+        "canonical_overlay_schema_ref": { "$ref": "#/$defs/canonical_overlay_schema_ref" },
+        "appearance_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "overlays": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scope_overlay_record" }
+        },
+        "resolved_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/resolved_token_record" }
+        },
+        "round_trip": { "$ref": "#/$defs/round_trip_proof_record" },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "total_override_count": { "type": "integer", "minimum": 0 },
+        "downgraded_override_count": { "type": "integer", "minimum": 0 },
+        "inert_override_count": { "type": "integer", "minimum": 0 },
+        "scope_covered_count": { "type": "integer", "minimum": 0 },
+        "round_trip_lossless": { "type": "boolean" },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/short_text" },
+        "published_doc_ref": { "$ref": "#/$defs/short_text" },
+        "docs_help_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_text" }
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_text" }
+        },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "token_overlay_portability_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_token_overlay_portability_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "report": { "$ref": "#/$defs/token_overlay_portability_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    }
+  }
+}

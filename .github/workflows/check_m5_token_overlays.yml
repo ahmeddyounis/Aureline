@@ -1,0 +1,68 @@
+# M5 token-overlay round-trip portability gate.
+#
+# Validates the checked-in M5 token-overlay portability audit: appearance
+# overrides are scope-explicit objects (with provenance, portability flags,
+# validation, and an explicit fallback chain) across user / profile / workspace /
+# policy / extension / imported-theme scopes, the winning-versus-shadowed
+# resolution for every token is inspectable, an unsupported token survives the
+# export / import / sync round trip as an inert or downgraded entry with a
+# disclosed downgrade note instead of being silently dropped, rewritten, or
+# treated as fully supported, and overlays stay structured per scope instead of
+# being flattened into opaque profile blobs. The typed Rust consumer mints the
+# same audit, so `cargo test -p aureline-shell` enforces the same structural
+# invariants and that the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_token_overlays
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_token_overlays.yml"
+      - "tools/ci/m5/token_overlay_check.py"
+      - "schemas/ux/token-overlay.schema.json"
+      - "schemas/design/token_overlay.schema.json"
+      - "docs/m5/token-overlays-and-scope.md"
+      - "artifacts/ux/m5/token-overlay-roundtrip/**"
+      - "fixtures/ux/m5/token-overlay-sync-import/**"
+      - "crates/aureline-shell/src/token_overlays/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_token_overlays.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_token_overlays_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-token-overlays-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_token_overlays:
+    name: M5 token overlays
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 token-overlay CI gate
+        run: |
+          python3 tools/ci/m5/token_overlay_check.py --repo-root .
+
+      - name: Run M5 token-overlay contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_token_overlays_fixtures
