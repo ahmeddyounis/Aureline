@@ -116,6 +116,7 @@ pub mod managed_alpha;
 pub mod managed_workspace_lifecycle_beta;
 pub mod materialize_artifact_family_quality_governance;
 pub mod packages;
+pub mod parameter_review;
 pub mod preview_drift;
 pub mod profiler_trace_replay_regression_qualification;
 pub mod provenance;
@@ -755,6 +756,28 @@ pub use packages::{
     PACKAGE_MUTATION_REVIEWER_VERSION, PACKAGE_OPERATION_ALPHA_RECORD_KIND,
     PACKAGE_OPERATION_ALPHA_SCHEMA_VERSION, PACKAGE_OPERATION_AUDIT_RECORD_KIND,
     PACKAGE_OPERATION_SUPPORT_EXPORT_RECORD_KIND, REGISTRY_SOURCE_ALPHA_RECORD_KIND,
+};
+pub use parameter_review::{
+    canonical_reused_contract_refs as parameter_review_reused_contract_refs,
+    current_parameter_review_first_consumers_input, seeded_consumer_sheet,
+    seeded_parameter_review_export_roundtrip, seeded_parameter_review_first_consumers_packet,
+    seeded_secret_reference_sheet, validate_parameter_review_first_consumers_packet,
+    ParameterConstraintKind, ParameterFieldType, ParameterReviewBuilder,
+    ParameterReviewConsumerBinding, ParameterReviewError, ParameterReviewExport,
+    ParameterReviewFinding, ParameterReviewFindingKind, ParameterReviewFindingSeverity,
+    ParameterReviewFirstConsumersCliHeadlessView, ParameterReviewFirstConsumersInput,
+    ParameterReviewFirstConsumersPacket, ParameterReviewFirstConsumersSupportExport,
+    ParameterReviewInvariantsBlock, ParameterReviewSupportConsumerRow,
+    ParameterReviewSupportParameterRow, ParameterSourceLayer, ParameterValidation,
+    ParameterValueState, ReviewedParameter, SaveToScope, SecretReference, PARAMETER_REVIEW_DOC_REF,
+    PARAMETER_REVIEW_EXPORT_RECORD_KIND, PARAMETER_REVIEW_FIRST_CONSUMERS_CLI_HEADLESS_ID,
+    PARAMETER_REVIEW_FIRST_CONSUMERS_CLI_HEADLESS_RECORD_KIND, PARAMETER_REVIEW_FIRST_CONSUMERS_ID,
+    PARAMETER_REVIEW_FIRST_CONSUMERS_PACKET_ARTIFACT_REF,
+    PARAMETER_REVIEW_FIRST_CONSUMERS_RECORD_KIND, PARAMETER_REVIEW_FIRST_CONSUMERS_SCHEMA_REF,
+    PARAMETER_REVIEW_FIRST_CONSUMERS_SCHEMA_VERSION,
+    PARAMETER_REVIEW_FIRST_CONSUMERS_SUPPORT_EXPORT_ID,
+    PARAMETER_REVIEW_FIRST_CONSUMERS_SUPPORT_EXPORT_RECORD_KIND, PARAMETER_REVIEW_FIXTURE_DIR,
+    PARAMETER_REVIEW_SHEET_RECORD_KIND, PARAMETER_REVIEW_SHEET_SCHEMA_REF,
 };
 pub use preview_drift::{
     evaluate_preview_commit_guard, seeded_preview_commit_guard_scenario, ApprovalTicketBinding,

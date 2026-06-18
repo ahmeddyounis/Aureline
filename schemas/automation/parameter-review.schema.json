@@ -1,0 +1,543 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/parameter-review.schema.json",
+  "title": "Aureline parameter-review object and first-consumers contract",
+  "description": "Boundary schema for the live parameter-review object and the M5 automation families that first consume it. Each reviewed parameter is typed, carries an explicit source layer (its provenance), records whether the active value is a default or an override, declares a save-to-scope choice within an allowed set, and — for a secret-bearing value — holds an opaque secret reference (a broker handle plus a redaction class) instead of a raw literal. A parameter_review_export_record nests the whole builder so each parameter's type, source layer, default/override state, save scope, secret reference, and redaction class survive export/import and rerun. The m5_parameter_review_first_consumers_packet binds each first-consumer entrypoint (notebook, task/test/debug, request/API, package, incident, AI assistant) to a seeded sheet and pins the freeze invariants; a dropped entrypoint, an untyped or ambiguous-source parameter, a raw secret, a disallowed save scope, an inconsistent frozen-sheet projection, or a violated invariant blocks stable. The verdict, argument-inspection, and redaction vocabularies are re-exported from recipe-builder.schema.json; a raw secret value, an ambiguous generic control, or a parallel verdict vocabulary is non-conforming.",
+  "oneOf": [
+    { "$ref": "#/$defs/parameter_review_first_consumers_packet" },
+    { "$ref": "#/$defs/parameter_review_first_consumers_support_export" },
+    { "$ref": "#/$defs/parameter_review_first_consumers_cli_headless" },
+    { "$ref": "#/$defs/parameter_review_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support bundles. Raw argv, raw paths, raw URLs, raw payloads, raw prompt text, and raw secrets never appear here."
+    },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+    "parameter_name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Snake_case reviewed-parameter name."
+    },
+    "field_type": {
+      "type": "string",
+      "enum": [
+        "text",
+        "integer",
+        "boolean",
+        "enumeration",
+        "path_reference",
+        "url_reference",
+        "secret_reference",
+        "duration_ms",
+        "environment_profile_ref"
+      ],
+      "description": "The declared type of a reviewed parameter. A secret_reference field holds an opaque broker reference, never a raw value."
+    },
+    "source_layer": {
+      "type": "string",
+      "enum": [
+        "descriptor_default",
+        "workspace_saved",
+        "user_saved",
+        "recipe_supplied",
+        "selection_backed",
+        "focused_context_backed",
+        "ai_proposed",
+        "policy_pinned",
+        "secret_broker",
+        "unspecified_generic_control"
+      ],
+      "description": "Where a parameter's value came from (its provenance). Every layer except unspecified_generic_control maps to a frozen argument_inspection_kind; unspecified_generic_control is the inadmissible ambiguous state the gate refuses."
+    },
+    "value_state": {
+      "type": "string",
+      "enum": ["default_value", "overridden", "awaiting_input", "policy_pinned"],
+      "description": "Whether the active value is the unchanged default, a user override, a required value still awaiting input, or a value pinned by policy."
+    },
+    "save_to_scope": {
+      "type": "string",
+      "enum": ["run_only", "workspace", "user", "organization_policy"],
+      "description": "The scope a remembered value would affect. organization_policy is read-only and cannot be saved into."
+    },
+    "constraint_kind": {
+      "type": "string",
+      "enum": [
+        "none",
+        "non_empty",
+        "integer_range",
+        "enum_membership",
+        "workspace_relative_path",
+        "url_scheme",
+        "secret_broker_handle_present",
+        "environment_profile_resolvable"
+      ],
+      "description": "The typed constraint applied to a reviewed parameter."
+    },
+    "argument_inspection_kind": {
+      "type": "string",
+      "enum": [
+        "typed_argument_slot_ref",
+        "policy_pinned_argument_ref",
+        "credential_handle_argument_ref",
+        "selection_backed_argument_ref",
+        "focused_context_backed_argument_ref",
+        "default_from_descriptor_argument_ref",
+        "ai_proposed_argument_ref",
+        "automation_recipe_supplied_argument_ref",
+        "extension_supplied_argument_ref"
+      ],
+      "description": "Re-exported argument-inspection kind from recipe-builder.schema.json without modification."
+    },
+    "verdict_class": {
+      "type": "string",
+      "enum": ["resolved", "needs_input", "policy_pinned", "sensitive_held_for_review", "blocked"],
+      "description": "Re-exported parameter-review verdict vocabulary from recipe-builder.schema.json."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "no_redaction_required",
+        "redaction_required_on_export",
+        "redaction_required_with_secret_broker_handles"
+      ],
+      "description": "Re-exported redaction class from recipe-builder.schema.json."
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"],
+      "description": "Re-exported promotion vocabulary from automation-contract-baseline.schema.json."
+    },
+    "entrypoint": {
+      "type": "string",
+      "enum": ["notebook", "task_test_debug", "request_api", "package", "incident", "ai_assistant"],
+      "description": "A first-consumer automation family that gathers runtime input through the canonical sheet."
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "missing_entrypoint",
+        "entrypoint_sheet_empty",
+        "source_layer_unspecified",
+        "secret_value_not_referenced",
+        "save_scope_not_allowed",
+        "sheet_projection_inconsistent",
+        "invariant_violated"
+      ]
+    },
+    "finding_severity": { "type": "string", "enum": ["blocker", "warning"] },
+    "secret_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["broker_handle_ref", "redaction_class"],
+      "properties": {
+        "broker_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque secret-broker handle; never the secret itself."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "An opaque reference to a secret-bearing value. The value never appears as a literal."
+    },
+    "parameter_validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["constraint_kind", "satisfied", "constraint_summary"],
+      "properties": {
+        "constraint_kind": { "$ref": "#/$defs/constraint_kind" },
+        "satisfied": { "type": "boolean" },
+        "constraint_summary": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Reviewable summary of the constraint; never the raw value."
+        }
+      }
+    },
+    "reviewed_parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameter_name",
+        "field_type",
+        "source_layer",
+        "value_state",
+        "required",
+        "sensitivity_class",
+        "secret_reference",
+        "chosen_save_scope",
+        "available_save_scopes",
+        "validation",
+        "summary"
+      ],
+      "properties": {
+        "parameter_name": { "$ref": "#/$defs/parameter_name" },
+        "field_type": { "$ref": "#/$defs/field_type" },
+        "source_layer": { "$ref": "#/$defs/source_layer" },
+        "value_state": { "$ref": "#/$defs/value_state" },
+        "required": { "type": "boolean" },
+        "sensitivity_class": { "$ref": "#/$defs/redaction_class" },
+        "secret_reference": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/secret_reference" }],
+          "description": "An opaque secret reference for a secret-bearing field, or null."
+        },
+        "chosen_save_scope": { "$ref": "#/$defs/save_to_scope" },
+        "available_save_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/save_to_scope" }
+        },
+        "validation": { "$ref": "#/$defs/parameter_validation" },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Reviewable summary of the parameter; never the raw value."
+        }
+      },
+      "description": "One typed, provenance-bearing reviewed parameter."
+    },
+    "parameter_review_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameter_name",
+        "inspection_kind",
+        "verdict_class",
+        "required",
+        "sensitivity_class",
+        "summary"
+      ],
+      "properties": {
+        "parameter_name": { "$ref": "#/$defs/parameter_name" },
+        "inspection_kind": { "$ref": "#/$defs/argument_inspection_kind" },
+        "verdict_class": { "$ref": "#/$defs/verdict_class" },
+        "required": { "type": "boolean" },
+        "sensitivity_class": { "$ref": "#/$defs/redaction_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "One reviewed-parameter row, identical to recipe-builder.schema.json#/$defs/parameter_review_row."
+    },
+    "parameter_review_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recipe_builder_schema_version",
+        "sheet_id",
+        "builder_id",
+        "draft_recipe_revision_ref",
+        "rows",
+        "unresolved_required_count",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "parameter_review_sheet_record" },
+        "recipe_builder_schema_version": { "$ref": "#/$defs/schema_version" },
+        "sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "draft_recipe_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/parameter_review_row" }
+        },
+        "unresolved_required_count": { "type": "integer", "minimum": 0 },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "The frozen pre-apply parameter-review sheet the builder projects, re-used from recipe-builder.schema.json."
+    },
+    "parameter_review_builder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sheet_id",
+        "entrypoint",
+        "builder_id",
+        "draft_recipe_revision_ref",
+        "title",
+        "summary",
+        "parameters",
+        "minted_at"
+      ],
+      "properties": {
+        "sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "draft_recipe_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "parameters": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewed_parameter" }
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "The live, mutable parameter-review object preserved verbatim by an export."
+    },
+    "parameter_review_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "sheet_record",
+        "builder",
+        "export_digest"
+      ],
+      "properties": {
+        "record_kind": { "const": "parameter_review_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "sheet_record": { "$ref": "#/$defs/parameter_review_sheet_record" },
+        "builder": { "$ref": "#/$defs/parameter_review_builder" },
+        "export_digest": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" }
+      },
+      "description": "A sheet exported for rerun review, sharing, or support bundles. The nested builder preserves each parameter's type, source layer, default/override state, save scope, secret reference, and redaction class; import reconstructs the identical sheet."
+    },
+    "invariants_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_parameter_is_typed",
+        "source_layer_is_explicit_for_every_parameter",
+        "default_or_override_state_is_visible",
+        "secret_values_are_references_not_raw",
+        "save_to_scope_is_explicit_and_allowed",
+        "verdicts_reuse_the_frozen_vocabulary",
+        "provenance_and_redaction_survive_export_import"
+      ],
+      "properties": {
+        "every_parameter_is_typed": { "type": "boolean" },
+        "source_layer_is_explicit_for_every_parameter": { "type": "boolean" },
+        "default_or_override_state_is_visible": { "type": "boolean" },
+        "secret_values_are_references_not_raw": { "type": "boolean" },
+        "save_to_scope_is_explicit_and_allowed": { "type": "boolean" },
+        "verdicts_reuse_the_frozen_vocabulary": { "type": "boolean" },
+        "provenance_and_redaction_survive_export_import": { "type": "boolean" }
+      }
+    },
+    "parameter_review_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "subject": { "type": ["string", "null"] },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrypoint",
+        "title",
+        "sheet_id",
+        "builder_id",
+        "sheet_record",
+        "reviewed_parameters",
+        "parameter_count",
+        "unresolved_required_count",
+        "secret_reference_count",
+        "entry_summary"
+      ],
+      "properties": {
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "sheet_record": { "$ref": "#/$defs/parameter_review_sheet_record" },
+        "reviewed_parameters": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewed_parameter" }
+        },
+        "parameter_count": { "type": "integer", "minimum": 1 },
+        "unresolved_required_count": { "type": "integer", "minimum": 0 },
+        "secret_reference_count": { "type": "integer", "minimum": 0 },
+        "entry_summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "One first-consumer entrypoint bound to the seeded sheet it reviews."
+    },
+    "parameter_review_first_consumers_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "schema_ref",
+        "sheet_schema_ref",
+        "doc_ref",
+        "reused_contract_refs",
+        "consumer_bindings",
+        "invariants",
+        "validation_findings",
+        "promotion_state",
+        "packet_digest"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_parameter_review_first_consumers_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "sheet_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reused_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "consumer_bindings": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/consumer_binding" }
+        },
+        "invariants": { "$ref": "#/$defs/invariants_block" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/parameter_review_finding" }
+        },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "packet_digest": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" }
+      },
+      "description": "Canonical first-consumers packet binding every automation family to a seeded sheet and pinning the freeze invariants."
+    },
+    "support_parameter_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameter_name",
+        "field_type",
+        "source_layer",
+        "value_state",
+        "verdict_class",
+        "chosen_save_scope",
+        "sensitivity_class",
+        "held_as_secret_reference"
+      ],
+      "properties": {
+        "parameter_name": { "$ref": "#/$defs/parameter_name" },
+        "field_type": { "$ref": "#/$defs/field_type" },
+        "source_layer": { "$ref": "#/$defs/source_layer" },
+        "value_state": { "$ref": "#/$defs/value_state" },
+        "verdict_class": { "$ref": "#/$defs/verdict_class" },
+        "chosen_save_scope": { "$ref": "#/$defs/save_to_scope" },
+        "sensitivity_class": { "$ref": "#/$defs/redaction_class" },
+        "held_as_secret_reference": { "type": "boolean" }
+      },
+      "description": "One redacted support-export parameter row; never carries a raw value."
+    },
+    "support_consumer_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrypoint",
+        "title",
+        "sheet_id",
+        "parameter_count",
+        "unresolved_required_count",
+        "secret_reference_count",
+        "parameter_rows"
+      ],
+      "properties": {
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "parameter_count": { "type": "integer", "minimum": 1 },
+        "unresolved_required_count": { "type": "integer", "minimum": 0 },
+        "secret_reference_count": { "type": "integer", "minimum": 0 },
+        "parameter_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_parameter_row" }
+        }
+      }
+    },
+    "parameter_review_first_consumers_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "packet_id",
+        "packet_digest",
+        "promotion_state",
+        "consumer_rows",
+        "invariants",
+        "finding_kinds"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_parameter_review_first_consumers_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_digest": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "consumer_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_consumer_row" }
+        },
+        "invariants": { "$ref": "#/$defs/invariants_block" },
+        "finding_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding_kind" }
+        }
+      },
+      "description": "Redacted support-export projection of the first-consumers packet. Secret values appear only as references."
+    },
+    "parameter_review_first_consumers_cli_headless": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "generated_at",
+        "packet_id",
+        "promotion_state",
+        "consumer_lines"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_parameter_review_first_consumers_cli_headless" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "view_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "consumer_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      },
+      "description": "Compact CLI / headless projection of the first-consumers packet."
+    }
+  }
+}
