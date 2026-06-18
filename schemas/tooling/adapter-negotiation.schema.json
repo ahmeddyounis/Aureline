@@ -1,0 +1,344 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/adapter-negotiation.schema.json",
+  "title": "Aureline M5 adapter hierarchy negotiation baseline",
+  "description": "Boundary schema for the per-ecosystem adapter capability negotiation and ordered resolution baseline: for each claimed build/test ecosystem, the candidate ladder walked in native-first priority order, the selected adapter and its fallback class, the explicit fallback-reason packet naming why every higher rung was skipped, the named unsupported capabilities on the resolved adapter, the surfaced capability-drift signals, and the disclosure-surface bindings that expose the outcome to UI, CLI/headless, AI evidence, and support/export. It reuses the source-kind, confidence, capability-state, severity, and promotion vocabulary frozen in schemas/tooling/adapter-capability.schema.json and the per-event envelope frozen in schemas/tooling/task-event-envelope.schema.json.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/adapter_negotiation_baseline" },
+    { "$ref": "#/$defs/adapter_negotiation_support_export" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": ["native", "bsp", "bazel-bep", "structured-output", "heuristic-parser"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium-high", "medium", "low"]
+    },
+    "capability_state": {
+      "type": "string",
+      "enum": ["negotiated", "degraded", "unsupported"]
+    },
+    "negotiated_capability": {
+      "type": "string",
+      "enum": [
+        "target_graph",
+        "lifecycle_events",
+        "diagnostics",
+        "test_events",
+        "artifacts",
+        "progress"
+      ]
+    },
+    "ecosystem": {
+      "type": "string",
+      "enum": ["cargo", "gradle_jvm", "bazel", "python_pytest", "node_js", "generic"]
+    },
+    "fallback_class": {
+      "type": "string",
+      "enum": [
+        "native_authoritative",
+        "negotiated_protocol",
+        "structured_import",
+        "heuristic_last_resort"
+      ]
+    },
+    "skip_reason": {
+      "type": "string",
+      "enum": [
+        "adapter_unavailable",
+        "ecosystem_unsupported",
+        "capability_unsupported",
+        "negotiation_failed"
+      ]
+    },
+    "drift_class": {
+      "type": "string",
+      "enum": [
+        "capability_lost",
+        "capability_degraded",
+        "confidence_regressed",
+        "fallback_deepened",
+        "adapter_unavailable"
+      ]
+    },
+    "disclosure_surface": {
+      "type": "string",
+      "enum": ["ui", "cli_headless", "ai_evidence", "support_export"]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "partial_support",
+        "heuristic_fallback",
+        "replay_gap",
+        "unsupported_adapter_capability"
+      ]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": ["info", "warning", "blocker"]
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "wrong_record_kind",
+        "wrong_schema_version",
+        "missing_identity",
+        "ecosystem_coverage_incomplete",
+        "candidate_ladder_incomplete",
+        "candidate_rank_mismatch",
+        "selection_invalid",
+        "selected_candidate_ineligible",
+        "lower_priority_displaced_higher",
+        "skip_reason_missing",
+        "skip_reason_inconsistent",
+        "fallback_class_mismatch",
+        "confidence_overclaim",
+        "downgrade_inconsistent",
+        "capability_coverage_incomplete",
+        "unsupported_capability_unnamed",
+        "fallback_reason_packet_mismatch",
+        "drift_not_visible",
+        "disclosure_surface_missing",
+        "disclosure_surface_drops_truth",
+        "promotion_state_mismatch"
+      ]
+    },
+    "capability_negotiation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability", "state", "capability_packet_ref", "note"],
+      "properties": {
+        "capability": { "$ref": "#/$defs/negotiated_capability" },
+        "state": { "$ref": "#/$defs/capability_state" },
+        "capability_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "adapter_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind",
+        "priority_rank",
+        "adapter_id",
+        "available",
+        "negotiation_failed",
+        "selected"
+      ],
+      "properties": {
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "priority_rank": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "adapter_id": { "$ref": "#/$defs/non_empty_string" },
+        "available": { "type": "boolean" },
+        "negotiation_failed": { "type": "boolean" },
+        "selected": { "type": "boolean" },
+        "skip_reason": { "$ref": "#/$defs/skip_reason" },
+        "capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_negotiation" }
+        }
+      }
+    },
+    "skipped_adapter_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind", "adapter_id", "skip_reason", "summary"],
+      "properties": {
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "adapter_id": { "$ref": "#/$defs/non_empty_string" },
+        "skip_reason": { "$ref": "#/$defs/skip_reason" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "ecosystem_adapter_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resolution_id",
+        "ecosystem",
+        "workspace_id",
+        "target_id",
+        "candidate_ladder",
+        "selected_source_kind",
+        "selected_adapter_id",
+        "fallback_class",
+        "confidence",
+        "downgraded"
+      ],
+      "properties": {
+        "resolution_id": { "$ref": "#/$defs/non_empty_string" },
+        "ecosystem": { "$ref": "#/$defs/ecosystem" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_id": { "$ref": "#/$defs/non_empty_string" },
+        "candidate_ladder": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/adapter_candidate" }
+        },
+        "selected_source_kind": { "$ref": "#/$defs/source_kind" },
+        "selected_adapter_id": { "$ref": "#/$defs/non_empty_string" },
+        "fallback_class": { "$ref": "#/$defs/fallback_class" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reason": { "$ref": "#/$defs/downgrade_reason" },
+        "fallback_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/skipped_adapter_reason" }
+        },
+        "unsupported_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/negotiated_capability" }
+        }
+      },
+      "allOf": [
+        {
+          "comment": "A downgraded resolution must name a reason; a non-downgraded resolution must not.",
+          "if": { "properties": { "downgraded": { "const": true } } },
+          "then": { "required": ["downgrade_reason"] },
+          "else": { "not": { "required": ["downgrade_reason"] } }
+        }
+      ]
+    },
+    "capability_drift_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drift_id",
+        "ecosystem",
+        "source_kind",
+        "drift_class",
+        "previous_state",
+        "current_state",
+        "visible_before_trust_loss",
+        "summary"
+      ],
+      "properties": {
+        "drift_id": { "$ref": "#/$defs/non_empty_string" },
+        "ecosystem": { "$ref": "#/$defs/ecosystem" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "capability": { "$ref": "#/$defs/negotiated_capability" },
+        "drift_class": { "$ref": "#/$defs/drift_class" },
+        "previous_state": { "$ref": "#/$defs/non_empty_string" },
+        "current_state": { "$ref": "#/$defs/non_empty_string" },
+        "visible_before_trust_loss": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "negotiation_disclosure_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "binding_ref",
+        "discloses_selected_source_kind",
+        "discloses_fallback_reason",
+        "discloses_unsupported_capabilities",
+        "discloses_capability_drift",
+        "discloses_confidence"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/disclosure_surface" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "discloses_selected_source_kind": { "type": "boolean" },
+        "discloses_fallback_reason": { "type": "boolean" },
+        "discloses_unsupported_capabilities": { "type": "boolean" },
+        "discloses_capability_drift": { "type": "boolean" },
+        "discloses_confidence": { "type": "boolean" }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "adapter_negotiation_baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "baseline_id",
+        "generated_at",
+        "negotiation_schema_ref",
+        "envelope_schema_ref",
+        "policy_schema_ref",
+        "doc_ref",
+        "resolutions",
+        "drift_signals",
+        "disclosure_surfaces",
+        "promotion_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_adapter_hierarchy_negotiation_baseline" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "baseline_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "negotiation_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "envelope_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "policy_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "resolutions": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/ecosystem_adapter_resolution" }
+        },
+        "drift_signals": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/capability_drift_signal" }
+        },
+        "disclosure_surfaces": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/negotiation_disclosure_binding" }
+        },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_finding" }
+        }
+      }
+    },
+    "adapter_negotiation_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "baseline_id_ref",
+        "baseline"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_adapter_hierarchy_negotiation_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "exported_at": { "type": "string", "format": "date-time" },
+        "baseline_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "baseline": { "$ref": "#/$defs/adapter_negotiation_baseline" }
+      }
+    }
+  }
+}

@@ -1,0 +1,66 @@
+# M5 adapter hierarchy negotiation gate.
+#
+# Validates the checked-in per-ecosystem adapter capability negotiation baseline:
+# the native-first candidate ladder resolved in priority order, the explicit
+# fallback-reason packet naming every skipped higher rung, the named unsupported
+# capabilities on the resolved adapter, the surfaced capability-drift signals, and
+# the four disclosure surfaces that keep a lower-priority adapter from silently
+# displacing native/BSP/BEP truth. The typed Rust consumer mints the same baseline,
+# so `cargo test -p aureline-runtime` enforces the same invariants and that the
+# fixtures are bit-for-bit derivable from the seed.
+
+name: check_m5_adapter_hierarchy_negotiation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_adapter_hierarchy_negotiation.yml"
+      - "tools/ci/m5/adapter_hierarchy_negotiation_check.py"
+      - "schemas/tooling/adapter-negotiation.schema.json"
+      - "schemas/tooling/task-event-envelope.schema.json"
+      - "schemas/tooling/adapter-capability.schema.json"
+      - "docs/m5/adapter-hierarchy-and-negotiation.md"
+      - "artifacts/m5/tooling/adapter-negotiation/**"
+      - "fixtures/tooling/m5/bsp-bep-heuristic-fallbacks/**"
+      - "crates/aureline-runtime/src/m5_adapter_hierarchy_negotiation/**"
+      - "crates/aureline-runtime/examples/dump_m5_adapter_hierarchy_negotiation.rs"
+      - "crates/aureline-runtime/src/lib.rs"
+      - "crates/aureline-runtime/tests/m5_adapter_hierarchy_negotiation.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-adapter-hierarchy-negotiation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_adapter_hierarchy_negotiation:
+    name: M5 adapter hierarchy negotiation
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 adapter hierarchy negotiation CI gate
+        run: |
+          python3 tools/ci/m5/adapter_hierarchy_negotiation_check.py --repo-root .
+
+      - name: Run M5 adapter hierarchy negotiation contract tests
+        run: |
+          cargo test -p aureline-runtime --test m5_adapter_hierarchy_negotiation

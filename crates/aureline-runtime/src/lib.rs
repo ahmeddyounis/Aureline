@@ -102,6 +102,7 @@ pub mod host_boundary;
 pub mod language_hosts;
 pub mod launch_profiles;
 pub mod log_metric_slice_and_incident_timeline_contract;
+pub mod m5_adapter_hierarchy_negotiation;
 pub mod m5_environment_status_strips;
 pub mod m5_task_event_adapter_policy;
 pub mod m5_task_event_envelope_bus;
@@ -529,6 +530,21 @@ pub use log_metric_slice_and_incident_timeline_contract::{
     OPERATIONAL_EVIDENCE_CONTRACT_DOC_REF, OPERATIONAL_EVIDENCE_CONTRACT_FIXTURE_DIR,
     OPERATIONAL_EVIDENCE_CONTRACT_RECORD_KIND, OPERATIONAL_EVIDENCE_CONTRACT_SCHEMA_REF,
     OPERATIONAL_EVIDENCE_CONTRACT_SCHEMA_VERSION, OPERATIONAL_EVIDENCE_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_adapter_hierarchy_negotiation::{
+    current_stable_adapter_hierarchy_negotiation_input, downgrade_reason_for_fallback,
+    fallback_class_for, seeded_adapter_hierarchy_negotiation_baseline,
+    validate_adapter_hierarchy_negotiation_baseline, AdapterCandidate, AdapterNegotiationBaseline,
+    AdapterNegotiationBaselineInput, AdapterNegotiationSupportExport, CapabilityDriftSignal,
+    CapabilityNegotiation, DisclosureSurface, DriftClass, Ecosystem, EcosystemAdapterResolution,
+    FallbackClass, NegotiatedCapability, NegotiationDisclosureBinding, NegotiationFindingKind,
+    NegotiationValidationFinding, SkipReason, SkippedAdapterReason,
+    ADAPTER_NEGOTIATION_BASELINE_ARTIFACT_REF, ADAPTER_NEGOTIATION_BASELINE_ID,
+    ADAPTER_NEGOTIATION_DOC_REF, ADAPTER_NEGOTIATION_ENVELOPE_SCHEMA_REF,
+    ADAPTER_NEGOTIATION_FIXTURE_DIR, ADAPTER_NEGOTIATION_POLICY_SCHEMA_REF,
+    ADAPTER_NEGOTIATION_RECORD_KIND, ADAPTER_NEGOTIATION_SCHEMA_REF,
+    ADAPTER_NEGOTIATION_SCHEMA_VERSION, ADAPTER_NEGOTIATION_SUPPORT_EXPORT_ID,
+    ADAPTER_NEGOTIATION_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use m5_environment_status_strips::{
     current_m5_environment_status_strips, ContextFacet, ContextFreshness, ContextResolutionPath,
