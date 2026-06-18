@@ -1,0 +1,65 @@
+# M5 extension appearance-inheritance descriptor gate.
+#
+# Validates the checked-in extension appearance-descriptor audit: every
+# extension-backed or embedded surface discloses whether it inherits Aureline's
+# theme, high-contrast, density, and focus-token semantics, the visible badge is
+# rendered in extension details, embedded panes, diagnostics, and support/export
+# packets, no surface overclaims first-party parity it cannot back, and the
+# extension-detail, embedded-pane, diagnostics, and support/export surfaces share
+# the same audit object. The typed Rust consumer mints the same audit, so
+# `cargo test -p aureline-extensions` enforces the same structural invariants and
+# that the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_extension_appearance_descriptors
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_extension_appearance_descriptors.yml"
+      - "tools/ci/m5/extension_appearance_descriptors_check.py"
+      - "schemas/ux/extension-appearance-descriptor.schema.json"
+      - "docs/m5/extension-appearance-inheritance.md"
+      - "artifacts/ux/m5/extension-appearance-audit/**"
+      - "fixtures/ux/m5/extension-theme-inheritance/**"
+      - "crates/aureline-extensions/src/appearance_descriptors/**"
+      - "crates/aureline-extensions/examples/dump_extension_appearance_descriptor_records.rs"
+      - "crates/aureline-extensions/src/lib.rs"
+      - "crates/aureline-extensions/tests/extension_appearance_descriptors_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-extension-appearance-descriptors-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_extension_appearance_descriptors:
+    name: M5 extension appearance descriptors
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 extension appearance-descriptor CI gate
+        run: |
+          python3 tools/ci/m5/extension_appearance_descriptors_check.py --repo-root .
+
+      - name: Run M5 extension appearance-descriptor contract tests
+        run: |
+          cargo test -p aureline-extensions --test extension_appearance_descriptors_fixtures

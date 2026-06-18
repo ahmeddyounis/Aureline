@@ -267,6 +267,7 @@
 //! [`/schemas/extensions/m1_extension_manifest.schema.json`](../../../schemas/extensions/m1_extension_manifest.schema.json).
 
 pub mod appearance_conformance;
+pub mod appearance_descriptors;
 pub mod collections;
 pub mod compatibility_matrix;
 pub mod conformance_reports;
@@ -323,6 +324,30 @@ pub use appearance_conformance::{
     EXTENSION_APPEARANCE_CONFORMANCE_SHARED_CONTRACT_REF,
     EXTENSION_APPEARANCE_CONFORMANCE_SUPPORT_EXPORT_RECORD_KIND,
     EXTENSION_APPEARANCE_CONFORMANCE_SUPPORT_ROW_RECORD_KIND,
+};
+// NOTE: `appearance_descriptors::AppearanceAxisClass` is intentionally not
+// re-exported here because it collides with the conformance lane's axis enum;
+// reach it via `appearance_descriptors::AppearanceAxisClass`.
+pub use appearance_descriptors::{
+    build_extension_appearance_audit, evaluate_extension_appearance_descriptor,
+    project_extension_appearance_support_export, project_extension_appearance_support_row,
+    seeded_extension_appearance_audit, seeded_extension_appearance_inputs,
+    seeded_extension_appearance_support_export, summarize_descriptors,
+    validate_extension_appearance_audit, validate_extension_appearance_descriptor,
+    validate_extension_appearance_support_export, AppearanceAxisPosture,
+    AppearanceDescriptorDefect, AppearanceDescriptorDefectKind, AppearanceGap,
+    ExtensionAppearanceAudit, ExtensionAppearanceDescriptor, ExtensionAppearanceInput,
+    ExtensionAppearanceSummary, ExtensionAppearanceSupportExport, ExtensionAppearanceSupportRow,
+    InheritanceBadge, InheritanceBadgeClass, ParityClaimStateClass, SurfaceKindClass,
+    EXTENSION_APPEARANCE_AUDIT_ID, EXTENSION_APPEARANCE_AUDIT_RECORD_KIND,
+    EXTENSION_APPEARANCE_DESCRIPTOR_DEFECT_RECORD_KIND,
+    EXTENSION_APPEARANCE_DESCRIPTOR_PUBLISHED_DOC_REF,
+    EXTENSION_APPEARANCE_DESCRIPTOR_PUBLISHED_REPORT_REF,
+    EXTENSION_APPEARANCE_DESCRIPTOR_RECORD_KIND, EXTENSION_APPEARANCE_DESCRIPTOR_SCHEMA_REF,
+    EXTENSION_APPEARANCE_DESCRIPTOR_SCHEMA_VERSION,
+    EXTENSION_APPEARANCE_DESCRIPTOR_SHARED_CONTRACT_REF, EXTENSION_APPEARANCE_DESIGN_CONTRACT_REF,
+    EXTENSION_APPEARANCE_SUPPORT_EXPORT_RECORD_KIND, EXTENSION_APPEARANCE_SUPPORT_ROW_RECORD_KIND,
+    RENDERED_SURFACE_TOKENS,
 };
 pub use collections::{
     ExtensionInstallCollectionAlphaInput, ExtensionInstallCollectionAlphaPacket,
