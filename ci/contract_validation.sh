@@ -122,6 +122,9 @@ python3 "${REPO_ROOT}/tools/validate_m5_public_contract_matrix.py" | tee -a "${S
 printf '\n[contract-validation] validating M5 JSON Schema catalog\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/tools/validate_m5_json_schema_catalog.py" | tee -a "${SUMMARY_PATH}"
 
+printf '\n[contract-validation] validating M5 reader/writer compatibility suite\n' | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/tools/validate_m5_reader_writer_compat_suite.py" | tee -a "${SUMMARY_PATH}"
+
 printf '\n[contract-validation] validating M5 CLI/headless structured-output and result-code catalog\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/tools/validate_m5_cli_output_catalog.py" | tee -a "${SUMMARY_PATH}"
 
