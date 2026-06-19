@@ -17,6 +17,7 @@ pub mod educational_ai_and_contextual_cards;
 pub mod freeze_m5_learnability_lane;
 pub mod guided_exercise_rails;
 pub mod learning_mode_profiles;
+pub mod learning_state_export_and_reset;
 pub mod m5_feature_family_learning_rails;
 pub mod progress_snapshots;
 pub mod qualify_learning_mode_guided_tours_and_teaching_sessions;
@@ -68,6 +69,19 @@ pub use learning_mode_profiles::{
     M5_LEARNING_MODE_PROFILES_DOC_REF, M5_LEARNING_MODE_PROFILES_FIXTURE_REF,
     M5_LEARNING_MODE_PROFILES_SCHEMA_REF, M5_LEARNING_MODE_PROFILES_SCHEMA_VERSION,
     M5_LEARNING_MODE_PROFILE_MANIFEST_RECORD_KIND, REQUIRED_CONTROL_KINDS,
+};
+
+pub use learning_state_export_and_reset::{
+    derive_export_bundle_verdict, derive_reset_plan_verdict, reopen_portability_manifest_from_json,
+    seeded_m5_learning_state_export_and_reset, validate_m5_learning_state_export_and_reset,
+    CachedPackContinuity, LearnabilityStateKind, LearningStateExportBundle,
+    LearningStatePortabilityValidationError, LearningStateResetPlan,
+    M5LearningStatePortabilityManifest, ProtectedStateClass, RedactionPosture,
+    SourceLanguageEscape, TutorialMutationFence, LEARNING_STATE_EXPORT_BUNDLE_RECORD_KIND,
+    LEARNING_STATE_RESET_PLAN_RECORD_KIND, M5_LEARNING_STATE_PORTABILITY_ARTIFACT_REF,
+    M5_LEARNING_STATE_PORTABILITY_DOC_REF, M5_LEARNING_STATE_PORTABILITY_FIXTURE_REF,
+    M5_LEARNING_STATE_PORTABILITY_MANIFEST_RECORD_KIND, M5_LEARNING_STATE_PORTABILITY_SCHEMA_REF,
+    M5_LEARNING_STATE_PORTABILITY_SCHEMA_VERSION, REQUIRED_PROTECTED_CLASSES,
 };
 
 pub use m5_feature_family_learning_rails::{

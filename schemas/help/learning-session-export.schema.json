@@ -1,0 +1,434 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/learning-session-export.schema.json",
+  "title": "Aureline M5 learning-state export bundles and reset plans",
+  "description": "Boundary schema for the learning-state portability manifest. A learning-state export bundle is the support/export-safe packet that ports tour, exercise, or learning-session state out of the device to a portable profile, support bundle, or local download. It MUST preserve provenance back to the source state it carries, keep the state user-owned local-first, redact raw payloads, credential bodies, and absolute paths, and never widen data sharing. When display copy is localized, the bundle MUST keep a command-backed source-language escape so a reader can step back to the source-language original; localization changes display copy only and MUST preserve provenance. The pack the state was learned against discloses its cached/offline continuity: a non-live freshness state (mirror-synced, cached, local-only, or stale) MUST be disclosed, so a cached pack never masquerades as live; an undisclosed non-live pack narrows below Stable, and a disclosed cached/local-only/stale pack narrows to Beta with a named reason. A learning-state reset plan clears a bounded slice of learnability state: it declares an explicit target scope, lists the protected classes it preserves (it MUST protect docs packs, bookmarks, and user-authored notes so a reset never silently erases unrelated user-owned state), forbids deleting outside its scope, and keeps a command-backed, window-disclosed restore so reset is reversible. No export or reset path may introduce a tutorial-only mutating shortcut, bypass the standard preview/approval model when it touches real workspace state, change an authority boundary, or drift the command graph; exports and resets are user-initiated, never silent. Raw URLs, raw absolute paths, and raw credential material MUST NOT appear; the schema carries opaque ids, typed vocabulary, BCP-47 locale tags, and short privacy-safe labels only. The surface-family taxonomy aligns with schemas/learning/m5-feature-family-learning-rails.schema.json, the source/freshness vocabulary with schemas/help/m5-tour-and-glossary-packages.schema.json, and the verdict vocabulary with schemas/learning/guided-learning-contracts.schema.json. Adding a new record_kind, learnability state kind, protected class, export target, source class, freshness state, data-ownership class, or surface family is additive-minor; repurposing an existing value is breaking.",
+  "oneOf": [
+    { "$ref": "#/$defs/learning_state_export_bundle_record" },
+    { "$ref": "#/$defs/learning_state_reset_plan_record" },
+    { "$ref": "#/$defs/m5_learning_state_portability_manifest_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for learning-state portability records. Current value is 1. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier. Raw URLs, raw absolute paths, and raw secret material MUST NOT appear."
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, privacy-safe human-readable label."
+    },
+    "locale_tag": {
+      "type": "string",
+      "minLength": 2,
+      "description": "BCP-47 locale tag, e.g. en-US or fr-FR."
+    },
+    "reason_array": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Named narrowing reasons. Empty when the verdict is qualified_stable."
+    },
+    "qualification_verdict": {
+      "type": "string",
+      "enum": ["qualified_stable", "narrowed_preview", "narrowed_beta", "absent"],
+      "description": "Derived lifecycle verdict for a record or the overall manifest."
+    },
+    "learnability_state_kind": {
+      "type": "string",
+      "enum": [
+        "tour_state",
+        "exercise_state",
+        "learning_session_state",
+        "glossary_state",
+        "learning_mode_profile",
+        "contextual_hint_state"
+      ],
+      "description": "A class of learnability state an export or reset operation may touch."
+    },
+    "protected_state_class": {
+      "type": "string",
+      "enum": [
+        "docs_pack",
+        "bookmark",
+        "user_authored_note",
+        "model_pack",
+        "checkpoint",
+        "template_pack"
+      ],
+      "description": "A class of user-owned state a reset MUST NOT delete. A reset MUST protect at least docs_pack, bookmark, and user_authored_note."
+    },
+    "export_target_kind": {
+      "type": "string",
+      "enum": ["portable_profile", "support_bundle", "local_download"],
+      "description": "Where a learning-state export is written."
+    },
+    "source_class": {
+      "type": "string",
+      "enum": ["project_docs", "mirrored_official_docs", "curated_knowledge_pack", "semantic_graph"],
+      "description": "Where the pack a learnability flow was learned against originates."
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "live_authoritative",
+        "mirror_synced_disclosed",
+        "cached_disclosed",
+        "local_only_disclosed",
+        "stale_disclosed"
+      ],
+      "description": "How current the pack is relative to the live authoritative source. Every non-live state MUST be disclosed."
+    },
+    "data_ownership_class": {
+      "type": "string",
+      "enum": ["user_owned_local_first", "repo_visible_shared", "telemetry_grade_shared"],
+      "description": "Ownership class of the state. Only user_owned_local_first qualifies Stable."
+    },
+    "m5_learning_surface_family": {
+      "type": "string",
+      "enum": [
+        "notebook",
+        "request_workspace",
+        "database_workspace",
+        "profiler_trace",
+        "docs_browser",
+        "preview",
+        "template_scaffold",
+        "companion",
+        "sync_offboarding"
+      ],
+      "description": "One M5 feature family a bundle belongs to."
+    },
+    "redaction_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["redacts_raw_payloads", "redacts_credentials", "redacts_absolute_paths", "widens_data_sharing"],
+      "properties": {
+        "redacts_raw_payloads": {
+          "type": "boolean",
+          "description": "Whether the export redacts raw provider payloads. MUST be true."
+        },
+        "redacts_credentials": {
+          "type": "boolean",
+          "description": "Whether the export redacts credential bodies. MUST be true."
+        },
+        "redacts_absolute_paths": {
+          "type": "boolean",
+          "description": "Whether the export redacts raw absolute paths. MUST be true."
+        },
+        "widens_data_sharing": {
+          "type": "boolean",
+          "description": "Whether the export widens who can read the state. MUST be false."
+        }
+      }
+    },
+    "tutorial_mutation_fence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "introduces_tutorial_only_mutating_shortcut",
+        "bypasses_preview_approval",
+        "touches_real_workspace_state",
+        "uses_standard_preview_approval_when_touching_workspace",
+        "authority_boundary_change_allowed",
+        "command_graph_unchanged"
+      ],
+      "properties": {
+        "introduces_tutorial_only_mutating_shortcut": {
+          "type": "boolean",
+          "description": "Whether the path introduces a tutorial-only mutating shortcut. MUST be false."
+        },
+        "bypasses_preview_approval": {
+          "type": "boolean",
+          "description": "Whether the path bypasses the standard preview/approval model. MUST be false."
+        },
+        "touches_real_workspace_state": {
+          "type": "boolean",
+          "description": "Whether the path touches real workspace state at all."
+        },
+        "uses_standard_preview_approval_when_touching_workspace": {
+          "type": "boolean",
+          "description": "Whether the path routes through the standard preview/approval model when it touches real workspace state. MUST be true when touches_real_workspace_state is true."
+        },
+        "authority_boundary_change_allowed": {
+          "type": "boolean",
+          "description": "Whether the path is allowed to change an authority boundary. MUST be false."
+        },
+        "command_graph_unchanged": {
+          "type": "boolean",
+          "description": "Whether the command graph stays unchanged. MUST be true."
+        }
+      },
+      "allOf": [
+        {
+          "description": "A path that touches real workspace state must use the standard preview/approval model.",
+          "if": { "properties": { "touches_real_workspace_state": { "const": true } } },
+          "then": { "properties": { "uses_standard_preview_approval_when_touching_workspace": { "const": true } } }
+        }
+      ]
+    },
+    "source_language_escape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["presented_localized", "source_locale", "presented_locale", "escape_to_source_available", "preserves_provenance"],
+      "properties": {
+        "presented_localized": {
+          "type": "boolean",
+          "description": "Whether the presented copy is localized away from its source language."
+        },
+        "source_locale": { "$ref": "#/$defs/locale_tag" },
+        "presented_locale": { "$ref": "#/$defs/locale_tag" },
+        "escape_to_source_available": {
+          "type": "boolean",
+          "description": "Whether an escape to the source-language original is available. MUST be true when presented_localized is true."
+        },
+        "escape_command_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the command backing the source-language escape. MUST be present when presented_localized is true."
+        },
+        "preserves_provenance": {
+          "type": "boolean",
+          "description": "Whether localization preserves provenance (display copy only). MUST be true."
+        }
+      },
+      "allOf": [
+        {
+          "description": "A localized presentation must carry a command-backed source-language escape.",
+          "if": { "properties": { "presented_localized": { "const": true } }, "required": ["presented_localized"] },
+          "then": {
+            "required": ["escape_command_ref"],
+            "properties": { "escape_to_source_available": { "const": true } }
+          }
+        }
+      ]
+    },
+    "cached_pack_continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "freshness", "continuity_disclosed"],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "freshness": { "$ref": "#/$defs/freshness_state" },
+        "continuity_disclosed": {
+          "type": "boolean",
+          "description": "Whether a non-live freshness state is disclosed. MUST be true whenever freshness is not live_authoritative."
+        },
+        "offline_mirror_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the offline mirror the pack was served from, if any."
+        }
+      },
+      "allOf": [
+        {
+          "description": "A mirror-synced pack must disclose its continuity.",
+          "if": { "properties": { "freshness": { "const": "mirror_synced_disclosed" } } },
+          "then": { "properties": { "continuity_disclosed": { "const": true } } }
+        },
+        {
+          "description": "A cached pack must disclose its continuity.",
+          "if": { "properties": { "freshness": { "const": "cached_disclosed" } } },
+          "then": { "properties": { "continuity_disclosed": { "const": true } } }
+        },
+        {
+          "description": "A local-only pack must disclose its continuity.",
+          "if": { "properties": { "freshness": { "const": "local_only_disclosed" } } },
+          "then": { "properties": { "continuity_disclosed": { "const": true } } }
+        },
+        {
+          "description": "A stale pack must disclose its continuity.",
+          "if": { "properties": { "freshness": { "const": "stale_disclosed" } } },
+          "then": { "properties": { "continuity_disclosed": { "const": true } } }
+        }
+      ]
+    },
+    "learning_state_export_bundle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "bundle_id",
+        "display_label",
+        "family",
+        "state_kind",
+        "target_kind",
+        "source_state_refs",
+        "provenance_preserved",
+        "data_ownership",
+        "redaction",
+        "source_language",
+        "cached_pack",
+        "mutation_fence",
+        "safe_for_support_export",
+        "includes_progress_state",
+        "user_initiated",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "const": "learning_state_export_bundle" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "bundle_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/short_label" },
+        "family": { "$ref": "#/$defs/m5_learning_surface_family" },
+        "state_kind": { "$ref": "#/$defs/learnability_state_kind" },
+        "target_kind": { "$ref": "#/$defs/export_target_kind" },
+        "source_state_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the source state the bundle carries — the provenance trail."
+        },
+        "provenance_preserved": {
+          "type": "boolean",
+          "description": "Whether the export preserves provenance back to its source state. MUST be true."
+        },
+        "data_ownership": { "$ref": "#/$defs/data_ownership_class" },
+        "redaction": { "$ref": "#/$defs/redaction_posture" },
+        "source_language": { "$ref": "#/$defs/source_language_escape" },
+        "cached_pack": { "$ref": "#/$defs/cached_pack_continuity" },
+        "mutation_fence": { "$ref": "#/$defs/tutorial_mutation_fence" },
+        "safe_for_support_export": {
+          "type": "boolean",
+          "description": "Whether the bundle is safe to include in support exports."
+        },
+        "includes_progress_state": {
+          "type": "boolean",
+          "description": "Whether the bundle includes step-level progress state."
+        },
+        "user_initiated": {
+          "type": "boolean",
+          "description": "Whether the export was user-initiated. MUST be true — no silent exports."
+        },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": { "$ref": "#/$defs/reason_array" }
+      }
+    },
+    "learning_state_reset_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "plan_id",
+        "display_label",
+        "target_state_kinds",
+        "protected_classes",
+        "silently_deletes_outside_scope",
+        "restore_available",
+        "restore_window_disclosed",
+        "data_ownership",
+        "mutation_fence",
+        "safe_for_support_export",
+        "user_initiated",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "const": "learning_state_reset_plan" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "plan_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/short_label" },
+        "target_state_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/learnability_state_kind" },
+          "description": "The learnability classes this reset clears."
+        },
+        "protected_classes": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/protected_state_class" },
+          "description": "The classes this reset preserves. MUST include docs_pack, bookmark, and user_authored_note.",
+          "allOf": [
+            { "contains": { "const": "docs_pack" } },
+            { "contains": { "const": "bookmark" } },
+            { "contains": { "const": "user_authored_note" } }
+          ]
+        },
+        "silently_deletes_outside_scope": {
+          "type": "boolean",
+          "description": "Whether the reset may delete state outside its declared scope. MUST be false."
+        },
+        "restore_available": {
+          "type": "boolean",
+          "description": "Whether a restore is available after the reset. MUST be true — reset is reversible."
+        },
+        "restore_window_disclosed": {
+          "type": "boolean",
+          "description": "Whether the restore window is disclosed. MUST be true when restore_available is true."
+        },
+        "restore_command_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the command backing the restore. MUST be present when restore_available is true."
+        },
+        "data_ownership": { "$ref": "#/$defs/data_ownership_class" },
+        "mutation_fence": { "$ref": "#/$defs/tutorial_mutation_fence" },
+        "safe_for_support_export": {
+          "type": "boolean",
+          "description": "Whether the plan is safe to include in support exports."
+        },
+        "user_initiated": {
+          "type": "boolean",
+          "description": "Whether the reset was user-initiated. MUST be true — no silent resets."
+        },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": { "$ref": "#/$defs/reason_array" }
+      },
+      "allOf": [
+        {
+          "description": "A reset that offers a restore must disclose its window and back it with a command.",
+          "if": { "properties": { "restore_available": { "const": true } } },
+          "then": {
+            "required": ["restore_command_ref"],
+            "properties": { "restore_window_disclosed": { "const": true } }
+          }
+        }
+      ]
+    },
+    "m5_learning_state_portability_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "manifest_id",
+        "generated_at",
+        "contract_refs",
+        "export_bundles",
+        "reset_plans",
+        "overall_verdict"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_learning_state_portability_manifest" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Deterministic generation timestamp."
+        },
+        "contract_refs": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 },
+          "description": "Schema, docs, and contract refs this manifest consumes."
+        },
+        "export_bundles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/learning_state_export_bundle_record" }
+        },
+        "reset_plans": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/learning_state_reset_plan_record" }
+        },
+        "overall_verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "overall_narrowing_reasons": { "$ref": "#/$defs/reason_array" }
+      }
+    }
+  }
+}
