@@ -311,6 +311,16 @@
 //! family — while the contract-form, gap-reason, and release-blocking family sets stay fully
 //! covered, so claim manifests, Help/About, SDK/docs, support exports, and shiproom dashboards reuse
 //! one published-contract inventory and can fail promotion directly from the matrix.
+//! The implement-canonical-json-schema-packages module is the package-publication layer beneath that
+//! matrix: where the matrix records *whether* each family has published its contract forms, this
+//! catalog publishes the *JSON Schema package itself* for every M5 family the matrix puts forward as
+//! a JSON-Schema-backed contract — a checked-in schema under `schemas/public/m5-json/` with an
+//! explicit in-band version field, a lifecycle/stability label that equals the matrix's effective
+//! published label, a field-level compatibility contract (additive-field rule, required-field policy,
+//! unknown-field preservation, downgrade behavior, and migration-note hooks), an example payload, and
+//! a round-trip fixture — so export/import, support export, and docs/help resolve one schema
+//! identifier and one lifecycle label per family and durable artifacts round-trip without stripping
+//! unknown fields.
 //! The qualification-row badge-binding register is the publication layer over that matrix: for
 //! every M5 family it binds the machine-readable qualification row to the marketable artifacts that
 //! advertise it — a support-class badge that carries the published label, support class, live
@@ -391,6 +401,7 @@ pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgr
 pub mod harden_docs_help_about_and_service_health_truth;
 pub mod harden_the_critical_dependency_register_fork_replace_log_third_party_import_manifest_and_reuse_spdx_notice_coverage;
 pub mod harden_the_release_artifact_graph_with_one_build_identity_provenance_sbom_notices_attestation_and_mirror_parity;
+pub mod implement_canonical_json_schema_packages_explicit_version_fields_and_stability_labels_for_newly_stable_or_beta_m5_durable_artifacts;
 pub mod implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance;
 pub mod implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains;
 pub mod implement_promotion_timeline_records_immutable_digest_joins_release_center_headless_parity_and_break_glass_event_capture_for_m5_artifact_graphs;

@@ -94,3 +94,21 @@ contract claim:
 
 That matrix cites this evidence index back via its `evidence_index_ref`, so the
 contract-publication train and the certification train stay cross-linked.
+
+The canonical M5 JSON Schema catalog is registered under this evidence index
+beside the matrix. It publishes one checked-in JSON Schema package — with an
+explicit in-band version field, a lifecycle/stability label equal to the matrix's
+effective published label, a field-level compatibility contract, an example
+payload, and a round-trip fixture — for every durable M5 artifact family the
+matrix puts forward as a JSON-Schema-backed contract, so export, support, and
+docs/help resolve one schema identifier and lifecycle label per family:
+
+- `artifacts/contracts/m5-json-schema-catalog.json` (catalog)
+- `schemas/public/m5-json/` (published JSON Schema packages)
+- `schemas/public/m5-contracts/m5_json_schema_catalog.schema.json` (boundary schema)
+- `docs/sdk/m5-json-schema-catalog.md` (SDK catalog)
+- `docs/m5/implement-canonical-json-schema-packages-explicit-version-fields-and-stability-labels-for-newly-stable-or-beta-m5-durable-artifacts.md` (contract)
+- `artifacts/m5/implement-canonical-json-schema-packages-explicit-version-fields-and-stability-labels-for-newly-stable-or-beta-m5-durable-artifacts.md` (evidence)
+
+The catalog cites this evidence index back via its `evidence_index_ref`, so the
+JSON-Schema-package train stays cross-linked with the certification train.
