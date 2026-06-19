@@ -1,0 +1,413 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/m5-learning-mode-profiles.schema.json",
+  "title": "Aureline M5 learning-mode profiles",
+  "description": "Boundary schema for the learning-mode-profile manifest. A learning-mode profile is an opt-in, user-owned dial over Aureline's learnability surfaces: it tunes tip intensity, jargon level, educational-AI explanation posture, and a mutation guardrail, and records dismissals, bookmarks, lifecycle controls, and a change history. A profile MUST NOT change any authority boundary, drift the command graph, or store state anywhere but user-owned local-first storage; it MUST NOT force blocking onboarding (no expert is ever trapped). Scope is explicit: a profile is either user_local or workspace_opt_in, is never committed to the repository, and is never shared with collaborators, so onboarding preferences cannot leak into shared repo state. Educational AI keeps explain and do separate: any posture that can prepare a 'do' MUST route it through the standard preview/approval model and a guardrail that permits a fenced do; there is no unfenced mutation value. Progress (dismissals, bookmarks, change history) is user-owned, local-first, reversible, and inspectable in settings, Help/About, diagnostics, and support export — never hidden inside a transient overlay. Optional portable-profile sync is allowed only when disclosed; an undisclosed synced profile is a masquerade that narrows below Stable. Every profile exposes enable, disable, reset, and narrow controls (plus pause, snooze, resume); each control is command-backed, keyboard reachable, reversible, inspectable, never a silent write, and never mutates the workspace. Each profile's verdict is the strictest verdict folded from its safety, scope, ownership, exposure, control, and sync evidence; the manifest carries the narrowest overall verdict. Raw URLs, raw absolute paths, and raw credential material MUST NOT appear; the schema carries opaque ids, typed vocabulary, and short privacy-safe labels only. The surface-family taxonomy aligns with schemas/learning/m5-feature-family-learning-rails.schema.json and the posture/verdict vocabulary with schemas/learning/guided-learning-contracts.schema.json. Adding a new record_kind, preset, profile state, scope, tip intensity, jargon level, posture, guardrail, control kind, change kind, sync posture, or surface family is additive-minor; repurposing an existing value is breaking.",
+  "oneOf": [
+    { "$ref": "#/$defs/learning_mode_profile_record" },
+    { "$ref": "#/$defs/m5_learning_mode_profile_manifest_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for learning-mode-profile records. Current value is 1. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier. Raw URLs, raw absolute paths, and raw secret material MUST NOT appear."
+    },
+    "opaque_id_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, privacy-safe human-readable label."
+    },
+    "reason_array": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Named narrowing reasons. Empty when the verdict is qualified_stable."
+    },
+    "qualification_verdict": {
+      "type": "string",
+      "enum": ["qualified_stable", "narrowed_preview", "narrowed_beta", "absent"],
+      "description": "Derived lifecycle verdict for a profile or the overall manifest."
+    },
+    "learning_mode_preset": {
+      "type": "string",
+      "enum": ["expert_minimal", "balanced_default", "guided_learner"],
+      "description": "The named starting point a profile is derived from. Learner-facing presets keep explain-before-act on; only expert_minimal may opt out of forced pre-explanation (never out of the mutation fence)."
+    },
+    "profile_state": {
+      "type": "string",
+      "enum": ["disabled", "enabled", "paused", "snoozed", "reset_requested"],
+      "description": "Current lifecycle state of a learning-mode profile."
+    },
+    "profile_scope": {
+      "type": "string",
+      "enum": ["user_local", "workspace_opt_in"],
+      "description": "Whether a profile is owned by the user (portable across workspaces) or opt-in per workspace."
+    },
+    "tip_intensity": {
+      "type": "string",
+      "enum": ["silent_inline_only", "gentle_hint", "prompted_acknowledge"],
+      "description": "How insistently a profile surfaces tips. Every level is dismissable and inline-friendly; no level may block first useful work."
+    },
+    "jargon_level": {
+      "type": "string",
+      "enum": ["beginner", "intermediate", "advanced", "expert"],
+      "description": "How much specialist vocabulary a profile leaves unexplained."
+    },
+    "ai_explanation_posture": {
+      "type": "string",
+      "enum": ["explain_only", "explain_then_prepare_preview", "preview_only_after_explicit_do"],
+      "description": "How the educational AI behaves when it could prepare an action. Explain and do stay separate at every posture: any 'do' is a preview that still rides the standard preview/approval/rollback fence."
+    },
+    "mutation_guardrail": {
+      "type": "string",
+      "enum": ["explain_only_no_mutation", "preview_required", "approval_required", "blocked_until_trust"],
+      "description": "The guardrail in front of any mutation the educational AI or a guided surface would prepare. Every variant fences mutation; there is deliberately no unfenced value."
+    },
+    "control_kind": {
+      "type": "string",
+      "enum": ["enable", "disable", "pause", "snooze", "resume", "reset", "narrow"],
+      "description": "The kind of lifecycle transition a control performs."
+    },
+    "change_kind": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled",
+        "paused",
+        "snoozed",
+        "resumed",
+        "reset",
+        "narrowed",
+        "tip_intensity_changed",
+        "jargon_level_changed",
+        "scope_changed",
+        "ai_posture_changed",
+        "mutation_guardrail_changed"
+      ],
+      "description": "The kind of change captured by a change-history event."
+    },
+    "sync_posture": {
+      "type": "string",
+      "enum": ["local_only", "portable_profile_synced", "sync_blocked_by_policy"],
+      "description": "How a profile's state moves across machines. Local-only is live-authoritative; portable-profile sync is allowed only when disclosed and narrows below Stable."
+    },
+    "data_ownership_class": {
+      "type": "string",
+      "enum": ["user_owned_local_first", "repo_visible_shared", "telemetry_grade_shared"],
+      "description": "Ownership class of profile state. Only user_owned_local_first qualifies Stable."
+    },
+    "m5_learning_surface_family": {
+      "type": "string",
+      "enum": [
+        "notebook",
+        "request_workspace",
+        "database_workspace",
+        "profiler_trace",
+        "docs_browser",
+        "preview",
+        "template_scaffold",
+        "companion",
+        "sync_offboarding"
+      ],
+      "description": "One M5 feature family a profile applies to."
+    },
+    "scope_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "opt_in_explicit", "repo_committed", "shared_with_collaborators", "storage_location_ref"],
+      "properties": {
+        "scope": { "$ref": "#/$defs/profile_scope" },
+        "opt_in_explicit": {
+          "type": "boolean",
+          "description": "Whether the user explicitly opted this scope in. A workspace_opt_in profile MUST set this true."
+        },
+        "repo_committed": {
+          "type": "boolean",
+          "description": "Whether the profile is committed to the repository. MUST be false."
+        },
+        "shared_with_collaborators": {
+          "type": "boolean",
+          "description": "Whether the profile is shared with collaborators. MUST be false."
+        },
+        "storage_location_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "scope": { "const": "workspace_opt_in" } } },
+          "then": { "properties": { "opt_in_explicit": { "const": true } } }
+        }
+      ]
+    },
+    "dismissal_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reversible", "user_owned_local", "follows_profile_scope"],
+      "properties": {
+        "dismissed_surface_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "reversible": {
+          "type": "boolean",
+          "description": "Whether a dismissal can be undone. MUST be true."
+        },
+        "user_owned_local": {
+          "type": "boolean",
+          "description": "Whether the dismissal state is user-owned and local-first. MUST be true."
+        },
+        "follows_profile_scope": {
+          "type": "boolean",
+          "description": "Whether dismissals follow the owning profile's scope rather than leaking wider. MUST be true."
+        }
+      }
+    },
+    "bookmark_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_owned_local", "exportable_in_portable_profile"],
+      "properties": {
+        "bookmarked_surface_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "user_owned_local": {
+          "type": "boolean",
+          "description": "Whether the bookmark state is user-owned and local-first. MUST be true."
+        },
+        "exportable_in_portable_profile": {
+          "type": "boolean",
+          "description": "Whether bookmarks travel in the user's portable-profile export."
+        }
+      }
+    },
+    "profile_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_id",
+        "control_kind",
+        "command_id_ref",
+        "state_transition",
+        "reversible",
+        "inspectable",
+        "silent_write_allowed",
+        "mutates_workspace"
+      ],
+      "properties": {
+        "control_id": { "$ref": "#/$defs/opaque_id" },
+        "control_kind": { "$ref": "#/$defs/control_kind" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "state_transition": { "$ref": "#/$defs/short_label" },
+        "keyboard_shortcut_ref": { "$ref": "#/$defs/opaque_id" },
+        "reversible": {
+          "type": "boolean",
+          "description": "Whether the transition is reversible. MUST be true."
+        },
+        "inspectable": {
+          "type": "boolean",
+          "description": "Whether the control surfaces in the action log / inspector. MUST be true."
+        },
+        "silent_write_allowed": {
+          "type": "boolean",
+          "description": "Whether the control may write profile state silently. MUST be false."
+        },
+        "mutates_workspace": {
+          "type": "boolean",
+          "description": "Whether the control mutates workspace state. MUST be false."
+        }
+      }
+    },
+    "profile_change_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_id", "at", "change_kind", "from_state", "to_state", "user_initiated", "inspectable_in_support_export"],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Deterministic timestamp for the change."
+        },
+        "change_kind": { "$ref": "#/$defs/change_kind" },
+        "from_state": { "$ref": "#/$defs/short_label" },
+        "to_state": { "$ref": "#/$defs/short_label" },
+        "user_initiated": {
+          "type": "boolean",
+          "description": "Whether the change was user-initiated. MUST be true — no silent changes."
+        },
+        "inspectable_in_support_export": {
+          "type": "boolean",
+          "description": "Whether the event is visible in support export. MUST be true."
+        }
+      }
+    },
+    "surface_exposure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["in_settings", "in_help_about", "in_diagnostics", "in_support_export", "hidden_in_transient_overlay_only"],
+      "properties": {
+        "in_settings": { "type": "boolean", "description": "Visible in settings. MUST be true." },
+        "in_help_about": { "type": "boolean", "description": "Visible in Help/About. MUST be true." },
+        "in_diagnostics": { "type": "boolean", "description": "Visible in diagnostics. MUST be true." },
+        "in_support_export": { "type": "boolean", "description": "Visible in support export. MUST be true." },
+        "hidden_in_transient_overlay_only": {
+          "type": "boolean",
+          "description": "Whether the state is reachable only through a transient overlay. MUST be false."
+        }
+      }
+    },
+    "learning_mode_profile_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "profile_id",
+        "display_label",
+        "preset",
+        "profile_state",
+        "scope_binding",
+        "tip_intensity",
+        "jargon_level",
+        "ai_explanation_posture",
+        "mutation_guardrail",
+        "educational_ai_uses_standard_preview_approval",
+        "explain_before_act_default",
+        "authority_boundary_change_allowed",
+        "command_graph_unchanged",
+        "data_ownership",
+        "blocking_onboarding_allowed",
+        "sync_posture",
+        "sync_disclosed",
+        "dismissals",
+        "bookmarks",
+        "controls",
+        "exposure",
+        "applies_to_families",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "const": "learning_mode_profile" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "profile_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/short_label" },
+        "preset": { "$ref": "#/$defs/learning_mode_preset" },
+        "profile_state": { "$ref": "#/$defs/profile_state" },
+        "scope_binding": { "$ref": "#/$defs/scope_binding" },
+        "tip_intensity": { "$ref": "#/$defs/tip_intensity" },
+        "jargon_level": { "$ref": "#/$defs/jargon_level" },
+        "ai_explanation_posture": { "$ref": "#/$defs/ai_explanation_posture" },
+        "mutation_guardrail": { "$ref": "#/$defs/mutation_guardrail" },
+        "educational_ai_uses_standard_preview_approval": {
+          "type": "boolean",
+          "description": "Whether the educational AI routes any prepared 'do' through the standard preview/approval model. MUST be true."
+        },
+        "explain_before_act_default": {
+          "type": "boolean",
+          "description": "Whether explain-before-act is on by default. Learner presets MUST keep this true; only expert_minimal may turn it off."
+        },
+        "authority_boundary_change_allowed": {
+          "type": "boolean",
+          "description": "Whether the profile is allowed to change an authority boundary. MUST be false."
+        },
+        "command_graph_unchanged": {
+          "type": "boolean",
+          "description": "Whether the command graph stays unchanged under this profile. MUST be true."
+        },
+        "data_ownership": { "$ref": "#/$defs/data_ownership_class" },
+        "blocking_onboarding_allowed": {
+          "type": "boolean",
+          "description": "Whether the profile may force blocking onboarding. MUST be false — experts are never trapped."
+        },
+        "sync_posture": { "$ref": "#/$defs/sync_posture" },
+        "sync_disclosed": {
+          "type": "boolean",
+          "description": "Whether portable-profile sync is disclosed to the user. A synced profile MUST set this true."
+        },
+        "dismissals": { "$ref": "#/$defs/dismissal_state" },
+        "bookmarks": { "$ref": "#/$defs/bookmark_state" },
+        "controls": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/profile_control" },
+          "description": "Lifecycle controls. MUST include enable, disable, reset, and narrow."
+        },
+        "change_history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/profile_change_event" }
+        },
+        "exposure": { "$ref": "#/$defs/surface_exposure" },
+        "applies_to_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/m5_learning_surface_family" }
+        },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": { "$ref": "#/$defs/reason_array" }
+      },
+      "allOf": [
+        {
+          "description": "A do-capable posture must route its do through the standard preview/approval model and a guardrail that permits a fenced do.",
+          "if": {
+            "properties": {
+              "ai_explanation_posture": {
+                "enum": ["explain_then_prepare_preview", "preview_only_after_explicit_do"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "educational_ai_uses_standard_preview_approval": { "const": true },
+              "mutation_guardrail": {
+                "enum": ["preview_required", "approval_required", "blocked_until_trust"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A portable-profile-synced profile must disclose its sync.",
+          "if": { "properties": { "sync_posture": { "const": "portable_profile_synced" } } },
+          "then": { "properties": { "sync_disclosed": { "const": true } } }
+        }
+      ]
+    },
+    "m5_learning_mode_profile_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "manifest_id",
+        "generated_at",
+        "contract_refs",
+        "profiles",
+        "overall_verdict"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_learning_mode_profile_manifest" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Deterministic generation timestamp."
+        },
+        "contract_refs": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 },
+          "description": "Schema, docs, and contract refs this manifest consumes."
+        },
+        "profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/learning_mode_profile_record" }
+        },
+        "overall_verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "overall_narrowing_reasons": { "$ref": "#/$defs/reason_array" }
+      }
+    }
+  }
+}

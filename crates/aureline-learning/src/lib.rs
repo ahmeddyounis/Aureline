@@ -15,6 +15,7 @@
 
 pub mod freeze_m5_learnability_lane;
 pub mod guided_exercise_rails;
+pub mod learning_mode_profiles;
 pub mod m5_feature_family_learning_rails;
 pub mod qualify_learning_mode_guided_tours_and_teaching_sessions;
 pub mod tour_and_glossary_packages;
@@ -40,6 +41,19 @@ pub use guided_exercise_rails::{
     M5_GUIDED_EXERCISE_RAILS_DOC_REF, M5_GUIDED_EXERCISE_RAILS_FIXTURE_REF,
     M5_GUIDED_EXERCISE_RAILS_SCHEMA_REF, M5_GUIDED_EXERCISE_RAILS_SCHEMA_VERSION,
     M5_GUIDED_EXERCISE_RAIL_MANIFEST_RECORD_KIND, REQUIRED_ACTION_KINDS,
+};
+
+pub use learning_mode_profiles::{
+    derive_learning_mode_profile_verdict, reopen_profile_manifest_from_json,
+    seeded_m5_learning_mode_profiles, validate_m5_learning_mode_profiles, AiExplanationPosture,
+    BookmarkState, DismissalState, JargonLevel, LearningModePreset, LearningModeProfile,
+    LearningModeProfileValidationError, M5LearningModeProfileManifest, MutationGuardrail,
+    ProfileChangeEvent, ProfileChangeKind, ProfileControl, ProfileControlKind, ProfileScope,
+    ProfileState, ScopeBinding, SurfaceExposure, SyncPosture, TipIntensity,
+    LEARNING_MODE_PROFILE_RECORD_KIND, M5_LEARNING_MODE_PROFILES_ARTIFACT_REF,
+    M5_LEARNING_MODE_PROFILES_DOC_REF, M5_LEARNING_MODE_PROFILES_FIXTURE_REF,
+    M5_LEARNING_MODE_PROFILES_SCHEMA_REF, M5_LEARNING_MODE_PROFILES_SCHEMA_VERSION,
+    M5_LEARNING_MODE_PROFILE_MANIFEST_RECORD_KIND, REQUIRED_CONTROL_KINDS,
 };
 
 pub use m5_feature_family_learning_rails::{
