@@ -131,5 +131,8 @@ python3 "${REPO_ROOT}/tools/validate_m5_cli_output_catalog.py" | tee -a "${SUMMA
 printf '\n[contract-validation] validating M5 OpenAPI publication catalog\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/tools/validate_m5_openapi_catalog.py" | tee -a "${SUMMARY_PATH}"
 
+printf '\n[contract-validation] validating M5 contract catalog and sample payload galleries\n' | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/tools/validate_m5_contract_catalog.py" | tee -a "${SUMMARY_PATH}"
+
 printf '\n[contract-validation] validating source seed completion matrix\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/ci/check_source_seed_completion.py" --repo-root "${REPO_ROOT}" | tee -a "${SUMMARY_PATH}"

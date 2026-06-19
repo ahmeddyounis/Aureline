@@ -1,0 +1,100 @@
+# M5 contract catalog gate.
+#
+# Validates the checked-in M5 contract catalog: every published M5 contract
+# family the publication matrix tracks appears in the catalog with the lifecycle
+# label the matrix publishes after narrowing, a canonical schema/spec identifier,
+# a compatibility note, an offline/mirror posture that needs no live service, and
+# a checked-in sample payload gallery (nominal plus partial/not-provided, each
+# with field-by-field notes). Every JSON-Schema-backed gallery sample validates
+# against its published package schema. The gate confirms the catalog, galleries,
+# and docs match their regenerator (no drift), runs the Python validator, and runs
+# the typed Rust consumer's tests.
+
+name: check_m5_contract_catalog
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_contract_catalog.yml"
+      - "artifacts/contracts/m5-contract-catalog.json"
+      - "artifacts/contracts/m5-stability-lifecycle-map.json"
+      - "artifacts/contracts/m5-json-schema-catalog.json"
+      - "artifacts/contracts/m5-openapi-catalog.json"
+      - "artifacts/contracts/m5-wit-contract-publication.json"
+      - "artifacts/release/captures/ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity_validation_capture.json"
+      - "schemas/public/m5-contracts/m5_contract_catalog.schema.json"
+      - "schemas/public/m5-json/**"
+      - "examples/contracts/m5-gallery/**"
+      - "examples/contracts/m5/json/**"
+      - "fixtures/contracts/m5-contract-catalog/**"
+      - "docs/help/m5-public-contract-catalog.md"
+      - "docs/sdk/m5-contract-samples.md"
+      - "docs/m5/ship-contract-example-corpora-sample-payload-galleries-and-docs-help-sdk-catalogs-so-every-published-m5-contract-is-inspectable-with-offline-mirror-parity.md"
+      - "artifacts/m5/ship-contract-example-corpora-sample-payload-galleries-and-docs-help-sdk-catalogs-so-every-published-m5-contract-is-inspectable-with-offline-mirror-parity.md"
+      - "tools/regenerate_m5_contract_catalog.py"
+      - "tools/validate_m5_contract_catalog.py"
+      - "crates/aureline-release/src/ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity/**"
+      - "crates/aureline-release/src/bin/aureline_release_ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity.rs"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-contract-catalog-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_contract_catalog:
+    name: M5 Contract Catalog
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema PyYAML referencing
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Confirm the catalog matches its regenerator
+        run: |
+          python3 tools/regenerate_m5_contract_catalog.py
+          git diff --exit-code -- \
+            artifacts/contracts/m5-contract-catalog.json \
+            examples/contracts/m5-gallery \
+            fixtures/contracts/m5-contract-catalog \
+            docs/help/m5-public-contract-catalog.md \
+            docs/sdk/m5-contract-samples.md \
+            docs/m5/ship-contract-example-corpora-sample-payload-galleries-and-docs-help-sdk-catalogs-so-every-published-m5-contract-is-inspectable-with-offline-mirror-parity.md \
+            artifacts/m5/ship-contract-example-corpora-sample-payload-galleries-and-docs-help-sdk-catalogs-so-every-published-m5-contract-is-inspectable-with-offline-mirror-parity.md \
+            artifacts/release/captures/ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity_validation_capture.json
+
+      - name: Validate the M5 contract catalog
+        run: python3 tools/validate_m5_contract_catalog.py
+
+      - name: Run M5 contract catalog contract tests
+        run: cargo test -p aureline-release --test ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-contract-catalog-${{ github.run_id }}
+          path: artifacts/release/captures/ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
