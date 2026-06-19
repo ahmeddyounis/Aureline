@@ -1,0 +1,420 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/quality/diagnostic-source-and-collection.schema.json",
+  "title": "Aureline M5 diagnostic source descriptors and collection snapshots",
+  "description": "Export-safe packet binding diagnostic source descriptors (see schemas/quality/diagnostic-source-descriptor.schema.json) to per-surface collection snapshots (see schemas/quality/diagnostic-collection-snapshot.schema.json) across every claimed M5 diagnostic-producing surface. A source descriptor names the producer identity, tool version, target/environment fingerprint, confidence, and imported-versus-live origin across the editor_structural, language_service, build_or_task, runtime_or_test, scanner_import, policy, and heuristic families and survives normalization without flattening to a generic provider name. A collection snapshot names the workspace/workset/target scope analyzed, a completeness label, freshness, a streaming state with a resumable cursor, the materialized diagnostic refs, and the omitted scopes and reasons. A snapshot whose completeness cannot be established, whose freshness is unverified, whose streaming aborted, whose partial/filtered scope is undisclosed, whose streaming cursor is unresolved, or that cites no contributing source descriptor auto-downgrades to an effective qualification strictly below its claim with a recorded trigger and a precise degraded label. Raw source bytes, raw provider payloads, raw scanner reports, provider cursors, credentials, and raw artifact bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "packet_label",
+    "source_descriptors",
+    "snapshot_entries",
+    "guardrails",
+    "consumer_projection",
+    "evidence_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_diagnostic_source_and_collection" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "packet_label": { "$ref": "#/$defs/non_empty_string" },
+    "source_descriptors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/diagnostic_source" }
+    },
+    "snapshot_entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/snapshot_entry" }
+    },
+    "guardrails": { "$ref": "#/$defs/guardrails" },
+    "consumer_projection": { "$ref": "#/$defs/consumer_projection" },
+    "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "opaque_ref_nullable": {
+      "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+    },
+    "opaque_ref_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": [
+        "editor_structural",
+        "language_service",
+        "build_or_task",
+        "runtime_or_test",
+        "scanner_import",
+        "policy",
+        "heuristic"
+      ]
+    },
+    "evidence_plane_class": {
+      "type": "string",
+      "enum": [
+        "static_analysis",
+        "build_time_execution",
+        "runtime_or_test_execution",
+        "policy_or_trust_evaluation",
+        "imported_snapshot_evidence",
+        "heuristic_fallback"
+      ]
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "live_local_session",
+        "live_remote_session",
+        "managed_provider_live",
+        "imported_snapshot",
+        "replayed_support_bundle",
+        "local_cache"
+      ]
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "derived_structured",
+        "imported_authoritative",
+        "heuristic_parsed",
+        "correlated_suggestive",
+        "unknown_requires_review"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "advisory",
+        "fallback_only",
+        "inspect_only",
+        "unsupported"
+      ]
+    },
+    "m5_diagnostic_surface": {
+      "type": "string",
+      "enum": [
+        "notebook_cell_diagnostics",
+        "framework_pack_diagnostics",
+        "request_tooling_diagnostics",
+        "data_tooling_diagnostics",
+        "preview_runtime_diagnostics",
+        "package_lane_diagnostics",
+        "language_provider_diagnostics",
+        "editor_structural_diagnostics",
+        "imported_scanner_diagnostics"
+      ]
+    },
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_file",
+        "current_selection",
+        "current_root",
+        "selected_workset",
+        "workspace",
+        "review_diff",
+        "baseline_family",
+        "release_candidate"
+      ]
+    },
+    "completeness_class": {
+      "type": "string",
+      "enum": [
+        "complete_enumeration",
+        "partial_visible_scan",
+        "incremental_since_last",
+        "imported_snapshot_set",
+        "filtered_view",
+        "unknown_requires_review"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "recent",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "superseded",
+        "imported_snapshot",
+        "unverified"
+      ]
+    },
+    "streaming_state": {
+      "type": "string",
+      "enum": ["settled", "streaming", "paused_partial", "aborted"]
+    },
+    "omitted_scope_reason_class": {
+      "type": "string",
+      "enum": [
+        "outside_active_profile",
+        "filtered_by_suppression",
+        "excluded_from_selection",
+        "not_yet_scanned",
+        "analyzer_unavailable",
+        "policy_or_permission_withheld",
+        "target_unreachable",
+        "budget_or_timeout_cut"
+      ]
+    },
+    "qualification_class": {
+      "type": "string",
+      "enum": ["held", "preview", "beta", "stable"]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "unproven_freshness",
+        "unknown_completeness",
+        "undisclosed_partial_scope",
+        "unresolved_streaming_cursor",
+        "unnamed_omitted_scope",
+        "missing_contributing_source",
+        "aborted_collection"
+      ]
+    },
+    "diagnostic_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "diagnostic_source_schema_version",
+        "source_id",
+        "source_kind",
+        "evidence_plane_class",
+        "origin_class",
+        "confidence_class",
+        "support_class",
+        "producer_ref",
+        "tool_ref",
+        "tool_version_ref",
+        "adapter_ref",
+        "adapter_version_ref",
+        "target_or_environment_ref",
+        "originating_session_ref",
+        "import_ref",
+        "run_ref",
+        "task_ref",
+        "raw_payload_ref",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "diagnostic_source" },
+        "diagnostic_source_schema_version": { "type": "integer", "const": 1 },
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "evidence_plane_class": { "$ref": "#/$defs/evidence_plane_class" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "producer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "tool_ref": { "$ref": "#/$defs/non_empty_string" },
+        "tool_version_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "adapter_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "adapter_version_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "target_or_environment_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "originating_session_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "import_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "task_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "raw_payload_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "collection_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "workspace_ref"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "workspace_ref": { "$ref": "#/$defs/non_empty_string" },
+        "workset_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_or_environment_ref": { "$ref": "#/$defs/non_empty_string" },
+        "active_profile_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "streaming_cursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cursor_token", "emitted_count", "has_more", "summary"],
+      "properties": {
+        "cursor_token": { "$ref": "#/$defs/non_empty_string" },
+        "emitted_count": { "type": "integer", "minimum": 0 },
+        "has_more": { "type": "boolean" },
+        "resume_hint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "omitted_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_ref", "reason_class", "summary"],
+      "properties": {
+        "scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reason_class": { "$ref": "#/$defs/omitted_scope_reason_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "diagnostic_collection_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "diagnostic_collection_snapshot_schema_version",
+        "snapshot_id",
+        "snapshot_label",
+        "surface",
+        "scope",
+        "completeness_class",
+        "freshness_class",
+        "streaming_state",
+        "origin_class",
+        "created_at",
+        "diagnostic_refs",
+        "omitted_scopes",
+        "contributing_source_ids",
+        "completeness_disclosed",
+        "imported_not_shown_as_live",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "diagnostic_collection_snapshot" },
+        "diagnostic_collection_snapshot_schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "snapshot_id": { "$ref": "#/$defs/non_empty_string" },
+        "snapshot_label": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/m5_diagnostic_surface" },
+        "scope": { "$ref": "#/$defs/collection_scope" },
+        "completeness_class": { "$ref": "#/$defs/completeness_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "streaming_state": { "$ref": "#/$defs/streaming_state" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "created_at": { "$ref": "#/$defs/non_empty_string" },
+        "diagnostic_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "streaming_cursor": { "$ref": "#/$defs/streaming_cursor" },
+        "omitted_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/omitted_scope" }
+        },
+        "contributing_source_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "completeness_disclosed": { "type": "boolean" },
+        "imported_not_shown_as_live": { "type": "boolean" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "snapshot_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "snapshot",
+        "claimed_qualification",
+        "effective_qualification",
+        "evidence_refs",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "snapshot": { "$ref": "#/$defs/diagnostic_collection_snapshot" },
+        "claimed_qualification": { "$ref": "#/$defs/qualification_class" },
+        "effective_qualification": { "$ref": "#/$defs/qualification_class" },
+        "downgrade_trigger": { "$ref": "#/$defs/downgrade_trigger" },
+        "degraded_label": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "source_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unlike_sources_never_flattened",
+        "source_descriptors_survive_normalization",
+        "imported_live_class_explicit",
+        "target_environment_refs_preserved",
+        "completeness_label_always_present",
+        "omitted_scopes_named_with_reasons",
+        "ids_and_completeness_exportable",
+        "snapshots_auto_downgrade_on_weak_truth"
+      ],
+      "properties": {
+        "unlike_sources_never_flattened": { "type": "boolean" },
+        "source_descriptors_survive_normalization": { "type": "boolean" },
+        "imported_live_class_explicit": { "type": "boolean" },
+        "target_environment_refs_preserved": { "type": "boolean" },
+        "completeness_label_always_present": { "type": "boolean" },
+        "omitted_scopes_named_with_reasons": { "type": "boolean" },
+        "ids_and_completeness_exportable": { "type": "boolean" },
+        "snapshots_auto_downgrade_on_weak_truth": { "type": "boolean" }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "problems_shows_source_and_completeness",
+        "review_carries_source_and_completeness",
+        "saved_views_preserve_source_and_completeness",
+        "cli_headless_prints_source_and_completeness",
+        "support_export_carries_source_and_completeness",
+        "omitted_scopes_visible_on_every_surface"
+      ],
+      "properties": {
+        "problems_shows_source_and_completeness": { "type": "boolean" },
+        "review_carries_source_and_completeness": { "type": "boolean" },
+        "saved_views_preserve_source_and_completeness": { "type": "boolean" },
+        "cli_headless_prints_source_and_completeness": { "type": "boolean" },
+        "support_export_carries_source_and_completeness": { "type": "boolean" },
+        "omitted_scopes_visible_on_every_surface": { "type": "boolean" }
+      }
+    },
+    "evidence_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_freshness_slo_hours",
+        "last_evidence_refresh",
+        "auto_downgrade_on_stale"
+      ],
+      "properties": {
+        "evidence_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_evidence_refresh": { "$ref": "#/$defs/non_empty_string" },
+        "auto_downgrade_on_stale": { "type": "boolean" }
+      }
+    }
+  }
+}

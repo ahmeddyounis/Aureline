@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/quality/diagnostic-collection-snapshot.schema.json",
+  "title": "Aureline diagnostic collection snapshot",
+  "description": "Export-safe snapshot of a diagnostic finding set for one M5 diagnostic-producing surface. It names a snapshot id, the workspace/workset/target scope analyzed, a completeness label, freshness, a streaming state, a created-at clock, an active profile ref, the materialized diagnostic refs and/or a resumable streaming cursor, and the omitted scopes and reasons. A partial, filtered, streaming, or aborted snapshot can no longer masquerade as a complete whole-workspace enumeration: a non-complete, non-current, or streaming snapshot must carry a disclosure cue, and a partial/filtered/streaming snapshot must name at least one omitted scope with its reason. Imported or replayed evidence is never rendered as live local truth. Raw source bytes, raw provider payloads, provider cursors, credentials, and raw paths never cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/diagnostic_collection_snapshot",
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "opaque_ref_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "timestamp": { "$ref": "#/$defs/non_empty_string" },
+    "m5_diagnostic_surface": {
+      "type": "string",
+      "enum": [
+        "notebook_cell_diagnostics",
+        "framework_pack_diagnostics",
+        "request_tooling_diagnostics",
+        "data_tooling_diagnostics",
+        "preview_runtime_diagnostics",
+        "package_lane_diagnostics",
+        "language_provider_diagnostics",
+        "editor_structural_diagnostics",
+        "imported_scanner_diagnostics"
+      ]
+    },
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_file",
+        "current_selection",
+        "current_root",
+        "selected_workset",
+        "workspace",
+        "review_diff",
+        "baseline_family",
+        "release_candidate"
+      ]
+    },
+    "completeness_class": {
+      "type": "string",
+      "enum": [
+        "complete_enumeration",
+        "partial_visible_scan",
+        "incremental_since_last",
+        "imported_snapshot_set",
+        "filtered_view",
+        "unknown_requires_review"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "recent",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "superseded",
+        "imported_snapshot",
+        "unverified"
+      ]
+    },
+    "streaming_state": {
+      "type": "string",
+      "enum": ["settled", "streaming", "paused_partial", "aborted"]
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "live_local_session",
+        "live_remote_session",
+        "managed_provider_live",
+        "imported_snapshot",
+        "replayed_support_bundle",
+        "local_cache"
+      ]
+    },
+    "omitted_scope_reason_class": {
+      "type": "string",
+      "enum": [
+        "outside_active_profile",
+        "filtered_by_suppression",
+        "excluded_from_selection",
+        "not_yet_scanned",
+        "analyzer_unavailable",
+        "policy_or_permission_withheld",
+        "target_unreachable",
+        "budget_or_timeout_cut"
+      ]
+    },
+    "collection_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "workspace_ref"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "workspace_ref": { "$ref": "#/$defs/non_empty_string" },
+        "workset_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_or_environment_ref": { "$ref": "#/$defs/non_empty_string" },
+        "active_profile_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "streaming_cursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cursor_token", "emitted_count", "has_more", "summary"],
+      "properties": {
+        "cursor_token": { "$ref": "#/$defs/non_empty_string" },
+        "emitted_count": { "type": "integer", "minimum": 0 },
+        "has_more": { "type": "boolean" },
+        "resume_hint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "omitted_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_ref", "reason_class", "summary"],
+      "properties": {
+        "scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reason_class": { "$ref": "#/$defs/omitted_scope_reason_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "diagnostic_collection_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "diagnostic_collection_snapshot_schema_version",
+        "snapshot_id",
+        "snapshot_label",
+        "surface",
+        "scope",
+        "completeness_class",
+        "freshness_class",
+        "streaming_state",
+        "origin_class",
+        "created_at",
+        "diagnostic_refs",
+        "omitted_scopes",
+        "contributing_source_ids",
+        "completeness_disclosed",
+        "imported_not_shown_as_live",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "diagnostic_collection_snapshot" },
+        "diagnostic_collection_snapshot_schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "snapshot_id": { "$ref": "#/$defs/non_empty_string" },
+        "snapshot_label": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/m5_diagnostic_surface" },
+        "scope": { "$ref": "#/$defs/collection_scope" },
+        "completeness_class": { "$ref": "#/$defs/completeness_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "streaming_state": { "$ref": "#/$defs/streaming_state" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "diagnostic_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "streaming_cursor": { "$ref": "#/$defs/streaming_cursor" },
+        "omitted_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/omitted_scope" }
+        },
+        "contributing_source_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "completeness_disclosed": { "type": "boolean" },
+        "imported_not_shown_as_live": { "type": "boolean" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

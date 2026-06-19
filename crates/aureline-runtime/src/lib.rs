@@ -94,6 +94,23 @@
 //! lacks normalized provenance auto-downgrades below its claim with a recorded
 //! trigger and a precise label.
 //!
+//! [`m5_diagnostic_source_descriptors_and_collection_snapshots::DiagnosticSourceAndCollectionPacket`]
+//! answers a different honesty question: where did a finding set come from, what
+//! scope was actually analyzed, and what was omitted or still streaming when the
+//! user inspected it? It reuses the canonical
+//! [`diagnostics::DiagnosticSource`] descriptor — producer identity, tool
+//! version, target / environment fingerprint, confidence, raw-payload ref, and
+//! imported-versus-live origin across the editor-structural, language-service,
+//! build/task, runtime/test, scanner-import, policy, and heuristic families — and
+//! adds a new collection-snapshot object that names the workspace / workset /
+//! target scope, a completeness label, freshness, a streaming state with a
+//! resumable cursor, the materialized diagnostic refs, and the omitted scopes and
+//! reasons. A partial, filtered, streaming, or aborted snapshot auto-downgrades
+//! below its claim rather than masquerading as a complete whole-workspace
+//! enumeration, so Problems, review, saved views, CLI/headless, and support export
+//! preserve source and completeness truth instead of flattening it to a generic
+//! provider name.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -136,6 +153,7 @@ pub mod m5_adapter_hierarchy_negotiation;
 pub mod m5_automation_certification;
 pub mod m5_automation_contract_baseline;
 pub mod m5_cross_surface_event_reuse;
+pub mod m5_diagnostic_source_descriptors_and_collection_snapshots;
 pub mod m5_environment_status_strips;
 pub mod m5_event_interop_certification;
 pub mod m5_interop_conformance;
