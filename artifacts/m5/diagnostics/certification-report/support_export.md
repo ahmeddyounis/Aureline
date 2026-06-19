@@ -1,0 +1,72 @@
+# M5 Diagnostic-Truth Certification
+
+- Packet: `m5-diagnostic-truth-certification:stable:0001`
+- Label: `M5 Diagnostic-Truth Certification`
+- Rows: 8 (8 claimed, 1 imported, 1 narrowed)
+- Row kinds: 7 / 7
+- Dimensions certified: 5 / 5
+- Evidence freshness SLO: 168 hours (last refresh: 2026-06-19T00:00:00Z)
+
+## Rows
+
+- **diag-cert:notebook:0001** (notebook_row): claim `certified` -> effective `certified`
+  - Notebook row with current record, source, collection, remap, and quality-session proof
+  - subject `subject:diag-cert:notebook:0001` (source `runtime_or_test`, origin `live_local_session`), imported=false
+  - record_identity = `verified_current`
+  - source_descriptor = `verified_current`
+  - collection_snapshot = `verified_current`
+  - anchor_remap = `verified_current`
+  - quality_session = `verified_current`
+- **diag-cert:framework:0001** (framework_row): claim `certified` -> effective `certified`
+  - Framework row with current core proof and a current lint-autofix quality session
+  - subject `subject:diag-cert:framework:0001` (source `language_service`, origin `live_local_session`), imported=false
+  - record_identity = `verified_current`
+  - source_descriptor = `verified_current`
+  - collection_snapshot = `verified_current`
+  - anchor_remap = `verified_current`
+  - quality_session = `verified_current`
+- **diag-cert:request-data:0001** (request_data_row): claim `certified` -> effective `certified`
+  - Request/data-tooling row with current record, source, collection, and remap proof
+  - subject `subject:diag-cert:request-data:0001` (source `build_or_task`, origin `live_local_session`), imported=false
+  - record_identity = `verified_current`
+  - source_descriptor = `verified_current`
+  - collection_snapshot = `verified_current`
+  - anchor_remap = `verified_current`
+- **diag-cert:preview-runtime:0001** (preview_runtime_row): claim `certified` -> effective `certified`
+  - Preview/runtime row with current record, source, collection, and remap proof
+  - subject `subject:diag-cert:preview-runtime:0001` (source `runtime_or_test`, origin `live_local_session`), imported=false
+  - record_identity = `verified_current`
+  - source_descriptor = `verified_current`
+  - collection_snapshot = `verified_current`
+  - anchor_remap = `verified_current`
+- **diag-cert:package:0001** (package_row): claim `release_certified` -> effective `release_certified`
+  - Package row with current core proof and a current lockfile-mutation quality session
+  - subject `subject:diag-cert:package:0001` (source `policy`, origin `live_local_session`), imported=false
+  - record_identity = `verified_current`
+  - source_descriptor = `verified_current`
+  - collection_snapshot = `verified_current`
+  - anchor_remap = `verified_current`
+  - quality_session = `verified_current`
+- **diag-cert:imported-scanner:0001** (imported_scanner_row): claim `provisionally_certified` -> effective `provisionally_certified`
+  - Imported-scanner row held read-only with current imported proof that never reads as a live local rerun
+  - subject `subject:diag-cert:imported-scanner:0001` (source `scanner_import`, origin `imported_snapshot`), imported=true
+  - record_identity = `imported_current`
+  - source_descriptor = `imported_current`
+  - collection_snapshot = `imported_current`
+  - anchor_remap = `imported_current`
+  - quality_session = `imported_current`
+- **diag-cert:review-support-cli:0001** (review_support_cli_row): claim `release_certified` -> effective `release_certified`
+  - Review/support/CLI row that reopens the same record, source, collection, and remap evidence
+  - subject `subject:diag-cert:review-support-cli:0001` (source `editor_structural`, origin `live_local_session`), imported=false
+  - record_identity = `verified_current`
+  - source_descriptor = `verified_current`
+  - collection_snapshot = `verified_current`
+  - anchor_remap = `verified_current`
+- **diag-cert:framework:stale-collection:0001** (framework_row): claim `certified` -> effective `uncertified`
+  - Framework row whose collection snapshot aged outside its freshness window
+  - subject `subject:diag-cert:framework:stale-collection:0001` (source `language_service`, origin `live_local_session`), imported=false
+  - record_identity = `verified_current`
+  - source_descriptor = `verified_current`
+  - collection_snapshot = `stale_expired`
+  - anchor_remap = `verified_current`
+  - Narrowed: Collection snapshot aged outside its freshness window; held uncertified until a fresh enumeration re-backs the claim

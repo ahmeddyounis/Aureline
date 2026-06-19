@@ -188,6 +188,24 @@
 //! delta omit its note or its two sides impersonate one another, drops release-debt
 //! truth, or fails to downgrade a snapshot whose evidence does not back its claim.
 //!
+//! [`certify_m5_diagnostic_record_source_collection_remap_and_quality_session_truth::DiagnosticTruthCertificationPacket`]
+//! is the capstone gate over those lanes: it makes the normalized
+//! record/source/collection/remap/session model **release-bearing** per claimed M5
+//! diagnostic row — notebook, framework, request/data, preview/runtime, package,
+//! imported-scanner, and review/support/CLI. Each row certifies its record-identity,
+//! source-descriptor, collection-snapshot, anchor-remap, and (when it owns a
+//! mutating fix route) quality-session proof against a freshness window, naming a
+//! proof currency and a reopenable proof ref per dimension. A row that loses current
+//! proof — or leans on imported proof to back a local claim — auto-narrows to an
+//! effective grade strictly below its claim, with a recorded trigger and a precise
+//! label, and the narrowed set is published as a waiver-and-downgrade log. The
+//! validator refuses a packet that erases a finding's source kind, lets an imported
+//! scanner row read as a live local rerun, hides a partial/streaming collection,
+//! silently repairs an anchor instead of recording append-only remap evidence, or
+//! lets a mutating route bypass the typed quality-action lifecycle — so the editor,
+//! Problems, review, CLI/headless, support export, AI evidence, and release-visible
+//! debt ingest one certification instead of narrating diagnostic maturity by hand.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -200,6 +218,7 @@ pub mod build_intelligence;
 pub mod build_test_event_interoperability;
 pub mod capability_negotiation;
 pub mod capsule_resolver;
+pub mod certify_m5_diagnostic_record_source_collection_remap_and_quality_session_truth;
 pub mod certify_test_discovery_session_watch_coverage_flaky_snapshot_evidence_quality;
 pub mod cluster_m5_diagnostics_with_cross_source_dedupe_and_source_preserving_detail_sheets;
 pub mod coverage_overlays_and_snapshot_golden_review;
