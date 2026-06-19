@@ -128,6 +128,25 @@
 //! finding, drops a member's provenance, cannot recover a constituent, or
 //! serializes a lossy support export.
 //!
+//! [`record_anchor_remap_history_with_revision_pairs_and_drift_states_across_m5_lanes::AnchorRemapHistorySetPacket`]
+//! makes anchor drift explicit instead of silently dropping, "fixing", or
+//! relabeling findings when M5 artifacts move under edits, cell changes, generator
+//! churn, or imported-snapshot comparison. Where the canonical
+//! [`diagnostics::DiagnosticAnchorRemap`] carries a finding's *current* anchor and
+//! remap state, this lane records the append-only history that produced it: each
+//! [`record_anchor_remap_history_with_revision_pairs_and_drift_states_across_m5_lanes::AnchorRemapHistoryEntry`]
+//! pairs an old anchor ref with a new anchor ref, the resulting remap state
+//! (`exact`, `contextual`, `stale`, `unmapped`, or `imported_static`), the typed
+//! evidence basis that admitted it, a from/to revision pair, the actor/tool, and
+//! the drift lane (file edit, notebook cell identity change, generated-artifact
+//! churn, or imported scan/replay comparison). The history is sequence-ordered with
+//! continuous revision pairs and a continuous anchor chain, and the editor,
+//! Problems, review, CLI, and support surfaces each receive a projection exposing
+//! the current state and full trail. The validator refuses a history that is not
+//! append-only, silently repairs an anchor whose state disagrees with its evidence
+//! basis, breaks the anchor or revision chain, or hides the trail from a required
+//! surface.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -195,6 +214,7 @@ pub mod queue_governor_and_admission_control;
 pub mod queue_session_terminal_governance;
 pub mod recipe_builder;
 pub mod recipes;
+pub mod record_anchor_remap_history_with_revision_pairs_and_drift_states_across_m5_lanes;
 pub mod remote_helper_skew_beta;
 pub mod request_workspace;
 pub mod request_workspace_contracts;

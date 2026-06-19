@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/quality/anchor-remap-record.schema.json",
+  "title": "Aureline M5 anchor-remap history set",
+  "description": "Boundary schema for the M5 anchor-remap history set. Each history is the append-only remap trail for one anchor family of a normalized finding (schemas/quality/diagnostic-record.schema.json): every entry pairs an old anchor ref with a new anchor ref, a resulting remap state (exact, contextual, stale, unmapped, imported_static), the typed evidence basis that admitted it, a from/to revision pair, the actor/tool, and the drift lane (file edit, notebook cell identity change, generated-artifact churn, or imported scan/replay comparison). Anchor drift is explicit, never silently dropped or repaired: a remap state must match its evidence basis, the sequence and revision chains stay continuous, and the editor, Problems, review, CLI, and support surfaces each receive a projection exposing the current state and full trail. Raw source text, raw output bodies, raw logs, raw paths, raw URLs, command lines, provider payload bodies, and secret material never cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/anchor_remap_history_set",
+  "$defs": {
+    "set_schema_version": { "type": "integer", "const": 1 },
+    "record_schema_version": { "type": "integer", "const": 1 },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "opaque_ref": { "type": "string", "minLength": 1 },
+    "opaque_ref_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_ref" }
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "short_sentence": { "type": "string", "minLength": 1, "maxLength": 1200 },
+    "count": { "type": "integer", "minimum": 0 },
+    "remap_state_class": {
+      "type": "string",
+      "enum": ["exact", "contextual", "stale", "unmapped", "imported_static"]
+    },
+    "drift_lane_class": {
+      "type": "string",
+      "enum": [
+        "file_edit",
+        "notebook_cell_identity_change",
+        "generated_artifact_churn",
+        "imported_snapshot_comparison",
+        "imported_replay_comparison"
+      ]
+    },
+    "evidence_basis_class": {
+      "type": "string",
+      "enum": [
+        "exact_range_preserved",
+        "surrounding_context_match",
+        "stale_epoch_retained",
+        "no_mapping_found",
+        "imported_static_location"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "editor_edit_tracker",
+        "notebook_cell_tracker",
+        "generated_artifact_reprojector",
+        "imported_scan_comparator",
+        "replay_comparator"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": ["editor", "problems", "output", "review", "cli_explain", "ai_evidence", "support_export"]
+    },
+    "revision_pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from_revision_ref", "to_revision_ref"],
+      "properties": {
+        "from_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "to_revision_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "history_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "entry_id",
+        "sequence",
+        "drift_lane_class",
+        "remap_state_class",
+        "evidence_basis_class",
+        "evidence_basis_ref",
+        "revision_pair",
+        "actor_class",
+        "actor_tool_ref",
+        "imported_static",
+        "produced_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_anchor_remap_history_entry" },
+        "schema_version": { "$ref": "#/$defs/record_schema_version" },
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "sequence": { "$ref": "#/$defs/count" },
+        "drift_lane_class": { "$ref": "#/$defs/drift_lane_class" },
+        "old_anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "new_anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "remap_state_class": { "$ref": "#/$defs/remap_state_class" },
+        "evidence_basis_class": { "$ref": "#/$defs/evidence_basis_class" },
+        "evidence_basis_ref": { "$ref": "#/$defs/opaque_ref" },
+        "revision_pair": { "$ref": "#/$defs/revision_pair" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_tool_ref": { "$ref": "#/$defs/opaque_ref" },
+        "imported_static": { "type": "boolean" },
+        "produced_at": { "$ref": "#/$defs/timestamp" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "history_id",
+        "anchor_family_id",
+        "diagnostic_id",
+        "entries",
+        "append_only",
+        "current_state_class",
+        "drift_lanes",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_anchor_remap_history" },
+        "schema_version": { "$ref": "#/$defs/record_schema_version" },
+        "history_id": { "$ref": "#/$defs/opaque_id" },
+        "anchor_family_id": { "$ref": "#/$defs/opaque_id" },
+        "diagnostic_id": { "$ref": "#/$defs/opaque_id" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/history_entry" }
+        },
+        "append_only": { "type": "boolean", "const": true },
+        "current_state_class": { "$ref": "#/$defs/remap_state_class" },
+        "current_anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "drift_lanes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/drift_lane_class" }
+        },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "projection_id",
+        "history_id",
+        "anchor_family_id",
+        "diagnostic_id",
+        "surface_class",
+        "current_state_class",
+        "maps_cleanly",
+        "only_contextually_survives",
+        "dropped",
+        "imported_static",
+        "entry_count",
+        "disclosure_required",
+        "exposes_remap_history",
+        "exposes_current_state",
+        "raw_source_content_included",
+        "raw_payload_included",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_anchor_remap_surface_projection" },
+        "schema_version": { "$ref": "#/$defs/record_schema_version" },
+        "projection_id": { "$ref": "#/$defs/opaque_id" },
+        "history_id": { "$ref": "#/$defs/opaque_id" },
+        "anchor_family_id": { "$ref": "#/$defs/opaque_id" },
+        "diagnostic_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "current_state_class": { "$ref": "#/$defs/remap_state_class" },
+        "current_anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "maps_cleanly": { "type": "boolean" },
+        "only_contextually_survives": { "type": "boolean" },
+        "dropped": { "type": "boolean" },
+        "imported_static": { "type": "boolean" },
+        "entry_count": { "$ref": "#/$defs/count" },
+        "latest_evidence_basis_class": { "$ref": "#/$defs/evidence_basis_class" },
+        "latest_drift_lane_class": { "$ref": "#/$defs/drift_lane_class" },
+        "disclosure_required": { "type": "boolean" },
+        "exposes_remap_history": { "type": "boolean" },
+        "exposes_current_state": { "type": "boolean" },
+        "raw_source_content_included": { "type": "boolean", "const": false },
+        "raw_payload_included": { "type": "boolean", "const": false },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "history_export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "history_id",
+        "anchor_family_id",
+        "diagnostic_id",
+        "entry_ids",
+        "current_state_class"
+      ],
+      "properties": {
+        "history_id": { "$ref": "#/$defs/opaque_id" },
+        "anchor_family_id": { "$ref": "#/$defs/opaque_id" },
+        "diagnostic_id": { "$ref": "#/$defs/opaque_id" },
+        "entry_ids": { "$ref": "#/$defs/opaque_ref_list" },
+        "current_state_class": { "$ref": "#/$defs/remap_state_class" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "workspace_id",
+        "history_refs",
+        "history_trails",
+        "preserves_append_only_history",
+        "redaction_class",
+        "raw_source_content_included",
+        "raw_payload_included",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_anchor_remap_support_export" },
+        "schema_version": { "$ref": "#/$defs/record_schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "history_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "history_trails": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/history_export_row" }
+        },
+        "preserves_append_only_history": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "raw_source_content_included": { "type": "boolean", "const": false },
+        "raw_payload_included": { "type": "boolean", "const": false },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drift_never_silently_dropped",
+        "same_remap_vocabulary_across_lanes",
+        "history_is_append_only",
+        "history_is_exportable",
+        "imported_static_supported_for_snapshot_only",
+        "no_silent_anchor_repair",
+        "revision_pair_recorded_per_remap"
+      ],
+      "properties": {
+        "drift_never_silently_dropped": { "type": "boolean" },
+        "same_remap_vocabulary_across_lanes": { "type": "boolean" },
+        "history_is_append_only": { "type": "boolean" },
+        "history_is_exportable": { "type": "boolean" },
+        "imported_static_supported_for_snapshot_only": { "type": "boolean" },
+        "no_silent_anchor_repair": { "type": "boolean" },
+        "revision_pair_recorded_per_remap": { "type": "boolean" }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "editor_shows_remap_state",
+        "problems_shows_remap_state",
+        "review_shows_remap_history",
+        "cli_shows_remap_state",
+        "support_export_preserves_history"
+      ],
+      "properties": {
+        "editor_shows_remap_state": { "type": "boolean" },
+        "problems_shows_remap_state": { "type": "boolean" },
+        "review_shows_remap_history": { "type": "boolean" },
+        "cli_shows_remap_state": { "type": "boolean" },
+        "support_export_preserves_history": { "type": "boolean" }
+      }
+    },
+    "anchor_remap_history_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "set_label",
+        "workspace_id",
+        "histories",
+        "surface_projections",
+        "support_export",
+        "guardrails",
+        "consumer_projection",
+        "source_contract_refs",
+        "redaction_class_token",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_anchor_remap_history_set" },
+        "schema_version": { "$ref": "#/$defs/set_schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "set_label": { "$ref": "#/$defs/short_sentence" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "histories": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/history" }
+        },
+        "surface_projections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_projection" }
+        },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "guardrails": { "$ref": "#/$defs/guardrails" },
+        "consumer_projection": { "$ref": "#/$defs/consumer_projection" },
+        "source_contract_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "redaction_class_token": { "$ref": "#/$defs/opaque_id" },
+        "minted_at": { "$ref": "#/$defs/timestamp" }
+      }
+    }
+  }
+}
