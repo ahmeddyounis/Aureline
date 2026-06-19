@@ -368,6 +368,7 @@
 
 pub mod add_about_help_service_health_provenance_cards_with_signature_attestation_sbom_symbol_rollback_state_and_exact_build_identity_convergence_for_m5_artifacts;
 pub mod add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes;
+pub mod add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families;
 pub mod add_claim_publication_manifests_and_automatic_claim_narrowing_so_docs_release_notes_badges_cli_inspect_and_evaluation_packs_reuse_one_source_of_truth;
 pub mod add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces;
 pub mod add_forward_read_back_read_round_trip_and_migration_diff_suites_for_m5_workspace_state_evidence_support_appearance_learning_diagnostic_artifact_families;
@@ -521,6 +522,21 @@ pub use implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_
     M5ContractHealthViolation, MirrorParityState, PackageIdentity, PackageKind,
     M5_CONTRACT_HEALTH_JSON, M5_CONTRACT_HEALTH_PATH, M5_CONTRACT_HEALTH_RECORD_KIND,
     M5_CONTRACT_HEALTH_REGISTER_ID, M5_CONTRACT_HEALTH_SCHEMA_VERSION,
+};
+
+pub use add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families::{
+    current_m5_interchange_conformance_register, Blockers as InterchangeBlockers,
+    ConformanceClass, ConformanceRow, ConformanceState as InterchangeConformanceState,
+    ConsumerAgreement, ConsumerSurface,
+    DecisionState as InterchangeDecisionState, DegradedState, Dimension as InterchangeDimension,
+    DimensionKind as InterchangeDimensionKind, DimensionOutcome as InterchangeDimensionOutcome,
+    InterchangeDirection, LifecycleLabel as InterchangeLifecycleLabel,
+    M5InterchangeConformanceExportProjection, M5InterchangeConformanceExportRow,
+    M5InterchangeConformanceRegister, M5InterchangeConformanceSummary,
+    M5InterchangeConformanceViolation, ReasonCode, Runner as InterchangeRunner,
+    Validator as InterchangeValidator, M5_INTERCHANGE_CONFORMANCE_JSON,
+    M5_INTERCHANGE_CONFORMANCE_PATH, M5_INTERCHANGE_CONFORMANCE_RECORD_KIND,
+    M5_INTERCHANGE_CONFORMANCE_REGISTER_ID, M5_INTERCHANGE_CONFORMANCE_SCHEMA_VERSION,
 };
 
 pub use add_about_help_service_health_provenance_cards_with_signature_attestation_sbom_symbol_rollback_state_and_exact_build_identity_convergence_for_m5_artifacts::{

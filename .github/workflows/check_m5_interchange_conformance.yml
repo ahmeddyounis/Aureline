@@ -1,0 +1,99 @@
+# M5 interchange-conformance gate.
+#
+# Validates the checked-in M5 interchange-conformance register: every named M5
+# import/export family (request/API collections, notebook paired/parity exports,
+# docs packets, trace/profile/replay exports, support bundles, and portable-state
+# packages) appears with its import/export validator, its cross-surface conformance
+# runner and the real emitted artifact it exercises, the contract version and
+# lifecycle label its desktop, CLI/headless, and support/export consumers agree on,
+# and the stable, copy-safe reason codes an interchange failure reports. A
+# catalog-linked family's lifecycle label must equal the contract catalog's published
+# label, and a release-blocking family with a failing required conformance dimension
+# holds promotion. The gate confirms the register, the validator descriptors, the
+# emitted-artifact corpus, the conformance report, and the docs match their
+# regenerator (no drift), runs the Python validator, and runs the typed Rust
+# consumer's tests.
+
+name: check_m5_interchange_conformance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_interchange_conformance.yml"
+      - "artifacts/contracts/m5-interchange-conformance.json"
+      - "artifacts/contracts/m5-interchange-conformance.md"
+      - "artifacts/contracts/m5-contract-catalog.json"
+      - "artifacts/release/captures/add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families_validation_capture.json"
+      - "validators/m5-interchange/**"
+      - "fixtures/contracts/m5-interchange/**"
+      - "schemas/public/m5-contracts/m5_interchange_conformance.schema.json"
+      - "docs/help/m5-interchange-conformance.md"
+      - "docs/m5/add-import-export-validators-and-cross-surface-conformance-runners-for-m5-request-api-collections-notebook-parity-artifacts-docs-packets-trace-profile-replay-support-bundles-and-portable-state-packages.md"
+      - "artifacts/m5/add-import-export-validators-and-cross-surface-conformance-runners-for-m5-request-api-collections-notebook-parity-artifacts-docs-packets-trace-profile-replay-support-bundles-and-portable-state-packages.md"
+      - "tools/regenerate_m5_interchange_conformance.py"
+      - "tools/validate_m5_interchange_conformance.py"
+      - "crates/aureline-release/src/add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families/**"
+      - "crates/aureline-release/src/bin/aureline_release_add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families.rs"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-interchange-conformance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_interchange_conformance:
+    name: M5 Interchange Conformance
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema PyYAML referencing
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Confirm the register matches its regenerator
+        run: |
+          python3 tools/regenerate_m5_interchange_conformance.py
+          git diff --exit-code -- \
+            artifacts/contracts/m5-interchange-conformance.json \
+            artifacts/contracts/m5-interchange-conformance.md \
+            validators/m5-interchange \
+            fixtures/contracts/m5-interchange \
+            docs/help/m5-interchange-conformance.md \
+            docs/m5/add-import-export-validators-and-cross-surface-conformance-runners-for-m5-request-api-collections-notebook-parity-artifacts-docs-packets-trace-profile-replay-support-bundles-and-portable-state-packages.md \
+            artifacts/m5/add-import-export-validators-and-cross-surface-conformance-runners-for-m5-request-api-collections-notebook-parity-artifacts-docs-packets-trace-profile-replay-support-bundles-and-portable-state-packages.md \
+            artifacts/release/captures/add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families_validation_capture.json
+
+      - name: Validate the M5 interchange-conformance register
+        run: python3 tools/validate_m5_interchange_conformance.py
+
+      - name: Run M5 interchange-conformance contract tests
+        run: cargo test -p aureline-release --test add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-interchange-conformance-${{ github.run_id }}
+          path: artifacts/release/captures/add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
