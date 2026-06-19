@@ -10,6 +10,7 @@
 
 pub mod connectivity_state_and_deferred_intent;
 pub mod m5_backup_restore_failover_packets;
+pub mod m5_continuity_freshness_slo;
 pub mod m5_control_plane_vs_data_plane_outage;
 pub mod m5_key_mode_and_storage_posture;
 pub mod m5_locality_descriptors_and_tenant_cards;
@@ -105,6 +106,22 @@ pub use m5_locality_tenant_keymode_and_drill_matrix::{
     CONTINUITY_CLAIM_MATRIX_SCHEMA_REF, CONTINUITY_CLAIM_MATRIX_SCHEMA_VERSION,
     CONTINUITY_CLAIM_MATRIX_SHARED_CONTRACT_REF, CONTINUITY_CLAIM_MATRIX_SUMMARY_RECORD_KIND,
     CONTINUITY_CLAIM_MATRIX_SUPPORT_EXPORT_RECORD_KIND, CONTINUITY_CLAIM_ROW_OUTCOME_RECORD_KIND,
+};
+
+pub use m5_continuity_freshness_slo::{
+    audit_continuity_freshness_slo_dashboard, seeded_continuity_freshness_slo_dashboard,
+    seeded_continuity_freshness_slo_input, validate_continuity_freshness_slo_dashboard,
+    ContinuityFreshnessDefect, ContinuityFreshnessDefectKind, ContinuityFreshnessRow,
+    ContinuityFreshnessRowOutcome, ContinuityFreshnessRowState, ContinuityFreshnessSlo,
+    ContinuityFreshnessSloDashboard, ContinuityFreshnessSloInput, ContinuityFreshnessSloState,
+    ContinuityFreshnessSloSummary, ContinuityFreshnessSloSupportExport, ContinuityPromotionVerdict,
+    ContinuityProofPacket, ContinuityRerunPath, ContinuityStopAction, ContinuityStopReason,
+    ContinuityStopRule, RerunAutomationClass, CONTINUITY_FRESHNESS_DEFECT_RECORD_KIND,
+    CONTINUITY_FRESHNESS_ROW_OUTCOME_RECORD_KIND, CONTINUITY_FRESHNESS_SLO_ARTIFACT_REF,
+    CONTINUITY_FRESHNESS_SLO_DASHBOARD_RECORD_KIND, CONTINUITY_FRESHNESS_SLO_DOC_REF,
+    CONTINUITY_FRESHNESS_SLO_SCHEMA_REF, CONTINUITY_FRESHNESS_SLO_SCHEMA_VERSION,
+    CONTINUITY_FRESHNESS_SLO_SHARED_CONTRACT_REF, CONTINUITY_FRESHNESS_SLO_SUMMARY_RECORD_KIND,
+    CONTINUITY_FRESHNESS_SLO_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use m5_key_mode_and_storage_posture::{

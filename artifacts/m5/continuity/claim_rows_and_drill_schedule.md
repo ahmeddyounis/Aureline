@@ -70,3 +70,21 @@ Each drill mutates one seeded row and shows the claim narrowing automatically:
 - `fixtures/continuity/m5-continuity-profile-cases/drill_locality_undisclosed_beta.json`
 - `fixtures/continuity/m5-continuity-profile-cases/drill_local_only_overclaimed_preview.json`
 - `fixtures/continuity/m5-continuity-profile-cases/drill_partial_loss_undisclosed_beta.json`
+
+## Continuity-proof freshness SLO
+
+These claim rows state *what* each continuity claim discloses. *How fresh* the
+evidence behind each managed, self-hosted, or sovereign row still is — and when a
+stale, missing, unattested, or unrefreshable row narrows or holds promotion — is
+tracked by the continuity-proof freshness SLO dashboard, the canonical M5 source
+for continuity-proof freshness truth:
+
+- artifact: `artifacts/m5/continuity/freshness_slo_dashboard.json`
+- schema: `schemas/continuity/continuity_freshness_slo_dashboard.schema.json`
+- doc: `docs/release/m5-continuity-shiproom-gates.md`
+- rerun tool: `tools/continuity/run_drill_packets.py`
+- CI gate: `tools/check_m5_continuity_freshness.py`
+- stale-evidence fixtures: `fixtures/continuity/stale_evidence_cases/`
+
+The local-core continuity lane never narrows or blocks promotion when a managed
+continuity row goes stale; only the affected managed claim narrows.

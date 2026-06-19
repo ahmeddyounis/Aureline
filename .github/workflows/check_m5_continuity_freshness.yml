@@ -1,0 +1,81 @@
+# Continuity-proof freshness SLO and shiproom-blocker gate.
+#
+# Proves that every claimed managed, self-hosted, or sovereign continuity row
+# carries a freshness SLO and narrows or holds promotion automatically when its
+# proof packet is stale, missing, unattested, or unrefreshable — while the
+# local-core continuity lane never blocks on managed staleness. The gate
+# recomputes each packet's freshness state from captured_at against the dashboard
+# as_of clock and fails when a declared state is fresher than the clock allows or
+# when the checked-in dashboard drifts from the recompute. The crate audit, the
+# schema/fixture validator, and the freshness gate must all pass.
+
+name: check_m5_continuity_freshness
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_continuity_freshness.yml"
+      - "tools/check_m5_continuity_freshness.py"
+      - "tools/continuity/run_drill_packets.py"
+      - "tools/validate_m5_continuity_freshness_slo_fixtures.py"
+      - "schemas/continuity/continuity_freshness_slo_dashboard.schema.json"
+      - "fixtures/continuity/stale_evidence_cases/**"
+      - "artifacts/m5/continuity/freshness_slo_dashboard.json"
+      - "docs/release/m5-continuity-shiproom-gates.md"
+      - "crates/aureline-continuity/src/m5_continuity_freshness_slo/**"
+      - "crates/aureline-continuity/examples/dump_m5_continuity_freshness_slo_fixtures.rs"
+      - "crates/aureline-continuity/src/bin/aureline_continuity_freshness_inspect.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-continuity-freshness-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  continuity_freshness:
+    name: Continuity freshness SLO audit and shiproom gate
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-continuity-freshness-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-continuity-freshness-
+
+      - name: Run continuity freshness SLO audit
+        run: cargo test -p aureline-continuity --locked m5_continuity_freshness
+
+      - name: Validate freshness-SLO fixtures against schema
+        run: python3 tools/validate_m5_continuity_freshness_slo_fixtures.py
+
+      - name: Run continuity freshness shiproom gate
+        run: python3 tools/check_m5_continuity_freshness.py

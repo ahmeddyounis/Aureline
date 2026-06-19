@@ -1,0 +1,447 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/continuity/continuity_freshness_slo_dashboard.schema.json",
+  "title": "Aureline continuity-proof freshness SLO dashboard",
+  "description": "Canonical schema for the continuity-proof freshness SLO dashboard, drill rerun paths, and shiproom promotion blockers consumed by the shiproom gate, release center, docs/public-truth publication, and support exports. The dashboard tracks every claimed managed, self-hosted, and sovereign continuity row by the freshness SLO of its backing proof packet (current, due_for_refresh, breached, missing), the rerun path that refreshes it, and the drill owner who attests it; it narrows the claim and holds promotion when evidence is stale, missing, unattested, or has no rerun path, and never blocks the local-core continuity lane. The dashboard is metadata-only: it carries closed-vocabulary tokens, export-safe labels, UTC dates, and opaque refs. Raw backup bytes, raw drill logs, raw KMS handles, and secret material never appear. The root accepts a dashboard record, a summary record, or a support-export record, discriminated by record_kind.",
+  "oneOf": [
+    { "$ref": "#/$defs/dashboard" },
+    { "$ref": "#/$defs/summary" },
+    { "$ref": "#/$defs/support_export" }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "nullable_date": {
+      "type": ["string", "null"]
+    },
+    "profile_class": {
+      "type": "string",
+      "enum": ["managed", "self_hosted", "sovereign", "local_only"]
+    },
+    "continuity_lane": {
+      "type": "string",
+      "enum": ["local_core", "managed_lane"]
+    },
+    "packet_family": {
+      "type": "string",
+      "enum": ["backup", "restore", "failover", "snapshot_replication", "local_core_continuity"]
+    },
+    "qualification": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "freshness_slo_state": {
+      "type": "string",
+      "enum": ["current", "due_for_refresh", "breached", "missing"]
+    },
+    "row_state": {
+      "type": "string",
+      "enum": ["fresh", "due_for_refresh", "narrowed_stale", "narrowed_missing", "narrowed_unowned"]
+    },
+    "stop_reason": {
+      "type": "string",
+      "enum": [
+        "continuity_packet_freshness_breached",
+        "continuity_packet_missing",
+        "drill_owner_signoff_missing",
+        "rerun_path_unavailable",
+        "continuity_evidence_unqualified"
+      ]
+    },
+    "stop_action": {
+      "type": "string",
+      "enum": [
+        "hold_promotion",
+        "narrow_continuity_claim",
+        "rerun_continuity_drill",
+        "refresh_continuity_packet",
+        "request_drill_owner_signoff"
+      ]
+    },
+    "rerun_class": {
+      "type": "string",
+      "enum": ["automated_rerun", "scripted_refresh", "manual_runbook_only", "no_rerun_path"]
+    },
+    "defect_kind": {
+      "type": "string",
+      "enum": [
+        "freshness_window_inconsistent",
+        "packet_state_capture_incoherent",
+        "rerun_path_undeclared",
+        "local_core_marked_blocking",
+        "stop_reason_uncovered",
+        "promotion_verdict_incoherent"
+      ]
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["proceed", "hold"]
+    },
+    "surface_visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "about",
+        "help",
+        "service_health",
+        "support_export",
+        "docs_public_truth",
+        "partner_qualification"
+      ],
+      "properties": {
+        "about": { "type": "boolean" },
+        "help": { "type": "boolean" },
+        "service_health": { "type": "boolean" },
+        "support_export": { "type": "boolean" },
+        "docs_public_truth": { "type": "boolean" },
+        "partner_qualification": { "type": "boolean" }
+      }
+    },
+    "freshness_slo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_max_age_days", "warn_within_days", "slo_register_ref"],
+      "properties": {
+        "target_max_age_days": { "type": "integer", "minimum": 1 },
+        "warn_within_days": { "type": "integer", "minimum": 0 },
+        "slo_register_ref": { "$ref": "#/$defs/label" }
+      }
+    },
+    "proof_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_id",
+        "packet_ref",
+        "packet_family",
+        "packet_family_token",
+        "captured_at",
+        "freshness_slo",
+        "slo_state",
+        "slo_state_token",
+        "evidence_refs"
+      ],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_ref": { "$ref": "#/$defs/label" },
+        "packet_family": { "$ref": "#/$defs/packet_family" },
+        "packet_family_token": { "$ref": "#/$defs/packet_family" },
+        "captured_at": { "$ref": "#/$defs/nullable_date" },
+        "freshness_slo": { "$ref": "#/$defs/freshness_slo" },
+        "slo_state": { "$ref": "#/$defs/freshness_slo_state" },
+        "slo_state_token": { "$ref": "#/$defs/freshness_slo_state" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/label" }
+        }
+      }
+    },
+    "rerun_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rerun_class", "rerun_class_token", "rerun_command_ref", "last_rerun_at"],
+      "properties": {
+        "rerun_class": { "$ref": "#/$defs/rerun_class" },
+        "rerun_class_token": { "$ref": "#/$defs/rerun_class" },
+        "rerun_command_ref": { "$ref": "#/$defs/label" },
+        "last_rerun_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "surface_label",
+        "profile_class",
+        "profile_class_token",
+        "continuity_lane",
+        "continuity_lane_token",
+        "claimed_qualification",
+        "claimed_qualification_token",
+        "proof_packet",
+        "rerun",
+        "drill_owner_label",
+        "future_drill_owner_label",
+        "owner_signoff_present",
+        "evidence_unqualified",
+        "surface_visibility"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_label": { "$ref": "#/$defs/label" },
+        "profile_class": { "$ref": "#/$defs/profile_class" },
+        "profile_class_token": { "$ref": "#/$defs/profile_class" },
+        "continuity_lane": { "$ref": "#/$defs/continuity_lane" },
+        "continuity_lane_token": { "$ref": "#/$defs/continuity_lane" },
+        "claimed_qualification": { "$ref": "#/$defs/qualification" },
+        "claimed_qualification_token": { "$ref": "#/$defs/qualification" },
+        "proof_packet": { "$ref": "#/$defs/proof_packet" },
+        "rerun": { "$ref": "#/$defs/rerun_path" },
+        "drill_owner_label": { "$ref": "#/$defs/label" },
+        "future_drill_owner_label": { "$ref": "#/$defs/label" },
+        "owner_signoff_present": { "type": "boolean" },
+        "evidence_unqualified": { "type": "boolean" },
+        "surface_visibility": { "$ref": "#/$defs/surface_visibility" }
+      }
+    },
+    "stop_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "title",
+        "trigger_reason",
+        "trigger_reason_token",
+        "applies_to_qualification_tokens",
+        "default_action",
+        "default_action_token",
+        "blocks_promotion",
+        "rationale"
+      ],
+      "properties": {
+        "rule_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/label" },
+        "trigger_reason": { "$ref": "#/$defs/stop_reason" },
+        "trigger_reason_token": { "$ref": "#/$defs/stop_reason" },
+        "applies_to_qualification_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/qualification" }
+        },
+        "default_action": { "$ref": "#/$defs/stop_action" },
+        "default_action_token": { "$ref": "#/$defs/stop_action" },
+        "blocks_promotion": { "type": "boolean" },
+        "rationale": { "$ref": "#/$defs/label" }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dashboard_label",
+        "as_of",
+        "freshness_slo_register_ref",
+        "claim_matrix_ref",
+        "rows",
+        "stop_rules"
+      ],
+      "properties": {
+        "dashboard_label": { "$ref": "#/$defs/label" },
+        "as_of": { "$ref": "#/$defs/timestamp" },
+        "freshness_slo_register_ref": { "$ref": "#/$defs/label" },
+        "claim_matrix_ref": { "$ref": "#/$defs/label" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row" }
+        },
+        "stop_rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stop_rule" }
+        }
+      }
+    },
+    "row_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "profile_class_token",
+        "in_release_scope",
+        "within_slo",
+        "slo_state_token",
+        "row_state_token",
+        "claimed_qualification_token",
+        "effective_qualification_token",
+        "narrowed",
+        "blocks_promotion",
+        "rerun_automatable",
+        "active_stop_reason_tokens"
+      ],
+      "properties": {
+        "record_kind": { "const": "continuity_freshness_row_outcome_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "continuity:m5_continuity_freshness_slo:v1" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "profile_class_token": { "$ref": "#/$defs/profile_class" },
+        "in_release_scope": { "type": "boolean" },
+        "within_slo": { "type": "boolean" },
+        "slo_state_token": { "$ref": "#/$defs/freshness_slo_state" },
+        "row_state_token": { "$ref": "#/$defs/row_state" },
+        "claimed_qualification_token": { "$ref": "#/$defs/qualification" },
+        "effective_qualification_token": { "$ref": "#/$defs/qualification" },
+        "narrowed": { "type": "boolean" },
+        "blocks_promotion": { "type": "boolean" },
+        "rerun_automatable": { "type": "boolean" },
+        "active_stop_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stop_reason" }
+        }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_id",
+        "defect_kind",
+        "defect_kind_token",
+        "source",
+        "note"
+      ],
+      "properties": {
+        "record_kind": { "const": "continuity_freshness_defect_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "continuity:m5_continuity_freshness_slo:v1" },
+        "defect_id": { "$ref": "#/$defs/opaque_id" },
+        "defect_kind": { "$ref": "#/$defs/defect_kind" },
+        "defect_kind_token": { "$ref": "#/$defs/defect_kind" },
+        "source": { "$ref": "#/$defs/label" },
+        "note": { "$ref": "#/$defs/label" }
+      }
+    },
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "firing_rule_ids", "blocked_row_ids"],
+      "properties": {
+        "decision": { "$ref": "#/$defs/decision" },
+        "firing_rule_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "blocked_row_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "overall_decision_token",
+        "row_count",
+        "release_scope_row_count",
+        "local_core_row_count",
+        "within_slo_row_count",
+        "due_for_refresh_row_count",
+        "breached_row_count",
+        "missing_row_count",
+        "narrowed_row_count",
+        "blocked_row_count",
+        "stop_rules_firing_count",
+        "automatable_rerun_row_count",
+        "defect_count"
+      ],
+      "properties": {
+        "record_kind": { "const": "continuity_freshness_slo_summary_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "continuity:m5_continuity_freshness_slo:v1" },
+        "overall_decision_token": { "$ref": "#/$defs/decision" },
+        "row_count": { "type": "integer", "minimum": 0 },
+        "release_scope_row_count": { "type": "integer", "minimum": 0 },
+        "local_core_row_count": { "type": "integer", "minimum": 0 },
+        "within_slo_row_count": { "type": "integer", "minimum": 0 },
+        "due_for_refresh_row_count": { "type": "integer", "minimum": 0 },
+        "breached_row_count": { "type": "integer", "minimum": 0 },
+        "missing_row_count": { "type": "integer", "minimum": 0 },
+        "narrowed_row_count": { "type": "integer", "minimum": 0 },
+        "blocked_row_count": { "type": "integer", "minimum": 0 },
+        "stop_rules_firing_count": { "type": "integer", "minimum": 0 },
+        "automatable_rerun_row_count": { "type": "integer", "minimum": 0 },
+        "defect_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "dashboard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "dashboard_id",
+        "dashboard_label",
+        "generated_at",
+        "as_of",
+        "freshness_slo_register_ref",
+        "claim_matrix_ref",
+        "summary",
+        "promotion",
+        "defects",
+        "row_outcomes",
+        "input"
+      ],
+      "properties": {
+        "record_kind": { "const": "continuity_freshness_slo_dashboard_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "continuity:m5_continuity_freshness_slo:v1" },
+        "dashboard_id": { "$ref": "#/$defs/opaque_id" },
+        "dashboard_label": { "$ref": "#/$defs/label" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "as_of": { "$ref": "#/$defs/timestamp" },
+        "freshness_slo_register_ref": { "$ref": "#/$defs/label" },
+        "claim_matrix_ref": { "$ref": "#/$defs/label" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "promotion": { "$ref": "#/$defs/promotion" },
+        "defects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/defect" }
+        },
+        "row_outcomes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row_outcome" }
+        },
+        "input": { "$ref": "#/$defs/input" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "export_id",
+        "generated_at",
+        "dashboard",
+        "stop_reasons_present",
+        "defect_counts_by_kind",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "record_kind": { "const": "continuity_freshness_slo_support_export_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "continuity:m5_continuity_freshness_slo:v1" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "dashboard": { "$ref": "#/$defs/dashboard" },
+        "stop_reasons_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stop_reason" }
+        },
+        "defect_counts_by_kind": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    }
+  }
+}
