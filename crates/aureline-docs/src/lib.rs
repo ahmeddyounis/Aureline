@@ -26,6 +26,7 @@ pub mod implement_mirrored_docs_pack_recall_source_or_version_or_freshness_chips
 pub mod implement_scoped_browser_surfaces_for_docs_and_review_with_handoff_reason_return_path_and_trust_class_disclosu;
 pub mod index;
 pub mod locale_overlay;
+pub mod m5_docs_authoring_certification;
 pub mod maintenance;
 pub mod pack;
 pub mod semantic_recall_boundary_truth_packet;
@@ -359,6 +360,20 @@ pub use locale_overlay::{
     LOCALE_OVERLAY_SURFACE_FIXTURE_REF, LOCALE_OVERLAY_SURFACE_PROJECTION_RECORD_KIND,
     OPEN_IN_SOURCE_LANGUAGE_ACTION_LABEL, TRANSLATED_PACK_LOCALE_OVERLAY_CONTRACT_ID,
     TRANSLATED_PACK_LOCALE_OVERLAY_VERSION_REF,
+};
+pub use m5_docs_authoring_certification::{
+    certify_profile_row, current_stable_docs_authoring_cert_report, full_surface_coverage,
+    seeded_stable_docs_authoring_cert_input, seeded_stable_docs_authoring_cert_report,
+    CertCompatibilityReport, CertConsumerProjection, CertDowngradeAction, CertDowngradeRule,
+    CertDowngradeTrigger, CertFreshnessState, CertProofFreshness, CertQualificationClass,
+    CertTrustReview, CertVerdict, CertViolation, DocsAuthoringCertArtifactError,
+    DocsAuthoringCertIndex, DocsAuthoringCertReport, DocsAuthoringCertReportInput,
+    DocsAuthoringCertSurface, DocsAuthoringProfile, DocsAuthoringProfileRow, ProfileRowInput,
+    ProfileSurfaceCoverage, WaiverAndDowngradeLog, WaiverLogEntry, WaiverLogEntryKind,
+    DOCS_AUTHORING_CERT_ARTIFACT_REF, DOCS_AUTHORING_CERT_DOC_REF, DOCS_AUTHORING_CERT_FIXTURE_DIR,
+    DOCS_AUTHORING_CERT_RECORD_KIND, DOCS_AUTHORING_CERT_SCHEMA_REF,
+    DOCS_AUTHORING_CERT_SCHEMA_VERSION, DOCS_AUTHORING_CERT_SUMMARY_REF,
+    DOCS_AUTHORING_WAIVER_LOG_RECORD_KIND, DOCS_AUTHORING_WAIVER_LOG_REF,
 };
 pub use maintenance::{
     seeded_docs_preview_and_maintenance_contract,
