@@ -166,6 +166,28 @@
 //! mutating proposal's rollback boundary, or hides the truth from a required
 //! surface.
 //!
+//! [`m5_diagnostic_quality_snapshots_and_imported_versus_live_deltas::DiagnosticQualityParityPacket`]
+//! binds those threads into the governance state release-visible debt and
+//! support/export truth depend on. A
+//! [`m5_diagnostic_quality_snapshots_and_imported_versus_live_deltas::DiagnosticQualitySnapshot`]
+//! captures the active quality-profile ref and fingerprint, the rule-pack / tool
+//! versions in force, the recent collection ids, the suppression / baseline state
+//! and release-visible debt count, the imported scanner session refs, and the last
+//! save-participant outcomes, auto-downgrading below its claim when that evidence
+//! cannot be proven. A
+//! [`m5_diagnostic_quality_snapshots_and_imported_versus_live_deltas::DiagnosticDeltaPacket`]
+//! compares an imported SARIF / scanner / CI side against a live local rerun and
+//! states a compatibility verdict with explicit notes, so imported, CI, runtime,
+//! and local-rerun findings can never impersonate one another and a profile /
+//! rule-pack / tool / anchor mismatch blocks an exact-delta claim. The packet adds
+//! a release-debt projection that keeps owner / expiry / baseline / suppression
+//! truth assembled from the snapshots, and a consumer projection asserting
+//! Problems, review, CLI/headless, support export, AI evidence, and release debt
+//! all reference the same manifests. The validator refuses a packet that flattens
+//! unlike sources, renders imported evidence as live truth, lets a non-compatible
+//! delta omit its note or its two sides impersonate one another, drops release-debt
+//! truth, or fails to downgrade a snapshot whose evidence does not back its claim.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -209,6 +231,7 @@ pub mod m5_adapter_hierarchy_negotiation;
 pub mod m5_automation_certification;
 pub mod m5_automation_contract_baseline;
 pub mod m5_cross_surface_event_reuse;
+pub mod m5_diagnostic_quality_snapshots_and_imported_versus_live_deltas;
 pub mod m5_diagnostic_source_descriptors_and_collection_snapshots;
 pub mod m5_environment_status_strips;
 pub mod m5_event_interop_certification;

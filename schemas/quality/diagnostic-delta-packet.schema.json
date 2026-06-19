@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/quality/diagnostic-delta-packet.schema.json",
+  "title": "Aureline diagnostic imported-versus-live delta packet",
+  "description": "Export-safe comparison of two finding sides — an imported SARIF/scanner/CI snapshot against a live local rerun, a runtime finding against a static one, or two snapshots of the same class. Each side keeps its own imported-versus-live origin and freshness so the two sides can never impersonate one another. The packet states a compatibility verdict with explicit compatibility notes: anything short of an exact match must carry at least one note, and a profile/rule-pack/tool/anchor mismatch blocks an exact-delta claim. A comparison that crosses the imported/live boundary must carry distinct origin classes on its two sides. Recorded counts must match the per-finding deltas. Raw source bytes, raw provider payloads, provider cursors, credentials, and raw paths never cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/diagnostic_delta_packet",
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "opaque_ref_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": [
+        "editor_structural",
+        "language_service",
+        "build_or_task",
+        "runtime_or_test",
+        "scanner_import",
+        "policy",
+        "heuristic"
+      ]
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "live_local_session",
+        "live_remote_session",
+        "managed_provider_live",
+        "imported_snapshot",
+        "replayed_support_bundle",
+        "local_cache"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "recent",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "superseded",
+        "imported_snapshot",
+        "unverified"
+      ]
+    },
+    "comparison_basis_class": {
+      "type": "string",
+      "enum": [
+        "imported_vs_live_rerun",
+        "ci_vs_local_rerun",
+        "runtime_vs_static_analysis",
+        "imported_snapshot_vs_imported_snapshot",
+        "live_snapshot_vs_live_snapshot"
+      ]
+    },
+    "compatibility_class": {
+      "type": "string",
+      "enum": [
+        "compatible_exact",
+        "compatible_with_local_confirmation",
+        "blocked_profile_or_tool_mismatch",
+        "blocked_rule_pack_mismatch",
+        "blocked_anchor_mapping_uncertain",
+        "not_comparable_distinct_source",
+        "not_comparable_unknown_requires_review"
+      ]
+    },
+    "compatibility_note_class": {
+      "type": "string",
+      "enum": [
+        "profile_mismatch",
+        "rule_pack_version_skew",
+        "tool_version_skew",
+        "freshness_skew",
+        "anchor_mapping_uncertain",
+        "distinct_source_kind",
+        "scope_mismatch",
+        "baseline_family_mismatch"
+      ]
+    },
+    "finding_delta_state": {
+      "type": "string",
+      "enum": ["added", "resolved", "persisting", "suppressed", "waived", "unmapped"]
+    },
+    "delta_side": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "side_label",
+        "origin_class",
+        "freshness_class",
+        "source_kind",
+        "snapshot_ref",
+        "collection_ref",
+        "active_profile_ref",
+        "tool_version_refs",
+        "summary"
+      ],
+      "properties": {
+        "side_label": { "$ref": "#/$defs/non_empty_string" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "collection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "active_profile_ref": { "$ref": "#/$defs/non_empty_string" },
+        "tool_version_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "compatibility_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["note_class", "summary"],
+      "properties": {
+        "note_class": { "$ref": "#/$defs/compatibility_note_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "delta_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added", "resolved", "persisting", "suppressed_or_waived", "unmapped"],
+      "properties": {
+        "added": { "type": "integer", "minimum": 0 },
+        "resolved": { "type": "integer", "minimum": 0 },
+        "persisting": { "type": "integer", "minimum": 0 },
+        "suppressed_or_waived": { "type": "integer", "minimum": 0 },
+        "unmapped": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "finding_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_ref",
+        "delta_state",
+        "base_present",
+        "compare_present",
+        "comparable",
+        "summary"
+      ],
+      "properties": {
+        "finding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "delta_state": { "$ref": "#/$defs/finding_delta_state" },
+        "base_present": { "type": "boolean" },
+        "compare_present": { "type": "boolean" },
+        "comparable": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "diagnostic_delta_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "diagnostic_delta_packet_schema_version",
+        "delta_id",
+        "delta_label",
+        "comparison_basis_class",
+        "base_side",
+        "compare_side",
+        "compatibility_class",
+        "compatibility_notes",
+        "delta_counts",
+        "finding_deltas",
+        "impersonation_guarded",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "diagnostic_delta_packet" },
+        "diagnostic_delta_packet_schema_version": { "type": "integer", "const": 1 },
+        "delta_id": { "$ref": "#/$defs/non_empty_string" },
+        "delta_label": { "$ref": "#/$defs/non_empty_string" },
+        "comparison_basis_class": { "$ref": "#/$defs/comparison_basis_class" },
+        "base_side": { "$ref": "#/$defs/delta_side" },
+        "compare_side": { "$ref": "#/$defs/delta_side" },
+        "compatibility_class": { "$ref": "#/$defs/compatibility_class" },
+        "compatibility_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/compatibility_note" }
+        },
+        "delta_counts": { "$ref": "#/$defs/delta_counts" },
+        "finding_deltas": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding_delta" }
+        },
+        "impersonation_guarded": { "type": "boolean" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,475 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/quality/diagnostic-quality-parity.schema.json",
+  "title": "Aureline M5 diagnostic quality snapshots and imported-versus-live deltas",
+  "description": "Export-safe packet binding diagnostic-quality snapshots (see schemas/quality/diagnostic-quality-snapshot.schema.json) and imported-versus-live delta packets (see schemas/quality/diagnostic-delta-packet.schema.json) to one shared model. A snapshot captures the active quality-profile ref and fingerprint, the rule-pack/tool versions, the recent collection ids, the suppression/baseline state and release-visible debt count, the imported scanner session refs, and the last save-participant outcomes; a snapshot whose governance state is stale, unverified, or left a fix rolled back auto-downgrades to an effective qualification strictly below its claim with a recorded trigger and a precise degraded label. A delta packet compares two finding sides that keep distinct imported-versus-live origins and freshness, and states a compatibility verdict with explicit notes so imported, CI, runtime, and local-rerun findings can never impersonate one another. The release-debt projection retains owner/expiry/baseline/suppression truth assembled from the snapshots, and the consumer projection asserts Problems, review, CLI/headless, support export, AI evidence, and release-visible debt all reference the same manifests. Raw source bytes, raw provider payloads, raw scanner reports, provider cursors, credentials, and raw artifact bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "packet_label",
+    "snapshot_entries",
+    "delta_packets",
+    "release_debt_projection",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_diagnostic_quality_parity" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "packet_label": { "$ref": "#/$defs/non_empty_string" },
+    "snapshot_entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/quality_snapshot_entry" }
+    },
+    "delta_packets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/diagnostic_delta_packet" }
+    },
+    "release_debt_projection": { "$ref": "#/$defs/release_debt_projection" },
+    "guardrails": { "$ref": "#/$defs/guardrails" },
+    "consumer_projection": { "$ref": "#/$defs/consumer_projection" },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "opaque_ref_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "timestamp": { "$ref": "#/$defs/non_empty_string" },
+    "source_kind": {
+      "type": "string",
+      "enum": [
+        "editor_structural",
+        "language_service",
+        "build_or_task",
+        "runtime_or_test",
+        "scanner_import",
+        "policy",
+        "heuristic"
+      ]
+    },
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_file",
+        "current_selection",
+        "current_root",
+        "selected_workset",
+        "workspace",
+        "review_diff",
+        "baseline_family",
+        "release_candidate"
+      ]
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "live_local_session",
+        "live_remote_session",
+        "managed_provider_live",
+        "imported_snapshot",
+        "replayed_support_bundle",
+        "local_cache"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "recent",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "superseded",
+        "imported_snapshot",
+        "unverified"
+      ]
+    },
+    "save_participant_outcome_class": {
+      "type": "string",
+      "enum": [
+        "applied_clean",
+        "applied_with_followups",
+        "previewed_not_applied",
+        "blocked_requires_preview",
+        "failed_rolled_back",
+        "skipped"
+      ]
+    },
+    "qualification_class": {
+      "type": "string",
+      "enum": ["held", "preview", "beta", "stable"]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "stale_governance_state",
+        "unverified_governance_state",
+        "unresolved_save_participant"
+      ]
+    },
+    "comparison_basis_class": {
+      "type": "string",
+      "enum": [
+        "imported_vs_live_rerun",
+        "ci_vs_local_rerun",
+        "runtime_vs_static_analysis",
+        "imported_snapshot_vs_imported_snapshot",
+        "live_snapshot_vs_live_snapshot"
+      ]
+    },
+    "compatibility_class": {
+      "type": "string",
+      "enum": [
+        "compatible_exact",
+        "compatible_with_local_confirmation",
+        "blocked_profile_or_tool_mismatch",
+        "blocked_rule_pack_mismatch",
+        "blocked_anchor_mapping_uncertain",
+        "not_comparable_distinct_source",
+        "not_comparable_unknown_requires_review"
+      ]
+    },
+    "compatibility_note_class": {
+      "type": "string",
+      "enum": [
+        "profile_mismatch",
+        "rule_pack_version_skew",
+        "tool_version_skew",
+        "freshness_skew",
+        "anchor_mapping_uncertain",
+        "distinct_source_kind",
+        "scope_mismatch",
+        "baseline_family_mismatch"
+      ]
+    },
+    "finding_delta_state": {
+      "type": "string",
+      "enum": ["added", "resolved", "persisting", "suppressed", "waived", "unmapped"]
+    },
+    "collection_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "workspace_ref"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "workspace_ref": { "$ref": "#/$defs/non_empty_string" },
+        "workset_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_or_environment_ref": { "$ref": "#/$defs/non_empty_string" },
+        "active_profile_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "tool_version_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind",
+        "tool_ref",
+        "tool_version",
+        "rule_pack_ref",
+        "rule_pack_version",
+        "summary"
+      ],
+      "properties": {
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "tool_ref": { "$ref": "#/$defs/non_empty_string" },
+        "tool_version": { "$ref": "#/$defs/non_empty_string" },
+        "rule_pack_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rule_pack_version": { "$ref": "#/$defs/non_empty_string" },
+        "adapter_ref": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "save_participant_outcome_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "participant_ref",
+        "proposal_ref",
+        "action_token",
+        "outcome_class",
+        "preview_first_required",
+        "apply_blocked",
+        "observed_at",
+        "summary"
+      ],
+      "properties": {
+        "participant_ref": { "$ref": "#/$defs/non_empty_string" },
+        "proposal_ref": { "$ref": "#/$defs/non_empty_string" },
+        "action_token": { "$ref": "#/$defs/non_empty_string" },
+        "outcome_class": { "$ref": "#/$defs/save_participant_outcome_class" },
+        "preview_first_required": { "type": "boolean" },
+        "apply_blocked": { "type": "boolean" },
+        "observed_at": { "$ref": "#/$defs/timestamp" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "diagnostic_quality_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "diagnostic_quality_snapshot_schema_version",
+        "snapshot_id",
+        "snapshot_label",
+        "scope",
+        "origin_class",
+        "freshness_class",
+        "captured_at",
+        "active_profile_ref",
+        "profile_fingerprint",
+        "tool_versions",
+        "recent_collection_refs",
+        "suppression_refs",
+        "baseline_refs",
+        "release_visible_debt_count",
+        "imported_scanner_session_refs",
+        "save_participant_outcomes",
+        "source_descriptor_refs",
+        "imported_not_shown_as_live",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "diagnostic_quality_snapshot" },
+        "diagnostic_quality_snapshot_schema_version": { "type": "integer", "const": 1 },
+        "snapshot_id": { "$ref": "#/$defs/non_empty_string" },
+        "snapshot_label": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/collection_scope" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "active_profile_ref": { "$ref": "#/$defs/non_empty_string" },
+        "profile_fingerprint": { "$ref": "#/$defs/non_empty_string" },
+        "tool_versions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tool_version_row" }
+        },
+        "recent_collection_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "suppression_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "baseline_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "release_visible_debt_count": { "type": "integer", "minimum": 0 },
+        "imported_scanner_session_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "save_participant_outcomes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/save_participant_outcome_row" }
+        },
+        "source_descriptor_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "imported_not_shown_as_live": { "type": "boolean" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "quality_snapshot_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "snapshot",
+        "claimed_qualification",
+        "effective_qualification",
+        "evidence_refs"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "snapshot": { "$ref": "#/$defs/diagnostic_quality_snapshot" },
+        "claimed_qualification": { "$ref": "#/$defs/qualification_class" },
+        "effective_qualification": { "$ref": "#/$defs/qualification_class" },
+        "downgrade_trigger": { "$ref": "#/$defs/downgrade_trigger" },
+        "degraded_label": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "delta_side": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "side_label",
+        "origin_class",
+        "freshness_class",
+        "source_kind",
+        "snapshot_ref",
+        "collection_ref",
+        "active_profile_ref",
+        "tool_version_refs",
+        "summary"
+      ],
+      "properties": {
+        "side_label": { "$ref": "#/$defs/non_empty_string" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "collection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "active_profile_ref": { "$ref": "#/$defs/non_empty_string" },
+        "tool_version_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "compatibility_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["note_class", "summary"],
+      "properties": {
+        "note_class": { "$ref": "#/$defs/compatibility_note_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "delta_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added", "resolved", "persisting", "suppressed_or_waived", "unmapped"],
+      "properties": {
+        "added": { "type": "integer", "minimum": 0 },
+        "resolved": { "type": "integer", "minimum": 0 },
+        "persisting": { "type": "integer", "minimum": 0 },
+        "suppressed_or_waived": { "type": "integer", "minimum": 0 },
+        "unmapped": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "finding_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_ref",
+        "delta_state",
+        "base_present",
+        "compare_present",
+        "comparable",
+        "summary"
+      ],
+      "properties": {
+        "finding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "delta_state": { "$ref": "#/$defs/finding_delta_state" },
+        "base_present": { "type": "boolean" },
+        "compare_present": { "type": "boolean" },
+        "comparable": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "diagnostic_delta_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "diagnostic_delta_packet_schema_version",
+        "delta_id",
+        "delta_label",
+        "comparison_basis_class",
+        "base_side",
+        "compare_side",
+        "compatibility_class",
+        "compatibility_notes",
+        "delta_counts",
+        "finding_deltas",
+        "impersonation_guarded",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "diagnostic_delta_packet" },
+        "diagnostic_delta_packet_schema_version": { "type": "integer", "const": 1 },
+        "delta_id": { "$ref": "#/$defs/non_empty_string" },
+        "delta_label": { "$ref": "#/$defs/non_empty_string" },
+        "comparison_basis_class": { "$ref": "#/$defs/comparison_basis_class" },
+        "base_side": { "$ref": "#/$defs/delta_side" },
+        "compare_side": { "$ref": "#/$defs/delta_side" },
+        "compatibility_class": { "$ref": "#/$defs/compatibility_class" },
+        "compatibility_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/compatibility_note" }
+        },
+        "delta_counts": { "$ref": "#/$defs/delta_counts" },
+        "finding_deltas": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding_delta" }
+        },
+        "impersonation_guarded": { "type": "boolean" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "release_debt_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assembled_from_snapshots",
+        "owner_truth_preserved",
+        "expiry_truth_preserved",
+        "baseline_join_preserved",
+        "suppression_join_preserved",
+        "release_visible_debt_count",
+        "debt_source_refs",
+        "summary"
+      ],
+      "properties": {
+        "assembled_from_snapshots": { "type": "boolean" },
+        "owner_truth_preserved": { "type": "boolean" },
+        "expiry_truth_preserved": { "type": "boolean" },
+        "baseline_join_preserved": { "type": "boolean" },
+        "suppression_join_preserved": { "type": "boolean" },
+        "release_visible_debt_count": { "type": "integer", "minimum": 0 },
+        "debt_source_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unlike_sources_never_flattened",
+        "anchors_never_silently_repaired",
+        "imported_live_class_explicit",
+        "freshness_and_remap_states_explicit",
+        "policy_state_preserved",
+        "every_fix_route_is_typed_proposal",
+        "ids_and_completeness_exportable"
+      ],
+      "properties": {
+        "unlike_sources_never_flattened": { "type": "boolean" },
+        "anchors_never_silently_repaired": { "type": "boolean" },
+        "imported_live_class_explicit": { "type": "boolean" },
+        "freshness_and_remap_states_explicit": { "type": "boolean" },
+        "policy_state_preserved": { "type": "boolean" },
+        "every_fix_route_is_typed_proposal": { "type": "boolean" },
+        "ids_and_completeness_exportable": { "type": "boolean" }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "problems_references_shared_model",
+        "review_references_shared_model",
+        "cli_headless_references_shared_model",
+        "support_export_references_shared_model",
+        "ai_evidence_references_shared_model",
+        "release_debt_references_shared_model"
+      ],
+      "properties": {
+        "problems_references_shared_model": { "type": "boolean" },
+        "review_references_shared_model": { "type": "boolean" },
+        "cli_headless_references_shared_model": { "type": "boolean" },
+        "support_export_references_shared_model": { "type": "boolean" },
+        "ai_evidence_references_shared_model": { "type": "boolean" },
+        "release_debt_references_shared_model": { "type": "boolean" }
+      }
+    }
+  }
+}
