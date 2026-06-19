@@ -13,6 +13,7 @@
     clippy::vec_init_then_push
 )]
 
+pub mod educational_ai_and_contextual_cards;
 pub mod freeze_m5_learnability_lane;
 pub mod guided_exercise_rails;
 pub mod learning_mode_profiles;
@@ -20,6 +21,18 @@ pub mod m5_feature_family_learning_rails;
 pub mod progress_snapshots;
 pub mod qualify_learning_mode_guided_tours_and_teaching_sessions;
 pub mod tour_and_glossary_packages;
+
+pub use educational_ai_and_contextual_cards::{
+    derive_panel_verdict, derive_practice_indicator_verdict,
+    reopen_educational_ai_manifest_from_json, seeded_m5_educational_ai_and_practice,
+    validate_m5_educational_ai_and_practice, Citation, CitationKind, EducationalAiValidationError,
+    EducationalPanel, EducationalSurfaceKind, M5EducationalAiAndPracticeManifest, OfflineParity,
+    OpenResourceAction, OpenResourceKind, OverlayPresentation, PracticeIndicator,
+    PracticeSurfaceState, ResetBehavior, TruthSourceScope, EDUCATIONAL_PANEL_RECORD_KIND,
+    M5_EDUCATIONAL_AI_ARTIFACT_REF, M5_EDUCATIONAL_AI_DOC_REF, M5_EDUCATIONAL_AI_FIXTURE_REF,
+    M5_EDUCATIONAL_AI_MANIFEST_RECORD_KIND, M5_EDUCATIONAL_AI_SCHEMA_REF,
+    M5_EDUCATIONAL_AI_SCHEMA_VERSION, PRACTICE_INDICATOR_RECORD_KIND,
+};
 
 pub use freeze_m5_learnability_lane::{
     derive_lane_row_verdict, seeded_m5_learnability_lane_freeze, validate_m5_learnability_lane,
