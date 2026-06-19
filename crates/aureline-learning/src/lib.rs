@@ -9,10 +9,12 @@
 #![allow(
     clippy::large_enum_variant,
     clippy::new_without_default,
-    clippy::too_many_arguments
+    clippy::too_many_arguments,
+    clippy::vec_init_then_push
 )]
 
 pub mod freeze_m5_learnability_lane;
+pub mod guided_exercise_rails;
 pub mod m5_feature_family_learning_rails;
 pub mod qualify_learning_mode_guided_tours_and_teaching_sessions;
 pub mod tour_and_glossary_packages;
@@ -26,6 +28,18 @@ pub use freeze_m5_learnability_lane::{
     M5_LEARNABILITY_LANE_FIXTURE_REF, M5_LEARNABILITY_LANE_FREEZE_RECORD_KIND,
     M5_LEARNABILITY_LANE_SCHEMA_REF, M5_LEARNABILITY_LANE_SCHEMA_VERSION,
     VOCABULARY_ENTRY_RECORD_KIND,
+};
+
+pub use guided_exercise_rails::{
+    derive_exercise_rail_verdict, reopen_manifest_from_json as reopen_guided_exercise_manifest,
+    seeded_m5_guided_exercise_rails, validate_m5_guided_exercise_rails, CommandBacking,
+    ExerciseAction, ExerciseActionKind, ExerciseProgress, ExerciseStepKind, ExerciseStepRecord,
+    GuidedExerciseRail, GuidedExerciseRailValidationError, M5GuidedExerciseRailManifest,
+    MutationTarget, SandboxPreference, SuccessCriterion, SuccessCriterionKind,
+    GUIDED_EXERCISE_RAIL_RECORD_KIND, M5_GUIDED_EXERCISE_RAILS_ARTIFACT_REF,
+    M5_GUIDED_EXERCISE_RAILS_DOC_REF, M5_GUIDED_EXERCISE_RAILS_FIXTURE_REF,
+    M5_GUIDED_EXERCISE_RAILS_SCHEMA_REF, M5_GUIDED_EXERCISE_RAILS_SCHEMA_VERSION,
+    M5_GUIDED_EXERCISE_RAIL_MANIFEST_RECORD_KIND, REQUIRED_ACTION_KINDS,
 };
 
 pub use m5_feature_family_learning_rails::{

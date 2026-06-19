@@ -567,7 +567,7 @@ impl TourPackage {
 }
 
 /// Collects the citation anchor ids from a [`CitationProof`].
-fn citation_refs(citation: &CitationProof) -> Vec<String> {
+pub(crate) fn citation_refs(citation: &CitationProof) -> Vec<String> {
     citation
         .command_id_refs
         .iter()
@@ -580,7 +580,7 @@ fn citation_refs(citation: &CitationProof) -> Vec<String> {
 // ── Verdict derivation ────────────────────────────────────────────────────────
 
 /// Folds the freshness/mirror-parity posture shared by both package kinds.
-fn fold_freshness_and_parity(
+pub(crate) fn fold_freshness_and_parity(
     label: &str,
     freshness: FreshnessState,
     parity: &MirrorParityPosture,
@@ -605,7 +605,7 @@ fn fold_freshness_and_parity(
 }
 
 /// Folds the locale-overlay posture shared by both package kinds.
-fn fold_locale_overlays(
+pub(crate) fn fold_locale_overlays(
     label: &str,
     overlays: &[LocaleOverlay],
     verdict: &mut QualificationVerdict,

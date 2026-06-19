@@ -1,0 +1,468 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/m5-guided-exercise-rails.schema.json",
+  "title": "Aureline M5 guided-exercise rails",
+  "description": "Boundary schema for the guided-exercise-rail manifest. For each M5 feature family — notebook, request_workspace, database_workspace, profiler_trace, docs_browser, preview, template_scaffold, companion, sync_offboarding — the manifest binds one versioned guided-exercise rail. A rail is an ordered set of steps with success criteria, target file/surface refs, hint/reveal/reset/skip controls, user-owned progress, and an explicit sandbox/reversible preference. Each step names its explain-versus-do kind (explain, prepare_practice, apply_with_approval): explain and prepare-practice steps may open docs, preview a diff, or prepare practice in a sandbox, but MUST NOT touch real workspace state; only an apply_with_approval step may mutate the real workspace, and only through a command_backing that reuses the standard command id, preview sheet, approval path, and trust/policy check used outside learning mode. Hint/reveal/reset/skip controls MUST be inspectable, keyboard reachable, restart-safe, and non-mutating. Progress is local-by-default, restart-safe, resumable, and never repo-shared. Freshness state and the mirror-parity posture keep cached, mirror-synced, local-only, and stale rails explicitly disclosed so a non-live rail never masquerades as current live help. Locale overlays localize display labels for the same step ids and MUST NOT carry target refs or citation refs. Each rail's verdict is the strictest verdict folded from its freshness, mirror-parity, sandbox, privacy, progress, accessibility, citation, explain-versus-do, command-backing, mutation, and control evidence; the manifest carries the narrowest overall verdict. Raw URLs, raw absolute paths, and raw credential material MUST NOT appear; the schema carries opaque ids, typed vocabulary, and short privacy-safe labels only. The stable-target taxonomy aligns with schemas/help/m5-tour-and-glossary-packages.schema.json and the posture vocabulary with schemas/learning/guided-learning-contracts.schema.json. Adding a new record_kind, family, step kind, mutation target, success-criterion kind, action kind, target kind, source class, or freshness state is additive-minor; repurposing an existing value is breaking.",
+  "oneOf": [
+    { "$ref": "#/$defs/guided_exercise_rail_record" },
+    { "$ref": "#/$defs/m5_guided_exercise_rail_manifest_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for guided-exercise-rail records. Current value is 1. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier. Raw URLs, raw absolute paths, and raw secret material MUST NOT appear."
+    },
+    "opaque_id_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "qualification_verdict": {
+      "type": "string",
+      "enum": ["qualified_stable", "narrowed_preview", "narrowed_beta", "absent"],
+      "description": "Derived lifecycle verdict for a rail or the overall manifest."
+    },
+    "explain_apply_class": {
+      "type": "string",
+      "enum": ["fully_separated", "apply_requires_approval", "read_only", "conflated"],
+      "description": "Explain-versus-apply separation class. 'conflated' narrows below Stable."
+    },
+    "m5_learning_surface_family": {
+      "type": "string",
+      "enum": [
+        "notebook",
+        "request_workspace",
+        "database_workspace",
+        "profiler_trace",
+        "docs_browser",
+        "preview",
+        "template_scaffold",
+        "companion",
+        "sync_offboarding"
+      ],
+      "description": "One M5 feature family that ships a guided-exercise rail."
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "command_id",
+        "file_object_id",
+        "symbol_object_id",
+        "docs_node_id",
+        "graph_node_id",
+        "surface_object_id"
+      ],
+      "description": "The kind of stable product object a step or criterion points at."
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "project_docs",
+        "mirrored_official_docs",
+        "curated_knowledge_pack",
+        "semantic_graph"
+      ],
+      "description": "Where a rail's content originates."
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "live_authoritative",
+        "mirror_synced_disclosed",
+        "cached_disclosed",
+        "local_only_disclosed",
+        "stale_disclosed"
+      ],
+      "description": "How current the rail's content is relative to the live authoritative source. A non-live state MUST be disclosed so a cached or mirrored rail never masquerades as live."
+    },
+    "step_kind": {
+      "type": "string",
+      "enum": ["explain", "prepare_practice", "apply_with_approval"],
+      "description": "Explain-versus-do kind. Only 'apply_with_approval' may touch real workspace state."
+    },
+    "mutation_target": {
+      "type": "string",
+      "enum": [
+        "no_mutation",
+        "sandboxed_local_reversible",
+        "workspace_reversible_approved",
+        "workspace_irreversible_approved"
+      ],
+      "description": "The blast radius a step touches. 'workspace_irreversible_approved' is honest but narrows below Stable because reversibility cannot be proved."
+    },
+    "success_criterion_kind": {
+      "type": "string",
+      "enum": [
+        "file_exists",
+        "file_content_matches",
+        "symbol_present",
+        "command_ran",
+        "output_matches",
+        "docs_opened",
+        "surface_state_reached",
+        "diff_previewed"
+      ],
+      "description": "The kind of deterministic check a success criterion performs."
+    },
+    "exercise_action_kind": {
+      "type": "string",
+      "enum": ["hint", "reveal", "reset", "skip", "next", "previous"],
+      "description": "Which inspectable learning control this is."
+    },
+    "stable_target_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_kind", "target_id"],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "A reference to one stable product object — never a raw URL, raw path, or pixel coordinate."
+    },
+    "package_version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version_ref", "revision_ref"],
+      "properties": {
+        "version_ref": { "$ref": "#/$defs/opaque_id" },
+        "revision_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Published-version and exact-content-revision identity for a rail."
+    },
+    "mirror_parity_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "available_offline",
+        "available_on_mirror",
+        "freshness_label",
+        "explicit_freshness_disclosed",
+        "silent_dead_link_on_stale"
+      ],
+      "properties": {
+        "available_offline": { "type": "boolean" },
+        "available_on_mirror": { "type": "boolean" },
+        "freshness_label": { "$ref": "#/$defs/freshness_state" },
+        "explicit_freshness_disclosed": { "type": "boolean" },
+        "silent_dead_link_on_stale": {
+          "type": "boolean",
+          "description": "Whether the rail shows a silent dead link when stale/offline. MUST be false."
+        },
+        "narrowing_reason": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Offline and mirror-aware availability posture. Its freshness_label MUST agree with the rail's freshness_state."
+    },
+    "locale_overlay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locale_tag", "localized_label_refs", "preserves_target_identity", "preserves_citations"],
+      "properties": {
+        "locale_tag": { "type": "string", "minLength": 2 },
+        "localized_label_refs": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/opaque_id" },
+          "description": "Localized display-label refs keyed by base step id."
+        },
+        "preserves_target_identity": {
+          "type": "boolean",
+          "description": "Whether the overlay carries no target refs. MUST be true."
+        },
+        "preserves_citations": {
+          "type": "boolean",
+          "description": "Whether the overlay carries no citation refs. MUST be true."
+        },
+        "narrowing_reason": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "A localization overlay. Localization changes display copy only, never target identity or citations."
+    },
+    "citation_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["has_citation", "command_id_refs", "docs_citation_anchor_refs", "symbol_linked_refs", "all_anchors_live_authoritative"],
+      "properties": {
+        "has_citation": { "type": "boolean" },
+        "command_id_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "docs_citation_anchor_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "symbol_linked_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "all_anchors_live_authoritative": { "type": "boolean" },
+        "narrowing_reason": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Proof that a step cites at least one canonical anchor and whether every anchor is live-authoritative."
+    },
+    "privacy_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["progress_local_by_default", "explicit_promotion_required_for_sharing", "repo_visible", "telemetry_grade_read_access"],
+      "properties": {
+        "progress_local_by_default": { "type": "boolean" },
+        "explicit_promotion_required_for_sharing": { "type": "boolean" },
+        "repo_visible": { "type": "boolean", "description": "MUST be false." },
+        "telemetry_grade_read_access": { "type": "boolean", "description": "MUST be false." },
+        "narrowing_reason": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Privacy posture. Progress stays local/private unless explicitly promoted."
+    },
+    "accessibility_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["keyboard_reachable", "screen_reader_narration", "reset_skip_keyboard_accessible", "offline_degradation_accessible", "reduced_motion_honored"],
+      "properties": {
+        "keyboard_reachable": { "type": "boolean" },
+        "screen_reader_narration": { "type": "boolean" },
+        "reset_skip_keyboard_accessible": { "type": "boolean" },
+        "offline_degradation_accessible": { "type": "boolean" },
+        "reduced_motion_honored": { "type": "boolean" }
+      },
+      "description": "Accessibility coverage. reset/skip keyboard accessibility is required for a Stable rail."
+    },
+    "sandbox_preference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prefers_sandbox", "sandbox_available", "reversible_by_default", "real_workspace_mutation_requires_explicit_optin"],
+      "properties": {
+        "prefers_sandbox": { "type": "boolean" },
+        "sandbox_available": { "type": "boolean" },
+        "reversible_by_default": { "type": "boolean", "description": "MUST be true for a Stable rail." },
+        "real_workspace_mutation_requires_explicit_optin": { "type": "boolean", "description": "MUST be true for a Stable rail." },
+        "narrowing_reason": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "A rail's sandbox and reversibility preference."
+    },
+    "command_backing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uses_standard_command_model"],
+      "properties": {
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "preview_sheet_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_path_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_policy_check_ref": { "$ref": "#/$defs/opaque_id" },
+        "uses_standard_command_model": { "type": "boolean" },
+        "narrowing_reason": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Proof a step routes through the standard command/preview/approval/trust model. Explain and prepare-practice steps use uses_standard_command_model: false with no command refs."
+    },
+    "command_backing_for_apply": {
+      "type": "object",
+      "required": ["command_id_ref", "preview_sheet_ref", "approval_path_ref", "trust_policy_check_ref", "uses_standard_command_model"],
+      "properties": {
+        "uses_standard_command_model": { "const": true }
+      },
+      "description": "Additional constraints an apply_with_approval step's command_backing MUST satisfy: a command id, preview sheet, approval path, trust/policy check, and uses_standard_command_model: true."
+    },
+    "success_criterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["criterion_id", "criterion_kind", "check_ref", "description_ref"],
+      "properties": {
+        "criterion_id": { "$ref": "#/$defs/opaque_id" },
+        "criterion_kind": { "$ref": "#/$defs/success_criterion_kind" },
+        "check_ref": { "$ref": "#/$defs/opaque_id" },
+        "target": { "$ref": "#/$defs/stable_target_ref" },
+        "description_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "One deterministic, inspectable check a step is measured against."
+    },
+    "exercise_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_kind", "label_ref", "inspectable", "restart_safe", "mutates_workspace"],
+      "properties": {
+        "action_kind": { "$ref": "#/$defs/exercise_action_kind" },
+        "label_ref": { "$ref": "#/$defs/opaque_id" },
+        "keyboard_shortcut_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "inspectable": { "type": "boolean" },
+        "restart_safe": { "type": "boolean" },
+        "mutates_workspace": { "type": "boolean", "description": "MUST be false — controls are learning affordances, never mutating shortcuts." },
+        "narrowing_reason": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "One inspectable, keyboard-reachable, restart-safe learning control bound to a step."
+    },
+    "exercise_progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_step_index", "completed_step_ids", "skipped_step_ids", "survives_restart", "resumable", "user_owned_local", "shared_with_repo"],
+      "properties": {
+        "current_step_index": { "type": "integer", "minimum": 0 },
+        "completed_step_ids": { "$ref": "#/$defs/opaque_id_array" },
+        "skipped_step_ids": { "$ref": "#/$defs/opaque_id_array" },
+        "progress_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "survives_restart": { "type": "boolean" },
+        "resumable": { "type": "boolean" },
+        "user_owned_local": { "type": "boolean" },
+        "shared_with_repo": { "type": "boolean", "description": "MUST be false." },
+        "narrowing_reason": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "User-owned, restart-safe, resumable progress for one rail."
+    },
+    "exercise_step_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "position_index",
+        "title_ref",
+        "step_kind",
+        "stable_targets",
+        "success_criteria",
+        "citation",
+        "explain_apply_class",
+        "mutation_target",
+        "command_backing",
+        "hint_refs",
+        "actions"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "position_index": { "type": "integer", "minimum": 0 },
+        "title_ref": { "$ref": "#/$defs/opaque_id" },
+        "step_kind": { "$ref": "#/$defs/step_kind" },
+        "stable_targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_target_ref" },
+          "description": "Target file/surface refs — at least one; no coordinate-only steps."
+        },
+        "success_criteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/success_criterion" }
+        },
+        "citation": { "$ref": "#/$defs/citation_proof" },
+        "explain_apply_class": { "$ref": "#/$defs/explain_apply_class" },
+        "mutation_target": { "$ref": "#/$defs/mutation_target" },
+        "command_backing": { "$ref": "#/$defs/command_backing" },
+        "hint_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "reveal_ref": { "$ref": "#/$defs/opaque_id" },
+        "actions": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/exercise_action" },
+          "description": "Inspectable controls. MUST include hint, reveal, reset, and skip."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "step_kind": { "const": "apply_with_approval" } },
+            "required": ["step_kind"]
+          },
+          "then": {
+            "properties": { "command_backing": { "$ref": "#/$defs/command_backing_for_apply" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "step_kind": { "enum": ["explain", "prepare_practice"] } },
+            "required": ["step_kind"]
+          },
+          "then": {
+            "properties": {
+              "mutation_target": { "enum": ["no_mutation", "sandboxed_local_reversible"] }
+            }
+          }
+        }
+      ],
+      "description": "One step of a guided-exercise rail."
+    },
+    "guided_exercise_rail_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "rail_id",
+        "version",
+        "family",
+        "generated_at",
+        "title_ref",
+        "source_class",
+        "source_ref",
+        "freshness_state",
+        "mirror_parity",
+        "base_locale",
+        "locale_overlays",
+        "explain_apply_class",
+        "sandbox_preference",
+        "privacy",
+        "accessibility",
+        "progress",
+        "prerequisite_rail_refs",
+        "steps",
+        "verdict",
+        "narrowing_reasons"
+      ],
+      "properties": {
+        "record_kind": { "const": "guided_exercise_rail_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "rail_id": { "$ref": "#/$defs/opaque_id" },
+        "version": { "$ref": "#/$defs/package_version" },
+        "family": { "$ref": "#/$defs/m5_learning_surface_family" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "title_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "mirror_parity": { "$ref": "#/$defs/mirror_parity_posture" },
+        "base_locale": { "type": "string", "minLength": 2 },
+        "locale_overlays": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/locale_overlay" }
+        },
+        "explain_apply_class": { "$ref": "#/$defs/explain_apply_class" },
+        "sandbox_preference": { "$ref": "#/$defs/sandbox_preference" },
+        "privacy": { "$ref": "#/$defs/privacy_posture" },
+        "accessibility": { "$ref": "#/$defs/accessibility_posture" },
+        "progress": { "$ref": "#/$defs/exercise_progress" },
+        "prerequisite_rail_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/exercise_step_record" }
+        },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": { "type": "array", "items": { "type": "string" } }
+      },
+      "description": "A versioned guided-exercise rail for one feature family."
+    },
+    "m5_guided_exercise_rail_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "manifest_id",
+        "generated_at",
+        "contract_refs",
+        "rails",
+        "overall_verdict",
+        "overall_narrowing_reasons"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_guided_exercise_rail_manifest_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "contract_refs": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Schema, docs, and contract refs this manifest consumes."
+        },
+        "rails": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/guided_exercise_rail_record" }
+        },
+        "overall_verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "overall_narrowing_reasons": { "type": "array", "items": { "type": "string" } }
+      },
+      "description": "The canonical manifest binding every guided-exercise rail across the M5 feature families."
+    }
+  }
+}
