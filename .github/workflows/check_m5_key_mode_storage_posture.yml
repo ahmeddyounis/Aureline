@@ -1,0 +1,78 @@
+# Key-mode and storage-posture gate.
+#
+# Proves the key-mode and storage-posture inspectors stay in sync: every claimed
+# managed, self-hosted, and sovereign row names its key mode, declares its
+# trust-root posture (OS store, vendor-managed, customer-managed, or offline
+# trust root), and discloses an encryption posture that names its key mode;
+# managed-scope rows fail closed when a customer-managed key is unavailable, the
+# trust root mismatches, or key material is lost, narrowing only the protected
+# managed lane while preserving local-core continuity and emitting typed
+# degraded-state evidence; and every surface renders identical key/storage
+# vocabulary with no raw key material. The crate audit and the schema/fixture
+# validator must both pass.
+
+name: check_m5_key_mode_storage_posture
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_key_mode_storage_posture.yml"
+      - "tools/validate_m5_key_mode_storage_posture_fixtures.py"
+      - "schemas/continuity/key_mode_descriptor.schema.json"
+      - "fixtures/continuity/key_mode_failure_cases/**"
+      - "docs/m5/continuity/key-mode-and-storage-posture.md"
+      - "artifacts/m5/continuity/key_mode_and_storage_posture.md"
+      - "crates/aureline-continuity/src/m5_key_mode_and_storage_posture/**"
+      - "crates/aureline-continuity/src/bin/aureline_key_posture_inspect.rs"
+      - "crates/aureline-continuity/examples/dump_m5_key_mode_storage_posture_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-key-mode-storage-posture-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  key_mode_storage_posture:
+    name: Key-mode and storage-posture audit and schema conformance
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-key-mode-storage-posture-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-key-mode-storage-posture-
+
+      - name: Run key-mode and storage-posture audit
+        run: cargo test -p aureline-continuity --locked m5_key_mode
+
+      - name: Validate key-mode and storage-posture fixtures against schema
+        run: python3 tools/validate_m5_key_mode_storage_posture_fixtures.py

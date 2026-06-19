@@ -9,6 +9,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-continuity/0.0.0")]
 
 pub mod connectivity_state_and_deferred_intent;
+pub mod m5_key_mode_and_storage_posture;
 pub mod m5_locality_descriptors_and_tenant_cards;
 pub mod m5_locality_tenant_keymode_and_drill_matrix;
 
@@ -65,4 +66,20 @@ pub use m5_locality_tenant_keymode_and_drill_matrix::{
     CONTINUITY_CLAIM_MATRIX_SCHEMA_REF, CONTINUITY_CLAIM_MATRIX_SCHEMA_VERSION,
     CONTINUITY_CLAIM_MATRIX_SHARED_CONTRACT_REF, CONTINUITY_CLAIM_MATRIX_SUMMARY_RECORD_KIND,
     CONTINUITY_CLAIM_MATRIX_SUPPORT_EXPORT_RECORD_KIND, CONTINUITY_CLAIM_ROW_OUTCOME_RECORD_KIND,
+};
+
+pub use m5_key_mode_and_storage_posture::{
+    audit_key_mode_storage_posture_page, seeded_key_mode_storage_posture_input,
+    seeded_key_mode_storage_posture_page, validate_key_mode_storage_posture_page,
+    DegradedStateClass, KeyAvailabilityState, KeyEvidenceStateClass, KeyModeDescriptor,
+    KeyModeStorageEntry, KeyModeStoragePostureInput, KeyModeStoragePosturePage,
+    KeyModeStoragePostureSummary, KeyModeStoragePostureSupportExport, KeyPostureDefect,
+    KeyPostureNarrowReasonClass, KeyPostureRowOutcome, KeyPostureSurfaceClass,
+    KeyPostureSurfaceProjection, StorageEncryptionClass, StoragePostureDescriptor, StoreLockState,
+    TrustRootPostureClass, KEY_MODE_DESCRIPTOR_RECORD_KIND, KEY_POSTURE_ARTIFACT_REF,
+    KEY_POSTURE_DEFECT_RECORD_KIND, KEY_POSTURE_DOC_REF, KEY_POSTURE_PAGE_RECORD_KIND,
+    KEY_POSTURE_ROW_OUTCOME_RECORD_KIND, KEY_POSTURE_SCHEMA_REF, KEY_POSTURE_SCHEMA_VERSION,
+    KEY_POSTURE_SHARED_CONTRACT_REF, KEY_POSTURE_SUMMARY_RECORD_KIND,
+    KEY_POSTURE_SUPPORT_EXPORT_RECORD_KIND, KEY_POSTURE_SURFACE_PROJECTION_RECORD_KIND,
+    STORAGE_POSTURE_DESCRIPTOR_RECORD_KIND,
 };
