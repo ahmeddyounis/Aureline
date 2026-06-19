@@ -1,0 +1,78 @@
+# Control-plane-versus-data-plane outage taxonomy gate.
+#
+# Proves the outage taxonomy describes optional-service impairment by lane —
+# identity/policy, registry/updates/docs, collaboration, remote control plane, AI
+# gateway, and telemetry/support — without conflating it with local editing
+# failure. Every packet classifies its impaired plane (control plane, managed
+# data plane, or both), names a narrower fallback, and labels the local-core
+# continuity (editing, save, search, version control) that survives the outage;
+# an optional-service outage that flips a global IDE-down state or marks any
+# local-core capability unavailable fails closed and is withdrawn; and every
+# surface renders identical outage and local-core vocabulary with no raw provider
+# payloads. The crate audit and the schema/fixture validator must both pass.
+
+name: check_m5_control_plane_vs_data_plane_outage
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_control_plane_vs_data_plane_outage.yml"
+      - "tools/validate_m5_control_plane_vs_data_plane_outage_fixtures.py"
+      - "schemas/continuity/control_vs_data_plane_packet.schema.json"
+      - "fixtures/continuity/outage_taxonomy/**"
+      - "docs/m5/continuity/control-plane-vs-data-plane-degradation.md"
+      - "artifacts/m5/continuity/control_plane_vs_data_plane_degradation.md"
+      - "crates/aureline-continuity/src/m5_control_plane_vs_data_plane_outage/**"
+      - "crates/aureline-continuity/src/bin/aureline_outage_taxonomy_inspect.rs"
+      - "crates/aureline-continuity/examples/dump_m5_control_plane_vs_data_plane_outage_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-control-plane-vs-data-plane-outage-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  control_plane_vs_data_plane_outage:
+    name: Outage taxonomy audit and schema conformance
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-control-plane-vs-data-plane-outage-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-control-plane-vs-data-plane-outage-
+
+      - name: Run outage taxonomy audit
+        run: cargo test -p aureline-continuity --locked m5_control_plane
+
+      - name: Validate outage taxonomy fixtures against schema
+        run: python3 tools/validate_m5_control_plane_vs_data_plane_outage_fixtures.py

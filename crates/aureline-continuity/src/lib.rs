@@ -9,6 +9,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-continuity/0.0.0")]
 
 pub mod connectivity_state_and_deferred_intent;
+pub mod m5_control_plane_vs_data_plane_outage;
 pub mod m5_key_mode_and_storage_posture;
 pub mod m5_locality_descriptors_and_tenant_cards;
 pub mod m5_locality_tenant_keymode_and_drill_matrix;
@@ -34,6 +35,22 @@ pub use connectivity_state_and_deferred_intent::{
     DEFERRED_INTENT_RECORD_KIND, IDEMPOTENCY_KEY_RECEIPT_RECORD_KIND,
     NETWORK_COMMAND_DECLARATION_RECORD_KIND, RECONCILIATION_PACKET_RECORD_KIND,
     RECONCILIATION_REVIEW_SHEET_RECORD_KIND, SUPPORT_EXPORT_PACKET_RECORD_KIND,
+};
+
+pub use m5_control_plane_vs_data_plane_outage::{
+    audit_service_outage_taxonomy_page, seeded_service_outage_taxonomy_input,
+    seeded_service_outage_taxonomy_page, validate_service_outage_taxonomy_page,
+    DegradedFallbackClass, ImpairmentSeverityClass, LocalCoreContinuity, OptionalServiceFamily,
+    OutageDegradedStateClass, OutageEvidenceStateClass, OutageNarrowReasonClass,
+    OutageSurfaceClass, OutageTaxonomyDefect, ServiceOutageDescriptor, ServiceOutageEntry,
+    ServiceOutageOutcome, ServiceOutageSurfaceProjection, ServiceOutageTaxonomyInput,
+    ServiceOutageTaxonomyPage, ServiceOutageTaxonomySummary, ServiceOutageTaxonomySupportExport,
+    OUTAGE_SURFACE_PROJECTION_RECORD_KIND, OUTAGE_TAXONOMY_ARTIFACT_REF,
+    OUTAGE_TAXONOMY_DEFECT_RECORD_KIND, OUTAGE_TAXONOMY_DOC_REF, OUTAGE_TAXONOMY_PAGE_RECORD_KIND,
+    OUTAGE_TAXONOMY_SCHEMA_REF, OUTAGE_TAXONOMY_SCHEMA_VERSION,
+    OUTAGE_TAXONOMY_SHARED_CONTRACT_REF, OUTAGE_TAXONOMY_SUMMARY_RECORD_KIND,
+    OUTAGE_TAXONOMY_SUPPORT_EXPORT_RECORD_KIND, SERVICE_OUTAGE_DESCRIPTOR_RECORD_KIND,
+    SERVICE_OUTAGE_OUTCOME_RECORD_KIND,
 };
 
 pub use m5_locality_descriptors_and_tenant_cards::{
