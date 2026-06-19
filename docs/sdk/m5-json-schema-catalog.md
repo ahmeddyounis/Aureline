@@ -36,7 +36,7 @@ Given a durable artifact's `record_kind` and family, look up the family in the c
 | capability_records | `m5.capability_records` | stable | `capability_inventory_entry_schema_version` | `schemas/public/m5-json/capability_records.schema.json` |
 | notification_and_chronology_primitives | `m5.notification_and_chronology_primitives` | beta | `activity_event_envelope_schema_version` | `schemas/public/m5-json/notification_and_chronology_primitives.schema.json` |
 | replay_and_trace_evidence | `m5.replay_and_trace_evidence` | beta | `capture_session_schema_version` | `schemas/public/m5-json/replay_and_trace_evidence.schema.json` |
-| service_optional_api | `m5.service_optional_api` | beta | `provider_handoff_schema_version` | `schemas/public/m5-json/service_optional_api.schema.json` |
+| service_optional_api | `m5.service_optional_api` | stable | `provider_handoff_schema_version` | `schemas/public/m5-json/service_optional_api.schema.json` |
 
 ## Compatibility contract
 

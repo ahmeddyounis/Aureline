@@ -16,20 +16,20 @@ Canonical inventory of every M5 artifact family the source docs treat as a publi
 | Metric | Count |
 | --- | --- |
 | total_rows | 16 |
-| rows_published | 14 |
-| rows_narrowed | 2 |
+| rows_published | 15 |
+| rows_narrowed | 1 |
 | release_blocking_total | 8 |
-| release_blocking_published | 6 |
-| release_blocking_narrowed | 2 |
+| release_blocking_published | 7 |
+| release_blocking_narrowed | 1 |
 | stable_lane_rows | 0 |
 | beta_lane_rows | 4 |
 | experimental_lane_rows | 10 |
 | internal_lane_rows | 2 |
 | total_required_publications | 72 |
-| total_published_publications | 70 |
-| total_active_gap_reasons | 2 |
-| rows_with_active_gap | 2 |
-| rules_firing | 2 |
+| total_published_publications | 71 |
+| total_active_gap_reasons | 1 |
+| rows_with_active_gap | 1 |
+| rules_firing | 1 |
 
 ## Rows
 
@@ -50,7 +50,7 @@ Canonical inventory of every M5 artifact family the source docs treat as a publi
 | `notification_and_chronology_primitives` | event_envelope_schema | experimental | beta | beta | published | required/published | optional/not_applicable | optional/not_applicable | required/published | required/published | optional/not_applicable | required/published | — |
 | `replay_and_trace_evidence` | json_schema_backed_contract_doc | experimental | beta | beta | published | required/published | optional/not_applicable | optional/not_applicable | required/published | required/published | optional/not_applicable | required/published | — |
 | `extension_host_wit_world` | wit_world_package | experimental | beta | beta | published | optional/not_applicable | required/published | optional/not_applicable | required/published | required/published | optional/not_applicable | required/published | — |
-| `service_optional_api` | openapi_family | experimental | stable | beta | narrowed | required/published | optional/not_applicable | required/partial | required/published | required/published | required/published | required/published | openapi_spec_unpublished |
+| `service_optional_api` | openapi_family | experimental | stable | stable | published | required/published | optional/not_applicable | required/published | required/published | required/published | required/published | required/published | — |
 
 ## Promotion
 
@@ -58,9 +58,7 @@ Canonical inventory of every M5 artifact family the source docs treat as a publi
 - Decision: **hold**
 - Blocking rules:
   - `m5_public_contract_rule:migration_notes_unpublished`
-  - `m5_public_contract_rule:openapi_spec_unpublished`
 - Families narrowed below the cutline:
-  - `service_optional_api`
   - `task_event_envelope`
 
 Promotion is held because public-contract stop rules are firing on families put forward at the cutline whose required contract forms, validator suite, migration notes, or release linkage are unpublished.

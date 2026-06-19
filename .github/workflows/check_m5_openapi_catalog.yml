@@ -1,0 +1,95 @@
+# M5 OpenAPI publication catalog gate.
+#
+# Validates the checked-in M5 OpenAPI publication catalog: every service-API
+# operation the product or SDK exposes binds an auth-source class, an
+# entitlement and policy-override posture, a mutability posture, a preview/dry-run
+# support class, an offline/cache behaviour, a deprecation lane and sunset posture,
+# a lifecycle label equal to the publication matrix's effective published label
+# for the family, a compatibility note, and a checked-in example request/response
+# pack. The gate confirms the catalog, example packs, docs, capture, and fixtures
+# match their regenerator (no drift), runs the Python validator (which proves each
+# operation and auth posture matches the OpenAPI document and the surface rows and
+# each example validates against the document's component schemas), and runs the
+# typed Rust consumer's tests.
+
+name: check_m5_openapi_catalog
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_openapi_catalog.yml"
+      - "artifacts/contracts/m5-openapi-catalog.json"
+      - "artifacts/contracts/m5-stability-lifecycle-map.json"
+      - "artifacts/service/api_surface_rows.yaml"
+      - "artifacts/release/captures/publish_openapi_specs_lifecycle_labels_and_example_packs_for_m5_service_apis_registry_mirror_endpoints_admin_ai_usage_export_routes_and_managed_control_plane_surfaces_validation_capture.json"
+      - "schemas/public/m5-contracts/m5_openapi_catalog.schema.json"
+      - "openapi/service_api_seed.yaml"
+      - "openapi/m5/**"
+      - "examples/contracts/m5-openapi/**"
+      - "fixtures/contracts/m5-openapi/**"
+      - "docs/sdk/m5-service-api-catalog.md"
+      - "docs/m5/publish-openapi-specs-lifecycle-labels-and-example-packs-for-m5-service-apis-registry-mirror-endpoints-admin-ai-usage-export-routes-and-managed-control-plane-surfaces.md"
+      - "tools/regenerate_m5_openapi_catalog.py"
+      - "tools/validate_m5_openapi_catalog.py"
+      - "crates/aureline-release/src/publish_openapi_specs_lifecycle_labels_and_example_packs_for_m5_service_apis_registry_mirror_endpoints_admin_ai_usage_export_routes_and_managed_control_plane_surfaces/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/publish_openapi_specs_lifecycle_labels_and_example_packs_for_m5_service_apis_registry_mirror_endpoints_admin_ai_usage_export_routes_and_managed_control_plane_surfaces.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-openapi-catalog-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_openapi_catalog:
+    name: M5 OpenAPI Catalog
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema PyYAML referencing
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Confirm the catalog matches its regenerator
+        run: |
+          python3 tools/regenerate_m5_openapi_catalog.py
+          git diff --exit-code -- \
+            artifacts/contracts/m5-openapi-catalog.json \
+            examples/contracts/m5-openapi \
+            fixtures/contracts/m5-openapi \
+            docs/sdk/m5-service-api-catalog.md \
+            docs/m5/publish-openapi-specs-lifecycle-labels-and-example-packs-for-m5-service-apis-registry-mirror-endpoints-admin-ai-usage-export-routes-and-managed-control-plane-surfaces.md \
+            artifacts/release/captures/publish_openapi_specs_lifecycle_labels_and_example_packs_for_m5_service_apis_registry_mirror_endpoints_admin_ai_usage_export_routes_and_managed_control_plane_surfaces_validation_capture.json
+
+      - name: Validate the M5 OpenAPI publication catalog
+        run: python3 tools/validate_m5_openapi_catalog.py
+
+      - name: Run M5 OpenAPI catalog contract tests
+        run: cargo test -p aureline-release --test publish_openapi_specs_lifecycle_labels_and_example_packs_for_m5_service_apis_registry_mirror_endpoints_admin_ai_usage_export_routes_and_managed_control_plane_surfaces
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-openapi-catalog-${{ github.run_id }}
+          path: artifacts/release/captures/publish_openapi_specs_lifecycle_labels_and_example_packs_for_m5_service_apis_registry_mirror_endpoints_admin_ai_usage_export_routes_and_managed_control_plane_surfaces_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

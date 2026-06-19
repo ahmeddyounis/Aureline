@@ -466,7 +466,7 @@ PACKAGES = [
         ),
         "contract_form": "openapi_family",
         "maturity_lane": "experimental",
-        "lifecycle_label": "beta",
+        "lifecycle_label": "stable",
         "record_kind_value": "provider_handoff_packet",
         "primary_version_field": "provider_handoff_schema_version",
         "version_field_names": [

@@ -217,6 +217,7 @@ def schema_backed_requirements(
     openapi_refs: list[str] | None = None,
     migration_required: bool = True,
     openapi_state: str | None = None,
+    extra_validators: list[str] | None = None,
 ) -> list[dict]:
     """Default publication-requirement set for a JSON-Schema-backed family.
 
@@ -250,7 +251,8 @@ def schema_backed_requirements(
     else:
         requirements.append(req("migration_notes", False, "not_applicable", []))
 
-    requirements.append(req("validator_suite", True, PUBLISHED, list(COMMON_VALIDATORS)))
+    validators = list(COMMON_VALIDATORS) + list(extra_validators or [])
+    requirements.append(req("validator_suite", True, PUBLISHED, validators))
     return requirements
 
 
@@ -1082,16 +1084,30 @@ def build_rows() -> list:
                 doc_refs=[
                     "docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md",
                     "openapi/m5/README.md",
+                    "docs/sdk/m5-service-api-catalog.md",
                 ],
                 example_refs=[
                     "fixtures/remote/attach_cases/provider_unavailable_browser_handoff.yaml",
                     "fixtures/contracts/contract_family_examples/browser_handoff_packets.yaml",
+                    "examples/contracts/m5-openapi/",
                 ],
                 migration_refs=[MIGRATION_PLAYBOOK],
-                openapi_refs=["openapi/service_api_seed.yaml", "openapi/m5/"],
-                openapi_state="partial",
+                openapi_refs=[
+                    "openapi/service_api_seed.yaml",
+                    "openapi/m5/",
+                    "artifacts/contracts/m5-openapi-catalog.json",
+                ],
+                openapi_state=PUBLISHED,
+                extra_validators=["tools/validate_m5_openapi_catalog.py"],
             ),
-            rationale_published="",
+            rationale_published=(
+                "The optional service API publishes its full OpenAPI family: the "
+                "OpenAPI document, the M5 OpenAPI publication catalog binding every "
+                "endpoint to a lifecycle label, auth-source class, mutability posture, "
+                "preview/dry-run support, and compatibility note, the per-endpoint "
+                "example packs, the schema, migration notes, and the validator suite, "
+                "and is release-linked, so it holds its Stable contract claim."
+            ),
             rationale_narrowed=(
                 "The optional service API is put forward for a Stable contract claim "
                 "but its OpenAPI family is still a seed (partial), so it narrows to "
