@@ -1,0 +1,74 @@
+# Continuity-claim matrix gate.
+#
+# Proves the locality, tenant/key-mode, backup/restore/failover, and
+# continuity-drill matrix stays in sync: every claimed managed, self-hosted, and
+# sovereign row declares locality, tenant/key posture, degraded-fallback plane,
+# continuity packet family, restore identity, partial loss, and drill
+# cadence/owner/evidence, and narrows automatically when continuity evidence is
+# stale, partial, or profile-mismatched. The crate audit and the schema/fixture
+# validator must both pass.
+
+name: check_m5_continuity_claim_matrix
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_continuity_claim_matrix.yml"
+      - "tools/validate_m5_continuity_claim_matrix_fixtures.py"
+      - "schemas/continuity/m5-continuity-claim-row.schema.json"
+      - "fixtures/continuity/m5-continuity-profile-cases/**"
+      - "docs/m5/continuity/locality_tenant_keymode_and_drill_matrix.md"
+      - "artifacts/m5/continuity/claim_rows_and_drill_schedule.md"
+      - "crates/aureline-continuity/src/m5_locality_tenant_keymode_and_drill_matrix/**"
+      - "crates/aureline-continuity/examples/dump_m5_continuity_claim_matrix_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-continuity-claim-matrix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  continuity_claim_matrix:
+    name: Continuity-claim matrix audit and schema conformance
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-continuity-claim-matrix-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-continuity-claim-matrix-
+
+      - name: Run continuity-claim matrix audit
+        run: cargo test -p aureline-continuity --locked m5_locality
+
+      - name: Validate continuity-claim matrix fixtures against schema
+        run: python3 tools/validate_m5_continuity_claim_matrix_fixtures.py
