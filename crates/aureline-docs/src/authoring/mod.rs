@@ -4,11 +4,15 @@
 //! [`markdown_workspace`] owns the Markdown authoring workspace,
 //! [`suggestion_panel`] owns the diff-first docs suggestion panel that proposes
 //! prose edits to README/changelog/help/tutorial docs and ties each proposal
-//! back to the code, schema, or release change that raised it, and
+//! back to the code, schema, or release change that raised it,
 //! [`validation_report`] owns the example/link validation report that turns
 //! documented examples and links into typed, reviewable validation rows with
 //! explicit validation modes, last-checked time, environment/version scope, and
-//! producing-validator context.
+//! producing-validator context, and [`release_docs_surface`] owns the dedicated
+//! README/changelog/onboarding release-docs maintenance surfaces that make
+//! branch/release/channel scope, pending suggestions, compare history, the
+//! publish/export boundary, and local-versus-shared evidence scope visible
+//! before edit and inspectable after the user leaves the surface.
 //!
 //! The [`markdown_workspace`] module owns the runtime truth packet for the
 //! governed Markdown authoring workspace: the source/split/rendered modes a
@@ -26,5 +30,6 @@
 //! cross this boundary.
 
 pub mod markdown_workspace;
+pub mod release_docs_surface;
 pub mod suggestion_panel;
 pub mod validation_report;

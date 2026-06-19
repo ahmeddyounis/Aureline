@@ -116,6 +116,20 @@ pub use authoring::validation_report::{
     DOCS_VALIDATION_REPORT_SCHEMA_VERSION, DOCS_VALIDATION_REPORT_SUMMARY_REF,
     DOCS_VALIDATION_REPORT_SUPPORT_EXPORT_RECORD_KIND,
 };
+pub use authoring::release_docs_surface::{
+    seeded_release_docs_maintenance_contract, seeded_release_docs_review_packet,
+    seeded_release_docs_surface_projection, validate_seeded_release_docs_maintenance,
+    ReleaseDocsCompareEntry, ReleaseDocsCompareKind, ReleaseDocsCoverage, ReleaseDocsEvidenceScope,
+    ReleaseDocsFinding, ReleaseDocsIntegrationAnchor, ReleaseDocsIntegrationTarget,
+    ReleaseDocsMaintenanceContract, ReleaseDocsMaintenanceSurface, ReleaseDocsReviewPacket,
+    ReleaseDocsSurfaceProjection, OPEN_RELEASE_DOCS_SOURCE_ACTION_LABEL,
+    RELEASE_DOCS_MAINTENANCE_CONTRACT_ID, RELEASE_DOCS_MAINTENANCE_CONTRACT_RECORD_KIND,
+    RELEASE_DOCS_MAINTENANCE_DOC_REF, RELEASE_DOCS_MAINTENANCE_FIXTURE_DIR,
+    RELEASE_DOCS_MAINTENANCE_SCHEMA_REF, RELEASE_DOCS_MAINTENANCE_SCHEMA_VERSION,
+    RELEASE_DOCS_MAINTENANCE_SURFACE_RECORD_KIND, RELEASE_DOCS_MAINTENANCE_VERSION_REF,
+    RELEASE_DOCS_REVIEW_PACKET_RECORD_KIND, RELEASE_DOCS_SURFACE_PROJECTION_RECORD_KIND,
+    REOPEN_RELEASE_DOCS_COMPARE_ACTION_LABEL, REVIEW_RELEASE_DOCS_DIFF_ACTION_LABEL,
+};
 pub use certify_docs_browser_semantic_recall_and_codebase_understanding_rows_and_narrow_any_underqualified_surface::{
     current_stable_certification_export, seeded_stable_certification_input,
     CertificationArtifactError, CertificationCompatibilityReport, CertificationConsumerProjection,
