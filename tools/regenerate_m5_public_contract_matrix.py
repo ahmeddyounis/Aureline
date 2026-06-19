@@ -1005,20 +1005,41 @@ def build_rows() -> list:
             example_corpus_refs=[
                 "wit/aureline/",
                 "wit/m5-contracts/",
+                "artifacts/contracts/m5-wit-contract-publication.json",
+                "fixtures/contracts/m5-wit-negotiation/",
             ],
             requirements=[
                 req("json_schema", False, "not_applicable", []),
-                req("wit_world", True, PUBLISHED, ["wit/aureline/", "wit/m5-contracts/"]),
+                req(
+                    "wit_world",
+                    True,
+                    PUBLISHED,
+                    [
+                        "wit/aureline/",
+                        "wit/m5-contracts/",
+                        "artifacts/contracts/m5-wit-contract-publication.json",
+                    ],
+                ),
                 req("openapi_spec", False, "not_applicable", []),
                 req(
                     "markdown_summary",
                     True,
                     PUBLISHED,
-                    ["docs/extensions/", "wit/m5-contracts/README.md"],
+                    [
+                        "docs/extensions/",
+                        "wit/m5-contracts/README.md",
+                        "artifacts/contracts/m5-wit-capability-diff.md",
+                    ],
                 ),
                 req("example_payloads", True, PUBLISHED, ["wit/aureline/aureline.wit"]),
                 req("migration_notes", False, "not_applicable", []),
-                req("validator_suite", True, PUBLISHED, list(COMMON_VALIDATORS)),
+                req(
+                    "validator_suite",
+                    True,
+                    PUBLISHED,
+                    list(COMMON_VALIDATORS)
+                    + ["tools/validate_m5_wit_contract_publication.py"],
+                ),
             ],
             rationale_published=(
                 "The extension-host WIT world package publishes its WIT worlds, "

@@ -278,6 +278,7 @@ pub mod finalize_wasm_host_quotas_crash_loop_quarantine_and;
 pub mod harden_extension_manifest_permission_display_lifecycle_labels_and;
 pub mod harden_extension_performance_inspection_budget_enforcement_and_user;
 pub mod harden_install_review_update_review_disable_rollback_and;
+pub mod implement_versioned_wit_packages_host_guest_negotiation_fixtures_and_capability_diff_reports_for_m5_wasm_extension_and_bridge_backed_public_contracts;
 pub mod install_review;
 pub mod lifecycle_metadata;
 pub mod locale_support;
@@ -1108,4 +1109,15 @@ pub use webview_boundary::{
     EXTENSION_WEBVIEW_BOUNDARY_SCHEMA_VERSION, EXTENSION_WEBVIEW_BOUNDARY_SHARED_CONTRACT_REF,
     EXTENSION_WEBVIEW_BOUNDARY_SUPPORT_EXPORT_RECORD_KIND,
     EXTENSION_WEBVIEW_BOUNDARY_SUPPORT_ROW_RECORD_KIND,
+};
+pub use implement_versioned_wit_packages_host_guest_negotiation_fixtures_and_capability_diff_reports_for_m5_wasm_extension_and_bridge_backed_public_contracts::{
+    current_wit_contract_publication, load_negotiation_fixture, CapabilityDiff, ChangeClass,
+    CompatibilityVerdict, DeprecatedWorldNotice, GuestAction, LifecycleLabel, NarrowingReason,
+    NarrowingReasonEntry, NegotiationFixture, NegotiationOutcome, PublicationState,
+    PublicationSummary, ReaderWriterPosture, RegistryStatus, TrustState, TrustStatePosture,
+    UnsupportedWorldDecision, UnsupportedWorldReason, WitContractPublicationPacket,
+    WitContractSupportExport, WitContractSupportRow, WitContractViolation, WitPackage,
+    WIT_CONTRACT_PUBLICATION_JSON, WIT_CONTRACT_PUBLICATION_PATH,
+    WIT_CONTRACT_PUBLICATION_RECORD_KIND, WIT_CONTRACT_PUBLICATION_SCHEMA_VERSION,
+    WIT_NEGOTIATION_FIXTURE_RECORD_KIND,
 };

@@ -1,0 +1,88 @@
+# M5 extension-host WIT contract publication gate.
+#
+# Validates the checked-in WIT contract publication packet: every reserved
+# capability-world WIT package is published as a versioned entry with lifecycle
+# metadata and a compatibility note; the host/guest negotiation fixtures cover the
+# supported, downgraded, deprecated, and unsupported-skew outcomes for one real
+# bridge-backed family; capability diffs between versions are recorded and
+# classed; guest authority is never widened and unsupported/skew worlds are denied
+# fail-closed. The gate confirms the packet matches its regenerator (no
+# Markdown/fixture drift), runs the Python validator, and runs the typed Rust
+# consumer tests, which read the same packet and re-derive the same invariants.
+
+name: check_m5_wit_contract_publication
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_wit_contract_publication.yml"
+      - "artifacts/contracts/m5-wit-contract-publication.json"
+      - "artifacts/contracts/m5-wit-capability-diff.md"
+      - "artifacts/release/captures/implement_versioned_wit_packages_host_guest_negotiation_fixtures_and_capability_diff_reports_for_m5_wasm_extension_and_bridge_backed_public_contracts_validation_capture.json"
+      - "schemas/public/m5-contracts/m5_wit_contract_publication.schema.json"
+      - "fixtures/contracts/m5-wit-negotiation/**"
+      - "wit/m5-contracts/**"
+      - "wit/aureline/**"
+      - "docs/m5/implement-versioned-wit-packages-host-guest-negotiation-fixtures-and-capability-diff-reports-for-m5-wasm-extension-and-bridge-backed-public-contracts.md"
+      - "tools/regenerate_m5_wit_contract_publication.py"
+      - "tools/validate_m5_wit_contract_publication.py"
+      - "crates/aureline-extensions/src/implement_versioned_wit_packages_host_guest_negotiation_fixtures_and_capability_diff_reports_for_m5_wasm_extension_and_bridge_backed_public_contracts/**"
+      - "crates/aureline-extensions/src/lib.rs"
+      - "crates/aureline-extensions/tests/implement_versioned_wit_packages_host_guest_negotiation_fixtures_and_capability_diff_reports_for_m5_wasm_extension_and_bridge_backed_public_contracts.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-wit-contract-publication-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_wit_contract_publication:
+    name: M5 WIT Contract Publication
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema PyYAML referencing
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Confirm the packet matches its regenerator
+        run: |
+          python3 tools/regenerate_m5_wit_contract_publication.py
+          git diff --exit-code -- \
+            artifacts/contracts/m5-wit-contract-publication.json \
+            artifacts/contracts/m5-wit-capability-diff.md \
+            artifacts/release/captures/implement_versioned_wit_packages_host_guest_negotiation_fixtures_and_capability_diff_reports_for_m5_wasm_extension_and_bridge_backed_public_contracts_validation_capture.json \
+            fixtures/contracts/m5-wit-negotiation
+
+      - name: Validate the M5 WIT contract publication packet
+        run: python3 tools/validate_m5_wit_contract_publication.py
+
+      - name: Run M5 WIT contract publication contract tests
+        run: cargo test -p aureline-extensions --test implement_versioned_wit_packages_host_guest_negotiation_fixtures_and_capability_diff_reports_for_m5_wasm_extension_and_bridge_backed_public_contracts
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-wit-contract-publication-${{ github.run_id }}
+          path: artifacts/release/captures/implement_versioned_wit_packages_host_guest_negotiation_fixtures_and_capability_diff_reports_for_m5_wasm_extension_and_bridge_backed_public_contracts_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

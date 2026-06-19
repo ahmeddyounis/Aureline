@@ -1,0 +1,137 @@
+// aureline:editor-read@0.2.0
+//
+// Additive-minor successor to `aureline:editor-read@0.1.0`
+// (`wit/aureline/editor-read.wit`). It keeps every 0.1.0 item
+// byte-compatible — same interface name, same resource, same existing
+// functions, records, and the `read-error` variant — and only *adds*
+// capabilities. A host that negotiates `aureline:editor-read@0.2.0`
+// satisfies every 0.1.0 guest; a 0.1.0 host narrows a 0.2.0 guest to
+// the 0.1.0 surface rather than denying it.
+//
+// This file is the worked, published versioned package for the M5
+// extension-host WIT contract family. The capability diff between
+// 0.1.0 and 0.2.0 is recorded in
+// `artifacts/contracts/m5-wit-capability-diff.md` and the machine-
+// readable publication packet at
+// `artifacts/contracts/m5-wit-contract-publication.json`.
+//
+// Authoritative: docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+// Narrative: docs/extensions/wit_host_contract_seed.md
+//
+// Versioning rules (ADR-0019):
+//   - Additive field / record / resource / function additions are
+//     minor; this package is exactly such a bump (0.1.0 -> 0.2.0).
+//   - Repurposing or removing a named item would be major and require
+//     a new decision row. This package does neither.
+//
+// Permission-scope projection (ADR-0012): unchanged from 0.1.0.
+//   - ui_command_contribute, subscription_subscribe.
+//
+// Budgets (ADR-0019): unchanged from 0.1.0.
+//
+// Invariants (ADR-0019, binding): unchanged from 0.1.0.
+//   - No write, apply, or save capability on this surface.
+//   - Raw file bytes outside the visible editor surface stay out of
+//     scope; use `aureline:workspace-read` for file reads.
+//   - Every capability resolves the ADR-0018 trust-decision packet
+//     before firing; admission narrows under `restricted`.
+
+package aureline:editor-read@0.2.0;
+
+/// Read-only editor surface, 0.2.0. Every 0.1.0 item is preserved
+/// verbatim; the additions are `visible-range`, `word-at`, and the
+/// `visibility-range` record. All operations remain bounded, side-
+/// effect free, and must resolve the host-negotiation packet before
+/// use.
+interface editor-read {
+    /// Opaque, stable handle to an editor the host has surfaced for
+    /// the extension. Handles are negotiation-scoped; they do not
+    /// survive a renegotiation or a trust-state downgrade.
+    resource editor-handle {
+        /// Editor identity (opaque, safe to log). The same editor
+        /// retains the same identity across content-only edits but
+        /// mints a new identity after a close / reopen.
+        id: func() -> string;
+
+        /// Path identity (ADR-0006) of the backing workspace file, or
+        /// none if the editor is not backed by a workspace file.
+        path-identity: func() -> option<string>;
+
+        /// Current cursor positions in the editor (multi-cursor safe).
+        cursors: func() -> list<cursor-position>;
+
+        /// Current selections (multi-cursor safe).
+        selections: func() -> list<selection-range>;
+
+        /// Bounded read of the editor text for a given range.
+        /// Ranges exceeding the host's per-invocation byte ceiling
+        /// deny with `range-exceeds-ceiling`.
+        read-range: func(range: text-range) -> result<string, read-error>;
+
+        /// Syntax-scope hint at a position (e.g. "comment.line",
+        /// "string.quoted.double"). Hints are host-advisory; they do
+        /// not commit the host to a particular grammar.
+        syntax-scope-at: func(position: cursor-position) -> option<string>;
+
+        /// ADDED in 0.2.0. The currently visible viewport range of the
+        /// editor, or none when the editor is not currently laid out.
+        /// Advisory; the host MAY return a wider range than the pixel-
+        /// exact viewport. Additive-minor.
+        visible-range: func() -> option<visibility-range>;
+
+        /// ADDED in 0.2.0. The word (host-defined word boundary) at a
+        /// position, or none when the position is whitespace or out of
+        /// range. Bounded by the same per-invocation ceiling as
+        /// `read-range`. Additive-minor.
+        word-at: func(position: cursor-position) -> result<option<string>, read-error>;
+    }
+
+    /// Zero-based line / column position inside an editor.
+    record cursor-position {
+        line: u32,
+        column: u32,
+    }
+
+    /// Half-open range [from, to) in editor coordinates. from <= to.
+    record selection-range {
+        from: cursor-position,
+        to: cursor-position,
+    }
+
+    /// Half-open text range in editor coordinates. from <= to.
+    record text-range {
+        from: cursor-position,
+        to: cursor-position,
+    }
+
+    /// ADDED in 0.2.0. The visible viewport range plus the first fully
+    /// visible line, for extensions that decorate the viewport. The
+    /// range is half-open in editor coordinates. Additive-minor.
+    record visibility-range {
+        range: text-range,
+        first-fully-visible-line: u32,
+    }
+
+    /// Typed read-error vocabulary. Additive-minor.
+    variant read-error {
+        /// The requested range exceeds the host's per-invocation
+        /// byte ceiling.
+        range-exceeds-ceiling,
+        /// The editor handle is no longer valid (closed, renegotiated,
+        /// or trust-state downgraded).
+        handle-invalidated,
+        /// Trust state denied the read.
+        trust-state-denied,
+        /// Admin policy pack denied the read.
+        policy-pack-denied,
+    }
+
+    /// List the editors currently surfaced for this negotiation.
+    /// Returns handles valid for the current negotiation only.
+    list-open-editors: func() -> list<editor-handle>;
+
+    /// Resolve an editor handle by identity. Returns none when the
+    /// identity is unknown for this negotiation or has been
+    /// invalidated.
+    lookup-editor: func(id: string) -> option<editor-handle>;
+}
