@@ -76,3 +76,21 @@ degraded-state labels — rather than cloning status text.
 The register is current as of the `as_of` date embedded in the JSON artifact. CI
 gates recompute the promotion verdict against the stable claim manifest and fail
 promotion if the register is stale or underqualified.
+
+## Indexed contract artifacts
+
+The canonical M5 public-contract publication matrix is registered under this
+evidence index. It inventories every M5 artifact family the source docs treat as
+a published contract and freezes the contract forms (JSON Schema, WIT, OpenAPI,
+Markdown summary, example payloads, migration notes), validator suite, and
+release-packet linkage each family must publish before it can hold a Stable
+contract claim:
+
+- `artifacts/contracts/m5-stability-lifecycle-map.json` (matrix)
+- `artifacts/contracts/m5-public-contract-inventory.csv` (flat inventory)
+- `artifacts/contracts/m5-public-contract-matrix.md` (human matrix)
+- `docs/m5/freeze-the-m5-public-contract-schema-publication-wit-openapi-and-interchange-conformance-matrix.md` (contract)
+- `artifacts/m5/freeze-the-m5-public-contract-schema-publication-wit-openapi-and-interchange-conformance-matrix.md` (evidence)
+
+That matrix cites this evidence index back via its `evidence_index_ref`, so the
+contract-publication train and the certification train stay cross-linked.

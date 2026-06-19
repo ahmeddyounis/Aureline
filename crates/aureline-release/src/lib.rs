@@ -299,6 +299,18 @@
 //! so docs, release notes, CLI inspect, in-product badges, support exports, certification reports,
 //! and shiproom dashboards reuse one source of truth and can fail promotion directly from the
 //! matrix.
+//! The freeze-the-m5-public-contract module is the contract-publication layer beside those gates:
+//! where the qualification-row matrix speaks for the compatibility boundary each family exposes,
+//! this matrix speaks for the *contract publication* of every M5 artifact family the source docs
+//! treat as a published contract. For each family it records one row binding the family to its
+//! contract form, stability lane, reader/writer posture, and packaging need, one publication
+//! requirement per contract form (JSON Schema, WIT, OpenAPI, Markdown summary, example payloads,
+//! migration notes) plus the validator suite and release-packet linkage, and the lifecycle label
+//! it is put forward at, so a family missing any required publication evidence raises the matching
+//! gap reason and narrows below the launch cutline rather than inheriting an adjacent published
+//! family — while the contract-form, gap-reason, and release-blocking family sets stay fully
+//! covered, so claim manifests, Help/About, SDK/docs, support exports, and shiproom dashboards reuse
+//! one published-contract inventory and can fail promotion directly from the matrix.
 //! The qualification-row badge-binding register is the publication layer over that matrix: for
 //! every M5 family it binds the machine-readable qualification row to the marketable artifacts that
 //! advertise it — a support-class badge that carries the published label, support class, live
@@ -367,6 +379,7 @@ pub mod freeze_the_cross_surface_hardening_matrix_scorecards_and_evidence_bindin
 pub mod freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix;
 pub mod freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix;
 pub mod freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph;
+pub mod freeze_the_m5_public_contract_schema_publication_wit_openapi_and_interchange_conformance_matrix;
 pub mod freeze_the_m5_qualification_row_support_window_skew_window_and_deprecation_packet_matrix;
 pub mod freeze_the_m5_release_candidate_publish_target_artifact_bundle_and_exact_build_publication_matrix;
 pub mod freeze_the_m5_rollback_downgrade_claim_narrowing_and_staged_promotion_rules;

@@ -116,5 +116,8 @@ python3 "${REPO_ROOT}/tools/validate_contract_family_registry.py" | tee -a "${SU
 printf '\n[contract-validation] validating reference contract example pack index\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/tools/validate_contract_example_pack.py" | tee -a "${SUMMARY_PATH}"
 
+printf '\n[contract-validation] validating M5 public-contract publication matrix\n' | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/tools/validate_m5_public_contract_matrix.py" | tee -a "${SUMMARY_PATH}"
+
 printf '\n[contract-validation] validating source seed completion matrix\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/ci/check_source_seed_completion.py" --repo-root "${REPO_ROOT}" | tee -a "${SUMMARY_PATH}"

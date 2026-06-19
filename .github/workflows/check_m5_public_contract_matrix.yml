@@ -1,0 +1,91 @@
+# M5 public-contract publication matrix gate.
+#
+# Validates the checked-in M5 public-contract matrix: every M5 artifact family the
+# source docs treat as a published contract binds a contract form, stability lane,
+# reader/writer posture, packaging need, one publication requirement per contract
+# form (JSON Schema, WIT, OpenAPI, Markdown summary, example payloads, migration
+# notes) plus a validator suite and a release-packet linkage; a family missing any
+# required publication evidence raises the matching gap reason and narrows below
+# the stable cutline; the promotion verdict and summary agree with the firing stop
+# rules. The gate confirms the matrix matches its regenerator (no CSV/Markdown
+# drift), runs the Python validator, and runs the checked-in fixture cases. The
+# typed Rust consumer reads the same matrix, so `cargo test -p aureline-release`
+# enforces the same structural invariants.
+
+name: check_m5_public_contract_matrix
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_public_contract_matrix.yml"
+      - "artifacts/contracts/m5-stability-lifecycle-map.json"
+      - "artifacts/contracts/m5-public-contract-inventory.csv"
+      - "artifacts/contracts/m5-public-contract-matrix.md"
+      - "artifacts/release/captures/freeze_the_m5_public_contract_schema_publication_wit_openapi_and_interchange_conformance_matrix_validation_capture.json"
+      - "schemas/public/m5-contracts/**"
+      - "examples/contracts/m5/**"
+      - "fixtures/contracts/m5/**"
+      - "docs/m5/freeze-the-m5-public-contract-schema-publication-wit-openapi-and-interchange-conformance-matrix.md"
+      - "tools/regenerate_m5_public_contract_matrix.py"
+      - "tools/validate_m5_public_contract_matrix.py"
+      - "crates/aureline-release/src/freeze_the_m5_public_contract_schema_publication_wit_openapi_and_interchange_conformance_matrix/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/freeze_the_m5_public_contract_schema_publication_wit_openapi_and_interchange_conformance_matrix.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-public-contract-matrix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_public_contract_matrix:
+    name: M5 Public-Contract Matrix
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema PyYAML referencing
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Confirm the matrix matches its regenerator
+        run: |
+          python3 tools/regenerate_m5_public_contract_matrix.py
+          git diff --exit-code -- \
+            artifacts/contracts/m5-stability-lifecycle-map.json \
+            artifacts/contracts/m5-public-contract-inventory.csv \
+            artifacts/contracts/m5-public-contract-matrix.md \
+            artifacts/release/captures/freeze_the_m5_public_contract_schema_publication_wit_openapi_and_interchange_conformance_matrix_validation_capture.json \
+            fixtures/contracts/m5
+
+      - name: Validate the M5 public-contract matrix
+        run: python3 tools/validate_m5_public_contract_matrix.py
+
+      - name: Run M5 public-contract matrix contract tests
+        run: cargo test -p aureline-release --test freeze_the_m5_public_contract_schema_publication_wit_openapi_and_interchange_conformance_matrix
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-public-contract-matrix-${{ github.run_id }}
+          path: artifacts/release/captures/freeze_the_m5_public_contract_schema_publication_wit_openapi_and_interchange_conformance_matrix_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
