@@ -17,6 +17,7 @@ pub mod freeze_m5_learnability_lane;
 pub mod guided_exercise_rails;
 pub mod learning_mode_profiles;
 pub mod m5_feature_family_learning_rails;
+pub mod progress_snapshots;
 pub mod qualify_learning_mode_guided_tours_and_teaching_sessions;
 pub mod tour_and_glossary_packages;
 
@@ -64,6 +65,20 @@ pub use m5_feature_family_learning_rails::{
     M5_FEATURE_FAMILY_LEARNING_ARTIFACT_REF, M5_FEATURE_FAMILY_LEARNING_DOC_REF,
     M5_FEATURE_FAMILY_LEARNING_FIXTURE_REF, M5_FEATURE_FAMILY_LEARNING_MANIFEST_RECORD_KIND,
     M5_FEATURE_FAMILY_LEARNING_SCHEMA_REF, M5_FEATURE_FAMILY_LEARNING_SCHEMA_VERSION,
+};
+
+pub use progress_snapshots::{
+    derive_digest_verdict, derive_snapshot_verdict, reopen_progress_manifest_from_json,
+    seeded_m5_learning_progress_snapshots, validate_m5_learning_progress_snapshots,
+    DeviceSyncPolicy, DigestAction, DigestActionKind, ExportRef, ExportTargetKind, LearningDigest,
+    LearningFlowKind, LearningProgressSnapshot, LearningProgressValidationError,
+    M5LearningProgressManifest, PrivacyDisclosure, ResumePoint, SnapshotDisclosureState,
+    StepProgressRecord, StepProgressState, SurfaceExposure as ProgressSurfaceExposure,
+    LEARNING_DIGEST_RECORD_KIND, LEARNING_PROGRESS_SNAPSHOT_RECORD_KIND,
+    M5_LEARNING_PROGRESS_ARTIFACT_REF, M5_LEARNING_PROGRESS_DOC_REF,
+    M5_LEARNING_PROGRESS_FIXTURE_REF, M5_LEARNING_PROGRESS_MANIFEST_RECORD_KIND,
+    M5_LEARNING_PROGRESS_SCHEMA_REF, M5_LEARNING_PROGRESS_SCHEMA_VERSION,
+    REQUIRED_DIGEST_ACTION_KINDS,
 };
 
 pub use qualify_learning_mode_guided_tours_and_teaching_sessions::{

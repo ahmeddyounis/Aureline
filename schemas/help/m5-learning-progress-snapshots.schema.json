@@ -1,0 +1,429 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/m5-learning-progress-snapshots.schema.json",
+  "title": "Aureline M5 learning-progress snapshots and digests",
+  "description": "Boundary schema for the learning-progress manifest. A learning-progress snapshot records how far a person got through one learnability flow (a tour, exercise rail, glossary walkthrough, first-run checklist, or contextual-help sequence) across an M5 feature family: its completed and dismissed steps, a resume point, a device/local sync policy, export refs, and the privacy disclosure that keeps it user-owned and local-first. A learning digest is the durable surface that exposes resume, dismiss, snooze, reset, and export actions over those snapshots, so progress never lives only inside an ephemeral banner or toast. A snapshot MUST be user-owned local-first; it MUST NOT be repo-visible, shared with collaborators, or readable at telemetry grade by any extension or background service merely because a tour or exercise exists. It MUST survive restart, and any resume point MUST be resumable after restart, so pausing never loses progress. A dismissed step MUST be reversible. No snapshot may force blocking onboarding (no expert is trapped), change an authority boundary, or drift the command graph; a flow that uses educational AI MUST route any prepared 'do' through the standard preview/approval model. Sync is honest: a device-sync-eligible snapshot MUST disclose its sync, and an undisclosed sync-eligible snapshot is a masquerade that narrows below Stable; a disclosed sync narrows to Beta with a named reason. The disclosed lifecycle state (local_only, sync_eligible, exported, reset) must be consistent with the snapshot's evidence and survives support/export review. Every digest exposes resume, dismiss, snooze, reset, and export actions; each action is command-backed, keyboard reachable, reversible, inspectable, never a silent write, and never mutates the workspace. A digest is durable (it replaces ephemeral banners and keeps a recovery path) and inspectable in settings, Help/About, diagnostics, and support export. Every snapshot MUST be covered by at least one durable digest, so no progress is stranded in an ephemeral-only state. Each record's verdict is the strictest verdict folded from its evidence; a digest also folds in the narrowest verdict of the snapshots it covers, and the manifest carries the narrowest overall verdict. Raw URLs, raw absolute paths, and raw credential material MUST NOT appear; the schema carries opaque ids, typed vocabulary, and short privacy-safe labels only. The surface-family taxonomy aligns with schemas/learning/m5-feature-family-learning-rails.schema.json and the verdict vocabulary with schemas/learning/guided-learning-contracts.schema.json. Adding a new record_kind, flow kind, step state, disclosure state, sync policy, export target, action kind, data-ownership class, or surface family is additive-minor; repurposing an existing value is breaking.",
+  "oneOf": [
+    { "$ref": "#/$defs/learning_progress_snapshot_record" },
+    { "$ref": "#/$defs/learning_digest_record" },
+    { "$ref": "#/$defs/m5_learning_progress_manifest_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for learning-progress records. Current value is 1. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier. Raw URLs, raw absolute paths, and raw secret material MUST NOT appear."
+    },
+    "opaque_id_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, privacy-safe human-readable label."
+    },
+    "reason_array": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Named narrowing reasons. Empty when the verdict is qualified_stable."
+    },
+    "qualification_verdict": {
+      "type": "string",
+      "enum": ["qualified_stable", "narrowed_preview", "narrowed_beta", "absent"],
+      "description": "Derived lifecycle verdict for a record or the overall manifest."
+    },
+    "learning_flow_kind": {
+      "type": "string",
+      "enum": ["tour", "exercise_rail", "glossary_walkthrough", "first_run_checklist", "contextual_help"],
+      "description": "The kind of learnability flow a snapshot tracks progress through."
+    },
+    "step_progress_state": {
+      "type": "string",
+      "enum": ["not_started", "in_progress", "completed", "dismissed", "skipped"],
+      "description": "The progress state of one step within a tracked flow."
+    },
+    "snapshot_disclosure_state": {
+      "type": "string",
+      "enum": ["local_only", "sync_eligible", "exported", "reset"],
+      "description": "The disclosed lifecycle state of a snapshot's data. Survives support/export review unchanged."
+    },
+    "device_sync_policy": {
+      "type": "string",
+      "enum": ["local_only_default", "device_sync_eligible_disclosed", "sync_blocked_by_policy"],
+      "description": "How a snapshot's progress moves across devices. Local-only is the live-authoritative default; cross-device sync is allowed only when disclosed and narrows below Stable."
+    },
+    "export_target_kind": {
+      "type": "string",
+      "enum": ["portable_profile", "support_bundle", "local_download"],
+      "description": "Where a progress export is written."
+    },
+    "digest_action_kind": {
+      "type": "string",
+      "enum": ["resume", "dismiss", "snooze", "reset", "export"],
+      "description": "The kind of lifecycle action a digest action performs over a snapshot."
+    },
+    "data_ownership_class": {
+      "type": "string",
+      "enum": ["user_owned_local_first", "repo_visible_shared", "telemetry_grade_shared"],
+      "description": "Ownership class of progress state. Only user_owned_local_first qualifies Stable."
+    },
+    "m5_learning_surface_family": {
+      "type": "string",
+      "enum": [
+        "notebook",
+        "request_workspace",
+        "database_workspace",
+        "profiler_trace",
+        "docs_browser",
+        "preview",
+        "template_scaffold",
+        "companion",
+        "sync_offboarding"
+      ],
+      "description": "One M5 feature family a snapshot belongs to."
+    },
+    "step_progress_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_ref", "step_label", "state", "dismissal_reversible"],
+      "properties": {
+        "step_ref": { "$ref": "#/$defs/opaque_id" },
+        "step_label": { "$ref": "#/$defs/short_label" },
+        "state": { "$ref": "#/$defs/step_progress_state" },
+        "dismissal_reversible": {
+          "type": "boolean",
+          "description": "Whether a dismissal of this step can be undone. MUST be true when the state is dismissed."
+        }
+      },
+      "allOf": [
+        {
+          "description": "A dismissed step must be reversible.",
+          "if": { "properties": { "state": { "const": "dismissed" } } },
+          "then": { "properties": { "dismissal_reversible": { "const": true } } }
+        }
+      ]
+    },
+    "resume_point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_ref", "target_ref", "label", "resumable_after_restart"],
+      "properties": {
+        "step_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/short_label" },
+        "resumable_after_restart": {
+          "type": "boolean",
+          "description": "Whether the resume point survives a restart. MUST be true."
+        }
+      }
+    },
+    "privacy_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user_owned_local_by_default",
+        "explicit_promotion_required_for_sharing",
+        "repo_visible",
+        "shared_with_collaborators",
+        "extension_telemetry_read_access"
+      ],
+      "properties": {
+        "user_owned_local_by_default": {
+          "type": "boolean",
+          "description": "Whether progress is user-owned and local-first by default. MUST be true."
+        },
+        "explicit_promotion_required_for_sharing": {
+          "type": "boolean",
+          "description": "Whether sharing requires an explicit user promotion. MUST be true."
+        },
+        "repo_visible": {
+          "type": "boolean",
+          "description": "Whether the repository can observe this progress. MUST be false."
+        },
+        "shared_with_collaborators": {
+          "type": "boolean",
+          "description": "Whether the progress is shared with collaborators. MUST be false."
+        },
+        "extension_telemetry_read_access": {
+          "type": "boolean",
+          "description": "Whether any extension or background service gains telemetry-grade read access. MUST be false."
+        }
+      }
+    },
+    "export_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["export_id", "target_kind", "includes_step_progress", "redacts_raw_payloads", "user_initiated"],
+      "properties": {
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "target_kind": { "$ref": "#/$defs/export_target_kind" },
+        "includes_step_progress": {
+          "type": "boolean",
+          "description": "Whether the export includes step-level progress."
+        },
+        "redacts_raw_payloads": {
+          "type": "boolean",
+          "description": "Whether the export redacts raw payloads. MUST be true."
+        },
+        "user_initiated": {
+          "type": "boolean",
+          "description": "Whether the export was user-initiated. MUST be true — no silent exports."
+        }
+      }
+    },
+    "digest_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_kind",
+        "command_id_ref",
+        "effect",
+        "reversible",
+        "inspectable",
+        "silent_write_allowed",
+        "mutates_workspace"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "action_kind": { "$ref": "#/$defs/digest_action_kind" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "effect": { "$ref": "#/$defs/short_label" },
+        "keyboard_shortcut_ref": { "$ref": "#/$defs/opaque_id" },
+        "reversible": {
+          "type": "boolean",
+          "description": "Whether the action is reversible. MUST be true."
+        },
+        "inspectable": {
+          "type": "boolean",
+          "description": "Whether the action surfaces in the action log / inspector. MUST be true."
+        },
+        "silent_write_allowed": {
+          "type": "boolean",
+          "description": "Whether the action may write progress state silently. MUST be false."
+        },
+        "mutates_workspace": {
+          "type": "boolean",
+          "description": "Whether the action mutates workspace state. MUST be false."
+        }
+      }
+    },
+    "surface_exposure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["in_settings", "in_help_about", "in_diagnostics", "in_support_export", "hidden_in_transient_overlay_only"],
+      "properties": {
+        "in_settings": { "type": "boolean", "description": "Visible in settings. MUST be true." },
+        "in_help_about": { "type": "boolean", "description": "Visible in Help/About. MUST be true." },
+        "in_diagnostics": { "type": "boolean", "description": "Visible in diagnostics. MUST be true." },
+        "in_support_export": { "type": "boolean", "description": "Visible in support export. MUST be true." },
+        "hidden_in_transient_overlay_only": {
+          "type": "boolean",
+          "description": "Whether the state is reachable only through a transient overlay. MUST be false."
+        }
+      }
+    },
+    "learning_progress_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "snapshot_id",
+        "display_label",
+        "family",
+        "flow_kind",
+        "flow_ref",
+        "disclosure_state",
+        "sync_policy",
+        "sync_disclosed",
+        "data_ownership",
+        "privacy",
+        "steps",
+        "survives_restart",
+        "safe_for_support_export",
+        "flow_uses_educational_ai",
+        "educational_ai_uses_standard_preview_approval",
+        "blocking_onboarding_allowed",
+        "authority_boundary_change_allowed",
+        "command_graph_unchanged",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "const": "learning_progress_snapshot" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/short_label" },
+        "family": { "$ref": "#/$defs/m5_learning_surface_family" },
+        "flow_kind": { "$ref": "#/$defs/learning_flow_kind" },
+        "flow_ref": { "$ref": "#/$defs/opaque_id" },
+        "disclosure_state": { "$ref": "#/$defs/snapshot_disclosure_state" },
+        "sync_policy": { "$ref": "#/$defs/device_sync_policy" },
+        "sync_disclosed": {
+          "type": "boolean",
+          "description": "Whether device sync is disclosed to the user. A sync-eligible snapshot MUST set this true."
+        },
+        "data_ownership": { "$ref": "#/$defs/data_ownership_class" },
+        "privacy": { "$ref": "#/$defs/privacy_disclosure" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step_progress_record" }
+        },
+        "resume_point": { "$ref": "#/$defs/resume_point" },
+        "export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_ref" }
+        },
+        "survives_restart": {
+          "type": "boolean",
+          "description": "Whether the snapshot survives a restart. MUST be true."
+        },
+        "safe_for_support_export": {
+          "type": "boolean",
+          "description": "Whether the snapshot is safe to include in support exports."
+        },
+        "flow_uses_educational_ai": {
+          "type": "boolean",
+          "description": "Whether the tracked flow uses educational AI."
+        },
+        "educational_ai_uses_standard_preview_approval": {
+          "type": "boolean",
+          "description": "Whether educational AI routes any prepared 'do' through the standard preview/approval model. MUST be true when the flow uses educational AI."
+        },
+        "blocking_onboarding_allowed": {
+          "type": "boolean",
+          "description": "Whether the flow may force blocking onboarding. MUST be false — experts are never trapped."
+        },
+        "authority_boundary_change_allowed": {
+          "type": "boolean",
+          "description": "Whether the flow is allowed to change an authority boundary. MUST be false."
+        },
+        "command_graph_unchanged": {
+          "type": "boolean",
+          "description": "Whether the command graph stays unchanged. MUST be true."
+        },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": { "$ref": "#/$defs/reason_array" }
+      },
+      "allOf": [
+        {
+          "description": "A device-sync-eligible policy must disclose its sync.",
+          "if": { "properties": { "sync_policy": { "const": "device_sync_eligible_disclosed" } } },
+          "then": { "properties": { "sync_disclosed": { "const": true } } }
+        },
+        {
+          "description": "A sync_eligible disclosure state must pair with a disclosed sync-eligible policy.",
+          "if": { "properties": { "disclosure_state": { "const": "sync_eligible" } } },
+          "then": {
+            "properties": {
+              "sync_policy": { "const": "device_sync_eligible_disclosed" },
+              "sync_disclosed": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "An exported disclosure state must carry at least one export ref.",
+          "if": { "properties": { "disclosure_state": { "const": "exported" } } },
+          "then": { "properties": { "export_refs": { "type": "array", "minItems": 1 } } }
+        },
+        {
+          "description": "A flow that uses educational AI must route its do through the standard preview/approval model.",
+          "if": { "properties": { "flow_uses_educational_ai": { "const": true } } },
+          "then": { "properties": { "educational_ai_uses_standard_preview_approval": { "const": true } } }
+        }
+      ]
+    },
+    "learning_digest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "digest_id",
+        "display_label",
+        "covered_snapshot_refs",
+        "actions",
+        "replaces_ephemeral_banners",
+        "durable_recovery_available",
+        "exposure",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "const": "learning_digest" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "digest_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/short_label" },
+        "covered_snapshot_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/digest_action" },
+          "description": "Lifecycle actions. MUST include resume, dismiss, snooze, reset, and export."
+        },
+        "replaces_ephemeral_banners": {
+          "type": "boolean",
+          "description": "Whether the digest replaces ephemeral banners with a durable surface. MUST be true."
+        },
+        "durable_recovery_available": {
+          "type": "boolean",
+          "description": "Whether a durable recovery path exists after a dismissal. MUST be true."
+        },
+        "exposure": { "$ref": "#/$defs/surface_exposure" },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": { "$ref": "#/$defs/reason_array" }
+      }
+    },
+    "m5_learning_progress_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "manifest_id",
+        "generated_at",
+        "contract_refs",
+        "snapshots",
+        "digests",
+        "overall_verdict"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_learning_progress_manifest" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Deterministic generation timestamp."
+        },
+        "contract_refs": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 },
+          "description": "Schema, docs, and contract refs this manifest consumes."
+        },
+        "snapshots": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/learning_progress_snapshot_record" }
+        },
+        "digests": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/learning_digest_record" }
+        },
+        "overall_verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "overall_narrowing_reasons": { "$ref": "#/$defs/reason_array" }
+      }
+    }
+  }
+}
