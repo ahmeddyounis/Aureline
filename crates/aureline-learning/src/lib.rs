@@ -12,8 +12,20 @@
     clippy::too_many_arguments
 )]
 
+pub mod freeze_m5_learnability_lane;
 pub mod m5_feature_family_learning_rails;
 pub mod qualify_learning_mode_guided_tours_and_teaching_sessions;
+
+pub use freeze_m5_learnability_lane::{
+    derive_lane_row_verdict, seeded_m5_learnability_lane_freeze, validate_m5_learnability_lane,
+    vocabulary_entry, DataOwnershipClass, EducationalAiBoundary, LearnabilityLaneRow,
+    LearnabilityTerm, M5LearnabilityLaneFreeze, M5LearnabilityLaneValidationError,
+    MutationPathClass, SupportExportParity, VocabularyEntry, LEARNABILITY_LANE_ROW_RECORD_KIND,
+    M5_LEARNABILITY_LANE_ARTIFACT_REF, M5_LEARNABILITY_LANE_DOC_REF,
+    M5_LEARNABILITY_LANE_FIXTURE_REF, M5_LEARNABILITY_LANE_FREEZE_RECORD_KIND,
+    M5_LEARNABILITY_LANE_SCHEMA_REF, M5_LEARNABILITY_LANE_SCHEMA_VERSION,
+    VOCABULARY_ENTRY_RECORD_KIND,
+};
 
 pub use m5_feature_family_learning_rails::{
     derive_bundle_verdict, seeded_m5_feature_family_learning_manifest,
