@@ -147,6 +147,25 @@
 //! basis, breaks the anchor or revision chain, or hides the trail from a required
 //! surface.
 //!
+//! [`m5_quality_action_proposals_and_sessions::QualitySessionLedgerPacket`] turns
+//! every mutating quality route on the claimed M5 surfaces into one inspectable
+//! proposal/session ledger. Where [`quality::QualityActionProposal`] and
+//! [`quality::QualitySession`] own the single preview/apply/validate/revert
+//! contract, this lane proves that the format-on-type, format-on-save, manual
+//! quick-fix and fix-all, headless lint autofix, review-apply baseline/suppression,
+//! and imported-scan comparison routes all serialize through it: every mutating
+//! action is a typed proposal inside a typed session, on-type / on-save / manual /
+//! headless / review-apply / import-comparison sessions report through one typed
+//! [`quality::QualitySessionOutcomeClass`] rather than divergent per-provider
+//! status text, generated / lockfile / manifest / protected mutations reuse the
+//! same lifecycle instead of a weaker bar, and the UI, Problems, review, CLI, and
+//! support surfaces each receive a projection exposing the outcome, safety class,
+//! rollback note, and validation refs. The validator refuses a ledger that omits a
+//! required trigger path or action class, lets a result token diverge from its
+//! typed class, grants a generated/protected mutation a weaker bar, drops a
+//! mutating proposal's rollback boundary, or hides the truth from a required
+//! surface.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -195,6 +214,7 @@ pub mod m5_environment_status_strips;
 pub mod m5_event_interop_certification;
 pub mod m5_interop_conformance;
 pub mod m5_label_parity;
+pub mod m5_quality_action_proposals_and_sessions;
 pub mod m5_replay_bundles;
 pub mod m5_task_event_adapter_policy;
 pub mod m5_task_event_envelope_bus;
@@ -824,6 +844,18 @@ pub use m5_label_parity::{
     LABEL_PARITY_PACKET_ARTIFACT_REF, LABEL_PARITY_RECORD_KIND, LABEL_PARITY_SCHEMA_REF,
     LABEL_PARITY_SCHEMA_VERSION, LABEL_PARITY_SUPPORT_EXPORT_ID,
     LABEL_PARITY_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_quality_action_proposals_and_sessions::{
+    current_m5_quality_session_ledger_export, QualityActionConsumerProjection,
+    QualityActionCoverage, QualityActionGuardrails, QualityActionViolation,
+    QualitySessionExportRow, QualitySessionLedgerArtifactError, QualitySessionLedgerPacket,
+    QualitySessionLedgerPacketInput, QualitySessionLedgerSupportExport,
+    QualitySessionSurfaceProjection, M5_QUALITY_SESSION_LEDGER_ARTIFACT_REF,
+    M5_QUALITY_SESSION_LEDGER_DOC_REF, M5_QUALITY_SESSION_LEDGER_RECORD_KIND,
+    M5_QUALITY_SESSION_LEDGER_SCHEMA_REF, M5_QUALITY_SESSION_LEDGER_SCHEMA_VERSION,
+    M5_QUALITY_SESSION_LEDGER_SUMMARY_REF, M5_QUALITY_SESSION_LEDGER_SUPPORT_EXPORT_RECORD_KIND,
+    M5_QUALITY_SESSION_SURFACE_PROJECTION_RECORD_KIND, QUALITY_ACTION_PROPOSAL_SCHEMA_REF,
+    QUALITY_SESSION_SCHEMA_REF, REQUIRED_ACTION_CLASSES, REQUIRED_TRIGGER_PATHS,
 };
 pub use m5_replay_bundles::{
     current_stable_replay_bundle_input, retention_ai_evidence_safe, retention_byte_bound,

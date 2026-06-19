@@ -1186,13 +1186,15 @@ impl QualityActionProposal {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QualitySessionTriggerClass {
+    /// On-type, as-you-edit fast pass.
+    OnType,
     /// On-save participant pipeline.
     OnSave,
     /// Manual desktop command.
     ManualCommand,
     /// CLI or headless command.
     CliHeadless,
-    /// Review packet or batch preview.
+    /// Review packet or batch preview (review-apply path).
     Review,
     /// Local CI run.
     LocalCi,
@@ -1200,12 +1202,15 @@ pub enum QualitySessionTriggerClass {
     ManagedCi,
     /// Support replay.
     SupportReplay,
+    /// Imported-scan or replay comparison against a later local revision.
+    ImportComparison,
 }
 
 impl QualitySessionTriggerClass {
     /// Stable token recorded in schemas, fixtures, and exports.
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::OnType => "on_type",
             Self::OnSave => "on_save",
             Self::ManualCommand => "manual_command",
             Self::CliHeadless => "cli_headless",
@@ -1213,6 +1218,7 @@ impl QualitySessionTriggerClass {
             Self::LocalCi => "local_ci",
             Self::ManagedCi => "managed_ci",
             Self::SupportReplay => "support_replay",
+            Self::ImportComparison => "import_comparison",
         }
     }
 }
