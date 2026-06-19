@@ -70,6 +70,22 @@ pub use add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_c
     UNDERSTANDING_CARDS_SCHEMA_VERSION, UNDERSTANDING_CARDS_SUMMARY_REF,
     UNDERSTANDING_CARDS_SUPPORT_EXPORT_RECORD_KIND,
 };
+pub use authoring::evidence_handoff::{
+    current_stable_docs_evidence_handoff_export,
+    packet_to_input as docs_evidence_handoff_packet_to_input,
+    seeded_stable_docs_evidence_handoff_input, DocsChangeKind, DocsChangeSubject,
+    DocsEvidenceHandoffArtifactError, DocsEvidenceHandoffExport, DocsEvidenceHandoffPacket,
+    DocsEvidenceHandoffPacketInput, DocsEvidenceHandoffSupportExport, EvidenceBinding,
+    EvidenceHandoffEntry, EvidenceHandoffExportRow, EvidenceKind, EvidenceLocality,
+    EvidenceProvenance, EvidenceRedactionState, EvidenceReopenHandle, EvidenceScope,
+    EvidenceVersionMatch, EvidenceFreshness, HandoffConsumerProjection, HandoffConsumerSurface,
+    HandoffDegradation, HandoffDegradationClass, HandoffExportScope, HandoffFinding,
+    HandoffFindingKind, HandoffFindingSeverity, HandoffPromotionState, MirrorOfflinePosture,
+    DOCS_EVIDENCE_HANDOFF_ARTIFACT_REF, DOCS_EVIDENCE_HANDOFF_DOC_REF,
+    DOCS_EVIDENCE_HANDOFF_FIXTURE_DIR, DOCS_EVIDENCE_HANDOFF_RECORD_KIND,
+    DOCS_EVIDENCE_HANDOFF_SCHEMA_REF, DOCS_EVIDENCE_HANDOFF_SCHEMA_VERSION,
+    DOCS_EVIDENCE_HANDOFF_SUMMARY_REF, DOCS_EVIDENCE_HANDOFF_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use authoring::markdown_workspace::{
     current_stable_markdown_authoring_workspace_export, seeded_mode_commands,
     seeded_recovery_command, seeded_stable_markdown_authoring_workspace,

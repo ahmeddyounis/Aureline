@@ -1,0 +1,627 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/docs-evidence-handoff.schema.json",
+  "title": "Aureline docs evidence handoff packet",
+  "description": "Export-safe packet for the M5 docs-evidence handoff. The packet carries one or more typed handoff entries, each binding a prose change (readme_edit / changelog_entry / release_note_edit / help_edit / tutorial_edit / api_reference_edit / module_doc_edit / suggestion_proposal) to the concrete typed evidence that motivated it. Each entry names a concrete change (doc ref plus optional section anchor, display path, label, and originating suggestion), an overall sharing/export scope, a reopen handle, and one or more evidence bindings. Each binding names an evidence object kind (source_file / symbol / api_contract / failing_example / test_run / release_object / human_note), a target ref, a scope (local_only / review_handoff_scoped / export_safe_shared / blocked_unscoped), a redaction state (metadata_safe / redacted_for_export / local_only_redaction_required / not_applicable), an evidence provenance disclosure (first_party_verified / local_only_unverified / imported / mirrored / stale / derived_heuristic), a freshness/version/locality posture, a mirror/offline continuity posture (online_live / mirror_served / offline_cached_usable / offline_unavailable), and an open-evidence ref. An entry whose only evidence is a human note relies on narrative alone and is rejected; a scope wider than its bindings, a scope/redaction inconsistency, a local-only-unverified binding marked export-safe, a mirror/offline binding claiming authoritative live freshness, a non-first-party or non-current binding presented as authoritative live truth, an uncited non-first-party binding, or a non-reopenable entry blocks the claim. The packet must demonstrate the source_file, symbol, api_contract, failing_example, test_run, and release_object evidence kinds. An export preserves the change subjects, evidence bindings, scope, redaction, provenance, freshness, mirror/offline posture, and reopen per entry. Packet-level degradations narrow or block the claim. The promotion state (stable / narrowed_below_stable / blocks_stable) is computed from handoff findings and degradation severities. Raw document bodies, raw source files, raw diffs, raw URLs, rendered HTML, raw provider payloads, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "handoff_label",
+    "handoff_digest_ref",
+    "entries",
+    "export",
+    "handoff_degradations",
+    "consumer_projections",
+    "promotion_state",
+    "handoff_findings",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "docs_evidence_handoff"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "handoff_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "handoff_digest_ref": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "export": {
+      "$ref": "#/$defs/export"
+    },
+    "handoff_degradations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/handoff_degradation"
+      }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_projection"
+      }
+    },
+    "promotion_state": {
+      "$ref": "#/$defs/promotion_state"
+    },
+    "handoff_findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/handoff_finding"
+      }
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "change_kind": {
+      "type": "string",
+      "enum": [
+        "readme_edit",
+        "changelog_entry",
+        "release_note_edit",
+        "help_edit",
+        "tutorial_edit",
+        "api_reference_edit",
+        "module_doc_edit",
+        "suggestion_proposal"
+      ]
+    },
+    "evidence_kind": {
+      "type": "string",
+      "enum": [
+        "source_file",
+        "symbol",
+        "api_contract",
+        "failing_example",
+        "test_run",
+        "release_object",
+        "human_note"
+      ]
+    },
+    "evidence_scope": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "review_handoff_scoped",
+        "export_safe_shared",
+        "blocked_unscoped"
+      ]
+    },
+    "redaction_state": {
+      "type": "string",
+      "enum": [
+        "metadata_safe",
+        "redacted_for_export",
+        "local_only_redaction_required",
+        "not_applicable"
+      ]
+    },
+    "provenance": {
+      "type": "string",
+      "enum": [
+        "first_party_verified",
+        "local_only_unverified",
+        "imported",
+        "mirrored",
+        "stale",
+        "derived_heuristic"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified",
+        "refresh_pending"
+      ]
+    },
+    "version_match": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ]
+    },
+    "locality": {
+      "type": "string",
+      "enum": [
+        "local",
+        "imported_pack",
+        "mirrored_pack",
+        "managed"
+      ]
+    },
+    "mirror_offline": {
+      "type": "string",
+      "enum": [
+        "online_live",
+        "mirror_served",
+        "offline_cached_usable",
+        "offline_unavailable"
+      ]
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": [
+        "blocking",
+        "narrowing",
+        "advisory"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "docs_evidence_handoff",
+        "docs_authoring_surface",
+        "docs_review_panel",
+        "docs_browser_shell",
+        "ai_explanation",
+        "release_public_truth",
+        "cli_headless",
+        "support_export",
+        "diagnostics",
+        "help_about"
+      ]
+    },
+    "degradation_class": {
+      "type": "string",
+      "enum": [
+        "mirror_offline_snapshot",
+        "source_index_unavailable",
+        "evidence_refresh_pending",
+        "scope_narrowed_for_export",
+        "handoff_narrowed",
+        "quarantined_source"
+      ]
+    },
+    "export_scope": {
+      "type": "string",
+      "enum": [
+        "all_entries",
+        "export_safe_only",
+        "attention_only"
+      ]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "narrowed_below_stable",
+        "blocks_stable"
+      ]
+    },
+    "handoff_finding_kind": {
+      "type": "string",
+      "enum": [
+        "missing_identity",
+        "entries_empty",
+        "duplicate_entry_id",
+        "duplicate_binding_id",
+        "required_evidence_kind_missing",
+        "change_subject_missing",
+        "change_detail_missing",
+        "bindings_empty",
+        "change_not_concretely_traced",
+        "binding_target_missing",
+        "binding_open_evidence_missing",
+        "provenance_disclosure_missing",
+        "scope_redaction_inconsistent",
+        "local_only_marked_export_safe",
+        "entry_scope_wider_than_bindings",
+        "offline_claims_live_freshness",
+        "evidence_truth_collapsed",
+        "version_truth_collapsed",
+        "binding_not_cited",
+        "entry_not_reopenable",
+        "export_drops_preservation",
+        "export_entry_orphan",
+        "export_coverage_missing",
+        "export_change_kind_mismatch",
+        "export_doc_ref_mismatch",
+        "export_scope_mismatch",
+        "export_export_safe_mismatch",
+        "export_reopenable_mismatch",
+        "export_evidence_kinds_mismatch",
+        "export_binding_count_mismatch",
+        "export_cited_mismatch",
+        "degradation_incomplete",
+        "degradation_orphan",
+        "consumer_projection_drift",
+        "consumer_projection_packet_id_mismatch",
+        "required_surface_coverage_missing",
+        "raw_boundary_material_present"
+      ]
+    },
+    "change_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_kind",
+        "doc_ref",
+        "display_path",
+        "label"
+      ],
+      "properties": {
+        "change_kind": {
+          "$ref": "#/$defs/change_kind"
+        },
+        "doc_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "section_anchor": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "display_path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "originating_suggestion_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_id",
+        "evidence_kind",
+        "target_ref",
+        "display_path",
+        "label",
+        "scope",
+        "redaction_state",
+        "provenance",
+        "freshness",
+        "version_match",
+        "locality",
+        "mirror_offline",
+        "provenance_disclosure_note",
+        "open_evidence_ref",
+        "detail",
+        "cited"
+      ],
+      "properties": {
+        "binding_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_kind": {
+          "$ref": "#/$defs/evidence_kind"
+        },
+        "target_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "display_path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "scope": {
+          "$ref": "#/$defs/evidence_scope"
+        },
+        "redaction_state": {
+          "$ref": "#/$defs/redaction_state"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "version_match": {
+          "$ref": "#/$defs/version_match"
+        },
+        "locality": {
+          "$ref": "#/$defs/locality"
+        },
+        "mirror_offline": {
+          "$ref": "#/$defs/mirror_offline"
+        },
+        "provenance_disclosure_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "open_evidence_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "detail": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "cited": {
+          "type": "boolean"
+        },
+        "citation_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "reopen_handle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reopen_ref",
+        "reopenable",
+        "available_in_review",
+        "available_in_support"
+      ],
+      "properties": {
+        "reopen_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "reopenable": {
+          "type": "boolean"
+        },
+        "available_in_review": {
+          "type": "boolean"
+        },
+        "available_in_support": {
+          "type": "boolean"
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "change",
+        "bindings",
+        "entry_scope",
+        "reopen",
+        "detail"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "change": {
+          "$ref": "#/$defs/change_subject"
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/binding"
+          }
+        },
+        "entry_scope": {
+          "$ref": "#/$defs/evidence_scope"
+        },
+        "reopen": {
+          "$ref": "#/$defs/reopen_handle"
+        },
+        "detail": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id_ref",
+        "change_kind",
+        "doc_ref",
+        "evidence_kinds",
+        "binding_count",
+        "entry_scope",
+        "export_safe",
+        "reopenable",
+        "cited"
+      ],
+      "properties": {
+        "entry_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "change_kind": {
+          "$ref": "#/$defs/change_kind"
+        },
+        "doc_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_kinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence_kind"
+          }
+        },
+        "binding_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "entry_scope": {
+          "$ref": "#/$defs/evidence_scope"
+        },
+        "export_safe": {
+          "type": "boolean"
+        },
+        "reopenable": {
+          "type": "boolean"
+        },
+        "cited": {
+          "type": "boolean"
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "preserves_change_subjects",
+        "preserves_evidence_bindings",
+        "preserves_scope",
+        "preserves_redaction",
+        "preserves_provenance",
+        "preserves_freshness",
+        "preserves_mirror_offline",
+        "preserves_reopen",
+        "rows"
+      ],
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/export_scope"
+        },
+        "preserves_change_subjects": {
+          "type": "boolean"
+        },
+        "preserves_evidence_bindings": {
+          "type": "boolean"
+        },
+        "preserves_scope": {
+          "type": "boolean"
+        },
+        "preserves_redaction": {
+          "type": "boolean"
+        },
+        "preserves_provenance": {
+          "type": "boolean"
+        },
+        "preserves_freshness": {
+          "type": "boolean"
+        },
+        "preserves_mirror_offline": {
+          "type": "boolean"
+        },
+        "preserves_reopen": {
+          "type": "boolean"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/export_row"
+          }
+        }
+      }
+    },
+    "handoff_degradation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degradation_class",
+        "severity",
+        "summary"
+      ],
+      "properties": {
+        "degradation_class": {
+          "$ref": "#/$defs/degradation_class"
+        },
+        "severity": {
+          "$ref": "#/$defs/finding_severity"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "entry_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "packet_id_ref",
+        "preserves_change_subjects",
+        "preserves_evidence_bindings",
+        "preserves_scope",
+        "preserves_redaction",
+        "preserves_provenance",
+        "preserves_freshness",
+        "preserves_mirror_offline",
+        "preserves_reopen"
+      ],
+      "properties": {
+        "surface": {
+          "$ref": "#/$defs/consumer_surface"
+        },
+        "packet_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "preserves_change_subjects": {
+          "type": "boolean"
+        },
+        "preserves_evidence_bindings": {
+          "type": "boolean"
+        },
+        "preserves_scope": {
+          "type": "boolean"
+        },
+        "preserves_redaction": {
+          "type": "boolean"
+        },
+        "preserves_provenance": {
+          "type": "boolean"
+        },
+        "preserves_freshness": {
+          "type": "boolean"
+        },
+        "preserves_mirror_offline": {
+          "type": "boolean"
+        },
+        "preserves_reopen": {
+          "type": "boolean"
+        }
+      }
+    },
+    "handoff_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_kind",
+        "severity",
+        "summary"
+      ],
+      "properties": {
+        "finding_kind": {
+          "$ref": "#/$defs/handoff_finding_kind"
+        },
+        "severity": {
+          "$ref": "#/$defs/finding_severity"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    }
+  }
+}

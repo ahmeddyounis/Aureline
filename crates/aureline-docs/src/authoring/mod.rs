@@ -12,7 +12,14 @@
 //! README/changelog/onboarding release-docs maintenance surfaces that make
 //! branch/release/channel scope, pending suggestions, compare history, the
 //! publish/export boundary, and local-versus-shared evidence scope visible
-//! before edit and inspectable after the user leaves the surface.
+//! before edit and inspectable after the user leaves the surface, and
+//! [`evidence_handoff`] owns the docs-evidence handoff packets that bind a prose
+//! change or suggestion back to the files, symbols, API contracts, failing
+//! examples, test runs, release objects, or human-authored notes that motivated
+//! it — preserving local-only versus shared/export-safe scope, redaction state,
+//! and mirror/offline continuity so review, support, AI explanation, and
+//! release/public-truth surfaces can reopen the same docs causality Aureline
+//! used in the authoring workspace.
 //!
 //! The [`markdown_workspace`] module owns the runtime truth packet for the
 //! governed Markdown authoring workspace: the source/split/rendered modes a
@@ -29,6 +36,7 @@
 //! source files, rendered HTML, raw provider payloads, and credentials never
 //! cross this boundary.
 
+pub mod evidence_handoff;
 pub mod markdown_workspace;
 pub mod release_docs_surface;
 pub mod suggestion_panel;
