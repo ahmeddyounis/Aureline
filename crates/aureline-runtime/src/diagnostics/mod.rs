@@ -130,6 +130,18 @@ pub enum DiagnosticOriginClass {
 }
 
 impl DiagnosticOriginClass {
+    /// Stable token recorded in schemas, fixtures, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LiveLocalSession => "live_local_session",
+            Self::LiveRemoteSession => "live_remote_session",
+            Self::ManagedProviderLive => "managed_provider_live",
+            Self::ImportedSnapshot => "imported_snapshot",
+            Self::ReplayedSupportBundle => "replayed_support_bundle",
+            Self::LocalCache => "local_cache",
+        }
+    }
+
     /// Projects a language diagnostic origin into the runtime plane.
     pub const fn from_language_origin(origin: aureline_language::DiagnosticOriginClass) -> Self {
         match origin {
@@ -211,6 +223,16 @@ pub enum DiagnosticSeverityClass {
 }
 
 impl DiagnosticSeverityClass {
+    /// Stable token recorded in schemas, fixtures, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Error => "error",
+            Self::Warning => "warning",
+            Self::Notice => "notice",
+            Self::Hint => "hint",
+        }
+    }
+
     /// Projects a language diagnostic severity into the runtime plane.
     pub const fn from_language_severity(
         severity: aureline_language::DiagnosticSeverityClass,

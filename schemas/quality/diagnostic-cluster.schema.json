@@ -1,0 +1,535 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/quality/diagnostic-cluster.schema.json",
+  "title": "Aureline M5 diagnostic-cluster set",
+  "description": "Boundary schema for the M5 diagnostic-cluster set. A display cluster groups several normalized findings (schemas/quality/diagnostic-record.schema.json) into one ergonomic row that carries a stable cluster id, a primary anchor, the contributing diagnostic refs, a typed dedupe reason, aggregate counts, and a dominant display state, while keeping one source-preserving detail sheet per constituent. Clustering stays a view over real records: the synthetic-finding flag stays false, every constituent keeps its own provenance, target/environment ref, policy state, and imported-versus-live class, and Problems, review, support export, and AI evidence each receive a projection that exposes the dedupe reason and the full membership. Raw source text, raw output bodies, raw logs, raw paths, raw URLs, command lines, provider payload bodies, and secret material never cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/diagnostic_cluster_set",
+  "$defs": {
+    "set_schema_version": { "type": "integer", "const": 1 },
+    "record_schema_version": { "type": "integer", "const": 1 },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "opaque_ref": { "type": "string", "minLength": 1 },
+    "opaque_ref_nullable": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_ref" }, { "type": "null" }]
+    },
+    "opaque_ref_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_ref" }
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "short_sentence": { "type": "string", "minLength": 1, "maxLength": 1200 },
+    "count": { "type": "integer", "minimum": 0 },
+    "source_kind": {
+      "type": "string",
+      "enum": [
+        "editor_structural",
+        "language_service",
+        "build_or_task",
+        "runtime_or_test",
+        "scanner_import",
+        "policy",
+        "heuristic"
+      ]
+    },
+    "evidence_plane_class": {
+      "type": "string",
+      "enum": [
+        "static_analysis",
+        "build_time_execution",
+        "runtime_or_test_execution",
+        "policy_or_trust_evaluation",
+        "imported_snapshot_evidence",
+        "heuristic_fallback"
+      ]
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "live_local_session",
+        "live_remote_session",
+        "managed_provider_live",
+        "imported_snapshot",
+        "replayed_support_bundle",
+        "local_cache"
+      ]
+    },
+    "imported_live_class": {
+      "type": "string",
+      "enum": ["live_local", "live_remote", "managed_live", "imported", "replayed", "cached"]
+    },
+    "source_confidence_class": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "derived_structured",
+        "imported_authoritative",
+        "heuristic_parsed",
+        "correlated_suggestive",
+        "unknown_requires_review"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": ["authoritative", "advisory", "fallback_only", "inspect_only", "unsupported"]
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": ["error", "warning", "notice", "hint"]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "recent",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "superseded",
+        "imported_snapshot",
+        "unverified"
+      ]
+    },
+    "remap_state_class": {
+      "type": "string",
+      "enum": ["exact", "contextual", "stale", "unmapped", "imported_static"]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": ["editor", "problems", "output", "review", "cli_explain", "ai_evidence", "support_export"]
+    },
+    "m5_diagnostic_surface": {
+      "type": "string",
+      "enum": [
+        "notebook_cell_diagnostics",
+        "framework_pack_diagnostics",
+        "request_tooling_diagnostics",
+        "data_tooling_diagnostics",
+        "preview_runtime_diagnostics",
+        "package_lane_diagnostics",
+        "language_provider_diagnostics",
+        "editor_structural_diagnostics",
+        "imported_scanner_diagnostics"
+      ]
+    },
+    "dedupe_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_clustering",
+        "exact_duplicate",
+        "cross_source_corroboration",
+        "related_by_location",
+        "related_by_cause",
+        "display_rollup_only"
+      ]
+    },
+    "member_detail_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "detail_sheet_id",
+        "member_diagnostic_id",
+        "surface",
+        "severity_class",
+        "source_kind",
+        "evidence_plane_class",
+        "origin_class",
+        "imported_live_class",
+        "confidence_class",
+        "support_class",
+        "freshness_class",
+        "remap_state_class",
+        "anchor_family_id",
+        "source_descriptor_ref",
+        "producer_ref",
+        "tool_ref",
+        "suppression_refs",
+        "baseline_refs",
+        "redaction_class",
+        "reopen_surface_ref",
+        "recoverable",
+        "disclosure_required",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_diagnostic_cluster_member_detail_sheet" },
+        "schema_version": { "$ref": "#/$defs/record_schema_version" },
+        "detail_sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "member_diagnostic_id": { "$ref": "#/$defs/opaque_id" },
+        "surface": { "$ref": "#/$defs/m5_diagnostic_surface" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "evidence_plane_class": { "$ref": "#/$defs/evidence_plane_class" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "imported_live_class": { "$ref": "#/$defs/imported_live_class" },
+        "confidence_class": { "$ref": "#/$defs/source_confidence_class" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "remap_state_class": { "$ref": "#/$defs/remap_state_class" },
+        "anchor_family_id": { "$ref": "#/$defs/opaque_id" },
+        "current_anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_descriptor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "producer_ref": { "$ref": "#/$defs/opaque_ref" },
+        "tool_ref": { "$ref": "#/$defs/opaque_ref" },
+        "tool_version_ref": { "$ref": "#/$defs/opaque_ref" },
+        "adapter_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_or_environment_ref": { "$ref": "#/$defs/opaque_ref" },
+        "origin_ref": { "$ref": "#/$defs/opaque_ref" },
+        "suppression_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "baseline_refs": { "$ref": "#/$defs/opaque_ref_list" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "reopen_surface_ref": { "$ref": "#/$defs/opaque_ref" },
+        "recoverable": { "type": "boolean" },
+        "disclosure_required": { "type": "boolean" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "aggregate_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "member_count",
+        "distinct_source_kind_count",
+        "distinct_origin_class_count",
+        "error_count",
+        "warning_count",
+        "notice_count",
+        "hint_count",
+        "imported_or_replayed_member_count",
+        "live_member_count",
+        "suppressed_member_count",
+        "baselined_member_count"
+      ],
+      "properties": {
+        "member_count": { "$ref": "#/$defs/count" },
+        "distinct_source_kind_count": { "$ref": "#/$defs/count" },
+        "distinct_origin_class_count": { "$ref": "#/$defs/count" },
+        "error_count": { "$ref": "#/$defs/count" },
+        "warning_count": { "$ref": "#/$defs/count" },
+        "notice_count": { "$ref": "#/$defs/count" },
+        "hint_count": { "$ref": "#/$defs/count" },
+        "imported_or_replayed_member_count": { "$ref": "#/$defs/count" },
+        "live_member_count": { "$ref": "#/$defs/count" },
+        "suppressed_member_count": { "$ref": "#/$defs/count" },
+        "baselined_member_count": { "$ref": "#/$defs/count" }
+      }
+    },
+    "dominant_display_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dominant_severity_class",
+        "dominant_freshness_class",
+        "dominant_remap_state_class",
+        "contains_imported_or_replayed_member",
+        "contains_live_member",
+        "disclosure_required"
+      ],
+      "properties": {
+        "dominant_severity_class": { "$ref": "#/$defs/severity_class" },
+        "dominant_freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "dominant_remap_state_class": { "$ref": "#/$defs/remap_state_class" },
+        "contains_imported_or_replayed_member": { "type": "boolean" },
+        "contains_live_member": { "type": "boolean" },
+        "disclosure_required": { "type": "boolean" }
+      }
+    },
+    "display_cluster": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "cluster_id",
+        "display_label_summary",
+        "primary_diagnostic_id",
+        "primary_anchor_family_id",
+        "contributing_diagnostic_ids",
+        "dedupe_reason_class",
+        "dedupe_reason_detail",
+        "aggregate_counts",
+        "dominant_display_state",
+        "member_detail_sheets",
+        "preserved_source_kinds",
+        "preserved_origin_classes",
+        "preserved_freshness_classes",
+        "preserved_remap_states",
+        "synthetic_finding",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_diagnostic_display_cluster" },
+        "schema_version": { "$ref": "#/$defs/record_schema_version" },
+        "cluster_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label_summary": { "$ref": "#/$defs/short_sentence" },
+        "primary_diagnostic_id": { "$ref": "#/$defs/opaque_id" },
+        "primary_anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "primary_anchor_family_id": { "$ref": "#/$defs/opaque_id" },
+        "contributing_diagnostic_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "dedupe_reason_class": { "$ref": "#/$defs/dedupe_reason_class" },
+        "dedupe_reason_detail": { "$ref": "#/$defs/short_sentence" },
+        "aggregate_counts": { "$ref": "#/$defs/aggregate_counts" },
+        "dominant_display_state": { "$ref": "#/$defs/dominant_display_state" },
+        "member_detail_sheets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/member_detail_sheet" }
+        },
+        "preserved_source_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_kind" }
+        },
+        "preserved_origin_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/origin_class" }
+        },
+        "preserved_freshness_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/freshness_class" }
+        },
+        "preserved_remap_states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/remap_state_class" }
+        },
+        "synthetic_finding": { "type": "boolean", "const": false },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "projection_id",
+        "cluster_id",
+        "surface_class",
+        "primary_diagnostic_id",
+        "dedupe_reason_class",
+        "dedupe_reason_detail",
+        "member_diagnostic_ids",
+        "member_count",
+        "dominant_severity_class",
+        "dominant_freshness_class",
+        "disclosure_required",
+        "exposes_dedupe_reason",
+        "exposes_membership",
+        "recovers_constituents",
+        "raw_source_content_included",
+        "raw_payload_included",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_diagnostic_cluster_surface_projection" },
+        "schema_version": { "$ref": "#/$defs/record_schema_version" },
+        "projection_id": { "$ref": "#/$defs/opaque_id" },
+        "cluster_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "primary_diagnostic_id": { "$ref": "#/$defs/opaque_id" },
+        "dedupe_reason_class": { "$ref": "#/$defs/dedupe_reason_class" },
+        "dedupe_reason_detail": { "$ref": "#/$defs/short_sentence" },
+        "member_diagnostic_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "member_count": { "$ref": "#/$defs/count" },
+        "dominant_severity_class": { "$ref": "#/$defs/severity_class" },
+        "dominant_freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "disclosure_required": { "type": "boolean" },
+        "exposes_dedupe_reason": { "type": "boolean", "const": true },
+        "exposes_membership": { "type": "boolean", "const": true },
+        "recovers_constituents": { "type": "boolean", "const": true },
+        "raw_source_content_included": { "type": "boolean", "const": false },
+        "raw_payload_included": { "type": "boolean", "const": false },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "constituent_export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cluster_id", "member_diagnostic_ids"],
+      "properties": {
+        "cluster_id": { "$ref": "#/$defs/opaque_id" },
+        "member_diagnostic_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "dedupe_reason_export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cluster_id", "dedupe_reason_class", "dedupe_reason_detail"],
+      "properties": {
+        "cluster_id": { "$ref": "#/$defs/opaque_id" },
+        "dedupe_reason_class": { "$ref": "#/$defs/dedupe_reason_class" },
+        "dedupe_reason_detail": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "workspace_id",
+        "cluster_refs",
+        "clustered_constituent_refs",
+        "all_constituent_diagnostic_refs",
+        "dedupe_reasons",
+        "preserves_cluster_meaning",
+        "preserves_constituents",
+        "redaction_class",
+        "raw_source_content_included",
+        "raw_payload_included",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_diagnostic_cluster_support_export" },
+        "schema_version": { "$ref": "#/$defs/record_schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "cluster_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "clustered_constituent_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/constituent_export_row" }
+        },
+        "all_constituent_diagnostic_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "dedupe_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dedupe_reason_export_row" }
+        },
+        "preserves_cluster_meaning": { "type": "boolean", "const": true },
+        "preserves_constituents": { "type": "boolean", "const": true },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "raw_source_content_included": { "type": "boolean", "const": false },
+        "raw_payload_included": { "type": "boolean", "const": false },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unlike_sources_clustered_not_flattened",
+        "no_synthetic_findings",
+        "anchors_never_silently_repaired",
+        "imported_live_class_preserved_in_detail",
+        "target_environment_refs_preserved_in_detail",
+        "policy_state_preserved_in_detail",
+        "dedupe_reason_exposed_on_required_surfaces",
+        "diagnostic_ids_and_completeness_exportable",
+        "every_constituent_recoverable_from_detail_sheet"
+      ],
+      "properties": {
+        "unlike_sources_clustered_not_flattened": { "type": "boolean", "const": true },
+        "no_synthetic_findings": { "type": "boolean", "const": true },
+        "anchors_never_silently_repaired": { "type": "boolean", "const": true },
+        "imported_live_class_preserved_in_detail": { "type": "boolean", "const": true },
+        "target_environment_refs_preserved_in_detail": { "type": "boolean", "const": true },
+        "policy_state_preserved_in_detail": { "type": "boolean", "const": true },
+        "dedupe_reason_exposed_on_required_surfaces": { "type": "boolean", "const": true },
+        "diagnostic_ids_and_completeness_exportable": { "type": "boolean", "const": true },
+        "every_constituent_recoverable_from_detail_sheet": { "type": "boolean", "const": true }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "problems_exposes_cluster_membership",
+        "review_exposes_cluster_membership",
+        "support_export_preserves_constituents",
+        "ai_evidence_exposes_cluster_membership",
+        "editor_detail_sheet_recovers_each_member",
+        "cli_headless_lists_dedupe_reason"
+      ],
+      "properties": {
+        "problems_exposes_cluster_membership": { "type": "boolean", "const": true },
+        "review_exposes_cluster_membership": { "type": "boolean", "const": true },
+        "support_export_preserves_constituents": { "type": "boolean", "const": true },
+        "ai_evidence_exposes_cluster_membership": { "type": "boolean", "const": true },
+        "editor_detail_sheet_recovers_each_member": { "type": "boolean", "const": true },
+        "cli_headless_lists_dedupe_reason": { "type": "boolean", "const": true }
+      }
+    },
+    "diagnostic_cluster_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "set_label",
+        "workspace_id",
+        "clusters",
+        "surface_projections",
+        "support_export",
+        "guardrails",
+        "consumer_projection",
+        "source_contract_refs",
+        "redaction_class_token",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_diagnostic_cluster_set" },
+        "schema_version": { "$ref": "#/$defs/set_schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "set_label": { "$ref": "#/$defs/short_sentence" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "clusters": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/display_cluster" }
+        },
+        "surface_projections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_projection" }
+        },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "guardrails": { "$ref": "#/$defs/guardrails" },
+        "consumer_projection": { "$ref": "#/$defs/consumer_projection" },
+        "source_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "redaction_class_token": { "$ref": "#/$defs/opaque_id" },
+        "minted_at": { "$ref": "#/$defs/timestamp" }
+      }
+    }
+  }
+}

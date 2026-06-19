@@ -111,6 +111,23 @@
 //! preserve source and completeness truth instead of flattening it to a generic
 //! provider name.
 //!
+//! [`cluster_m5_diagnostics_with_cross_source_dedupe_and_source_preserving_detail_sheets::DiagnosticClusterSetPacket`]
+//! adds the ergonomic view those normalized records need without losing their
+//! distinct truth: a [`cluster_m5_diagnostics_with_cross_source_dedupe_and_source_preserving_detail_sheets::DiagnosticDisplayCluster`]
+//! groups several findings — the same line flagged by a language service, an
+//! imported scanner, and a build task — into one compact row carrying a stable
+//! cluster id, a primary anchor, the contributing diagnostic refs, a typed dedupe
+//! reason, aggregate counts, and a dominant display state, while keeping one
+//! source-preserving detail sheet per constituent. Clustering stays a view over
+//! real records: the synthetic-finding flag stays false, every constituent keeps
+//! its own provenance, target / environment ref, policy state, and
+//! imported-versus-live class, and Problems, review, support export, and AI
+//! evidence each receive a projection that exposes the dedupe reason and full
+//! membership so a user can audit why several findings were shown as one summary.
+//! The validator refuses a cluster that flattens unlike sources into a synthetic
+//! finding, drops a member's provenance, cannot recover a constituent, or
+//! serializes a lossy support export.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -124,6 +141,7 @@ pub mod build_test_event_interoperability;
 pub mod capability_negotiation;
 pub mod capsule_resolver;
 pub mod certify_test_discovery_session_watch_coverage_flaky_snapshot_evidence_quality;
+pub mod cluster_m5_diagnostics_with_cross_source_dedupe_and_source_preserving_detail_sheets;
 pub mod coverage_overlays_and_snapshot_golden_review;
 pub mod debug;
 pub mod dependencies;
