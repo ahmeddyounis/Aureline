@@ -13,6 +13,7 @@
     clippy::vec_init_then_push
 )]
 
+pub mod certify_m5_learnability_onboarding_truth;
 pub mod educational_ai_and_contextual_cards;
 pub mod freeze_m5_learnability_lane;
 pub mod guided_exercise_rails;
@@ -22,6 +23,19 @@ pub mod m5_feature_family_learning_rails;
 pub mod progress_snapshots;
 pub mod qualify_learning_mode_guided_tours_and_teaching_sessions;
 pub mod tour_and_glossary_packages;
+
+pub use certify_m5_learnability_onboarding_truth::{
+    current_m5_learnability_certification_export, seeded_m5_learnability_certification,
+    CertifiedLearnabilityRow, CertifiedLearnabilitySubject, LearnabilityCertificationArtifactError,
+    LearnabilityCertificationConsumerProjection, LearnabilityCertificationFreshness,
+    LearnabilityCertificationGrade, LearnabilityCertificationGuardrails,
+    LearnabilityCertificationNarrowTrigger, LearnabilityCertificationPacket,
+    LearnabilityCertificationPacketInput, LearnabilityCertificationViolation,
+    LearnabilityDimensionCertification, LearnabilityEvidenceDimension, LearnabilityProofCurrency,
+    LEARNABILITY_CERT_ARTIFACT_REF, LEARNABILITY_CERT_DOC_REF, LEARNABILITY_CERT_FIXTURE_DIR,
+    LEARNABILITY_CERT_RECORD_KIND, LEARNABILITY_CERT_SCHEMA_REF, LEARNABILITY_CERT_SCHEMA_VERSION,
+    LEARNABILITY_CERT_SUMMARY_REF, LEARNABILITY_CERT_WAIVER_LOG_REF,
+};
 
 pub use educational_ai_and_contextual_cards::{
     derive_panel_verdict, derive_practice_indicator_verdict,

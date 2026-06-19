@@ -1,0 +1,95 @@
+# M5 Learnability Certification
+
+- Packet: `m5-learnability-certification:stable:0001`
+- Label: `M5 Learnability Certification`
+- Rows: 10 (10 claimed, 1 mirror-served, 1 narrowed)
+- Families: 9 / 9
+- Dimensions certified: 6 / 6
+- Evidence freshness SLO: 168 hours (last refresh: 2026-06-19T00:00:00Z)
+
+## Rows
+
+- **learn-cert:notebook:0001** (notebook): claim `certified` -> effective `certified`
+  - Notebook onboarding row with current command-backed tour, exercise, progress, cited educational-AI, offline-mirror, and learning-mode-profile proof
+  - subject `subject:learn-cert:notebook:0001` (family `notebook`), mirror_served=false
+  - guided_tour = `verified_current`
+  - guided_exercise = `verified_current`
+  - progress_snapshot = `verified_current`
+  - educational_ai = `verified_current`
+  - offline_mirror = `verified_current`
+  - learning_mode_profile = `verified_current`
+- **learn-cert:request_workspace:0001** (request_workspace): claim `certified` -> effective `certified`
+  - HTTP/API request workspace onboarding row with current command-backed core learnability proof
+  - subject `subject:learn-cert:request_workspace:0001` (family `request_workspace`), mirror_served=false
+  - guided_tour = `verified_current`
+  - guided_exercise = `verified_current`
+  - progress_snapshot = `verified_current`
+  - educational_ai = `verified_current`
+  - offline_mirror = `verified_current`
+- **learn-cert:database_workspace:0001** (database_workspace): claim `certified` -> effective `certified`
+  - Database/SQL workspace onboarding row with current command-backed core learnability proof
+  - subject `subject:learn-cert:database_workspace:0001` (family `database_workspace`), mirror_served=false
+  - guided_tour = `verified_current`
+  - guided_exercise = `verified_current`
+  - progress_snapshot = `verified_current`
+  - educational_ai = `verified_current`
+  - offline_mirror = `verified_current`
+- **learn-cert:profiler_trace:0001** (profiler_trace): claim `certified` -> effective `certified`
+  - Profiler/trace onboarding row with current command-backed core learnability proof
+  - subject `subject:learn-cert:profiler_trace:0001` (family `profiler_trace`), mirror_served=false
+  - guided_tour = `verified_current`
+  - guided_exercise = `verified_current`
+  - progress_snapshot = `verified_current`
+  - educational_ai = `verified_current`
+  - offline_mirror = `verified_current`
+- **learn-cert:docs_browser:0001** (docs_browser): claim `release_certified` -> effective `release_certified`
+  - Docs/knowledge and embedded-browser onboarding row with current core proof plus a learning-mode profile, held release-certified
+  - subject `subject:learn-cert:docs_browser:0001` (family `docs_browser`), mirror_served=false
+  - guided_tour = `verified_current`
+  - guided_exercise = `verified_current`
+  - progress_snapshot = `verified_current`
+  - educational_ai = `verified_current`
+  - offline_mirror = `verified_current`
+  - learning_mode_profile = `verified_current`
+- **learn-cert:preview:0001** (preview): claim `certified` -> effective `certified`
+  - Preview/runtime onboarding row with current command-backed core learnability proof
+  - subject `subject:learn-cert:preview:0001` (family `preview`), mirror_served=false
+  - guided_tour = `verified_current`
+  - guided_exercise = `verified_current`
+  - progress_snapshot = `verified_current`
+  - educational_ai = `verified_current`
+  - offline_mirror = `verified_current`
+- **learn-cert:template_scaffold:0001** (template_scaffold): claim `certified` -> effective `certified`
+  - Template/scaffold (framework-pack) onboarding row with current core proof plus a learning-mode profile
+  - subject `subject:learn-cert:template_scaffold:0001` (family `template_scaffold`), mirror_served=false
+  - guided_tour = `verified_current`
+  - guided_exercise = `verified_current`
+  - progress_snapshot = `verified_current`
+  - educational_ai = `verified_current`
+  - offline_mirror = `verified_current`
+  - learning_mode_profile = `verified_current`
+- **learn-cert:companion:0001** (companion): claim `provisionally_certified` -> effective `provisionally_certified`
+  - Companion onboarding row held read-only on a disclosed offline/mirror pack with current mirror proof that never reads as a live local result
+  - subject `subject:learn-cert:companion:0001` (family `companion`), mirror_served=true
+  - guided_tour = `mirror_current`
+  - guided_exercise = `mirror_current`
+  - progress_snapshot = `mirror_current`
+  - educational_ai = `mirror_current`
+  - offline_mirror = `mirror_current`
+- **learn-cert:sync_offboarding:0001** (sync_offboarding): claim `release_certified` -> effective `release_certified`
+  - Sync/retention/offboarding onboarding row with current command-backed core learnability proof, held release-certified
+  - subject `subject:learn-cert:sync_offboarding:0001` (family `sync_offboarding`), mirror_served=false
+  - guided_tour = `verified_current`
+  - guided_exercise = `verified_current`
+  - progress_snapshot = `verified_current`
+  - educational_ai = `verified_current`
+  - offline_mirror = `verified_current`
+- **learn-cert:profiler_trace:stale-offline-mirror:0001** (profiler_trace): claim `certified` -> effective `uncertified`
+  - Profiler onboarding row whose offline/mirror docs-pack aged outside its freshness window
+  - subject `subject:learn-cert:profiler_trace:stale-offline-mirror:0001` (family `profiler_trace`), mirror_served=false
+  - guided_tour = `verified_current`
+  - guided_exercise = `verified_current`
+  - progress_snapshot = `verified_current`
+  - educational_ai = `verified_current`
+  - offline_mirror = `stale_expired`
+  - Narrowed: Offline/mirror docs-pack aged outside its freshness window; held uncertified until a fresh mirror re-backs continuity
