@@ -1,0 +1,341 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/m5-tour-and-glossary-packages.schema.json",
+  "title": "Aureline M5 versioned tour and glossary packages",
+  "description": "Boundary schema for the versioned glossary-pack and tour-package content manifests. For each M5 feature family — notebook, request_workspace, database_workspace, profiler_trace, docs_browser, preview, template_scaffold, companion, sync_offboarding — the manifest binds a versioned glossary pack and a versioned tour package. Every glossary entry and tour step references one or more stable target objects (command id, file/symbol/docs/graph/surface object id) rather than brittle screen coordinates; each carries a citation so localized or mirrored copies never lose their authoritative anchors. Locale overlays localize display labels for the same entry/step ids and MUST NOT carry target refs or citation refs, so target identity survives translation. Freshness state and the mirror-parity posture keep cached, mirror-synced, local-only, and stale packages explicitly disclosed so a non-live package never masquerades as current live knowledge. Tour steps that widen scope MUST name the from/to scope and a reason. Each package's verdict is the strictest verdict folded from its freshness, mirror-parity, stable-target, citation, scope-widening, and locale-overlay evidence; the manifest carries the narrowest overall verdict. Raw pack bodies, raw URLs, raw absolute paths, and raw credential material MUST NOT appear; the schema carries opaque ids, typed vocabulary, and short privacy-safe labels only. The stable-target taxonomy aligns with schemas/help/tour_package.schema.json. Adding a new record_kind, family, target kind, source class, or freshness state is additive-minor; repurposing an existing value is breaking.",
+  "oneOf": [
+    { "$ref": "#/$defs/glossary_pack_record" },
+    { "$ref": "#/$defs/tour_package_record" },
+    { "$ref": "#/$defs/m5_tour_and_glossary_package_manifest_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for tour/glossary package records. Current value is 1. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier. Raw URLs, raw absolute paths, and raw secret material MUST NOT appear."
+    },
+    "opaque_id_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "qualification_verdict": {
+      "type": "string",
+      "enum": ["qualified_stable", "narrowed_preview", "narrowed_beta", "absent"],
+      "description": "Derived lifecycle verdict for a package or the overall manifest."
+    },
+    "explain_apply_class": {
+      "type": "string",
+      "enum": ["fully_separated", "apply_requires_approval", "read_only", "conflated"],
+      "description": "Explain-versus-apply separation class. 'conflated' narrows below Stable."
+    },
+    "m5_learning_surface_family": {
+      "type": "string",
+      "enum": [
+        "notebook",
+        "request_workspace",
+        "database_workspace",
+        "profiler_trace",
+        "docs_browser",
+        "preview",
+        "template_scaffold",
+        "companion",
+        "sync_offboarding"
+      ],
+      "description": "One M5 feature family that ships learnability packages."
+    },
+    "source_class": {
+      "type": "string",
+      "enum": ["project_docs", "mirrored_official_docs", "curated_knowledge_pack", "semantic_graph"],
+      "description": "Where a package's content originates."
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "live_authoritative",
+        "mirror_synced_disclosed",
+        "cached_disclosed",
+        "local_only_disclosed",
+        "stale_disclosed"
+      ],
+      "description": "How current the package's content is. Any non-live state MUST be explicitly disclosed; only live_authoritative and mirror_synced_disclosed qualify Stable."
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "command_id",
+        "file_object_id",
+        "symbol_object_id",
+        "docs_node_id",
+        "graph_node_id",
+        "surface_object_id"
+      ],
+      "description": "The kind of stable product object a step or glossary entry points at."
+    },
+    "stable_target_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_kind", "target_id"],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "package_version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version_ref", "revision_ref"],
+      "properties": {
+        "version_ref": { "$ref": "#/$defs/opaque_id" },
+        "revision_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "citation_proof": {
+      "type": "object",
+      "description": "Proof that the entry or step cites at least one authoritative anchor.",
+      "required": ["has_citation", "all_anchors_live_authoritative"],
+      "properties": {
+        "has_citation": { "type": "boolean" },
+        "command_id_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "docs_citation_anchor_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "symbol_linked_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "all_anchors_live_authoritative": { "type": "boolean" },
+        "narrowing_reason": { "type": ["string", "null"] }
+      }
+    },
+    "mirror_parity_posture": {
+      "type": "object",
+      "description": "Offline and mirror-aware availability posture. Local-only, air-gapped, and mirrored profiles surface package state with an explicit freshness label instead of silently dead-linking.",
+      "required": [
+        "available_offline",
+        "available_on_mirror",
+        "freshness_label",
+        "explicit_freshness_disclosed",
+        "silent_dead_link_on_stale"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "available_offline": { "type": "boolean" },
+        "available_on_mirror": { "type": "boolean" },
+        "freshness_label": { "$ref": "#/$defs/freshness_state" },
+        "explicit_freshness_disclosed": { "type": "boolean" },
+        "silent_dead_link_on_stale": {
+          "type": "boolean",
+          "const": false,
+          "description": "A package MUST NOT show a silent dead link when stale or offline."
+        },
+        "narrowing_reason": { "type": ["string", "null"] }
+      }
+    },
+    "locale_overlay": {
+      "type": "object",
+      "description": "Localization overlay for one locale. Supplies localized display-label refs keyed by base entry/step id; MUST NOT carry target refs or citation refs.",
+      "additionalProperties": false,
+      "required": ["locale_tag", "localized_label_refs", "preserves_target_identity", "preserves_citations"],
+      "properties": {
+        "locale_tag": { "type": "string", "minLength": 2 },
+        "localized_label_refs": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/opaque_id" }
+        },
+        "preserves_target_identity": { "type": "boolean" },
+        "preserves_citations": { "type": "boolean" },
+        "narrowing_reason": { "type": ["string", "null"] }
+      }
+    },
+    "scope_widening": {
+      "type": "object",
+      "description": "Whether a tour step widens working scope, and how it is named. A widening step MUST name from/to scope and a reason.",
+      "additionalProperties": false,
+      "required": ["widens"],
+      "properties": {
+        "widens": { "type": "boolean" },
+        "from_scope_ref": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }] },
+        "to_scope_ref": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }] },
+        "named_reason": { "type": ["string", "null"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "widens": { "const": true } }, "required": ["widens"] },
+          "then": {
+            "required": ["from_scope_ref", "to_scope_ref", "named_reason"],
+            "properties": {
+              "from_scope_ref": { "$ref": "#/$defs/opaque_id" },
+              "to_scope_ref": { "$ref": "#/$defs/opaque_id" },
+              "named_reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "glossary_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry_id", "term_token", "label_ref", "definition_ref", "stable_targets", "citation"],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "term_token": { "type": "string", "minLength": 1 },
+        "label_ref": { "$ref": "#/$defs/opaque_id" },
+        "definition_ref": { "$ref": "#/$defs/opaque_id" },
+        "stable_targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_target_ref" }
+        },
+        "citation": { "$ref": "#/$defs/citation_proof" },
+        "prerequisite_entry_refs": { "$ref": "#/$defs/opaque_id_array" }
+      }
+    },
+    "tour_step_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_id", "position_index", "title_ref", "stable_targets", "citation", "explain_apply_class", "scope_widening"],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "position_index": { "type": "integer", "minimum": 0 },
+        "title_ref": { "$ref": "#/$defs/opaque_id" },
+        "stable_targets": {
+          "type": "array",
+          "minItems": 1,
+          "description": "At least one stable target — tour steps never rely on coordinates alone.",
+          "items": { "$ref": "#/$defs/stable_target_ref" }
+        },
+        "prerequisite_step_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "citation": { "$ref": "#/$defs/citation_proof" },
+        "explain_apply_class": { "$ref": "#/$defs/explain_apply_class" },
+        "scope_widening": { "$ref": "#/$defs/scope_widening" },
+        "success_criteria_refs": { "$ref": "#/$defs/opaque_id_array" }
+      }
+    },
+    "glossary_pack_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "pack_id",
+        "version",
+        "family",
+        "generated_at",
+        "source_class",
+        "source_ref",
+        "freshness_state",
+        "mirror_parity",
+        "base_locale",
+        "entries",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "glossary_pack_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "pack_id": { "$ref": "#/$defs/opaque_id" },
+        "version": { "$ref": "#/$defs/package_version" },
+        "family": { "$ref": "#/$defs/m5_learning_surface_family" },
+        "generated_at": { "type": "string" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "mirror_parity": { "$ref": "#/$defs/mirror_parity_posture" },
+        "base_locale": { "type": "string", "minLength": 2 },
+        "locale_overlays": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/locale_overlay" }
+        },
+        "prerequisite_pack_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/glossary_entry_record" }
+        },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "tour_package_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "package_id",
+        "version",
+        "family",
+        "generated_at",
+        "source_class",
+        "source_ref",
+        "freshness_state",
+        "mirror_parity",
+        "base_locale",
+        "glossary_pack_ref",
+        "explain_apply_class",
+        "steps",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "tour_package_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "package_id": { "$ref": "#/$defs/opaque_id" },
+        "version": { "$ref": "#/$defs/package_version" },
+        "family": { "$ref": "#/$defs/m5_learning_surface_family" },
+        "generated_at": { "type": "string" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "mirror_parity": { "$ref": "#/$defs/mirror_parity_posture" },
+        "base_locale": { "type": "string", "minLength": 2 },
+        "locale_overlays": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/locale_overlay" }
+        },
+        "glossary_pack_ref": { "$ref": "#/$defs/opaque_id" },
+        "prerequisite_package_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "explain_apply_class": { "$ref": "#/$defs/explain_apply_class" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/tour_step_record" }
+        },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "m5_tour_and_glossary_package_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "manifest_id",
+        "generated_at",
+        "contract_refs",
+        "glossary_packs",
+        "tour_packages",
+        "overall_verdict"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_tour_and_glossary_package_manifest_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "type": "string" },
+        "contract_refs": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "glossary_packs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/glossary_pack_record" }
+        },
+        "tour_packages": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tour_package_record" }
+        },
+        "overall_verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "overall_narrowing_reasons": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

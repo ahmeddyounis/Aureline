@@ -15,6 +15,7 @@
 pub mod freeze_m5_learnability_lane;
 pub mod m5_feature_family_learning_rails;
 pub mod qualify_learning_mode_guided_tours_and_teaching_sessions;
+pub mod tour_and_glossary_packages;
 
 pub use freeze_m5_learnability_lane::{
     derive_lane_row_verdict, seeded_m5_learnability_lane_freeze, validate_m5_learnability_lane,
@@ -52,4 +53,16 @@ pub use qualify_learning_mode_guided_tours_and_teaching_sessions::{
     GUIDED_LEARNING_QUALIFICATION_SCHEMA_VERSION, LEARNING_MODE_PROFILE_QUALIFICATION_RECORD_KIND,
     LEARNING_PRESENTATION_PACKET_SCHEMA_REF, PROGRESS_SNAPSHOT_QUALIFICATION_RECORD_KIND,
     TEACHING_SESSION_QUALIFICATION_RECORD_KIND, TOUR_PACKAGE_QUALIFICATION_RECORD_KIND,
+};
+
+pub use tour_and_glossary_packages::{
+    derive_glossary_pack_verdict, derive_tour_package_verdict, reopen_manifest_from_json,
+    seeded_m5_tour_and_glossary_packages, validate_m5_tour_and_glossary_packages, FreshnessState,
+    GlossaryEntryRecord, GlossaryPack, LocaleOverlay, M5TourAndGlossaryPackageManifest,
+    PackageVersion, ScopeWidening, SourceClass, StableTargetRef, TargetKind,
+    TourAndGlossaryValidationError, TourPackage, TourStepRecord, GLOSSARY_PACK_RECORD_KIND,
+    M5_TOUR_AND_GLOSSARY_ARTIFACT_REF, M5_TOUR_AND_GLOSSARY_DOC_REF,
+    M5_TOUR_AND_GLOSSARY_FIXTURE_REF, M5_TOUR_AND_GLOSSARY_MANIFEST_RECORD_KIND,
+    M5_TOUR_AND_GLOSSARY_SCHEMA_REF, M5_TOUR_AND_GLOSSARY_SCHEMA_VERSION,
+    TOUR_PACKAGE_CONTRACT_SCHEMA_REF, TOUR_PACKAGE_RECORD_KIND,
 };
