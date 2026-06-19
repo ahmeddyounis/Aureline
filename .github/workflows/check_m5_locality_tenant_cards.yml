@@ -1,0 +1,75 @@
+# Locality-descriptor and tenant-card gate.
+#
+# Proves the locality descriptors and tenant-boundary cards stay in sync: every
+# claimed managed, self-hosted, and sovereign row discloses its processing
+# location, storage location, region pin, retention class, tenant scope, and
+# isolation; managed-lane rows fail closed when a declared region pin cannot be
+# honored; self-hosted or sovereign rows that overclaim locality are withdrawn;
+# and every surface renders identical locality/tenant vocabulary. The crate audit
+# and the schema/fixture validator must both pass.
+
+name: check_m5_locality_tenant_cards
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_locality_tenant_cards.yml"
+      - "tools/validate_m5_locality_tenant_cards_fixtures.py"
+      - "schemas/continuity/locality_descriptor.schema.json"
+      - "fixtures/continuity/locality_tenant_cases/**"
+      - "docs/m5/continuity/locality-and-tenant-boundary-surfaces.md"
+      - "artifacts/m5/continuity/locality_and_tenant_boundary_surfaces.md"
+      - "crates/aureline-continuity/src/m5_locality_descriptors_and_tenant_cards/**"
+      - "crates/aureline-continuity/src/bin/aureline_locality_tenant_inspect.rs"
+      - "crates/aureline-continuity/examples/dump_m5_locality_tenant_cards_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-locality-tenant-cards-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  locality_tenant_cards:
+    name: Locality-descriptor and tenant-card audit and schema conformance
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-locality-tenant-cards-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-locality-tenant-cards-
+
+      - name: Run locality-descriptor and tenant-card audit
+        run: cargo test -p aureline-continuity --locked m5_locality_descriptors
+
+      - name: Validate locality-descriptor and tenant-card fixtures against schema
+        run: python3 tools/validate_m5_locality_tenant_cards_fixtures.py
