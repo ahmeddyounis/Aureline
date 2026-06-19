@@ -1,0 +1,100 @@
+# M5 contract-health gate.
+#
+# Validates the checked-in M5 contract-health register: every published M5
+# contract family the publication matrix tracks appears with its CI gates (one
+# per contract-package class), its exact release-artifact-graph and build-identity
+# linkage, and a shiproom blocker decision. A release-blocking family with a
+# failing required contract gate sets the register's promotion decision to hold,
+# so a missing, stale, downgraded, or incompatible contract package blocks the
+# same paths as missing evidence. The gate confirms the register, the CI gate
+# descriptors, the shiproom dashboard, and the docs match their regenerator (no
+# drift), runs the Python validator, and runs the typed Rust consumer's tests.
+
+name: check_m5_contract_health
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_contract_health.yml"
+      - "artifacts/release/m5-contract-health.json"
+      - "artifacts/contracts/m5-contract-catalog.json"
+      - "artifacts/contracts/m5-stability-lifecycle-map.json"
+      - "artifacts/contracts/m5-json-schema-catalog.json"
+      - "artifacts/contracts/m5-openapi-catalog.json"
+      - "artifacts/contracts/m5-wit-contract-publication.json"
+      - "artifacts/release/captures/implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages_validation_capture.json"
+      - "ci/contracts/m5-contract-gates/**"
+      - "shiproom/m5-contract-blocker-dashboard.md"
+      - "schemas/public/m5-contracts/m5_contract_health.schema.json"
+      - "fixtures/contracts/m5-contract-health/**"
+      - "docs/help/m5-contract-health.md"
+      - "docs/m5/implement-contract-ci-gates-release-artifact-graph-linkage-and-shiproom-blockers-for-stale-missing-or-incompatible-m5-schema-spec-packages.md"
+      - "artifacts/m5/implement-contract-ci-gates-release-artifact-graph-linkage-and-shiproom-blockers-for-stale-missing-or-incompatible-m5-schema-spec-packages.md"
+      - "rust-toolchain.toml"
+      - "tools/regenerate_m5_contract_health.py"
+      - "tools/validate_m5_contract_health.py"
+      - "crates/aureline-release/src/implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages/**"
+      - "crates/aureline-release/src/bin/aureline_release_implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages.rs"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-contract-health-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_contract_health:
+    name: M5 Contract Health
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema PyYAML referencing
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Confirm the register matches its regenerator
+        run: |
+          python3 tools/regenerate_m5_contract_health.py
+          git diff --exit-code -- \
+            artifacts/release/m5-contract-health.json \
+            ci/contracts/m5-contract-gates \
+            shiproom/m5-contract-blocker-dashboard.md \
+            fixtures/contracts/m5-contract-health \
+            docs/help/m5-contract-health.md \
+            docs/m5/implement-contract-ci-gates-release-artifact-graph-linkage-and-shiproom-blockers-for-stale-missing-or-incompatible-m5-schema-spec-packages.md \
+            artifacts/m5/implement-contract-ci-gates-release-artifact-graph-linkage-and-shiproom-blockers-for-stale-missing-or-incompatible-m5-schema-spec-packages.md \
+            artifacts/release/captures/implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages_validation_capture.json
+
+      - name: Validate the M5 contract-health register
+        run: python3 tools/validate_m5_contract_health.py
+
+      - name: Run M5 contract-health contract tests
+        run: cargo test -p aureline-release --test implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-contract-health-${{ github.run_id }}
+          path: artifacts/release/captures/implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
