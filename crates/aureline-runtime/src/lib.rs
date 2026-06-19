@@ -80,6 +80,20 @@
 //! support export ingest one diagnostic identity instead of inferring
 //! provider-local meanings.
 //!
+//! [`normalize_m5_diagnostic_records_with_stable_ids_and_suppression_baseline_joins::NormalizedDiagnosticRecordSetPacket`]
+//! takes the next step from surface matrix to per-finding truth: it normalizes
+//! each M5 finding onto the single canonical
+//! [`diagnostics::DiagnosticRecord`] and proves the record-level guarantees the
+//! finding surfaces depend on — a stable canonical id that survives ordinary
+//! refresh, adapter refresh, and surface hops within one anchor/remap family; a
+//! reopen handle for the editor, Problems, review, CLI/headless, AI evidence, and
+//! support export that resolves to that same id without provider-specific
+//! translation loss; and typed suppression/baseline joins kept attached to the
+//! record's own refs rather than hidden in feature-local metadata. A record that
+//! cannot prove its stable identity, cannot reopen from a required surface, or
+//! lacks normalized provenance auto-downgrades below its claim with a recorded
+//! trigger and a precise label.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -133,6 +147,7 @@ pub mod macro_sessions;
 pub mod managed_alpha;
 pub mod managed_workspace_lifecycle_beta;
 pub mod materialize_artifact_family_quality_governance;
+pub mod normalize_m5_diagnostic_records_with_stable_ids_and_suppression_baseline_joins;
 pub mod packages;
 pub mod parameter_review;
 pub mod preview_drift;
