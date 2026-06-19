@@ -14,6 +14,7 @@ pub mod m5_control_plane_vs_data_plane_outage;
 pub mod m5_key_mode_and_storage_posture;
 pub mod m5_locality_descriptors_and_tenant_cards;
 pub mod m5_locality_tenant_keymode_and_drill_matrix;
+pub mod m5_restore_from_backup_reviews;
 
 pub use connectivity_state_and_deferred_intent::{
     admit_deferred_intent, audit_connectivity_continuity_page, replay_decision,
@@ -119,4 +120,21 @@ pub use m5_key_mode_and_storage_posture::{
     KEY_POSTURE_SHARED_CONTRACT_REF, KEY_POSTURE_SUMMARY_RECORD_KIND,
     KEY_POSTURE_SUPPORT_EXPORT_RECORD_KIND, KEY_POSTURE_SURFACE_PROJECTION_RECORD_KIND,
     STORAGE_POSTURE_DESCRIPTOR_RECORD_KIND,
+};
+
+pub use m5_restore_from_backup_reviews::{
+    audit_restore_review_page, seeded_restore_review_input, seeded_restore_review_page,
+    validate_restore_review_page, AffectedSliceClass, CompareExportParity, ReplayFence,
+    ReplayFenceStateClass, ReplayPostureClass, RestoreArtifactFamilyClass, RestoreFidelityClass,
+    RestoreIdentitySummary, RestoreLaneClass, RestoreReviewCoverageRow, RestoreReviewDefect,
+    RestoreReviewDescriptor, RestoreReviewEntry, RestoreReviewInput,
+    RestoreReviewNarrowReasonClass, RestoreReviewOutcome, RestoreReviewPage, RestoreReviewRegistry,
+    RestoreReviewSummary, RestoreReviewSupportExport, RestoreReviewSurfaceProjection,
+    ReviewCoverageClass, ReviewSurfaceClass, RESTORE_REVIEW_ARTIFACT_REF,
+    RESTORE_REVIEW_COVERAGE_ROW_RECORD_KIND, RESTORE_REVIEW_DEFECT_RECORD_KIND,
+    RESTORE_REVIEW_DESCRIPTOR_RECORD_KIND, RESTORE_REVIEW_DOC_REF,
+    RESTORE_REVIEW_OUTCOME_RECORD_KIND, RESTORE_REVIEW_PAGE_RECORD_KIND,
+    RESTORE_REVIEW_REGISTRY_RECORD_KIND, RESTORE_REVIEW_SCHEMA_REF, RESTORE_REVIEW_SCHEMA_VERSION,
+    RESTORE_REVIEW_SHARED_CONTRACT_REF, RESTORE_REVIEW_SUMMARY_RECORD_KIND,
+    RESTORE_REVIEW_SUPPORT_EXPORT_RECORD_KIND, RESTORE_REVIEW_SURFACE_PROJECTION_RECORD_KIND,
 };

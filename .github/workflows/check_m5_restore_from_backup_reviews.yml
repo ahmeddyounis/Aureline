@@ -1,0 +1,78 @@
+# Restore-from-backup review continuity gate.
+#
+# Proves that every claimed managed, self-hosted, or sovereign row whose
+# continuity depends on restored state points to a current restore review that
+# distinguishes exact from narrower-than-normal restore identity, names the
+# affected capability class or data slice, fences privileged and externally
+# mutating lanes against auto-replay, and offers restored-vs-current compare and
+# export — and that any such row narrows automatically when that evidence is
+# missing, narrowed, or withheld. Green-status overclaim, restore-lane
+# conflation, and privileged auto-replay fail closed. The crate audit and the
+# schema/fixture validator must both pass.
+
+name: check_m5_restore_from_backup_reviews
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_restore_from_backup_reviews.yml"
+      - "tools/validate_m5_restore_from_backup_review_fixtures.py"
+      - "schemas/continuity/restore_identity_summary.schema.json"
+      - "fixtures/continuity/post_restore_narrowing/**"
+      - "artifacts/m5/continuity/restore_reviews/**"
+      - "docs/m5/continuity/post-restore-truth-and-replay-fences.md"
+      - "artifacts/m5/continuity/post_restore_truth_and_replay_fences.md"
+      - "crates/aureline-continuity/src/m5_restore_from_backup_reviews/**"
+      - "crates/aureline-continuity/examples/dump_m5_restore_from_backup_review_fixtures.rs"
+      - "crates/aureline-continuity/src/bin/aureline_restore_review_inspect.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-restore-from-backup-reviews-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  restore_from_backup_reviews:
+    name: Restore-review audit and schema conformance
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-restore-from-backup-reviews-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-restore-from-backup-reviews-
+
+      - name: Run restore-review audit
+        run: cargo test -p aureline-continuity --locked m5_restore_from_backup
+
+      - name: Validate restore-review fixtures against schema
+        run: python3 tools/validate_m5_restore_from_backup_review_fixtures.py

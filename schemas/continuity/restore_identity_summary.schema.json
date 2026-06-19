@@ -1,0 +1,627 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/continuity/restore_identity_summary.schema.json",
+  "title": "Aureline restore-from-backup review and restore-identity summary",
+  "description": "Canonical schema for the restore-from-backup review lane that gives restored managed and support artifacts a truthful post-restore experience instead of implying full normal operation immediately. Each review states which artifact family was restored (managed records, policy bundles, sync metadata, support/export records, or local workspace state) and whether it was a continuity restore or an ordinary workspace restore; a restore-identity summary distinguishing exact restoration from narrower-than-normal restoration, naming the affected capability class or data slice and whether replicated data is complete; the replay fences that keep privileged or externally mutating lanes from auto-replaying before an explicit reviewed step; and the restored-vs-current compare and export parity. A descriptor is projected identically onto the service-health, support-center, managed-action-sheet, release-center, and public claim-manifest surfaces. A typed restore-review registry reports, per claimed restored row, whether a current clean review backs the claim, and whether at least one managed and one support/export artifact family carries compare/export parity. A review that hides narrowed capability or missing replicated data behind green status, that blurs an ordinary workspace restore with a continuity restore, or that lets a privileged lane auto-replay fails closed. The record is metadata-only: it carries closed-vocabulary tokens, export-safe plain-language labels, UTC timestamps, and opaque refs. Raw restored bytes, raw provider payloads, raw hostnames, and secret material never appear. The root accepts a page record, a summary record, a registry record, or a support-export record, discriminated by record_kind.",
+  "oneOf": [
+    { "$ref": "#/$defs/page" },
+    { "$ref": "#/$defs/summary" },
+    { "$ref": "#/$defs/registry" },
+    { "$ref": "#/$defs/support_export" }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "continuity:m5_restore_from_backup_reviews:v1"
+    },
+    "profile_class": {
+      "type": "string",
+      "enum": ["managed", "self_hosted", "sovereign", "local_only"]
+    },
+    "artifact_family": {
+      "type": "string",
+      "enum": [
+        "managed_record",
+        "policy_bundle",
+        "sync_metadata",
+        "support_record",
+        "local_workspace_state"
+      ]
+    },
+    "restore_lane": {
+      "type": "string",
+      "enum": ["continuity_restore", "ordinary_workspace_restore"]
+    },
+    "restore_fidelity": {
+      "type": "string",
+      "enum": ["exact_restore", "narrower_than_normal_restore", "undisclosed"]
+    },
+    "restore_identity": {
+      "type": "string",
+      "enum": [
+        "same_identity_restore",
+        "reissued_identity_restore",
+        "new_install_rebind",
+        "not_applicable"
+      ]
+    },
+    "affected_slice": {
+      "type": "string",
+      "enum": [
+        "none_narrowed",
+        "recent_write_window",
+        "queued_external_actions",
+        "derived_cache_or_index",
+        "replicated_history_gap",
+        "policy_bundle_revision_gap",
+        "support_record_gap"
+      ]
+    },
+    "replay_posture": {
+      "type": "string",
+      "enum": ["local_safe", "privileged", "externally_mutating"]
+    },
+    "fence_state": {
+      "type": "string",
+      "enum": ["held_for_review", "cleared_after_review", "no_fence_local_safe"]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "service_health",
+        "support_center",
+        "managed_action_sheet",
+        "release_center",
+        "public_claim_manifest"
+      ]
+    },
+    "qualification": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "narrow_reason": {
+      "type": "string",
+      "enum": [
+        "not_narrowed",
+        "full_normal_status_overclaimed",
+        "restore_lane_conflated",
+        "privileged_lane_auto_replayed",
+        "restore_fidelity_undisclosed",
+        "affected_slice_unnamed",
+        "restore_identity_undeclared",
+        "replay_fence_review_missing",
+        "export_parity_missing",
+        "surface_reuse_incomplete",
+        "compare_parity_missing",
+        "managed_family_compare_coverage_missing",
+        "support_family_compare_coverage_missing",
+        "review_vocabulary_drift",
+        "review_evidence_missing"
+      ]
+    },
+    "coverage_class": {
+      "type": "string",
+      "enum": [
+        "current_review",
+        "narrowed_review_needs_attention",
+        "review_withheld",
+        "no_review"
+      ]
+    },
+    "identity_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restore_fidelity",
+        "restore_fidelity_token",
+        "restore_identity",
+        "restore_identity_token",
+        "affected_slice",
+        "affected_slice_token",
+        "affected_slice_note",
+        "replicated_data_complete",
+        "asserts_full_normal_status"
+      ],
+      "properties": {
+        "restore_fidelity": { "$ref": "#/$defs/restore_fidelity" },
+        "restore_fidelity_token": { "$ref": "#/$defs/restore_fidelity" },
+        "restore_identity": { "$ref": "#/$defs/restore_identity" },
+        "restore_identity_token": { "$ref": "#/$defs/restore_identity" },
+        "affected_slice": { "$ref": "#/$defs/affected_slice" },
+        "affected_slice_token": { "$ref": "#/$defs/affected_slice" },
+        "affected_slice_note": { "$ref": "#/$defs/label" },
+        "replicated_data_complete": { "type": "boolean" },
+        "asserts_full_normal_status": { "type": "boolean" }
+      }
+    },
+    "replay_fence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane_id",
+        "lane_label",
+        "replay_posture",
+        "replay_posture_token",
+        "fence_state",
+        "fence_state_token",
+        "reviewed_step_ref"
+      ],
+      "properties": {
+        "lane_id": { "$ref": "#/$defs/opaque_id" },
+        "lane_label": { "$ref": "#/$defs/label" },
+        "replay_posture": { "$ref": "#/$defs/replay_posture" },
+        "replay_posture_token": { "$ref": "#/$defs/replay_posture" },
+        "fence_state": { "$ref": "#/$defs/fence_state" },
+        "fence_state_token": { "$ref": "#/$defs/fence_state" },
+        "reviewed_step_ref": { "$ref": "#/$defs/label" }
+      }
+    },
+    "compare_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restored_vs_current_available",
+        "compare_ref",
+        "export_available",
+        "export_ref"
+      ],
+      "properties": {
+        "restored_vs_current_available": { "type": "boolean" },
+        "compare_ref": { "$ref": "#/$defs/label" },
+        "export_available": { "type": "boolean" },
+        "export_ref": { "$ref": "#/$defs/label" }
+      }
+    },
+    "review_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_id",
+        "claim_row_id",
+        "surface_label",
+        "profile_class",
+        "profile_class_token",
+        "artifact_family",
+        "artifact_family_token",
+        "restore_lane",
+        "restore_lane_token",
+        "identity_summary",
+        "replay_fences",
+        "compare_export",
+        "projected_surfaces"
+      ],
+      "properties": {
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "claim_row_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_label": { "$ref": "#/$defs/label" },
+        "profile_class": { "$ref": "#/$defs/profile_class" },
+        "profile_class_token": { "$ref": "#/$defs/profile_class" },
+        "artifact_family": { "$ref": "#/$defs/artifact_family" },
+        "artifact_family_token": { "$ref": "#/$defs/artifact_family" },
+        "restore_lane": { "$ref": "#/$defs/restore_lane" },
+        "restore_lane_token": { "$ref": "#/$defs/restore_lane" },
+        "identity_summary": { "$ref": "#/$defs/identity_summary" },
+        "replay_fences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replay_fence" }
+        },
+        "compare_export": { "$ref": "#/$defs/compare_export" },
+        "projected_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_class" }
+        }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_label", "reviews", "expected_claim_row_ids"],
+      "properties": {
+        "input_label": { "$ref": "#/$defs/label" },
+        "reviews": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_entry" }
+        },
+        "expected_claim_row_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor_id",
+        "review_id",
+        "claim_row_id",
+        "surface_label",
+        "profile_class_token",
+        "profile_class_plain",
+        "artifact_family_token",
+        "artifact_family_plain",
+        "restore_lane_token",
+        "restore_lane_plain",
+        "restore_fidelity_token",
+        "restore_fidelity_plain",
+        "restore_identity_token",
+        "affected_slice_token",
+        "replicated_data_complete",
+        "privileged_lanes_fenced",
+        "compare_export_available",
+        "restore_summary_line",
+        "replay_fence_line",
+        "compare_export_line"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "restore_from_backup_review_descriptor_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "claim_row_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_label": { "$ref": "#/$defs/label" },
+        "profile_class_token": { "$ref": "#/$defs/profile_class" },
+        "profile_class_plain": { "$ref": "#/$defs/label" },
+        "artifact_family_token": { "$ref": "#/$defs/artifact_family" },
+        "artifact_family_plain": { "$ref": "#/$defs/label" },
+        "restore_lane_token": { "$ref": "#/$defs/restore_lane" },
+        "restore_lane_plain": { "$ref": "#/$defs/label" },
+        "restore_fidelity_token": { "$ref": "#/$defs/restore_fidelity" },
+        "restore_fidelity_plain": { "$ref": "#/$defs/label" },
+        "restore_identity_token": { "$ref": "#/$defs/restore_identity" },
+        "affected_slice_token": { "$ref": "#/$defs/affected_slice" },
+        "replicated_data_complete": { "type": "boolean" },
+        "privileged_lanes_fenced": { "type": "boolean" },
+        "compare_export_available": { "type": "boolean" },
+        "restore_summary_line": { "$ref": "#/$defs/label" },
+        "replay_fence_line": { "$ref": "#/$defs/label" },
+        "compare_export_line": { "$ref": "#/$defs/label" }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "surface",
+        "surface_token",
+        "review_id",
+        "descriptor_id",
+        "restore_summary_line",
+        "replay_fence_line",
+        "compare_export_line"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "restore_from_backup_review_surface_projection_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "surface": { "$ref": "#/$defs/surface_class" },
+        "surface_token": { "$ref": "#/$defs/surface_class" },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "restore_summary_line": { "$ref": "#/$defs/label" },
+        "replay_fence_line": { "$ref": "#/$defs/label" },
+        "compare_export_line": { "$ref": "#/$defs/label" }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "review_id",
+        "claim_row_id",
+        "artifact_family_token",
+        "qualification_token",
+        "narrowed",
+        "claim_withheld",
+        "restore_fidelity_token",
+        "restore_identity_token",
+        "privileged_lanes_fenced",
+        "compare_export_available",
+        "narrow_reason_tokens"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "restore_from_backup_review_outcome_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "claim_row_id": { "$ref": "#/$defs/opaque_id" },
+        "artifact_family_token": { "$ref": "#/$defs/artifact_family" },
+        "qualification_token": { "$ref": "#/$defs/qualification" },
+        "narrowed": { "type": "boolean" },
+        "claim_withheld": { "type": "boolean" },
+        "restore_fidelity_token": { "$ref": "#/$defs/restore_fidelity" },
+        "restore_identity_token": { "$ref": "#/$defs/restore_identity" },
+        "privileged_lanes_fenced": { "type": "boolean" },
+        "compare_export_available": { "type": "boolean" },
+        "narrow_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrow_reason" }
+        }
+      }
+    },
+    "coverage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "claim_row_id",
+        "coverage_class",
+        "coverage_class_token",
+        "review_id",
+        "qualification_token",
+        "covered",
+        "narrowed"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "restore_review_coverage_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "claim_row_id": { "$ref": "#/$defs/opaque_id" },
+        "coverage_class": { "$ref": "#/$defs/coverage_class" },
+        "coverage_class_token": { "$ref": "#/$defs/coverage_class" },
+        "review_id": { "$ref": "#/$defs/label" },
+        "qualification_token": { "$ref": "#/$defs/qualification" },
+        "covered": { "type": "boolean" },
+        "narrowed": { "type": "boolean" }
+      }
+    },
+    "registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "registry_id",
+        "coverage",
+        "covered_claim_row_ids",
+        "uncovered_claim_row_ids",
+        "managed_family_compare_covered",
+        "support_family_compare_covered"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "restore_review_registry_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "registry_id": { "$ref": "#/$defs/opaque_id" },
+        "coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/coverage_row" }
+        },
+        "covered_claim_row_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "uncovered_claim_row_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "managed_family_compare_covered": { "type": "boolean" },
+        "support_family_compare_covered": { "type": "boolean" }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_id",
+        "narrow_reason",
+        "narrow_reason_token",
+        "source",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "restore_from_backup_review_defect_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "defect_id": { "$ref": "#/$defs/opaque_id" },
+        "narrow_reason": { "$ref": "#/$defs/narrow_reason" },
+        "narrow_reason_token": { "$ref": "#/$defs/narrow_reason" },
+        "source": { "$ref": "#/$defs/opaque_id" },
+        "note": { "$ref": "#/$defs/label" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "overall_qualification_token",
+        "review_count",
+        "family_count",
+        "managed_review_count",
+        "exact_restore_count",
+        "narrower_than_normal_count",
+        "replay_fence_count",
+        "fenced_privileged_lane_count",
+        "compare_export_available_count",
+        "narrowed_count",
+        "withdrawn_count",
+        "claim_coverage_count",
+        "covered_claim_count",
+        "uncovered_claim_count",
+        "surface_projection_count",
+        "vocabulary_consistent",
+        "no_unsafe_auto_replay",
+        "no_full_normal_status_overclaim",
+        "no_restore_lane_conflation",
+        "all_narrower_restores_name_affected_slice",
+        "managed_family_compare_covered",
+        "support_family_compare_covered",
+        "all_expected_claims_covered",
+        "restore_truth_export_safe",
+        "raw_payloads_excluded",
+        "defect_count"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "restore_from_backup_review_summary_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "overall_qualification_token": { "$ref": "#/$defs/qualification" },
+        "review_count": { "type": "integer", "minimum": 0 },
+        "family_count": { "type": "integer", "minimum": 0 },
+        "managed_review_count": { "type": "integer", "minimum": 0 },
+        "exact_restore_count": { "type": "integer", "minimum": 0 },
+        "narrower_than_normal_count": { "type": "integer", "minimum": 0 },
+        "replay_fence_count": { "type": "integer", "minimum": 0 },
+        "fenced_privileged_lane_count": { "type": "integer", "minimum": 0 },
+        "compare_export_available_count": { "type": "integer", "minimum": 0 },
+        "narrowed_count": { "type": "integer", "minimum": 0 },
+        "withdrawn_count": { "type": "integer", "minimum": 0 },
+        "claim_coverage_count": { "type": "integer", "minimum": 0 },
+        "covered_claim_count": { "type": "integer", "minimum": 0 },
+        "uncovered_claim_count": { "type": "integer", "minimum": 0 },
+        "surface_projection_count": { "type": "integer", "minimum": 0 },
+        "vocabulary_consistent": { "type": "boolean" },
+        "no_unsafe_auto_replay": { "type": "boolean" },
+        "no_full_normal_status_overclaim": { "type": "boolean" },
+        "no_restore_lane_conflation": { "type": "boolean" },
+        "all_narrower_restores_name_affected_slice": { "type": "boolean" },
+        "managed_family_compare_covered": { "type": "boolean" },
+        "support_family_compare_covered": { "type": "boolean" },
+        "all_expected_claims_covered": { "type": "boolean" },
+        "restore_truth_export_safe": { "type": "boolean" },
+        "raw_payloads_excluded": { "type": "boolean" },
+        "defect_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "page_id",
+        "page_label",
+        "generated_at",
+        "summary",
+        "defects",
+        "descriptors",
+        "surface_projections",
+        "outcomes",
+        "registry",
+        "input"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "restore_from_backup_review_page_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "page_id": { "$ref": "#/$defs/opaque_id" },
+        "page_label": { "$ref": "#/$defs/label" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "defects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/defect" }
+        },
+        "descriptors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/descriptor" }
+        },
+        "surface_projections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_projection" }
+        },
+        "outcomes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/outcome" }
+        },
+        "registry": { "$ref": "#/$defs/registry" },
+        "input": { "$ref": "#/$defs/input" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "export_id",
+        "generated_at",
+        "page",
+        "narrow_reasons_present",
+        "defect_counts_by_narrow_reason",
+        "restore_truth_export_safe",
+        "raw_payloads_excluded"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "restore_from_backup_review_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "page": { "$ref": "#/$defs/page" },
+        "narrow_reasons_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrow_reason" }
+        },
+        "defect_counts_by_narrow_reason": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "restore_truth_export_safe": { "type": "boolean" },
+        "raw_payloads_excluded": { "type": "boolean" }
+      }
+    }
+  }
+}
