@@ -1,0 +1,76 @@
+# Backup/restore/failover continuity gate.
+#
+# Proves that every claimed managed, self-hosted, or sovereign resilience row
+# points to a current backup/restore/failover packet that states cadence, owner,
+# scope exercised, restore identity, and partial-loss disclosure, and that any
+# such row narrows automatically when that evidence is missing, stale, or
+# profile-mismatched. Generic "DR tested" text fails closed; a partial drill that
+# omits what restored narrower than normal narrows. The crate audit and the
+# schema/fixture validator must both pass.
+
+name: check_m5_backup_restore_failover
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_backup_restore_failover.yml"
+      - "tools/validate_m5_backup_restore_failover_fixtures.py"
+      - "schemas/continuity/backup_restore_failover_packet.schema.json"
+      - "fixtures/continuity/restore_identity_cases/**"
+      - "artifacts/m5/continuity/drill_packets/**"
+      - "docs/m5/continuity/backup-restore-failover-packets.md"
+      - "artifacts/m5/continuity/backup_restore_failover_packets.md"
+      - "crates/aureline-continuity/src/m5_backup_restore_failover_packets/**"
+      - "crates/aureline-continuity/examples/dump_m5_backup_restore_failover_fixtures.rs"
+      - "crates/aureline-continuity/src/bin/aureline_backup_restore_failover_inspect.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-backup-restore-failover-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backup_restore_failover:
+    name: Backup/restore/failover audit and schema conformance
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-backup-restore-failover-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-backup-restore-failover-
+
+      - name: Run backup/restore/failover audit
+        run: cargo test -p aureline-continuity --locked m5_backup_restore
+
+      - name: Validate backup/restore/failover fixtures against schema
+        run: python3 tools/validate_m5_backup_restore_failover_fixtures.py

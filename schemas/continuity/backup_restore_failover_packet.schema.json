@@ -1,0 +1,650 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/continuity/backup_restore_failover_packet.schema.json",
+  "title": "Aureline backup/restore/failover continuity packet",
+  "description": "Canonical schema for the backup/restore/failover continuity lane that turns resilience proof into first-class evidence. Each packet states which continuity family backs a claim row (backup, restore, failover, snapshot/replication, or local-core continuity), what the most recent drill exercised and what it did not, the restore identity recovery reproduces, the partial loss disclosed on recovery, and the drill cadence, owners, last-drill timestamp, and freshness-SLO expiry. A descriptor is projected identically onto the release-center, shiproom, support-center, partner-qualification, and public claim-manifest surfaces. A typed drill-packet registry reports, per claimed resilience row, whether a current packet backs the claim. Generic 'DR tested' text fails closed; a partial drill that omits what restored narrower than normal narrows automatically. The packet is metadata-only: it carries closed-vocabulary tokens, export-safe plain-language labels, UTC timestamps, and opaque refs. Raw backup bytes, raw provider payloads, raw hostnames, raw KMS handles, and secret material never appear. The root accepts a page record, a summary record, a registry record, or a support-export record, discriminated by record_kind.",
+  "oneOf": [
+    { "$ref": "#/$defs/page" },
+    { "$ref": "#/$defs/summary" },
+    { "$ref": "#/$defs/registry" },
+    { "$ref": "#/$defs/support_export" }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "continuity:m5_backup_restore_failover_packets:v1"
+    },
+    "profile_class": {
+      "type": "string",
+      "enum": ["managed", "self_hosted", "sovereign", "local_only"]
+    },
+    "packet_family": {
+      "type": "string",
+      "enum": [
+        "backup",
+        "restore",
+        "failover",
+        "snapshot_replication",
+        "local_core_continuity"
+      ]
+    },
+    "restore_operation": {
+      "type": "string",
+      "enum": [
+        "backup_capture",
+        "backup_integrity_verify",
+        "restore_execute",
+        "restore_integrity_verify",
+        "failover_cutover",
+        "failback"
+      ]
+    },
+    "scope_exercised": {
+      "type": "string",
+      "enum": ["fully_exercised", "partially_exercised", "not_exercised"]
+    },
+    "restore_identity": {
+      "type": "string",
+      "enum": [
+        "same_identity_restore",
+        "reissued_identity_restore",
+        "new_install_rebind",
+        "not_applicable"
+      ]
+    },
+    "restore_failover_hosting": {
+      "type": "string",
+      "enum": [
+        "local_core",
+        "customer_operated",
+        "vendor_operated",
+        "mirror_backed",
+        "offline_snapshot"
+      ]
+    },
+    "partial_loss": {
+      "type": "string",
+      "enum": [
+        "no_partial_loss",
+        "bounded_recent_window_loss",
+        "queued_action_loss",
+        "cache_only_loss",
+        "undisclosed"
+      ]
+    },
+    "cadence": {
+      "type": "string",
+      "enum": [
+        "per_release",
+        "monthly",
+        "quarterly",
+        "semiannual",
+        "annual",
+        "on_demand_only"
+      ]
+    },
+    "evidence_state": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stale_within_grace",
+        "stale_needs_drill",
+        "never_run",
+        "reconstructable_from_snapshot"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "release_center",
+        "shiproom",
+        "support_center",
+        "partner_qualification",
+        "public_claim_manifest"
+      ]
+    },
+    "qualification": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "narrow_reason": {
+      "type": "string",
+      "enum": [
+        "not_narrowed",
+        "generic_dr_text_only",
+        "scope_not_exercised",
+        "not_exercised_disclosure_missing",
+        "restore_identity_undeclared",
+        "partial_loss_undisclosed",
+        "drill_cadence_missing",
+        "drill_owner_missing",
+        "drill_evidence_stale",
+        "drill_never_run",
+        "sovereign_continuity_overclaimed",
+        "profile_mismatch",
+        "packet_vocabulary_drift",
+        "surface_reuse_incomplete",
+        "packet_evidence_missing"
+      ]
+    },
+    "coverage_class": {
+      "type": "string",
+      "enum": [
+        "current_packet",
+        "stale_packet_needs_refresh",
+        "packet_withheld",
+        "no_packet"
+      ]
+    },
+    "restore_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_exercised",
+        "scope_exercised_token",
+        "exercised_operations",
+        "exercised_operation_tokens",
+        "not_exercised_note"
+      ],
+      "properties": {
+        "scope_exercised": { "$ref": "#/$defs/scope_exercised" },
+        "scope_exercised_token": { "$ref": "#/$defs/scope_exercised" },
+        "exercised_operations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restore_operation" }
+        },
+        "exercised_operation_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restore_operation" }
+        },
+        "not_exercised_note": { "$ref": "#/$defs/label" }
+      }
+    },
+    "drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cadence",
+        "cadence_token",
+        "evidence_state",
+        "evidence_state_token",
+        "current_owner_label",
+        "future_owner_label",
+        "last_drill_at",
+        "evidence_expires_at",
+        "drill_evidence_ref"
+      ],
+      "properties": {
+        "cadence": { "$ref": "#/$defs/cadence" },
+        "cadence_token": { "$ref": "#/$defs/cadence" },
+        "evidence_state": { "$ref": "#/$defs/evidence_state" },
+        "evidence_state_token": { "$ref": "#/$defs/evidence_state" },
+        "current_owner_label": { "$ref": "#/$defs/label" },
+        "future_owner_label": { "$ref": "#/$defs/label" },
+        "last_drill_at": { "$ref": "#/$defs/label" },
+        "evidence_expires_at": { "$ref": "#/$defs/label" },
+        "drill_evidence_ref": { "$ref": "#/$defs/label" }
+      }
+    },
+    "packet_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_id",
+        "claim_row_id",
+        "surface_label",
+        "profile_class",
+        "profile_class_token",
+        "packet_family",
+        "packet_family_token",
+        "backs_resilience_claim",
+        "restore_scope",
+        "restore_identity",
+        "restore_identity_token",
+        "restore_failover_hosting",
+        "restore_failover_hosting_token",
+        "external_dependency_disclosed",
+        "partial_loss",
+        "partial_loss_token",
+        "partial_loss_note",
+        "drill",
+        "generic_dr_text_only",
+        "projected_surfaces"
+      ],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "claim_row_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_label": { "$ref": "#/$defs/label" },
+        "profile_class": { "$ref": "#/$defs/profile_class" },
+        "profile_class_token": { "$ref": "#/$defs/profile_class" },
+        "packet_family": { "$ref": "#/$defs/packet_family" },
+        "packet_family_token": { "$ref": "#/$defs/packet_family" },
+        "backs_resilience_claim": { "type": "boolean" },
+        "restore_scope": { "$ref": "#/$defs/restore_scope" },
+        "restore_identity": { "$ref": "#/$defs/restore_identity" },
+        "restore_identity_token": { "$ref": "#/$defs/restore_identity" },
+        "restore_failover_hosting": { "$ref": "#/$defs/restore_failover_hosting" },
+        "restore_failover_hosting_token": { "$ref": "#/$defs/restore_failover_hosting" },
+        "external_dependency_disclosed": { "type": "boolean" },
+        "partial_loss": { "$ref": "#/$defs/partial_loss" },
+        "partial_loss_token": { "$ref": "#/$defs/partial_loss" },
+        "partial_loss_note": { "$ref": "#/$defs/label" },
+        "drill": { "$ref": "#/$defs/drill" },
+        "generic_dr_text_only": { "type": "boolean" },
+        "projected_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_class" }
+        }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_label", "packets", "expected_claim_row_ids"],
+      "properties": {
+        "input_label": { "$ref": "#/$defs/label" },
+        "packets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/packet_entry" }
+        },
+        "expected_claim_row_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor_id",
+        "packet_id",
+        "claim_row_id",
+        "surface_label",
+        "profile_class_token",
+        "profile_class_plain",
+        "packet_family_token",
+        "packet_family_plain",
+        "scope_exercised_token",
+        "scope_exercised_plain",
+        "restore_identity_token",
+        "restore_identity_plain",
+        "partial_loss_token",
+        "partial_loss_plain",
+        "restore_failover_hosting_token",
+        "cadence_token",
+        "evidence_state_token",
+        "evidence_current",
+        "scope_line",
+        "restore_identity_line",
+        "partial_loss_line",
+        "drill_line"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "backup_restore_failover_descriptor_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "claim_row_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_label": { "$ref": "#/$defs/label" },
+        "profile_class_token": { "$ref": "#/$defs/profile_class" },
+        "profile_class_plain": { "$ref": "#/$defs/label" },
+        "packet_family_token": { "$ref": "#/$defs/packet_family" },
+        "packet_family_plain": { "$ref": "#/$defs/label" },
+        "scope_exercised_token": { "$ref": "#/$defs/scope_exercised" },
+        "scope_exercised_plain": { "$ref": "#/$defs/label" },
+        "restore_identity_token": { "$ref": "#/$defs/restore_identity" },
+        "restore_identity_plain": { "$ref": "#/$defs/label" },
+        "partial_loss_token": { "$ref": "#/$defs/partial_loss" },
+        "partial_loss_plain": { "$ref": "#/$defs/label" },
+        "restore_failover_hosting_token": { "$ref": "#/$defs/restore_failover_hosting" },
+        "cadence_token": { "$ref": "#/$defs/cadence" },
+        "evidence_state_token": { "$ref": "#/$defs/evidence_state" },
+        "evidence_current": { "type": "boolean" },
+        "scope_line": { "$ref": "#/$defs/label" },
+        "restore_identity_line": { "$ref": "#/$defs/label" },
+        "partial_loss_line": { "$ref": "#/$defs/label" },
+        "drill_line": { "$ref": "#/$defs/label" }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "surface",
+        "surface_token",
+        "packet_id",
+        "descriptor_id",
+        "scope_line",
+        "restore_identity_line",
+        "partial_loss_line",
+        "drill_line"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "backup_restore_failover_surface_projection_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "surface": { "$ref": "#/$defs/surface_class" },
+        "surface_token": { "$ref": "#/$defs/surface_class" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_line": { "$ref": "#/$defs/label" },
+        "restore_identity_line": { "$ref": "#/$defs/label" },
+        "partial_loss_line": { "$ref": "#/$defs/label" },
+        "drill_line": { "$ref": "#/$defs/label" }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "packet_id",
+        "claim_row_id",
+        "packet_family_token",
+        "qualification_token",
+        "narrowed",
+        "claim_withheld",
+        "generic_dr_text_only",
+        "scope_exercised_token",
+        "restore_identity_token",
+        "partial_loss_token",
+        "evidence_state_token",
+        "evidence_current",
+        "narrow_reason_tokens"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "backup_restore_failover_outcome_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "claim_row_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_family_token": { "$ref": "#/$defs/packet_family" },
+        "qualification_token": { "$ref": "#/$defs/qualification" },
+        "narrowed": { "type": "boolean" },
+        "claim_withheld": { "type": "boolean" },
+        "generic_dr_text_only": { "type": "boolean" },
+        "scope_exercised_token": { "$ref": "#/$defs/scope_exercised" },
+        "restore_identity_token": { "$ref": "#/$defs/restore_identity" },
+        "partial_loss_token": { "$ref": "#/$defs/partial_loss" },
+        "evidence_state_token": { "$ref": "#/$defs/evidence_state" },
+        "evidence_current": { "type": "boolean" },
+        "narrow_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrow_reason" }
+        }
+      }
+    },
+    "coverage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "claim_row_id",
+        "coverage_class",
+        "coverage_class_token",
+        "packet_id",
+        "qualification_token",
+        "covered",
+        "narrowed"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "claim_coverage_row_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "claim_row_id": { "$ref": "#/$defs/opaque_id" },
+        "coverage_class": { "$ref": "#/$defs/coverage_class" },
+        "coverage_class_token": { "$ref": "#/$defs/coverage_class" },
+        "packet_id": { "$ref": "#/$defs/label" },
+        "qualification_token": { "$ref": "#/$defs/qualification" },
+        "covered": { "type": "boolean" },
+        "narrowed": { "type": "boolean" }
+      }
+    },
+    "registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "registry_id",
+        "coverage",
+        "covered_claim_row_ids",
+        "uncovered_claim_row_ids"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "drill_packet_registry_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "registry_id": { "$ref": "#/$defs/opaque_id" },
+        "coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/coverage_row" }
+        },
+        "covered_claim_row_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "uncovered_claim_row_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_id",
+        "narrow_reason",
+        "narrow_reason_token",
+        "source",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "backup_restore_failover_defect_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "defect_id": { "$ref": "#/$defs/opaque_id" },
+        "narrow_reason": { "$ref": "#/$defs/narrow_reason" },
+        "narrow_reason_token": { "$ref": "#/$defs/narrow_reason" },
+        "source": { "$ref": "#/$defs/opaque_id" },
+        "note": { "$ref": "#/$defs/label" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "overall_qualification_token",
+        "packet_count",
+        "family_count",
+        "managed_family_packet_count",
+        "fully_exercised_count",
+        "partially_exercised_count",
+        "not_exercised_count",
+        "restore_identity_declared_count",
+        "partial_loss_disclosed_count",
+        "current_evidence_count",
+        "needs_drill_count",
+        "narrowed_count",
+        "withdrawn_count",
+        "claim_coverage_count",
+        "covered_claim_count",
+        "uncovered_claim_count",
+        "surface_projection_count",
+        "vocabulary_consistent",
+        "all_managed_packets_disclose_restore_identity",
+        "all_packets_disclose_partial_loss",
+        "all_expected_claims_covered",
+        "no_generic_dr_text",
+        "restore_identity_and_partial_loss_export_safe",
+        "raw_payloads_excluded",
+        "defect_count"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "backup_restore_failover_summary_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "overall_qualification_token": { "$ref": "#/$defs/qualification" },
+        "packet_count": { "type": "integer", "minimum": 0 },
+        "family_count": { "type": "integer", "minimum": 0 },
+        "managed_family_packet_count": { "type": "integer", "minimum": 0 },
+        "fully_exercised_count": { "type": "integer", "minimum": 0 },
+        "partially_exercised_count": { "type": "integer", "minimum": 0 },
+        "not_exercised_count": { "type": "integer", "minimum": 0 },
+        "restore_identity_declared_count": { "type": "integer", "minimum": 0 },
+        "partial_loss_disclosed_count": { "type": "integer", "minimum": 0 },
+        "current_evidence_count": { "type": "integer", "minimum": 0 },
+        "needs_drill_count": { "type": "integer", "minimum": 0 },
+        "narrowed_count": { "type": "integer", "minimum": 0 },
+        "withdrawn_count": { "type": "integer", "minimum": 0 },
+        "claim_coverage_count": { "type": "integer", "minimum": 0 },
+        "covered_claim_count": { "type": "integer", "minimum": 0 },
+        "uncovered_claim_count": { "type": "integer", "minimum": 0 },
+        "surface_projection_count": { "type": "integer", "minimum": 0 },
+        "vocabulary_consistent": { "type": "boolean" },
+        "all_managed_packets_disclose_restore_identity": { "type": "boolean" },
+        "all_packets_disclose_partial_loss": { "type": "boolean" },
+        "all_expected_claims_covered": { "type": "boolean" },
+        "no_generic_dr_text": { "type": "boolean" },
+        "restore_identity_and_partial_loss_export_safe": { "type": "boolean" },
+        "raw_payloads_excluded": { "type": "boolean" },
+        "defect_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "page_id",
+        "page_label",
+        "generated_at",
+        "summary",
+        "defects",
+        "descriptors",
+        "surface_projections",
+        "outcomes",
+        "registry",
+        "input"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "backup_restore_failover_page_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "page_id": { "$ref": "#/$defs/opaque_id" },
+        "page_label": { "$ref": "#/$defs/label" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "defects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/defect" }
+        },
+        "descriptors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/descriptor" }
+        },
+        "surface_projections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_projection" }
+        },
+        "outcomes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/outcome" }
+        },
+        "registry": { "$ref": "#/$defs/registry" },
+        "input": { "$ref": "#/$defs/input" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "export_id",
+        "generated_at",
+        "page",
+        "narrow_reasons_present",
+        "defect_counts_by_narrow_reason",
+        "restore_identity_and_partial_loss_export_safe",
+        "raw_payloads_excluded"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "backup_restore_failover_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "page": { "$ref": "#/$defs/page" },
+        "narrow_reasons_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrow_reason" }
+        },
+        "defect_counts_by_narrow_reason": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "restore_identity_and_partial_loss_export_safe": { "type": "boolean" },
+        "raw_payloads_excluded": { "type": "boolean" }
+      }
+    }
+  }
+}

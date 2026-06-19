@@ -9,6 +9,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-continuity/0.0.0")]
 
 pub mod connectivity_state_and_deferred_intent;
+pub mod m5_backup_restore_failover_packets;
 pub mod m5_control_plane_vs_data_plane_outage;
 pub mod m5_key_mode_and_storage_posture;
 pub mod m5_locality_descriptors_and_tenant_cards;
@@ -35,6 +36,25 @@ pub use connectivity_state_and_deferred_intent::{
     DEFERRED_INTENT_RECORD_KIND, IDEMPOTENCY_KEY_RECEIPT_RECORD_KIND,
     NETWORK_COMMAND_DECLARATION_RECORD_KIND, RECONCILIATION_PACKET_RECORD_KIND,
     RECONCILIATION_REVIEW_SHEET_RECORD_KIND, SUPPORT_EXPORT_PACKET_RECORD_KIND,
+};
+
+pub use m5_backup_restore_failover_packets::{
+    audit_backup_restore_failover_page, seeded_backup_restore_failover_input,
+    seeded_backup_restore_failover_page, validate_backup_restore_failover_page,
+    BackupRestoreFailoverDefect, BackupRestoreFailoverDescriptor, BackupRestoreFailoverInput,
+    BackupRestoreFailoverOutcome, BackupRestoreFailoverPacketEntry, BackupRestoreFailoverPage,
+    BackupRestoreFailoverSummary, BackupRestoreFailoverSupportExport,
+    BackupRestoreFailoverSurfaceProjection, ClaimCoverageClass, ClaimCoverageRow, DrillEvidence,
+    DrillPacketRegistry, PacketNarrowReasonClass, PacketSurfaceClass, RestoreOperationClass,
+    RestoreScope, ScopeExercisedClass, BACKUP_RESTORE_FAILOVER_ARTIFACT_REF,
+    BACKUP_RESTORE_FAILOVER_DEFECT_RECORD_KIND, BACKUP_RESTORE_FAILOVER_DESCRIPTOR_RECORD_KIND,
+    BACKUP_RESTORE_FAILOVER_DOC_REF, BACKUP_RESTORE_FAILOVER_OUTCOME_RECORD_KIND,
+    BACKUP_RESTORE_FAILOVER_PAGE_RECORD_KIND, BACKUP_RESTORE_FAILOVER_SCHEMA_REF,
+    BACKUP_RESTORE_FAILOVER_SCHEMA_VERSION, BACKUP_RESTORE_FAILOVER_SHARED_CONTRACT_REF,
+    BACKUP_RESTORE_FAILOVER_SUMMARY_RECORD_KIND,
+    BACKUP_RESTORE_FAILOVER_SUPPORT_EXPORT_RECORD_KIND,
+    BACKUP_RESTORE_FAILOVER_SURFACE_PROJECTION_RECORD_KIND, CLAIM_COVERAGE_ROW_RECORD_KIND,
+    DRILL_PACKET_REGISTRY_RECORD_KIND,
 };
 
 pub use m5_control_plane_vs_data_plane_outage::{
