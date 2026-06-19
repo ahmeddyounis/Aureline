@@ -67,6 +67,19 @@
 //! row. Product, docs/help, review, support, and release-control surfaces ingest this
 //! one certification instead of narrating test maturity by hand.
 //!
+//! [`freeze_the_m5_diagnostic_record_source_collection_snapshot_and_anchor_remap_matrix::DiagnosticTruthLaneMatrixPacket`]
+//! freezes one diagnostic-truth lane across every claimed M5 diagnostic-producing
+//! surface (notebook, framework pack, request / data tooling, preview runtime,
+//! package lane, language provider, editor-structural guard, and imported
+//! scanner). Each row binds the frozen source-kind, imported-versus-live origin,
+//! freshness, anchor-remap, collection-completeness, cluster-meaning, and
+//! quality-session vocabularies, and a claimed row that cannot identify a source,
+//! origin, proven freshness, remap state, collection completeness, or governing
+//! quality session auto-downgrades below its claim with a recorded trigger and a
+//! precise label — so Problems, the editor, review, CLI/headless, AI evidence, and
+//! support export ingest one diagnostic identity instead of inferring
+//! provider-local meanings.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -93,6 +106,7 @@ pub mod env_inspect;
 pub mod execution_context;
 pub mod finalize_environment_and_toolchain_manager_parity_across_ui;
 pub mod finalize_request_workspace_and_api_request_execution_context;
+pub mod freeze_the_m5_diagnostic_record_source_collection_snapshot_and_anchor_remap_matrix;
 pub mod freeze_the_m5_test_item_discovery_snapshot_selection_object_and_session_attempt_quarantine_matrix;
 pub mod harden_breakpoint_call_stack_variables_watch_evaluate_and;
 pub mod harden_build_target_discovery_adapter_confidence_labels_and;
