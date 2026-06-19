@@ -1,0 +1,101 @@
+# M5 public-contract certification gate.
+#
+# Validates the checked-in M5 public-contract certification register: the closeout
+# certification join for the whole M5 public-contract publication lane. For every
+# claimed M5 public artifact family it binds the published contract form, the
+# lifecycle metadata, the example corpus, the validator coverage, the compatibility
+# report, and the release-graph linkage into one certification verdict, narrowing or
+# withholding any family whose contract packages are missing, stale, or
+# mirror-incomplete. A family may never certify a greener label than its public claim,
+# and a release-blocking family missing a required pillar withholds certification and
+# holds promotion. The gate confirms the register, the report, the shiproom dashboard,
+# the Help/overview/evidence docs, the capture, and the negative fixtures match their
+# regenerator (no drift) and stay consistent with the upstream contract-health register
+# and publication matrix, runs the Python validator, and runs the typed Rust consumer's
+# tests.
+
+name: check_m5_public_contract_certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_public_contract_certification.yml"
+      - "artifacts/certification/m5-public-contract-certification.json"
+      - "artifacts/certification/m5-public-contract-certification.md"
+      - "artifacts/release/m5-contract-health.json"
+      - "artifacts/contracts/m5-stability-lifecycle-map.json"
+      - "artifacts/contracts/m5-contract-catalog.json"
+      - "artifacts/release/captures/certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family_validation_capture.json"
+      - "shiproom/m5-public-contract-certification-dashboard.md"
+      - "fixtures/contracts/m5-public-contract-certification/**"
+      - "schemas/public/m5-contracts/m5_public_contract_certification.schema.json"
+      - "docs/help/m5-public-contract-certification.md"
+      - "docs/m5/certify-schema-publication-wit-openapi-packaging-validator-coverage-and-compatibility-truth-on-every-claimed-m5-public-artifact-family.md"
+      - "artifacts/m5/certify-schema-publication-wit-openapi-packaging-validator-coverage-and-compatibility-truth-on-every-claimed-m5-public-artifact-family.md"
+      - "tools/regenerate_m5_public_contract_certification.py"
+      - "tools/validate_m5_public_contract_certification.py"
+      - "crates/aureline-release/src/certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family/**"
+      - "crates/aureline-release/src/bin/aureline_release_certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family.rs"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-public-contract-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_public_contract_certification:
+    name: M5 Public-Contract Certification
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema PyYAML referencing
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Confirm the register matches its regenerator
+        run: |
+          python3 tools/regenerate_m5_public_contract_certification.py
+          git diff --exit-code -- \
+            artifacts/certification/m5-public-contract-certification.json \
+            artifacts/certification/m5-public-contract-certification.md \
+            shiproom/m5-public-contract-certification-dashboard.md \
+            fixtures/contracts/m5-public-contract-certification \
+            docs/help/m5-public-contract-certification.md \
+            docs/m5/certify-schema-publication-wit-openapi-packaging-validator-coverage-and-compatibility-truth-on-every-claimed-m5-public-artifact-family.md \
+            artifacts/m5/certify-schema-publication-wit-openapi-packaging-validator-coverage-and-compatibility-truth-on-every-claimed-m5-public-artifact-family.md \
+            artifacts/release/captures/certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family_validation_capture.json
+
+      - name: Validate the M5 public-contract certification register
+        run: python3 tools/validate_m5_public_contract_certification.py
+
+      - name: Run M5 public-contract certification contract tests
+        run: cargo test -p aureline-release --test certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-public-contract-certification-${{ github.run_id }}
+          path: artifacts/release/captures/certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
