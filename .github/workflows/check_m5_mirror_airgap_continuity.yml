@@ -1,0 +1,77 @@
+# Mirror-only and air-gapped continuity gate.
+#
+# Proves that every claimed mirror-only, air-gapped, or self-hosted-restricted
+# row points to a current packet that states its trust-root continuity, mirror or
+# offline-bundle freshness, offline import/export paths, advisory/revocation
+# source, and whether public fallback is prohibited, unavailable, or policy-gated.
+# A row that silently falls back to public endpoints, sources advisories from a
+# live public fetch on an isolated boundary, or depends on a trust root needing a
+# public reissue fails closed. The crate audit and the schema/fixture validator
+# must both pass.
+
+name: check_m5_mirror_airgap_continuity
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_mirror_airgap_continuity.yml"
+      - "tools/validate_m5_mirror_airgap_continuity_fixtures.py"
+      - "schemas/continuity/mirror_airgap_packet.schema.json"
+      - "fixtures/continuity/mirror_airgap_cases/**"
+      - "artifacts/m5/continuity/mirror_airgap/**"
+      - "docs/m5/continuity/mirror-airgap-continuity.md"
+      - "artifacts/m5/continuity/mirror_airgap_continuity_packets.md"
+      - "crates/aureline-continuity/src/m5_mirror_airgap_continuity_packets/**"
+      - "crates/aureline-continuity/examples/dump_m5_mirror_airgap_continuity_fixtures.rs"
+      - "crates/aureline-continuity/src/bin/aureline_mirror_airgap_continuity_inspect.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-mirror-airgap-continuity-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  mirror_airgap_continuity:
+    name: Mirror/air-gap continuity audit and schema conformance
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-mirror-airgap-continuity-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-mirror-airgap-continuity-
+
+      - name: Run mirror/air-gap continuity audit
+        run: cargo test -p aureline-continuity --locked m5_mirror_airgap
+
+      - name: Validate mirror/air-gap continuity fixtures against schema
+        run: python3 tools/validate_m5_mirror_airgap_continuity_fixtures.py

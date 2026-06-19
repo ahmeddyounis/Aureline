@@ -14,6 +14,7 @@ pub mod m5_control_plane_vs_data_plane_outage;
 pub mod m5_key_mode_and_storage_posture;
 pub mod m5_locality_descriptors_and_tenant_cards;
 pub mod m5_locality_tenant_keymode_and_drill_matrix;
+pub mod m5_mirror_airgap_continuity_packets;
 pub mod m5_restore_from_backup_reviews;
 
 pub use connectivity_state_and_deferred_intent::{
@@ -137,4 +138,20 @@ pub use m5_restore_from_backup_reviews::{
     RESTORE_REVIEW_REGISTRY_RECORD_KIND, RESTORE_REVIEW_SCHEMA_REF, RESTORE_REVIEW_SCHEMA_VERSION,
     RESTORE_REVIEW_SHARED_CONTRACT_REF, RESTORE_REVIEW_SUMMARY_RECORD_KIND,
     RESTORE_REVIEW_SUPPORT_EXPORT_RECORD_KIND, RESTORE_REVIEW_SURFACE_PROJECTION_RECORD_KIND,
+};
+
+pub use m5_mirror_airgap_continuity_packets::{
+    audit_mirror_airgap_page, seeded_mirror_airgap_input, seeded_mirror_airgap_page,
+    validate_mirror_airgap_page, AdvisoryRevocationSourceClass, ConnectivityPostureClass,
+    MirrorAirgapDefect, MirrorAirgapDescriptor, MirrorAirgapInput, MirrorAirgapNarrowReasonClass,
+    MirrorAirgapOutcome, MirrorAirgapPacketEntry, MirrorAirgapPage, MirrorAirgapSummary,
+    MirrorAirgapSupportExport, MirrorAirgapSurfaceProjection, MirrorFreshness,
+    MirrorFreshnessStateClass, OfflineContinuityRegistry, OfflineCoverageClass, OfflineCoverageRow,
+    OfflineExchangeClass, OfflineSurfaceClass, PublicFallbackPolicyClass, TrustRootContinuity,
+    TrustRootRenewalClass, MIRROR_AIRGAP_ARTIFACT_REF, MIRROR_AIRGAP_DEFECT_RECORD_KIND,
+    MIRROR_AIRGAP_DESCRIPTOR_RECORD_KIND, MIRROR_AIRGAP_DOC_REF, MIRROR_AIRGAP_OUTCOME_RECORD_KIND,
+    MIRROR_AIRGAP_PAGE_RECORD_KIND, MIRROR_AIRGAP_SCHEMA_REF, MIRROR_AIRGAP_SCHEMA_VERSION,
+    MIRROR_AIRGAP_SHARED_CONTRACT_REF, MIRROR_AIRGAP_SUMMARY_RECORD_KIND,
+    MIRROR_AIRGAP_SUPPORT_EXPORT_RECORD_KIND, MIRROR_AIRGAP_SURFACE_PROJECTION_RECORD_KIND,
+    OFFLINE_CONTINUITY_REGISTRY_RECORD_KIND, OFFLINE_COVERAGE_ROW_RECORD_KIND,
 };
