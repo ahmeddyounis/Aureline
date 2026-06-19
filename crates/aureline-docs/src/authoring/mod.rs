@@ -21,6 +21,13 @@
 //! release/public-truth surfaces can reopen the same docs causality Aureline
 //! used in the authoring workspace.
 //!
+//! [`safe_rendered_preview`] owns the rendered-preview capability-boundary packet
+//! that makes the per-capability request state, render posture, honest-degradation
+//! fallback, raw/source escape, external-open path, and no-authority-expansion
+//! guarantee inspectable for diagrams, front matter, math, callouts, remote
+//! assets, and extension/custom components, so a richer rendered preview is never
+//! an unlabeled active surface and never widens authority.
+//!
 //! The [`markdown_workspace`] module owns the runtime truth packet for the
 //! governed Markdown authoring workspace: the source/split/rendered modes a
 //! workspace exposes,
@@ -39,5 +46,6 @@
 pub mod evidence_handoff;
 pub mod markdown_workspace;
 pub mod release_docs_surface;
+pub mod safe_rendered_preview;
 pub mod suggestion_panel;
 pub mod validation_report;

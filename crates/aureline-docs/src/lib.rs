@@ -146,6 +146,21 @@ pub use authoring::release_docs_surface::{
     RELEASE_DOCS_REVIEW_PACKET_RECORD_KIND, RELEASE_DOCS_SURFACE_PROJECTION_RECORD_KIND,
     REOPEN_RELEASE_DOCS_COMPARE_ACTION_LABEL, REVIEW_RELEASE_DOCS_DIFF_ACTION_LABEL,
 };
+pub use authoring::safe_rendered_preview::{
+    current_stable_rendered_preview_boundary_export, not_applicable_capability_boundaries,
+    seeded_capability_boundaries,
+    seeded_recovery_command as seeded_rendered_preview_recovery_command,
+    seeded_stable_rendered_preview_boundary, seeded_stable_rendered_preview_boundary_input,
+    AccessibilityParity, CapabilityAuthority, CapabilityRequestState, PreviewBoundaryViolation,
+    PreviewCapabilityBoundary, PreviewCapabilityKind, PreviewRenderPosture, PreviewSurfaceOwner,
+    RenderedPreviewBoundary, RenderedPreviewBoundaryArtifactError, RenderedPreviewBoundaryInput,
+    OPEN_SOURCE_ACTION_REF as RENDERED_PREVIEW_OPEN_SOURCE_ACTION_REF,
+    RECOVER_SOURCE_COMMAND_ID as RENDERED_PREVIEW_RECOVER_SOURCE_COMMAND_ID,
+    RENDERED_PREVIEW_BOUNDARY_ARTIFACT_REF, RENDERED_PREVIEW_BOUNDARY_DOC_REF,
+    RENDERED_PREVIEW_BOUNDARY_FIXTURE_DIR, RENDERED_PREVIEW_BOUNDARY_RECORD_KIND,
+    RENDERED_PREVIEW_BOUNDARY_SCHEMA_REF, RENDERED_PREVIEW_BOUNDARY_SCHEMA_VERSION,
+    RENDERED_PREVIEW_BOUNDARY_SUMMARY_REF,
+};
 pub use certify_docs_browser_semantic_recall_and_codebase_understanding_rows_and_narrow_any_underqualified_surface::{
     current_stable_certification_export, seeded_stable_certification_input,
     CertificationArtifactError, CertificationCompatibilityReport, CertificationConsumerProjection,
