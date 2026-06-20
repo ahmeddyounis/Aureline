@@ -1,0 +1,60 @@
+//! Generated-artifact provenance, regeneration, writable-boundary, and
+//! reversible-checkpoint governance for claimed M5 artifact classes.
+//!
+//! The M5 line already covers generated-artifact lineage surfaces,
+//! template lineage, refactor transaction policy, mutation journals, and
+//! restore provenance. What it still leaves implicit is the actual
+//! *generated-artifact contract*: the canonical source a derived file
+//! points back to, the generator that produced it, the provenance class
+//! it carries, the writable-boundary policy that decides whether a direct
+//! edit is safe, the regeneration route that rebuilds it, the drift state
+//! that says whether the bytes still match their source, and the
+//! reversible-checkpoint lineage that captured the change. M5 now spans
+//! scaffolded projects, notebook outputs, preview/runtime derivatives,
+//! API/request artifacts, framework codegen, AI-assisted edits, and
+//! exportable support packets; without one typed generated-artifact model
+//! those surfaces can each guess differently about what is authoritative,
+//! what may be written directly, what must be regenerated, and what local
+//! history actually captured.
+//!
+//! This crate freezes that matrix. The single
+//! [`m5_generated_governance`] module models one artifact row per claimed
+//! [`m5_generated_governance::ArtifactClass`], each carrying the required
+//! [`m5_generated_governance::ProvenanceDimension`]s — canonical source,
+//! generator identity, provenance class, writable boundary, regeneration
+//! route, drift state, and checkpoint lineage — and the evidence backing
+//! each. One [`m5_generated_governance::certify_artifact_outcome`] engine
+//! folds the per-dimension evidence into a single promotion-grade verdict,
+//! an effective claim maturity, **and** a narrowed
+//! [`m5_generated_governance::EditPosture`], so a `stable` or `beta`
+//! claim — and any `direct_edit_allowed` promise — can never outrun the
+//! provenance evidence behind it. A generated artifact is never presented
+//! as ordinary authoritative source merely because it looks like a file on
+//! disk: when its canonical-source or writable-boundary evidence goes
+//! partial, stale, or missing, the direct-edit claim narrows to a reviewed
+//! override or a regenerate-only boundary instead.
+//!
+//! The packet is mirrored, byte-for-byte, by the checked-in schema,
+//! reviewer doc, proof packet, certification report, and fixture corpus
+//! named on the module's [`m5_generated_governance`] constants, so release,
+//! support, docs, and help consume one source of truth instead of
+//! re-describing generated-file behavior manually.
+
+#![doc(html_root_url = "https://docs.rs/aureline-generated/0.0.0")]
+
+pub mod m5_generated_governance;
+
+pub use m5_generated_governance::{
+    certify_artifact_outcome, seeded_m5_generated_governance_fixtures,
+    seeded_m5_generated_governance_packet, validate_m5_generated_governance_fixture,
+    validate_m5_generated_governance_packet, ArtifactClass, ArtifactDrill, ArtifactDrillStep,
+    ArtifactOutcome, ArtifactRow, AuthorityClass, ClaimMaturity, DimensionEvidence,
+    DrillFailureClass, DrillPhase, EditBoundaryRule, EditPosture, EvidenceFreshnessRule,
+    EvidenceState, M5GeneratedGovernanceFixture, M5GeneratedGovernancePacket, ProvenanceDimension,
+    PublicationChannel, RowVerdict, SourceContractRefs, SurfaceBinding, ValidationReport,
+    ValidationViolation, M5_GENERATED_GOVERNANCE_DOC_REF, M5_GENERATED_GOVERNANCE_FIXTURE_DIR,
+    M5_GENERATED_GOVERNANCE_FIXTURE_MANIFEST_REF, M5_GENERATED_GOVERNANCE_FIXTURE_RECORD_KIND,
+    M5_GENERATED_GOVERNANCE_PACKET_RECORD_KIND, M5_GENERATED_GOVERNANCE_PACKET_REF,
+    M5_GENERATED_GOVERNANCE_REPORT_REF, M5_GENERATED_GOVERNANCE_SCHEMA_REF,
+    M5_GENERATED_GOVERNANCE_SCHEMA_VERSION,
+};
