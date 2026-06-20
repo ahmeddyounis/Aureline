@@ -1,0 +1,73 @@
+# Shiproom benchmark-freshness and comparability gate.
+#
+# Validates the shiproom benchmark-freshness ledger: every claim publication
+# entry's freshness state, fired downgrade reasons, and narrowed effective claim
+# are recomputed from the run that backs it against the canonical current corpus,
+# lab-image, and protected-metrics revisions; a green tile cannot mask a stale or
+# incomparable run; historical runs stay reviewable but never current proof;
+# release packets stay aligned with the recomputed freshness state; and the
+# incomparable-run fixtures prove each detection path.
+
+name: check_benchmark_shiproom_freshness
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_benchmark_shiproom_freshness.yml"
+      - "ci/check_benchmark_shiproom_freshness.py"
+      - "artifacts/benchmarks/shiproom-benchmark-freshness.json"
+      - "artifacts/benchmarks/shiproom-benchmark-freshness.md"
+      - "artifacts/benchmarks/shiproom-freshness-policy.md"
+      - "artifacts/benchmarks/m5-benchmark-governance.json"
+      - "schemas/benchmarks/shiproom-benchmark-freshness.schema.json"
+      - "docs/benchmarks/claim-narrowing.md"
+      - "fixtures/benchmarks/incomparable-runs/**"
+      - "fixtures/benchmarks/corpus_manifest.yaml"
+      - "artifacts/perf/lab_image_manifest.yaml"
+      - "artifacts/bench/protected_metrics.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-benchmark-shiproom-freshness-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark_shiproom_freshness:
+    name: Benchmark shiproom freshness
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run shiproom benchmark-freshness validator
+        run: |
+          python3 ci/check_benchmark_shiproom_freshness.py --repo-root . \
+            --report artifacts/benchmarks/shiproom-benchmark-freshness-validation.json
+
+      - name: Upload shiproom benchmark-freshness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-shiproom-freshness-${{ github.run_id }}
+          path: artifacts/benchmarks/shiproom-benchmark-freshness-validation.json
+          if-no-files-found: error
+          retention-days: 30

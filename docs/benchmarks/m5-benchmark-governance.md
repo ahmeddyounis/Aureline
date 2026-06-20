@@ -23,6 +23,13 @@ Companion artifacts:
   — reproducibility packs that back each publication pack in this matrix with the
   raw configuration, environment notes, and reproduction recipe an independent
   reviewer reruns or audits against.
+- [`/docs/benchmarks/claim-narrowing.md`](./claim-narrowing.md) — the runtime
+  freshness-and-comparability model that recomputes each publication pack's
+  effective claim from the run currently backing it and narrows or quarantines it
+  when that run goes stale, ages, or becomes incomparable; its canonical ledger is
+  [`/artifacts/benchmarks/shiproom-benchmark-freshness.json`](../../artifacts/benchmarks/shiproom-benchmark-freshness.json)
+  and its shiproom policy is
+  [`/artifacts/benchmarks/shiproom-freshness-policy.md`](../../artifacts/benchmarks/shiproom-freshness-policy.md).
 
 This matrix sits **on top of** the existing benchmark governance, which it
 references rather than replaces:

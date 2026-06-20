@@ -1,0 +1,445 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/benchmarks/shiproom-benchmark-freshness.schema.json",
+  "title": "Aureline shiproom benchmark-freshness and comparability ledger",
+  "description": "Boundary schema for the shiproom benchmark-freshness and comparability ledger. The ledger binds every claim publication entry in the benchmark-governance matrix to the benchmark run that currently backs it, recomputes a freshness and comparability state from that run's corpus revision, hardware class, lab-image revision, threshold version, and run-metadata completeness, fires the exact downgrade reasons that apply, narrows the effective claim, and projects the blocker state shiproom dashboards and release packets consume. Historical runs are retained for diagnosis but are never current proof. Raw run logs, raw provider payloads, raw customer or repository names, raw machine labels, secret material, and screenshots never cross this boundary; only stable governance ids and reviewable sentences do.",
+  "oneOf": [
+    { "$ref": "#/$defs/shiproom_benchmark_freshness_ledger" },
+    { "$ref": "#/$defs/incomparable_run_fixture_record" }
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-term sentence safe for product copy, docs, support export, and release evidence. Raw run logs, raw provider payloads, raw customer or repository names, raw machine labels, and secret material MUST NOT appear."
+    },
+    "ref_array": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "utc_date": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+      ]
+    },
+    "iso_date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "utc_date_time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "claim_level": {
+      "type": "string",
+      "enum": [
+        "quarantined_not_comparable",
+        "internal_gate_only",
+        "methodology_only",
+        "aureline_only_claim",
+        "public_head_to_head_comparison"
+      ],
+      "description": "Ordered benchmark-claim strength shared with the benchmark-governance matrix. quarantined_not_comparable is the terminal narrowed state that carries no performance conclusion; public_head_to_head_comparison is the strongest."
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": ["current", "aging", "stale", "incomparable", "missing"],
+      "description": "Computed state of the run that backs a claim entry. current is green; aging is within the SLO warn window; stale is past the freshness SLO; incomparable means a comparability axis (corpus revision, hardware class, lab image, threshold version, or run-metadata completeness) is off; missing means no current run backs the entry."
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "stale_corpus_revision",
+        "incomparable_hardware_class",
+        "incomparable_lab_image",
+        "threshold_version_drift",
+        "incomparable_run_metadata",
+        "run_metadata_incomplete",
+        "stale_freshness",
+        "aging_evidence",
+        "no_current_run"
+      ],
+      "description": "Mechanically detectable reason a claim entry's benchmark evidence narrows. Each reason maps to a claim level it narrows to in the ledger's downgrade_reasons table."
+    },
+    "comparability_axis": {
+      "type": "string",
+      "enum": [
+        "corpus_revision",
+        "hardware_class",
+        "lab_image_revision",
+        "threshold_version",
+        "run_metadata_completeness"
+      ]
+    },
+    "claim_level_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "rank", "claim_bearing"],
+      "properties": {
+        "level": { "$ref": "#/$defs/claim_level" },
+        "rank": { "type": "integer", "minimum": 0 },
+        "claim_bearing": { "type": "boolean" }
+      }
+    },
+    "freshness_state_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "is_green", "blocks_claim_bearing", "description"],
+      "properties": {
+        "state": { "$ref": "#/$defs/freshness_state" },
+        "is_green": { "type": "boolean" },
+        "blocks_claim_bearing": { "type": "boolean" },
+        "description": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "downgrade_reason_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "axis", "detects", "narrows_to", "auto_detectable", "stop_rule"],
+      "properties": {
+        "reason": { "$ref": "#/$defs/downgrade_reason" },
+        "axis": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/comparability_axis" }
+          ]
+        },
+        "detects": { "$ref": "#/$defs/reviewable_sentence" },
+        "narrows_to": { "$ref": "#/$defs/claim_level" },
+        "auto_detectable": { "const": true },
+        "stop_rule": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "comparability_axis_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axis", "current_source_ref", "description"],
+      "properties": {
+        "axis": { "$ref": "#/$defs/comparability_axis" },
+        "current_source_ref": { "$ref": "#/$defs/non_empty_string" },
+        "description": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "metadata_completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_fields", "present_fields", "missing_fields"],
+      "properties": {
+        "required_fields": { "$ref": "#/$defs/ref_array" },
+        "present_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "missing_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "run_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "is_current",
+        "captured_on",
+        "run_corpus_revision",
+        "run_hardware_profile_ref",
+        "run_hardware_class",
+        "run_lab_image_ref",
+        "run_lab_image_revision",
+        "run_threshold_version",
+        "reset_pending_axes",
+        "metadata_completeness",
+        "run_metadata_ref",
+        "status_note"
+      ],
+      "properties": {
+        "run_id": { "$ref": "#/$defs/non_empty_string" },
+        "is_current": { "type": "boolean" },
+        "captured_on": { "$ref": "#/$defs/utc_date" },
+        "run_corpus_revision": { "type": "integer", "minimum": 0 },
+        "run_hardware_profile_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_hardware_class": {
+          "type": "string",
+          "enum": ["reference_lab", "self_capture"]
+        },
+        "run_lab_image_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_lab_image_revision": { "type": "integer", "minimum": 0 },
+        "run_threshold_version": { "type": "integer", "minimum": 0 },
+        "reset_pending_axes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/comparability_axis" },
+          "description": "Comparability axes that changed since the bound baseline without a reset reference capture. A non-empty list fires incomparable_run_metadata."
+        },
+        "metadata_completeness": { "$ref": "#/$defs/metadata_completeness" },
+        "run_metadata_ref": { "$ref": "#/$defs/non_empty_string" },
+        "status_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "release_packet_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["release_packet_ref", "declared_freshness_state", "declared_effective_claim"],
+      "properties": {
+        "release_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "declared_freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "declared_effective_claim": { "$ref": "#/$defs/claim_level" }
+      }
+    },
+    "shiproom_blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocks_promotion", "blocker_reasons", "downgrade_label"],
+      "properties": {
+        "blocks_promotion": { "type": "boolean" },
+        "blocker_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "downgrade_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "claim_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "subject_kind",
+        "title",
+        "posture",
+        "metric_refs",
+        "bound_corpus_revision",
+        "bound_hardware_profile_ref",
+        "bound_hardware_class",
+        "bound_lab_image_ref",
+        "bound_lab_image_revision",
+        "bound_threshold_version",
+        "freshness_slo_days",
+        "warn_within_days",
+        "current_run",
+        "historical_runs",
+        "fired_downgrade_reasons",
+        "freshness_state",
+        "published_claim_ceiling",
+        "effective_claim",
+        "shiproom_blocker",
+        "release_packet"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "subject_kind": { "const": "claim_publication_entry" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "posture": { "$ref": "#/$defs/claim_level" },
+        "metric_refs": { "$ref": "#/$defs/ref_array" },
+        "bound_corpus_revision": { "type": "integer", "minimum": 0 },
+        "bound_hardware_profile_ref": { "$ref": "#/$defs/non_empty_string" },
+        "bound_hardware_class": {
+          "type": "string",
+          "enum": ["reference_lab", "self_capture"]
+        },
+        "bound_lab_image_ref": { "$ref": "#/$defs/non_empty_string" },
+        "bound_lab_image_revision": { "type": "integer", "minimum": 0 },
+        "bound_threshold_version": { "type": "integer", "minimum": 0 },
+        "freshness_slo_days": { "type": "integer", "minimum": 1 },
+        "warn_within_days": { "type": "integer", "minimum": 0 },
+        "current_run": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/run_record" }
+          ]
+        },
+        "historical_runs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/run_record" }
+        },
+        "fired_downgrade_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "published_claim_ceiling": { "$ref": "#/$defs/claim_level" },
+        "effective_claim": { "$ref": "#/$defs/claim_level" },
+        "shiproom_blocker": { "$ref": "#/$defs/shiproom_blocker" },
+        "release_packet": { "$ref": "#/$defs/release_packet_binding" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumer", "source_projection", "ingests"],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/non_empty_string" },
+        "source_projection": { "$ref": "#/$defs/non_empty_string" },
+        "ingests": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "shiproom_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["promotion_decision", "blocking_entry_ids", "blocking_reasons", "rationale"],
+      "properties": {
+        "promotion_decision": { "type": "string", "enum": ["hold", "proceed"] },
+        "blocking_entry_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "blocking_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "rationale": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "shiproom_benchmark_freshness_ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "ledger_id",
+        "generated_at",
+        "as_of",
+        "title",
+        "summary",
+        "governance_matrix_ref",
+        "evidence_index_ref",
+        "source_refs",
+        "claim_levels",
+        "freshness_states",
+        "downgrade_reasons",
+        "comparability_axes",
+        "entries",
+        "shiproom_projection",
+        "consumer_bindings",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "benchmark_shiproom_freshness_ledger" },
+        "schema_version": { "const": 1 },
+        "ledger_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/utc_date_time" },
+        "as_of": { "$ref": "#/$defs/iso_date" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "governance_matrix_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_index_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_refs": { "$ref": "#/$defs/ref_array" },
+        "claim_levels": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/claim_level_row" }
+        },
+        "freshness_states": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/freshness_state_row" }
+        },
+        "downgrade_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/downgrade_reason_row" }
+        },
+        "comparability_axes": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/comparability_axis_row" }
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/claim_entry" }
+        },
+        "shiproom_projection": { "$ref": "#/$defs/shiproom_projection" },
+        "consumer_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_binding" }
+        },
+        "inspection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["how_to_recompute", "promotion_gate", "freshness_ladder", "evidence_index_ref"],
+          "properties": {
+            "how_to_recompute": { "$ref": "#/$defs/reviewable_sentence" },
+            "promotion_gate": { "$ref": "#/$defs/reviewable_sentence" },
+            "freshness_ladder": { "$ref": "#/$defs/reviewable_sentence" },
+            "evidence_index_ref": { "$ref": "#/$defs/non_empty_string" }
+          }
+        }
+      }
+    },
+    "incomparable_run_fixture_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "fixture_id",
+        "scenario",
+        "posture",
+        "freshness_slo_days",
+        "warn_within_days",
+        "as_of",
+        "bound_corpus_revision",
+        "bound_hardware_profile_ref",
+        "bound_hardware_class",
+        "bound_lab_image_ref",
+        "bound_lab_image_revision",
+        "bound_threshold_version",
+        "current_run",
+        "expected_fired_downgrade_reasons",
+        "expected_freshness_state",
+        "expected_effective_claim",
+        "auto_detectable",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": { "const": "incomparable_run_fixture_record" },
+        "schema_version": { "const": 1 },
+        "fixture_id": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "posture": { "$ref": "#/$defs/claim_level" },
+        "freshness_slo_days": { "type": "integer", "minimum": 1 },
+        "warn_within_days": { "type": "integer", "minimum": 0 },
+        "as_of": { "$ref": "#/$defs/iso_date" },
+        "bound_corpus_revision": { "type": "integer", "minimum": 0 },
+        "bound_hardware_profile_ref": { "$ref": "#/$defs/non_empty_string" },
+        "bound_hardware_class": {
+          "type": "string",
+          "enum": ["reference_lab", "self_capture"]
+        },
+        "bound_lab_image_ref": { "$ref": "#/$defs/non_empty_string" },
+        "bound_lab_image_revision": { "type": "integer", "minimum": 0 },
+        "bound_threshold_version": { "type": "integer", "minimum": 0 },
+        "current_run": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/run_record" }
+          ]
+        },
+        "expected_fired_downgrade_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "expected_freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "expected_effective_claim": { "$ref": "#/$defs/claim_level" },
+        "auto_detectable": { "const": true },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    }
+  }
+}

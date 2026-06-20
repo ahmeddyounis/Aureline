@@ -1,0 +1,566 @@
+{
+  "record_kind": "benchmark_shiproom_freshness_ledger",
+  "schema_version": 1,
+  "ledger_id": "benchmark-shiproom-freshness:stable:0001",
+  "generated_at": "2026-06-20T00:00:00Z",
+  "as_of": "2026-06-20",
+  "title": "Shiproom benchmark-freshness and comparability ledger for the M5 benchmark claim publication entries",
+  "summary": "Binds every M5 claim publication entry to the benchmark run that currently backs it, recomputes a freshness and comparability state from that run's corpus revision, hardware class, lab-image revision, threshold version, and run-metadata completeness, fires the exact downgrade reasons that apply, narrows the effective claim, retains superseded runs for diagnosis without treating them as current proof, and projects the blocker state shiproom dashboards and release packets consume so a stale or incomparable run cannot hide behind a green tile.",
+  "governance_matrix_ref": "artifacts/benchmarks/m5-benchmark-governance.json",
+  "evidence_index_ref": "artifacts/release/m5/certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index.json",
+  "source_refs": [
+    "schemas/benchmarks/shiproom-benchmark-freshness.schema.json",
+    "artifacts/benchmarks/m5-benchmark-governance.json",
+    "artifacts/benchmarks/shiproom-benchmark-freshness.md",
+    "artifacts/benchmarks/shiproom-freshness-policy.md",
+    "docs/benchmarks/claim-narrowing.md",
+    "fixtures/benchmarks/corpus_manifest.yaml",
+    "artifacts/perf/reference_hardware_manifest.yaml",
+    "artifacts/perf/lab_image_manifest.yaml",
+    "artifacts/bench/protected_metrics.yaml"
+  ],
+  "claim_levels": [
+    { "level": "quarantined_not_comparable", "rank": 0, "claim_bearing": false },
+    { "level": "internal_gate_only", "rank": 1, "claim_bearing": false },
+    { "level": "methodology_only", "rank": 2, "claim_bearing": false },
+    { "level": "aureline_only_claim", "rank": 3, "claim_bearing": true },
+    { "level": "public_head_to_head_comparison", "rank": 4, "claim_bearing": true }
+  ],
+  "freshness_states": [
+    {
+      "state": "current",
+      "is_green": true,
+      "blocks_claim_bearing": false,
+      "description": "The backing run is within its freshness SLO and every comparability axis matches the bound baseline; the claim stands at its ceiling."
+    },
+    {
+      "state": "aging",
+      "is_green": false,
+      "blocks_claim_bearing": false,
+      "description": "The backing run is still within its freshness SLO but inside the warn window; a head-to-head comparison narrows to an Aureline-only claim until a fresh capture lands."
+    },
+    {
+      "state": "stale",
+      "is_green": false,
+      "blocks_claim_bearing": true,
+      "description": "The backing run is past its freshness SLO; the claim narrows to methodology-only until a fresh reference capture lands."
+    },
+    {
+      "state": "incomparable",
+      "is_green": false,
+      "blocks_claim_bearing": true,
+      "description": "A comparability axis (corpus revision, hardware class, lab image, threshold version, or run-metadata completeness) is off the bound baseline; the claim narrows and may quarantine until a reset reference capture lands."
+    },
+    {
+      "state": "missing",
+      "is_green": false,
+      "blocks_claim_bearing": true,
+      "description": "No current run backs the entry; the claim is quarantined until a fresh reference capture is recorded."
+    }
+  ],
+  "downgrade_reasons": [
+    {
+      "reason": "stale_corpus_revision",
+      "axis": "corpus_revision",
+      "detects": "The backing run's corpus revision differs from the current corpus-manifest revision.",
+      "narrows_to": "methodology_only",
+      "auto_detectable": true,
+      "stop_rule": "A claim on a stale corpus revision drops to methodology-only until it is rebaselined on the current corpus."
+    },
+    {
+      "reason": "incomparable_hardware_class",
+      "axis": "hardware_class",
+      "detects": "The backing run's hardware class or hardware profile differs from the entry's bound reference hardware.",
+      "narrows_to": "quarantined_not_comparable",
+      "auto_detectable": true,
+      "stop_rule": "A run captured on a different hardware class than the bound reference cannot make a comparable claim and is quarantined."
+    },
+    {
+      "reason": "incomparable_lab_image",
+      "axis": "lab_image_revision",
+      "detects": "The backing run's lab-image revision or lab-image profile differs from the entry's bound lab image.",
+      "narrows_to": "quarantined_not_comparable",
+      "auto_detectable": true,
+      "stop_rule": "A run captured on a different lab-image revision than the bound baseline cannot make a comparable claim and is quarantined."
+    },
+    {
+      "reason": "threshold_version_drift",
+      "axis": "threshold_version",
+      "detects": "The backing run's protected-metrics threshold version differs from the current protected-metrics revision.",
+      "narrows_to": "internal_gate_only",
+      "auto_detectable": true,
+      "stop_rule": "A run measured against a drifted threshold version loses its external claim until it is recaptured against the current protected-metrics revision."
+    },
+    {
+      "reason": "incomparable_run_metadata",
+      "axis": null,
+      "detects": "A comparability axis (hardware, lab image, power, thermal, calibration, capture path, or corpus revision) changed without a reset reference capture.",
+      "narrows_to": "quarantined_not_comparable",
+      "auto_detectable": true,
+      "stop_rule": "An unreset comparability axis quarantines the claim until a reset reference capture lands."
+    },
+    {
+      "reason": "run_metadata_incomplete",
+      "axis": "run_metadata_completeness",
+      "detects": "The backing run omits a required run-metadata field, so the result is not reproducible or comparable.",
+      "narrows_to": "quarantined_not_comparable",
+      "auto_detectable": true,
+      "stop_rule": "A run missing required metadata cannot back a comparable claim and is quarantined until the metadata is captured."
+    },
+    {
+      "reason": "stale_freshness",
+      "axis": null,
+      "detects": "The backing run's capture date is past the entry's freshness SLO.",
+      "narrows_to": "methodology_only",
+      "auto_detectable": true,
+      "stop_rule": "Stale evidence narrows to methodology-only until a fresh reference capture lands."
+    },
+    {
+      "reason": "aging_evidence",
+      "axis": null,
+      "detects": "The backing run's capture date is inside the warn window before its freshness SLO expires.",
+      "narrows_to": "aureline_only_claim",
+      "auto_detectable": true,
+      "stop_rule": "Aging evidence narrows a head-to-head comparison to an Aureline-only claim until a fresh capture lands; weaker claims are unaffected."
+    },
+    {
+      "reason": "no_current_run",
+      "axis": null,
+      "detects": "The entry has no current run backing its claim.",
+      "narrows_to": "quarantined_not_comparable",
+      "auto_detectable": true,
+      "stop_rule": "An entry with no current run is quarantined until a fresh reference capture is recorded."
+    }
+  ],
+  "comparability_axes": [
+    {
+      "axis": "corpus_revision",
+      "current_source_ref": "fixtures/benchmarks/corpus_manifest.yaml",
+      "description": "The current corpus-manifest revision the backing run must match."
+    },
+    {
+      "axis": "hardware_class",
+      "current_source_ref": "artifacts/perf/reference_hardware_manifest.yaml",
+      "description": "The reference-hardware class and profile the backing run must match."
+    },
+    {
+      "axis": "lab_image_revision",
+      "current_source_ref": "artifacts/perf/lab_image_manifest.yaml",
+      "description": "The current lab-image revision the backing run must match."
+    },
+    {
+      "axis": "threshold_version",
+      "current_source_ref": "artifacts/bench/protected_metrics.yaml",
+      "description": "The current protected-metrics revision the backing run must have been measured against."
+    },
+    {
+      "axis": "run_metadata_completeness",
+      "current_source_ref": "docs/benchmarks/public_comparison_rules.md",
+      "description": "The required run-metadata fields the backing run must carry to be reproducible and comparable."
+    }
+  ],
+  "entries": [
+    {
+      "entry_id": "publication_pack.methodology.startup_warm_to_first_paint",
+      "subject_kind": "claim_publication_entry",
+      "title": "Methodology entry for warm start to first paint.",
+      "posture": "methodology_only",
+      "metric_refs": ["ff.warm_start_to_first_paint"],
+      "bound_corpus_revision": 1,
+      "bound_hardware_profile_ref": "hardware_definition.ref.macos15.arm64.apple_silicon_14in",
+      "bound_hardware_class": "reference_lab",
+      "bound_lab_image_ref": "lab_image.macos15.arm64.rev1",
+      "bound_lab_image_revision": 1,
+      "bound_threshold_version": 1,
+      "freshness_slo_days": 365,
+      "warn_within_days": 60,
+      "current_run": {
+        "run_id": "run.methodology.warm_start_to_first_paint.0001",
+        "is_current": true,
+        "captured_on": "2026-06-10",
+        "run_corpus_revision": 1,
+        "run_hardware_profile_ref": "hardware_definition.ref.macos15.arm64.apple_silicon_14in",
+        "run_hardware_class": "reference_lab",
+        "run_lab_image_ref": "lab_image.macos15.arm64.rev1",
+        "run_lab_image_revision": 1,
+        "run_threshold_version": 1,
+        "reset_pending_axes": [],
+        "metadata_completeness": {
+          "required_fields": [
+            "build_identity",
+            "command_line",
+            "corpus_manifest_revision",
+            "protected_metrics_revision",
+            "hardware_definition_ref",
+            "lab_image_revision",
+            "display_class",
+            "power_thermal_posture",
+            "raw_run_metadata_ref"
+          ],
+          "present_fields": [
+            "build_identity",
+            "command_line",
+            "corpus_manifest_revision",
+            "protected_metrics_revision",
+            "hardware_definition_ref",
+            "lab_image_revision",
+            "display_class",
+            "power_thermal_posture",
+            "raw_run_metadata_ref"
+          ],
+          "missing_fields": []
+        },
+        "run_metadata_ref": "raw_run_metadata.methodology.warm_start_to_first_paint.0001",
+        "status_note": "Current methodology capture; explains how warm start to first paint is measured, not a measured win."
+      },
+      "historical_runs": [],
+      "fired_downgrade_reasons": [],
+      "freshness_state": "current",
+      "published_claim_ceiling": "methodology_only",
+      "effective_claim": "methodology_only",
+      "shiproom_blocker": {
+        "blocks_promotion": false,
+        "blocker_reasons": [],
+        "downgrade_label": "Methodology only; explains measurement, makes no measured comparison."
+      },
+      "release_packet": {
+        "release_packet_ref": "release_packet.m5.benchmark_claims.methodology.warm_start_to_first_paint",
+        "declared_freshness_state": "current",
+        "declared_effective_claim": "methodology_only"
+      }
+    },
+    {
+      "entry_id": "publication_pack.aureline_only.buffer_operations",
+      "subject_kind": "claim_publication_entry",
+      "title": "Aureline-only claim entry for buffer operations.",
+      "posture": "aureline_only_claim",
+      "metric_refs": ["ff.buffer_operations"],
+      "bound_corpus_revision": 1,
+      "bound_hardware_profile_ref": "hardware_definition.ref.macos15.arm64.apple_silicon_14in",
+      "bound_hardware_class": "reference_lab",
+      "bound_lab_image_ref": "lab_image.macos15.arm64.rev1",
+      "bound_lab_image_revision": 1,
+      "bound_threshold_version": 1,
+      "freshness_slo_days": 180,
+      "warn_within_days": 30,
+      "current_run": {
+        "run_id": "run.aureline_only.buffer_operations.0002",
+        "is_current": true,
+        "captured_on": "2026-06-10",
+        "run_corpus_revision": 1,
+        "run_hardware_profile_ref": "hardware_definition.ref.macos15.arm64.apple_silicon_14in",
+        "run_hardware_class": "reference_lab",
+        "run_lab_image_ref": "lab_image.macos15.arm64.rev1",
+        "run_lab_image_revision": 1,
+        "run_threshold_version": 1,
+        "reset_pending_axes": [],
+        "metadata_completeness": {
+          "required_fields": [
+            "build_identity",
+            "command_line",
+            "corpus_manifest_revision",
+            "protected_metrics_revision",
+            "hardware_definition_ref",
+            "lab_image_revision",
+            "display_class",
+            "power_thermal_posture",
+            "raw_run_metadata_ref"
+          ],
+          "present_fields": [
+            "build_identity",
+            "command_line",
+            "corpus_manifest_revision",
+            "protected_metrics_revision",
+            "hardware_definition_ref",
+            "lab_image_revision",
+            "display_class",
+            "power_thermal_posture",
+            "raw_run_metadata_ref"
+          ],
+          "missing_fields": []
+        },
+        "run_metadata_ref": "raw_run_metadata.aureline_only.buffer_operations.0002",
+        "status_note": "Current reference capture within its freshness SLO on the bound reference hardware and lab image."
+      },
+      "historical_runs": [
+        {
+          "run_id": "run.aureline_only.buffer_operations.0001",
+          "is_current": false,
+          "captured_on": "2025-12-01",
+          "run_corpus_revision": 1,
+          "run_hardware_profile_ref": "hardware_definition.ref.macos15.arm64.apple_silicon_14in",
+          "run_hardware_class": "reference_lab",
+          "run_lab_image_ref": "lab_image.macos15.arm64.rev1",
+          "run_lab_image_revision": 1,
+          "run_threshold_version": 1,
+          "reset_pending_axes": [],
+          "metadata_completeness": {
+            "required_fields": [
+              "build_identity",
+              "command_line",
+              "corpus_manifest_revision",
+              "protected_metrics_revision",
+              "hardware_definition_ref",
+              "lab_image_revision",
+              "display_class",
+              "power_thermal_posture",
+              "raw_run_metadata_ref"
+            ],
+            "present_fields": [
+              "build_identity",
+              "command_line",
+              "corpus_manifest_revision",
+              "protected_metrics_revision",
+              "hardware_definition_ref",
+              "lab_image_revision",
+              "display_class",
+              "power_thermal_posture",
+              "raw_run_metadata_ref"
+            ],
+            "missing_fields": []
+          },
+          "run_metadata_ref": "raw_run_metadata.aureline_only.buffer_operations.0001",
+          "status_note": "Superseded prior reference capture, retained for diagnosis only and never treated as current proof."
+        }
+      ],
+      "fired_downgrade_reasons": [],
+      "freshness_state": "current",
+      "published_claim_ceiling": "aureline_only_claim",
+      "effective_claim": "aureline_only_claim",
+      "shiproom_blocker": {
+        "blocks_promotion": false,
+        "blocker_reasons": [],
+        "downgrade_label": "Aureline-only claim backed by a current reference capture."
+      },
+      "release_packet": {
+        "release_packet_ref": "release_packet.m5.benchmark_claims.aureline_only.buffer_operations",
+        "declared_freshness_state": "current",
+        "declared_effective_claim": "aureline_only_claim"
+      }
+    },
+    {
+      "entry_id": "publication_pack.head_to_head.first_useful_edit",
+      "subject_kind": "claim_publication_entry",
+      "title": "Public head-to-head comparison entry for first useful edit.",
+      "posture": "public_head_to_head_comparison",
+      "metric_refs": ["ff.vfs_save_conflict_handling"],
+      "bound_corpus_revision": 1,
+      "bound_hardware_profile_ref": "hardware_definition.ref.macos15.arm64.apple_silicon_14in",
+      "bound_hardware_class": "reference_lab",
+      "bound_lab_image_ref": "lab_image.macos15.arm64.rev1",
+      "bound_lab_image_revision": 1,
+      "bound_threshold_version": 1,
+      "freshness_slo_days": 180,
+      "warn_within_days": 30,
+      "current_run": {
+        "run_id": "run.head_to_head.first_useful_edit.0001",
+        "is_current": true,
+        "captured_on": "2026-06-10",
+        "run_corpus_revision": 1,
+        "run_hardware_profile_ref": "hardware_definition.ref.macos15.arm64.apple_silicon_14in",
+        "run_hardware_class": "reference_lab",
+        "run_lab_image_ref": "lab_image.macos15.arm64.rev1",
+        "run_lab_image_revision": 1,
+        "run_threshold_version": 1,
+        "reset_pending_axes": [],
+        "metadata_completeness": {
+          "required_fields": [
+            "build_identity",
+            "command_line",
+            "corpus_manifest_revision",
+            "protected_metrics_revision",
+            "hardware_definition_ref",
+            "lab_image_revision",
+            "display_class",
+            "power_thermal_posture",
+            "raw_run_metadata_ref"
+          ],
+          "present_fields": [
+            "build_identity",
+            "command_line",
+            "corpus_manifest_revision",
+            "protected_metrics_revision",
+            "hardware_definition_ref",
+            "lab_image_revision",
+            "display_class",
+            "power_thermal_posture",
+            "raw_run_metadata_ref"
+          ],
+          "missing_fields": []
+        },
+        "run_metadata_ref": "raw_run_metadata.head_to_head.first_useful_edit.0001",
+        "status_note": "Current head-to-head capture within its freshness SLO with full disclosure metadata."
+      },
+      "historical_runs": [],
+      "fired_downgrade_reasons": [],
+      "freshness_state": "current",
+      "published_claim_ceiling": "public_head_to_head_comparison",
+      "effective_claim": "public_head_to_head_comparison",
+      "shiproom_blocker": {
+        "blocks_promotion": false,
+        "blocker_reasons": [],
+        "downgrade_label": "Public head-to-head comparison backed by a current, fully disclosed reference capture."
+      },
+      "release_packet": {
+        "release_packet_ref": "release_packet.m5.benchmark_claims.head_to_head.first_useful_edit",
+        "declared_freshness_state": "current",
+        "declared_effective_claim": "public_head_to_head_comparison"
+      }
+    },
+    {
+      "entry_id": "publication_pack.quarantined.legacy_first_paint",
+      "subject_kind": "claim_publication_entry",
+      "title": "Quarantined legacy first-paint comparison retained for diagnosis only.",
+      "posture": "quarantined_not_comparable",
+      "metric_refs": ["ff.first_paint"],
+      "bound_corpus_revision": 1,
+      "bound_hardware_profile_ref": "hardware_definition.ref.macos15.arm64.apple_silicon_14in",
+      "bound_hardware_class": "reference_lab",
+      "bound_lab_image_ref": "lab_image.macos15.arm64.rev1",
+      "bound_lab_image_revision": 1,
+      "bound_threshold_version": 1,
+      "freshness_slo_days": 365,
+      "warn_within_days": 60,
+      "current_run": {
+        "run_id": "run.quarantined.legacy_first_paint.0002",
+        "is_current": true,
+        "captured_on": "2026-06-10",
+        "run_corpus_revision": 1,
+        "run_hardware_profile_ref": "hardware_definition.ref.macos15.arm64.apple_silicon_14in",
+        "run_hardware_class": "reference_lab",
+        "run_lab_image_ref": "lab_image.macos15.arm64.rev1",
+        "run_lab_image_revision": 1,
+        "run_threshold_version": 1,
+        "reset_pending_axes": ["lab_image_revision"],
+        "metadata_completeness": {
+          "required_fields": [
+            "build_identity",
+            "command_line",
+            "corpus_manifest_revision",
+            "protected_metrics_revision",
+            "hardware_definition_ref",
+            "lab_image_revision",
+            "display_class",
+            "power_thermal_posture",
+            "raw_run_metadata_ref"
+          ],
+          "present_fields": [
+            "build_identity",
+            "command_line",
+            "corpus_manifest_revision",
+            "protected_metrics_revision",
+            "hardware_definition_ref",
+            "lab_image_revision",
+            "display_class",
+            "power_thermal_posture",
+            "raw_run_metadata_ref"
+          ],
+          "missing_fields": []
+        },
+        "run_metadata_ref": "raw_run_metadata.quarantined.legacy_first_paint.0002",
+        "status_note": "Lab-image calibration was re-baselined without a reset capture, so this run carries no current performance conclusion."
+      },
+      "historical_runs": [
+        {
+          "run_id": "run.quarantined.legacy_first_paint.0001",
+          "is_current": false,
+          "captured_on": "2025-09-01",
+          "run_corpus_revision": 1,
+          "run_hardware_profile_ref": "hardware_definition.ref.macos15.arm64.apple_silicon_14in",
+          "run_hardware_class": "reference_lab",
+          "run_lab_image_ref": "lab_image.macos15.arm64.rev1",
+          "run_lab_image_revision": 1,
+          "run_threshold_version": 1,
+          "reset_pending_axes": [],
+          "metadata_completeness": {
+            "required_fields": [
+              "build_identity",
+              "command_line",
+              "corpus_manifest_revision",
+              "protected_metrics_revision",
+              "hardware_definition_ref",
+              "lab_image_revision",
+              "display_class",
+              "power_thermal_posture",
+              "raw_run_metadata_ref"
+            ],
+            "present_fields": [
+              "build_identity",
+              "command_line",
+              "corpus_manifest_revision",
+              "protected_metrics_revision",
+              "hardware_definition_ref",
+              "lab_image_revision",
+              "display_class",
+              "power_thermal_posture",
+              "raw_run_metadata_ref"
+            ],
+            "missing_fields": []
+          },
+          "run_metadata_ref": "raw_run_metadata.quarantined.legacy_first_paint.0001",
+          "status_note": "Original first-paint capture before the lab-image re-baseline, retained for diagnosis and never treated as current proof."
+        }
+      ],
+      "fired_downgrade_reasons": ["incomparable_run_metadata"],
+      "freshness_state": "incomparable",
+      "published_claim_ceiling": "quarantined_not_comparable",
+      "effective_claim": "quarantined_not_comparable",
+      "shiproom_blocker": {
+        "blocks_promotion": false,
+        "blocker_reasons": ["incomparable_run_metadata"],
+        "downgrade_label": "Quarantined: a lab-image calibration changed with no reset capture; carries no current performance conclusion."
+      },
+      "release_packet": {
+        "release_packet_ref": "release_packet.m5.benchmark_claims.quarantined.legacy_first_paint",
+        "declared_freshness_state": "incomparable",
+        "declared_effective_claim": "quarantined_not_comparable"
+      }
+    }
+  ],
+  "shiproom_projection": {
+    "promotion_decision": "proceed",
+    "blocking_entry_ids": [],
+    "blocking_reasons": [],
+    "rationale": "No claim-bearing entry is narrowed below the posture it asserts; the quarantined entry asserts no claim and does not hold promotion."
+  },
+  "consumer_bindings": [
+    {
+      "consumer": "release_shiproom",
+      "source_projection": "promotion_gate_projection",
+      "ingests": [
+        "Each entry's freshness state, fired downgrade reasons, and effective claim, plus the promotion hold/proceed verdict.",
+        "Holds promotion when a claim-bearing entry is narrowed below the posture it asserts, and renders the exact downgrade reason rather than a bare color."
+      ]
+    },
+    {
+      "consumer": "release_packet",
+      "source_projection": "freshness_alignment_projection",
+      "ingests": [
+        "Each release packet's declared freshness state and effective claim, which must equal the ledger's recomputed values.",
+        "Public claim objects and release packets stay aligned on freshness state so a packet cannot publish a fresher claim than the run supports."
+      ]
+    },
+    {
+      "consumer": "support_export",
+      "source_projection": "redaction_safe_projection",
+      "ingests": [
+        "Freshness states, downgrade reasons, and bound ids only.",
+        "Never raw run logs, raw machine labels, or raw provider payloads behind a run."
+      ]
+    },
+    {
+      "consumer": "docs_help",
+      "source_projection": "claim_state_projection",
+      "ingests": [
+        "Effective claim and downgrade label per entry.",
+        "A narrowed or quarantined entry shows its narrowed claim and the reason, not its ceiling."
+      ]
+    }
+  ],
+  "inspection": {
+    "how_to_recompute": "For each entry, compare the current run's corpus revision, hardware class and profile, lab-image revision, threshold version, reset-pending axes, run-metadata completeness, and capture age against the bound baseline and the canonical current revisions; fire each downgrade reason whose condition holds; derive the freshness state by precedence missing over incomparable over stale over aging over current; and set the effective claim to the lowest-ranked of the published ceiling and each fired reason's narrows_to level.",
+    "promotion_gate": "Promotion holds when any claim-bearing entry's effective claim is below the posture it asserts; the quarantined and methodology entries assert no claim and never hold promotion on their own.",
+    "freshness_ladder": "current keeps the ceiling; aging narrows a head-to-head comparison to an Aureline-only claim; stale narrows to methodology-only; incomparable or missing quarantines.",
+    "evidence_index_ref": "artifacts/release/m5/certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index.json"
+  }
+}
