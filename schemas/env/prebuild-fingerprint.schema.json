@@ -1,0 +1,508 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/env/prebuild-fingerprint.schema.json",
+  "title": "Aureline prebuild-snapshot compatibility fingerprint",
+  "description": "Boundary schema for prebuild-snapshot compatibility fingerprints, invalidation rules, and cold-versus-partially-warm downgrade truth on claimed M5 warm-start paths. A prebuild fingerprint is keyed on six inputs (source/tree identity, capsule hash, platform/arch, policy epoch, extension lock, and critical toolchain digests). A snapshot carries the fingerprint recorded when it was built plus the integrity of its cached artifact layers; the single reuse engine compares the recorded fingerprint against the current expected fingerprint and folds in artifact integrity to reach one explicit outcome — warm, partially warm, cold, or invalidated — with the dominant reason, the per-key and per-artifact evidence, and the per-action gating behind it. Records are metadata-first: every field is an id, digest, version, enum, or review-safe prose, never secrets, raw bodies, or provider payloads. A fixture wraps one snapshot and current fingerprint with the outcome the engine must reach for it; the packet freezes the keyed invalidation rules, the canonical cases covering every outcome, and the failure/recovery drills for each named drift class.",
+  "oneOf": [
+    { "$ref": "#/$defs/prebuild_fingerprint_packet" },
+    { "$ref": "#/$defs/prebuild_fingerprint_fixture" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "fingerprint_key": {
+      "type": "string",
+      "enum": [
+        "source_tree_identity",
+        "capsule_hash",
+        "platform_arch",
+        "policy_epoch",
+        "extension_lock_digest",
+        "toolchain_digest"
+      ]
+    },
+    "compatibility_class": {
+      "type": "string",
+      "enum": ["invalidating", "identity", "layered"]
+    },
+    "start_outcome": {
+      "type": "string",
+      "enum": ["warm", "partially_warm", "cold", "invalidated"]
+    },
+    "key_match": {
+      "type": "string",
+      "enum": ["match", "drift", "absent"]
+    },
+    "artifact_layer": {
+      "type": "string",
+      "enum": ["base_image", "toolchain", "dependencies", "extensions", "search_index"]
+    },
+    "artifact_integrity": {
+      "type": "string",
+      "enum": ["present", "missing", "corrupt"]
+    },
+    "prebuild_reason": {
+      "type": "string",
+      "enum": [
+        "full_match",
+        "source_drift",
+        "capsule_drift",
+        "platform_drift",
+        "policy_drift",
+        "extension_lock_drift",
+        "toolchain_drift",
+        "partial_artifact_loss",
+        "critical_artifact_loss",
+        "unproven_key"
+      ]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": ["build_run", "search_index", "language_intel", "services"]
+    },
+    "action_posture": {
+      "type": "string",
+      "enum": ["available", "degraded", "disabled"]
+    },
+    "warm_start_posture": {
+      "type": "string",
+      "enum": ["warm_full_reuse", "warm_partial_reuse", "cold_build"]
+    },
+    "environment_profile": {
+      "type": "string",
+      "enum": [
+        "workspace_template",
+        "starter",
+        "prebuild",
+        "devcontainer",
+        "remote_container",
+        "managed_workspace"
+      ]
+    },
+    "materialization_class": {
+      "type": "string",
+      "enum": ["local_native", "container", "remote_host", "devcontainer", "managed_cloud"]
+    },
+    "drill_phase": {
+      "type": "string",
+      "enum": ["inject", "observe", "narrow", "refresh", "recover", "verify"]
+    },
+    "redaction_class": {
+      "type": "string",
+      "const": "metadata_only"
+    },
+    "capsule_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value"],
+      "properties": {
+        "algorithm": { "$ref": "#/$defs/non_empty_string" },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "fingerprint_key_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "digest", "summary"],
+      "properties": {
+        "key": { "$ref": "#/$defs/fingerprint_key" },
+        "digest": { "$ref": "#/$defs/capsule_digest" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "prebuild_fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fingerprint", "keys", "summary"],
+      "properties": {
+        "fingerprint": { "$ref": "#/$defs/capsule_digest" },
+        "keys": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/fingerprint_key_digest" }
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "prebuild_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_id", "layer", "integrity", "critical", "summary"],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/non_empty_string" },
+        "layer": { "$ref": "#/$defs/artifact_layer" },
+        "integrity": { "$ref": "#/$defs/artifact_integrity" },
+        "critical": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "prebuild_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "snapshot_id",
+        "profile",
+        "materialization_class",
+        "label",
+        "recorded_fingerprint",
+        "artifacts",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "prebuild_snapshot_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "snapshot_id": { "$ref": "#/$defs/non_empty_string" },
+        "profile": { "$ref": "#/$defs/environment_profile" },
+        "materialization_class": { "$ref": "#/$defs/materialization_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "recorded_fingerprint": { "$ref": "#/$defs/prebuild_fingerprint" },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/prebuild_artifact" }
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "key_evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "compatibility_class",
+        "match_state",
+        "outcome_contribution",
+        "summary"
+      ],
+      "properties": {
+        "key": { "$ref": "#/$defs/fingerprint_key" },
+        "compatibility_class": { "$ref": "#/$defs/compatibility_class" },
+        "match_state": { "$ref": "#/$defs/key_match" },
+        "outcome_contribution": { "$ref": "#/$defs/start_outcome" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "artifact_evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "layer",
+        "integrity",
+        "critical",
+        "outcome_contribution",
+        "summary"
+      ],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/non_empty_string" },
+        "layer": { "$ref": "#/$defs/artifact_layer" },
+        "integrity": { "$ref": "#/$defs/artifact_integrity" },
+        "critical": { "type": "boolean" },
+        "outcome_contribution": { "$ref": "#/$defs/start_outcome" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "action_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "posture", "reason"],
+      "properties": {
+        "action": { "$ref": "#/$defs/action_class" },
+        "posture": { "$ref": "#/$defs/action_posture" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "token_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "prebuild_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "snapshot_id",
+        "profile",
+        "materialization_class",
+        "outcome",
+        "reused",
+        "invalidated",
+        "warm_start_posture",
+        "headline_reason",
+        "reason_tokens",
+        "key_evaluations",
+        "artifact_evaluations",
+        "action_gates",
+        "gated_action_tokens",
+        "headline",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "prebuild_reuse_decision_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "snapshot_id": { "$ref": "#/$defs/non_empty_string" },
+        "profile": { "$ref": "#/$defs/environment_profile" },
+        "materialization_class": { "$ref": "#/$defs/materialization_class" },
+        "outcome": { "$ref": "#/$defs/start_outcome" },
+        "reused": { "type": "boolean" },
+        "invalidated": { "type": "boolean" },
+        "warm_start_posture": { "$ref": "#/$defs/warm_start_posture" },
+        "headline_reason": { "$ref": "#/$defs/prebuild_reason" },
+        "reason_tokens": { "$ref": "#/$defs/token_array" },
+        "key_evaluations": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/key_evaluation" }
+        },
+        "artifact_evaluations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_evaluation" }
+        },
+        "action_gates": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/action_gate" }
+        },
+        "gated_action_tokens": { "$ref": "#/$defs/token_array" },
+        "headline": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "key_invalidation_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "key",
+        "compatibility_class",
+        "drift_outcome",
+        "absent_outcome",
+        "effect",
+        "rationale"
+      ],
+      "properties": {
+        "rule_id": { "$ref": "#/$defs/non_empty_string" },
+        "key": { "$ref": "#/$defs/fingerprint_key" },
+        "compatibility_class": { "$ref": "#/$defs/compatibility_class" },
+        "drift_outcome": { "$ref": "#/$defs/start_outcome" },
+        "absent_outcome": { "$ref": "#/$defs/start_outcome" },
+        "effect": { "$ref": "#/$defs/non_empty_string" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "artifact_invalidation_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule_id", "critical", "loss_outcome", "effect", "rationale"],
+      "properties": {
+        "rule_id": { "$ref": "#/$defs/non_empty_string" },
+        "critical": { "type": "boolean" },
+        "loss_outcome": { "$ref": "#/$defs/start_outcome" },
+        "effect": { "$ref": "#/$defs/non_empty_string" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "prebuild_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "title",
+        "snapshot",
+        "current_fingerprint",
+        "decision",
+        "consumer_refs",
+        "notes"
+      ],
+      "properties": {
+        "case_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "snapshot": { "$ref": "#/$defs/prebuild_snapshot" },
+        "current_fingerprint": { "$ref": "#/$defs/prebuild_fingerprint" },
+        "decision": { "$ref": "#/$defs/prebuild_decision" },
+        "consumer_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "prebuild_drill_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "observed_outcome", "observed_warm_start_posture", "narration"],
+      "properties": {
+        "phase": { "$ref": "#/$defs/drill_phase" },
+        "observed_outcome": { "$ref": "#/$defs/start_outcome" },
+        "observed_warm_start_posture": { "$ref": "#/$defs/warm_start_posture" },
+        "narration": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "prebuild_drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "title",
+        "injected_reason",
+        "profile",
+        "baseline_outcome",
+        "degraded_outcome",
+        "degraded_warm_start_posture",
+        "disables_reuse",
+        "steps",
+        "recovers_to_outcome",
+        "asserts_reuse_blocked_under_drift",
+        "asserts_recovers_after_rebuild",
+        "notes"
+      ],
+      "properties": {
+        "drill_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "injected_reason": { "$ref": "#/$defs/prebuild_reason" },
+        "profile": { "$ref": "#/$defs/environment_profile" },
+        "baseline_outcome": { "$ref": "#/$defs/start_outcome" },
+        "degraded_outcome": { "$ref": "#/$defs/start_outcome" },
+        "degraded_warm_start_posture": { "$ref": "#/$defs/warm_start_posture" },
+        "disables_reuse": { "type": "boolean" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/prebuild_drill_step" }
+        },
+        "recovers_to_outcome": { "$ref": "#/$defs/start_outcome" },
+        "asserts_reuse_blocked_under_drift": { "type": "boolean" },
+        "asserts_recovers_after_rebuild": { "type": "boolean" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "source_contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc_ref", "schema_ref", "packet_ref", "report_ref", "fixture_manifest_ref"],
+      "properties": {
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "fixture_manifest_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "prebuild_fingerprint_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "title",
+        "source_contract_refs",
+        "fingerprint_keys",
+        "key_invalidation_rules",
+        "artifact_invalidation_rules",
+        "cases",
+        "drills",
+        "evidence_packet_refs",
+        "invariants"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "prebuild_fingerprint_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "source_contract_refs": { "$ref": "#/$defs/source_contract_refs" },
+        "fingerprint_keys": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/fingerprint_key" }
+        },
+        "key_invalidation_rules": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/key_invalidation_rule" }
+        },
+        "artifact_invalidation_rules": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/artifact_invalidation_rule" }
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/prebuild_case" }
+        },
+        "drills": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/prebuild_drill" }
+        },
+        "evidence_packet_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "prebuild_fingerprint_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "fixture_id",
+        "injected_reason",
+        "snapshot",
+        "current_fingerprint",
+        "expected_outcome",
+        "expected_reused",
+        "expected_invalidated",
+        "expected_warm_start_posture",
+        "expected_headline_reason",
+        "expected_reason_tokens",
+        "expected_gated_action_tokens",
+        "consumer_ref",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "prebuild_fingerprint_fixture_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "fixture_id": { "$ref": "#/$defs/non_empty_string" },
+        "injected_reason": { "$ref": "#/$defs/prebuild_reason" },
+        "snapshot": { "$ref": "#/$defs/prebuild_snapshot" },
+        "current_fingerprint": { "$ref": "#/$defs/prebuild_fingerprint" },
+        "expected_outcome": { "$ref": "#/$defs/start_outcome" },
+        "expected_reused": { "type": "boolean" },
+        "expected_invalidated": { "type": "boolean" },
+        "expected_warm_start_posture": { "$ref": "#/$defs/warm_start_posture" },
+        "expected_headline_reason": { "$ref": "#/$defs/prebuild_reason" },
+        "expected_reason_tokens": { "$ref": "#/$defs/token_array" },
+        "expected_gated_action_tokens": { "$ref": "#/$defs/token_array" },
+        "consumer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

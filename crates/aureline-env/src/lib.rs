@@ -45,11 +45,24 @@
 //! capsule through the same [`capsules::inspect_environment`] path before
 //! narrowing it by the composition layers, so template hydration cannot
 //! fork the runtime or trust semantics from the core execution model.
+//!
+//! The [`prebuilds`] module makes the capsule's prebuild fingerprint
+//! operational. It keys a [`prebuilds::PrebuildFingerprint`] on the six
+//! inputs that decide compatibility — source/tree identity, capsule hash,
+//! platform/arch, policy epoch, extension lock, and critical toolchain
+//! digests — and its single [`prebuilds::evaluate_prebuild_reuse`] engine
+//! turns a [`prebuilds::PrebuildSnapshot`] and the current fingerprint
+//! into one explicit [`prebuilds::StartOutcome`] — warm, partially warm,
+//! cold, or invalidated — with the reason and per-key evidence behind it,
+//! mapping every outcome onto the same governance
+//! [`m5_env_governance::WarmStartPosture`] so prebuilds stay accelerators
+//! rather than authorities.
 
 #![doc(html_root_url = "https://docs.rs/aureline-env/0.0.0")]
 
 pub mod capsules;
 pub mod m5_env_governance;
+pub mod prebuilds;
 pub mod workspace_templates;
 
 pub use capsules::{
@@ -82,6 +95,25 @@ pub use m5_env_governance::{
     M5_ENV_GOVERNANCE_FIXTURE_MANIFEST_REF, M5_ENV_GOVERNANCE_FIXTURE_RECORD_KIND,
     M5_ENV_GOVERNANCE_PACKET_RECORD_KIND, M5_ENV_GOVERNANCE_PACKET_REF,
     M5_ENV_GOVERNANCE_REPORT_REF, M5_ENV_GOVERNANCE_SCHEMA_REF, M5_ENV_GOVERNANCE_SCHEMA_VERSION,
+};
+
+pub use prebuilds::{
+    desktop_prebuild_decision, evaluate_prebuild_reuse, export_prebuild_decision,
+    headless_prebuild_decision, seeded_prebuild_fingerprint_fixtures,
+    seeded_prebuild_fingerprint_packet, seeded_prebuild_snapshots, support_prebuild_decision,
+    validate_prebuild_fingerprint, validate_prebuild_fingerprint_fixture,
+    validate_prebuild_fingerprint_packet, validate_prebuild_snapshot, ActionGate, ActionPosture,
+    ArtifactEvaluation, ArtifactIntegrity, ArtifactInvalidationRule, ArtifactLayer,
+    CapsuleActionClass, CompatibilityClass, FingerprintKey, FingerprintKeyDigest, KeyEvaluation,
+    KeyInvalidationRule, KeyMatch, PrebuildArtifact, PrebuildCase, PrebuildDecision, PrebuildDrill,
+    PrebuildDrillStep, PrebuildExport, PrebuildFingerprint, PrebuildFingerprintFixture,
+    PrebuildFingerprintPacket, PrebuildReason, PrebuildSnapshot, StartOutcome,
+    PREBUILD_DECISION_RECORD_KIND, PREBUILD_EXPORT_RECORD_KIND, PREBUILD_FINGERPRINT_DOC_REF,
+    PREBUILD_FINGERPRINT_FIXTURE_DIR, PREBUILD_FINGERPRINT_FIXTURE_MANIFEST_REF,
+    PREBUILD_FINGERPRINT_FIXTURE_RECORD_KIND, PREBUILD_FINGERPRINT_PACKET_ID,
+    PREBUILD_FINGERPRINT_PACKET_RECORD_KIND, PREBUILD_FINGERPRINT_PACKET_REF,
+    PREBUILD_FINGERPRINT_PROOF_REF, PREBUILD_FINGERPRINT_SCHEMA_REF,
+    PREBUILD_FINGERPRINT_SCHEMA_VERSION, PREBUILD_REUSE_DRILLS_REF, PREBUILD_SNAPSHOT_RECORD_KIND,
 };
 
 pub use workspace_templates::{

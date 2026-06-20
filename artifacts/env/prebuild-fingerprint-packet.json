@@ -1,0 +1,2161 @@
+{
+  "record_kind": "prebuild_fingerprint_packet_record",
+  "schema_version": 1,
+  "packet_id": "env.prebuild_fingerprint.v1",
+  "title": "Prebuild-snapshot compatibility fingerprints, invalidation rules, and warm-start downgrade truth for claimed M5 warm-start paths",
+  "source_contract_refs": {
+    "doc_ref": "docs/env/prebuild-fingerprint.md",
+    "schema_ref": "schemas/env/prebuild-fingerprint.schema.json",
+    "packet_ref": "artifacts/env/prebuild-fingerprint-packet.json",
+    "report_ref": "artifacts/env/prebuild-fingerprint-proof.md",
+    "fixture_manifest_ref": "fixtures/env/prebuilds/manifest.yaml"
+  },
+  "fingerprint_keys": [
+    "source_tree_identity",
+    "capsule_hash",
+    "platform_arch",
+    "policy_epoch",
+    "extension_lock_digest",
+    "toolchain_digest"
+  ],
+  "key_invalidation_rules": [
+    {
+      "rule_id": "invalidation.key.source_tree_identity",
+      "key": "source_tree_identity",
+      "compatibility_class": "identity",
+      "drift_outcome": "cold",
+      "absent_outcome": "cold",
+      "effect": "A source-tree drift rejects the snapshot for a cold build.",
+      "rationale": "A snapshot built from a different source tree would serve stale tools and indexes as current truth, so it is rebuilt cold."
+    },
+    {
+      "rule_id": "invalidation.key.capsule_hash",
+      "key": "capsule_hash",
+      "compatibility_class": "identity",
+      "drift_outcome": "cold",
+      "absent_outcome": "cold",
+      "effect": "A capsule-hash drift rejects the snapshot for a cold build.",
+      "rationale": "A snapshot built from a different capsule definition is for a different environment, so it is rebuilt cold rather than reused."
+    },
+    {
+      "rule_id": "invalidation.key.platform_arch",
+      "key": "platform_arch",
+      "compatibility_class": "invalidating",
+      "drift_outcome": "invalidated",
+      "absent_outcome": "invalidated",
+      "effect": "A platform / architecture drift invalidates and evicts the snapshot.",
+      "rationale": "A snapshot built for a different platform is binary-incompatible and cannot be partially reused; it is invalidated."
+    },
+    {
+      "rule_id": "invalidation.key.policy_epoch",
+      "key": "policy_epoch",
+      "compatibility_class": "invalidating",
+      "drift_outcome": "invalidated",
+      "absent_outcome": "invalidated",
+      "effect": "A policy-epoch drift invalidates and evicts the snapshot.",
+      "rationale": "A snapshot built under an older policy epoch may carry capabilities the current policy disallows, so it is invalidated rather than trusted."
+    },
+    {
+      "rule_id": "invalidation.key.extension_lock_digest",
+      "key": "extension_lock_digest",
+      "compatibility_class": "layered",
+      "drift_outcome": "partially_warm",
+      "absent_outcome": "cold",
+      "effect": "An extension-lock drift narrows reuse to a partial warm start; the extension layer is rebuilt.",
+      "rationale": "An extension-lock drift affects only the extension layer, so the unaffected base, toolchain, and dependency layers stay warm."
+    },
+    {
+      "rule_id": "invalidation.key.toolchain_digest",
+      "key": "toolchain_digest",
+      "compatibility_class": "layered",
+      "drift_outcome": "partially_warm",
+      "absent_outcome": "cold",
+      "effect": "A toolchain drift narrows reuse to a partial warm start; the toolchain layer is rebuilt.",
+      "rationale": "A critical toolchain drift affects only the toolchain layer, so the unaffected layers stay warm while the toolchain is rebuilt."
+    }
+  ],
+  "artifact_invalidation_rules": [
+    {
+      "rule_id": "invalidation.artifact.partial_loss",
+      "critical": false,
+      "loss_outcome": "partially_warm",
+      "effect": "Losing a non-critical artifact narrows reuse to a partial warm start; the lost layer is rebuilt.",
+      "rationale": "A lost dependency, extension, or index layer can be rebuilt over the intact base and toolchain, so the start stays partially warm."
+    },
+    {
+      "rule_id": "invalidation.artifact.critical_loss",
+      "critical": true,
+      "loss_outcome": "cold",
+      "effect": "Losing a critical artifact rejects the snapshot for a cold build.",
+      "rationale": "A lost base image or toolchain layer cannot be rebuilt over, so the snapshot is rebuilt cold rather than served partially."
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "case.prebuild.full_match",
+      "title": "A fully matching prebuild snapshot warm-reuses in full",
+      "snapshot": {
+        "record_kind": "prebuild_snapshot_record",
+        "schema_version": 1,
+        "snapshot_id": "snapshot.case.prebuild",
+        "profile": "prebuild",
+        "materialization_class": "container",
+        "label": "Prebuilt environment snapshot",
+        "recorded_fingerprint": {
+          "fingerprint": {
+            "algorithm": "sha256",
+            "value": "2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe"
+          },
+          "keys": [
+            {
+              "key": "source_tree_identity",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0d84c77a6f80be290d84c77a6f80be290d84c77a6f80be290d84c77a6f80be29"
+              },
+              "summary": "Identity digest of the workspace source tree the snapshot was built from."
+            },
+            {
+              "key": "capsule_hash",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "92ff74aa21d245e092ff74aa21d245e092ff74aa21d245e092ff74aa21d245e0"
+              },
+              "summary": "Digest of the environment-capsule object the snapshot materializes."
+            },
+            {
+              "key": "platform_arch",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e4"
+              },
+              "summary": "The platform / architecture the snapshot was built for."
+            },
+            {
+              "key": "policy_epoch",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "2dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b4"
+              },
+              "summary": "The policy / trust epoch the snapshot was built under."
+            },
+            {
+              "key": "extension_lock_digest",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "de324f13ea26089ade324f13ea26089ade324f13ea26089ade324f13ea26089a"
+              },
+              "summary": "Digest of the resolved extension lock."
+            },
+            {
+              "key": "toolchain_digest",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0e2a2face0217f900e2a2face0217f900e2a2face0217f900e2a2face0217f90"
+              },
+              "summary": "Combined digest of the critical toolchain components."
+            }
+          ],
+          "summary": "Recorded prebuild-snapshot fingerprint."
+        },
+        "artifacts": [
+          {
+            "artifact_id": "artifact.base_image",
+            "layer": "base_image",
+            "integrity": "present",
+            "critical": true,
+            "summary": "The base_image cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.toolchain",
+            "layer": "toolchain",
+            "integrity": "present",
+            "critical": true,
+            "summary": "The toolchain cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.dependencies",
+            "layer": "dependencies",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The dependencies cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.extensions",
+            "layer": "extensions",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The extensions cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.search_index",
+            "layer": "search_index",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The search_index cached artifact layer."
+          }
+        ],
+        "summary": "Prebuild snapshot for the prebuild profile."
+      },
+      "current_fingerprint": {
+        "fingerprint": {
+          "algorithm": "sha256",
+          "value": "2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe"
+        },
+        "keys": [
+          {
+            "key": "source_tree_identity",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0d84c77a6f80be290d84c77a6f80be290d84c77a6f80be290d84c77a6f80be29"
+            },
+            "summary": "Identity digest of the workspace source tree the snapshot was built from."
+          },
+          {
+            "key": "capsule_hash",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "92ff74aa21d245e092ff74aa21d245e092ff74aa21d245e092ff74aa21d245e0"
+            },
+            "summary": "Digest of the environment-capsule object the snapshot materializes."
+          },
+          {
+            "key": "platform_arch",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e4"
+            },
+            "summary": "The platform / architecture the snapshot was built for."
+          },
+          {
+            "key": "policy_epoch",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "2dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b4"
+            },
+            "summary": "The policy / trust epoch the snapshot was built under."
+          },
+          {
+            "key": "extension_lock_digest",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "de324f13ea26089ade324f13ea26089ade324f13ea26089ade324f13ea26089a"
+            },
+            "summary": "Digest of the resolved extension lock."
+          },
+          {
+            "key": "toolchain_digest",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0e2a2face0217f900e2a2face0217f900e2a2face0217f900e2a2face0217f90"
+            },
+            "summary": "Combined digest of the critical toolchain components."
+          }
+        ],
+        "summary": "Current expected prebuild fingerprint."
+      },
+      "decision": {
+        "record_kind": "prebuild_reuse_decision_record",
+        "schema_version": 1,
+        "snapshot_id": "snapshot.case.prebuild",
+        "profile": "prebuild",
+        "materialization_class": "container",
+        "outcome": "warm",
+        "reused": true,
+        "invalidated": false,
+        "warm_start_posture": "warm_full_reuse",
+        "headline_reason": "full_match",
+        "reason_tokens": [],
+        "key_evaluations": [
+          {
+            "key": "source_tree_identity",
+            "compatibility_class": "identity",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The source_tree_identity key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "capsule_hash",
+            "compatibility_class": "identity",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The capsule_hash key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "platform_arch",
+            "compatibility_class": "invalidating",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The platform_arch key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "policy_epoch",
+            "compatibility_class": "invalidating",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The policy_epoch key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "extension_lock_digest",
+            "compatibility_class": "layered",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The extension_lock_digest key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "toolchain_digest",
+            "compatibility_class": "layered",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The toolchain_digest key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          }
+        ],
+        "artifact_evaluations": [
+          {
+            "artifact_id": "artifact.base_image",
+            "layer": "base_image",
+            "integrity": "present",
+            "critical": true,
+            "outcome_contribution": "warm",
+            "summary": "The base_image artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.toolchain",
+            "layer": "toolchain",
+            "integrity": "present",
+            "critical": true,
+            "outcome_contribution": "warm",
+            "summary": "The toolchain artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.dependencies",
+            "layer": "dependencies",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The dependencies artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.extensions",
+            "layer": "extensions",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The extensions artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.search_index",
+            "layer": "search_index",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The search_index artifact is present; it stays eligible for warm reuse."
+          }
+        ],
+        "action_gates": [
+          {
+            "action": "build_run",
+            "posture": "available",
+            "reason": "The build_run action is served against current truth."
+          },
+          {
+            "action": "search_index",
+            "posture": "available",
+            "reason": "The search_index action is served against current truth."
+          },
+          {
+            "action": "language_intel",
+            "posture": "available",
+            "reason": "The language_intel action is served against current truth."
+          },
+          {
+            "action": "services",
+            "posture": "available",
+            "reason": "The services action is served against current truth."
+          }
+        ],
+        "gated_action_tokens": [],
+        "headline": "Snapshot snapshot.case.prebuild is fully warm-reused: every fingerprint key matches and its critical artifacts are intact.",
+        "redaction_class": "metadata_only"
+      },
+      "consumer_refs": [
+        "crates/aureline-runtime/src/capsule_resolver/mod.rs",
+        "artifacts/entry/warm_start_chooser_contract.md"
+      ],
+      "notes": "Every key matches and every critical artifact is intact, so the whole snapshot is warm-reused."
+    },
+    {
+      "case_id": "case.devcontainer.extension_lock_drift",
+      "title": "A devcontainer with extension-lock drift warm-reuses partially",
+      "snapshot": {
+        "record_kind": "prebuild_snapshot_record",
+        "schema_version": 1,
+        "snapshot_id": "snapshot.case.devcontainer",
+        "profile": "devcontainer",
+        "materialization_class": "devcontainer",
+        "label": "Devcontainer layer-cache snapshot",
+        "recorded_fingerprint": {
+          "fingerprint": {
+            "algorithm": "sha256",
+            "value": "b73ad68e4cbef846b73ad68e4cbef846b73ad68e4cbef846b73ad68e4cbef846"
+          },
+          "keys": [
+            {
+              "key": "source_tree_identity",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0d84c77a6f80be290d84c77a6f80be290d84c77a6f80be290d84c77a6f80be29"
+              },
+              "summary": "Identity digest of the workspace source tree the snapshot was built from."
+            },
+            {
+              "key": "capsule_hash",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "92ff74aa21d245e092ff74aa21d245e092ff74aa21d245e092ff74aa21d245e0"
+              },
+              "summary": "Digest of the environment-capsule object the snapshot materializes."
+            },
+            {
+              "key": "platform_arch",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e4"
+              },
+              "summary": "The platform / architecture the snapshot was built for."
+            },
+            {
+              "key": "policy_epoch",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "2dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b4"
+              },
+              "summary": "The policy / trust epoch the snapshot was built under."
+            },
+            {
+              "key": "extension_lock_digest",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "6ef0c7e98a6e88ce6ef0c7e98a6e88ce6ef0c7e98a6e88ce6ef0c7e98a6e88ce"
+              },
+              "summary": "Digest of the resolved extension lock."
+            },
+            {
+              "key": "toolchain_digest",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0e2a2face0217f900e2a2face0217f900e2a2face0217f900e2a2face0217f90"
+              },
+              "summary": "Combined digest of the critical toolchain components."
+            }
+          ],
+          "summary": "Recorded prebuild-snapshot fingerprint."
+        },
+        "artifacts": [
+          {
+            "artifact_id": "artifact.base_image",
+            "layer": "base_image",
+            "integrity": "present",
+            "critical": true,
+            "summary": "The base_image cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.toolchain",
+            "layer": "toolchain",
+            "integrity": "present",
+            "critical": true,
+            "summary": "The toolchain cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.dependencies",
+            "layer": "dependencies",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The dependencies cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.extensions",
+            "layer": "extensions",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The extensions cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.search_index",
+            "layer": "search_index",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The search_index cached artifact layer."
+          }
+        ],
+        "summary": "Prebuild snapshot for the devcontainer profile."
+      },
+      "current_fingerprint": {
+        "fingerprint": {
+          "algorithm": "sha256",
+          "value": "2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe"
+        },
+        "keys": [
+          {
+            "key": "source_tree_identity",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0d84c77a6f80be290d84c77a6f80be290d84c77a6f80be290d84c77a6f80be29"
+            },
+            "summary": "Identity digest of the workspace source tree the snapshot was built from."
+          },
+          {
+            "key": "capsule_hash",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "92ff74aa21d245e092ff74aa21d245e092ff74aa21d245e092ff74aa21d245e0"
+            },
+            "summary": "Digest of the environment-capsule object the snapshot materializes."
+          },
+          {
+            "key": "platform_arch",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e4"
+            },
+            "summary": "The platform / architecture the snapshot was built for."
+          },
+          {
+            "key": "policy_epoch",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "2dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b4"
+            },
+            "summary": "The policy / trust epoch the snapshot was built under."
+          },
+          {
+            "key": "extension_lock_digest",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "de324f13ea26089ade324f13ea26089ade324f13ea26089ade324f13ea26089a"
+            },
+            "summary": "Digest of the resolved extension lock."
+          },
+          {
+            "key": "toolchain_digest",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0e2a2face0217f900e2a2face0217f900e2a2face0217f900e2a2face0217f90"
+            },
+            "summary": "Combined digest of the critical toolchain components."
+          }
+        ],
+        "summary": "Current expected prebuild fingerprint."
+      },
+      "decision": {
+        "record_kind": "prebuild_reuse_decision_record",
+        "schema_version": 1,
+        "snapshot_id": "snapshot.case.devcontainer",
+        "profile": "devcontainer",
+        "materialization_class": "devcontainer",
+        "outcome": "partially_warm",
+        "reused": true,
+        "invalidated": false,
+        "warm_start_posture": "warm_partial_reuse",
+        "headline_reason": "extension_lock_drift",
+        "reason_tokens": [
+          "extension_lock_digest_drift"
+        ],
+        "key_evaluations": [
+          {
+            "key": "source_tree_identity",
+            "compatibility_class": "identity",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The source_tree_identity key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "capsule_hash",
+            "compatibility_class": "identity",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The capsule_hash key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "platform_arch",
+            "compatibility_class": "invalidating",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The platform_arch key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "policy_epoch",
+            "compatibility_class": "invalidating",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The policy_epoch key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "extension_lock_digest",
+            "compatibility_class": "layered",
+            "match_state": "drift",
+            "outcome_contribution": "partially_warm",
+            "summary": "The extension_lock_digest key drifted from the current fingerprint (layered class), narrowing reuse to partially_warm."
+          },
+          {
+            "key": "toolchain_digest",
+            "compatibility_class": "layered",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The toolchain_digest key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          }
+        ],
+        "artifact_evaluations": [
+          {
+            "artifact_id": "artifact.base_image",
+            "layer": "base_image",
+            "integrity": "present",
+            "critical": true,
+            "outcome_contribution": "warm",
+            "summary": "The base_image artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.toolchain",
+            "layer": "toolchain",
+            "integrity": "present",
+            "critical": true,
+            "outcome_contribution": "warm",
+            "summary": "The toolchain artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.dependencies",
+            "layer": "dependencies",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The dependencies artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.extensions",
+            "layer": "extensions",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The extensions artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.search_index",
+            "layer": "search_index",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The search_index artifact is present; it stays eligible for warm reuse."
+          }
+        ],
+        "action_gates": [
+          {
+            "action": "build_run",
+            "posture": "available",
+            "reason": "The build_run action is served against current truth."
+          },
+          {
+            "action": "search_index",
+            "posture": "available",
+            "reason": "The search_index action is served against current truth."
+          },
+          {
+            "action": "language_intel",
+            "posture": "degraded",
+            "reason": "The language_intel action is served from the warm snapshot but labeled pending a targeted rebuild."
+          },
+          {
+            "action": "services",
+            "posture": "available",
+            "reason": "The services action is served against current truth."
+          }
+        ],
+        "gated_action_tokens": [
+          "language_intel"
+        ],
+        "headline": "Snapshot snapshot.case.devcontainer is partially warm-reused (extension_lock_drift): the unaffected layers are reused while the affected layer is rebuilt.",
+        "redaction_class": "metadata_only"
+      },
+      "consumer_refs": [
+        "crates/aureline-runtime/src/execution_context/mod.rs",
+        "artifacts/entry/warm_start_chooser_contract.md"
+      ],
+      "notes": "An extension-lock drift rebuilds the extension layer while the base, toolchain, and dependency layers stay warm."
+    },
+    {
+      "case_id": "case.remote_container.partial_artifact_loss",
+      "title": "A remote container with a lost index warm-reuses partially",
+      "snapshot": {
+        "record_kind": "prebuild_snapshot_record",
+        "schema_version": 1,
+        "snapshot_id": "snapshot.case.remote_container",
+        "profile": "remote_container",
+        "materialization_class": "remote_host",
+        "label": "Remote-container snapshot",
+        "recorded_fingerprint": {
+          "fingerprint": {
+            "algorithm": "sha256",
+            "value": "2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe"
+          },
+          "keys": [
+            {
+              "key": "source_tree_identity",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0d84c77a6f80be290d84c77a6f80be290d84c77a6f80be290d84c77a6f80be29"
+              },
+              "summary": "Identity digest of the workspace source tree the snapshot was built from."
+            },
+            {
+              "key": "capsule_hash",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "92ff74aa21d245e092ff74aa21d245e092ff74aa21d245e092ff74aa21d245e0"
+              },
+              "summary": "Digest of the environment-capsule object the snapshot materializes."
+            },
+            {
+              "key": "platform_arch",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e4"
+              },
+              "summary": "The platform / architecture the snapshot was built for."
+            },
+            {
+              "key": "policy_epoch",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "2dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b4"
+              },
+              "summary": "The policy / trust epoch the snapshot was built under."
+            },
+            {
+              "key": "extension_lock_digest",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "de324f13ea26089ade324f13ea26089ade324f13ea26089ade324f13ea26089a"
+              },
+              "summary": "Digest of the resolved extension lock."
+            },
+            {
+              "key": "toolchain_digest",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0e2a2face0217f900e2a2face0217f900e2a2face0217f900e2a2face0217f90"
+              },
+              "summary": "Combined digest of the critical toolchain components."
+            }
+          ],
+          "summary": "Recorded prebuild-snapshot fingerprint."
+        },
+        "artifacts": [
+          {
+            "artifact_id": "artifact.base_image",
+            "layer": "base_image",
+            "integrity": "present",
+            "critical": true,
+            "summary": "The base_image cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.toolchain",
+            "layer": "toolchain",
+            "integrity": "present",
+            "critical": true,
+            "summary": "The toolchain cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.dependencies",
+            "layer": "dependencies",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The dependencies cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.extensions",
+            "layer": "extensions",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The extensions cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.search_index",
+            "layer": "search_index",
+            "integrity": "missing",
+            "critical": false,
+            "summary": "The search_index cached artifact layer."
+          }
+        ],
+        "summary": "Prebuild snapshot for the remote_container profile."
+      },
+      "current_fingerprint": {
+        "fingerprint": {
+          "algorithm": "sha256",
+          "value": "2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe"
+        },
+        "keys": [
+          {
+            "key": "source_tree_identity",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0d84c77a6f80be290d84c77a6f80be290d84c77a6f80be290d84c77a6f80be29"
+            },
+            "summary": "Identity digest of the workspace source tree the snapshot was built from."
+          },
+          {
+            "key": "capsule_hash",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "92ff74aa21d245e092ff74aa21d245e092ff74aa21d245e092ff74aa21d245e0"
+            },
+            "summary": "Digest of the environment-capsule object the snapshot materializes."
+          },
+          {
+            "key": "platform_arch",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e4"
+            },
+            "summary": "The platform / architecture the snapshot was built for."
+          },
+          {
+            "key": "policy_epoch",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "2dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b4"
+            },
+            "summary": "The policy / trust epoch the snapshot was built under."
+          },
+          {
+            "key": "extension_lock_digest",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "de324f13ea26089ade324f13ea26089ade324f13ea26089ade324f13ea26089a"
+            },
+            "summary": "Digest of the resolved extension lock."
+          },
+          {
+            "key": "toolchain_digest",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0e2a2face0217f900e2a2face0217f900e2a2face0217f900e2a2face0217f90"
+            },
+            "summary": "Combined digest of the critical toolchain components."
+          }
+        ],
+        "summary": "Current expected prebuild fingerprint."
+      },
+      "decision": {
+        "record_kind": "prebuild_reuse_decision_record",
+        "schema_version": 1,
+        "snapshot_id": "snapshot.case.remote_container",
+        "profile": "remote_container",
+        "materialization_class": "remote_host",
+        "outcome": "partially_warm",
+        "reused": true,
+        "invalidated": false,
+        "warm_start_posture": "warm_partial_reuse",
+        "headline_reason": "partial_artifact_loss",
+        "reason_tokens": [
+          "artifact_search_index_lost"
+        ],
+        "key_evaluations": [
+          {
+            "key": "source_tree_identity",
+            "compatibility_class": "identity",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The source_tree_identity key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "capsule_hash",
+            "compatibility_class": "identity",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The capsule_hash key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "platform_arch",
+            "compatibility_class": "invalidating",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The platform_arch key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "policy_epoch",
+            "compatibility_class": "invalidating",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The policy_epoch key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "extension_lock_digest",
+            "compatibility_class": "layered",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The extension_lock_digest key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "toolchain_digest",
+            "compatibility_class": "layered",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The toolchain_digest key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          }
+        ],
+        "artifact_evaluations": [
+          {
+            "artifact_id": "artifact.base_image",
+            "layer": "base_image",
+            "integrity": "present",
+            "critical": true,
+            "outcome_contribution": "warm",
+            "summary": "The base_image artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.toolchain",
+            "layer": "toolchain",
+            "integrity": "present",
+            "critical": true,
+            "outcome_contribution": "warm",
+            "summary": "The toolchain artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.dependencies",
+            "layer": "dependencies",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The dependencies artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.extensions",
+            "layer": "extensions",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The extensions artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.search_index",
+            "layer": "search_index",
+            "integrity": "missing",
+            "critical": false,
+            "outcome_contribution": "partially_warm",
+            "summary": "The search_index artifact is missing; reuse narrows to partially_warm and the layer is rebuilt."
+          }
+        ],
+        "action_gates": [
+          {
+            "action": "build_run",
+            "posture": "available",
+            "reason": "The build_run action is served against current truth."
+          },
+          {
+            "action": "search_index",
+            "posture": "degraded",
+            "reason": "The search_index action is served from the warm snapshot but labeled pending a targeted rebuild."
+          },
+          {
+            "action": "language_intel",
+            "posture": "degraded",
+            "reason": "The language_intel action is served from the warm snapshot but labeled pending a targeted rebuild."
+          },
+          {
+            "action": "services",
+            "posture": "available",
+            "reason": "The services action is served against current truth."
+          }
+        ],
+        "gated_action_tokens": [
+          "search_index",
+          "language_intel"
+        ],
+        "headline": "Snapshot snapshot.case.remote_container is partially warm-reused (partial_artifact_loss): the unaffected layers are reused while the affected layer is rebuilt.",
+        "redaction_class": "metadata_only"
+      },
+      "consumer_refs": [
+        "crates/aureline-remote/src/managed_workspace_lifecycle/mod.rs",
+        "artifacts/entry/warm_start_chooser_contract.md"
+      ],
+      "notes": "A lost search index narrows reuse to partial and rebuilds only the index, gating search until it returns."
+    },
+    {
+      "case_id": "case.starter.source_drift",
+      "title": "A starter with source-tree drift is rejected for a cold build",
+      "snapshot": {
+        "record_kind": "prebuild_snapshot_record",
+        "schema_version": 1,
+        "snapshot_id": "snapshot.case.starter",
+        "profile": "starter",
+        "materialization_class": "local_native",
+        "label": "Starter prebuild snapshot",
+        "recorded_fingerprint": {
+          "fingerprint": {
+            "algorithm": "sha256",
+            "value": "8b8212e3e3f69dc68b8212e3e3f69dc68b8212e3e3f69dc68b8212e3e3f69dc6"
+          },
+          "keys": [
+            {
+              "key": "source_tree_identity",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "7e0658eea27021ad7e0658eea27021ad7e0658eea27021ad7e0658eea27021ad"
+              },
+              "summary": "Identity digest of the workspace source tree the snapshot was built from."
+            },
+            {
+              "key": "capsule_hash",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "92ff74aa21d245e092ff74aa21d245e092ff74aa21d245e092ff74aa21d245e0"
+              },
+              "summary": "Digest of the environment-capsule object the snapshot materializes."
+            },
+            {
+              "key": "platform_arch",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e4"
+              },
+              "summary": "The platform / architecture the snapshot was built for."
+            },
+            {
+              "key": "policy_epoch",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "2dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b4"
+              },
+              "summary": "The policy / trust epoch the snapshot was built under."
+            },
+            {
+              "key": "extension_lock_digest",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "de324f13ea26089ade324f13ea26089ade324f13ea26089ade324f13ea26089a"
+              },
+              "summary": "Digest of the resolved extension lock."
+            },
+            {
+              "key": "toolchain_digest",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0e2a2face0217f900e2a2face0217f900e2a2face0217f900e2a2face0217f90"
+              },
+              "summary": "Combined digest of the critical toolchain components."
+            }
+          ],
+          "summary": "Recorded prebuild-snapshot fingerprint."
+        },
+        "artifacts": [
+          {
+            "artifact_id": "artifact.base_image",
+            "layer": "base_image",
+            "integrity": "present",
+            "critical": true,
+            "summary": "The base_image cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.toolchain",
+            "layer": "toolchain",
+            "integrity": "present",
+            "critical": true,
+            "summary": "The toolchain cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.dependencies",
+            "layer": "dependencies",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The dependencies cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.extensions",
+            "layer": "extensions",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The extensions cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.search_index",
+            "layer": "search_index",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The search_index cached artifact layer."
+          }
+        ],
+        "summary": "Prebuild snapshot for the starter profile."
+      },
+      "current_fingerprint": {
+        "fingerprint": {
+          "algorithm": "sha256",
+          "value": "2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe"
+        },
+        "keys": [
+          {
+            "key": "source_tree_identity",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0d84c77a6f80be290d84c77a6f80be290d84c77a6f80be290d84c77a6f80be29"
+            },
+            "summary": "Identity digest of the workspace source tree the snapshot was built from."
+          },
+          {
+            "key": "capsule_hash",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "92ff74aa21d245e092ff74aa21d245e092ff74aa21d245e092ff74aa21d245e0"
+            },
+            "summary": "Digest of the environment-capsule object the snapshot materializes."
+          },
+          {
+            "key": "platform_arch",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e4"
+            },
+            "summary": "The platform / architecture the snapshot was built for."
+          },
+          {
+            "key": "policy_epoch",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "2dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b4"
+            },
+            "summary": "The policy / trust epoch the snapshot was built under."
+          },
+          {
+            "key": "extension_lock_digest",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "de324f13ea26089ade324f13ea26089ade324f13ea26089ade324f13ea26089a"
+            },
+            "summary": "Digest of the resolved extension lock."
+          },
+          {
+            "key": "toolchain_digest",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0e2a2face0217f900e2a2face0217f900e2a2face0217f900e2a2face0217f90"
+            },
+            "summary": "Combined digest of the critical toolchain components."
+          }
+        ],
+        "summary": "Current expected prebuild fingerprint."
+      },
+      "decision": {
+        "record_kind": "prebuild_reuse_decision_record",
+        "schema_version": 1,
+        "snapshot_id": "snapshot.case.starter",
+        "profile": "starter",
+        "materialization_class": "local_native",
+        "outcome": "cold",
+        "reused": false,
+        "invalidated": false,
+        "warm_start_posture": "cold_build",
+        "headline_reason": "source_drift",
+        "reason_tokens": [
+          "source_tree_identity_drift"
+        ],
+        "key_evaluations": [
+          {
+            "key": "source_tree_identity",
+            "compatibility_class": "identity",
+            "match_state": "drift",
+            "outcome_contribution": "cold",
+            "summary": "The source_tree_identity key drifted from the current fingerprint (identity class), narrowing reuse to cold."
+          },
+          {
+            "key": "capsule_hash",
+            "compatibility_class": "identity",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The capsule_hash key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "platform_arch",
+            "compatibility_class": "invalidating",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The platform_arch key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "policy_epoch",
+            "compatibility_class": "invalidating",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The policy_epoch key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "extension_lock_digest",
+            "compatibility_class": "layered",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The extension_lock_digest key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "toolchain_digest",
+            "compatibility_class": "layered",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The toolchain_digest key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          }
+        ],
+        "artifact_evaluations": [
+          {
+            "artifact_id": "artifact.base_image",
+            "layer": "base_image",
+            "integrity": "present",
+            "critical": true,
+            "outcome_contribution": "warm",
+            "summary": "The base_image artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.toolchain",
+            "layer": "toolchain",
+            "integrity": "present",
+            "critical": true,
+            "outcome_contribution": "warm",
+            "summary": "The toolchain artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.dependencies",
+            "layer": "dependencies",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The dependencies artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.extensions",
+            "layer": "extensions",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The extensions artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.search_index",
+            "layer": "search_index",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The search_index artifact is present; it stays eligible for warm reuse."
+          }
+        ],
+        "action_gates": [
+          {
+            "action": "build_run",
+            "posture": "disabled",
+            "reason": "The build_run action is disabled until the cold rebuild completes rather than served from a stale snapshot."
+          },
+          {
+            "action": "search_index",
+            "posture": "disabled",
+            "reason": "The search_index action is disabled until the cold rebuild completes rather than served from a stale snapshot."
+          },
+          {
+            "action": "language_intel",
+            "posture": "disabled",
+            "reason": "The language_intel action is disabled until the cold rebuild completes rather than served from a stale snapshot."
+          },
+          {
+            "action": "services",
+            "posture": "disabled",
+            "reason": "The services action is disabled until the cold rebuild completes rather than served from a stale snapshot."
+          }
+        ],
+        "gated_action_tokens": [
+          "build_run",
+          "search_index",
+          "language_intel",
+          "services"
+        ],
+        "headline": "Snapshot snapshot.case.starter is rejected for a cold build (source_drift): it is for different content, so it is rebuilt rather than served as current truth.",
+        "redaction_class": "metadata_only"
+      },
+      "consumer_refs": [
+        "crates/aureline-workspace/src/entry/mod.rs",
+        "artifacts/entry/warm_start_chooser_contract.md"
+      ],
+      "notes": "A source-tree drift rejects the snapshot for a cold build rather than serving a stale tree's tools as current."
+    },
+    {
+      "case_id": "case.managed_workspace.platform_drift",
+      "title": "A managed workspace with platform drift is invalidated",
+      "snapshot": {
+        "record_kind": "prebuild_snapshot_record",
+        "schema_version": 1,
+        "snapshot_id": "snapshot.case.managed_workspace",
+        "profile": "managed_workspace",
+        "materialization_class": "managed_cloud",
+        "label": "Managed-workspace snapshot",
+        "recorded_fingerprint": {
+          "fingerprint": {
+            "algorithm": "sha256",
+            "value": "df8ba8f8f2a95abedf8ba8f8f2a95abedf8ba8f8f2a95abedf8ba8f8f2a95abe"
+          },
+          "keys": [
+            {
+              "key": "source_tree_identity",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0d84c77a6f80be290d84c77a6f80be290d84c77a6f80be290d84c77a6f80be29"
+              },
+              "summary": "Identity digest of the workspace source tree the snapshot was built from."
+            },
+            {
+              "key": "capsule_hash",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "92ff74aa21d245e092ff74aa21d245e092ff74aa21d245e092ff74aa21d245e0"
+              },
+              "summary": "Digest of the environment-capsule object the snapshot materializes."
+            },
+            {
+              "key": "platform_arch",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "bdc2cb2764191358bdc2cb2764191358bdc2cb2764191358bdc2cb2764191358"
+              },
+              "summary": "The platform / architecture the snapshot was built for."
+            },
+            {
+              "key": "policy_epoch",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "2dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b4"
+              },
+              "summary": "The policy / trust epoch the snapshot was built under."
+            },
+            {
+              "key": "extension_lock_digest",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "de324f13ea26089ade324f13ea26089ade324f13ea26089ade324f13ea26089a"
+              },
+              "summary": "Digest of the resolved extension lock."
+            },
+            {
+              "key": "toolchain_digest",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0e2a2face0217f900e2a2face0217f900e2a2face0217f900e2a2face0217f90"
+              },
+              "summary": "Combined digest of the critical toolchain components."
+            }
+          ],
+          "summary": "Recorded prebuild-snapshot fingerprint."
+        },
+        "artifacts": [
+          {
+            "artifact_id": "artifact.base_image",
+            "layer": "base_image",
+            "integrity": "present",
+            "critical": true,
+            "summary": "The base_image cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.toolchain",
+            "layer": "toolchain",
+            "integrity": "present",
+            "critical": true,
+            "summary": "The toolchain cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.dependencies",
+            "layer": "dependencies",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The dependencies cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.extensions",
+            "layer": "extensions",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The extensions cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.search_index",
+            "layer": "search_index",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The search_index cached artifact layer."
+          }
+        ],
+        "summary": "Prebuild snapshot for the managed_workspace profile."
+      },
+      "current_fingerprint": {
+        "fingerprint": {
+          "algorithm": "sha256",
+          "value": "2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe"
+        },
+        "keys": [
+          {
+            "key": "source_tree_identity",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0d84c77a6f80be290d84c77a6f80be290d84c77a6f80be290d84c77a6f80be29"
+            },
+            "summary": "Identity digest of the workspace source tree the snapshot was built from."
+          },
+          {
+            "key": "capsule_hash",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "92ff74aa21d245e092ff74aa21d245e092ff74aa21d245e092ff74aa21d245e0"
+            },
+            "summary": "Digest of the environment-capsule object the snapshot materializes."
+          },
+          {
+            "key": "platform_arch",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e4"
+            },
+            "summary": "The platform / architecture the snapshot was built for."
+          },
+          {
+            "key": "policy_epoch",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "2dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b4"
+            },
+            "summary": "The policy / trust epoch the snapshot was built under."
+          },
+          {
+            "key": "extension_lock_digest",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "de324f13ea26089ade324f13ea26089ade324f13ea26089ade324f13ea26089a"
+            },
+            "summary": "Digest of the resolved extension lock."
+          },
+          {
+            "key": "toolchain_digest",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0e2a2face0217f900e2a2face0217f900e2a2face0217f900e2a2face0217f90"
+            },
+            "summary": "Combined digest of the critical toolchain components."
+          }
+        ],
+        "summary": "Current expected prebuild fingerprint."
+      },
+      "decision": {
+        "record_kind": "prebuild_reuse_decision_record",
+        "schema_version": 1,
+        "snapshot_id": "snapshot.case.managed_workspace",
+        "profile": "managed_workspace",
+        "materialization_class": "managed_cloud",
+        "outcome": "invalidated",
+        "reused": false,
+        "invalidated": true,
+        "warm_start_posture": "cold_build",
+        "headline_reason": "platform_drift",
+        "reason_tokens": [
+          "platform_arch_drift"
+        ],
+        "key_evaluations": [
+          {
+            "key": "source_tree_identity",
+            "compatibility_class": "identity",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The source_tree_identity key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "capsule_hash",
+            "compatibility_class": "identity",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The capsule_hash key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "platform_arch",
+            "compatibility_class": "invalidating",
+            "match_state": "drift",
+            "outcome_contribution": "invalidated",
+            "summary": "The platform_arch key drifted from the current fingerprint (invalidating class), narrowing reuse to invalidated."
+          },
+          {
+            "key": "policy_epoch",
+            "compatibility_class": "invalidating",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The policy_epoch key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "extension_lock_digest",
+            "compatibility_class": "layered",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The extension_lock_digest key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "toolchain_digest",
+            "compatibility_class": "layered",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The toolchain_digest key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          }
+        ],
+        "artifact_evaluations": [
+          {
+            "artifact_id": "artifact.base_image",
+            "layer": "base_image",
+            "integrity": "present",
+            "critical": true,
+            "outcome_contribution": "warm",
+            "summary": "The base_image artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.toolchain",
+            "layer": "toolchain",
+            "integrity": "present",
+            "critical": true,
+            "outcome_contribution": "warm",
+            "summary": "The toolchain artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.dependencies",
+            "layer": "dependencies",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The dependencies artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.extensions",
+            "layer": "extensions",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The extensions artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.search_index",
+            "layer": "search_index",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The search_index artifact is present; it stays eligible for warm reuse."
+          }
+        ],
+        "action_gates": [
+          {
+            "action": "build_run",
+            "posture": "disabled",
+            "reason": "The build_run action is disabled until the invalidated rebuild completes rather than served from a stale snapshot."
+          },
+          {
+            "action": "search_index",
+            "posture": "disabled",
+            "reason": "The search_index action is disabled until the invalidated rebuild completes rather than served from a stale snapshot."
+          },
+          {
+            "action": "language_intel",
+            "posture": "disabled",
+            "reason": "The language_intel action is disabled until the invalidated rebuild completes rather than served from a stale snapshot."
+          },
+          {
+            "action": "services",
+            "posture": "disabled",
+            "reason": "The services action is disabled until the invalidated rebuild completes rather than served from a stale snapshot."
+          }
+        ],
+        "gated_action_tokens": [
+          "build_run",
+          "search_index",
+          "language_intel",
+          "services"
+        ],
+        "headline": "Snapshot snapshot.case.managed_workspace is invalidated and evicted (platform_drift): it is binary- or trust-incompatible with the current host, so it is never reused.",
+        "redaction_class": "metadata_only"
+      },
+      "consumer_refs": [
+        "crates/aureline-support/src/bundle/mod.rs",
+        "artifacts/entry/warm_start_chooser_contract.md"
+      ],
+      "notes": "A platform / architecture drift invalidates and evicts the snapshot because it is binary-incompatible with the host."
+    },
+    {
+      "case_id": "case.prebuild.policy_drift",
+      "title": "A prebuild with policy-epoch drift is invalidated",
+      "snapshot": {
+        "record_kind": "prebuild_snapshot_record",
+        "schema_version": 1,
+        "snapshot_id": "snapshot.case.prebuild",
+        "profile": "prebuild",
+        "materialization_class": "container",
+        "label": "Prebuilt environment snapshot",
+        "recorded_fingerprint": {
+          "fingerprint": {
+            "algorithm": "sha256",
+            "value": "482340e3c6cb07ce482340e3c6cb07ce482340e3c6cb07ce482340e3c6cb07ce"
+          },
+          "keys": [
+            {
+              "key": "source_tree_identity",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0d84c77a6f80be290d84c77a6f80be290d84c77a6f80be290d84c77a6f80be29"
+              },
+              "summary": "Identity digest of the workspace source tree the snapshot was built from."
+            },
+            {
+              "key": "capsule_hash",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "92ff74aa21d245e092ff74aa21d245e092ff74aa21d245e092ff74aa21d245e0"
+              },
+              "summary": "Digest of the environment-capsule object the snapshot materializes."
+            },
+            {
+              "key": "platform_arch",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e4"
+              },
+              "summary": "The platform / architecture the snapshot was built for."
+            },
+            {
+              "key": "policy_epoch",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "ea20ae8a09270818ea20ae8a09270818ea20ae8a09270818ea20ae8a09270818"
+              },
+              "summary": "The policy / trust epoch the snapshot was built under."
+            },
+            {
+              "key": "extension_lock_digest",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "de324f13ea26089ade324f13ea26089ade324f13ea26089ade324f13ea26089a"
+              },
+              "summary": "Digest of the resolved extension lock."
+            },
+            {
+              "key": "toolchain_digest",
+              "digest": {
+                "algorithm": "sha256",
+                "value": "0e2a2face0217f900e2a2face0217f900e2a2face0217f900e2a2face0217f90"
+              },
+              "summary": "Combined digest of the critical toolchain components."
+            }
+          ],
+          "summary": "Recorded prebuild-snapshot fingerprint."
+        },
+        "artifacts": [
+          {
+            "artifact_id": "artifact.base_image",
+            "layer": "base_image",
+            "integrity": "present",
+            "critical": true,
+            "summary": "The base_image cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.toolchain",
+            "layer": "toolchain",
+            "integrity": "present",
+            "critical": true,
+            "summary": "The toolchain cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.dependencies",
+            "layer": "dependencies",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The dependencies cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.extensions",
+            "layer": "extensions",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The extensions cached artifact layer."
+          },
+          {
+            "artifact_id": "artifact.search_index",
+            "layer": "search_index",
+            "integrity": "present",
+            "critical": false,
+            "summary": "The search_index cached artifact layer."
+          }
+        ],
+        "summary": "Prebuild snapshot for the prebuild profile."
+      },
+      "current_fingerprint": {
+        "fingerprint": {
+          "algorithm": "sha256",
+          "value": "2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe2273f97e94f3b9fe"
+        },
+        "keys": [
+          {
+            "key": "source_tree_identity",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0d84c77a6f80be290d84c77a6f80be290d84c77a6f80be290d84c77a6f80be29"
+            },
+            "summary": "Identity digest of the workspace source tree the snapshot was built from."
+          },
+          {
+            "key": "capsule_hash",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "92ff74aa21d245e092ff74aa21d245e092ff74aa21d245e092ff74aa21d245e0"
+            },
+            "summary": "Digest of the environment-capsule object the snapshot materializes."
+          },
+          {
+            "key": "platform_arch",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e40bcfd3f1917ac9e4"
+            },
+            "summary": "The platform / architecture the snapshot was built for."
+          },
+          {
+            "key": "policy_epoch",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "2dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b42dbcb8ee8d1395b4"
+            },
+            "summary": "The policy / trust epoch the snapshot was built under."
+          },
+          {
+            "key": "extension_lock_digest",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "de324f13ea26089ade324f13ea26089ade324f13ea26089ade324f13ea26089a"
+            },
+            "summary": "Digest of the resolved extension lock."
+          },
+          {
+            "key": "toolchain_digest",
+            "digest": {
+              "algorithm": "sha256",
+              "value": "0e2a2face0217f900e2a2face0217f900e2a2face0217f900e2a2face0217f90"
+            },
+            "summary": "Combined digest of the critical toolchain components."
+          }
+        ],
+        "summary": "Current expected prebuild fingerprint."
+      },
+      "decision": {
+        "record_kind": "prebuild_reuse_decision_record",
+        "schema_version": 1,
+        "snapshot_id": "snapshot.case.prebuild",
+        "profile": "prebuild",
+        "materialization_class": "container",
+        "outcome": "invalidated",
+        "reused": false,
+        "invalidated": true,
+        "warm_start_posture": "cold_build",
+        "headline_reason": "policy_drift",
+        "reason_tokens": [
+          "policy_epoch_drift"
+        ],
+        "key_evaluations": [
+          {
+            "key": "source_tree_identity",
+            "compatibility_class": "identity",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The source_tree_identity key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "capsule_hash",
+            "compatibility_class": "identity",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The capsule_hash key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "platform_arch",
+            "compatibility_class": "invalidating",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The platform_arch key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "policy_epoch",
+            "compatibility_class": "invalidating",
+            "match_state": "drift",
+            "outcome_contribution": "invalidated",
+            "summary": "The policy_epoch key drifted from the current fingerprint (invalidating class), narrowing reuse to invalidated."
+          },
+          {
+            "key": "extension_lock_digest",
+            "compatibility_class": "layered",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The extension_lock_digest key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          },
+          {
+            "key": "toolchain_digest",
+            "compatibility_class": "layered",
+            "match_state": "match",
+            "outcome_contribution": "warm",
+            "summary": "The toolchain_digest key matches the current fingerprint; the snapshot stays eligible for warm reuse on this key."
+          }
+        ],
+        "artifact_evaluations": [
+          {
+            "artifact_id": "artifact.base_image",
+            "layer": "base_image",
+            "integrity": "present",
+            "critical": true,
+            "outcome_contribution": "warm",
+            "summary": "The base_image artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.toolchain",
+            "layer": "toolchain",
+            "integrity": "present",
+            "critical": true,
+            "outcome_contribution": "warm",
+            "summary": "The toolchain artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.dependencies",
+            "layer": "dependencies",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The dependencies artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.extensions",
+            "layer": "extensions",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The extensions artifact is present; it stays eligible for warm reuse."
+          },
+          {
+            "artifact_id": "artifact.search_index",
+            "layer": "search_index",
+            "integrity": "present",
+            "critical": false,
+            "outcome_contribution": "warm",
+            "summary": "The search_index artifact is present; it stays eligible for warm reuse."
+          }
+        ],
+        "action_gates": [
+          {
+            "action": "build_run",
+            "posture": "disabled",
+            "reason": "The build_run action is disabled until the invalidated rebuild completes rather than served from a stale snapshot."
+          },
+          {
+            "action": "search_index",
+            "posture": "disabled",
+            "reason": "The search_index action is disabled until the invalidated rebuild completes rather than served from a stale snapshot."
+          },
+          {
+            "action": "language_intel",
+            "posture": "disabled",
+            "reason": "The language_intel action is disabled until the invalidated rebuild completes rather than served from a stale snapshot."
+          },
+          {
+            "action": "services",
+            "posture": "disabled",
+            "reason": "The services action is disabled until the invalidated rebuild completes rather than served from a stale snapshot."
+          }
+        ],
+        "gated_action_tokens": [
+          "build_run",
+          "search_index",
+          "language_intel",
+          "services"
+        ],
+        "headline": "Snapshot snapshot.case.prebuild is invalidated and evicted (policy_drift): it is binary- or trust-incompatible with the current host, so it is never reused.",
+        "redaction_class": "metadata_only"
+      },
+      "consumer_refs": [
+        "crates/aureline-runtime/src/capsule_resolver/mod.rs",
+        "artifacts/entry/warm_start_chooser_contract.md"
+      ],
+      "notes": "A policy-epoch drift invalidates the snapshot rather than trusting capabilities the current policy may disallow."
+    }
+  ],
+  "drills": [
+    {
+      "drill_id": "drill.prebuild.source_drift",
+      "title": "Source-tree drift rejects the snapshot for a cold build",
+      "injected_reason": "source_drift",
+      "profile": "starter",
+      "baseline_outcome": "warm",
+      "degraded_outcome": "cold",
+      "degraded_warm_start_posture": "cold_build",
+      "disables_reuse": true,
+      "steps": [
+        {
+          "phase": "inject",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "A source-tree edit is introduced under the pinned snapshot while it still loads warm."
+        },
+        {
+          "phase": "observe",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recorded fingerprint is compared key-by-key against current truth."
+        },
+        {
+          "phase": "narrow",
+          "observed_outcome": "cold",
+          "observed_warm_start_posture": "cold_build",
+          "narration": "The engine narrows reuse to cold; the snapshot is not served as current truth."
+        },
+        {
+          "phase": "refresh",
+          "observed_outcome": "cold",
+          "observed_warm_start_posture": "cold_build",
+          "narration": "The affected layer is rebuilt and re-fingerprinted against current truth."
+        },
+        {
+          "phase": "recover",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recorded fingerprint matches current truth again; reuse returns to warm."
+        },
+        {
+          "phase": "verify",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recovered outcome matches the engine for a fully current snapshot."
+        }
+      ],
+      "recovers_to_outcome": "warm",
+      "asserts_reuse_blocked_under_drift": true,
+      "asserts_recovers_after_rebuild": true,
+      "notes": "Source-tree drift rejects warm reuse so a stale tree's tools and indexes are never served as current truth."
+    },
+    {
+      "drill_id": "drill.prebuild.policy_drift",
+      "title": "Policy-epoch drift invalidates the snapshot",
+      "injected_reason": "policy_drift",
+      "profile": "managed_workspace",
+      "baseline_outcome": "warm",
+      "degraded_outcome": "invalidated",
+      "degraded_warm_start_posture": "cold_build",
+      "disables_reuse": true,
+      "steps": [
+        {
+          "phase": "inject",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "A policy-epoch advance is introduced under the pinned snapshot while it still loads warm."
+        },
+        {
+          "phase": "observe",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recorded fingerprint is compared key-by-key against current truth."
+        },
+        {
+          "phase": "narrow",
+          "observed_outcome": "invalidated",
+          "observed_warm_start_posture": "cold_build",
+          "narration": "The engine narrows reuse to invalidated; the snapshot is not served as current truth."
+        },
+        {
+          "phase": "refresh",
+          "observed_outcome": "invalidated",
+          "observed_warm_start_posture": "cold_build",
+          "narration": "The affected layer is rebuilt and re-fingerprinted against current truth."
+        },
+        {
+          "phase": "recover",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recorded fingerprint matches current truth again; reuse returns to warm."
+        },
+        {
+          "phase": "verify",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recovered outcome matches the engine for a fully current snapshot."
+        }
+      ],
+      "recovers_to_outcome": "warm",
+      "asserts_reuse_blocked_under_drift": true,
+      "asserts_recovers_after_rebuild": true,
+      "notes": "Policy-epoch drift invalidates the snapshot so it cannot carry capabilities the current policy disallows."
+    },
+    {
+      "drill_id": "drill.prebuild.platform_drift",
+      "title": "Platform / architecture drift invalidates the snapshot",
+      "injected_reason": "platform_drift",
+      "profile": "prebuild",
+      "baseline_outcome": "warm",
+      "degraded_outcome": "invalidated",
+      "degraded_warm_start_posture": "cold_build",
+      "disables_reuse": true,
+      "steps": [
+        {
+          "phase": "inject",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "A platform / architecture change is introduced under the pinned snapshot while it still loads warm."
+        },
+        {
+          "phase": "observe",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recorded fingerprint is compared key-by-key against current truth."
+        },
+        {
+          "phase": "narrow",
+          "observed_outcome": "invalidated",
+          "observed_warm_start_posture": "cold_build",
+          "narration": "The engine narrows reuse to invalidated; the snapshot is not served as current truth."
+        },
+        {
+          "phase": "refresh",
+          "observed_outcome": "invalidated",
+          "observed_warm_start_posture": "cold_build",
+          "narration": "The affected layer is rebuilt and re-fingerprinted against current truth."
+        },
+        {
+          "phase": "recover",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recorded fingerprint matches current truth again; reuse returns to warm."
+        },
+        {
+          "phase": "verify",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recovered outcome matches the engine for a fully current snapshot."
+        }
+      ],
+      "recovers_to_outcome": "warm",
+      "asserts_reuse_blocked_under_drift": true,
+      "asserts_recovers_after_rebuild": true,
+      "notes": "Platform drift invalidates the binary-incompatible snapshot rather than reusing it on the wrong host."
+    },
+    {
+      "drill_id": "drill.prebuild.extension_lock_drift",
+      "title": "Extension-lock drift narrows reuse to a partial warm start",
+      "injected_reason": "extension_lock_drift",
+      "profile": "devcontainer",
+      "baseline_outcome": "warm",
+      "degraded_outcome": "partially_warm",
+      "degraded_warm_start_posture": "warm_partial_reuse",
+      "disables_reuse": false,
+      "steps": [
+        {
+          "phase": "inject",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "An extension-lock change is introduced under the pinned snapshot while it still loads warm."
+        },
+        {
+          "phase": "observe",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recorded fingerprint is compared key-by-key against current truth."
+        },
+        {
+          "phase": "narrow",
+          "observed_outcome": "partially_warm",
+          "observed_warm_start_posture": "warm_partial_reuse",
+          "narration": "The engine narrows reuse to partially_warm; the snapshot is not served as current truth."
+        },
+        {
+          "phase": "refresh",
+          "observed_outcome": "partially_warm",
+          "observed_warm_start_posture": "warm_partial_reuse",
+          "narration": "The affected layer is rebuilt and re-fingerprinted against current truth."
+        },
+        {
+          "phase": "recover",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recorded fingerprint matches current truth again; reuse returns to warm."
+        },
+        {
+          "phase": "verify",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recovered outcome matches the engine for a fully current snapshot."
+        }
+      ],
+      "recovers_to_outcome": "warm",
+      "asserts_reuse_blocked_under_drift": true,
+      "asserts_recovers_after_rebuild": true,
+      "notes": "Extension-lock drift rebuilds only the extension layer while the rest of the snapshot stays warm."
+    },
+    {
+      "drill_id": "drill.prebuild.partial_artifact_loss",
+      "title": "Partial artifact loss narrows reuse to a partial warm start",
+      "injected_reason": "partial_artifact_loss",
+      "profile": "remote_container",
+      "baseline_outcome": "warm",
+      "degraded_outcome": "partially_warm",
+      "degraded_warm_start_posture": "warm_partial_reuse",
+      "disables_reuse": false,
+      "steps": [
+        {
+          "phase": "inject",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "A lost search-index artifact is introduced under the pinned snapshot while it still loads warm."
+        },
+        {
+          "phase": "observe",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recorded fingerprint is compared key-by-key against current truth."
+        },
+        {
+          "phase": "narrow",
+          "observed_outcome": "partially_warm",
+          "observed_warm_start_posture": "warm_partial_reuse",
+          "narration": "The engine narrows reuse to partially_warm; the snapshot is not served as current truth."
+        },
+        {
+          "phase": "refresh",
+          "observed_outcome": "partially_warm",
+          "observed_warm_start_posture": "warm_partial_reuse",
+          "narration": "The affected layer is rebuilt and re-fingerprinted against current truth."
+        },
+        {
+          "phase": "recover",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recorded fingerprint matches current truth again; reuse returns to warm."
+        },
+        {
+          "phase": "verify",
+          "observed_outcome": "warm",
+          "observed_warm_start_posture": "warm_full_reuse",
+          "narration": "The recovered outcome matches the engine for a fully current snapshot."
+        }
+      ],
+      "recovers_to_outcome": "warm",
+      "asserts_reuse_blocked_under_drift": true,
+      "asserts_recovers_after_rebuild": true,
+      "notes": "A lost index narrows reuse to partial and gates search until the index is rebuilt."
+    }
+  ],
+  "evidence_packet_refs": [
+    "artifacts/entry/warm_start_chooser_contract.md",
+    "artifacts/build/build_identity.json",
+    "artifacts/remote/host_boundary_matrix.yaml",
+    "artifacts/install/state_root_matrix.yaml",
+    "artifacts/runtime/execution_scope_matrix.yaml",
+    "artifacts/runtime/managed_workspace_lifecycle.yaml"
+  ],
+  "invariants": [
+    "A prebuild snapshot is reused only when every fingerprint key — source-tree identity, capsule hash, platform/arch, policy epoch, extension lock, and critical toolchain digests — matches current truth and its critical artifacts are intact.",
+    "Drift class decides the floor: platform and policy drift invalidate the snapshot, source-tree and capsule drift force a cold build, and extension-lock and toolchain drift narrow to a partial warm start; the coldest contribution always wins.",
+    "Prebuild speed is never proof of compatibility: a fast-loading snapshot that no longer matches the source, policy, or platform is rejected or downgraded rather than served as current truth.",
+    "Every decision is metadata-first and self-explaining, so users and support tooling can distinguish a warm, partially warm, cold, or invalidated start and read the exact key or artifact that forced it.",
+    "A downgraded start narrows or disables the actions whose backing layer is being rebuilt instead of presenting stale tools or indexes as current truth.",
+    "The outcome maps onto the same governance warm-start posture the environment-capsule lane reads, so the prebuild lane narrows in lockstep instead of forking a parallel warm-start model."
+  ]
+}
