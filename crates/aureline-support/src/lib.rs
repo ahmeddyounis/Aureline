@@ -421,6 +421,7 @@ pub mod m5_support_center_matrix;
 pub mod m5_support_center_ui;
 pub mod m5_supportability_handoff_packets;
 pub mod m5_supportability_qualification;
+pub mod materialized_view_policy;
 pub mod mutation_journal;
 pub mod policy_simulation;
 pub mod portable_bundle_handoff;

@@ -63,6 +63,7 @@ pub mod harness;
 pub mod hooks;
 pub mod m5_mutation_lineage;
 pub mod m5_reactive_governance;
+pub mod materialized_view_policy;
 pub mod mutation_journal;
 pub mod producers;
 pub mod query_envelope;
@@ -126,6 +127,29 @@ pub use m5_reactive_governance::{
     M5_REACTIVE_GOVERNANCE_FIXTURE_RECORD_KIND, M5_REACTIVE_GOVERNANCE_PACKET_RECORD_KIND,
     M5_REACTIVE_GOVERNANCE_PACKET_REF, M5_REACTIVE_GOVERNANCE_REPORT_REF,
     M5_REACTIVE_GOVERNANCE_SCHEMA_REF, M5_REACTIVE_GOVERNANCE_SCHEMA_VERSION,
+};
+pub use materialized_view_policy::{
+    class_semantics as materialized_view_class_semantics,
+    disposition_for as materialized_view_disposition_for, seeded_materialized_view_policy,
+    seeded_materialized_view_policy_fixtures, validate_materialized_view_policy,
+    validate_materialized_view_policy_fixture, ClassSemantics as MaterializedViewClassSemantics,
+    ClearDataSemantics as MaterializedViewClearDataSemantics,
+    Disposition as MaterializedViewDisposition, DispositionRow as MaterializedViewDispositionRow,
+    ExportClass as MaterializedViewExportClass,
+    HoldOffboardingSemantics as MaterializedViewHoldOffboardingSemantics,
+    LifecycleOperation as MaterializedViewLifecycleOperation, MaterializedViewClassPolicy,
+    MaterializedViewClassPolicyFixture, MaterializedViewClassRow,
+    PersistenceClass as MaterializedViewPersistenceClass,
+    ReadAuthority as MaterializedViewReadAuthority, RetentionClass as MaterializedViewRetentionClass,
+    SourceContractRefs as MaterializedViewPolicySourceContractRefs,
+    SupportBundleSemantics as MaterializedViewSupportBundleSemantics,
+    ValidationReport as MaterializedViewPolicyValidationReport,
+    ValidationViolation as MaterializedViewPolicyValidationViolation,
+    ViewClass as MaterializedViewPolicyViewClass, MATERIALIZED_VIEW_POLICY_DOC_REF,
+    MATERIALIZED_VIEW_POLICY_FIXTURE_DIR, MATERIALIZED_VIEW_POLICY_FIXTURE_MANIFEST_REF,
+    MATERIALIZED_VIEW_POLICY_FIXTURE_RECORD_KIND, MATERIALIZED_VIEW_POLICY_PACKET_RECORD_KIND,
+    MATERIALIZED_VIEW_POLICY_PACKET_REF, MATERIALIZED_VIEW_POLICY_REPORT_REF,
+    MATERIALIZED_VIEW_POLICY_SCHEMA_REF, MATERIALIZED_VIEW_POLICY_SCHEMA_VERSION,
 };
 pub use producers::{
     derived_diagnostics, file_identity, graph_neighborhood, provider_overlay, shell_health, window,
