@@ -1,0 +1,405 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/env/environment-capsule.schema.json",
+  "title": "Aureline typed environment capsule",
+  "description": "Boundary schema for the typed environment-capsule object and its target-class fixtures. A capsule is the concrete, inspectable, diffable environment definition a template hydrates, a prebuild fingerprints, and a runtime materializes: a versioned identity and digest, typed source refs each pinned by a digest, a materialization target plan, a service graph, a pinned toolchain plan, trust-gated lifecycle hooks, a compatibility fingerprint, a materialization-parity status, and observability metadata. The capsule is metadata-first: lifecycle commands and environment-variable values are reduced to digests, so secrets, raw environment bodies, raw provider payloads, and raw paths never cross this boundary. A fixture wraps one capsule with the why-this-environment inspector outcome the narrowing engine must reach for it.",
+  "oneOf": [
+    { "$ref": "#/$defs/environment_capsule" },
+    { "$ref": "#/$defs/environment_capsule_fixture" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "environment_profile": {
+      "type": "string",
+      "enum": [
+        "workspace_template",
+        "starter",
+        "prebuild",
+        "devcontainer",
+        "remote_container",
+        "managed_workspace"
+      ]
+    },
+    "target_class": {
+      "type": "string",
+      "enum": ["local", "ssh", "container", "devcontainer", "vm", "managed_workspace"]
+    },
+    "target_transport": {
+      "type": "string",
+      "enum": ["local_process", "ssh", "container", "virtual_machine", "cloud_managed"]
+    },
+    "working_root_kind": {
+      "type": "string",
+      "enum": ["local_path", "container_volume", "remote_mount", "managed_volume"]
+    },
+    "materialization_class": {
+      "type": "string",
+      "enum": ["local_native", "container", "remote_host", "devcontainer", "managed_cloud"]
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": [
+        "workspace_template",
+        "lockfile",
+        "devcontainer_config",
+        "toolchain_manifest",
+        "service_manifest",
+        "prebuild_snapshot"
+      ]
+    },
+    "toolchain_kind": {
+      "type": "string",
+      "enum": ["language_runtime", "package_manager", "build_tool", "system_dependency"]
+    },
+    "service_role": {
+      "type": "string",
+      "enum": ["primary", "dependency", "sidecar", "external_endpoint"]
+    },
+    "lifecycle_phase": {
+      "type": "string",
+      "enum": ["on_create", "post_create", "on_start", "post_start", "on_attach"]
+    },
+    "trust_gate_state": {
+      "type": "string",
+      "enum": ["gated", "pending_review", "ungated"]
+    },
+    "redaction_class": {
+      "type": "string",
+      "const": "metadata_only"
+    },
+    "evidence_state": {
+      "type": "string",
+      "enum": ["current", "partial", "stale", "missing", "not_applicable"]
+    },
+    "claim_maturity": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "warm_start_posture": {
+      "type": "string",
+      "enum": ["warm_full_reuse", "warm_partial_reuse", "cold_build"]
+    },
+    "row_verdict": {
+      "type": "string",
+      "enum": ["certified", "narrowed", "withheld"]
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    },
+    "capsule_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value"],
+      "properties": {
+        "algorithm": { "$ref": "#/$defs/non_empty_string" },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "kind", "reference", "digest", "coverage", "summary"],
+      "properties": {
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/source_kind" },
+        "reference": { "$ref": "#/$defs/non_empty_string" },
+        "digest": { "$ref": "#/$defs/capsule_digest" },
+        "coverage": { "$ref": "#/$defs/evidence_state" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "target_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "materialization_class",
+        "transport",
+        "target_label",
+        "host_boundary_ref",
+        "working_root_kind",
+        "coverage",
+        "summary"
+      ],
+      "properties": {
+        "materialization_class": { "$ref": "#/$defs/materialization_class" },
+        "transport": { "$ref": "#/$defs/target_transport" },
+        "target_label": { "$ref": "#/$defs/non_empty_string" },
+        "host_boundary_ref": { "$ref": "#/$defs/non_empty_string" },
+        "working_root_kind": { "$ref": "#/$defs/working_root_kind" },
+        "coverage": { "$ref": "#/$defs/evidence_state" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "service_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service_id", "role", "exposed_ports", "depends_on", "summary"],
+      "properties": {
+        "service_id": { "$ref": "#/$defs/non_empty_string" },
+        "role": { "$ref": "#/$defs/service_role" },
+        "exposed_ports": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/port" }
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "service_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["services", "coverage", "summary"],
+      "properties": {
+        "services": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/service_node" }
+        },
+        "coverage": { "$ref": "#/$defs/evidence_state" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "toolchain_component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component_id", "kind", "pinned_version", "source_id", "summary"],
+      "properties": {
+        "component_id": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/toolchain_kind" },
+        "pinned_version": { "$ref": "#/$defs/non_empty_string" },
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "toolchain_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["components", "coverage", "summary"],
+      "properties": {
+        "components": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/toolchain_component" }
+        },
+        "coverage": { "$ref": "#/$defs/evidence_state" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "trust_hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_id", "phase", "gate_state", "authority_ref", "command_digest", "summary"],
+      "properties": {
+        "hook_id": { "$ref": "#/$defs/non_empty_string" },
+        "phase": { "$ref": "#/$defs/lifecycle_phase" },
+        "gate_state": { "$ref": "#/$defs/trust_gate_state" },
+        "authority_ref": { "$ref": "#/$defs/non_empty_string" },
+        "command_digest": { "$ref": "#/$defs/capsule_digest" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "env_var_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value_digest", "source_id"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "value_digest": { "$ref": "#/$defs/capsule_digest" },
+        "source_id": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "fingerprint_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_id", "source_id", "digest"],
+      "properties": {
+        "input_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "digest": { "$ref": "#/$defs/capsule_digest" }
+      }
+    },
+    "compatibility_fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fingerprint", "inputs", "coverage", "summary"],
+      "properties": {
+        "fingerprint": { "$ref": "#/$defs/capsule_digest" },
+        "inputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fingerprint_input" }
+        },
+        "coverage": { "$ref": "#/$defs/evidence_state" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "materialization_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["materialization_class", "parity_state", "aligned_surface_refs", "summary"],
+      "properties": {
+        "materialization_class": { "$ref": "#/$defs/materialization_class" },
+        "parity_state": { "$ref": "#/$defs/evidence_state" },
+        "aligned_surface_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "observability_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capsule_event_stream_ref",
+        "materialization_span_ref",
+        "health_probe_refs",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "capsule_event_stream_ref": { "$ref": "#/$defs/non_empty_string" },
+        "materialization_span_ref": { "$ref": "#/$defs/non_empty_string" },
+        "health_probe_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "capsule_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capsule_id",
+        "capsule_version",
+        "profile",
+        "label",
+        "materialization_class",
+        "transport",
+        "capsule_digest",
+        "summary"
+      ],
+      "properties": {
+        "capsule_id": { "$ref": "#/$defs/non_empty_string" },
+        "capsule_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "profile": { "$ref": "#/$defs/environment_profile" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "materialization_class": { "$ref": "#/$defs/materialization_class" },
+        "transport": { "$ref": "#/$defs/target_transport" },
+        "capsule_digest": { "$ref": "#/$defs/capsule_digest" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "environment_capsule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "identity",
+        "source_refs",
+        "target_plan",
+        "service_graph",
+        "toolchain_plan",
+        "trust_hooks",
+        "declared_env",
+        "compatibility_fingerprint",
+        "materialization",
+        "observability",
+        "claimed_maturity",
+        "claimed_warm_start_posture",
+        "why_this_environment",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "environment_capsule_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "identity": { "$ref": "#/$defs/capsule_identity" },
+        "source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_ref" }
+        },
+        "target_plan": { "$ref": "#/$defs/target_plan" },
+        "service_graph": { "$ref": "#/$defs/service_graph" },
+        "toolchain_plan": { "$ref": "#/$defs/toolchain_plan" },
+        "trust_hooks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/trust_hook" }
+        },
+        "declared_env": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/env_var_binding" }
+        },
+        "compatibility_fingerprint": { "$ref": "#/$defs/compatibility_fingerprint" },
+        "materialization": { "$ref": "#/$defs/materialization_status" },
+        "observability": { "$ref": "#/$defs/observability_metadata" },
+        "claimed_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "claimed_warm_start_posture": { "$ref": "#/$defs/warm_start_posture" },
+        "why_this_environment": { "$ref": "#/$defs/non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "environment_capsule_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "fixture_id",
+        "target_class",
+        "capsule",
+        "expected_verdict",
+        "expected_effective_maturity",
+        "expected_warm_start_posture",
+        "expected_narrow_reason_tokens",
+        "expected_warm_start_downgrade_tokens",
+        "consumer_ref",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "environment_capsule_fixture_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "fixture_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "capsule": { "$ref": "#/$defs/environment_capsule" },
+        "expected_verdict": { "$ref": "#/$defs/row_verdict" },
+        "expected_effective_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "expected_warm_start_posture": { "$ref": "#/$defs/warm_start_posture" },
+        "expected_narrow_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "expected_warm_start_downgrade_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "consumer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

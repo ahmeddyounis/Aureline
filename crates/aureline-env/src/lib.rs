@@ -26,10 +26,39 @@
 //! The packet is mirrored, byte-for-byte, by the checked-in schema,
 //! reviewer doc, proof packet, certification report, and fixture corpus
 //! named on the module's [`m5_env_governance`] constants.
+//!
+//! The sibling [`capsules`] module materializes the typed
+//! [`capsules::EnvironmentCapsule`] object that governance certifies: the
+//! concrete environment definition a template hydrates, a prebuild
+//! fingerprints, and a runtime materializes. Its
+//! [`capsules::inspect_environment`] why-this-environment inspector folds
+//! the capsule through the **same** narrowing engine, so desktop, CLI,
+//! and support all read one explainability object instead of cloning a
+//! private format.
 
 #![doc(html_root_url = "https://docs.rs/aureline-env/0.0.0")]
 
+pub mod capsules;
 pub mod m5_env_governance;
+
+pub use capsules::{
+    desktop_environment_inspection, diff_capsules, export_capsule_metadata,
+    headless_environment_inspection, inspect_environment, seeded_environment_capsule_fixtures,
+    seeded_environment_capsules, support_environment_inspection, validate_environment_capsule,
+    validate_environment_capsule_fixture, CapsuleChangeKind, CapsuleDiff, CapsuleDigest,
+    CapsuleExport, CapsuleFieldChange, CapsuleIdentity, CapsuleSourceRef, CapsuleTargetClass,
+    CompatibilityFingerprint, EnvVarBinding, EnvironmentCapsule, EnvironmentCapsuleFixture,
+    ExportedDigest, ExportedHook, ExportedToolchain, FingerprintInput, InspectorReason,
+    LifecyclePhase, MaterializationStatus, ObservabilityMetadata, RedactionClass, ServiceGraph,
+    ServiceNode, ServiceRole, SourceKind, TargetPlan, TargetTransport, ToolchainComponent,
+    ToolchainKind, ToolchainPlan, TrustGateState, TrustHook, WhyThisEnvironment, WorkingRootKind,
+    ENVIRONMENT_CAPSULE_DIFF_RECORD_KIND, ENVIRONMENT_CAPSULE_DOC_REF,
+    ENVIRONMENT_CAPSULE_EXPORT_RECORD_KIND, ENVIRONMENT_CAPSULE_FIXTURE_DIR,
+    ENVIRONMENT_CAPSULE_FIXTURE_MANIFEST_REF, ENVIRONMENT_CAPSULE_FIXTURE_RECORD_KIND,
+    ENVIRONMENT_CAPSULE_INSPECTION_RECORD_KIND, ENVIRONMENT_CAPSULE_PROOF_REF,
+    ENVIRONMENT_CAPSULE_RECORD_KIND, ENVIRONMENT_CAPSULE_SCHEMA_REF,
+    ENVIRONMENT_CAPSULE_SCHEMA_VERSION,
+};
 
 pub use m5_env_governance::{
     certify_capsule_outcome, seeded_m5_env_governance_fixtures, seeded_m5_env_governance_packet,
