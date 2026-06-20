@@ -111,10 +111,27 @@
 //! [`env_diagnostics::doctor_env_probes`] projects it into Project-Doctor
 //! probes, so Doctor and support explain an environment-hydration failure
 //! from the same metadata-first source of truth, review-before-share.
+//!
+//! The [`env_certification`] module is the capstone that folds those six
+//! lanes into one promotion-grade claim per claimed M5 target class. It
+//! models one [`env_certification::CertificationRow`] per
+//! [`env_certification::TargetClass`] — local, container, remote,
+//! devcontainer, and managed — each carrying the five required
+//! [`env_certification::CertificationAspect`]s (capsule identity, template
+//! composition, prebuild compatibility, lifecycle-hook truth, and
+//! runtime-instance parity) bound to the **real** checked-in upstream lane
+//! artifacts. Its single [`env_certification::certify_environment_lane`]
+//! engine reuses the same per-state floor functions the
+//! [`m5_env_governance`] matrix uses, so a target class is certified only
+//! when every aspect is current; partial, stale, or missing lane evidence
+//! narrows the claim and warm-start posture, a withheld aspect blocks
+//! promotion, and the certification only ever narrows — it never widens a
+//! claim beyond the target classes the packet proves.
 
 #![doc(html_root_url = "https://docs.rs/aureline-env/0.0.0")]
 
 pub mod capsules;
+pub mod env_certification;
 pub mod env_diagnostics;
 pub mod hook_review;
 pub mod m5_env_governance;
@@ -139,6 +156,18 @@ pub use capsules::{
     ENVIRONMENT_CAPSULE_INSPECTION_RECORD_KIND, ENVIRONMENT_CAPSULE_PROOF_REF,
     ENVIRONMENT_CAPSULE_RECORD_KIND, ENVIRONMENT_CAPSULE_SCHEMA_REF,
     ENVIRONMENT_CAPSULE_SCHEMA_VERSION,
+};
+
+pub use env_certification::{
+    certify_environment_lane, seeded_env_certification_fixtures, seeded_env_certification_packet,
+    validate_env_certification_fixture, validate_env_certification_packet, AspectEvidence,
+    CertificationAspect, CertificationDrill, CertificationDrillStep, CertificationFailureClass,
+    CertificationRow, EnvCertificationFixture, EnvCertificationPacket, LaneOutcome,
+    PromotionSummary, TargetClass, ENV_CERTIFICATION_DOC_REF, ENV_CERTIFICATION_FIXTURE_DIR,
+    ENV_CERTIFICATION_FIXTURE_MANIFEST_REF, ENV_CERTIFICATION_FIXTURE_RECORD_KIND,
+    ENV_CERTIFICATION_PACKET_ID, ENV_CERTIFICATION_PACKET_RECORD_KIND,
+    ENV_CERTIFICATION_PACKET_REF, ENV_CERTIFICATION_REPORT_REF, ENV_CERTIFICATION_SCHEMA_REF,
+    ENV_CERTIFICATION_SCHEMA_VERSION,
 };
 
 pub use env_diagnostics::{
