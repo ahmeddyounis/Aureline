@@ -1,0 +1,284 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/env/runtime-materialization.schema.json",
+  "title": "Aureline runtime-instance materialization parity",
+  "description": "Boundary schema for the explicit runtime-instance object and its parity fixtures. A runtime instance is the concrete place code ran, derived from one typed environment capsule and carried in the same vocabulary: a process namespace, a mount set, a port map, a service-readiness graph, and a set of secret-projection points. It is metadata-first: namespaces, mounts, ports, and secret projections are ids, digests, handles, and review-safe prose, so raw pids, raw paths, raw provider payloads, and secret values never cross this boundary. A fixture wraps one capsule and the runtime instance that materialized it with the parity outcome the engine must reach: aligned, degraded, or mismatched, with the facets, services, and tokens behind it. The local, SSH, container, devcontainer, VM, and managed-workspace runtimes keep distinct target, materialization, transport, and namespace identities, so a wrong-target run is mismatched rather than relabeled.",
+  "oneOf": [
+    { "$ref": "#/$defs/runtime_instance" },
+    { "$ref": "#/$defs/runtime_materialization_fixture" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    },
+    "namespace_kind": {
+      "type": "string",
+      "enum": [
+        "host_process",
+        "container_namespace",
+        "remote_host_session",
+        "vm_guest",
+        "managed_pod"
+      ]
+    },
+    "mount_kind": {
+      "type": "string",
+      "enum": ["working_tree", "service_volume", "tool_cache"]
+    },
+    "mount_state": {
+      "type": "string",
+      "enum": ["present", "missing", "divergent"]
+    },
+    "port_state": {
+      "type": "string",
+      "enum": ["published", "unpublished", "conflicted"]
+    },
+    "readiness_state": {
+      "type": "string",
+      "enum": ["ready", "starting", "unready", "absent"]
+    },
+    "secret_projection_point": {
+      "type": "string",
+      "enum": ["env_var", "mounted_file", "runtime_api"]
+    },
+    "projection_state": {
+      "type": "string",
+      "enum": ["projected", "pending", "missing"]
+    },
+    "runtime_facet": {
+      "type": "string",
+      "enum": [
+        "target_identity",
+        "process_namespace",
+        "mount_set",
+        "port_map",
+        "service_readiness",
+        "secret_projection"
+      ]
+    },
+    "runtime_parity": {
+      "type": "string",
+      "enum": ["aligned", "degraded", "mismatched"]
+    },
+    "runtime_scenario": {
+      "type": "string",
+      "enum": [
+        "aligned",
+        "partial_service_readiness",
+        "degraded_mount",
+        "unpublished_port",
+        "secret_projection_pending",
+        "wrong_target",
+        "wrong_namespace"
+      ]
+    },
+    "nullable_runtime_facet": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/runtime_facet" }]
+    },
+    "process_namespace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "namespace_ref", "boundary_ref", "summary"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/namespace_kind" },
+        "namespace_ref": { "$ref": "#/$defs/non_empty_string" },
+        "boundary_ref": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "mount_point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mount_id", "kind", "target_ref", "state", "summary"],
+      "properties": {
+        "mount_id": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/mount_kind" },
+        "target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "state": { "$ref": "#/$defs/mount_state" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "port_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service_id", "declared_port", "published_port", "state", "summary"],
+      "properties": {
+        "service_id": { "$ref": "#/$defs/non_empty_string" },
+        "declared_port": { "$ref": "#/$defs/port" },
+        "published_port": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/port" }]
+        },
+        "state": { "$ref": "#/$defs/port_state" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "service_readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service_id", "role", "readiness", "depends_on", "health_probe_ref", "summary"],
+      "properties": {
+        "service_id": { "$ref": "#/$defs/non_empty_string" },
+        "role": {
+          "$ref": "environment-capsule.schema.json#/$defs/service_role"
+        },
+        "readiness": { "$ref": "#/$defs/readiness_state" },
+        "depends_on": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "health_probe_ref": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "secret_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["projection_id", "env_name", "point", "handle_ref", "state", "summary"],
+      "properties": {
+        "projection_id": { "$ref": "#/$defs/non_empty_string" },
+        "env_name": { "$ref": "#/$defs/non_empty_string" },
+        "point": { "$ref": "#/$defs/secret_projection_point" },
+        "handle_ref": { "$ref": "#/$defs/non_empty_string" },
+        "state": { "$ref": "#/$defs/projection_state" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "runtime_instance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "instance_id",
+        "capsule_id",
+        "capsule_version",
+        "capsule_digest",
+        "profile",
+        "target_class",
+        "materialization_class",
+        "transport",
+        "process_namespace",
+        "mount_set",
+        "port_map",
+        "readiness_graph",
+        "secret_projections",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "runtime_instance_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "instance_id": { "$ref": "#/$defs/non_empty_string" },
+        "capsule_id": { "$ref": "#/$defs/non_empty_string" },
+        "capsule_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "capsule_digest": {
+          "$ref": "environment-capsule.schema.json#/$defs/capsule_digest"
+        },
+        "profile": {
+          "$ref": "environment-capsule.schema.json#/$defs/environment_profile"
+        },
+        "target_class": {
+          "$ref": "environment-capsule.schema.json#/$defs/target_class"
+        },
+        "materialization_class": {
+          "$ref": "environment-capsule.schema.json#/$defs/materialization_class"
+        },
+        "transport": {
+          "$ref": "environment-capsule.schema.json#/$defs/target_transport"
+        },
+        "process_namespace": { "$ref": "#/$defs/process_namespace" },
+        "mount_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/mount_point" }
+        },
+        "port_map": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/port_mapping" }
+        },
+        "readiness_graph": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/service_readiness" }
+        },
+        "secret_projections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/secret_projection" }
+        },
+        "redaction_class": {
+          "$ref": "environment-capsule.schema.json#/$defs/redaction_class"
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "runtime_materialization_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "fixture_id",
+        "target_class",
+        "scenario",
+        "capsule",
+        "instance",
+        "expected_parity",
+        "expected_target_matched",
+        "expected_headline_facet",
+        "expected_reason_tokens",
+        "expected_degraded_facet_tokens",
+        "expected_unready_service_tokens",
+        "consumer_ref",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "runtime_materialization_fixture_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "fixture_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_class": {
+          "$ref": "environment-capsule.schema.json#/$defs/target_class"
+        },
+        "scenario": { "$ref": "#/$defs/runtime_scenario" },
+        "capsule": {
+          "$ref": "environment-capsule.schema.json#/$defs/environment_capsule"
+        },
+        "instance": { "$ref": "#/$defs/runtime_instance" },
+        "expected_parity": { "$ref": "#/$defs/runtime_parity" },
+        "expected_target_matched": { "type": "boolean" },
+        "expected_headline_facet": { "$ref": "#/$defs/nullable_runtime_facet" },
+        "expected_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "expected_degraded_facet_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "expected_unready_service_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "consumer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

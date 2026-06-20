@@ -57,12 +57,28 @@
 //! mapping every outcome onto the same governance
 //! [`m5_env_governance::WarmStartPosture`] so prebuilds stay accelerators
 //! rather than authorities.
+//!
+//! The [`runtime_materialization`] module makes the capsule's runtime
+//! materialization parity operational. It derives an explicit
+//! [`runtime_materialization::RuntimeInstance`] — the process namespace,
+//! mount set, port map, service-readiness graph, and secret-projection
+//! points where code actually ran — from the **same** typed
+//! [`capsules::EnvironmentCapsule`], and its single
+//! [`runtime_materialization::materialize_runtime`] engine compares the
+//! instance against the capsule's declared target to return one
+//! [`runtime_materialization::RuntimeParity`] — `aligned`, `degraded`, or
+//! `mismatched` — with the per-facet and per-service evidence behind it. The
+//! parity maps back onto the governance materialization-parity
+//! [`m5_env_governance::EvidenceState`], so a wrong-target run or a
+//! partial-service stack downgrades visibly across desktop, CLI, AI, and
+//! support instead of collapsing into a generic "workspace started" label.
 
 #![doc(html_root_url = "https://docs.rs/aureline-env/0.0.0")]
 
 pub mod capsules;
 pub mod m5_env_governance;
 pub mod prebuilds;
+pub mod runtime_materialization;
 pub mod workspace_templates;
 
 pub use capsules::{
@@ -114,6 +130,24 @@ pub use prebuilds::{
     PREBUILD_FINGERPRINT_PACKET_RECORD_KIND, PREBUILD_FINGERPRINT_PACKET_REF,
     PREBUILD_FINGERPRINT_PROOF_REF, PREBUILD_FINGERPRINT_SCHEMA_REF,
     PREBUILD_FINGERPRINT_SCHEMA_VERSION, PREBUILD_REUSE_DRILLS_REF, PREBUILD_SNAPSHOT_RECORD_KIND,
+};
+
+pub use runtime_materialization::{
+    ai_runtime_materialization, derive_runtime_instance, desktop_runtime_materialization,
+    diff_runtime_instances, export_runtime_materialization, headless_runtime_materialization,
+    materialize_runtime, namespace_kind_for, seeded_runtime_instances,
+    seeded_runtime_materialization_fixtures, seeded_runtime_materializations,
+    support_runtime_materialization, target_class_for, validate_runtime_instance,
+    validate_runtime_materialization_fixture, FacetEvaluation, MountKind, MountPoint, MountState,
+    NamespaceKind, PortMapping, PortState, ProcessNamespace, ProjectionState, ReadinessState,
+    RuntimeChangeKind, RuntimeExport, RuntimeFacet, RuntimeFieldChange, RuntimeInstance,
+    RuntimeInstanceDiff, RuntimeMaterialization, RuntimeMaterializationFixture, RuntimeParity,
+    RuntimeScenario, SecretProjection, SecretProjectionPoint, ServiceReadiness,
+    ServiceReadinessEvaluation, RUNTIME_INSTANCE_RECORD_KIND, RUNTIME_MATERIALIZATION_DOC_REF,
+    RUNTIME_MATERIALIZATION_EXPORT_RECORD_KIND, RUNTIME_MATERIALIZATION_FIXTURE_DIR,
+    RUNTIME_MATERIALIZATION_FIXTURE_MANIFEST_REF, RUNTIME_MATERIALIZATION_FIXTURE_RECORD_KIND,
+    RUNTIME_MATERIALIZATION_PROOF_REF, RUNTIME_MATERIALIZATION_RECORD_KIND,
+    RUNTIME_MATERIALIZATION_SCHEMA_REF, RUNTIME_MATERIALIZATION_SCHEMA_VERSION,
 };
 
 pub use workspace_templates::{
