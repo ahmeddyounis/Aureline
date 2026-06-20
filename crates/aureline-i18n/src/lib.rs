@@ -15,6 +15,7 @@ pub mod localized_catalog;
 pub mod localized_profile_matrix;
 pub mod message_registry;
 pub mod stable_locale_lifecycle;
+pub mod translated_help_packs;
 
 pub use message_registry::{
     seeded_m5_message_id_baseline, seeded_m5_message_registry, LocaleProfileRow, M5MessageRegistry,
@@ -67,6 +68,21 @@ pub use stable_locale_lifecycle::{
     TranslatedSurfaceParityRow, STABLE_LOCALE_LIFECYCLE_PARITY_FIXTURE_REF,
     STABLE_LOCALE_LIFECYCLE_PARITY_PACKET_ID, STABLE_LOCALE_LIFECYCLE_PARITY_RECORD_KIND,
     STABLE_LOCALE_LIFECYCLE_PARITY_SCHEMA_VERSION,
+};
+
+pub use translated_help_packs::{
+    build_translated_help_parity_report, seeded_m5_translated_help_pack,
+    seeded_m5_translated_help_parity_report, seeded_m5_translated_help_render, AssetCoverageState,
+    AssetLocalizationState, M5TranslatedHelpPack, M5TranslatedHelpParityReport,
+    M5TranslatedHelpRender, MirrorOfflinePosture, OverlaySkewState, PreservedAssetRefs,
+    SourceHelpAsset, SourceLanguageEscapeHatch, TranslatedAssetFamily, TranslatedHelpAsset,
+    TranslatedHelpPackSummary, TranslatedHelpParityRow, TranslatedHelpRenderRow,
+    TranslatedHelpRenderSummary, TranslationBadgeClass, TranslationFreshnessClass,
+    M5_TRANSLATED_HELP_PACK_FIXTURE_REF, M5_TRANSLATED_HELP_PACK_ID,
+    M5_TRANSLATED_HELP_PACK_RECORD_KIND, M5_TRANSLATED_HELP_PACK_SCHEMA_VERSION,
+    M5_TRANSLATED_HELP_PARITY_FIXTURE_REF, M5_TRANSLATED_HELP_PARITY_RECORD_KIND,
+    M5_TRANSLATED_HELP_PARITY_REPORT_ID, M5_TRANSLATED_HELP_RENDER_RECORD_KIND,
+    OPEN_IN_SOURCE_LANGUAGE_ACTION_LABEL,
 };
 
 /// Schema version shared by beta locale-pack records and projections.
