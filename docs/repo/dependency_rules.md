@@ -72,7 +72,7 @@ M5 surface packets:
 | `aureline-infra`    | `aureline-auth` |
 | `aureline-provider` | `aureline-auth`, `aureline-support` |
 | `aureline-remote`   | `aureline-auth` |
-| `aureline-support`  | (no additional internal deps in this lane) |
+| `aureline-support`  | `aureline-generated` (read-only consumer of seeded generated-artifact packets for metadata-safe support diagnostics; off-cone) |
 
 ## Forbidden edges (non-exhaustive)
 

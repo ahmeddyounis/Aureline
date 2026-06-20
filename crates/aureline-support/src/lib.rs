@@ -314,6 +314,16 @@
 //!   launch-language refactor preview corpus and emits metadata-only support
 //!   rows for green, downgraded, and unsupported semantic-change claims,
 //!   including fallback labels and grouped rollback refs.
+//! - The [`generated_doctor`] Project Doctor projection — folds the canonical
+//!   [`aureline_generated`] write-boundary decision packet into one typed
+//!   findings packet so the Support Center, headless Doctor, docs/help, About,
+//!   and support exports explain generated-artifact drift, source-missing,
+//!   generator-unavailable, regeneration-blocked, and direct-edit-denied states
+//!   with one controlled vocabulary and resolution ordering. Each finding traces
+//!   back to its canonical source, generator identity, and last reversible
+//!   checkpoint, offers open-details / compare / regenerate / docs-help actions
+//!   linked to the same descriptor and regeneration-plan objects, and exports
+//!   redaction-safe while preserving that lineage.
 //! - The [`portable_bundle_handoff`] support projection — folds portable
 //!   change bundle and shelf fixtures into one metadata-safe handoff envelope
 //!   with target identity, stale-validation labels, reopen modes, redaction
@@ -388,6 +398,7 @@ pub mod field_readiness;
 pub mod finalize_support_center_surfaces_performance_inspector_language_service;
 pub mod finalize_typed_repair_transaction_preview_checkpoint_rollback_and;
 pub mod fitness;
+pub mod generated_doctor;
 pub mod generated_lineage;
 pub mod graph_drift;
 pub mod harden_recovery_ladder_flows_for_cache_rebuild_settings_repair_state_migration_repair_and_targeted_resets;

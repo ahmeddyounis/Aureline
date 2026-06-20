@@ -95,7 +95,10 @@ than relocating it.
 
  aureline-bench, aureline-largefile-proto, aureline-reactive-state,
  aureline-graph-proto, aureline-env, aureline-generated, and aureline-service
- are layer LX off-cone crates; nothing in the production cone depends on them.
+ are layer LX off-cone crates; no runtime/render cone depends on them. The
+ support-diagnostics crate (aureline-support) is the one exception: it consumes
+ the seeded packets of aureline-reactive-state and aureline-generated read-only
+ to project metadata-safe support exports, and never mutates them.
  aureline-env holds the environment-capsule, template, prebuild-fingerprint,
  and runtime-materialization governance matrix with no internal dependencies.
  aureline-generated holds the generated-artifact provenance, regeneration,
