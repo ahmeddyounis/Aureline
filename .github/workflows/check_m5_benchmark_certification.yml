@@ -1,0 +1,80 @@
+# M5 benchmark-certification gate.
+#
+# Validates the proof packet that certifies every claimed M5 performance,
+# compatibility, and qualification row against its benchmark evidence. Each
+# certification row is recomputed from the upstream truth that backs it -- the
+# benchmark-governance matrix, the shiproom freshness ledger, the threshold-change
+# ledger, the corpus-intake ledger, the public-comparison reproducibility
+# register, and the publication-ingestion register -- across six evidence pillars
+# (corpus identity, reference-hardware basis, threshold lineage,
+# reproducibility-pack completeness, freshness and comparability, and publication
+# propagation); a certified tile cannot mask a fired gap; a claim-bearing row that
+# narrows below its posture holds promotion; release packets stay aligned with the
+# recomputed certification; and the certification fixtures and negative drills
+# prove each fail-closed path.
+
+name: check_m5_benchmark_certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_benchmark_certification.yml"
+      - "ci/check_m5_benchmark_certification.py"
+      - "artifacts/benchmarks/m5-benchmark-proof-packet.json"
+      - "artifacts/benchmarks/m5-benchmark-certification.md"
+      - "schemas/benchmarks/m5-benchmark-proof-packet.schema.json"
+      - "schemas/benchmarks/m5-benchmark-certification-fixture.schema.json"
+      - "docs/benchmarks/m5-benchmark-certification.md"
+      - "fixtures/benchmarks/m5-benchmark-certification/**"
+      - "artifacts/benchmarks/m5-benchmark-governance.json"
+      - "artifacts/benchmarks/shiproom-benchmark-freshness.json"
+      - "artifacts/benchmarks/public-comparison-pack-register.json"
+      - "artifacts/benchmarks/threshold-change-ledger.json"
+      - "artifacts/benchmarks/corpus-intake-ledger.json"
+      - "artifacts/benchmarks/publication-ingestion-register.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-benchmark-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_benchmark_certification:
+    name: M5 benchmark certification
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run M5 benchmark-certification validator
+        run: |
+          python3 ci/check_m5_benchmark_certification.py --repo-root . \
+            --report artifacts/benchmarks/m5-benchmark-certification-validation.json
+
+      - name: Upload M5 benchmark-certification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-benchmark-certification-${{ github.run_id }}
+          path: artifacts/benchmarks/m5-benchmark-certification-validation.json
+          if-no-files-found: error
+          retention-days: 30
