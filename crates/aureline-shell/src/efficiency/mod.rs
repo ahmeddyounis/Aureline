@@ -20,6 +20,7 @@ use crate::notifications::envelope::{
 use crate::state_cards::DegradedStateToken;
 
 pub mod disclosures;
+pub mod energy_lab;
 pub mod governance;
 pub mod hidden_surfaces;
 pub mod session_pressure;
