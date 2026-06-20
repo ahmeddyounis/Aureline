@@ -1,0 +1,512 @@
+{
+  "drills": [
+    {
+      "asserts_lineage_correlatable": true,
+      "asserts_no_optimistic_truth_before_publish": true,
+      "drill_id": "drill.reactive_command_parity.ai_apply_publishes_after_commit",
+      "exercised_flow_id": "ai_apply_edit",
+      "expected_final_publication_stage": "reactive_published",
+      "expected_final_state_visibility": "published_truth",
+      "mutating_surface": "ai_apply",
+      "notes": "The preview never claimed truth before publish; the edit became current only after the journal committed.",
+      "steps": [
+        {
+          "narration": "The user requests a scoped apply; the edit set shows as a quarantined pending preview.",
+          "phase": "request",
+          "publication_stage": "action_requested",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The preview is gated; no buffer or tree node claims the edit as current truth.",
+          "phase": "pending",
+          "publication_stage": "action_requested",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The apply command commits in the command graph.",
+          "phase": "command_commit",
+          "publication_stage": "command_committed",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The mutation journal records the edit with actor, scope, command, and checkpoint lineage.",
+          "phase": "journal_commit",
+          "publication_stage": "journal_committed",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The reactive graph republishes the edited buffers and tree as current truth.",
+          "phase": "publish",
+          "publication_stage": "reactive_published",
+          "state_visibility": "published_truth"
+        },
+        {
+          "narration": "Diagnostics correlate the published edit with its command and journal lineage.",
+          "phase": "verify",
+          "publication_stage": "reactive_published",
+          "state_visibility": "published_truth"
+        }
+      ],
+      "title": "AI apply becomes truth only after command and journal commit"
+    },
+    {
+      "asserts_lineage_correlatable": true,
+      "asserts_no_optimistic_truth_before_publish": true,
+      "drill_id": "drill.reactive_command_parity.review_action_holds_on_divergence",
+      "exercised_flow_id": "review_approve_action",
+      "expected_final_publication_stage": "diverged",
+      "expected_final_state_visibility": "waiting_state",
+      "mutating_surface": "review_action",
+      "notes": "The divergence resolved to an explicit waiting state; the workspace never showed an approval the canonical path did not publish.",
+      "steps": [
+        {
+          "narration": "A reviewer requests approve; the workspace shows a waiting state, never an optimistic approved flip.",
+          "phase": "request",
+          "publication_stage": "action_requested",
+          "state_visibility": "waiting_state"
+        },
+        {
+          "narration": "Approve stays in waiting while the canonical path runs.",
+          "phase": "pending",
+          "publication_stage": "action_requested",
+          "state_visibility": "waiting_state"
+        },
+        {
+          "narration": "The approve command is accepted, but the merge base moved underneath it.",
+          "phase": "command_commit",
+          "publication_stage": "command_committed",
+          "state_visibility": "waiting_state"
+        },
+        {
+          "narration": "The canonical merge-queue outcome diverges from the request; the workspace keeps waiting instead of claiming approval.",
+          "phase": "diverge",
+          "publication_stage": "diverged",
+          "state_visibility": "waiting_state"
+        },
+        {
+          "narration": "The waiting state stays visible with its command lineage rather than taking a hidden cache win.",
+          "phase": "verify",
+          "publication_stage": "diverged",
+          "state_visibility": "waiting_state"
+        }
+      ],
+      "title": "Review action holds in waiting when the canonical outcome diverges"
+    },
+    {
+      "asserts_lineage_correlatable": true,
+      "asserts_no_optimistic_truth_before_publish": true,
+      "drill_id": "drill.reactive_command_parity.scaffold_update_publishes_canonical_tree",
+      "exercised_flow_id": "scaffold_update_artifact",
+      "expected_final_publication_stage": "reactive_published",
+      "expected_final_state_visibility": "published_truth",
+      "mutating_surface": "scaffold_update",
+      "notes": "No file was shown before the journal committed; the explorer matched the canonical tree.",
+      "steps": [
+        {
+          "narration": "A scaffold update is requested; the explorer shows a pending in-flight cue.",
+          "phase": "request",
+          "publication_stage": "action_requested",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "With the old optimistic write removed, no file appears before the command commits.",
+          "phase": "pending",
+          "publication_stage": "action_requested",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The scaffold command commits in the command graph.",
+          "phase": "command_commit",
+          "publication_stage": "command_committed",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The mutation journal records the written files with scope and checkpoint lineage.",
+          "phase": "journal_commit",
+          "publication_stage": "journal_committed",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The reactive tree republishes the new files as current truth.",
+          "phase": "publish",
+          "publication_stage": "reactive_published",
+          "state_visibility": "published_truth"
+        },
+        {
+          "narration": "The explorer shows exactly the files the journal recorded; no optimistic node remains.",
+          "phase": "verify",
+          "publication_stage": "reactive_published",
+          "state_visibility": "published_truth"
+        }
+      ],
+      "title": "Scaffold update reflects only the canonically published tree"
+    },
+    {
+      "asserts_lineage_correlatable": true,
+      "asserts_no_optimistic_truth_before_publish": true,
+      "drill_id": "drill.reactive_command_parity.provider_mutation_degrades_on_reject",
+      "exercised_flow_id": "provider_config_mutation",
+      "expected_final_publication_stage": "diverged",
+      "expected_final_state_visibility": "degraded_state",
+      "mutating_surface": "provider_mutation",
+      "notes": "A rejected change degraded explicitly; the surface never claimed a configuration the provider refused.",
+      "steps": [
+        {
+          "narration": "A provider config change is requested; the surface shows pending, not an applied config.",
+          "phase": "request",
+          "publication_stage": "action_requested",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "No optimistic config value is shown while the command runs.",
+          "phase": "pending",
+          "publication_stage": "action_requested",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The command commits, but the provider rejects the change.",
+          "phase": "command_commit",
+          "publication_stage": "command_committed",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The canonical outcome diverges; the provider surface degrades to an explicit failed-change state.",
+          "phase": "diverge",
+          "publication_stage": "diverged",
+          "state_visibility": "degraded_state"
+        },
+        {
+          "narration": "The degraded state is support-correlatable with the command and journal lineage; no stale config remains.",
+          "phase": "verify",
+          "publication_stage": "diverged",
+          "state_visibility": "degraded_state"
+        }
+      ],
+      "title": "Provider mutation degrades when the provider rejects the change"
+    },
+    {
+      "asserts_lineage_correlatable": true,
+      "asserts_no_optimistic_truth_before_publish": true,
+      "drill_id": "drill.reactive_command_parity.notebook_result_publishes_after_commit",
+      "exercised_flow_id": "notebook_execute_cell",
+      "expected_final_publication_stage": "reactive_published",
+      "expected_final_state_visibility": "published_truth",
+      "mutating_surface": "notebook_result_mutation",
+      "notes": "The running cue never stood in for the result; the output became current only after the journal committed.",
+      "steps": [
+        {
+          "narration": "A cell run is requested; the cell shows a quarantined running cue.",
+          "phase": "request",
+          "publication_stage": "action_requested",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The running cue is gated; the prior output is not replaced with an optimistic result.",
+          "phase": "pending",
+          "publication_stage": "action_requested",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The execution command commits in the command graph.",
+          "phase": "command_commit",
+          "publication_stage": "command_committed",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The mutation journal records the execution result with actor, scope, and checkpoint lineage.",
+          "phase": "journal_commit",
+          "publication_stage": "journal_committed",
+          "state_visibility": "pending"
+        },
+        {
+          "narration": "The reactive graph republishes the cell output as current truth.",
+          "phase": "publish",
+          "publication_stage": "reactive_published",
+          "state_visibility": "published_truth"
+        },
+        {
+          "narration": "Diagnostics correlate the published output with its command and journal lineage.",
+          "phase": "verify",
+          "publication_stage": "reactive_published",
+          "state_visibility": "published_truth"
+        }
+      ],
+      "title": "Notebook cell result becomes truth only after the journal commits"
+    },
+    {
+      "asserts_lineage_correlatable": true,
+      "asserts_no_optimistic_truth_before_publish": true,
+      "drill_id": "drill.reactive_command_parity.support_repair_publishes_after_commit",
+      "exercised_flow_id": "support_repair_state",
+      "expected_final_publication_stage": "reactive_published",
+      "expected_final_state_visibility": "published_truth",
+      "mutating_surface": "support_repair",
+      "notes": "The repair was reported only after the journal committed; waiting held until the recovery published.",
+      "steps": [
+        {
+          "narration": "A support repair is requested; the surface shows waiting, never an optimistic repaired state.",
+          "phase": "request",
+          "publication_stage": "action_requested",
+          "state_visibility": "waiting_state"
+        },
+        {
+          "narration": "The repair stays in waiting while the canonical path runs.",
+          "phase": "pending",
+          "publication_stage": "action_requested",
+          "state_visibility": "waiting_state"
+        },
+        {
+          "narration": "The repair command commits in the command graph.",
+          "phase": "command_commit",
+          "publication_stage": "command_committed",
+          "state_visibility": "waiting_state"
+        },
+        {
+          "narration": "The mutation journal records the repair with actor, scope, command, and checkpoint lineage.",
+          "phase": "journal_commit",
+          "publication_stage": "journal_committed",
+          "state_visibility": "waiting_state"
+        },
+        {
+          "narration": "The reactive graph republishes the repaired state as current truth.",
+          "phase": "publish",
+          "publication_stage": "reactive_published",
+          "state_visibility": "published_truth"
+        },
+        {
+          "narration": "The support packet correlates the published recovery with its command and journal lineage.",
+          "phase": "verify",
+          "publication_stage": "reactive_published",
+          "state_visibility": "published_truth"
+        }
+      ],
+      "title": "Support repair reports recovery only after the journal commits"
+    }
+  ],
+  "flows": [
+    {
+      "claims_success_before_publish": false,
+      "consumer_refs": [
+        "crates/aureline-ai/src/harden_ai_scoped_apply/mod.rs",
+        "crates/aureline-ai/src/composer/mod.rs"
+      ],
+      "divergence_resolution": "revert_to_canonical",
+      "flow_id": "ai_apply_edit",
+      "mutating_surface": "ai_apply",
+      "mutation_kind": "apply_edit",
+      "notes": "AI apply publishes through the command and journal path; the preview cannot outvote the canonical edit.",
+      "optimistic_posture": "optimistic_quarantined",
+      "parity_rationale": "The inline preview is gated and never becomes user-visible truth on its own; if the apply command or journal disagree it reverts to the canonically published edit, so the surface cannot win with a private optimistic cache.",
+      "preserved_lineage": [
+        "actor",
+        "scope",
+        "command",
+        "checkpoint",
+        "journal_entry",
+        "epoch"
+      ],
+      "publication_summary": "An AI scoped apply shows its edit set as a quarantined pending preview and marks the change current only after the apply command and the mutation journal commit and the reactive graph republishes the edited buffers and tree.",
+      "publishes_after_command_commit": true,
+      "publishes_after_journal_commit": true,
+      "publishes_via_reactive_graph": true,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json",
+        "schemas/state/mutation_journal.schema.json",
+        "schemas/commands/command_descriptor.schema.json",
+        "crates/aureline-reactive-state/src/mutation_journal/mod.rs"
+      ],
+      "state_before_publish": "pending",
+      "support_correlatable": true
+    },
+    {
+      "claims_success_before_publish": false,
+      "consumer_refs": [
+        "crates/aureline-review/src/workspace/mod.rs"
+      ],
+      "divergence_resolution": "hold_and_wait",
+      "flow_id": "review_approve_action",
+      "mutating_surface": "review_action",
+      "mutation_kind": "approve_action",
+      "notes": "Review actions wait for canonical publish; a moved base or denied approval holds rather than faking approval.",
+      "optimistic_posture": "never_optimistic",
+      "parity_rationale": "Approve and merge depend on exact current state; holding in an explicit waiting state until the canonical path publishes prevents a stale base or denied approval from being shown as an approved cache win.",
+      "preserved_lineage": [
+        "actor",
+        "scope",
+        "command",
+        "checkpoint",
+        "epoch"
+      ],
+      "publication_summary": "A review approve or merge never optimistically flips the workspace; it waits while the action command and the mutation journal commit, then shows the merge-queue state the reactive graph republishes.",
+      "publishes_after_command_commit": true,
+      "publishes_after_journal_commit": true,
+      "publishes_via_reactive_graph": true,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json",
+        "schemas/state/mutation_journal.schema.json",
+        "schemas/commands/command_descriptor.schema.json",
+        "crates/aureline-reactive-state/src/mutation_journal/mod.rs"
+      ],
+      "state_before_publish": "waiting_state",
+      "support_correlatable": true
+    },
+    {
+      "claims_success_before_publish": false,
+      "consumer_refs": [
+        "crates/aureline-scaffold/src/ship_the_scaffold_planner_parameter_review_environment_preflights_and_create_empty_parity/mod.rs",
+        "crates/aureline-scaffold/src/stabilize_template_manifest_scaffold_lineage/mod.rs"
+      ],
+      "divergence_resolution": "revert_to_canonical",
+      "flow_id": "scaffold_update_artifact",
+      "mutating_surface": "scaffold_update",
+      "mutation_kind": "scaffold_artifact",
+      "notes": "Scaffold/update reflects the canonically published tree only; the old optimistic write was removed.",
+      "optimistic_posture": "optimistic_removed",
+      "parity_rationale": "The removed optimistic write can no longer diverge from disk; a divergent canonical outcome reverts to the published tree so the file explorer never shows files the journal did not record.",
+      "preserved_lineage": [
+        "actor",
+        "scope",
+        "command",
+        "checkpoint",
+        "journal_entry"
+      ],
+      "publication_summary": "A scaffold or template update shows a pending in-flight cue after its former optimistic tree write was removed, and reflects the new files only once the scaffold command and the mutation journal commit and the reactive tree republishes.",
+      "publishes_after_command_commit": true,
+      "publishes_after_journal_commit": true,
+      "publishes_via_reactive_graph": true,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json",
+        "schemas/state/mutation_journal.schema.json",
+        "schemas/commands/command_descriptor.schema.json",
+        "crates/aureline-reactive-state/src/mutation_journal/mod.rs"
+      ],
+      "state_before_publish": "pending",
+      "support_correlatable": true
+    },
+    {
+      "claims_success_before_publish": false,
+      "consumer_refs": [
+        "crates/aureline-provider/src/object_model/mod.rs",
+        "crates/aureline-provider/src/approval_tickets/mod.rs"
+      ],
+      "divergence_resolution": "degrade_surface",
+      "flow_id": "provider_config_mutation",
+      "mutating_surface": "provider_mutation",
+      "mutation_kind": "provider_config_change",
+      "notes": "Provider mutation publishes the accepted config; a rejection degrades rather than holding a stale optimistic value.",
+      "optimistic_posture": "optimistic_removed",
+      "parity_rationale": "A provider can reject a change; degrading to an explicit failed-change state instead of keeping a removed optimistic config prevents the surface from claiming a configuration the provider never accepted.",
+      "preserved_lineage": [
+        "actor",
+        "scope",
+        "command",
+        "checkpoint",
+        "epoch"
+      ],
+      "publication_summary": "A connected-provider configuration change shows a pending cue and publishes the new provider state only after the mutation command and the mutation journal commit and the reactive provider surface republishes.",
+      "publishes_after_command_commit": true,
+      "publishes_after_journal_commit": true,
+      "publishes_via_reactive_graph": true,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json",
+        "schemas/state/mutation_journal.schema.json",
+        "schemas/commands/command_descriptor.schema.json",
+        "crates/aureline-reactive-state/src/mutation_journal/mod.rs"
+      ],
+      "state_before_publish": "pending",
+      "support_correlatable": true
+    },
+    {
+      "claims_success_before_publish": false,
+      "consumer_refs": [
+        "crates/aureline-notebook/src/implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces/mod.rs",
+        "crates/aureline-notebook/src/add_notebook_result_comparison_baseline_selection_and_confounder_visibility/mod.rs"
+      ],
+      "divergence_resolution": "hold_and_wait",
+      "flow_id": "notebook_execute_cell",
+      "mutating_surface": "notebook_result_mutation",
+      "mutation_kind": "execute_cell",
+      "notes": "Notebook results publish through the command and journal path; a running cue never stands in for the result.",
+      "optimistic_posture": "optimistic_quarantined",
+      "parity_rationale": "A running cue is not a result; holding until the canonical result publishes keeps a cancelled or superseded run from leaving a stale optimistic output behind.",
+      "preserved_lineage": [
+        "actor",
+        "scope",
+        "command",
+        "checkpoint",
+        "journal_entry",
+        "epoch"
+      ],
+      "publication_summary": "A notebook cell run shows a quarantined running cue and presents the result as current only after the execution command and the mutation journal commit and the reactive graph republishes the cell output.",
+      "publishes_after_command_commit": true,
+      "publishes_after_journal_commit": true,
+      "publishes_via_reactive_graph": true,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json",
+        "schemas/state/mutation_journal.schema.json",
+        "schemas/commands/command_descriptor.schema.json",
+        "crates/aureline-reactive-state/src/mutation_journal/mod.rs"
+      ],
+      "state_before_publish": "pending",
+      "support_correlatable": true
+    },
+    {
+      "claims_success_before_publish": false,
+      "consumer_refs": [
+        "crates/aureline-support/src/m5_cache_repair/mod.rs",
+        "crates/aureline-support/src/harden_recovery_ladder_flows_for_cache_rebuild_settings_repair_state_migration_repair_and_targeted_resets/mod.rs"
+      ],
+      "divergence_resolution": "degrade_surface",
+      "flow_id": "support_repair_state",
+      "mutating_surface": "support_repair",
+      "mutation_kind": "repair_state",
+      "notes": "Support repair waits for canonical publish; a failed repair degrades rather than reporting a cache win.",
+      "optimistic_posture": "never_optimistic",
+      "parity_rationale": "A repair can fail partway; degrading to an explicit failed-repair state rather than reporting success keeps the support surface from claiming a recovery the journal never recorded.",
+      "preserved_lineage": [
+        "actor",
+        "scope",
+        "command",
+        "checkpoint",
+        "journal_entry"
+      ],
+      "publication_summary": "A support-center repair never optimistically reports recovered state; it waits while the repair command and the mutation journal commit, then shows the repaired state the reactive graph republishes.",
+      "publishes_after_command_commit": true,
+      "publishes_after_journal_commit": true,
+      "publishes_via_reactive_graph": true,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json",
+        "schemas/state/mutation_journal.schema.json",
+        "schemas/commands/command_descriptor.schema.json",
+        "crates/aureline-reactive-state/src/mutation_journal/mod.rs"
+      ],
+      "state_before_publish": "waiting_state",
+      "support_correlatable": true
+    }
+  ],
+  "invariants": [
+    "User-visible state on a mutating surface is published only after the command and the mutation journal commit and the reactive graph republishes; no surface claims success before publication.",
+    "No mutating surface keeps a private optimistic cache that can outvote the canonical command, approval, or journal outcome; optimistic paths are never offered as truth, removed, or quarantined behind the publication gate.",
+    "Every published state preserves actor, scope, command, and checkpoint lineage so diagnostics and support packets can reconstruct what the user saw and when.",
+    "Known divergence cases convert to an explicit degraded or waiting state instead of a hidden cache win.",
+    "Each mutating surface publishes through the one canonical reactive path instead of inventing a private epoch or stale-state language."
+  ],
+  "packet_id": "state.reactive_command_parity.v1",
+  "record_kind": "reactive_command_parity_packet_record",
+  "schema_version": 1,
+  "source_contract_refs": {
+    "doc_ref": "docs/state/reactive_command_parity.md",
+    "drills_ref": "artifacts/state/reactive_command_parity_drills.md",
+    "fixture_manifest_ref": "fixtures/state/reactive_command_parity/manifest.yaml",
+    "packet_ref": "artifacts/state/reactive_command_parity.json",
+    "report_ref": "artifacts/state/reactive_command_parity.md",
+    "schema_ref": "schemas/state/reactive_command_parity.schema.json"
+  },
+  "title": "Command-graph and mutation-journal publication parity for mutating surfaces"
+}

@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/reactive_command_parity.schema.json",
+  "title": "Aureline command-graph and mutation-journal publication parity packet",
+  "description": "Boundary schema for the checked-in reactive-command-parity packet and its scenario fixtures. The packet freezes, per mutating surface, how a state change is published through the canonical command graph, mutation journal, and reactive graph instead of a private optimistic cache: the publication gate, optimistic posture, preserved lineage, divergence resolution, and the per-surface request-to-publish-or-divergence drills. Raw state payloads, credentials, raw provider responses, raw paths, raw commands, and raw traces never cross this boundary.",
+  "oneOf": [
+    { "$ref": "#/$defs/packet" },
+    { "$ref": "#/$defs/fixture" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "mutating_surface": {
+      "type": "string",
+      "enum": [
+        "ai_apply",
+        "review_action",
+        "scaffold_update",
+        "provider_mutation",
+        "notebook_result_mutation",
+        "support_repair"
+      ]
+    },
+    "mutation_kind": {
+      "type": "string",
+      "enum": [
+        "apply_edit",
+        "approve_action",
+        "scaffold_artifact",
+        "provider_config_change",
+        "execute_cell",
+        "repair_state"
+      ]
+    },
+    "optimistic_posture": {
+      "type": "string",
+      "enum": [
+        "never_optimistic",
+        "optimistic_removed",
+        "optimistic_quarantined"
+      ]
+    },
+    "publication_stage": {
+      "type": "string",
+      "enum": [
+        "action_requested",
+        "command_committed",
+        "journal_committed",
+        "reactive_published",
+        "diverged"
+      ]
+    },
+    "state_visibility": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "published_truth",
+        "degraded_state",
+        "waiting_state"
+      ]
+    },
+    "divergence_resolution": {
+      "type": "string",
+      "enum": ["degrade_surface", "hold_and_wait", "revert_to_canonical"]
+    },
+    "lineage_field": {
+      "type": "string",
+      "enum": [
+        "actor",
+        "scope",
+        "command",
+        "checkpoint",
+        "journal_entry",
+        "epoch"
+      ]
+    },
+    "drill_phase": {
+      "type": "string",
+      "enum": [
+        "request",
+        "pending",
+        "command_commit",
+        "journal_commit",
+        "publish",
+        "diverge",
+        "verify"
+      ]
+    },
+    "source_contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "doc_ref",
+        "schema_ref",
+        "packet_ref",
+        "report_ref",
+        "drills_ref",
+        "fixture_manifest_ref"
+      ],
+      "properties": {
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/state/reactive_command_parity.md"
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/state/reactive_command_parity.schema.json"
+        },
+        "packet_ref": {
+          "type": "string",
+          "const": "artifacts/state/reactive_command_parity.json"
+        },
+        "report_ref": {
+          "type": "string",
+          "const": "artifacts/state/reactive_command_parity.md"
+        },
+        "drills_ref": {
+          "type": "string",
+          "const": "artifacts/state/reactive_command_parity_drills.md"
+        },
+        "fixture_manifest_ref": {
+          "type": "string",
+          "const": "fixtures/state/reactive_command_parity/manifest.yaml"
+        }
+      }
+    },
+    "flow_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_id",
+        "mutating_surface",
+        "mutation_kind",
+        "optimistic_posture",
+        "state_before_publish",
+        "publishes_after_command_commit",
+        "publishes_after_journal_commit",
+        "publishes_via_reactive_graph",
+        "claims_success_before_publish",
+        "divergence_resolution",
+        "preserved_lineage",
+        "support_correlatable",
+        "publication_summary",
+        "parity_rationale",
+        "source_contract_refs",
+        "consumer_refs",
+        "notes"
+      ],
+      "properties": {
+        "flow_id": { "$ref": "#/$defs/non_empty_string" },
+        "mutating_surface": { "$ref": "#/$defs/mutating_surface" },
+        "mutation_kind": { "$ref": "#/$defs/mutation_kind" },
+        "optimistic_posture": { "$ref": "#/$defs/optimistic_posture" },
+        "state_before_publish": {
+          "type": "string",
+          "enum": ["pending", "waiting_state"]
+        },
+        "publishes_after_command_commit": { "type": "boolean", "const": true },
+        "publishes_after_journal_commit": { "type": "boolean", "const": true },
+        "publishes_via_reactive_graph": { "type": "boolean", "const": true },
+        "claims_success_before_publish": { "type": "boolean", "const": false },
+        "divergence_resolution": { "$ref": "#/$defs/divergence_resolution" },
+        "preserved_lineage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lineage_field" },
+          "minItems": 4,
+          "uniqueItems": true
+        },
+        "support_correlatable": { "type": "boolean", "const": true },
+        "publication_summary": { "$ref": "#/$defs/non_empty_string" },
+        "parity_rationale": { "$ref": "#/$defs/non_empty_string" },
+        "source_contract_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        },
+        "consumer_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "drill_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "publication_stage", "state_visibility", "narration"],
+      "properties": {
+        "phase": { "$ref": "#/$defs/drill_phase" },
+        "publication_stage": { "$ref": "#/$defs/publication_stage" },
+        "state_visibility": { "$ref": "#/$defs/state_visibility" },
+        "narration": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "title",
+        "mutating_surface",
+        "exercised_flow_id",
+        "steps",
+        "asserts_no_optimistic_truth_before_publish",
+        "asserts_lineage_correlatable",
+        "expected_final_publication_stage",
+        "expected_final_state_visibility",
+        "notes"
+      ],
+      "properties": {
+        "drill_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "mutating_surface": { "$ref": "#/$defs/mutating_surface" },
+        "exercised_flow_id": { "$ref": "#/$defs/non_empty_string" },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/drill_step" },
+          "minItems": 1
+        },
+        "asserts_no_optimistic_truth_before_publish": {
+          "type": "boolean",
+          "const": true
+        },
+        "asserts_lineage_correlatable": { "type": "boolean", "const": true },
+        "expected_final_publication_stage": {
+          "$ref": "#/$defs/publication_stage"
+        },
+        "expected_final_state_visibility": { "$ref": "#/$defs/state_visibility" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "title",
+        "source_contract_refs",
+        "flows",
+        "drills",
+        "invariants"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "reactive_command_parity_packet_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "source_contract_refs": { "$ref": "#/$defs/source_contract_refs" },
+        "flows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/flow_row" },
+          "minItems": 1
+        },
+        "drills": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/drill" },
+          "minItems": 1
+        },
+        "invariants": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "fixture_id",
+        "expected_flow_id",
+        "mutating_surface",
+        "mutation_kind",
+        "expected_optimistic_posture",
+        "expected_divergence_resolution",
+        "expected_state_before_publish",
+        "expected_claims_success_before_publish",
+        "consumer_ref",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "reactive_command_parity_fixture_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "fixture_id": { "$ref": "#/$defs/non_empty_string" },
+        "expected_flow_id": { "$ref": "#/$defs/non_empty_string" },
+        "mutating_surface": { "$ref": "#/$defs/mutating_surface" },
+        "mutation_kind": { "$ref": "#/$defs/mutation_kind" },
+        "expected_optimistic_posture": { "$ref": "#/$defs/optimistic_posture" },
+        "expected_divergence_resolution": {
+          "$ref": "#/$defs/divergence_resolution"
+        },
+        "expected_state_before_publish": {
+          "type": "string",
+          "enum": ["pending", "waiting_state"]
+        },
+        "expected_claims_success_before_publish": {
+          "type": "boolean",
+          "const": false
+        },
+        "consumer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

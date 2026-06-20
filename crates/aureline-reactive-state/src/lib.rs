@@ -67,6 +67,7 @@ pub mod materialized_view_policy;
 pub mod mutation_journal;
 pub mod producers;
 pub mod query_envelope;
+pub mod reactive_command_parity;
 pub mod reactive_recovery;
 pub mod reactive_truth_surfaces;
 pub mod reactive_views;
@@ -141,7 +142,8 @@ pub use materialized_view_policy::{
     LifecycleOperation as MaterializedViewLifecycleOperation, MaterializedViewClassPolicy,
     MaterializedViewClassPolicyFixture, MaterializedViewClassRow,
     PersistenceClass as MaterializedViewPersistenceClass,
-    ReadAuthority as MaterializedViewReadAuthority, RetentionClass as MaterializedViewRetentionClass,
+    ReadAuthority as MaterializedViewReadAuthority,
+    RetentionClass as MaterializedViewRetentionClass,
     SourceContractRefs as MaterializedViewPolicySourceContractRefs,
     SupportBundleSemantics as MaterializedViewSupportBundleSemantics,
     ValidationReport as MaterializedViewPolicyValidationReport,
@@ -164,6 +166,27 @@ pub use query_envelope::{
     QueryRefreshReason, QUERY_ENVELOPE_ALPHA_SCHEMA_VERSION,
     QUERY_ENVELOPE_BENCHMARK_TRACE_RECORD_KIND, QUERY_ENVELOPE_RECORD_KIND,
     QUERY_ENVELOPE_SUPPORT_ARTIFACT_RECORD_KIND,
+};
+pub use reactive_command_parity::{
+    seeded_reactive_command_parity_fixtures, seeded_reactive_command_parity_packet,
+    validate_reactive_command_parity_fixture, validate_reactive_command_parity_packet,
+    DivergenceResolution as ReactiveCommandParityDivergenceResolution,
+    DrillPhase as ReactiveCommandParityDrillPhase,
+    LineageField as ReactiveCommandParityLineageField,
+    MutatingSurface as ReactiveCommandParityMutatingSurface,
+    MutationKind as ReactiveCommandParityMutationKind,
+    OptimisticPosture as ReactiveCommandParityOptimisticPosture, ParityDrill,
+    ParityDrillStep as ReactiveCommandParityDrillStep, ParityFlowRow,
+    PublicationStage as ReactiveCommandParityPublicationStage, ReactiveCommandParityFixture,
+    ReactiveCommandParityPacket, SourceContractRefs as ReactiveCommandParitySourceContractRefs,
+    StateVisibility as ReactiveCommandParityStateVisibility,
+    ValidationReport as ReactiveCommandParityValidationReport,
+    ValidationViolation as ReactiveCommandParityValidationViolation,
+    REACTIVE_COMMAND_PARITY_DOC_REF, REACTIVE_COMMAND_PARITY_DRILLS_REF,
+    REACTIVE_COMMAND_PARITY_FIXTURE_DIR, REACTIVE_COMMAND_PARITY_FIXTURE_MANIFEST_REF,
+    REACTIVE_COMMAND_PARITY_FIXTURE_RECORD_KIND, REACTIVE_COMMAND_PARITY_PACKET_RECORD_KIND,
+    REACTIVE_COMMAND_PARITY_PACKET_REF, REACTIVE_COMMAND_PARITY_REPORT_REF,
+    REACTIVE_COMMAND_PARITY_SCHEMA_REF, REACTIVE_COMMAND_PARITY_SCHEMA_VERSION,
 };
 pub use reactive_recovery::{
     seeded_reactive_recovery_fixtures, seeded_reactive_recovery_packet,
