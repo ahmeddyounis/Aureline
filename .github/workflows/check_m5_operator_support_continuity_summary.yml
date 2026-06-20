@@ -1,0 +1,76 @@
+# Operator/support continuity summary truth-surface gate.
+#
+# Proves that About, Help, service health, the support center, and
+# support/issue-report exports share one canonical continuity summary that names
+# the exact continuity row in effect and summarizes locality/tenant/key posture
+# plus the affected outage taxonomy in plain product language. The summary
+# narrows automatically when posture or backing evidence is missing or stale, is
+# withheld when generic degraded wording is used or admin-only material is
+# present, and never narrows the local-core lane on managed staleness. The crate
+# audit and the schema/fixture validator must both pass.
+
+name: check_m5_operator_support_continuity_summary
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_operator_support_continuity_summary.yml"
+      - "tools/validate_m5_operator_support_continuity_summary_fixtures.py"
+      - "schemas/continuity/operator_support_continuity_summary.schema.json"
+      - "fixtures/continuity/operator_support_summary_cases/**"
+      - "artifacts/m5/continuity/operator_support_continuity_summary.json"
+      - "docs/m5/continuity/operator-and-support-truth-surfaces.md"
+      - "crates/aureline-continuity/src/m5_operator_support_continuity_summary/**"
+      - "crates/aureline-continuity/examples/dump_m5_operator_support_continuity_summary_fixtures.rs"
+      - "crates/aureline-continuity/src/bin/aureline_operator_support_continuity_inspect.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-operator-support-continuity-summary-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  operator_support_continuity_summary:
+    name: Operator/support continuity summary audit and validation
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-operator-support-continuity-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-operator-support-continuity-
+
+      - name: Run operator/support continuity summary audit
+        run: cargo test -p aureline-continuity --locked m5_operator_support_continuity_summary
+
+      - name: Validate operator/support continuity fixtures against schema
+        run: python3 tools/validate_m5_operator_support_continuity_summary_fixtures.py

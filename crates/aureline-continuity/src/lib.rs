@@ -16,6 +16,7 @@ pub mod m5_key_mode_and_storage_posture;
 pub mod m5_locality_descriptors_and_tenant_cards;
 pub mod m5_locality_tenant_keymode_and_drill_matrix;
 pub mod m5_mirror_airgap_continuity_packets;
+pub mod m5_operator_support_continuity_summary;
 pub mod m5_restore_from_backup_reviews;
 
 pub use connectivity_state_and_deferred_intent::{
@@ -171,4 +172,20 @@ pub use m5_mirror_airgap_continuity_packets::{
     MIRROR_AIRGAP_SHARED_CONTRACT_REF, MIRROR_AIRGAP_SUMMARY_RECORD_KIND,
     MIRROR_AIRGAP_SUPPORT_EXPORT_RECORD_KIND, MIRROR_AIRGAP_SURFACE_PROJECTION_RECORD_KIND,
     OFFLINE_CONTINUITY_REGISTRY_RECORD_KIND, OFFLINE_COVERAGE_ROW_RECORD_KIND,
+};
+
+pub use m5_operator_support_continuity_summary::{
+    audit_operator_support_continuity_page, seeded_operator_support_continuity_input,
+    seeded_operator_support_continuity_page, validate_operator_support_continuity_page,
+    AffectedOutageLabel, ContinuityRowSummary, ContinuityRowSummaryOutcome,
+    ContinuitySummarySurfaceCoverage, LocalityKeyTenantPosture, OperatorSupportContinuityDefect,
+    OperatorSupportContinuityInput, OperatorSupportContinuityPage,
+    OperatorSupportContinuitySummary, OperatorSupportContinuitySupportExport, SummaryEvidence,
+    SummaryNarrowReasonClass, SummaryRedaction, CONTINUITY_ROW_SUMMARY_OUTCOME_RECORD_KIND,
+    CONTINUITY_ROW_SUMMARY_RECORD_KIND, OPERATOR_SUPPORT_CONTINUITY_ARTIFACT_REF,
+    OPERATOR_SUPPORT_CONTINUITY_DEFECT_RECORD_KIND, OPERATOR_SUPPORT_CONTINUITY_DOC_REF,
+    OPERATOR_SUPPORT_CONTINUITY_PAGE_RECORD_KIND, OPERATOR_SUPPORT_CONTINUITY_SCHEMA_REF,
+    OPERATOR_SUPPORT_CONTINUITY_SCHEMA_VERSION, OPERATOR_SUPPORT_CONTINUITY_SHARED_CONTRACT_REF,
+    OPERATOR_SUPPORT_CONTINUITY_SUMMARY_RECORD_KIND,
+    OPERATOR_SUPPORT_CONTINUITY_SUPPORT_EXPORT_RECORD_KIND,
 };
