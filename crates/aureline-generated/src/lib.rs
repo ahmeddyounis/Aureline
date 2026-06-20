@@ -39,10 +39,20 @@
 //! named on the module's [`m5_generated_governance`] constants, so release,
 //! support, docs, and help consume one source of truth instead of
 //! re-describing generated-file behavior manually.
+//!
+//! The [`generated_timeline`] lane extends that model into reversible
+//! history: each timeline entry records how a generated artifact's bytes were
+//! captured — full snapshot, metadata-plus-reference, regenerated candidate,
+//! or omitted — plus its redaction class and lineage links, and one engine
+//! decides the restore fidelity a compare/restore/export/support flow may
+//! claim. Exact generated-byte continuity is claimed only when a full,
+//! unredacted snapshot was captured, so restore never implies ordinary
+//! full-source history for a derived file.
 
 #![doc(html_root_url = "https://docs.rs/aureline-generated/0.0.0")]
 
 pub mod descriptor;
+pub mod generated_timeline;
 pub mod m5_generated_governance;
 pub mod regeneration_plan;
 pub mod write_boundary;
@@ -61,6 +71,20 @@ pub use descriptor::{
     GENERATED_ARTIFACT_DESCRIPTOR_PACKET_RECORD_KIND, GENERATED_ARTIFACT_DESCRIPTOR_PACKET_REF,
     GENERATED_ARTIFACT_DESCRIPTOR_REPORT_REF, GENERATED_ARTIFACT_DESCRIPTOR_SCHEMA_REF,
     GENERATED_ARTIFACT_DESCRIPTOR_SCHEMA_VERSION, IDENTITY_FIELD_NAMES,
+};
+
+pub use generated_timeline::{
+    classify_generated_history, seeded_generated_timeline_fixtures,
+    seeded_generated_timeline_packet, timeline_copy_line,
+    validate_generated_timeline_entry_fixture, validate_generated_timeline_packet, ByteProvenance,
+    CaptureMode, CompareBasis, GeneratedHistoryOutcome, GeneratedTimelineEntry,
+    GeneratedTimelineEntryFixture, GeneratedTimelinePacket, RedactionClass, RestoreAvailability,
+    RestoreFidelity, TimelineExportProjection, TimelineSourceContractRefs, TimelineSurface,
+    TimelineSurfaceBinding, GENERATED_TIMELINE_DOC_REF, GENERATED_TIMELINE_FIXTURE_DIR,
+    GENERATED_TIMELINE_FIXTURE_MANIFEST_REF, GENERATED_TIMELINE_FIXTURE_RECORD_KIND,
+    GENERATED_TIMELINE_PACKET_ID, GENERATED_TIMELINE_PACKET_RECORD_KIND,
+    GENERATED_TIMELINE_PACKET_REF, GENERATED_TIMELINE_REPORT_REF, GENERATED_TIMELINE_SCHEMA_REF,
+    GENERATED_TIMELINE_SCHEMA_VERSION,
 };
 
 pub use m5_generated_governance::{
