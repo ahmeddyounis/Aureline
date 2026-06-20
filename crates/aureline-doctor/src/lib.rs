@@ -134,9 +134,20 @@ pub mod finalize_diagnosis_and_evidence_packets_for_wrong_target;
 pub mod finalize_the_doctor_accuracy_corpus_diagnosis_latency_slos;
 pub mod freeze_the_m5_project_doctor_guided_repair_and_container_or_devcontainer_maturity_matrix;
 pub mod guided_repair_transaction_receipts;
+pub mod i18n;
 pub mod m5_diagnosis_latency_recovery_ladders_and_support_parity;
 pub mod probe_packs;
 pub mod probes;
 pub mod ship_project_doctor_explainability_panes_evidence_refs_and_cross_surface_parity;
 pub mod ship_published_port_or_tunnel_revocation_writable_mount_and_lifecycle_script_disclosure_and_browser_or_companion_handoff;
 pub mod stabilize_project_doctor_probes_finding_codes_explainability_and;
+
+pub use i18n::{
+    seeded_doctor_report_localization_packet, DoctorLocaleParityReport, DoctorLocaleParityRow,
+    DoctorLocaleProfileRow, DoctorLocalizationFinding, DoctorMessageEntry, DoctorMessageSurface,
+    DoctorReportLocalizationPacket, DoctorReportLocalizationSummary, DoctorReportSupportExport,
+    DoctorStableRefs, DoctorSupportExportRow, RenderedDoctorMessage,
+    DOCTOR_REPORT_LOCALE_SCHEMA_VERSION, DOCTOR_REPORT_LOCALIZATION_FIXTURE_REF,
+    DOCTOR_REPORT_LOCALIZATION_PACKET_ID, DOCTOR_REPORT_LOCALIZATION_RECORD_KIND,
+    DOCTOR_REPORT_LOCALIZATION_SCHEMA_REF, DOCTOR_REPORT_SUPPORT_EXPORT_RECORD_KIND,
+};

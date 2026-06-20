@@ -10,7 +10,17 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-cli/0.0.0")]
 
+pub mod i18n;
 pub mod stabilize_stable_cli_headless_schemas_machine_readable_output;
+
+pub use i18n::{
+    seeded_cli_localization_packet, CliLocaleParityReport, CliLocaleParityRow, CliLocaleProfileRow,
+    CliLocaleSupportExport, CliLocalizationFinding, CliLocalizationPacket, CliLocalizationSummary,
+    CliMachineOutputContract, CliMessageEntry, CliMessageSurface, CliStableRefs,
+    CliSupportExportRow, RenderedCliMessage, CLI_LOCALE_SUPPORT_EXPORT_RECORD_KIND,
+    CLI_LOCALIZATION_FIXTURE_REF, CLI_LOCALIZATION_PACKET_ID, CLI_LOCALIZATION_RECORD_KIND,
+    CLI_LOCALIZATION_SCHEMA_REF, CLI_LOCALIZATION_SCHEMA_VERSION,
+};
 
 pub use stabilize_stable_cli_headless_schemas_machine_readable_output::{
     current_stabilize_stable_cli_headless_schemas_machine_readable_output, CliHeadlessAction,
