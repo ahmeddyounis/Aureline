@@ -409,6 +409,7 @@ pub mod m5_mutation_lineage;
 pub mod m5_offboarding_continuity;
 pub mod m5_pin_retention;
 pub mod m5_precedence_inspector;
+pub mod m5_reactive_governance;
 pub mod m5_records_policy_governance;
 pub mod m5_storage_certification;
 pub mod m5_storage_governance;
@@ -592,6 +593,14 @@ pub use m5_precedence_inspector::{
     M5_PRECEDENCE_INSPECTOR_PATH, M5_PRECEDENCE_INSPECTOR_RECORD_KIND,
     M5_PRECEDENCE_INSPECTOR_REVIEW_PACKET_REF, M5_PRECEDENCE_INSPECTOR_SCHEMA_REF,
     M5_PRECEDENCE_INSPECTOR_SCHEMA_VERSION, M5_PRECEDENCE_INSPECTOR_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_reactive_governance::{
+    compile_support_export_envelope as compile_m5_reactive_governance_support_export_envelope,
+    narrow_exported_claim as narrow_m5_reactive_governance_exported_claim,
+    M5ReactiveGovernanceSupportExport, M5ReactiveGovernanceSupportExportError,
+    M5ReactiveGovernanceSupportExportRow,
+    M5_REACTIVE_GOVERNANCE_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND,
+    M5_REACTIVE_GOVERNANCE_SUPPORT_EXPORT_ROW_RECORD_KIND,
 };
 pub use m5_records_policy_governance::{
     M5RecordsPolicyGovernanceSupportExport, M5RecordsPolicyGovernanceViolation,

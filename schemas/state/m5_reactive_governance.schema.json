@@ -1,0 +1,385 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/m5_reactive_governance.schema.json",
+  "title": "Canonical M5 reactive-state, subscription-envelope, and materialized-view governance matrix",
+  "description": "Boundary schema for the M5 reactive-governance packet and fixture rows emitted by aureline-reactive-state. The packet freezes one typed contract for every reactive M5 surface (shell, search, graph, docs, AI, review, preview, companion, policy/trust, editor-adjacent, headless mirror, and support/export). Each surface row declares its authority class, derivation, scope, materialized-view class, default backpressure mode, the freshness/completeness/backpressure states it can present, the invalidation reasons it honors, and the computed claim-narrowing rules that downgrade a presented truth-claim when the surface outruns its authoritative epoch, scope, or invalidation guarantee. The packet also carries cross-surface epoch-parity groups and materialized-view persistence/authority/delete declarations. Fixtures bind a surface and an observed subscription state to the expected narrowed claim so release and support tooling can detect underqualified rows and narrow claims automatically. The matrix mirrors Appendix DB of the technical architecture document and the subscription-envelope vocabulary frozen in the crate's envelope module.",
+  "oneOf": [
+    { "$ref": "#/$defs/packet" },
+    { "$ref": "#/$defs/fixture" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "pattern": "^(artifacts|crates|docs|fixtures|schemas)/.+"
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs",
+        "buffer_editor",
+        "derived_knowledge",
+        "execution",
+        "policy_entitlement",
+        "provider_overlay"
+      ]
+    },
+    "derivation_class": {
+      "type": "string",
+      "enum": ["authoritative", "derived"]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["authoritative", "warming", "cached", "stale", "replayed", "imported"]
+    },
+    "completeness": {
+      "type": "string",
+      "enum": ["full", "partial", "unloaded", "unavailable"]
+    },
+    "backpressure_mode": {
+      "type": "string",
+      "enum": ["realtime", "coalesced", "snapshot_required"]
+    },
+    "view_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_projection",
+        "durable_local_materialization",
+        "exportable_snapshot",
+        "managed_replicated_view"
+      ]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "producer_restart",
+        "authority_epoch_rolled",
+        "policy_epoch_changed",
+        "watcher_dropped",
+        "queue_saturation",
+        "upstream_input_stale",
+        "explicit_refresh_requested",
+        "cache_served",
+        "replayed_from_bundle",
+        "imported_from_external",
+        "scope_removed",
+        "causality_lost"
+      ]
+    },
+    "terminal_reason": {
+      "type": "string",
+      "enum": [
+        "consumer_cancelled",
+        "producer_shutdown",
+        "scope_removed",
+        "policy_terminated",
+        "unavailable"
+      ]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "workspace",
+        "window",
+        "review_workspace",
+        "remote_session",
+        "tenant",
+        "companion_surface"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "shell_workspace_tree",
+        "shell_activity_center",
+        "editor_buffer_outline",
+        "search_results",
+        "graph_neighborhood",
+        "docs_browser",
+        "ai_context_panel",
+        "review_workspace",
+        "preview_output",
+        "companion_panel",
+        "policy_trust_banner",
+        "headless_workspace_mirror",
+        "support_export_view"
+      ]
+    },
+    "presentation_channel": {
+      "type": "string",
+      "enum": ["ui", "cli_headless", "export", "release"]
+    },
+    "truth_claim": {
+      "type": "string",
+      "enum": [
+        "exact_current_truth",
+        "consistent_snapshot",
+        "coalesced_stream",
+        "partial_projection",
+        "warming_no_truth_yet",
+        "cached_projection",
+        "stale_snapshot",
+        "replayed_snapshot",
+        "imported_snapshot",
+        "policy_limited_projection",
+        "provider_unavailable"
+      ]
+    },
+    "narrowing_trigger": {
+      "type": "string",
+      "enum": [
+        "freshness_warming",
+        "freshness_cached",
+        "freshness_stale",
+        "freshness_replayed",
+        "freshness_imported",
+        "completeness_partial",
+        "completeness_unloaded",
+        "completeness_unavailable",
+        "backpressure_coalesced",
+        "backpressure_snapshot_required",
+        "terminal_unavailable",
+        "terminal_terminated",
+        "policy_limited"
+      ]
+    },
+    "persistence_class": {
+      "type": "string",
+      "enum": [
+        "memory_only",
+        "local_cache_or_db",
+        "saved_artifact",
+        "service_or_local_mirror"
+      ]
+    },
+    "delete_semantics": {
+      "type": "string",
+      "enum": [
+        "evict_on_scope_change",
+        "clear_or_rebuild",
+        "replaced_by_new_snapshot",
+        "reconcile_on_reconnect"
+      ]
+    },
+    "source_contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc_ref", "schema_ref", "packet_ref", "report_ref", "fixture_manifest_ref"],
+      "properties": {
+        "doc_ref": { "$ref": "#/$defs/repo_ref" },
+        "schema_ref": { "$ref": "#/$defs/repo_ref" },
+        "packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "report_ref": { "$ref": "#/$defs/repo_ref" },
+        "fixture_manifest_ref": { "$ref": "#/$defs/repo_ref" }
+      }
+    },
+    "claim_narrowing_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trigger", "narrowed_claim"],
+      "properties": {
+        "trigger": { "$ref": "#/$defs/narrowing_trigger" },
+        "narrowed_claim": { "$ref": "#/$defs/truth_claim" }
+      }
+    },
+    "surface_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "query_family",
+        "authority_class",
+        "derivation_class",
+        "scope_class",
+        "view_class",
+        "default_backpressure_mode",
+        "presentation_channels",
+        "supported_freshness",
+        "supported_completeness",
+        "supported_backpressure",
+        "supports_terminal_unavailable",
+        "supports_policy_limited",
+        "honored_invalidation_reasons",
+        "healthy_claim",
+        "claim_narrowing_rules",
+        "consumer_refs",
+        "notes"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "query_family": { "$ref": "#/$defs/non_empty_string" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "derivation_class": { "$ref": "#/$defs/derivation_class" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "view_class": { "$ref": "#/$defs/view_class" },
+        "default_backpressure_mode": { "$ref": "#/$defs/backpressure_mode" },
+        "presentation_channels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/presentation_channel" }
+        },
+        "supported_freshness": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/freshness" }
+        },
+        "supported_completeness": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/completeness" }
+        },
+        "supported_backpressure": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/backpressure_mode" }
+        },
+        "supports_terminal_unavailable": { "type": "boolean" },
+        "supports_policy_limited": { "type": "boolean" },
+        "honored_invalidation_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "healthy_claim": { "$ref": "#/$defs/truth_claim" },
+        "claim_narrowing_rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/claim_narrowing_rule" }
+        },
+        "consumer_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_ref" }
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "epoch_parity_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group_id", "authority_class", "member_surfaces", "parity_rule"],
+      "properties": {
+        "group_id": { "$ref": "#/$defs/non_empty_string" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "member_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_class" }
+        },
+        "parity_rule": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "materialized_view_decl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "backing_surface",
+        "view_class",
+        "persistence",
+        "authority_on_read",
+        "delete_semantics",
+        "rebuildable_from_authority",
+        "notes"
+      ],
+      "properties": {
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "backing_surface": { "$ref": "#/$defs/surface_class" },
+        "view_class": { "$ref": "#/$defs/view_class" },
+        "persistence": { "$ref": "#/$defs/persistence_class" },
+        "authority_on_read": { "$ref": "#/$defs/derivation_class" },
+        "delete_semantics": { "$ref": "#/$defs/delete_semantics" },
+        "rebuildable_from_authority": { "type": "boolean" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "observed_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness",
+        "completeness",
+        "backpressure_mode",
+        "terminal_reason",
+        "policy_limited"
+      ],
+      "properties": {
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "completeness": { "$ref": "#/$defs/completeness" },
+        "backpressure_mode": { "$ref": "#/$defs/backpressure_mode" },
+        "terminal_reason": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/terminal_reason" }]
+        },
+        "policy_limited": { "type": "boolean" }
+      }
+    },
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "title",
+        "source_contract_refs",
+        "surfaces",
+        "epoch_parity_groups",
+        "materialized_views",
+        "invariants"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_reactive_governance_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "source_contract_refs": { "$ref": "#/$defs/source_contract_refs" },
+        "surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_row" }
+        },
+        "epoch_parity_groups": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/epoch_parity_group" }
+        },
+        "materialized_views": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/materialized_view_decl" }
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "fixture_id",
+        "surface_class",
+        "observed",
+        "expected_claim",
+        "expected_triggers",
+        "consumer_ref",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_reactive_governance_fixture_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "fixture_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "observed": { "$ref": "#/$defs/observed_state" },
+        "expected_claim": { "$ref": "#/$defs/truth_claim" },
+        "expected_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_trigger" }
+        },
+        "consumer_ref": { "$ref": "#/$defs/repo_ref" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

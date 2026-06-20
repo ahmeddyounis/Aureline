@@ -62,6 +62,7 @@ pub mod generated_lineage;
 pub mod harness;
 pub mod hooks;
 pub mod m5_mutation_lineage;
+pub mod m5_reactive_governance;
 pub mod mutation_journal;
 pub mod producers;
 pub mod query_envelope;
@@ -98,6 +99,31 @@ pub use m5_mutation_lineage::{
     M5_MUTATION_LINEAGE_FIXTURE_RECORD_KIND, M5_MUTATION_LINEAGE_PACKET_RECORD_KIND,
     M5_MUTATION_LINEAGE_PACKET_REF, M5_MUTATION_LINEAGE_REPORT_REF, M5_MUTATION_LINEAGE_SCHEMA_REF,
     M5_MUTATION_LINEAGE_SCHEMA_VERSION,
+};
+pub use m5_reactive_governance::{
+    narrow_truth_claim as narrow_m5_reactive_truth_claim, seeded_m5_reactive_governance_fixtures,
+    seeded_m5_reactive_governance_packet, validate_m5_reactive_governance_fixture,
+    validate_m5_reactive_governance_packet, AuthorityClass as M5ReactiveAuthorityClass,
+    BackpressureMode as M5ReactiveBackpressureMode,
+    ClaimNarrowingRule as M5ReactiveClaimNarrowingRule, Completeness as M5ReactiveCompleteness,
+    DeleteSemantics as M5ReactiveDeleteSemantics, DerivationClass as M5ReactiveDerivationClass,
+    EpochParityGroup as M5ReactiveEpochParityGroup, Freshness as M5ReactiveFreshness,
+    InvalidationReason as M5ReactiveInvalidationReason, M5ReactiveGovernanceFixture,
+    M5ReactiveGovernancePacket, MaterializedViewDecl as M5ReactiveMaterializedViewDecl,
+    NarrowedClaim as M5ReactiveNarrowedClaim, NarrowingTrigger as M5ReactiveNarrowingTrigger,
+    ObservedReactiveState as M5ReactiveObservedState,
+    PersistenceClass as M5ReactivePersistenceClass,
+    PresentationChannel as M5ReactivePresentationChannel,
+    ReactiveSurfaceClass as M5ReactiveSurfaceClass, ReactiveSurfaceRow as M5ReactiveSurfaceRow,
+    ScopeClass as M5ReactiveScopeClass, SourceContractRefs as M5ReactiveSourceContractRefs,
+    TerminalReason as M5ReactiveTerminalReason, TruthClaim as M5ReactiveTruthClaim,
+    ValidationReport as M5ReactiveGovernanceValidationReport,
+    ValidationViolation as M5ReactiveGovernanceValidationViolation,
+    ViewClass as M5ReactiveViewClass, M5_REACTIVE_GOVERNANCE_DOC_REF,
+    M5_REACTIVE_GOVERNANCE_FIXTURE_DIR, M5_REACTIVE_GOVERNANCE_FIXTURE_MANIFEST_REF,
+    M5_REACTIVE_GOVERNANCE_FIXTURE_RECORD_KIND, M5_REACTIVE_GOVERNANCE_PACKET_RECORD_KIND,
+    M5_REACTIVE_GOVERNANCE_PACKET_REF, M5_REACTIVE_GOVERNANCE_REPORT_REF,
+    M5_REACTIVE_GOVERNANCE_SCHEMA_REF, M5_REACTIVE_GOVERNANCE_SCHEMA_VERSION,
 };
 pub use producers::{
     derived_diagnostics, file_identity, graph_neighborhood, provider_overlay, shell_health, window,
