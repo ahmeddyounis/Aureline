@@ -11,7 +11,18 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 pub mod localized_profile_matrix;
+pub mod message_registry;
 pub mod stable_locale_lifecycle;
+
+pub use message_registry::{
+    seeded_m5_message_id_baseline, seeded_m5_message_registry, LocaleProfileRow, M5MessageRegistry,
+    M5MessageSurface, MessageIdBaselineRow, MessageIdBaselineSnapshot, MessageIdContinuityReport,
+    MessageIdContinuityRow, MessageIdContinuityState, MessageRegistryEntry, MessageRegistrySummary,
+    RenderedMessageId, M5_MESSAGE_ID_BASELINE_FIXTURE_REF, M5_MESSAGE_ID_BASELINE_RECORD_KIND,
+    M5_MESSAGE_ID_BASELINE_SNAPSHOT_ID, M5_MESSAGE_REGISTRY_FIXTURE_REF,
+    M5_MESSAGE_REGISTRY_PACKET_ID, M5_MESSAGE_REGISTRY_RECORD_KIND,
+    M5_MESSAGE_REGISTRY_SCHEMA_VERSION,
+};
 
 pub use localized_profile_matrix::{
     seeded_localized_profile_matrix_packet, ClaimNarrowReason, ConsumerKind, ConsumptionBindingRow,
