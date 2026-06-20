@@ -14,6 +14,7 @@ pub mod contributed_locale;
 pub mod locale_pack_delivery;
 pub mod localized_catalog;
 pub mod localized_profile_matrix;
+pub mod m5_dense_surface_lab;
 pub mod message_registry;
 pub mod stable_locale_lifecycle;
 pub mod translated_help_packs;
@@ -52,14 +53,14 @@ pub use localized_profile_matrix::{
 };
 
 pub use contributed_locale::{
-    decide_contributed_support, seeded_contributed_locale_support_report,
-    ContributedDegradeReason, ContributedEvaluationInput, ContributedLocaleManifest,
-    ContributedLocaleSupportReport, ContributedLocaleSupportRow, ContributedLocaleSupportSummary,
-    ContributedPackOwnerClass, HostStableLabelClass, HostStableLabelGuard,
-    LocalizationIssueSourceClass, ALL_HOST_STABLE_LABEL_CLASSES,
-    CONTRIBUTED_LOCALE_MANIFEST_RECORD_KIND, CONTRIBUTED_LOCALE_SCHEMA_VERSION,
-    CONTRIBUTED_LOCALE_SUPPORT_REPORT_FIXTURE_REF, CONTRIBUTED_LOCALE_SUPPORT_REPORT_ID,
-    CONTRIBUTED_LOCALE_SUPPORT_REPORT_RECORD_KIND, FIRST_PARTY_COMPATIBILITY_REPORT_REF,
+    decide_contributed_support, seeded_contributed_locale_support_report, ContributedDegradeReason,
+    ContributedEvaluationInput, ContributedLocaleManifest, ContributedLocaleSupportReport,
+    ContributedLocaleSupportRow, ContributedLocaleSupportSummary, ContributedPackOwnerClass,
+    HostStableLabelClass, HostStableLabelGuard, LocalizationIssueSourceClass,
+    ALL_HOST_STABLE_LABEL_CLASSES, CONTRIBUTED_LOCALE_MANIFEST_RECORD_KIND,
+    CONTRIBUTED_LOCALE_SCHEMA_VERSION, CONTRIBUTED_LOCALE_SUPPORT_REPORT_FIXTURE_REF,
+    CONTRIBUTED_LOCALE_SUPPORT_REPORT_ID, CONTRIBUTED_LOCALE_SUPPORT_REPORT_RECORD_KIND,
+    FIRST_PARTY_COMPATIBILITY_REPORT_REF,
 };
 
 pub use locale_pack_delivery::{
@@ -80,6 +81,19 @@ pub use stable_locale_lifecycle::{
     TranslatedSurfaceParityRow, STABLE_LOCALE_LIFECYCLE_PARITY_FIXTURE_REF,
     STABLE_LOCALE_LIFECYCLE_PARITY_PACKET_ID, STABLE_LOCALE_LIFECYCLE_PARITY_RECORD_KIND,
     STABLE_LOCALE_LIFECYCLE_PARITY_SCHEMA_VERSION,
+};
+
+pub use m5_dense_surface_lab::{
+    locale_text_direction, seeded_m5_dense_surface_i18n_qualification,
+    seeded_m5_dense_surface_i18n_review_packet, seeded_m5_dense_surface_narrowing_scenarios,
+    M5DenseClaimNarrowReason, M5DenseConsumptionBinding, M5DenseHarnessCase, M5DenseHarnessKind,
+    M5DenseHarnessResultRow, M5DenseNarrowingScenario, M5DenseNarrowingScenarioSet,
+    M5DenseProfileQualificationRow, M5DenseSurfaceFamily, M5DenseSurfaceI18nQualification,
+    M5DenseSurfaceI18nReviewPacket, M5DenseSurfaceI18nSummary, M5DenseSurfaceRow,
+    M5HarnessResultState, M5_DENSE_SURFACE_LAB_FIXTURE_REF, M5_DENSE_SURFACE_LAB_FIXTURE_ROOT,
+    M5_DENSE_SURFACE_LAB_NARROWING_RECORD_KIND, M5_DENSE_SURFACE_LAB_PACKET_ID,
+    M5_DENSE_SURFACE_LAB_RECORD_KIND, M5_DENSE_SURFACE_LAB_REVIEW_RECORD_KIND,
+    M5_DENSE_SURFACE_LAB_SCHEMA_VERSION,
 };
 
 pub use translated_help_packs::{
