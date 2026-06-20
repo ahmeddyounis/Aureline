@@ -17,6 +17,12 @@ use super::pack_compatibility::{
     project_support_locale_pack_compatibility, project_user_locale_pack_compatibility,
     CompatibilityViewAudience,
 };
+use super::contributed_support::{
+    project_support_contributed_locale_support, project_user_contributed_locale_support,
+    ContributedSupportAudience,
+};
+
+use aureline_i18n::{ContributedDegradeReason, LocalizationIssueSourceClass};
 
 #[test]
 fn source_locale_is_fully_localized_with_no_missing_keys() {
@@ -322,4 +328,63 @@ fn truncation_shortens_label_without_hiding_scope_or_severity() {
     assert!(error.severity_preserved_under_truncation);
     let truncated = error.truncated_label.as_deref().expect("truncated label");
     assert!(truncated.chars().count() <= user.truncation_budget_graphemes);
+}
+
+#[test]
+fn contributed_support_view_attributes_every_source_class() {
+    let view = project_user_contributed_locale_support();
+    assert_eq!(view.audience, ContributedSupportAudience::User);
+
+    // Issue attribution covers all three source classes the spec calls out.
+    assert!(view.issue_counts_by_source.first_party_pack > 0);
+    assert!(view.issue_counts_by_source.extension_pack > 0);
+    // A deliberately narrower companion is not a support defect, so the
+    // companion issue count stays zero even though a companion row degrades.
+    assert_eq!(view.issue_counts_by_source.companion_overlay, 0);
+
+    let extension_rows: Vec<_> = view
+        .rows_for_source(LocalizationIssueSourceClass::ExtensionPack)
+        .collect();
+    let companion_rows: Vec<_> = view
+        .rows_for_source(LocalizationIssueSourceClass::CompanionOverlay)
+        .collect();
+    assert!(!extension_rows.is_empty());
+    assert!(!companion_rows.is_empty());
+}
+
+#[test]
+fn contributed_support_view_keeps_host_labels_canonical() {
+    let view = project_user_contributed_locale_support();
+    assert!(view.host_stable_labels_canonical);
+    assert!(view.host_labels_all_canonical());
+    assert_eq!(view.host_stable_label_classes_protected, 4);
+    assert!(view.guardrail_clean);
+    // Even degraded contributed rows keep host-stable labels canonical.
+    for row in &view.rows {
+        assert!(row.host_stable_labels_canonical);
+    }
+}
+
+#[test]
+fn contributed_support_view_discloses_narrower_companion_truthfully() {
+    let view = project_user_contributed_locale_support();
+    let row = view
+        .row("contributed-support:companion:browser-handoff:ja-jp")
+        .expect("companion ja-jp row");
+    assert!(row.degraded_to_source_language);
+    assert_eq!(
+        row.degrade_reason,
+        ContributedDegradeReason::CompanionScopeNarrowerThanDesktop
+    );
+    assert!(!row.missing_support_on_claimed_profile);
+    assert!(!row.claimed_localized_profile);
+}
+
+#[test]
+fn contributed_support_export_omits_translated_bodies() {
+    let support = project_support_contributed_locale_support();
+    assert_eq!(support.audience, ContributedSupportAudience::SupportExport);
+    assert!(support.raw_translated_body_omitted);
+    let json = serde_json::to_string(&support).expect("serializes");
+    assert!(json.contains("shell_contributed_locale_support_view"));
 }

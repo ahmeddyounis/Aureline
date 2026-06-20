@@ -637,7 +637,10 @@ pub use lifecycle_metadata::{
     CURRENT_EXTENSION_LIFECYCLE_METADATA_PACKET_PATH, LIFECYCLE_METADATA_PACKET_RECORD_KIND,
     LIFECYCLE_METADATA_SCHEMA_VERSION, LIFECYCLE_METADATA_SUPPORT_EXPORT_RECORD_KIND,
 };
-pub use locale_support::seeded_extension_locale_declarations;
+pub use locale_support::{
+    host_stable_labels_protected, seeded_contributed_locale_manifests,
+    seeded_extension_locale_declarations,
+};
 pub use manifest_baseline::{
     compute_effective_permission_baseline, decide_manifest_install,
     validate_manifest_baseline_record, DeclaredVsEffectiveDiffEntry,

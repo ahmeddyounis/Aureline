@@ -10,6 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+pub mod contributed_locale;
 pub mod locale_pack_delivery;
 pub mod localized_catalog;
 pub mod localized_profile_matrix;
@@ -48,6 +49,17 @@ pub use localized_profile_matrix::{
     SurfaceInventoryRow, SurfaceLocalizationState, LOCALIZED_PROFILE_MATRIX_FIXTURE_REF,
     LOCALIZED_PROFILE_MATRIX_PACKET_ID, LOCALIZED_PROFILE_MATRIX_RECORD_KIND,
     LOCALIZED_PROFILE_MATRIX_SCHEMA_VERSION,
+};
+
+pub use contributed_locale::{
+    decide_contributed_support, seeded_contributed_locale_support_report,
+    ContributedDegradeReason, ContributedEvaluationInput, ContributedLocaleManifest,
+    ContributedLocaleSupportReport, ContributedLocaleSupportRow, ContributedLocaleSupportSummary,
+    ContributedPackOwnerClass, HostStableLabelClass, HostStableLabelGuard,
+    LocalizationIssueSourceClass, ALL_HOST_STABLE_LABEL_CLASSES,
+    CONTRIBUTED_LOCALE_MANIFEST_RECORD_KIND, CONTRIBUTED_LOCALE_SCHEMA_VERSION,
+    CONTRIBUTED_LOCALE_SUPPORT_REPORT_FIXTURE_REF, CONTRIBUTED_LOCALE_SUPPORT_REPORT_ID,
+    CONTRIBUTED_LOCALE_SUPPORT_REPORT_RECORD_KIND, FIRST_PARTY_COMPATIBILITY_REPORT_REF,
 };
 
 pub use locale_pack_delivery::{
