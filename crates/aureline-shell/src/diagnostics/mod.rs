@@ -5,6 +5,7 @@
 //! Problems and support-export views can consume imported evidence without
 //! treating it as current live analysis.
 
+pub mod efficiency_posture;
 pub mod experiments_inventory;
 pub mod filesystem_continuity;
 pub mod imported;

@@ -20,6 +20,7 @@ use crate::notifications::envelope::{
 use crate::state_cards::DegradedStateToken;
 
 pub mod governance;
+pub mod surfaces;
 
 /// Stable record kind for an efficiency-state shell snapshot.
 pub const EFFICIENCY_STATE_SNAPSHOT_RECORD_KIND: &str = "efficiency_state_alpha_snapshot";
@@ -941,6 +942,40 @@ impl Default for EfficiencyDurabilityInvariants {
     }
 }
 
+/// Compact summary of one subsystem whose behavior the active efficiency state
+/// changed. It names the subsystem, who owns it, what action was taken, and the
+/// resulting user impact so status, diagnostics, and support surfaces can answer
+/// "which subsystems were affected?" without rebuilding the full capability row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EfficiencyAffectedSubsystem {
+    /// Workload-family token for the affected subsystem.
+    pub subsystem_token: String,
+    /// Human-readable subsystem label.
+    pub subsystem_label: String,
+    /// Source-subsystem owner label.
+    pub owner_label: String,
+    /// Budget action token applied to the subsystem.
+    pub action: String,
+    /// Visible-capability-state token after the action.
+    pub visible_state: String,
+    /// User-impact sentence for the change.
+    pub user_impact_label: String,
+}
+
+impl EfficiencyAffectedSubsystem {
+    /// Summarizes one behavior-changing workload-budget decision.
+    fn from_decision(decision: &WorkloadBudgetDecision) -> Self {
+        Self {
+            subsystem_token: decision.workload_id.clone(),
+            subsystem_label: decision.capability_row.capability_label.clone(),
+            owner_label: decision.capability_row.host_owner_label.clone(),
+            action: decision.action.clone(),
+            visible_state: decision.capability_row.visible_state.clone(),
+            user_impact_label: decision.capability_row.user_impact_label.clone(),
+        }
+    }
+}
+
 /// Exportable shell snapshot of the active efficiency state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EfficiencyStateSnapshot {
@@ -952,10 +987,19 @@ pub struct EfficiencyStateSnapshot {
     pub workspace_id: String,
     /// Active efficiency state token.
     pub active_state: String,
-    /// Pressure-source tokens.
+    /// Pressure-source tokens (the source-of-change for the active state).
     pub pressure_sources: Vec<String>,
     /// True when runtime behavior changed.
     pub behavior_changed: bool,
+    /// Override-posture token describing whether and how the adaptation may be
+    /// overridden. Always present so status, diagnostics, and support surfaces
+    /// agree on override posture without re-deriving it.
+    pub override_posture: String,
+    /// Recovery-state token describing how deferred work resumes as pressure
+    /// clears.
+    pub recovery_state: String,
+    /// Compact summary of every subsystem whose behavior changed.
+    pub affected_subsystems: Vec<EfficiencyAffectedSubsystem>,
     /// Status projection when shell chrome should show one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<EfficiencyStatusSnapshot>,
@@ -990,6 +1034,11 @@ impl EfficiencyStateSnapshot {
             .filter(|decision| decision.changed_behavior())
             .map(|decision| decision.capability_row.clone())
             .collect::<Vec<_>>();
+        let affected_subsystems = workload_decisions
+            .iter()
+            .filter(|decision| decision.changed_behavior())
+            .map(EfficiencyAffectedSubsystem::from_decision)
+            .collect::<Vec<_>>();
         let status = build_status_projection(
             state,
             &pressure_sources,
@@ -1006,6 +1055,11 @@ impl EfficiencyStateSnapshot {
                 .map(|source| source.as_str().to_owned())
                 .collect(),
             behavior_changed,
+            override_posture: derive_override_posture(state, &pressure_sources)
+                .as_str()
+                .to_owned(),
+            recovery_state: derive_recovery_state(state).as_str().to_owned(),
+            affected_subsystems,
             status,
             throttled_capabilities,
             workload_decisions,
@@ -1564,6 +1618,56 @@ fn build_status_projection(
         degraded_token: state.degraded_token().map(|token| token.token().to_owned()),
         is_recovery_critical: matches!(state, EfficiencyState::ProtectCore),
     })
+}
+
+/// Derives the override posture for the active state from the source-of-change.
+///
+/// The posture distinguishes the four causes of reduced behavior the spec
+/// requires us to keep separate: a policy-imposed cap blocks the override, a
+/// state that protects core interaction (or a critical-battery cause) is not
+/// overridable, user-controllable causes (battery, OS battery saver, low
+/// battery, user low-power mode) allow a session-only override, and any other
+/// physical pressure stays non-overridable.
+fn derive_override_posture(
+    state: EfficiencyState,
+    sources: &[EfficiencyPressureSource],
+) -> governance::OverridePosture {
+    use governance::OverridePosture as Posture;
+    use EfficiencyPressureSource as Source;
+    if sources
+        .iter()
+        .any(|source| matches!(source, Source::PolicyCap))
+    {
+        return Posture::PolicyBlocked;
+    }
+    if matches!(state, EfficiencyState::ProtectCore)
+        || sources
+            .iter()
+            .any(|source| matches!(source, Source::CriticalBattery))
+    {
+        return Posture::NotOverridable;
+    }
+    if sources.iter().any(|source| {
+        matches!(
+            source,
+            Source::Battery
+                | Source::OsBatterySaver
+                | Source::LowBattery
+                | Source::UserLowPowerMode
+        )
+    }) {
+        return Posture::UserOverrideSessionOnly;
+    }
+    Posture::NotOverridable
+}
+
+/// Derives the recovery state for the active efficiency state. Only the
+/// `Recovery` state is mid-resume; every other state is not in recovery.
+fn derive_recovery_state(state: EfficiencyState) -> governance::EfficiencyRecoveryState {
+    match state {
+        EfficiencyState::Recovery => governance::EfficiencyRecoveryState::StagedResume,
+        _ => governance::EfficiencyRecoveryState::NotInRecovery,
+    }
 }
 
 fn protected_interactions() -> Vec<String> {

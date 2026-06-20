@@ -79,6 +79,13 @@ impl HiddenPaneBehavior {
         Self::CorrectnessPollOnly,
         Self::FullyQuiescent,
     ];
+
+    /// Resolves a stable token back into its hidden-pane behaviour, if known.
+    pub fn from_token(token: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|behavior| behavior.as_str() == token)
+    }
 }
 
 /// Whether and how a user may override an efficiency adaptation. Overrides are
@@ -128,6 +135,13 @@ impl OverridePosture {
         Self::PolicyBlocked,
         Self::AdminControlled,
     ];
+
+    /// Resolves a stable token back into its override posture, if known.
+    pub fn from_token(token: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|posture| posture.as_str() == token)
+    }
 }
 
 /// Recovery state of an efficiency posture as pressure clears. Recovery is
@@ -171,6 +185,11 @@ impl EfficiencyRecoveryState {
         Self::AwaitingAdminPolicy,
         Self::Recovered,
     ];
+
+    /// Resolves a stable token back into its recovery state, if known.
+    pub fn from_token(token: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|state| state.as_str() == token)
+    }
 }
 
 /// Redaction-safe projection a shell status or diagnostics surface renders from

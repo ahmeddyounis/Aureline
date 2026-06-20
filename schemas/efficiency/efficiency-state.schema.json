@@ -1,0 +1,274 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/efficiency/efficiency-state.schema.json",
+  "title": "Efficiency-state surfaces case",
+  "description": "One canonical efficiency-state snapshot together with the diagnostics and support-export projections that derive from it. Status, diagnostics, and support surfaces all project from the same snapshot, so they cannot disagree about what changed, why, or which subsystems were affected.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["workspace_id", "snapshot", "diagnostics", "support_export"],
+  "properties": {
+    "workspace_id": { "type": "string", "minLength": 1 },
+    "snapshot": { "$ref": "#/$defs/snapshot" },
+    "diagnostics": { "$ref": "#/$defs/diagnostics" },
+    "support_export": { "$ref": "#/$defs/supportExport" }
+  },
+  "$defs": {
+    "efficiencyState": {
+      "type": "string",
+      "enum": [
+        "Nominal",
+        "EfficiencyAware",
+        "ThermalConstrained",
+        "ProtectCore",
+        "Recovery"
+      ]
+    },
+    "sourceOfChange": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "ac_power",
+          "battery",
+          "os_battery_saver",
+          "user_low_power_mode",
+          "low_battery",
+          "critical_battery",
+          "thermal_pressure",
+          "frame_miss_pressure",
+          "policy_cap",
+          "pressure_cleared"
+        ]
+      }
+    },
+    "overridePosture": {
+      "type": "string",
+      "enum": [
+        "not_overridable",
+        "user_override_session_only",
+        "user_override_persistent",
+        "policy_blocked",
+        "admin_controlled"
+      ]
+    },
+    "recoveryState": {
+      "type": "string",
+      "enum": [
+        "not_in_recovery",
+        "staged_resume",
+        "awaiting_user_restore_power",
+        "awaiting_reconnect",
+        "awaiting_admin_policy",
+        "recovered"
+      ]
+    },
+    "affectedSubsystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subsystem_token",
+        "subsystem_label",
+        "owner_label",
+        "action",
+        "visible_state",
+        "user_impact_label"
+      ],
+      "properties": {
+        "subsystem_token": { "type": "string" },
+        "subsystem_label": { "type": "string" },
+        "owner_label": { "type": "string" },
+        "action": { "type": "string" },
+        "visible_state": { "type": "string" },
+        "user_impact_label": { "type": "string" }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "workspace_id",
+        "active_state",
+        "pressure_sources",
+        "behavior_changed",
+        "override_posture",
+        "recovery_state",
+        "affected_subsystems",
+        "throttled_capabilities",
+        "workload_decisions",
+        "hidden_pane_audit",
+        "protected_interactions_preserved",
+        "durability_invariants",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "efficiency_state_alpha_snapshot" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "workspace_id": { "type": "string", "minLength": 1 },
+        "active_state": { "$ref": "#/$defs/efficiencyState" },
+        "pressure_sources": { "$ref": "#/$defs/sourceOfChange" },
+        "behavior_changed": { "type": "boolean" },
+        "override_posture": { "$ref": "#/$defs/overridePosture" },
+        "recovery_state": { "$ref": "#/$defs/recoveryState" },
+        "affected_subsystems": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affectedSubsystem" }
+        },
+        "status": { "type": ["object", "null"] },
+        "throttled_capabilities": { "type": "array" },
+        "workload_decisions": { "type": "array" },
+        "hidden_pane_audit": { "type": "object" },
+        "protected_interactions_preserved": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "durability_invariants": { "type": "object" },
+        "observed_at": { "type": "string", "minLength": 1 }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "workspace_id",
+        "active_state",
+        "source_of_change",
+        "behavior_changed",
+        "summary_label",
+        "override_posture",
+        "recovery_state",
+        "affected_subsystems",
+        "affected_subsystem_count",
+        "hidden_pane_passes_policy",
+        "hidden_pane_violation_count",
+        "protected_interactions_preserved",
+        "durability_preserved",
+        "governance",
+        "primary_command_id",
+        "opens_surface_ref",
+        "support_export_ref",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "efficiency_state_diagnostics_projection" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "workspace_id": { "type": "string", "minLength": 1 },
+        "active_state": { "$ref": "#/$defs/efficiencyState" },
+        "source_of_change": { "$ref": "#/$defs/sourceOfChange" },
+        "behavior_changed": { "type": "boolean" },
+        "summary_label": { "type": "string" },
+        "override_posture": { "$ref": "#/$defs/overridePosture" },
+        "recovery_state": { "$ref": "#/$defs/recoveryState" },
+        "affected_subsystems": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affectedSubsystem" }
+        },
+        "affected_subsystem_count": { "type": "integer", "minimum": 0 },
+        "hidden_pane_passes_policy": { "type": "boolean" },
+        "hidden_pane_violation_count": { "type": "integer", "minimum": 0 },
+        "protected_interactions_preserved": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "durability_preserved": { "type": "boolean" },
+        "governance": { "type": "object" },
+        "primary_command_id": { "type": "string" },
+        "opens_surface_ref": { "type": "string" },
+        "support_export_ref": { "type": "string" },
+        "observed_at": { "type": "string", "minLength": 1 }
+      }
+    },
+    "supportExport": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "generated_at",
+        "packet_ref",
+        "matrix_ref",
+        "workspace_id",
+        "active_state",
+        "source_of_change",
+        "override_posture",
+        "recovery_state",
+        "behavior_changed",
+        "rows",
+        "hidden_pane_passes_policy",
+        "protected_interactions_preserved",
+        "durability_preserved",
+        "reconstructs_state_change",
+        "reconstructs_change_cause",
+        "reconstructs_affected_subsystems",
+        "reconstructs_override_posture",
+        "ui_text_scrape_required",
+        "raw_provider_payloads_exported",
+        "raw_secret_values_exported",
+        "support_field_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "efficiency_state_support_export" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "export_id": { "type": "string", "minLength": 1 },
+        "generated_at": { "type": "string", "minLength": 1 },
+        "packet_ref": { "type": "string", "minLength": 1 },
+        "matrix_ref": { "type": "string", "minLength": 1 },
+        "workspace_id": { "type": "string", "minLength": 1 },
+        "active_state": { "$ref": "#/$defs/efficiencyState" },
+        "source_of_change": { "$ref": "#/$defs/sourceOfChange" },
+        "override_posture": { "$ref": "#/$defs/overridePosture" },
+        "recovery_state": { "$ref": "#/$defs/recoveryState" },
+        "behavior_changed": { "type": "boolean" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/supportExportRow" }
+        },
+        "hidden_pane_passes_policy": { "type": "boolean" },
+        "protected_interactions_preserved": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "durability_preserved": { "type": "boolean" },
+        "reconstructs_state_change": { "type": "boolean" },
+        "reconstructs_change_cause": { "type": "boolean" },
+        "reconstructs_affected_subsystems": { "type": "boolean" },
+        "reconstructs_override_posture": { "type": "boolean" },
+        "ui_text_scrape_required": { "const": false },
+        "raw_provider_payloads_exported": { "const": false },
+        "raw_secret_values_exported": { "const": false },
+        "support_field_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "supportExportRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "export_row_id",
+        "subsystem_token",
+        "owner_label",
+        "action_token",
+        "visible_state_token",
+        "user_impact_label",
+        "support_field_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "efficiency_state_support_export_row" },
+        "export_row_id": { "type": "string" },
+        "subsystem_token": { "type": "string" },
+        "owner_label": { "type": "string" },
+        "action_token": { "type": "string" },
+        "visible_state_token": { "type": "string" },
+        "user_impact_label": { "type": "string" },
+        "support_field_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}
