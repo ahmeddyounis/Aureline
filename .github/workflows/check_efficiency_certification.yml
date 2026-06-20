@@ -1,0 +1,67 @@
+# Efficiency certification gate.
+#
+# Validates the M5 efficiency certification proof packet: the canonical, export-safe
+# evidence that power, thermal, battery-efficiency, and hidden-work-shedding truth
+# holds on every claimed laptop/desktop profile and long-running M5 surface family.
+# Each row runs a fixed drill set against current energy/thermal, hidden-pane, and
+# session-pressure evidence; the gate re-derives every row's narrowing reasons,
+# effective posture, certification state, and promotion blocker from the drill
+# results, recomputes the promotion gate and summary counts, confirms each
+# surface-family row aligns with its governance matrix row, and runs negative drills
+# proving the recompute fails closed when evidence goes stale, a drill regresses, or
+# a stored verdict is inflated.
+
+name: check_efficiency_certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_efficiency_certification.yml"
+      - "ci/check_efficiency_certification.py"
+      - "tools/regenerate_efficiency_certification.py"
+      - "artifacts/efficiency/m5-efficiency-proof-packet.json"
+      - "schemas/efficiency/m5-efficiency-certification.schema.json"
+      - "docs/efficiency/m5-efficiency-certification.md"
+      - "artifacts/efficiency/m5-efficiency-certification.md"
+      - "artifacts/efficiency/m5-efficiency-governance.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-efficiency-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  efficiency_certification:
+    name: Efficiency certification
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Run efficiency certification validator
+        run: |
+          python3 ci/check_efficiency_certification.py --repo-root . \
+            --report artifacts/efficiency/certification-validation.json
+
+      - name: Upload certification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: efficiency-certification-${{ github.run_id }}
+          path: artifacts/efficiency/certification-validation.json
+          if-no-files-found: error
+          retention-days: 30

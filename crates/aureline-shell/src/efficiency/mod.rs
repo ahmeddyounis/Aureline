@@ -19,6 +19,7 @@ use crate::notifications::envelope::{
 };
 use crate::state_cards::DegradedStateToken;
 
+pub mod certification;
 pub mod disclosures;
 pub mod energy_lab;
 pub mod governance;
