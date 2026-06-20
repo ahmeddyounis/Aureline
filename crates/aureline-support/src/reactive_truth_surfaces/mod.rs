@@ -161,7 +161,9 @@ pub fn narrow_exported_cue(
     Ok(build_reactive_truth_cue(surface_class, *observed)?)
 }
 
-fn envelope_from_packet(packet: &ReactiveTruthSurfacesPacket) -> ReactiveTruthSurfacesSupportExport {
+fn envelope_from_packet(
+    packet: &ReactiveTruthSurfacesPacket,
+) -> ReactiveTruthSurfacesSupportExport {
     let mut rows: Vec<_> = packet
         .surfaces
         .iter()
@@ -233,8 +235,8 @@ mod tests {
             terminal_reason: None,
             policy_limited: false,
         };
-        let cue = narrow_exported_cue(M5ReactiveSurfaceClass::SupportExportView, &observed)
-            .expect("cue");
+        let cue =
+            narrow_exported_cue(M5ReactiveSurfaceClass::SupportExportView, &observed).expect("cue");
         assert_eq!(cue.narrowed_claim, M5ReactiveTruthClaim::StaleSnapshot);
         assert_eq!(cue.action_gate, ReactiveTruthActionGate::Blocked);
         assert!(!cue.dangerous_action_enabled);

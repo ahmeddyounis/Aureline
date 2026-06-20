@@ -10,7 +10,18 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+pub mod localized_profile_matrix;
 pub mod stable_locale_lifecycle;
+
+pub use localized_profile_matrix::{
+    seeded_localized_profile_matrix_packet, ClaimNarrowReason, ConsumerKind, ConsumptionBindingRow,
+    EvidenceFreshnessState, LocalizableSurfaceFamily, LocalizedProfileMatrixPacket,
+    LocalizedProfileMatrixSummary, LocalizedProfileRow, MatrixGateState, PackCompatibilityState,
+    ProfileClaimClass, ProfileReleaseGateRow, ProfileSurfaceCoverageRow, StableElementKind,
+    SurfaceInventoryRow, SurfaceLocalizationState, LOCALIZED_PROFILE_MATRIX_FIXTURE_REF,
+    LOCALIZED_PROFILE_MATRIX_PACKET_ID, LOCALIZED_PROFILE_MATRIX_RECORD_KIND,
+    LOCALIZED_PROFILE_MATRIX_SCHEMA_VERSION,
+};
 
 pub use stable_locale_lifecycle::{
     seeded_stable_locale_lifecycle_parity_packet, ClaimGateState, FallbackChainTruthRow,

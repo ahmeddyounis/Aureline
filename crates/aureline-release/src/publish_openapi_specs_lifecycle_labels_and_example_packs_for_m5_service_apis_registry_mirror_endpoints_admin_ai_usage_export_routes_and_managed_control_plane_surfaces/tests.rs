@@ -107,8 +107,9 @@ fn read_only_with_request_body_fails() {
         .iter_mut()
         .find(|e| e.is_read_only())
         .expect("catalog has a read-only endpoint");
-    ep.request_schema_ref =
-        Some("openapi/service_api_seed.yaml#/components/schemas/ExtensionInstallRequest".to_string());
+    ep.request_schema_ref = Some(
+        "openapi/service_api_seed.yaml#/components/schemas/ExtensionInstallRequest".to_string(),
+    );
     c.summary = c.computed_summary();
     assert!(
         c.validate()

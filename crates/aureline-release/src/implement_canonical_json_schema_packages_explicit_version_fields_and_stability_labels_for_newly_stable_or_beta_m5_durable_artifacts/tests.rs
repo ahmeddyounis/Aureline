@@ -13,7 +13,10 @@ fn checked_in_catalog_parses_and_validates() {
     assert_eq!(c.record_kind, M5_JSON_SCHEMA_CATALOG_RECORD_KIND);
     assert_eq!(c.catalog_id, M5_JSON_SCHEMA_CATALOG_ID);
     let violations = c.validate();
-    assert!(violations.is_empty(), "catalog must validate cleanly: {violations:#?}");
+    assert!(
+        violations.is_empty(),
+        "catalog must validate cleanly: {violations:#?}"
+    );
 }
 
 #[test]
@@ -91,7 +94,9 @@ fn duplicate_package_id_is_rejected() {
     c.summary = c.computed_summary();
     let violations = c.validate();
     assert!(
-        violations.iter().any(|v| v.check_id == "packages.duplicate_package_id"),
+        violations
+            .iter()
+            .any(|v| v.check_id == "packages.duplicate_package_id"),
         "duplicate package id must be rejected: {violations:#?}"
     );
 }
@@ -100,5 +105,8 @@ fn duplicate_package_id_is_rejected() {
 fn summary_drift_is_rejected() {
     let mut c = catalog();
     c.summary.total_packages += 1;
-    assert!(c.validate().iter().any(|v| v.check_id == "summary.count_mismatch"));
+    assert!(c
+        .validate()
+        .iter()
+        .any(|v| v.check_id == "summary.count_mismatch"));
 }

@@ -634,9 +634,8 @@ impl M5ContractHealthRegister {
 
     /// Recomputes the summary block from the rows.
     pub fn computed_summary(&self) -> M5ContractHealthSummary {
-        let count = |f: &dyn Fn(&ContractHealthRow) -> bool| {
-            self.rows.iter().filter(|r| f(r)).count()
-        };
+        let count =
+            |f: &dyn Fn(&ContractHealthRow) -> bool| self.rows.iter().filter(|r| f(r)).count();
         M5ContractHealthSummary {
             total_families: self.rows.len(),
             release_blocking_families: count(&|r| r.release_blocking),
@@ -725,31 +724,54 @@ impl M5ContractHealthRegister {
         }
 
         if self.lifecycle_labels != LifecycleLabel::ALL {
-            push("vocab.lifecycle_labels", "lifecycle_labels off the canonical list".into());
+            push(
+                "vocab.lifecycle_labels",
+                "lifecycle_labels off the canonical list".into(),
+            );
         }
         if self.gate_kinds != GateKind::ALL {
-            push("vocab.gate_kinds", "gate_kinds off the canonical list".into());
+            push(
+                "vocab.gate_kinds",
+                "gate_kinds off the canonical list".into(),
+            );
         }
         if self.gate_outcomes != GateOutcome::ALL {
-            push("vocab.gate_outcomes", "gate_outcomes off the canonical list".into());
+            push(
+                "vocab.gate_outcomes",
+                "gate_outcomes off the canonical list".into(),
+            );
         }
         if self.freshness_states != FreshnessState::ALL {
-            push("vocab.freshness_states", "freshness_states off the canonical list".into());
+            push(
+                "vocab.freshness_states",
+                "freshness_states off the canonical list".into(),
+            );
         }
         if self.health_states != HealthState::ALL {
-            push("vocab.health_states", "health_states off the canonical list".into());
+            push(
+                "vocab.health_states",
+                "health_states off the canonical list".into(),
+            );
         }
         if self.blocker_decisions != BlockerDecision::ALL {
-            push("vocab.blocker_decisions", "blocker_decisions off the canonical list".into());
+            push(
+                "vocab.blocker_decisions",
+                "blocker_decisions off the canonical list".into(),
+            );
         }
         if self.mirror_parity_states != MirrorParityState::ALL {
-            push("vocab.mirror_parity_states", "mirror_parity_states off the canonical list".into());
+            push(
+                "vocab.mirror_parity_states",
+                "mirror_parity_states off the canonical list".into(),
+            );
         }
 
-        let catalog_kinds: Vec<GateKind> =
-            self.gate_catalog.iter().map(|g| g.gate_kind).collect();
+        let catalog_kinds: Vec<GateKind> = self.gate_catalog.iter().map(|g| g.gate_kind).collect();
         if catalog_kinds != GateKind::ALL.to_vec() {
-            push("gate_catalog.kinds", "gate_catalog kinds off the canonical list".into());
+            push(
+                "gate_catalog.kinds",
+                "gate_catalog kinds off the canonical list".into(),
+            );
         }
 
         let mut seen: BTreeSet<&str> = BTreeSet::new();
@@ -773,10 +795,7 @@ impl M5ContractHealthRegister {
             if row.health_state != expected_health {
                 push(
                     "rows.health_state",
-                    format!(
-                        "{}: health_state disagrees with the gates",
-                        row.family_id
-                    ),
+                    format!("{}: health_state disagrees with the gates", row.family_id),
                 );
             }
 
@@ -794,7 +813,10 @@ impl M5ContractHealthRegister {
             let parity = row.graph_linkage.mirror_parity;
             let offline = row.graph_linkage.offline_verifiable;
             if offline
-                != matches!(parity, MirrorParityState::Current | MirrorParityState::NotApplicable)
+                != matches!(
+                    parity,
+                    MirrorParityState::Current | MirrorParityState::NotApplicable
+                )
             {
                 push(
                     "rows.mirror_parity",
@@ -852,8 +874,8 @@ impl M5ContractHealthRegister {
 }
 
 /// Parses the embedded checked-in register into the typed model.
-pub fn current_m5_contract_health_register(
-) -> Result<M5ContractHealthRegister, serde_json::Error> {
+pub fn current_m5_contract_health_register() -> Result<M5ContractHealthRegister, serde_json::Error>
+{
     serde_json::from_str(M5_CONTRACT_HEALTH_JSON)
 }
 

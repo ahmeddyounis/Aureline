@@ -86,12 +86,18 @@ fn release_blocking_family_with_a_missing_contract_is_held() {
     assert_eq!(failing.gate_kind, GateKind::CompatibilityReport);
     assert_eq!(failing.freshness, FreshnessState::Missing);
     // Mirror/offline publishability follows the gate outputs.
-    assert_eq!(te.graph_linkage.mirror_parity, MirrorParityState::Unpublished);
+    assert_eq!(
+        te.graph_linkage.mirror_parity,
+        MirrorParityState::Unpublished
+    );
     assert!(!te.graph_linkage.offline_verifiable);
     // The top-level decision holds promotion on the same signal.
     assert!(r.holds_promotion());
     assert_eq!(r.blockers.blocking_family_ids, vec!["task_event_envelope"]);
-    assert_eq!(r.blockers.blocking_gate_kinds, vec![GateKind::CompatibilityReport]);
+    assert_eq!(
+        r.blockers.blocking_gate_kinds,
+        vec![GateKind::CompatibilityReport]
+    );
 }
 
 #[test]
@@ -112,7 +118,10 @@ fn healthy_family_resolves_and_is_mirror_publishable() {
 #[test]
 fn graph_linkage_binds_build_identity_and_package_version() {
     let r = register();
-    assert!(r.build_identity.build_identity_ref.ends_with("build_identity.json"));
+    assert!(r
+        .build_identity
+        .build_identity_ref
+        .ends_with("build_identity.json"));
     assert!(!r.build_identity.toolchain_channel.is_empty());
     for row in &r.rows {
         assert!(!row.graph_linkage.release_packet_ref.is_empty());

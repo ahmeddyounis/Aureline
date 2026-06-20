@@ -61,13 +61,12 @@ fn gate_descriptor_files_match_the_register() {
         );
         let raw = std::fs::read_to_string(&path).expect("gate descriptor is readable");
         let descriptor: serde_json::Value = serde_json::from_str(&raw).expect("descriptor parses");
-        assert_eq!(
-            descriptor["gate_id"].as_str(),
-            Some(gate.gate_id.as_str())
-        );
+        assert_eq!(descriptor["gate_id"].as_str(), Some(gate.gate_id.as_str()));
 
         // Every per-family evaluation must agree with the register's gate row.
-        let evaluations = descriptor["evaluations"].as_array().expect("evaluations array");
+        let evaluations = descriptor["evaluations"]
+            .as_array()
+            .expect("evaluations array");
         assert_eq!(
             evaluations.len(),
             r.rows.len(),
@@ -76,7 +75,9 @@ fn gate_descriptor_files_match_the_register() {
         );
         for eval in evaluations {
             let family = eval["family_id"].as_str().unwrap();
-            let row = r.row(family).unwrap_or_else(|| panic!("{family} is in the model"));
+            let row = r
+                .row(family)
+                .unwrap_or_else(|| panic!("{family} is in the model"));
             let row_gate = row
                 .gates
                 .iter()
@@ -116,11 +117,13 @@ fn release_blocking_failure_holds_promotion_and_is_resolvable() {
 
     let root = repo_root();
     assert!(
-        root.join("shiproom/m5-contract-blocker-dashboard.md").exists(),
+        root.join("shiproom/m5-contract-blocker-dashboard.md")
+            .exists(),
         "shiproom blocker dashboard is checked in"
     );
     assert!(
-        root.join("ci/contracts/m5-contract-gates/manifest.json").exists(),
+        root.join("ci/contracts/m5-contract-gates/manifest.json")
+            .exists(),
         "CI gate manifest is checked in"
     );
 }
@@ -149,7 +152,10 @@ fn model_matches_frozen_validation_capture() {
 
     assert_eq!(capture["status"].as_str(), Some("pass"));
     assert_eq!(capture["as_of"].as_str(), Some(r.as_of.as_str()));
-    assert_eq!(capture["register_id"].as_str(), Some(r.register_id.as_str()));
+    assert_eq!(
+        capture["register_id"].as_str(),
+        Some(r.register_id.as_str())
+    );
     assert_eq!(
         capture["promotion_decision"].as_str().unwrap(),
         serde_json::to_value(r.blockers.decision)

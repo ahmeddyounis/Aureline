@@ -285,7 +285,10 @@ pub struct JsonSchemaPackage {
 impl JsonSchemaPackage {
     /// True when this package publishes at or above the stable cutline.
     pub fn publishes_stable(&self) -> bool {
-        matches!(self.lifecycle_label, LifecycleLabel::Lts | LifecycleLabel::Stable)
+        matches!(
+            self.lifecycle_label,
+            LifecycleLabel::Lts | LifecycleLabel::Stable
+        )
     }
 
     /// True when this package preserves unknown fields on round-trip.
@@ -412,7 +415,10 @@ impl M5JsonSchemaCatalog {
 
     /// Packages published at or above the stable cutline.
     pub fn stable_packages(&self) -> Vec<&JsonSchemaPackage> {
-        self.packages.iter().filter(|p| p.publishes_stable()).collect()
+        self.packages
+            .iter()
+            .filter(|p| p.publishes_stable())
+            .collect()
     }
 
     /// Packages publishing at a given lifecycle label.
@@ -425,13 +431,16 @@ impl M5JsonSchemaCatalog {
 
     /// Recomputes the summary block from the packages.
     pub fn computed_summary(&self) -> M5JsonSchemaCatalogSummary {
-        let count = |f: &dyn Fn(&JsonSchemaPackage) -> bool| self.packages.iter().filter(|p| f(p)).count();
+        let count =
+            |f: &dyn Fn(&JsonSchemaPackage) -> bool| self.packages.iter().filter(|p| f(p)).count();
         M5JsonSchemaCatalogSummary {
             total_packages: self.packages.len(),
             stable_label_packages: count(&|p| p.lifecycle_label == LifecycleLabel::Stable),
             beta_label_packages: count(&|p| p.lifecycle_label == LifecycleLabel::Beta),
             preserve_unknown_packages: count(&|p| p.preserves_unknown_fields()),
-            packages_with_migration_hooks: count(&|p| !p.field_contract.migration_note_hooks.is_empty()),
+            packages_with_migration_hooks: count(&|p| {
+                !p.field_contract.migration_note_hooks.is_empty()
+            }),
             packages_with_roundtrip_fixture: count(&|p| !p.roundtrip_fixture_ref.is_empty()),
             schema_files: self.packages.len(),
             example_payloads: self.packages.len(),
@@ -453,48 +462,87 @@ impl M5JsonSchemaCatalog {
         };
 
         if self.schema_version != M5_JSON_SCHEMA_CATALOG_SCHEMA_VERSION {
-            push("catalog.schema_version", format!("unexpected schema_version {}", self.schema_version));
+            push(
+                "catalog.schema_version",
+                format!("unexpected schema_version {}", self.schema_version),
+            );
         }
         if self.record_kind != M5_JSON_SCHEMA_CATALOG_RECORD_KIND {
-            push("catalog.record_kind", format!("unexpected record_kind {}", self.record_kind));
+            push(
+                "catalog.record_kind",
+                format!("unexpected record_kind {}", self.record_kind),
+            );
         }
         if self.catalog_id != M5_JSON_SCHEMA_CATALOG_ID {
-            push("catalog.catalog_id", format!("unexpected catalog_id {}", self.catalog_id));
+            push(
+                "catalog.catalog_id",
+                format!("unexpected catalog_id {}", self.catalog_id),
+            );
         }
 
         if self.lifecycle_labels != LifecycleLabel::ALL {
-            push("vocab.lifecycle_labels", "lifecycle_labels off the canonical list".into());
+            push(
+                "vocab.lifecycle_labels",
+                "lifecycle_labels off the canonical list".into(),
+            );
         }
         if self.maturity_lanes != MaturityLane::ALL {
-            push("vocab.maturity_lanes", "maturity_lanes off the canonical list".into());
+            push(
+                "vocab.maturity_lanes",
+                "maturity_lanes off the canonical list".into(),
+            );
         }
         if self.contract_forms != ContractForm::ALL {
-            push("vocab.contract_forms", "contract_forms off the canonical list".into());
+            push(
+                "vocab.contract_forms",
+                "contract_forms off the canonical list".into(),
+            );
         }
         if self.additive_field_rules != AdditiveFieldRule::ALL {
-            push("vocab.additive_field_rules", "additive_field_rules off the canonical list".into());
+            push(
+                "vocab.additive_field_rules",
+                "additive_field_rules off the canonical list".into(),
+            );
         }
         if self.required_field_policies != RequiredFieldPolicy::ALL {
-            push("vocab.required_field_policies", "required_field_policies off the canonical list".into());
+            push(
+                "vocab.required_field_policies",
+                "required_field_policies off the canonical list".into(),
+            );
         }
         if self.unknown_field_policies != UnknownFieldPolicy::ALL {
-            push("vocab.unknown_field_policies", "unknown_field_policies off the canonical list".into());
+            push(
+                "vocab.unknown_field_policies",
+                "unknown_field_policies off the canonical list".into(),
+            );
         }
         if self.downgrade_behaviors != DowngradeBehavior::ALL {
-            push("vocab.downgrade_behaviors", "downgrade_behaviors off the canonical list".into());
+            push(
+                "vocab.downgrade_behaviors",
+                "downgrade_behaviors off the canonical list".into(),
+            );
         }
         if self.resolution_surfaces != ResolutionSurface::ALL {
-            push("vocab.resolution_surfaces", "resolution_surfaces off the canonical list".into());
+            push(
+                "vocab.resolution_surfaces",
+                "resolution_surfaces off the canonical list".into(),
+            );
         }
 
         let mut seen_pkg: BTreeSet<&str> = BTreeSet::new();
         let mut seen_family: BTreeSet<&str> = BTreeSet::new();
         for pkg in &self.packages {
             if !seen_pkg.insert(pkg.package_id.as_str()) {
-                push("packages.duplicate_package_id", format!("duplicate package_id {}", pkg.package_id));
+                push(
+                    "packages.duplicate_package_id",
+                    format!("duplicate package_id {}", pkg.package_id),
+                );
             }
             if !seen_family.insert(pkg.family_id.as_str()) {
-                push("packages.duplicate_family_id", format!("duplicate family_id {}", pkg.family_id));
+                push(
+                    "packages.duplicate_family_id",
+                    format!("duplicate family_id {}", pkg.family_id),
+                );
             }
             if pkg.package_id != format!("m5.{}", pkg.family_id) {
                 push(
@@ -517,7 +565,10 @@ impl M5JsonSchemaCatalog {
             if !pkg.version_field_names.contains(&pkg.primary_version_field) {
                 push(
                     "packages.primary_version_field",
-                    format!("{}: primary_version_field not in version_field_names", pkg.family_id),
+                    format!(
+                        "{}: primary_version_field not in version_field_names",
+                        pkg.family_id
+                    ),
                 );
             }
             if pkg.field_contract.migration_note_hooks.is_empty() {
@@ -529,7 +580,10 @@ impl M5JsonSchemaCatalog {
         }
 
         if self.summary != self.computed_summary() {
-            push("summary.count_mismatch", "summary counts disagree with the packages".into());
+            push(
+                "summary.count_mismatch",
+                "summary counts disagree with the packages".into(),
+            );
         }
 
         out

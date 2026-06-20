@@ -37,7 +37,10 @@ fn checked_in_catalog_parses_and_validates() {
     assert_eq!(c.record_kind, M5_JSON_SCHEMA_CATALOG_RECORD_KIND);
     assert_eq!(c.catalog_id, M5_JSON_SCHEMA_CATALOG_ID);
     let violations = c.validate();
-    assert!(violations.is_empty(), "checked-in catalog must validate cleanly: {violations:#?}");
+    assert!(
+        violations.is_empty(),
+        "checked-in catalog must validate cleanly: {violations:#?}"
+    );
 }
 
 #[test]
@@ -46,7 +49,11 @@ fn every_durable_family_publishes_a_versioned_labeled_package() {
     assert!(!c.packages.is_empty());
     for pkg in &c.packages {
         // Explicit version field, lifecycle label, schema package, and note.
-        assert!(!pkg.version_field_names.is_empty(), "{} needs a version field", pkg.family_id);
+        assert!(
+            !pkg.version_field_names.is_empty(),
+            "{} needs a version field",
+            pkg.family_id
+        );
         assert!(pkg.schema_path.starts_with("schemas/public/m5-json/"));
         assert!(pkg.schema_id.ends_with(".schema.json"));
         assert!(!pkg.compatibility_note.is_empty());
@@ -69,7 +76,10 @@ fn model_matches_frozen_validation_capture() {
 
     let summary = &capture["summary"];
     let computed = c.computed_summary();
-    assert_eq!(summary["total_packages"].as_u64().unwrap() as usize, c.packages.len());
+    assert_eq!(
+        summary["total_packages"].as_u64().unwrap() as usize,
+        c.packages.len()
+    );
     assert_eq!(
         summary["stable_label_packages"].as_u64().unwrap() as usize,
         computed.stable_label_packages
@@ -84,13 +94,22 @@ fn model_matches_frozen_validation_capture() {
     );
 
     let checks = capture["package_checks"].as_array().unwrap();
-    assert_eq!(checks.len(), c.packages.len(), "capture must record every package");
+    assert_eq!(
+        checks.len(),
+        c.packages.len(),
+        "capture must record every package"
+    );
     for check in checks {
         let family = check["family_id"].as_str().unwrap();
-        let pkg = c.package(family).unwrap_or_else(|| panic!("capture family {family} is in the model"));
+        let pkg = c
+            .package(family)
+            .unwrap_or_else(|| panic!("capture family {family} is in the model"));
         assert_eq!(
             check["lifecycle_label"].as_str().unwrap(),
-            serde_json::to_value(pkg.lifecycle_label).unwrap().as_str().unwrap(),
+            serde_json::to_value(pkg.lifecycle_label)
+                .unwrap()
+                .as_str()
+                .unwrap(),
             "capture lifecycle label must match the model for {family}"
         );
         for key in [
@@ -99,7 +118,11 @@ fn model_matches_frozen_validation_capture() {
             "roundtrip_preserves_unknown",
             "lifecycle_matches_matrix",
         ] {
-            assert_eq!(check[key].as_str(), Some("passed"), "{family}: {key} must have passed");
+            assert_eq!(
+                check[key].as_str(),
+                Some("passed"),
+                "{family}: {key} must have passed"
+            );
         }
     }
 
@@ -154,5 +177,8 @@ fn checked_in_fixtures_are_rejected_by_the_model() {
             }
         }
     }
-    assert!(model_checked > 0, "at least one fixture must exercise a typed-model invariant");
+    assert!(
+        model_checked > 0,
+        "at least one fixture must exercise a typed-model invariant"
+    );
 }

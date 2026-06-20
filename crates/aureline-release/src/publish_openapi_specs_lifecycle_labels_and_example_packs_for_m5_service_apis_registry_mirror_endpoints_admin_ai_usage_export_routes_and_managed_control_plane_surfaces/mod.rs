@@ -348,12 +348,7 @@ pub enum MaturityLane {
 
 impl MaturityLane {
     /// Every lane, in declaration order.
-    pub const ALL: [Self; 4] = [
-        Self::Stable,
-        Self::Beta,
-        Self::Experimental,
-        Self::Internal,
-    ];
+    pub const ALL: [Self; 4] = [Self::Stable, Self::Beta, Self::Experimental, Self::Internal];
 }
 
 /// What happens to the family when required publication evidence is lost.
@@ -601,10 +596,16 @@ impl M5OpenapiCatalog {
     pub fn computed_summary(&self) -> M5OpenapiCatalogSummary {
         let count =
             |f: &dyn Fn(&OpenapiEndpoint) -> bool| self.endpoints.iter().filter(|e| f(e)).count();
-        let surfaces: BTreeSet<&str> =
-            self.endpoints.iter().map(|e| e.api_surface_id.as_str()).collect();
-        let families: BTreeSet<&str> =
-            self.endpoints.iter().map(|e| e.api_family_class.as_str()).collect();
+        let surfaces: BTreeSet<&str> = self
+            .endpoints
+            .iter()
+            .map(|e| e.api_surface_id.as_str())
+            .collect();
+        let families: BTreeSet<&str> = self
+            .endpoints
+            .iter()
+            .map(|e| e.api_family_class.as_str())
+            .collect();
         M5OpenapiCatalogSummary {
             total_endpoints: self.endpoints.len(),
             read_only_endpoints: count(&|e| e.is_read_only()),
@@ -660,7 +661,10 @@ impl M5OpenapiCatalog {
         }
 
         if self.http_methods != HttpMethod::ALL {
-            push("vocab.http_methods", "http_methods off the canonical list".into());
+            push(
+                "vocab.http_methods",
+                "http_methods off the canonical list".into(),
+            );
         }
         if self.auth_source_classes != AuthSourceClass::ALL {
             push(

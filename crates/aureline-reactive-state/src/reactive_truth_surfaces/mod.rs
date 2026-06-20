@@ -129,9 +129,13 @@ impl ActionGate {
     pub const fn note(self) -> &'static str {
         match self {
             Self::Enabled => "derived actions stay live and revalidate against authority on apply",
-            Self::RevalidateBeforeAct => "derived actions must revalidate against authority before applying",
+            Self::RevalidateBeforeAct => {
+                "derived actions must revalidate against authority before applying"
+            }
             Self::NarrowedToReadOnly => "mutating derived actions are narrowed to read-only",
-            Self::Blocked => "dangerous derived actions are disabled until the surface refreshes or reconnects",
+            Self::Blocked => {
+                "dangerous derived actions are disabled until the surface refreshes or reconnects"
+            }
         }
     }
 
@@ -144,7 +148,9 @@ impl ActionGate {
             // Lagging or cache-served truth is recoverable by a revalidate.
             TruthClaim::CoalescedStream | TruthClaim::CachedProjection => Self::RevalidateBeforeAct,
             // Incomplete scope cannot back a mutation yet.
-            TruthClaim::PartialProjection | TruthClaim::WarmingNoTruthYet => Self::NarrowedToReadOnly,
+            TruthClaim::PartialProjection | TruthClaim::WarmingNoTruthYet => {
+                Self::NarrowedToReadOnly
+            }
             // Known-stale, captured, imported, policy-limited, or absent
             // truth blocks dangerous derived actions outright.
             TruthClaim::StaleSnapshot
@@ -218,7 +224,10 @@ const fn trigger_requires_resubscribe(trigger: NarrowingTrigger) -> bool {
 /// The dominant trigger behind a narrowed claim: the trigger whose
 /// single-axis claim equals the winning narrowed claim. Triggers are
 /// already sorted, so the first match is deterministic.
-fn dominant_trigger(narrowed_claim: TruthClaim, triggers: &[NarrowingTrigger]) -> Option<NarrowingTrigger> {
+fn dominant_trigger(
+    narrowed_claim: TruthClaim,
+    triggers: &[NarrowingTrigger],
+) -> Option<NarrowingTrigger> {
     triggers
         .iter()
         .copied()
@@ -557,11 +566,7 @@ fn gated_rule(rule: &ClaimNarrowingRule) -> GatedNarrowingRule {
 }
 
 fn audit_from_row(row: &ReactiveSurfaceRow) -> ReactiveTruthSurfaceAudit {
-    let gated_narrowing_rules = row
-        .claim_narrowing_rules
-        .iter()
-        .map(gated_rule)
-        .collect();
+    let gated_narrowing_rules = row.claim_narrowing_rules.iter().map(gated_rule).collect();
     ReactiveTruthSurfaceAudit {
         surface_class: row.surface_class,
         authority_class: row.authority_class,
@@ -873,7 +878,10 @@ pub fn validate_reactive_truth_surfaces_packet(
     if packet.source_contract_refs.fixture_manifest_ref
         != REACTIVE_TRUTH_SURFACES_FIXTURE_MANIFEST_REF
     {
-        report.push("packet.fixture_manifest_ref", "fixture_manifest_ref drifted");
+        report.push(
+            "packet.fixture_manifest_ref",
+            "fixture_manifest_ref drifted",
+        );
     }
 
     // The audit must equal the projection of the canonical governance matrix.

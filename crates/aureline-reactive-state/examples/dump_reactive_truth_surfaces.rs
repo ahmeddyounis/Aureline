@@ -11,9 +11,7 @@ use aureline_reactive_state::reactive_truth_surfaces::{
 };
 
 fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
 }
 
 /// Pretty JSON with sorted keys, matching the house artifact style.
@@ -109,8 +107,7 @@ fn main() {
         let path = fixture_dir.join(format!("{}.json", fixture_slug(fixture)));
         fs::write(&path, sorted_json(fixture) + "\n").expect("write fixture");
     }
-    fs::write(fixture_dir.join("manifest.yaml"), manifest_yaml(&fixtures))
-        .expect("write manifest");
+    fs::write(fixture_dir.join("manifest.yaml"), manifest_yaml(&fixtures)).expect("write manifest");
 
     println!(
         "regenerated reactive-truth surfaces: {} audit rows, {} fixtures",

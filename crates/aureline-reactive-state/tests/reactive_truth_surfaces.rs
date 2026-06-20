@@ -58,7 +58,10 @@ fn fixture_corpus_matches_seeded_projection_and_validates() {
     let on_disk = load_fixtures();
     let mut seeded = seeded_reactive_truth_surfaces_fixtures();
     seeded.sort_by(|a, b| a.fixture_id.cmp(&b.fixture_id));
-    assert_eq!(on_disk, seeded, "fixture corpus drifted from seeded fixtures");
+    assert_eq!(
+        on_disk, seeded,
+        "fixture corpus drifted from seeded fixtures"
+    );
     for fixture in &on_disk {
         validate_reactive_truth_surfaces_fixture(fixture)
             .unwrap_or_else(|err| panic!("fixture {} must validate: {err}", fixture.fixture_id));
@@ -76,7 +79,11 @@ fn files_exist_on_disk() {
         REACTIVE_TRUTH_SURFACES_FIXTURE_MANIFEST_REF,
     ] {
         let path = root.join(rel);
-        assert!(path.exists(), "required file must exist: {}", path.display());
+        assert!(
+            path.exists(),
+            "required file must exist: {}",
+            path.display()
+        );
     }
     assert!(
         root.join(REACTIVE_TRUTH_SURFACES_FIXTURE_DIR).is_dir(),
