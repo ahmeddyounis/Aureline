@@ -66,6 +66,7 @@ pub mod m5_reactive_governance;
 pub mod mutation_journal;
 pub mod producers;
 pub mod query_envelope;
+pub mod reactive_truth_surfaces;
 pub mod reactive_views;
 pub mod runtime;
 pub mod state_class_recovery;
@@ -138,6 +139,23 @@ pub use query_envelope::{
     QueryRefreshReason, QUERY_ENVELOPE_ALPHA_SCHEMA_VERSION,
     QUERY_ENVELOPE_BENCHMARK_TRACE_RECORD_KIND, QUERY_ENVELOPE_RECORD_KIND,
     QUERY_ENVELOPE_SUPPORT_ARTIFACT_RECORD_KIND,
+};
+pub use reactive_truth_surfaces::{
+    build_reactive_truth_cue, render_cue as render_reactive_truth_cue,
+    render_reactive_truth_surfaces_audit_plaintext, seeded_reactive_truth_surfaces_fixtures,
+    seeded_reactive_truth_surfaces_packet, validate_reactive_truth_surfaces_fixture,
+    validate_reactive_truth_surfaces_packet, ActionGate as ReactiveTruthActionGate,
+    CueChannel as ReactiveTruthCueChannel, GatedNarrowingRule as ReactiveTruthGatedNarrowingRule,
+    ReactiveTruthCue, ReactiveTruthCueFixture, ReactiveTruthSurfaceAudit,
+    ReactiveTruthSurfacesError, ReactiveTruthSurfacesPacket,
+    SourceContractRefs as ReactiveTruthSourceContractRefs,
+    ValidationReport as ReactiveTruthSurfacesValidationReport,
+    ValidationViolation as ReactiveTruthSurfacesValidationViolation,
+    REACTIVE_TRUTH_SURFACES_DOC_REF, REACTIVE_TRUTH_SURFACES_FIXTURE_DIR,
+    REACTIVE_TRUTH_SURFACES_FIXTURE_MANIFEST_REF, REACTIVE_TRUTH_SURFACES_FIXTURE_RECORD_KIND,
+    REACTIVE_TRUTH_SURFACES_PACKET_RECORD_KIND, REACTIVE_TRUTH_SURFACES_PACKET_REF,
+    REACTIVE_TRUTH_SURFACES_REPORT_REF, REACTIVE_TRUTH_SURFACES_SCHEMA_REF,
+    REACTIVE_TRUTH_SURFACES_SCHEMA_VERSION,
 };
 pub use runtime::{
     open_workspace_readiness, readiness_from_envelope, readiness_label_counts, render_chip_line,

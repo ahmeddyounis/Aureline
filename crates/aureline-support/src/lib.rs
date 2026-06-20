@@ -427,6 +427,7 @@ pub mod portable_bundle_handoff;
 pub mod project_doctor;
 pub mod publication_dry_run;
 pub mod publish_supportability_runbooks_field_playbooks_and_incident_advisory;
+pub mod reactive_truth_surfaces;
 pub mod records_export_delete_governance;
 pub mod records_policy_governance;
 pub mod recovery_ladder;
@@ -606,6 +607,14 @@ pub use m5_reactive_governance::{
 pub use m5_records_policy_governance::{
     M5RecordsPolicyGovernanceSupportExport, M5RecordsPolicyGovernanceViolation,
     M5_RECORDS_POLICY_GOVERNANCE_RECORD_KIND, M5_RECORDS_POLICY_GOVERNANCE_SCHEMA_VERSION,
+};
+pub use reactive_truth_surfaces::{
+    compile_support_export_envelope as compile_reactive_truth_surfaces_support_export_envelope,
+    narrow_exported_cue as narrow_reactive_truth_surfaces_exported_cue,
+    ReactiveTruthSurfacesSupportExport, ReactiveTruthSurfacesSupportExportError,
+    ReactiveTruthSurfacesSupportExportRow,
+    REACTIVE_TRUTH_SURFACES_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND,
+    REACTIVE_TRUTH_SURFACES_SUPPORT_EXPORT_ROW_RECORD_KIND,
 };
 pub use m5_storage_certification::{
     seeded_blurred_cache_authority_m5_storage_certification_packet,

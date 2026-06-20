@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/reactive_truth_surfaces.schema.json",
+  "title": "Gated reactive-truth cues shipped across the derived M5 surfaces",
+  "description": "Boundary schema for the reactive-truth-surfaces audit packet and cue fixtures emitted by aureline-reactive-state. The packet projects the canonical M5 reactive-governance matrix into one audit row per derived surface: its authority/view/scope provenance, the epoch-parity group it must stay level with, the strongest claim it presents when healthy, the action gate that governs dangerous derived actions at that claim, and the gated narrowing rules that pair every supported degradation with a narrowed claim, an action gate, a dominant invalidation reason, and a resubscribe requirement. Fixtures bind a surface and an observed subscription state to the rendered cue (narrowed claim, action gate, dangerous-action-enabled flag, resubscribe requirement, and dominant invalidation reason) so UI, CLI/headless, activity-center, accessibility, diagnostics, and support/export channels narrow identically. Every claim is produced by the canonical narrowing engine, so the cue layer mirrors the governance matrix and never invents a second stale-state vocabulary.",
+  "oneOf": [
+    { "$ref": "#/$defs/packet" },
+    { "$ref": "#/$defs/fixture" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "pattern": "^(artifacts|crates|docs|fixtures|schemas)/.+"
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs",
+        "buffer_editor",
+        "derived_knowledge",
+        "execution",
+        "policy_entitlement",
+        "provider_overlay"
+      ]
+    },
+    "derivation_class": {
+      "type": "string",
+      "enum": ["authoritative", "derived"]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["authoritative", "warming", "cached", "stale", "replayed", "imported"]
+    },
+    "completeness": {
+      "type": "string",
+      "enum": ["full", "partial", "unloaded", "unavailable"]
+    },
+    "backpressure_mode": {
+      "type": "string",
+      "enum": ["realtime", "coalesced", "snapshot_required"]
+    },
+    "view_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_projection",
+        "durable_local_materialization",
+        "exportable_snapshot",
+        "managed_replicated_view"
+      ]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "producer_restart",
+        "authority_epoch_rolled",
+        "policy_epoch_changed",
+        "watcher_dropped",
+        "queue_saturation",
+        "upstream_input_stale",
+        "explicit_refresh_requested",
+        "cache_served",
+        "replayed_from_bundle",
+        "imported_from_external",
+        "scope_removed",
+        "causality_lost"
+      ]
+    },
+    "terminal_reason": {
+      "type": "string",
+      "enum": [
+        "consumer_cancelled",
+        "producer_shutdown",
+        "scope_removed",
+        "policy_terminated",
+        "unavailable"
+      ]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "workspace",
+        "window",
+        "review_workspace",
+        "remote_session",
+        "tenant",
+        "companion_surface"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "shell_workspace_tree",
+        "shell_activity_center",
+        "editor_buffer_outline",
+        "search_results",
+        "graph_neighborhood",
+        "docs_browser",
+        "ai_context_panel",
+        "review_workspace",
+        "preview_output",
+        "companion_panel",
+        "policy_trust_banner",
+        "headless_workspace_mirror",
+        "support_export_view"
+      ]
+    },
+    "truth_claim": {
+      "type": "string",
+      "enum": [
+        "exact_current_truth",
+        "consistent_snapshot",
+        "coalesced_stream",
+        "partial_projection",
+        "warming_no_truth_yet",
+        "cached_projection",
+        "stale_snapshot",
+        "replayed_snapshot",
+        "imported_snapshot",
+        "policy_limited_projection",
+        "provider_unavailable"
+      ]
+    },
+    "narrowing_trigger": {
+      "type": "string",
+      "enum": [
+        "freshness_warming",
+        "freshness_cached",
+        "freshness_stale",
+        "freshness_replayed",
+        "freshness_imported",
+        "completeness_partial",
+        "completeness_unloaded",
+        "completeness_unavailable",
+        "backpressure_coalesced",
+        "backpressure_snapshot_required",
+        "terminal_unavailable",
+        "terminal_terminated",
+        "policy_limited"
+      ]
+    },
+    "action_gate": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "revalidate_before_act",
+        "narrowed_to_read_only",
+        "blocked"
+      ]
+    },
+    "source_contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc_ref", "schema_ref", "packet_ref", "report_ref", "fixture_manifest_ref"],
+      "properties": {
+        "doc_ref": { "$ref": "#/$defs/repo_ref" },
+        "schema_ref": { "$ref": "#/$defs/repo_ref" },
+        "packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "report_ref": { "$ref": "#/$defs/repo_ref" },
+        "fixture_manifest_ref": { "$ref": "#/$defs/repo_ref" }
+      }
+    },
+    "gated_narrowing_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trigger",
+        "narrowed_claim",
+        "action_gate",
+        "invalidation_reason",
+        "resubscribe_required"
+      ],
+      "properties": {
+        "trigger": { "$ref": "#/$defs/narrowing_trigger" },
+        "narrowed_claim": { "$ref": "#/$defs/truth_claim" },
+        "action_gate": { "$ref": "#/$defs/action_gate" },
+        "invalidation_reason": { "$ref": "#/$defs/invalidation_reason" },
+        "resubscribe_required": { "type": "boolean" }
+      }
+    },
+    "surface_audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "authority_class",
+        "derivation_class",
+        "scope_class",
+        "view_class",
+        "query_family",
+        "epoch_parity_group_id",
+        "healthy_claim",
+        "healthy_action_gate",
+        "gated_narrowing_rules",
+        "consumer_refs",
+        "notes"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "derivation_class": { "$ref": "#/$defs/derivation_class" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "view_class": { "$ref": "#/$defs/view_class" },
+        "query_family": { "$ref": "#/$defs/non_empty_string" },
+        "epoch_parity_group_id": { "$ref": "#/$defs/non_empty_string" },
+        "healthy_claim": { "$ref": "#/$defs/truth_claim" },
+        "healthy_action_gate": { "$ref": "#/$defs/action_gate" },
+        "gated_narrowing_rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/gated_narrowing_rule" }
+        },
+        "consumer_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_ref" }
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "observed_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness",
+        "completeness",
+        "backpressure_mode",
+        "terminal_reason",
+        "policy_limited"
+      ],
+      "properties": {
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "completeness": { "$ref": "#/$defs/completeness" },
+        "backpressure_mode": { "$ref": "#/$defs/backpressure_mode" },
+        "terminal_reason": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/terminal_reason" }]
+        },
+        "policy_limited": { "type": "boolean" }
+      }
+    },
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "title",
+        "source_contract_refs",
+        "surfaces",
+        "invariants"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "reactive_truth_surfaces_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "source_contract_refs": { "$ref": "#/$defs/source_contract_refs" },
+        "surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_audit" }
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "fixture_id",
+        "surface_class",
+        "observed",
+        "expected_claim",
+        "expected_action_gate",
+        "expected_dangerous_action_enabled",
+        "expected_resubscribe_required",
+        "expected_invalidation_reason",
+        "consumer_ref",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "reactive_truth_surfaces_fixture_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "fixture_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "observed": { "$ref": "#/$defs/observed_state" },
+        "expected_claim": { "$ref": "#/$defs/truth_claim" },
+        "expected_action_gate": { "$ref": "#/$defs/action_gate" },
+        "expected_dangerous_action_enabled": { "type": "boolean" },
+        "expected_resubscribe_required": { "type": "boolean" },
+        "expected_invalidation_reason": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/invalidation_reason" }]
+        },
+        "consumer_ref": { "$ref": "#/$defs/repo_ref" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
