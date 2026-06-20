@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/env/hook-review.schema.json",
+  "title": "Aureline trust-gated lifecycle-hook review and repair",
+  "description": "Boundary schema for the lifecycle-hook review packet and its fixtures. A review surfaces each repo-defined lifecycle action — across devcontainer, Compose, Nix, direnv, bootstrap, and post-create activators — as an explicit object, then folds it through the current trust and policy context to a per-hook disposition (allowed, review_required, restricted, denied, or blocked), the hold reason behind it, what did or did not run, and a repair that preserves the exact hook identity, reason, and next step. It is metadata-first: hook commands are reduced to digests, secrets are named not carried, and no command body, secret value, or provider payload crosses this boundary. A fixture wraps the declared hooks and the context with the packet the engine must reach.",
+  "oneOf": [
+    { "$ref": "#/$defs/hook_review_packet" },
+    { "$ref": "#/$defs/hook_review_fixture" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "string_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "hook_activator": {
+      "type": "string",
+      "enum": ["devcontainer", "compose", "nix", "direnv", "bootstrap", "post_create"]
+    },
+    "hook_kind": {
+      "type": "string",
+      "enum": ["lifecycle_hook", "preflight_validator", "build_setup_command"]
+    },
+    "hook_disposition": {
+      "type": "string",
+      "enum": ["allowed", "review_required", "restricted", "denied", "blocked"]
+    },
+    "hook_hold_reason": {
+      "type": "string",
+      "enum": [
+        "awaiting_approval",
+        "ungated_authority",
+        "restricted_mode",
+        "policy_denied",
+        "missing_secret",
+        "unsupported_activator",
+        "bootstrap_failed",
+        "upstream_blocked"
+      ]
+    },
+    "nullable_hook_hold_reason": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/hook_hold_reason" }]
+    },
+    "repair_kind": {
+      "type": "string",
+      "enum": [
+        "request_approval",
+        "run_manually_after_review",
+        "request_policy_exception",
+        "provide_missing_secret",
+        "enable_activator_support",
+        "retry_after_bootstrap_fix",
+        "repair_upstream_first"
+      ]
+    },
+    "hook_review_posture": {
+      "type": "string",
+      "enum": ["all_cleared", "review_pending", "partially_blocked", "fully_blocked"]
+    },
+    "hook_review_scenario": {
+      "type": "string",
+      "enum": [
+        "all_cleared",
+        "review_required",
+        "ungated",
+        "restricted",
+        "policy_denied",
+        "missing_secret",
+        "unsupported_activator",
+        "bootstrap_failed",
+        "fully_blocked",
+        "blocked_post_create"
+      ]
+    },
+    "lifecycle_hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hook_id",
+        "activator",
+        "kind",
+        "phase",
+        "gate_state",
+        "authority_ref",
+        "command_digest",
+        "required_secrets",
+        "depends_on",
+        "summary"
+      ],
+      "properties": {
+        "hook_id": { "$ref": "#/$defs/non_empty_string" },
+        "activator": { "$ref": "#/$defs/hook_activator" },
+        "kind": { "$ref": "#/$defs/hook_kind" },
+        "phase": { "$ref": "environment-capsule.schema.json#/$defs/lifecycle_phase" },
+        "gate_state": { "$ref": "environment-capsule.schema.json#/$defs/trust_gate_state" },
+        "authority_ref": { "$ref": "#/$defs/non_empty_string" },
+        "command_digest": { "$ref": "environment-capsule.schema.json#/$defs/capsule_digest" },
+        "required_secrets": { "$ref": "#/$defs/string_array" },
+        "depends_on": { "$ref": "#/$defs/string_array" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "hook_review_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "target_class",
+        "trusted",
+        "restricted_mode",
+        "supported_activators",
+        "denied_activators",
+        "denied_hook_kinds",
+        "projected_secrets",
+        "failed_actions",
+        "policy_ref",
+        "approval_lineage_ref",
+        "support_export_ref"
+      ],
+      "properties": {
+        "profile": { "$ref": "environment-capsule.schema.json#/$defs/environment_profile" },
+        "target_class": { "$ref": "environment-capsule.schema.json#/$defs/target_class" },
+        "trusted": { "type": "boolean" },
+        "restricted_mode": { "type": "boolean" },
+        "supported_activators": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hook_activator" }
+        },
+        "denied_activators": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hook_activator" }
+        },
+        "denied_hook_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hook_kind" }
+        },
+        "projected_secrets": { "$ref": "#/$defs/string_array" },
+        "failed_actions": { "$ref": "#/$defs/string_array" },
+        "policy_ref": { "$ref": "#/$defs/non_empty_string" },
+        "approval_lineage_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "hook_repair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hook_id",
+        "repair_kind",
+        "reason",
+        "next_step",
+        "approval_lineage_ref",
+        "preview",
+        "redaction_class"
+      ],
+      "properties": {
+        "hook_id": { "$ref": "#/$defs/non_empty_string" },
+        "repair_kind": { "$ref": "#/$defs/repair_kind" },
+        "reason": { "$ref": "#/$defs/hook_hold_reason" },
+        "next_step": { "$ref": "#/$defs/non_empty_string" },
+        "approval_lineage_ref": { "$ref": "#/$defs/non_empty_string" },
+        "preview": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "environment-capsule.schema.json#/$defs/redaction_class" }
+      }
+    },
+    "nullable_hook_repair": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/hook_repair" }]
+    },
+    "hook_review_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hook_id",
+        "activator",
+        "kind",
+        "phase",
+        "gate_state",
+        "disposition",
+        "hold_reason",
+        "runnable",
+        "reason_tokens",
+        "required_secrets",
+        "depends_on",
+        "authority_ref",
+        "command_digest",
+        "what_happens",
+        "safe_next_step",
+        "repair",
+        "summary"
+      ],
+      "properties": {
+        "hook_id": { "$ref": "#/$defs/non_empty_string" },
+        "activator": { "$ref": "#/$defs/hook_activator" },
+        "kind": { "$ref": "#/$defs/hook_kind" },
+        "phase": { "$ref": "environment-capsule.schema.json#/$defs/lifecycle_phase" },
+        "gate_state": { "$ref": "environment-capsule.schema.json#/$defs/trust_gate_state" },
+        "disposition": { "$ref": "#/$defs/hook_disposition" },
+        "hold_reason": { "$ref": "#/$defs/nullable_hook_hold_reason" },
+        "runnable": { "type": "boolean" },
+        "reason_tokens": { "$ref": "#/$defs/string_array" },
+        "required_secrets": { "$ref": "#/$defs/string_array" },
+        "depends_on": { "$ref": "#/$defs/string_array" },
+        "authority_ref": { "$ref": "#/$defs/non_empty_string" },
+        "command_digest": { "$ref": "environment-capsule.schema.json#/$defs/capsule_digest" },
+        "what_happens": { "$ref": "#/$defs/non_empty_string" },
+        "safe_next_step": { "type": "string" },
+        "repair": { "$ref": "#/$defs/nullable_hook_repair" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "hook_review_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "review_id",
+        "profile",
+        "target_class",
+        "trusted",
+        "restricted_mode",
+        "posture",
+        "trust_hooks_evidence_state",
+        "total_hooks",
+        "runnable_hooks",
+        "allowed_hook_tokens",
+        "held_hook_tokens",
+        "restricted_hook_tokens",
+        "denied_hook_tokens",
+        "blocked_hook_tokens",
+        "reason_tokens",
+        "entries",
+        "repairs",
+        "what_did_not_run",
+        "what_still_works",
+        "headline",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "hook_review_packet_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "review_id": { "$ref": "#/$defs/non_empty_string" },
+        "profile": { "$ref": "environment-capsule.schema.json#/$defs/environment_profile" },
+        "target_class": { "$ref": "environment-capsule.schema.json#/$defs/target_class" },
+        "trusted": { "type": "boolean" },
+        "restricted_mode": { "type": "boolean" },
+        "posture": { "$ref": "#/$defs/hook_review_posture" },
+        "trust_hooks_evidence_state": {
+          "$ref": "environment-capsule.schema.json#/$defs/evidence_state"
+        },
+        "total_hooks": { "$ref": "#/$defs/count" },
+        "runnable_hooks": { "$ref": "#/$defs/count" },
+        "allowed_hook_tokens": { "$ref": "#/$defs/string_array" },
+        "held_hook_tokens": { "$ref": "#/$defs/string_array" },
+        "restricted_hook_tokens": { "$ref": "#/$defs/string_array" },
+        "denied_hook_tokens": { "$ref": "#/$defs/string_array" },
+        "blocked_hook_tokens": { "$ref": "#/$defs/string_array" },
+        "reason_tokens": { "$ref": "#/$defs/string_array" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hook_review_entry" }
+        },
+        "repairs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hook_repair" }
+        },
+        "what_did_not_run": { "$ref": "#/$defs/non_empty_string" },
+        "what_still_works": { "$ref": "#/$defs/non_empty_string" },
+        "headline": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "environment-capsule.schema.json#/$defs/redaction_class" }
+      }
+    },
+    "hook_review_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "fixture_id",
+        "profile",
+        "scenario",
+        "hooks",
+        "context",
+        "expected_posture",
+        "expected_runnable_hooks",
+        "expected_reason_tokens",
+        "expected_denied_hook_tokens",
+        "expected_blocked_hook_tokens",
+        "packet",
+        "consumer_ref",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "hook_review_fixture_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "fixture_id": { "$ref": "#/$defs/non_empty_string" },
+        "profile": { "$ref": "environment-capsule.schema.json#/$defs/environment_profile" },
+        "scenario": { "$ref": "#/$defs/hook_review_scenario" },
+        "hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/lifecycle_hook" }
+        },
+        "context": { "$ref": "#/$defs/hook_review_context" },
+        "expected_posture": { "$ref": "#/$defs/hook_review_posture" },
+        "expected_runnable_hooks": { "$ref": "#/$defs/count" },
+        "expected_reason_tokens": { "$ref": "#/$defs/string_array" },
+        "expected_denied_hook_tokens": { "$ref": "#/$defs/string_array" },
+        "expected_blocked_hook_tokens": { "$ref": "#/$defs/string_array" },
+        "packet": { "$ref": "#/$defs/hook_review_packet" },
+        "consumer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

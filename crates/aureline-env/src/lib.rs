@@ -58,6 +58,22 @@
 //! [`m5_env_governance::WarmStartPosture`] so prebuilds stay accelerators
 //! rather than authorities.
 //!
+//! The [`hook_review`] module makes the capsule's trust-gated lifecycle hooks
+//! reviewable and repairable. It surfaces each repo-defined lifecycle action —
+//! across devcontainer, Compose, Nix, direnv, bootstrap, and post-create
+//! activators — as an explicit [`hook_review::LifecycleHook`], and its single
+//! [`hook_review::review_hooks`] engine folds each hook through the current
+//! trust and policy [`hook_review::HookReviewContext`] to return one
+//! [`hook_review::HookReviewPacket`]: a per-hook
+//! [`hook_review::HookDisposition`] (`allowed`, `review_required`, `restricted`,
+//! `denied`, or `blocked`), the [`hook_review::HookHoldReason`] behind it, what
+//! did or did not run, and a [`hook_review::HookRepair`] that preserves the
+//! exact hook identity, reason, and next step. Restricted-mode and
+//! policy-denied no-ops become visible suggestions instead of silent side
+//! effects, and the rolled-up [`hook_review::HookReviewPosture`] maps back onto
+//! the governance trust-hooks [`m5_env_governance::EvidenceState`] so the
+//! review lane narrows in lockstep with the capsule.
+//!
 //! The [`runtime_materialization`] module makes the capsule's runtime
 //! materialization parity operational. It derives an explicit
 //! [`runtime_materialization::RuntimeInstance`] — the process namespace,
@@ -76,6 +92,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-env/0.0.0")]
 
 pub mod capsules;
+pub mod hook_review;
 pub mod m5_env_governance;
 pub mod prebuilds;
 pub mod runtime_materialization;
@@ -98,6 +115,20 @@ pub use capsules::{
     ENVIRONMENT_CAPSULE_INSPECTION_RECORD_KIND, ENVIRONMENT_CAPSULE_PROOF_REF,
     ENVIRONMENT_CAPSULE_RECORD_KIND, ENVIRONMENT_CAPSULE_SCHEMA_REF,
     ENVIRONMENT_CAPSULE_SCHEMA_VERSION,
+};
+
+pub use hook_review::{
+    ai_hook_review, desktop_hook_review, direct_hold_reason, export_hook_review,
+    headless_hook_review, review_hooks, seeded_hook_review_drills, seeded_hook_review_fixtures,
+    seeded_hook_review_packets, seeded_lifecycle_hooks, support_hook_review,
+    validate_hook_review_drill, validate_hook_review_fixture, validate_lifecycle_hook,
+    HookActivator, HookDisposition, HookHoldReason, HookKind, HookRepair, HookReviewContext,
+    HookReviewDrill, HookReviewDrillStep, HookReviewEntry, HookReviewExport, HookReviewFixture,
+    HookReviewPacket, HookReviewPosture, HookReviewScenario, LifecycleHook, RepairKind,
+    HOOK_REVIEW_DOC_REF, HOOK_REVIEW_EXPORT_RECORD_KIND, HOOK_REVIEW_FIXTURE_DIR,
+    HOOK_REVIEW_FIXTURE_MANIFEST_REF, HOOK_REVIEW_FIXTURE_RECORD_KIND,
+    HOOK_REVIEW_PACKET_RECORD_KIND, HOOK_REVIEW_PROOF_REF, HOOK_REVIEW_SCHEMA_REF,
+    HOOK_REVIEW_SCHEMA_VERSION,
 };
 
 pub use m5_env_governance::{
