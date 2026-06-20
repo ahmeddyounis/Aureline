@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/benchmarks/public-comparison-pack.schema.json",
+  "title": "Aureline public-comparison and reproducibility pack and pack register",
+  "description": "Boundary schema for the public-comparison reproducibility pack lane. A reproducibility pack is the canonical, reviewable, rerunnable identity of one public, procurement, or enterprise-facing benchmark comparison: the governance publication pack it binds to, its publication posture and claim summary, the protected metrics it covers, the raw configuration and exact commands that produced the result, the corpus-manifest, protected-metrics, and fitness-catalog revisions it exercised, the reference-hardware and lab-image identity and environment notes it ran under, its caveats, exclusions, and competitor posture, the stable refs to the raw run metadata an independent reviewer reruns or audits against, the reproduction recipe, the disclosure fields it carries, its owner and evidence owner, and its freshness rule. The pack register is the checked-in collection of those packs that binds every governance publication pack to a reproducibility pack and exposes the pack ids docs, help, release, and procurement surfaces cite instead of rephrasing benchmark context by hand. Raw run logs, raw provider payloads, raw machine labels, secret material, and credential bodies never cross this boundary; only stable ids, exact-but-publishable command lines and config knobs, and reviewable sentences do.",
+  "oneOf": [
+    { "$ref": "#/$defs/public_comparison_pack_register" },
+    { "$ref": "#/$defs/public_comparison_pack" }
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9_.]*$"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-term sentence safe for product copy, docs, support export, procurement packets, and release evidence. Raw run logs, raw provider payloads, raw machine labels, and secret material MUST NOT appear."
+    },
+    "nullable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_sentence" }
+      ]
+    },
+    "utc_date": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+      ]
+    },
+    "utc_date_time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "posture": {
+      "type": "string",
+      "enum": [
+        "methodology_only",
+        "aureline_only_claim",
+        "public_head_to_head_comparison",
+        "quarantined_not_comparable"
+      ],
+      "description": "Publication posture this pack backs. aureline_only_claim and public_head_to_head_comparison are claim-bearing and carry the stricter raw-configuration, environment, raw-run-metadata, and reproduction requirements."
+    },
+    "surface": {
+      "type": "string",
+      "enum": [
+        "public_comparison",
+        "procurement_packet",
+        "enterprise_evaluation",
+        "release_evidence",
+        "docs",
+        "help",
+        "methodology_note"
+      ],
+      "description": "A surface this pack authorizes. public_comparison, procurement_packet, and enterprise_evaluation are claim-bearing surfaces and may be authorized only by a claim-bearing pack."
+    },
+    "hardware_class": {
+      "type": "string",
+      "enum": ["reference_lab", "partner_lab", "self_capture"]
+    },
+    "pack_status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "in_review",
+        "publishable",
+        "quarantined",
+        "superseded",
+        "withdrawn"
+      ],
+      "description": "publishable marks an in-force claim-bearing or methodology pack; quarantined marks the in-force pack for a quarantined_not_comparable comparison; superseded and withdrawn are closed history; draft and in_review are pending."
+    },
+    "config_knob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "value": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "raw_configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_lines", "config_knobs", "build_identity_refs"],
+      "description": "The exact, publishable configuration that produced the result. command_lines and build_identity_refs MUST be non-empty for a claim-bearing pack.",
+      "properties": {
+        "command_lines": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Exact command line(s) run, with credential bodies and secret material removed."
+        },
+        "config_knobs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/config_knob" },
+          "description": "Material configuration knobs whose value changes the measured result."
+        },
+        "build_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Exact-build identity refs for the Aureline build, never a raw artifact body."
+        }
+      }
+    },
+    "corpus_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus_refs",
+        "corpus_manifest_ref",
+        "corpus_manifest_revision",
+        "protected_metrics_revision",
+        "fitness_catalog_revision"
+      ],
+      "description": "The revisioned corpus, protected-metrics, and fitness-catalog identity the comparison was measured against.",
+      "properties": {
+        "corpus_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_id" }
+        },
+        "corpus_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "corpus_manifest_revision": { "$ref": "#/$defs/non_empty_string" },
+        "protected_metrics_revision": { "$ref": "#/$defs/non_empty_string" },
+        "fitness_catalog_revision": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hardware_profile_ref",
+        "hardware_class",
+        "display_class_ref",
+        "lab_image_ref",
+        "lab_image_revision",
+        "environment_ref"
+      ],
+      "description": "The reference-hardware and lab-image identity and environment notes the comparison ran under. power_thermal_posture and environment_notes MUST be present (non-null) for a claim-bearing pack.",
+      "properties": {
+        "hardware_profile_ref": { "$ref": "#/$defs/non_empty_string" },
+        "hardware_class": { "$ref": "#/$defs/hardware_class" },
+        "display_class_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lab_image_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lab_image_revision": { "$ref": "#/$defs/non_empty_string" },
+        "environment_ref": { "$ref": "#/$defs/non_empty_string" },
+        "power_thermal_posture": { "$ref": "#/$defs/nullable_sentence" },
+        "calibration_drift_note": { "$ref": "#/$defs/nullable_sentence" },
+        "environment_notes": { "$ref": "#/$defs/nullable_sentence" }
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["competitor_ref", "competitor_version", "task_parity_note"],
+      "description": "Present only for a public_head_to_head_comparison; names the compared product, its version, plugin posture, and the task-parity conditions of the comparison.",
+      "properties": {
+        "competitor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "competitor_version": { "$ref": "#/$defs/non_empty_string" },
+        "plugin_posture": { "$ref": "#/$defs/nullable_sentence" },
+        "task_parity_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "reproduction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["steps", "rerun_recipe_ref"],
+      "description": "How an independent reviewer reruns or audits the claim. steps MUST be non-empty and rerun_recipe_ref MUST be present for a claim-bearing pack.",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "rerun_recipe_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Stable pointer to the runnable rerun recipe, never a raw script body."
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule", "evidence_captured_on", "freshness_slo_days", "expires_on"],
+      "properties": {
+        "rule": { "$ref": "#/$defs/reviewable_sentence" },
+        "evidence_captured_on": { "$ref": "#/$defs/utc_date" },
+        "freshness_slo_days": { "type": "integer", "minimum": 1 },
+        "expires_on": { "$ref": "#/$defs/utc_date" }
+      }
+    },
+    "public_comparison_pack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "pack_ref",
+        "governance_pack_ref",
+        "posture",
+        "claim_summary",
+        "surfaces",
+        "metric_refs",
+        "raw_configuration",
+        "corpus_binding",
+        "environment",
+        "caveats",
+        "raw_run_metadata_refs",
+        "raw_run_metadata_retained",
+        "reproduction",
+        "disclosed_fields",
+        "related_claim_refs",
+        "owner_ref",
+        "evidence_owner_ref",
+        "freshness",
+        "status",
+        "recorded_on"
+      ],
+      "properties": {
+        "record_kind": { "const": "benchmark_public_comparison_pack" },
+        "schema_version": { "const": 1 },
+        "pack_ref": { "$ref": "#/$defs/stable_id" },
+        "governance_pack_ref": {
+          "$ref": "#/$defs/stable_id",
+          "description": "Publication-pack id in the benchmark-governance matrix this reproducibility pack backs; must resolve in the matrix."
+        },
+        "posture": { "$ref": "#/$defs/posture" },
+        "claim_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/surface" }
+        },
+        "metric_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_id" },
+          "description": "Protected-metric ids this pack covers; must equal the governance pack's metric set."
+        },
+        "raw_configuration": { "$ref": "#/$defs/raw_configuration" },
+        "corpus_binding": { "$ref": "#/$defs/corpus_binding" },
+        "environment": { "$ref": "#/$defs/environment" },
+        "comparison": { "$ref": "#/$defs/comparison" },
+        "caveats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "description": "Exclusions, declared non-applicable features, and limits a reader must weigh before relying on the comparison."
+        },
+        "raw_run_metadata_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Stable refs to the retained raw run metadata an independent reviewer reruns or audits against; never raw run-log bodies."
+        },
+        "raw_run_metadata_retained": {
+          "type": "boolean",
+          "description": "True only when the raw run metadata behind this pack is retained and resolvable for later independent review or incident analysis."
+        },
+        "reproduction": { "$ref": "#/$defs/reproduction" },
+        "disclosed_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Disclosure fields this pack carries; must be a superset of the governance pack's required_disclosure_fields."
+        },
+        "related_claim_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Related claim rows, publication packs, or evidence packets this comparison sits alongside."
+        },
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "status": { "$ref": "#/$defs/pack_status" },
+        "recorded_on": { "$ref": "#/$defs/utc_date" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "public_comparison_pack_register": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "register_id",
+        "generated_at",
+        "register_revision",
+        "title",
+        "summary",
+        "source_refs",
+        "matrix_ref",
+        "packs"
+      ],
+      "properties": {
+        "record_kind": { "const": "benchmark_public_comparison_pack_register" },
+        "schema_version": { "const": 1 },
+        "register_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/utc_date_time" },
+        "register_revision": { "type": "integer", "minimum": 1 },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Schema and governance refs. MUST include this schema and the governance matrix it binds to."
+        },
+        "matrix_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Benchmark-governance matrix whose publication packs this register backs with reproducibility packs."
+        },
+        "packs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/public_comparison_pack" }
+        }
+      }
+    }
+  }
+}

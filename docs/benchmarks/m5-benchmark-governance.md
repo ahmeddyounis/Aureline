@@ -19,6 +19,10 @@ Companion artifacts:
   — boundary schema validating the matrix and its narrowing fixtures.
 - [`/fixtures/benchmarks/m5-benchmark-governance/`](../../fixtures/benchmarks/m5-benchmark-governance/)
   — narrowing fixtures proving each downgrade path is mechanically detectable.
+- [`/docs/benchmarks/public-comparison-packs.md`](./public-comparison-packs.md)
+  — reproducibility packs that back each publication pack in this matrix with the
+  raw configuration, environment notes, and reproduction recipe an independent
+  reviewer reruns or audits against.
 
 This matrix sits **on top of** the existing benchmark governance, which it
 references rather than replaces:

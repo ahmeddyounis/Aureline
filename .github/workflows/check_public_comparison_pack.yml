@@ -1,0 +1,71 @@
+# Public-comparison reproducibility pack gate.
+#
+# Validates the public-comparison pack register and its fixtures: every
+# reproducibility pack binds to a publication pack in the benchmark-governance
+# matrix with a matching posture, metric set, and reference-hardware and
+# lab-image identity; a claim-bearing pack carries its raw configuration, exact
+# commands, raw-run-metadata refs, environment notes, and reproduction recipe;
+# a non-claim-bearing pack may not authorize a public, procurement, or
+# enterprise surface; every governance publication pack has exactly one in-force
+# reproducibility pack so no claim ships without one; the worked sample pack
+# validates the same way; and the fixtures prove each fail-closed path.
+
+name: check_public_comparison_pack
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_public_comparison_pack.yml"
+      - "ci/check_public_comparison_pack.py"
+      - "artifacts/benchmarks/public-comparison-pack-register.json"
+      - "artifacts/benchmarks/sample-public-pack/**"
+      - "schemas/benchmarks/public-comparison-pack.schema.json"
+      - "fixtures/benchmarks/public-comparison/**"
+      - "artifacts/benchmarks/m5-benchmark-governance.json"
+      - "docs/benchmarks/public-comparison-packs.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-public-comparison-pack-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  public_comparison_pack:
+    name: Public-comparison reproducibility packs
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run public-comparison pack validator
+        run: |
+          python3 ci/check_public_comparison_pack.py --repo-root . \
+            --report artifacts/benchmarks/public-comparison-pack-validation.json
+
+      - name: Upload public-comparison pack report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-comparison-pack-${{ github.run_id }}
+          path: artifacts/benchmarks/public-comparison-pack-validation.json
+          if-no-files-found: error
+          retention-days: 30

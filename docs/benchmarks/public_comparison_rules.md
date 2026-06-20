@@ -7,6 +7,12 @@ head-to-head comparisons.
 
 Companion artifacts:
 
+- [`/docs/benchmarks/public-comparison-packs.md`](./public-comparison-packs.md)
+  — normative policy for the reproducibility packs that back every public,
+  procurement, and enterprise comparison with raw configuration, environment
+  notes, and a reproduction recipe, plus the canonical
+  [`/artifacts/benchmarks/public-comparison-pack-register.json`](../../artifacts/benchmarks/public-comparison-pack-register.json)
+  consumers cite by pack id.
 - [`/docs/benchmarks/benchmark_publication_pack_template.md`](./benchmark_publication_pack_template.md)
   — required packet shape for public benchmark evidence.
 - [`/docs/benchmarks/corpus_governance.md`](./corpus_governance.md)
