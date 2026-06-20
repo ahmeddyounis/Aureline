@@ -6,6 +6,10 @@ use aureline_i18n::{PackApplicationDecision, SkewDegradeReason};
 
 use aureline_i18n::{LocalizationRenderState, RenderSeverityClass, TextDirection};
 
+use super::contributed_support::{
+    project_support_contributed_locale_support, project_user_contributed_locale_support,
+    ContributedSupportAudience,
+};
 use super::fallback_inspector::{
     project_support_locale_fallback_inspector, project_user_locale_fallback_inspector,
     FallbackInspectorAudience,
@@ -16,10 +20,6 @@ use super::localized_surface::{
 use super::pack_compatibility::{
     project_support_locale_pack_compatibility, project_user_locale_pack_compatibility,
     CompatibilityViewAudience,
-};
-use super::contributed_support::{
-    project_support_contributed_locale_support, project_user_contributed_locale_support,
-    ContributedSupportAudience,
 };
 
 use aureline_i18n::{ContributedDegradeReason, LocalizationIssueSourceClass};
@@ -387,4 +387,121 @@ fn contributed_support_export_omits_translated_bodies() {
     assert!(support.raw_translated_body_omitted);
     let json = serde_json::to_string(&support).expect("serializes");
     assert!(json.contains("shell_contributed_locale_support_view"));
+}
+
+use super::attention_vocabulary::{
+    project_support_attention_vocabulary, project_user_attention_vocabulary,
+    AttentionSurfaceFamily, AttentionVocabularyAudience,
+};
+
+#[test]
+fn every_durable_attention_surface_binds_to_one_governed_vocabulary() {
+    let view = project_user_attention_vocabulary("es-MX");
+    // Every bound state resolves to a governed glossary term.
+    let glossary = aureline_i18n::seeded_attention_vocabulary_glossary();
+    for row in &view.rows {
+        assert!(
+            glossary.governs(&row.governed_term_key),
+            "{} -> {} is not governed",
+            row.canonical_token,
+            row.governed_term_key
+        );
+    }
+    // All seven canonical surface families are represented.
+    let families: std::collections::BTreeSet<_> =
+        view.rows.iter().map(|r| r.surface_family).collect();
+    for family in [
+        AttentionSurfaceFamily::ActivityRowState,
+        AttentionSurfaceFamily::ActivityPartition,
+        AttentionSurfaceFamily::JobRowBadge,
+        AttentionSurfaceFamily::DurableLifecycleState,
+        AttentionSurfaceFamily::QuietHoursMode,
+        AttentionSurfaceFamily::SuppressionReason,
+        AttentionSurfaceFamily::QuietHoursDecision,
+    ] {
+        assert!(families.contains(&family), "missing {family:?}");
+    }
+}
+
+#[test]
+fn running_state_shares_one_term_across_surfaces() {
+    // The activity-center row and the durable job row must use the same governed
+    // term for "running" — no per-surface wording drift.
+    let view = project_user_attention_vocabulary("ja-JP");
+    let rows = view.rows_for_term("attention.lifecycle.running");
+    let surfaces: std::collections::BTreeSet<_> = rows.iter().map(|r| r.surface_family).collect();
+    assert!(surfaces.contains(&AttentionSurfaceFamily::ActivityRowState));
+    assert!(surfaces.contains(&AttentionSurfaceFamily::DurableLifecycleState));
+    // Every binding paints the same localized label.
+    let labels: std::collections::BTreeSet<_> =
+        rows.iter().filter_map(|r| r.display_term.clone()).collect();
+    assert_eq!(labels.len(), 1, "running term drifts across surfaces");
+}
+
+#[test]
+fn quiet_hours_held_shares_one_term_across_surfaces() {
+    let view = project_user_attention_vocabulary("ar-SA");
+    let rows = view.rows_for_term("attention.suppression.held_quiet_hours");
+    let surfaces: std::collections::BTreeSet<_> = rows.iter().map(|r| r.surface_family).collect();
+    // An activity row state, a suppression reason, and a fanout decision agree.
+    assert!(surfaces.contains(&AttentionSurfaceFamily::ActivityRowState));
+    assert!(surfaces.contains(&AttentionSurfaceFamily::SuppressionReason));
+    assert!(surfaces.contains(&AttentionSurfaceFamily::QuietHoursDecision));
+}
+
+#[test]
+fn severity_rank_is_inherited_from_the_glossary() {
+    let view = project_user_attention_vocabulary("es-MX");
+    let glossary = aureline_i18n::seeded_attention_vocabulary_glossary();
+    for row in &view.rows {
+        let term = glossary.term(&row.governed_term_key).unwrap();
+        assert_eq!(
+            row.severity_rank, term.severity_rank,
+            "{}",
+            row.canonical_token
+        );
+        assert_eq!(row.action_order_index, term.action_order_index);
+    }
+    assert!(view.all_severities_preserved());
+}
+
+#[test]
+fn arabic_view_renders_right_to_left() {
+    let view = project_user_attention_vocabulary("ar-SA");
+    assert_eq!(view.text_direction, TextDirection::RightToLeft);
+    for row in &view.rows {
+        assert_eq!(row.text_direction, TextDirection::RightToLeft);
+    }
+}
+
+#[test]
+fn support_export_omits_translated_body_but_keeps_anchors() {
+    let support = project_support_attention_vocabulary("ja-JP");
+    assert_eq!(support.audience, AttentionVocabularyAudience::SupportExport);
+    assert!(support.raw_translated_body_omitted);
+    for row in &support.rows {
+        // No translated prose crosses the support boundary...
+        assert!(row.display_term.is_none());
+        assert!(row.truncated_term.is_none());
+        // ...but support can still map the localized state back to the glossary.
+        assert!(!row.governed_term_key.is_empty());
+        assert!(!row.canonical_token.is_empty());
+    }
+    let json = serde_json::to_string(&support).expect("serializes");
+    assert!(json.contains("shell_attention_vocabulary_view"));
+    // The translated labels must not leak into the support payload.
+    assert!(!json.contains("実行中"));
+}
+
+#[test]
+fn user_view_carries_localized_labels() {
+    let view = project_user_attention_vocabulary("es-MX");
+    assert_eq!(view.audience, AttentionVocabularyAudience::User);
+    assert!(!view.raw_translated_body_omitted);
+    let running = view
+        .rows
+        .iter()
+        .find(|r| r.governed_term_key == "attention.lifecycle.running")
+        .unwrap();
+    assert_eq!(running.display_term.as_deref(), Some("En ejecución"));
 }

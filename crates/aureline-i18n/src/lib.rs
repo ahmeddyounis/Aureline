@@ -10,6 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+pub mod attention_vocabulary;
 pub mod contributed_locale;
 pub mod locale_pack_delivery;
 pub mod localized_catalog;
@@ -18,6 +19,22 @@ pub mod m5_dense_surface_lab;
 pub mod message_registry;
 pub mod stable_locale_lifecycle;
 pub mod translated_help_packs;
+
+pub use attention_vocabulary::{
+    build_attention_vocabulary_parity_report, seeded_attention_vocabulary_drift_scenarios,
+    seeded_attention_vocabulary_glossary, seeded_attention_vocabulary_parity_report,
+    AttentionDomainParityRow, AttentionDriftClass, AttentionDriftFinding, AttentionDriftMutation,
+    AttentionDriftScenario, AttentionGlossarySummary, AttentionGlossaryTerm,
+    AttentionLocaleParityRow, AttentionParitySummary, AttentionSeverityRank, AttentionTermDomain,
+    AttentionTermTranslation, AttentionVocabularyDriftScenarioSet, AttentionVocabularyGlossary,
+    AttentionVocabularyParityReport, ATTENTION_TERM_TRUNCATION_BUDGET_GRAPHEMES,
+    ATTENTION_VOCABULARY_DRIFT_FIXTURE_REF, ATTENTION_VOCABULARY_DRIFT_RECORD_KIND,
+    ATTENTION_VOCABULARY_DRIFT_SCENARIO_SET_ID, ATTENTION_VOCABULARY_FIXTURE_ROOT,
+    ATTENTION_VOCABULARY_GLOSSARY_FIXTURE_REF, ATTENTION_VOCABULARY_GLOSSARY_ID,
+    ATTENTION_VOCABULARY_GLOSSARY_RECORD_KIND, ATTENTION_VOCABULARY_PARITY_FIXTURE_REF,
+    ATTENTION_VOCABULARY_PARITY_RECORD_KIND, ATTENTION_VOCABULARY_PARITY_REPORT_ID,
+    ATTENTION_VOCABULARY_SCHEMA_VERSION, ATTENTION_VOCABULARY_SOURCE_LANGUAGE_LOCALE,
+};
 
 pub use message_registry::{
     seeded_m5_message_id_baseline, seeded_m5_message_registry, LocaleProfileRow, M5MessageRegistry,

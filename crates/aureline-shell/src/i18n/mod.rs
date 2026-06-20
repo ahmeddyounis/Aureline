@@ -15,10 +15,17 @@
 //! for extension and companion locale support, host-stable label protection,
 //! and per-source localization-issue attribution.
 
+pub mod attention_vocabulary;
 pub mod contributed_support;
 pub mod fallback_inspector;
 pub mod localized_surface;
 pub mod pack_compatibility;
+
+pub use attention_vocabulary::{
+    project_attention_vocabulary, project_support_attention_vocabulary,
+    project_user_attention_vocabulary, AttentionSurfaceFamily, AttentionVocabularyAudience,
+    AttentionVocabularyRow, AttentionVocabularyView, ATTENTION_VOCABULARY_VIEW_RECORD_KIND,
+};
 
 pub use fallback_inspector::{
     project_locale_fallback_inspector, project_support_locale_fallback_inspector,

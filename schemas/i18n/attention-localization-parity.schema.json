@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/i18n/attention-localization-parity.schema.json",
+  "title": "Aureline attention and lifecycle localization parity report",
+  "description": "Cross-locale audit for the governed attention/lifecycle vocabulary glossary. For each claimed locale it records whether every term keeps its canonical severity rank and action order, whether terms sharing a source word translate consistently, whether distinct terms avoid collapsing onto one translation, whether severity survives truncation, the text-expansion ceiling, and the per-locale claim state. Per-domain rows confirm dense action ordering. Carries no translated bodies.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "report_id",
+    "generated_at",
+    "glossary_id_ref",
+    "target_build_identity_ref",
+    "source_language_locale",
+    "claimed_locales",
+    "locale_rows",
+    "domain_rows",
+    "drift_findings",
+    "summary"
+  ],
+  "properties": {
+    "record_kind": { "const": "attention_vocabulary_parity_report_record" },
+    "schema_version": { "const": 1 },
+    "report_id": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "glossary_id_ref": { "type": "string", "minLength": 1 },
+    "target_build_identity_ref": { "type": "string", "minLength": 1 },
+    "source_language_locale": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$" },
+    "claimed_locales": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$" }
+    },
+    "locale_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/locale_row" }
+    },
+    "domain_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/domain_row" }
+    },
+    "drift_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/drift_finding" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "domain": {
+      "type": "string",
+      "enum": [
+        "lifecycle_state",
+        "activity_partition",
+        "job_row_badge",
+        "quiet_hours_mode",
+        "suppression_reason"
+      ]
+    },
+    "severity_rank": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "in_progress",
+        "pending",
+        "success",
+        "needs_attention",
+        "degraded",
+        "failure",
+        "critical"
+      ]
+    },
+    "text_direction": {
+      "type": "string",
+      "enum": ["left_to_right", "right_to_left"]
+    },
+    "claim_state": {
+      "type": "string",
+      "enum": ["green", "narrowed", "blocked"]
+    },
+    "drift_class": {
+      "type": "string",
+      "enum": [
+        "severity_rank_altered",
+        "action_order_altered",
+        "lexical_consistency_broken",
+        "term_collision",
+        "severity_hidden_under_truncation",
+        "placeholder_dropped"
+      ]
+    },
+    "locale_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "locale",
+        "text_direction",
+        "total_terms",
+        "localized_terms",
+        "source_fallback_terms",
+        "truncated_terms",
+        "max_expansion_ratio_pct",
+        "all_severity_ranks_preserved",
+        "action_order_stable",
+        "lexical_consistency_holds",
+        "no_term_collisions",
+        "all_severities_preserved_under_truncation",
+        "claim_state"
+      ],
+      "properties": {
+        "locale": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$" },
+        "text_direction": { "$ref": "#/$defs/text_direction" },
+        "total_terms": { "type": "integer", "minimum": 0 },
+        "localized_terms": { "type": "integer", "minimum": 0 },
+        "source_fallback_terms": { "type": "integer", "minimum": 0 },
+        "truncated_terms": { "type": "integer", "minimum": 0 },
+        "max_expansion_ratio_pct": { "type": "integer", "minimum": 0 },
+        "all_severity_ranks_preserved": { "type": "boolean" },
+        "action_order_stable": { "type": "boolean" },
+        "lexical_consistency_holds": { "type": "boolean" },
+        "no_term_collisions": { "type": "boolean" },
+        "all_severities_preserved_under_truncation": { "type": "boolean" },
+        "claim_state": { "$ref": "#/$defs/claim_state" }
+      }
+    },
+    "domain_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "term_count",
+        "action_order_indices",
+        "action_order_dense",
+        "severity_ranks"
+      ],
+      "properties": {
+        "domain": { "$ref": "#/$defs/domain" },
+        "term_count": { "type": "integer", "minimum": 0 },
+        "action_order_indices": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "action_order_dense": { "type": "boolean" },
+        "severity_ranks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/severity_rank" }
+        }
+      }
+    },
+    "drift_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "term_key", "detail"],
+      "properties": {
+        "class": { "$ref": "#/$defs/drift_class" },
+        "term_key": { "type": "string", "minLength": 1 },
+        "locale": { "type": "string" },
+        "detail": { "type": "string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_terms",
+        "total_domains",
+        "total_locales",
+        "green_locale_count",
+        "narrowed_locale_count",
+        "blocked_locale_count",
+        "max_expansion_ratio_pct",
+        "drift_finding_count",
+        "parity_state"
+      ],
+      "properties": {
+        "total_terms": { "type": "integer", "minimum": 0 },
+        "total_domains": { "type": "integer", "minimum": 0 },
+        "total_locales": { "type": "integer", "minimum": 0 },
+        "green_locale_count": { "type": "integer", "minimum": 0 },
+        "narrowed_locale_count": { "type": "integer", "minimum": 0 },
+        "blocked_locale_count": { "type": "integer", "minimum": 0 },
+        "max_expansion_ratio_pct": { "type": "integer", "minimum": 0 },
+        "drift_finding_count": { "type": "integer", "minimum": 0 },
+        "parity_state": { "$ref": "#/$defs/claim_state" }
+      }
+    }
+  }
+}
