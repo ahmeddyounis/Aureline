@@ -11,6 +11,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 pub mod locale_pack_delivery;
+pub mod localized_catalog;
 pub mod localized_profile_matrix;
 pub mod message_registry;
 pub mod stable_locale_lifecycle;
@@ -23,6 +24,19 @@ pub use message_registry::{
     M5_MESSAGE_ID_BASELINE_SNAPSHOT_ID, M5_MESSAGE_REGISTRY_FIXTURE_REF,
     M5_MESSAGE_REGISTRY_PACKET_ID, M5_MESSAGE_REGISTRY_RECORD_KIND,
     M5_MESSAGE_REGISTRY_SCHEMA_VERSION,
+};
+
+pub use localized_catalog::{
+    build_localization_parity_report, seeded_m5_localization_parity_report,
+    seeded_m5_localized_catalog, seeded_m5_localized_render, LocaleParityRow,
+    LocalizationRenderState, LocalizedCatalogSummary, LocalizedRenderRow, LocalizedRenderSummary,
+    LocalizedStringEntry, M5LocalizationParityReport, M5LocalizedCatalog, M5LocalizedRender,
+    RenderSeverityClass, TextDirection, TruncatedLabel, CLAIMED_LOCALES,
+    DEFAULT_TRUNCATION_BUDGET_GRAPHEMES, M5_LOCALIZATION_PARITY_FIXTURE_REF,
+    M5_LOCALIZATION_PARITY_RECORD_KIND, M5_LOCALIZATION_PARITY_REPORT_ID,
+    M5_LOCALIZED_CATALOG_FIXTURE_REF, M5_LOCALIZED_CATALOG_PACKET_ID,
+    M5_LOCALIZED_CATALOG_RECORD_KIND, M5_LOCALIZED_CATALOG_SCHEMA_VERSION,
+    M5_LOCALIZED_RENDER_RECORD_KIND,
 };
 
 pub use localized_profile_matrix::{
