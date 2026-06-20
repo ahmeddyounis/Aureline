@@ -48,11 +48,24 @@
 //! claim. Exact generated-byte continuity is claimed only when a full,
 //! unredacted snapshot was captured, so restore never implies ordinary
 //! full-source history for a derived file.
+//!
+//! The [`m5_generated_certification`] lane sits one level above the governance
+//! matrix: it is the promotion-grade capstone that certifies every claimed M5
+//! publishable profile — scaffolded/archetype project, notebook output,
+//! preview/runtime derivative, API/request artifact, and framework codegen.
+//! Each certification row binds the profile's upstream claim-publication
+//! object and its backing generated-artifact class to the four
+//! [`m5_generated_certification::CertificationDomain`]s — canonical-source
+//! visibility, writable-boundary truth, regeneration path, and restore/export
+//! honesty — and one [`m5_generated_certification::certify_profile_outcome`]
+//! engine narrows the published claim to the maturity its generated-artifact
+//! evidence actually proves, holding promotion when a domain cannot be proven.
 
 #![doc(html_root_url = "https://docs.rs/aureline-generated/0.0.0")]
 
 pub mod descriptor;
 pub mod generated_timeline;
+pub mod m5_generated_certification;
 pub mod m5_generated_governance;
 pub mod mutation_guardrails;
 pub mod regeneration_plan;
@@ -101,6 +114,28 @@ pub use m5_generated_governance::{
     M5_GENERATED_GOVERNANCE_PACKET_RECORD_KIND, M5_GENERATED_GOVERNANCE_PACKET_REF,
     M5_GENERATED_GOVERNANCE_REPORT_REF, M5_GENERATED_GOVERNANCE_SCHEMA_REF,
     M5_GENERATED_GOVERNANCE_SCHEMA_VERSION,
+};
+
+// The certification lane defines its own `ValidationReport` and
+// `ValidationViolation`; those names already resolve to the sibling governance
+// lane at the crate root, so they are reached through the
+// [`m5_generated_certification`] module path instead of being re-exported
+// here. The reused `ArtifactClass`, `ClaimMaturity`, `EvidenceState`,
+// `RowVerdict`, `PublicationChannel`, and `DrillPhase` it composes are the
+// governance lane's and are already re-exported above.
+pub use m5_generated_certification::{
+    certification_copy_line, certify_profile_outcome, seeded_m5_generated_certification_fixtures,
+    seeded_m5_generated_certification_packet, validate_m5_generated_certification_fixture,
+    validate_m5_generated_certification_packet, CertificationDomain, CertificationDrill,
+    CertificationDrillStep, CertificationFreshnessRule, CertificationRow,
+    CertificationSourceContractRefs, CertificationSurfaceBinding, CertifiedProfile, DomainEvidence,
+    DomainFailureClass, M5GeneratedCertificationFixture, M5GeneratedCertificationPacket,
+    ProfileOutcome, PromotionDecision, GOVERNANCE_EVIDENCE_REF, M5_GENERATED_CERTIFICATION_DOC_REF,
+    M5_GENERATED_CERTIFICATION_FIXTURE_DIR, M5_GENERATED_CERTIFICATION_FIXTURE_MANIFEST_REF,
+    M5_GENERATED_CERTIFICATION_FIXTURE_RECORD_KIND, M5_GENERATED_CERTIFICATION_PACKET_ID,
+    M5_GENERATED_CERTIFICATION_PACKET_RECORD_KIND, M5_GENERATED_CERTIFICATION_PACKET_REF,
+    M5_GENERATED_CERTIFICATION_REPORT_REF, M5_GENERATED_CERTIFICATION_SCHEMA_REF,
+    M5_GENERATED_CERTIFICATION_SCHEMA_VERSION,
 };
 
 // The mutation-guardrails lane defines its own `ValidationReport` and
