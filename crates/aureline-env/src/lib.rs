@@ -35,11 +35,22 @@
 //! the capsule through the **same** narrowing engine, so desktop, CLI,
 //! and support all read one explainability object instead of cloning a
 //! private format.
+//!
+//! The [`workspace_templates`] module turns starter flows into declarative,
+//! reviewable launch artifacts. A [`workspace_templates::WorkspaceTemplate`]
+//! composes the **same** typed [`capsules::EnvironmentCapsule`] with
+//! workflow-bundle references, certified-archetype defaults, and docs /
+//! onboarding references, and its
+//! [`workspace_templates::inspect_template`] inspector folds the embedded
+//! capsule through the same [`capsules::inspect_environment`] path before
+//! narrowing it by the composition layers, so template hydration cannot
+//! fork the runtime or trust semantics from the core execution model.
 
 #![doc(html_root_url = "https://docs.rs/aureline-env/0.0.0")]
 
 pub mod capsules;
 pub mod m5_env_governance;
+pub mod workspace_templates;
 
 pub use capsules::{
     desktop_environment_inspection, diff_capsules, export_capsule_metadata,
@@ -71,4 +82,22 @@ pub use m5_env_governance::{
     M5_ENV_GOVERNANCE_FIXTURE_MANIFEST_REF, M5_ENV_GOVERNANCE_FIXTURE_RECORD_KIND,
     M5_ENV_GOVERNANCE_PACKET_RECORD_KIND, M5_ENV_GOVERNANCE_PACKET_REF,
     M5_ENV_GOVERNANCE_REPORT_REF, M5_ENV_GOVERNANCE_SCHEMA_REF, M5_ENV_GOVERNANCE_SCHEMA_VERSION,
+};
+
+pub use workspace_templates::{
+    desktop_template_inspection, diff_templates, export_template_metadata,
+    headless_template_inspection, inspect_template, plan_template_change,
+    seeded_workspace_template_fixtures, seeded_workspace_templates, support_template_inspection,
+    validate_workspace_template, validate_workspace_template_fixture, ArchetypeDefault,
+    CompositionGuardrails, CompositionLayerKind, DocsOnboardingRef, DocsRefKind, ExportedLayer,
+    MirrorClass, PlannedLayer, SignerClass, SupportClass, SupportPosture, TemplateChangePlan,
+    TemplateDiff, TemplateExport, TemplateIdentity, TemplateLayerReason, TemplateLifecycleOp,
+    TemplateOutcome, TemplateSourceClass, TemplateTrust, WhyThisTemplate, WorkflowBundleRef,
+    WorkspaceTemplate, WorkspaceTemplateFixture, WORKSPACE_TEMPLATE_DIFF_RECORD_KIND,
+    WORKSPACE_TEMPLATE_DOC_REF, WORKSPACE_TEMPLATE_EXPORT_RECORD_KIND,
+    WORKSPACE_TEMPLATE_FIXTURE_DIR, WORKSPACE_TEMPLATE_FIXTURE_MANIFEST_REF,
+    WORKSPACE_TEMPLATE_FIXTURE_RECORD_KIND, WORKSPACE_TEMPLATE_INSPECTION_RECORD_KIND,
+    WORKSPACE_TEMPLATE_PLAN_RECORD_KIND, WORKSPACE_TEMPLATE_PROOF_REF,
+    WORKSPACE_TEMPLATE_RECORD_KIND, WORKSPACE_TEMPLATE_SCHEMA_REF,
+    WORKSPACE_TEMPLATE_SCHEMA_VERSION,
 };

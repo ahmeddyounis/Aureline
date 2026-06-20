@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/env/workspace-template.schema.json",
+  "title": "Aureline declarative workspace template",
+  "description": "Boundary schema for the declarative workspace-template layer and its source-class fixtures. A workspace template is a reviewable, mirrorable launch artifact that composes one embedded typed environment capsule (defined by environment-capsule.schema.json) with workflow-bundle references, certified-archetype defaults, and docs/onboarding references. Hydration reuses the embedded capsule object, so a template cannot fork the runtime or trust semantics from the core execution model; it may only narrow the capsule's claim. The template is metadata-first: every layer carries an id, a digest, and an evidence state, never secrets, raw bodies, hook commands, or provider payloads. Explicit guardrails prove the composition injects no proprietary service dependence, no ungated lifecycle hooks, and no hidden bundle/runtime widening. A fixture wraps one template with the why-this-template inspector outcome the narrowing engine must reach for it.",
+  "oneOf": [
+    { "$ref": "#/$defs/workspace_template" },
+    { "$ref": "#/$defs/workspace_template_fixture" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "evidence_state": {
+      "type": "string",
+      "enum": ["current", "partial", "stale", "missing", "not_applicable"]
+    },
+    "claim_maturity": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "warm_start_posture": {
+      "type": "string",
+      "enum": ["warm_full_reuse", "warm_partial_reuse", "cold_build"]
+    },
+    "row_verdict": {
+      "type": "string",
+      "enum": ["certified", "narrowed", "withheld"]
+    },
+    "redaction_class": {
+      "type": "string",
+      "const": "metadata_only"
+    },
+    "source_class": {
+      "type": "string",
+      "enum": ["first_party", "managed_approved", "community", "local_draft"]
+    },
+    "signer_class": {
+      "type": "string",
+      "enum": [
+        "first_party_signed",
+        "mirror_countersigned",
+        "community_signed",
+        "unsigned"
+      ]
+    },
+    "mirror_class": {
+      "type": "string",
+      "enum": ["first_party_origin", "managed_mirror", "community_mirror", "local_only"]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "first_party_supported",
+        "managed_supported",
+        "community_supported",
+        "unsupported"
+      ]
+    },
+    "docs_ref_kind": {
+      "type": "string",
+      "enum": ["onboarding", "start_center", "reference"]
+    },
+    "capsule_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value"],
+      "properties": {
+        "algorithm": { "$ref": "#/$defs/non_empty_string" },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "environment_capsule": {
+      "$ref": "environment-capsule.schema.json#/$defs/environment_capsule"
+    },
+    "workflow_bundle_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_id",
+        "reference",
+        "digest",
+        "coverage",
+        "widens_execution_scope",
+        "summary"
+      ],
+      "properties": {
+        "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+        "reference": { "$ref": "#/$defs/non_empty_string" },
+        "digest": { "$ref": "#/$defs/capsule_digest" },
+        "coverage": { "$ref": "#/$defs/evidence_state" },
+        "widens_execution_scope": { "type": "boolean", "const": false },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "archetype_default": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["archetype_id", "reference", "digest", "coverage", "summary"],
+      "properties": {
+        "archetype_id": { "$ref": "#/$defs/non_empty_string" },
+        "reference": { "$ref": "#/$defs/non_empty_string" },
+        "digest": { "$ref": "#/$defs/capsule_digest" },
+        "coverage": { "$ref": "#/$defs/evidence_state" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "docs_onboarding_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["docs_id", "kind", "reference", "coverage", "summary"],
+      "properties": {
+        "docs_id": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/docs_ref_kind" },
+        "reference": { "$ref": "#/$defs/non_empty_string" },
+        "coverage": { "$ref": "#/$defs/evidence_state" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "template_trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "signer_class",
+        "mirror_class",
+        "attestation_state",
+        "summary"
+      ],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "signer_class": { "$ref": "#/$defs/signer_class" },
+        "mirror_class": { "$ref": "#/$defs/mirror_class" },
+        "attestation_state": { "$ref": "#/$defs/evidence_state" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["support_class", "freshness_state", "summary"],
+      "properties": {
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "freshness_state": { "$ref": "#/$defs/evidence_state" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "composition_guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "injects_proprietary_service_dependence",
+        "introduces_ungated_lifecycle_hooks",
+        "widens_bundle_or_runtime_scope",
+        "summary"
+      ],
+      "properties": {
+        "injects_proprietary_service_dependence": { "type": "boolean", "const": false },
+        "introduces_ungated_lifecycle_hooks": { "type": "boolean", "const": false },
+        "widens_bundle_or_runtime_scope": { "type": "boolean", "const": false },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "template_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["template_id", "template_version", "label", "template_digest", "summary"],
+      "properties": {
+        "template_id": { "$ref": "#/$defs/non_empty_string" },
+        "template_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "template_digest": { "$ref": "#/$defs/capsule_digest" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "workspace_template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "identity",
+        "environment_capsule",
+        "workflow_bundle_refs",
+        "archetype_defaults",
+        "docs_refs",
+        "trust",
+        "support",
+        "guardrails",
+        "claimed_maturity",
+        "claimed_warm_start_posture",
+        "why_this_template",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "workspace_template_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "identity": { "$ref": "#/$defs/template_identity" },
+        "environment_capsule": { "$ref": "#/$defs/environment_capsule" },
+        "workflow_bundle_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/workflow_bundle_ref" }
+        },
+        "archetype_defaults": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/archetype_default" }
+        },
+        "docs_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/docs_onboarding_ref" }
+        },
+        "trust": { "$ref": "#/$defs/template_trust" },
+        "support": { "$ref": "#/$defs/support_posture" },
+        "guardrails": { "$ref": "#/$defs/composition_guardrails" },
+        "claimed_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "claimed_warm_start_posture": { "$ref": "#/$defs/warm_start_posture" },
+        "why_this_template": { "$ref": "#/$defs/non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "workspace_template_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "fixture_id",
+        "source_class",
+        "template",
+        "expected_verdict",
+        "expected_effective_maturity",
+        "expected_warm_start_posture",
+        "expected_narrow_reason_tokens",
+        "expected_composition_narrow_tokens",
+        "expected_warm_start_downgrade_tokens",
+        "consumer_ref",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "workspace_template_fixture_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "fixture_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "template": { "$ref": "#/$defs/workspace_template" },
+        "expected_verdict": { "$ref": "#/$defs/row_verdict" },
+        "expected_effective_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "expected_warm_start_posture": { "$ref": "#/$defs/warm_start_posture" },
+        "expected_narrow_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "expected_composition_narrow_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "expected_warm_start_downgrade_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "consumer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
