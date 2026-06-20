@@ -1,0 +1,374 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/efficiency/hidden-surface-policy.schema.json",
+  "title": "Hidden-surface render-suppression case",
+  "description": "One hidden-surface scenario: the surfaces that requested work, together with the suppression audit, energy/thermal trace, and diagnostics projection the policy derives from them. The audit, trace, and diagnostics all project from the same surfaces, so they cannot disagree about what was suppressed, what it saved, or whether resume stays correct.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scenario_id",
+    "efficiency_state",
+    "observed_at",
+    "window_label",
+    "surfaces",
+    "audit",
+    "energy_trace",
+    "diagnostics"
+  ],
+  "properties": {
+    "scenario_id": { "type": "string", "minLength": 1 },
+    "efficiency_state": { "$ref": "#/$defs/efficiencyState" },
+    "observed_at": { "type": "string", "minLength": 1 },
+    "window_label": { "type": "string", "minLength": 1 },
+    "surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/surfaceInput" }
+    },
+    "audit": { "$ref": "#/$defs/audit" },
+    "energy_trace": { "$ref": "#/$defs/energyTrace" },
+    "diagnostics": { "$ref": "#/$defs/diagnostics" }
+  },
+  "$defs": {
+    "efficiencyState": {
+      "type": "string",
+      "enum": [
+        "Nominal",
+        "EfficiencyAware",
+        "ThermalConstrained",
+        "ProtectCore",
+        "Recovery"
+      ]
+    },
+    "surfaceClass": {
+      "type": "string",
+      "enum": ["notebook", "trace", "preview", "docs_browser", "pipeline", "incident"]
+    },
+    "visibilityState": {
+      "type": "string",
+      "enum": [
+        "visible_focused",
+        "visible_background",
+        "occluded_window",
+        "hidden_tab",
+        "collapsed_split",
+        "detached_offscreen"
+      ]
+    },
+    "channelToken": {
+      "type": "string",
+      "enum": [
+        "paint",
+        "animation",
+        "rich_refresh",
+        "speculative_poll",
+        "correctness_poll"
+      ]
+    },
+    "dispositionToken": {
+      "type": "string",
+      "enum": ["maintained", "throttled", "suppressed"]
+    },
+    "hiddenPaneBehavior": {
+      "type": "string",
+      "enum": [
+        "render_suppressed",
+        "animation_suppressed",
+        "polling_paused",
+        "correctness_poll_only",
+        "fully_quiescent"
+      ]
+    },
+    "surfaceInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_id", "surface_class", "visibility_state", "requested"],
+      "properties": {
+        "surface_id": { "type": "string", "minLength": 1 },
+        "surface_class": { "$ref": "#/$defs/surfaceClass" },
+        "visibility_state": { "$ref": "#/$defs/visibilityState" },
+        "requested": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "paint_passes": { "type": "integer", "minimum": 0 },
+            "animation_ticks": { "type": "integer", "minimum": 0 },
+            "rich_refreshes": { "type": "integer", "minimum": 0 },
+            "speculative_polls": { "type": "integer", "minimum": 0 },
+            "correctness_polls": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "channelDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "disposition",
+        "correctness_critical",
+        "requested_units",
+        "committed_units",
+        "saved_units",
+        "rationale"
+      ],
+      "properties": {
+        "channel": { "$ref": "#/$defs/channelToken" },
+        "disposition": { "$ref": "#/$defs/dispositionToken" },
+        "correctness_critical": { "type": "boolean" },
+        "requested_units": { "type": "integer", "minimum": 0 },
+        "committed_units": { "type": "integer", "minimum": 0 },
+        "saved_units": { "type": "integer", "minimum": 0 },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "resumeContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resume_token_kind",
+        "restores_without_rerun",
+        "restores_without_cache_corruption",
+        "restored_state_label"
+      ],
+      "properties": {
+        "resume_token_kind": { "type": "string", "minLength": 1 },
+        "restores_without_rerun": { "const": true },
+        "restores_without_cache_corruption": { "const": true },
+        "restored_state_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "surface_id",
+        "surface_class",
+        "owner_label",
+        "visibility_state",
+        "activity",
+        "efficiency_state",
+        "hidden",
+        "channels",
+        "hidden_pane_behaviors",
+        "resume",
+        "correctness_preserved",
+        "durability_preserved",
+        "saved_paint_passes",
+        "saved_animation_ticks",
+        "saved_refreshes",
+        "saved_polls",
+        "maintained_correctness_polls",
+        "total_saved_units"
+      ],
+      "properties": {
+        "record_kind": { "const": "hidden_surface_decision" },
+        "surface_id": { "type": "string", "minLength": 1 },
+        "surface_class": { "$ref": "#/$defs/surfaceClass" },
+        "owner_label": { "type": "string", "minLength": 1 },
+        "visibility_state": { "$ref": "#/$defs/visibilityState" },
+        "activity": { "type": "string", "enum": ["active", "visible_inactive", "hidden"] },
+        "efficiency_state": { "$ref": "#/$defs/efficiencyState" },
+        "hidden": { "type": "boolean" },
+        "channels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/channelDecision" }
+        },
+        "hidden_pane_behaviors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hiddenPaneBehavior" }
+        },
+        "resume": { "$ref": "#/$defs/resumeContract" },
+        "correctness_preserved": { "type": "boolean" },
+        "durability_preserved": { "const": true },
+        "saved_paint_passes": { "type": "integer", "minimum": 0 },
+        "saved_animation_ticks": { "type": "integer", "minimum": 0 },
+        "saved_refreshes": { "type": "integer", "minimum": 0 },
+        "saved_polls": { "type": "integer", "minimum": 0 },
+        "maintained_correctness_polls": { "type": "integer", "minimum": 0 },
+        "total_saved_units": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "classSaving": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "owner_label",
+        "hidden_surface_count",
+        "saved_paint_passes",
+        "saved_animation_ticks",
+        "saved_refreshes",
+        "saved_polls",
+        "saved_units_total"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surfaceClass" },
+        "owner_label": { "type": "string", "minLength": 1 },
+        "hidden_surface_count": { "type": "integer", "minimum": 0 },
+        "saved_paint_passes": { "type": "integer", "minimum": 0 },
+        "saved_animation_ticks": { "type": "integer", "minimum": 0 },
+        "saved_refreshes": { "type": "integer", "minimum": 0 },
+        "saved_polls": { "type": "integer", "minimum": 0 },
+        "saved_units_total": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "efficiency_state",
+        "audited_surface_count",
+        "hidden_surface_count",
+        "hidden_pane_violation_count",
+        "passes_policy",
+        "all_resumes_correct",
+        "durability_preserved",
+        "total_saved_units",
+        "decisions",
+        "saved_by_class",
+        "protected_interactions_preserved",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "hidden_surface_suppression_audit" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "efficiency_state": { "$ref": "#/$defs/efficiencyState" },
+        "audited_surface_count": { "type": "integer", "minimum": 0 },
+        "hidden_surface_count": { "type": "integer", "minimum": 0 },
+        "hidden_pane_violation_count": { "type": "integer", "minimum": 0 },
+        "passes_policy": { "type": "boolean" },
+        "all_resumes_correct": { "type": "boolean" },
+        "durability_preserved": { "const": true },
+        "total_saved_units": { "type": "integer", "minimum": 0 },
+        "decisions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/decision" }
+        },
+        "saved_by_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/classSaving" }
+        },
+        "protected_interactions_preserved": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "observed_at": { "type": "string", "minLength": 1 }
+      }
+    },
+    "traceMark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "surface_class",
+        "visibility_state",
+        "saved_units",
+        "hidden_pane_behaviors"
+      ],
+      "properties": {
+        "surface_id": { "type": "string", "minLength": 1 },
+        "surface_class": { "$ref": "#/$defs/surfaceClass" },
+        "visibility_state": { "$ref": "#/$defs/visibilityState" },
+        "saved_units": { "type": "integer", "minimum": 0 },
+        "hidden_pane_behaviors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hiddenPaneBehavior" }
+        }
+      }
+    },
+    "energyTrace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "efficiency_state",
+        "window_label",
+        "observed_at",
+        "hidden_surface_count",
+        "total_saved_units",
+        "total_saved_paint_passes",
+        "total_saved_animation_ticks",
+        "total_saved_refreshes",
+        "total_saved_polls",
+        "saved_by_class",
+        "trace_marks"
+      ],
+      "properties": {
+        "record_kind": { "const": "hidden_surface_energy_trace" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "efficiency_state": { "$ref": "#/$defs/efficiencyState" },
+        "window_label": { "type": "string", "minLength": 1 },
+        "observed_at": { "type": "string", "minLength": 1 },
+        "hidden_surface_count": { "type": "integer", "minimum": 0 },
+        "total_saved_units": { "type": "integer", "minimum": 0 },
+        "total_saved_paint_passes": { "type": "integer", "minimum": 0 },
+        "total_saved_animation_ticks": { "type": "integer", "minimum": 0 },
+        "total_saved_refreshes": { "type": "integer", "minimum": 0 },
+        "total_saved_polls": { "type": "integer", "minimum": 0 },
+        "saved_by_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/classSaving" }
+        },
+        "trace_marks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/traceMark" }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "efficiency_state",
+        "summary_label",
+        "audited_surface_count",
+        "hidden_surface_count",
+        "total_saved_units",
+        "passes_policy",
+        "hidden_pane_violation_count",
+        "all_resumes_correct",
+        "protected_interactions_preserved",
+        "durability_preserved",
+        "saved_by_class",
+        "primary_command_id",
+        "opens_surface_ref",
+        "energy_trace_ref",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "hidden_surface_diagnostics_projection" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "efficiency_state": { "$ref": "#/$defs/efficiencyState" },
+        "summary_label": { "type": "string", "minLength": 1 },
+        "audited_surface_count": { "type": "integer", "minimum": 0 },
+        "hidden_surface_count": { "type": "integer", "minimum": 0 },
+        "total_saved_units": { "type": "integer", "minimum": 0 },
+        "passes_policy": { "type": "boolean" },
+        "hidden_pane_violation_count": { "type": "integer", "minimum": 0 },
+        "all_resumes_correct": { "type": "boolean" },
+        "protected_interactions_preserved": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "durability_preserved": { "const": true },
+        "saved_by_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/classSaving" }
+        },
+        "primary_command_id": { "type": "string", "minLength": 1 },
+        "opens_surface_ref": { "type": "string", "minLength": 1 },
+        "energy_trace_ref": { "const": "hidden_surface_energy_trace" },
+        "observed_at": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

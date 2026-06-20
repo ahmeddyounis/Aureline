@@ -25,7 +25,10 @@ It carries:
 - **throttled_capabilities** / **workload_decisions** — the full capability rows
   and budget decisions behind the summary.
 - **hidden_pane_audit** — proof that hidden or off-screen panes suppressed
-  render, animation, and polling.
+  render, animation, and polling. The per-surface, per-class version of this
+  proof — for notebooks, traces, previews, docs/browser panes, pipelines, and
+  incident workspaces — lives in the
+  [hidden-surface policy](./hidden-surface-policy.md).
 - **protected_interactions_preserved** / **durability_invariants** — the
   protected paths the adaptation may not narrow.
 

@@ -20,6 +20,7 @@ use crate::notifications::envelope::{
 use crate::state_cards::DegradedStateToken;
 
 pub mod governance;
+pub mod hidden_surfaces;
 pub mod surfaces;
 
 /// Stable record kind for an efficiency-state shell snapshot.
@@ -1670,7 +1671,7 @@ fn derive_recovery_state(state: EfficiencyState) -> governance::EfficiencyRecove
     }
 }
 
-fn protected_interactions() -> Vec<String> {
+pub(crate) fn protected_interactions() -> Vec<String> {
     [
         "typing",
         "save",

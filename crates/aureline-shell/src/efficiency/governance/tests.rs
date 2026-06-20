@@ -44,7 +44,12 @@ fn closed_vocabularies_match_the_shell_tokens() {
             .as_array()
             .unwrap_or_else(|| panic!("frozen matrix declares closed vocabulary {name}"))
             .iter()
-            .map(|token| token.as_str().expect("vocabulary token is a string").to_owned())
+            .map(|token| {
+                token
+                    .as_str()
+                    .expect("vocabulary token is a string")
+                    .to_owned()
+            })
             .collect();
         let expected: Vec<String> = expected.into_iter().map(str::to_owned).collect();
         assert_eq!(
@@ -109,17 +114,25 @@ fn projection_stamps_the_matrix_reference_from_a_real_snapshot() {
 
     let projection = EfficiencyGovernanceProjection::from_snapshot(
         &snapshot,
-        &[HiddenPaneBehavior::RenderSuppressed, HiddenPaneBehavior::FullyQuiescent],
+        &[
+            HiddenPaneBehavior::RenderSuppressed,
+            HiddenPaneBehavior::FullyQuiescent,
+        ],
         OverridePosture::UserOverrideSessionOnly,
         EfficiencyRecoveryState::NotInRecovery,
     );
 
     assert_eq!(projection.matrix_ref, M5_EFFICIENCY_GOVERNANCE_MATRIX_REF);
     assert_eq!(projection.schema_ref, M5_EFFICIENCY_GOVERNANCE_SCHEMA_REF);
-    assert_eq!(projection.active_state, EfficiencyState::ThermalConstrained.as_str());
+    assert_eq!(
+        projection.active_state,
+        EfficiencyState::ThermalConstrained.as_str()
+    );
     assert_eq!(
         projection.source_of_change,
-        vec![super::EfficiencyPressureSource::ThermalPressure.as_str().to_owned()],
+        vec![super::EfficiencyPressureSource::ThermalPressure
+            .as_str()
+            .to_owned()],
     );
     assert_eq!(
         projection.hidden_pane_behaviors,

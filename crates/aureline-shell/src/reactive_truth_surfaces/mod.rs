@@ -222,7 +222,10 @@ mod tests {
         assert_eq!(strips.len(), 13);
         for strip in &strips {
             // The healthy ceiling is a consistent snapshot with live actions.
-            assert_eq!(strip.narrowed_claim, M5ReactiveTruthClaim::ConsistentSnapshot);
+            assert_eq!(
+                strip.narrowed_claim,
+                M5ReactiveTruthClaim::ConsistentSnapshot
+            );
             assert_eq!(strip.action_gate, ReactiveTruthActionGate::Enabled);
             assert!(strip.dangerous_action_enabled);
             assert!(!strip.resubscribe_required);
@@ -231,8 +234,8 @@ mod tests {
 
     #[test]
     fn stale_search_blocks_dangerous_actions_and_names_the_cause() {
-        let strip = explain_surface_truth(M5ReactiveSurfaceClass::SearchResults, &stale())
-            .expect("strip");
+        let strip =
+            explain_surface_truth(M5ReactiveSurfaceClass::SearchResults, &stale()).expect("strip");
         assert_eq!(strip.narrowed_claim, M5ReactiveTruthClaim::StaleSnapshot);
         assert_eq!(strip.action_gate, ReactiveTruthActionGate::Blocked);
         assert!(!strip.dangerous_action_enabled);
@@ -269,7 +272,10 @@ mod tests {
         let strip = explain_surface_truth(M5ReactiveSurfaceClass::CompanionPanel, &observed)
             .expect("strip");
         assert!(strip.resubscribe_required);
-        assert_eq!(strip.narrowed_claim, M5ReactiveTruthClaim::ProviderUnavailable);
+        assert_eq!(
+            strip.narrowed_claim,
+            M5ReactiveTruthClaim::ProviderUnavailable
+        );
     }
 
     #[test]
