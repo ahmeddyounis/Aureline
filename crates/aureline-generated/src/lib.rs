@@ -44,6 +44,7 @@
 
 pub mod descriptor;
 pub mod m5_generated_governance;
+pub mod write_boundary;
 
 pub use descriptor::{
     derive_descriptor_presentation, descriptor_copy_line,
@@ -74,4 +75,18 @@ pub use m5_generated_governance::{
     M5_GENERATED_GOVERNANCE_PACKET_RECORD_KIND, M5_GENERATED_GOVERNANCE_PACKET_REF,
     M5_GENERATED_GOVERNANCE_REPORT_REF, M5_GENERATED_GOVERNANCE_SCHEMA_REF,
     M5_GENERATED_GOVERNANCE_SCHEMA_VERSION,
+};
+
+pub use write_boundary::{
+    decide_write_boundary, seeded_write_boundary_fixtures, seeded_write_boundary_packet,
+    validate_write_boundary_fixture, validate_write_boundary_packet, write_boundary_copy_line,
+    AttemptOutcome, BoundaryState, CanonicalSourceJump, CompareLeg, CompareLegKind,
+    DivergedFromGenerator, LegAvailability, RecoveryClass, RecoveryStep, RegenerationAvailability,
+    ThreeWayCompare, WriteBoundaryCase, WriteBoundaryDecision, WriteBoundaryFixture,
+    WriteBoundaryPacket, WriteBoundarySourceContractRefs, WriteBoundarySubject,
+    WriteBoundarySurface, WriteBoundarySurfaceBinding, WRITE_BOUNDARY_DOC_REF,
+    WRITE_BOUNDARY_FIXTURE_DIR, WRITE_BOUNDARY_FIXTURE_MANIFEST_REF,
+    WRITE_BOUNDARY_FIXTURE_RECORD_KIND, WRITE_BOUNDARY_PACKET_ID,
+    WRITE_BOUNDARY_PACKET_RECORD_KIND, WRITE_BOUNDARY_PACKET_REF, WRITE_BOUNDARY_REPORT_REF,
+    WRITE_BOUNDARY_SCHEMA_REF, WRITE_BOUNDARY_SCHEMA_VERSION,
 };
