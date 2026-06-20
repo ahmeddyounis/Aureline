@@ -112,3 +112,23 @@ docs/help resolve one schema identifier and lifecycle label per family:
 
 The catalog cites this evidence index back via its `evidence_index_ref`, so the
 JSON-Schema-package train stays cross-linked with the certification train.
+
+The canonical M5 continuity certification lane is registered under this evidence
+index. It folds the per-row continuity packet families — locality/tenant/key
+disclosure, control-plane/data-plane degradation, backup/restore/failover drills,
+restore-identity/partial-loss semantics, mirror/offline continuity, and
+continuity-proof freshness — into one certification verdict per claimed managed,
+self-hosted, and sovereign row, narrows or withdraws automatically when the
+backing evidence is stale, partial, missing, or profile-mismatched, and never
+narrows the local-core continuity lane:
+
+- `artifacts/m5/continuity/certification/certified_rows.json` (certified-row registry)
+- `artifacts/m5/continuity/certification/certification_support_export.json` (support-export projection)
+- `artifacts/m5/continuity/certification/certification_report.md` (human report)
+- `artifacts/m5/continuity/certification/drill_freshness_report.md` (drill-freshness report)
+- `schemas/continuity/continuity_certification_report.schema.json` (schema)
+- `docs/m5/continuity/qualified-managed-and-self-hosted-rows.md` (contract)
+
+Release packets, Help/About truth, service-health summaries, and support exports
+consume the same certified/non-certified continuity verdict from this lane, so the
+continuity certification train stays cross-linked with the certification train.

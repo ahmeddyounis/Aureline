@@ -10,6 +10,7 @@
 
 pub mod connectivity_state_and_deferred_intent;
 pub mod m5_backup_restore_failover_packets;
+pub mod m5_continuity_certification;
 pub mod m5_continuity_freshness_slo;
 pub mod m5_control_plane_vs_data_plane_outage;
 pub mod m5_key_mode_and_storage_posture;
@@ -123,6 +124,22 @@ pub use m5_continuity_freshness_slo::{
     CONTINUITY_FRESHNESS_SLO_SCHEMA_REF, CONTINUITY_FRESHNESS_SLO_SCHEMA_VERSION,
     CONTINUITY_FRESHNESS_SLO_SHARED_CONTRACT_REF, CONTINUITY_FRESHNESS_SLO_SUMMARY_RECORD_KIND,
     CONTINUITY_FRESHNESS_SLO_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_continuity_certification::{
+    audit_continuity_certification_report, seeded_continuity_certification_input,
+    seeded_continuity_certification_report, validate_continuity_certification_report,
+    CertificationDefectKind, CertificationDimension, CertificationEvidence,
+    CertificationEvidenceState, CertificationNarrowReasonClass, CertificationSourceRefs,
+    CertifiedRow, CertifiedRowOutcome, ContinuityCertificationDefect, ContinuityCertificationInput,
+    ContinuityCertificationReport, ContinuityCertificationSummary,
+    ContinuityCertificationSupportExport, RowCertificationVerdict,
+    CERTIFIED_ROW_OUTCOME_RECORD_KIND, CONTINUITY_CERTIFICATION_ARTIFACT_REF,
+    CONTINUITY_CERTIFICATION_DEFECT_RECORD_KIND, CONTINUITY_CERTIFICATION_DOC_REF,
+    CONTINUITY_CERTIFICATION_REPORT_RECORD_KIND, CONTINUITY_CERTIFICATION_SCHEMA_REF,
+    CONTINUITY_CERTIFICATION_SCHEMA_VERSION, CONTINUITY_CERTIFICATION_SHARED_CONTRACT_REF,
+    CONTINUITY_CERTIFICATION_SUMMARY_RECORD_KIND,
+    CONTINUITY_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use m5_key_mode_and_storage_posture::{

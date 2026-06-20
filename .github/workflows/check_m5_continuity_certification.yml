@@ -1,0 +1,85 @@
+# Continuity certification gate.
+#
+# Proves that every claimed managed, self-hosted, or sovereign continuity row
+# carries one certification verdict folded from locality/tenant/key disclosure,
+# control-plane/data-plane degradation, backup/restore/failover drills,
+# restore-identity/partial-loss semantics, mirror/offline continuity, and
+# continuity-proof freshness — and narrows or withdraws automatically when any
+# required dimension is stale, partial, missing, or profile-mismatched, while the
+# local-core continuity lane is never narrowed. The gate independently recomputes
+# the verdict and fails when the checked-in registry drifts from the recompute,
+# when a structural invariant breaks (required dimension missing, shared reference
+# drill, local-core narrowed, surface reuse incomplete), or when a row certifies
+# fresher freshness than the freshness-SLO dashboard records. The crate audit, the
+# schema/fixture validator, and the certification gate must all pass.
+
+name: check_m5_continuity_certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_continuity_certification.yml"
+      - "tools/check_m5_continuity_certification.py"
+      - "tools/validate_m5_continuity_certification_fixtures.py"
+      - "schemas/continuity/continuity_certification_report.schema.json"
+      - "fixtures/continuity/certification_cases/**"
+      - "artifacts/m5/continuity/certification/**"
+      - "artifacts/m5/continuity/freshness_slo_dashboard.json"
+      - "docs/m5/continuity/qualified-managed-and-self-hosted-rows.md"
+      - "crates/aureline-continuity/src/m5_continuity_certification/**"
+      - "crates/aureline-continuity/examples/dump_m5_continuity_certification_fixtures.rs"
+      - "crates/aureline-continuity/src/bin/aureline_continuity_certification_inspect.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-continuity-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  continuity_certification:
+    name: Continuity certification audit and gate
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-continuity-certification-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-continuity-certification-
+
+      - name: Run continuity certification audit
+        run: cargo test -p aureline-continuity --locked m5_continuity_certification
+
+      - name: Validate certification fixtures against schema
+        run: python3 tools/validate_m5_continuity_certification_fixtures.py
+
+      - name: Run continuity certification gate
+        run: python3 tools/check_m5_continuity_certification.py

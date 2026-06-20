@@ -1,0 +1,356 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/continuity/continuity_certification_report.schema.json",
+  "title": "Aureline continuity certification report",
+  "description": "Canonical schema for the continuity certification report and certified-row registry consumed by release packets, Help/About truth, service-health summaries, support exports, and partner qualification packets. The report folds the upstream continuity lanes — locality/tenant/key disclosure, control-plane/data-plane degradation, backup/restore/failover drills, restore-identity/partial-loss semantics, mirror/offline continuity, and continuity-proof freshness — into one certification verdict per claimed managed, self-hosted, or sovereign row. A row stays certified only when every required dimension's evidence is current; otherwise its claim narrows automatically (beta, preview, or withdrawn) driven by whichever dimension is stale, partial, missing, or profile-mismatched. The local-core continuity lane is never narrowed or withdrawn on managed evidence, and a single reference-environment drill may not stand in for more than one claimed row. The report is metadata-only: it carries closed-vocabulary tokens, export-safe labels, UTC dates, and opaque refs. Raw backup bytes, raw drill logs, raw KMS handles, raw tenant identifiers, and secret material never appear. The root accepts a report record, a summary record, or a support-export record, discriminated by record_kind.",
+  "oneOf": [
+    { "$ref": "#/$defs/report" },
+    { "$ref": "#/$defs/summary" },
+    { "$ref": "#/$defs/support_export" }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "profile_class": {
+      "type": "string",
+      "enum": ["managed", "self_hosted", "sovereign", "local_only"]
+    },
+    "continuity_lane": {
+      "type": "string",
+      "enum": ["local_core", "managed_lane"]
+    },
+    "qualification": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "dimension": {
+      "type": "string",
+      "enum": [
+        "locality_tenant_key",
+        "control_data_plane_degradation",
+        "backup_restore_failover",
+        "restore_identity_partial_loss",
+        "mirror_offline_continuity",
+        "drill_freshness_slo"
+      ]
+    },
+    "evidence_state": {
+      "type": "string",
+      "enum": ["current", "stale", "partial", "missing", "profile_mismatched", "not_applicable"]
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["certified", "narrowed", "withdrawn"]
+    },
+    "narrow_reason": {
+      "type": "string",
+      "enum": [
+        "not_narrowed",
+        "locality_tenant_key_uncertified",
+        "control_data_plane_degradation_uncertified",
+        "backup_restore_failover_uncertified",
+        "restore_identity_partial_loss_uncertified",
+        "mirror_offline_continuity_uncertified",
+        "drill_freshness_uncertified",
+        "required_evidence_missing",
+        "continuity_profile_mismatch",
+        "shared_reference_drill_reused",
+        "surface_reuse_incomplete"
+      ]
+    },
+    "defect_kind": {
+      "type": "string",
+      "enum": [
+        "required_dimension_missing",
+        "evidence_ref_incoherent",
+        "shared_reference_drill_evidence",
+        "local_core_narrowed",
+        "surface_reuse_incomplete"
+      ]
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["certified", "narrowed", "withdrawn"]
+    },
+    "surface_visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "about",
+        "help",
+        "service_health",
+        "support_export",
+        "docs_public_truth",
+        "partner_qualification"
+      ],
+      "properties": {
+        "about": { "type": "boolean" },
+        "help": { "type": "boolean" },
+        "service_health": { "type": "boolean" },
+        "support_export": { "type": "boolean" },
+        "docs_public_truth": { "type": "boolean" },
+        "partner_qualification": { "type": "boolean" }
+      }
+    },
+    "source_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_matrix_ref",
+        "outage_taxonomy_ref",
+        "backup_restore_failover_ref",
+        "restore_review_ref",
+        "mirror_airgap_ref",
+        "freshness_slo_ref"
+      ],
+      "properties": {
+        "claim_matrix_ref": { "$ref": "#/$defs/label" },
+        "outage_taxonomy_ref": { "$ref": "#/$defs/label" },
+        "backup_restore_failover_ref": { "$ref": "#/$defs/label" },
+        "restore_review_ref": { "$ref": "#/$defs/label" },
+        "mirror_airgap_ref": { "$ref": "#/$defs/label" },
+        "freshness_slo_ref": { "$ref": "#/$defs/label" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "dimension_token", "state", "state_token", "evidence_ref", "note"],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/dimension" },
+        "dimension_token": { "$ref": "#/$defs/dimension" },
+        "state": { "$ref": "#/$defs/evidence_state" },
+        "state_token": { "$ref": "#/$defs/evidence_state" },
+        "evidence_ref": { "$ref": "#/$defs/label" },
+        "note": { "$ref": "#/$defs/label" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "surface_label",
+        "profile_class",
+        "profile_class_token",
+        "continuity_lane",
+        "continuity_lane_token",
+        "has_claimed_managed_dependency",
+        "requires_offline_continuity",
+        "claimed_qualification",
+        "claimed_qualification_token",
+        "evidence",
+        "surface_visibility"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_label": { "$ref": "#/$defs/label" },
+        "profile_class": { "$ref": "#/$defs/profile_class" },
+        "profile_class_token": { "$ref": "#/$defs/profile_class" },
+        "continuity_lane": { "$ref": "#/$defs/continuity_lane" },
+        "continuity_lane_token": { "$ref": "#/$defs/continuity_lane" },
+        "has_claimed_managed_dependency": { "type": "boolean" },
+        "requires_offline_continuity": { "type": "boolean" },
+        "claimed_qualification": { "$ref": "#/$defs/qualification" },
+        "claimed_qualification_token": { "$ref": "#/$defs/qualification" },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence" }
+        },
+        "surface_visibility": { "$ref": "#/$defs/surface_visibility" }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["report_label", "as_of", "source_refs", "rows"],
+      "properties": {
+        "report_label": { "$ref": "#/$defs/label" },
+        "as_of": { "$ref": "#/$defs/timestamp" },
+        "source_refs": { "$ref": "#/$defs/source_refs" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row" }
+        }
+      }
+    },
+    "row_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "profile_class_token",
+        "in_certification_scope",
+        "verdict_token",
+        "certified",
+        "narrowed",
+        "claimed_qualification_token",
+        "effective_qualification_token",
+        "narrow_reason_tokens",
+        "stale_or_missing_dimension_tokens"
+      ],
+      "properties": {
+        "record_kind": { "const": "certified_row_outcome_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "continuity:m5_continuity_certification:v1" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "profile_class_token": { "$ref": "#/$defs/profile_class" },
+        "in_certification_scope": { "type": "boolean" },
+        "verdict_token": { "$ref": "#/$defs/verdict" },
+        "certified": { "type": "boolean" },
+        "narrowed": { "type": "boolean" },
+        "claimed_qualification_token": { "$ref": "#/$defs/qualification" },
+        "effective_qualification_token": { "$ref": "#/$defs/qualification" },
+        "narrow_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrow_reason" }
+        },
+        "stale_or_missing_dimension_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dimension" }
+        }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_id",
+        "defect_kind",
+        "defect_kind_token",
+        "source",
+        "note"
+      ],
+      "properties": {
+        "record_kind": { "const": "continuity_certification_defect_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "continuity:m5_continuity_certification:v1" },
+        "defect_id": { "$ref": "#/$defs/opaque_id" },
+        "defect_kind": { "$ref": "#/$defs/defect_kind" },
+        "defect_kind_token": { "$ref": "#/$defs/defect_kind" },
+        "source": { "$ref": "#/$defs/label" },
+        "note": { "$ref": "#/$defs/label" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "overall_decision_token",
+        "row_count",
+        "certification_scope_row_count",
+        "local_core_row_count",
+        "certified_row_count",
+        "narrowed_row_count",
+        "withdrawn_row_count",
+        "stale_or_missing_evidence_row_count",
+        "backup_restore_failover_uncertified_row_count",
+        "drill_freshness_uncertified_row_count",
+        "defect_count"
+      ],
+      "properties": {
+        "record_kind": { "const": "continuity_certification_summary_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "continuity:m5_continuity_certification:v1" },
+        "overall_decision_token": { "$ref": "#/$defs/decision" },
+        "row_count": { "type": "integer", "minimum": 0 },
+        "certification_scope_row_count": { "type": "integer", "minimum": 0 },
+        "local_core_row_count": { "type": "integer", "minimum": 0 },
+        "certified_row_count": { "type": "integer", "minimum": 0 },
+        "narrowed_row_count": { "type": "integer", "minimum": 0 },
+        "withdrawn_row_count": { "type": "integer", "minimum": 0 },
+        "stale_or_missing_evidence_row_count": { "type": "integer", "minimum": 0 },
+        "backup_restore_failover_uncertified_row_count": { "type": "integer", "minimum": 0 },
+        "drill_freshness_uncertified_row_count": { "type": "integer", "minimum": 0 },
+        "defect_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "report_label",
+        "generated_at",
+        "as_of",
+        "source_refs",
+        "summary",
+        "defects",
+        "row_outcomes",
+        "input"
+      ],
+      "properties": {
+        "record_kind": { "const": "continuity_certification_report_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "continuity:m5_continuity_certification:v1" },
+        "report_id": { "$ref": "#/$defs/opaque_id" },
+        "report_label": { "$ref": "#/$defs/label" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "as_of": { "$ref": "#/$defs/timestamp" },
+        "source_refs": { "$ref": "#/$defs/source_refs" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "defects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/defect" }
+        },
+        "row_outcomes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row_outcome" }
+        },
+        "input": { "$ref": "#/$defs/input" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "export_id",
+        "generated_at",
+        "report",
+        "narrow_reasons_present",
+        "defect_counts_by_kind",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "record_kind": { "const": "continuity_certification_support_export_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "continuity:m5_continuity_certification:v1" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "report": { "$ref": "#/$defs/report" },
+        "narrow_reasons_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrow_reason" }
+        },
+        "defect_counts_by_kind": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    }
+  }
+}
