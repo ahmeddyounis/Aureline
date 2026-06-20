@@ -104,7 +104,12 @@ matrix:
   effective posture and certification label.
 
 Later M5 low-power copy MUST quote this matrix's vocabulary and per-surface
-postures rather than re-describing low-power behaviour locally.
+postures rather than re-describing low-power behaviour locally. The
+[publication-ingestion register](publication-ingestion.md) makes that mechanical:
+it binds docs, in-product help, the About surface, service-health, the
+policy-or-admin surface, and support exports to each matrix row and fails closed
+when a surface clones prose or renders a stronger claim than the row's narrowed
+effective posture.
 
 ## Indexing and enforcement
 

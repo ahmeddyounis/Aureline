@@ -1,0 +1,74 @@
+# Efficiency publication-ingestion gate.
+#
+# Validates the register that binds every stable-facing surface that describes
+# low-power or thermal behavior -- documentation, in-product help, the About
+# surface, service-health, the policy-or-admin surface, and support exports -- to
+# the one canonical efficiency-state claim entry it renders. The canonical
+# entries are the rows of the M5 efficiency-state governance matrix. Every binding
+# resolves to a matrix row, renders the entry's efficiency state, source-of-change,
+# posture, narrowed effective posture, certification state, claim-support level,
+# override posture, and recovery state verbatim so a narrowed or unsupported claim
+# propagates to every surface in the same train, discloses only export-safe fields,
+# and covers every entry on the surfaces it must reach. The docs-ingestion fixtures
+# and negative drills prove each rejection fires.
+
+name: check_efficiency_publication_ingestion
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_efficiency_publication_ingestion.yml"
+      - "ci/check_efficiency_publication_ingestion.py"
+      - "tools/regenerate_efficiency_publication_ingestion.py"
+      - "artifacts/efficiency/publication-ingestion-register.json"
+      - "artifacts/efficiency/admin-surface-fields.md"
+      - "schemas/efficiency/publication-ingestion.schema.json"
+      - "docs/efficiency/publication-ingestion.md"
+      - "fixtures/efficiency/docs-ingestion/**"
+      - "artifacts/efficiency/m5-efficiency-governance.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-efficiency-publication-ingestion-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  efficiency_publication_ingestion:
+    name: Efficiency publication ingestion
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run efficiency publication-ingestion validator
+        run: |
+          python3 ci/check_efficiency_publication_ingestion.py --repo-root . \
+            --report artifacts/efficiency/publication-ingestion-validation.json
+
+      - name: Upload publication-ingestion report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: efficiency-publication-ingestion-${{ github.run_id }}
+          path: artifacts/efficiency/publication-ingestion-validation.json
+          if-no-files-found: error
+          retention-days: 30
