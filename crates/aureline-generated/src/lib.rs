@@ -42,7 +42,24 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-generated/0.0.0")]
 
+pub mod descriptor;
 pub mod m5_generated_governance;
+
+pub use descriptor::{
+    derive_descriptor_presentation, descriptor_copy_line,
+    seeded_generated_artifact_descriptor_fixtures, seeded_generated_artifact_descriptor_packet,
+    validate_generated_artifact_descriptor_fixture, validate_generated_artifact_descriptor_packet,
+    CanonicalSourceRef, CanonicalSourceState, DescriptorPresentation, DescriptorSourceContractRefs,
+    DescriptorSurfaceBinding, DriftState, GeneratedArtifactDescriptor,
+    GeneratedArtifactDescriptorFixture, GeneratedArtifactDescriptorPacket, GeneratorIdentity,
+    GeneratorKind, IdentityFields, PresentedAuthority, SurfaceKind, SurfaceProjection,
+    GENERATED_ARTIFACT_DESCRIPTOR_DOC_REF, GENERATED_ARTIFACT_DESCRIPTOR_FIXTURE_DIR,
+    GENERATED_ARTIFACT_DESCRIPTOR_FIXTURE_MANIFEST_REF,
+    GENERATED_ARTIFACT_DESCRIPTOR_FIXTURE_RECORD_KIND, GENERATED_ARTIFACT_DESCRIPTOR_PACKET_ID,
+    GENERATED_ARTIFACT_DESCRIPTOR_PACKET_RECORD_KIND, GENERATED_ARTIFACT_DESCRIPTOR_PACKET_REF,
+    GENERATED_ARTIFACT_DESCRIPTOR_REPORT_REF, GENERATED_ARTIFACT_DESCRIPTOR_SCHEMA_REF,
+    GENERATED_ARTIFACT_DESCRIPTOR_SCHEMA_VERSION, IDENTITY_FIELD_NAMES,
+};
 
 pub use m5_generated_governance::{
     certify_artifact_outcome, seeded_m5_generated_governance_fixtures,
