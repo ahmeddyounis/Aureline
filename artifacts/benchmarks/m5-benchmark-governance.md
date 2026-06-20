@@ -38,11 +38,15 @@ and every fired narrowing rule's target.
 | `ff.buffer_operations` | `corpus.micro.shaping_smoke_cases` | `…macos15.arm64.apple_silicon_14in` | `lab_image.macos15.arm64.rev1` | `frozen_calibrated` | `none` | `aureline_only_claim` | `aureline_only_claim` |
 | `ff.vfs_save_conflict_handling` | `corpus.workflow.first_useful_edit_rust_self_host` | `…macos15.arm64.apple_silicon_14in` | `lab_image.macos15.arm64.rev1` | `frozen_calibrated` | `none` | `aureline_only_claim` | `aureline_only_claim` |
 | `ff.benchmark_lab_health` | `corpus.micro.interaction_safety_cases` | `…macos15.arm64.apple_silicon_14in` | `lab_image.macos15.arm64.rev1` | `frozen_calibrated` | `none` | `internal_gate_only` | `internal_gate_only` |
-| `ff.command_parity` | `corpus.workflow.first_useful_edit_rust_self_host` | `…macos15.arm64.apple_silicon_14in` | `lab_image.macos15.arm64.rev1` | `provisional_uncalibrated` | `none` | `internal_gate_only` | `internal_gate_only` |
+| `ff.command_parity` | `corpus.workflow.first_useful_edit_rust_self_host` | `…macos15.arm64.apple_silicon_14in` | `lab_image.macos15.arm64.rev1` | `provisional_uncalibrated` | `performance_council_time_boxed` (expires `2026-09-18`) | `internal_gate_only` | `internal_gate_only` |
 
 Each metric's threshold value lives in
 [`artifacts/bench/protected_metrics.yaml`](../bench/protected_metrics.yaml); the
-matrix binds the row identity, comparability anchors, and claim ceiling.
+matrix binds the row identity, comparability anchors, and claim ceiling. Each
+metric's threshold *history* — the typed change records, before/after evidence,
+rationale, approval lineage, and waiver expiry — lives in the
+[threshold-change ledger](./threshold-change-ledger.json) and is enforced by the
+[threshold-change policy](../../docs/benchmarks/threshold-change-policy.md).
 
 ## Corpus manifests
 

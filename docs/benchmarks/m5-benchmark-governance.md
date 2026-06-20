@@ -119,7 +119,12 @@ the resulting effective claim.
 ## 5. Threshold easing and change control
 
 Threshold state changes follow the existing change-control policy in
-[`corpus_governance.md`](./corpus_governance.md). In matrix terms:
+[`corpus_governance.md`](./corpus_governance.md) and are recorded as typed change
+records under the [threshold-change policy](./threshold-change-policy.md), whose
+canonical ledger is
+[`/artifacts/benchmarks/threshold-change-ledger.json`](../../artifacts/benchmarks/threshold-change-ledger.json).
+Each protected metric's in-force change record is kept in lockstep with its
+threshold state and waiver binding here. In matrix terms:
 
 - A move to `eased_with_evidence` requires structured rationale, before/after
   evidence, a comparability note, release-evidence linkage, and the performance

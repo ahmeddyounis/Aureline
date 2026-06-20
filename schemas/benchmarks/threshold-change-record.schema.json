@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/benchmarks/threshold-change-record.schema.json",
+  "title": "Aureline benchmark threshold-change record and change ledger",
+  "description": "Boundary schema for the typed threshold-change workflow. A threshold-change record is the canonical, reviewable identity of one transition in a protected metric's bar: which metric and threshold file it moves, the change kind and resulting threshold state, whether it loosens the protected bar, its structured rationale and comparability note, its before/after evidence packet, its owner, its approval lineage, its waiver grant (class, owner-resolvable ref, grant date, and expiry), its release-evidence linkage, and its lifecycle status. The change ledger is the checked-in collection of those records that binds the threshold history of every protected metric and exposes the active waivers and expiry dates that shiproom and release packets surface. Easing a protected bar requires structured before/after evidence, a comparability note, release-evidence linkage, and both the performance-owner and architecture-board approvals; a non-default waiver requires its granting authority's approval and an expiry; and an open, in-force waiver past its expiry blocks promotion. Raw run logs, raw provider payloads, raw machine labels, and secret material never cross this boundary; only stable ids and reviewable sentences do.",
+  "oneOf": [
+    { "$ref": "#/$defs/threshold_change_ledger" },
+    { "$ref": "#/$defs/threshold_change_record" }
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "stable_id": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9_.]*$" },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-term sentence safe for product copy, docs, support export, and release evidence. Raw run logs, raw provider payloads, raw machine labels, and secret material MUST NOT appear."
+    },
+    "utc_date": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+      ]
+    },
+    "utc_date_time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "threshold_state": {
+      "type": "string",
+      "enum": [
+        "frozen_calibrated",
+        "tightened",
+        "eased_with_evidence",
+        "provisional_uncalibrated",
+        "drifted_unreviewed",
+        "stale_recalibration_pending"
+      ]
+    },
+    "change_kind": {
+      "type": "string",
+      "enum": [
+        "set_calibrated",
+        "tightened",
+        "eased_with_evidence",
+        "provisional_hold",
+        "recalibration_reset"
+      ],
+      "description": "set_calibrated freezes a calibrated bar; tightened hardens it; eased_with_evidence widens it; provisional_hold parks a not-yet-calibrated bar below a claim-bearing level; recalibration_reset resets comparability after a hardware or lab-image recalibration."
+    },
+    "waiver_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "performance_council_time_boxed",
+        "architecture_council_protected_path",
+        "release_council_launch_scope",
+        "shiproom_executive_scope"
+      ]
+    },
+    "approval_authority": {
+      "type": "string",
+      "enum": [
+        "performance_owner",
+        "performance_council",
+        "architecture_board",
+        "architecture_council",
+        "release_council",
+        "shiproom_executive_scope_review"
+      ]
+    },
+    "change_status": {
+      "type": "string",
+      "enum": ["proposed", "approved", "active", "superseded", "withdrawn"],
+      "description": "active marks the single in-force record for a metric; superseded and withdrawn are closed history; proposed and approved are pending records not yet in force."
+    },
+    "evidence_side": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "evidence_ref", "captured_on"],
+      "properties": {
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "evidence_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable or repo-relative pointer to the run/evidence packet that backs this side of the change; never a raw run log body."
+        },
+        "captured_on": { "$ref": "#/$defs/utc_date" }
+      }
+    },
+    "before_after_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after"],
+      "properties": {
+        "before": { "$ref": "#/$defs/evidence_side" },
+        "after": { "$ref": "#/$defs/evidence_side" }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "approver_ref", "approved_on"],
+      "properties": {
+        "authority": { "$ref": "#/$defs/approval_authority" },
+        "approver_ref": { "$ref": "#/$defs/non_empty_string" },
+        "approved_on": { "$ref": "#/$defs/utc_date" }
+      }
+    },
+    "waiver_grant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "waiver_ref", "granted_on", "expires_on"],
+      "properties": {
+        "class": { "$ref": "#/$defs/waiver_class" },
+        "waiver_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Owner-resolvable id for the waiver decision record; null only when class is none."
+        },
+        "granted_on": { "$ref": "#/$defs/utc_date" },
+        "expires_on": {
+          "$ref": "#/$defs/utc_date",
+          "description": "Hard expiry; an open, in-force waiver past this date blocks promotion. Null only when class is none."
+        }
+      }
+    },
+    "threshold_change_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "change_ref",
+        "metric_ref",
+        "threshold_ref",
+        "change_kind",
+        "resulting_threshold_state",
+        "loosens_protected_bar",
+        "rationale",
+        "comparability_note",
+        "before_after_evidence",
+        "owner_ref",
+        "approvals",
+        "waiver",
+        "release_evidence_ref",
+        "status",
+        "recorded_on"
+      ],
+      "properties": {
+        "record_kind": { "const": "benchmark_threshold_change_record" },
+        "schema_version": { "const": 1 },
+        "change_ref": { "$ref": "#/$defs/stable_id" },
+        "metric_ref": {
+          "$ref": "#/$defs/stable_id",
+          "description": "Protected-metric id this change moves; must resolve in the governance matrix."
+        },
+        "threshold_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Pointer to the governed threshold value (e.g. artifacts/bench/protected_metrics.yaml#ff.command_parity)."
+        },
+        "change_kind": { "$ref": "#/$defs/change_kind" },
+        "resulting_threshold_state": { "$ref": "#/$defs/threshold_state" },
+        "loosens_protected_bar": {
+          "type": "boolean",
+          "description": "True only when the change widens the protected bar; an easing must set this true and carries the stricter approval and evidence requirements."
+        },
+        "rationale": { "$ref": "#/$defs/reviewable_sentence" },
+        "comparability_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "before_after_evidence": { "$ref": "#/$defs/before_after_evidence" },
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "approvals": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/approval" }
+        },
+        "waiver": { "$ref": "#/$defs/waiver_grant" },
+        "release_evidence_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Release-evidence packet that carries this change; required for an easing."
+        },
+        "status": { "$ref": "#/$defs/change_status" },
+        "recorded_on": { "$ref": "#/$defs/utc_date" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "threshold_change_ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "ledger_id",
+        "generated_at",
+        "ledger_revision",
+        "title",
+        "summary",
+        "source_refs",
+        "matrix_ref",
+        "changes"
+      ],
+      "properties": {
+        "record_kind": { "const": "benchmark_threshold_change_ledger" },
+        "schema_version": { "const": 1 },
+        "ledger_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/utc_date_time" },
+        "ledger_revision": { "type": "integer", "minimum": 1 },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Schema and governance refs. MUST include this schema and the governance matrix it binds to."
+        },
+        "matrix_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Governance matrix whose protected-metric threshold states and waivers this ledger keeps honest."
+        },
+        "changes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/threshold_change_record" }
+        }
+      }
+    }
+  }
+}

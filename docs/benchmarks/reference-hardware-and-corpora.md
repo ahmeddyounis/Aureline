@@ -127,5 +127,7 @@ The matrix's narrowing fixtures live alongside in
 - Renaming an id is breaking: it opens a decision record and updates the
   register, the matrix, the schema examples, and this document in the same change.
 - Easing a threshold or widening a claim requires the before/after evidence and
-  approvals defined in the matrix policy; this row does not widen the number of
-  claimed archetypes.
+  approvals defined in the
+  [threshold-change policy](./threshold-change-policy.md) and recorded in the
+  [threshold-change ledger](../../artifacts/benchmarks/threshold-change-ledger.json);
+  this row does not widen the number of claimed archetypes.

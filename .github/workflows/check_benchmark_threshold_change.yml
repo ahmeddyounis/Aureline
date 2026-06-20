@@ -1,0 +1,70 @@
+# Protected-threshold change workflow gate.
+#
+# Validates the typed threshold-change ledger and its fixtures: every change
+# record resolves to a protected metric in the governance matrix; an easing
+# carries both the performance-owner and architecture-board approvals plus
+# before/after evidence and release-evidence linkage; every non-default waiver
+# is time-boxed and granted by its authority; an open in-force waiver past its
+# expiry blocks promotion; the in-force record stays in lockstep with the matrix;
+# and the workflow fixtures prove each fail-closed path.
+
+name: check_benchmark_threshold_change
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_benchmark_threshold_change.yml"
+      - "ci/check_benchmark_threshold_change.py"
+      - "artifacts/benchmarks/threshold-change-ledger.json"
+      - "artifacts/benchmarks/threshold-change-workflow.md"
+      - "schemas/benchmarks/threshold-change-record.schema.json"
+      - "fixtures/benchmarks/threshold-change/**"
+      - "artifacts/benchmarks/m5-benchmark-governance.json"
+      - "artifacts/bench/protected_metrics.yaml"
+      - "docs/benchmarks/threshold-change-policy.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-benchmark-threshold-change-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark_threshold_change:
+    name: Threshold-change workflow
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run threshold-change validator
+        run: |
+          python3 ci/check_benchmark_threshold_change.py --repo-root . \
+            --report artifacts/benchmarks/threshold-change-validation.json
+
+      - name: Upload threshold-change report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-threshold-change-${{ github.run_id }}
+          path: artifacts/benchmarks/threshold-change-validation.json
+          if-no-files-found: error
+          retention-days: 30
