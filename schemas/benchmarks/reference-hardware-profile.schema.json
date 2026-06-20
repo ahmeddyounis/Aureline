@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/benchmarks/reference-hardware-profile.schema.json",
+  "title": "Aureline benchmark reference-hardware-profile object",
+  "description": "Boundary schema for a single benchmark reference-hardware-profile object. A reference-hardware profile is the canonical identity of one machine class a benchmark claim may cite: its stable id, whether it is a council-approved reference_lab row or a self_capture placeholder, its display class, default power posture, the lab-image revision it pairs with, its council status, the workload classes it is approved to back, and the canonical hardware register it projects from. A claim-bearing metric must bind a reference_lab profile that is council-approved; a self_capture row must declare not_reference_eligible_without_promotion so local developer hardware cannot masquerade as a protected reference row. A profile with no display class or no lab-image identity fails closed. Raw machine labels, serial numbers, and host names never cross this boundary; only stable ids and reviewable sentences do.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "hardware_profile_ref",
+    "hardware_class",
+    "display_class_ref",
+    "default_power_posture",
+    "lab_image_ref",
+    "lab_image_revision",
+    "council_status",
+    "permitted_workload_classes",
+    "manifest_source_ref"
+  ],
+  "properties": {
+    "record_kind": { "const": "benchmark_reference_hardware_profile" },
+    "schema_version": { "const": 1 },
+    "hardware_profile_ref": {
+      "$ref": "#/$defs/stable_id",
+      "description": "Stable hardware-definition id resolvable in the canonical reference-hardware register; never a raw machine label."
+    },
+    "hardware_class": { "$ref": "#/$defs/hardware_class" },
+    "display_class_ref": { "$ref": "#/$defs/non_empty_string" },
+    "default_power_posture": { "$ref": "#/$defs/non_empty_string" },
+    "lab_image_ref": {
+      "$ref": "#/$defs/stable_id",
+      "description": "Stable lab-image id this profile pairs with; the comparability axis a metric inherits when it cites this profile."
+    },
+    "lab_image_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Lab-image revision bound to this profile; a recalibration bump resets comparability until a fresh reference capture lands."
+    },
+    "council_status": { "$ref": "#/$defs/council_status" },
+    "permitted_workload_classes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/corpus_class" },
+      "description": "Workload classes this profile is approved to back; a metric that uses it outside these classes is non-conforming."
+    },
+    "manifest_source_ref": {
+      "$ref": "#/$defs/non_empty_string",
+      "description": "Repo-relative canonical register this hardware id projects from (e.g. artifacts/perf/reference_hardware_manifest.yaml)."
+    }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "stable_id": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9_.]*$" },
+    "hardware_class": {
+      "type": "string",
+      "enum": ["reference_lab", "self_capture"]
+    },
+    "council_status": {
+      "type": "string",
+      "enum": [
+        "approved_reference_baseline",
+        "not_reference_eligible_without_promotion"
+      ]
+    },
+    "corpus_class": {
+      "type": "string",
+      "enum": [
+        "microbenchmark_scenario",
+        "workflow_scenario",
+        "remote_collaboration_scenario",
+        "accessibility_scenario"
+      ]
+    }
+  }
+}

@@ -1,0 +1,75 @@
+# Benchmark-governance identity and claim-narrowing gate.
+#
+# Validates the frozen benchmark-governance matrix and its object fixtures:
+# every protected metric and publication pack resolves to canonical corpus,
+# reference-hardware, and lab-image ids; benchmark publication fails closed when
+# a required identity is missing; self-capture rows cannot masquerade as
+# protected reference rows; the claim-narrowing engine agrees with the stored
+# effective claims; and the scenario and reference-hardware fixtures prove each
+# fail-closed path.
+
+name: check_m5_benchmark_governance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_benchmark_governance.yml"
+      - "ci/check_m5_benchmark_governance.py"
+      - "artifacts/benchmarks/m5-benchmark-governance.json"
+      - "schemas/benchmarks/m5-benchmark-governance.schema.json"
+      - "schemas/benchmarks/corpus-manifest.schema.json"
+      - "schemas/benchmarks/protected-metric.schema.json"
+      - "schemas/benchmarks/reference-hardware-profile.schema.json"
+      - "fixtures/benchmarks/m5-benchmark-governance/**"
+      - "fixtures/benchmarks/reference-hardware/**"
+      - "fixtures/benchmarks/corpus_manifest.yaml"
+      - "artifacts/perf/reference_hardware_manifest.yaml"
+      - "artifacts/perf/lab_image_manifest.yaml"
+      - "artifacts/bench/protected_metrics.yaml"
+      - "docs/benchmarks/reference-hardware-and-corpora.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-benchmark-governance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_benchmark_governance:
+    name: Benchmark governance
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run benchmark governance validator
+        run: |
+          python3 ci/check_m5_benchmark_governance.py --repo-root . \
+            --report artifacts/benchmarks/m5-benchmark-governance-validation.json
+
+      - name: Upload benchmark governance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-benchmark-governance-${{ github.run_id }}
+          path: artifacts/benchmarks/m5-benchmark-governance-validation.json
+          if-no-files-found: error
+          retention-days: 30
