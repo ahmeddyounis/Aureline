@@ -54,6 +54,7 @@
 pub mod descriptor;
 pub mod generated_timeline;
 pub mod m5_generated_governance;
+pub mod mutation_guardrails;
 pub mod regeneration_plan;
 pub mod write_boundary;
 
@@ -100,6 +101,28 @@ pub use m5_generated_governance::{
     M5_GENERATED_GOVERNANCE_PACKET_RECORD_KIND, M5_GENERATED_GOVERNANCE_PACKET_REF,
     M5_GENERATED_GOVERNANCE_REPORT_REF, M5_GENERATED_GOVERNANCE_SCHEMA_REF,
     M5_GENERATED_GOVERNANCE_SCHEMA_VERSION,
+};
+
+// The mutation-guardrails lane defines its own `ValidationReport` and
+// `ValidationViolation`; those names already resolve to the sibling governance
+// lane at the crate root, so they are reached through the
+// [`mutation_guardrails`] module path instead of being re-exported here. The
+// reused `WriteBoundaryDecision`, `WriteBoundarySubject`, `SideEffectClass`,
+// `SideEffectDisclosure`, and `RollbackCoverage` it embeds are likewise reached
+// through their owning lanes.
+pub use mutation_guardrails::{
+    decide_mutation_guardrail, mutation_guardrails_copy_line, seeded_mutation_guardrails_fixtures,
+    seeded_mutation_guardrails_packet, validate_mutation_guardrails_fixture,
+    validate_mutation_guardrails_packet, ActorLineage, BoundaryDataState, GuardrailOutcome,
+    MutationAttempt, MutationClass, MutationGuardrailCase, MutationGuardrailDecision,
+    MutationGuardrailFixture, MutationGuardrailPacket, MutationGuardrailSourceContractRefs,
+    MutationGuardrailSurface, MutationGuardrailSurfaceBinding, MutationRoute,
+    MutationSafetyEnvelope, MutationSourceClass, ReversalClass, SafetyRequirement,
+    MUTATION_GUARDRAILS_DOC_REF, MUTATION_GUARDRAILS_FIXTURE_DIR,
+    MUTATION_GUARDRAILS_FIXTURE_MANIFEST_REF, MUTATION_GUARDRAILS_FIXTURE_RECORD_KIND,
+    MUTATION_GUARDRAILS_PACKET_ID, MUTATION_GUARDRAILS_PACKET_RECORD_KIND,
+    MUTATION_GUARDRAILS_PACKET_REF, MUTATION_GUARDRAILS_REPORT_REF, MUTATION_GUARDRAILS_SCHEMA_REF,
+    MUTATION_GUARDRAILS_SCHEMA_VERSION,
 };
 
 // The regeneration-plan lane defines its own `RecoveryClass`, `RecoveryStep`,
