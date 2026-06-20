@@ -44,6 +44,7 @@
 
 pub mod descriptor;
 pub mod m5_generated_governance;
+pub mod regeneration_plan;
 pub mod write_boundary;
 
 pub use descriptor::{
@@ -75,6 +76,25 @@ pub use m5_generated_governance::{
     M5_GENERATED_GOVERNANCE_PACKET_RECORD_KIND, M5_GENERATED_GOVERNANCE_PACKET_REF,
     M5_GENERATED_GOVERNANCE_REPORT_REF, M5_GENERATED_GOVERNANCE_SCHEMA_REF,
     M5_GENERATED_GOVERNANCE_SCHEMA_VERSION,
+};
+
+// The regeneration-plan lane defines its own `RecoveryClass`, `RecoveryStep`,
+// `ValidationReport`, and `ValidationViolation`; those names already resolve to
+// the sibling lanes at the crate root, so they are reached through the
+// [`regeneration_plan`] module path instead of being re-exported here.
+pub use regeneration_plan::{
+    plan_regeneration, regeneration_plan_copy_line, seeded_regeneration_plan_fixtures,
+    seeded_regeneration_plan_packet, validate_regeneration_plan_fixture,
+    validate_regeneration_plan_packet, PlanReadiness, PreconditionKind, PreconditionState,
+    PreconditionStatus, RegenerationPlan, RegenerationPlanCase, RegenerationPlanFixture,
+    RegenerationPlanPacket, RegenerationPlanSourceContractRefs, RegenerationPlanSurface,
+    RegenerationPlanSurfaceBinding, RegenerationRequest, RegenerationTarget, RollbackBoundary,
+    RollbackCoverage, SideEffect, SideEffectBoundary, SideEffectClass, SideEffectDisclosure,
+    TargetOutcome, TargetPlan, REGENERATION_PLAN_DOC_REF, REGENERATION_PLAN_FIXTURE_DIR,
+    REGENERATION_PLAN_FIXTURE_MANIFEST_REF, REGENERATION_PLAN_FIXTURE_RECORD_KIND,
+    REGENERATION_PLAN_PACKET_ID, REGENERATION_PLAN_PACKET_RECORD_KIND,
+    REGENERATION_PLAN_PACKET_REF, REGENERATION_PLAN_REPORT_REF, REGENERATION_PLAN_SCHEMA_REF,
+    REGENERATION_PLAN_SCHEMA_VERSION,
 };
 
 pub use write_boundary::{
