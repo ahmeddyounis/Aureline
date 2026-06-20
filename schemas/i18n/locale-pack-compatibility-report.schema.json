@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/i18n/locale-pack-compatibility-report.schema.json",
+  "title": "Aureline locale-pack compatibility and skew report",
+  "description": "Inspectable packet that diagnostics, support export, and release tooling ingest to learn, per evaluated locale pack: the exact pack version, the compatibility and signature state, the active fallback, the missing-key count overall and per surface, and — for degraded packs — the degraded-localization reason. Unsupported, unsigned, tampered, or skewed packs degrade fully to source language rather than partially applying stale translations. Raw translated bodies, signing keys, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "report_id",
+    "generated_at",
+    "source_language_locale",
+    "target_build_identity_ref",
+    "source_contract_refs",
+    "runtime_consumer_refs",
+    "artifacts",
+    "operations",
+    "rows",
+    "summary",
+    "omitted_material_classes"
+  ],
+  "properties": {
+    "record_kind": { "const": "locale_pack_compatibility_report" },
+    "schema_version": { "const": 1 },
+    "report_id": { "$ref": "#/$defs/stable_id" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "source_language_locale": { "$ref": "#/$defs/locale" },
+    "target_build_identity_ref": { "$ref": "#/$defs/stable_id" },
+    "source_contract_refs": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "runtime_consumer_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/stable_id" },
+      "uniqueItems": true
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://aureline.dev/schemas/i18n/locale-pack.schema.json" }
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/operation" }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/row" }
+    },
+    "summary": { "$ref": "#/$defs/summary" },
+    "omitted_material_classes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "stable_id": { "type": "string", "minLength": 1 },
+    "locale": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$" },
+    "signature_state": {
+      "enum": [
+        "signed_verified",
+        "signed_unverified",
+        "unsigned_explicit_acceptance",
+        "signature_failed_blocked",
+        "not_applicable_built_in"
+      ]
+    },
+    "version_match_state": {
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ]
+    },
+    "application_decision": {
+      "enum": [
+        "apply_localized_with_disclosed_missing_keys",
+        "degrade_to_source_language_only"
+      ]
+    },
+    "skew_degrade_reason": {
+      "enum": [
+        "not_degraded",
+        "pack_missing",
+        "signature_failed",
+        "signature_unverified_not_accepted",
+        "integrity_digest_mismatch",
+        "build_outside_compatibility_range",
+        "incompatible_version_drift",
+        "unknown_target_build",
+        "policy_disabled_locale"
+      ]
+    },
+    "fallback_origin": {
+      "enum": [
+        "requested_locale_authoritative",
+        "requested_locale_partial_with_base_fill",
+        "base_locale_fallback",
+        "source_language_fallback",
+        "pack_signature_failed_source_language_only",
+        "pack_missing_source_language_only",
+        "policy_disabled_source_language_only"
+      ]
+    },
+    "degraded_state": {
+      "enum": [
+        "fully_localized",
+        "partial_translation_disclosed",
+        "mixed_locale_strict_separation",
+        "glossary_only_localized",
+        "source_language_with_pseudoloc",
+        "failed_pack_source_language_only"
+      ]
+    },
+    "source_class": {
+      "enum": [
+        "first_party_source_language",
+        "first_party_locale_pack",
+        "reviewed_community_pack",
+        "extension_owned_pack"
+      ]
+    },
+    "distribution_class": {
+      "enum": [
+        "built_in_with_product",
+        "mirrored_official_pack",
+        "community_supplied_pack",
+        "extension_overlay_pack",
+        "air_gapped_offline_pack"
+      ]
+    },
+    "mirrorability_class": {
+      "enum": [
+        "mirror_allowed",
+        "mirror_with_attribution_required",
+        "mirror_forbidden",
+        "air_gapped_only",
+        "not_mirrorable_signed_blob"
+      ]
+    },
+    "operation_class": {
+      "enum": ["install", "update", "rollback", "mirror_import", "offline_import"]
+    },
+    "compatibility_build_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_build_identity_ref", "max_build_identity_ref"],
+      "properties": {
+        "min_build_identity_ref": { "$ref": "#/$defs/stable_id" },
+        "max_build_identity_ref": { "$ref": "#/$defs/stable_id" }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "operation_class",
+        "pack_id",
+        "to_pack_version",
+        "signature_verification_required",
+        "compatibility_check_required",
+        "mirror_metadata_preserved",
+        "resulting_decision_row_ref",
+        "support_export_ref"
+      ],
+      "properties": {
+        "operation_id": { "$ref": "#/$defs/stable_id" },
+        "operation_class": { "$ref": "#/$defs/operation_class" },
+        "pack_id": { "$ref": "#/$defs/stable_id" },
+        "from_pack_version": { "type": "string", "minLength": 1 },
+        "to_pack_version": { "type": "string", "minLength": 1 },
+        "signature_verification_required": { "const": true },
+        "compatibility_check_required": { "const": true },
+        "mirror_metadata_preserved": { "type": "boolean" },
+        "resulting_decision_row_ref": { "$ref": "#/$defs/stable_id" },
+        "rollback_ref": { "$ref": "#/$defs/stable_id" },
+        "support_export_ref": { "$ref": "#/$defs/stable_id" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "pack_id",
+        "pack_version",
+        "pack_revision_ref",
+        "source_class",
+        "distribution_class",
+        "mirrorability_class",
+        "requested_locale",
+        "effective_locale",
+        "source_language_locale",
+        "fallback_chain",
+        "target_build_identity_ref",
+        "compatibility_build_range",
+        "target_build_in_compatibility_range",
+        "signature_state",
+        "version_match_state",
+        "integrity_digest_matches",
+        "pack_present",
+        "policy_locale_enabled",
+        "application_decision",
+        "skew_degrade_reason",
+        "fallback_origin_class",
+        "degraded_localization_state",
+        "total_key_count",
+        "translated_key_count",
+        "missing_key_count",
+        "missing_key_count_by_surface",
+        "claimed_localized_profile",
+        "visible_in_settings",
+        "visible_in_diagnostics",
+        "visible_in_support_export",
+        "open_in_source_language_route_ref",
+        "non_blocking_core_use",
+        "presentation_label"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/stable_id" },
+        "pack_id": { "$ref": "#/$defs/stable_id" },
+        "pack_version": { "type": "string", "minLength": 1 },
+        "pack_revision_ref": { "$ref": "#/$defs/stable_id" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "distribution_class": { "$ref": "#/$defs/distribution_class" },
+        "mirrorability_class": { "$ref": "#/$defs/mirrorability_class" },
+        "signer_identity_ref": { "$ref": "#/$defs/stable_id" },
+        "requested_locale": { "$ref": "#/$defs/locale" },
+        "effective_locale": { "$ref": "#/$defs/locale" },
+        "source_language_locale": { "$ref": "#/$defs/locale" },
+        "fallback_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/locale" }
+        },
+        "target_build_identity_ref": { "$ref": "#/$defs/stable_id" },
+        "compatibility_build_range": { "$ref": "#/$defs/compatibility_build_range" },
+        "target_build_in_compatibility_range": { "type": "boolean" },
+        "signature_state": { "$ref": "#/$defs/signature_state" },
+        "version_match_state": { "$ref": "#/$defs/version_match_state" },
+        "integrity_digest_matches": { "type": "boolean" },
+        "pack_present": { "type": "boolean" },
+        "policy_locale_enabled": { "type": "boolean" },
+        "application_decision": { "$ref": "#/$defs/application_decision" },
+        "skew_degrade_reason": { "$ref": "#/$defs/skew_degrade_reason" },
+        "fallback_origin_class": { "$ref": "#/$defs/fallback_origin" },
+        "degraded_localization_state": { "$ref": "#/$defs/degraded_state" },
+        "total_key_count": { "type": "integer", "minimum": 0 },
+        "translated_key_count": { "type": "integer", "minimum": 0 },
+        "missing_key_count": { "type": "integer", "minimum": 0 },
+        "missing_key_count_by_surface": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "claimed_localized_profile": { "type": "boolean" },
+        "claimed_profile_ref": { "$ref": "#/$defs/stable_id" },
+        "explicit_acceptance_decision_row_ref": { "$ref": "#/$defs/stable_id" },
+        "visible_in_settings": { "const": true },
+        "visible_in_diagnostics": { "const": true },
+        "visible_in_support_export": { "const": true },
+        "open_in_source_language_route_ref": { "$ref": "#/$defs/stable_id" },
+        "non_blocking_core_use": { "const": true },
+        "presentation_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_packs",
+        "renderable_packs",
+        "degraded_source_language_packs",
+        "claimed_localized_profiles",
+        "claimed_profiles_fully_localized",
+        "total_missing_keys",
+        "guardrail_clean"
+      ],
+      "properties": {
+        "total_packs": { "type": "integer", "minimum": 0 },
+        "renderable_packs": { "type": "integer", "minimum": 0 },
+        "degraded_source_language_packs": { "type": "integer", "minimum": 0 },
+        "claimed_localized_profiles": { "type": "integer", "minimum": 0 },
+        "claimed_profiles_fully_localized": { "type": "integer", "minimum": 0 },
+        "total_missing_keys": { "type": "integer", "minimum": 0 },
+        "guardrail_clean": { "const": true }
+      }
+    }
+  }
+}

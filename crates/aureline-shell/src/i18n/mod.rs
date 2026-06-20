@@ -10,11 +10,18 @@
 //! fallback-chain, and missing-key inspector.
 
 pub mod fallback_inspector;
+pub mod pack_compatibility;
 
 pub use fallback_inspector::{
     project_locale_fallback_inspector, project_support_locale_fallback_inspector,
     project_user_locale_fallback_inspector, FallbackInspectorAudience, LocaleFallbackInspectorView,
     SurfaceFallbackRow,
+};
+
+pub use pack_compatibility::{
+    project_locale_pack_compatibility, project_support_locale_pack_compatibility,
+    project_user_locale_pack_compatibility, CompatibilityViewAudience,
+    LocalePackCompatibilityRowView, LocalePackCompatibilityView,
 };
 
 #[cfg(test)]

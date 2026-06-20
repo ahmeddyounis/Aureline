@@ -2,9 +2,15 @@
 
 use aureline_i18n::{LocaleFallbackOriginClass, M5MessageSurface};
 
+use aureline_i18n::{PackApplicationDecision, SkewDegradeReason};
+
 use super::fallback_inspector::{
     project_support_locale_fallback_inspector, project_user_locale_fallback_inspector,
     FallbackInspectorAudience,
+};
+use super::pack_compatibility::{
+    project_support_locale_pack_compatibility, project_user_locale_pack_compatibility,
+    CompatibilityViewAudience,
 };
 
 #[test]
@@ -125,4 +131,50 @@ fn view_serializes_to_export_safe_json() {
     assert!(json.contains("missing_key_count"));
     // Stable ids are present; no translated prose body field exists.
     assert!(json.contains("registry_packet_id"));
+}
+
+#[test]
+fn pack_compatibility_view_resolves_every_pack_without_ambiguity() {
+    let view = project_user_locale_pack_compatibility();
+    assert_eq!(view.audience, CompatibilityViewAudience::User);
+    assert!(view.guardrail_clean);
+    // No pack is left in an undefined half-localized state.
+    assert!(view.all_states_resolved());
+    assert_eq!(
+        view.renderable_packs + view.degraded_source_language_packs,
+        view.total_packs
+    );
+    assert!(view.raw_translated_body_omitted);
+}
+
+#[test]
+fn pack_compatibility_view_surfaces_skew_reasons_and_versions() {
+    let view = project_user_locale_pack_compatibility();
+
+    let ja = view.row("locale-pack:core:ja-jp").expect("ja-jp row");
+    assert!(ja.degraded_to_source_language());
+    assert_eq!(ja.skew_degrade_reason, SkewDegradeReason::SignatureFailed);
+    assert_eq!(ja.missing_key_count, ja.total_key_count);
+    assert!(!ja.pack_version.is_empty());
+    assert!(!ja.claimed_localized_profile);
+
+    let fr = view.row("locale-pack:core:fr-fr").expect("fr-fr row");
+    assert_eq!(
+        fr.application_decision,
+        PackApplicationDecision::ApplyLocalizedWithDisclosedMissingKeys
+    );
+    assert!(fr.missing_key_count > 0 && fr.missing_key_count < fr.total_key_count);
+    assert!(fr.claimed_localized_profile);
+}
+
+#[test]
+fn pack_compatibility_user_and_support_views_agree() {
+    let user = project_user_locale_pack_compatibility();
+    let support = project_support_locale_pack_compatibility();
+
+    assert_eq!(user.audience, CompatibilityViewAudience::User);
+    assert_eq!(support.audience, CompatibilityViewAudience::SupportExport);
+    assert_eq!(user.rows, support.rows);
+    assert_eq!(user.total_missing_keys, support.total_missing_keys);
+    assert_eq!(user.guardrail_clean, support.guardrail_clean);
 }
