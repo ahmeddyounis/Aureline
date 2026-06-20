@@ -429,6 +429,7 @@ pub mod project_doctor;
 pub mod publication_dry_run;
 pub mod publish_supportability_runbooks_field_playbooks_and_incident_advisory;
 pub mod reactive_command_parity;
+pub mod reactive_diagnostics;
 pub mod reactive_recovery;
 pub mod reactive_truth_surfaces;
 pub mod records_export_delete_governance;
@@ -708,6 +709,29 @@ pub use reactive_command_parity::{
     ReactiveCommandParitySupportExportRow,
     REACTIVE_COMMAND_PARITY_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND,
     REACTIVE_COMMAND_PARITY_SUPPORT_EXPORT_ROW_RECORD_KIND,
+};
+pub use reactive_diagnostics::{
+    compile_support_export_envelope as compile_reactive_diagnostics_support_export_envelope,
+    seeded_reactive_diagnostics_fixtures, seeded_reactive_diagnostics_packet,
+    validate_reactive_diagnostics_fixture, validate_reactive_diagnostics_packet,
+    ActiveSubscriptionRow as ReactiveDiagnosticsActiveSubscriptionRow,
+    DoctorProbeRow as ReactiveDiagnosticsDoctorProbeRow,
+    InvalidationHistoryRow as ReactiveDiagnosticsInvalidationHistoryRow,
+    ReactiveDiagnosticsFixture, ReactiveDiagnosticsPacket,
+    ReactiveDiagnosticsSupportExportEnvelope, ReactiveDiagnosticsSupportExportError,
+    ReactiveDiagnosticsSupportExportRow, ReactiveStateReasonCode, SafeNextStep,
+    SlowConsumerRow as ReactiveDiagnosticsSlowConsumerRow,
+    SourceContractRefs as ReactiveDiagnosticsSourceContractRefs,
+    StaleMaterializationRow as ReactiveDiagnosticsStaleMaterializationRow,
+    TroubleshootingScenario as ReactiveDiagnosticsTroubleshootingScenario,
+    ValidationReport as ReactiveDiagnosticsValidationReport,
+    ValidationViolation as ReactiveDiagnosticsValidationViolation, REACTIVE_DIAGNOSTICS_DOC_REF,
+    REACTIVE_DIAGNOSTICS_FIXTURE_DIR, REACTIVE_DIAGNOSTICS_FIXTURE_MANIFEST_REF,
+    REACTIVE_DIAGNOSTICS_FIXTURE_RECORD_KIND, REACTIVE_DIAGNOSTICS_PACKET_RECORD_KIND,
+    REACTIVE_DIAGNOSTICS_PACKET_REF, REACTIVE_DIAGNOSTICS_REPORT_REF,
+    REACTIVE_DIAGNOSTICS_RUNBOOK_REF, REACTIVE_DIAGNOSTICS_SCHEMA_REF,
+    REACTIVE_DIAGNOSTICS_SCHEMA_VERSION, REACTIVE_DIAGNOSTICS_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND,
+    REACTIVE_DIAGNOSTICS_SUPPORT_EXPORT_ROW_RECORD_KIND,
 };
 pub use reactive_recovery::{
     compile_support_export_envelope as compile_reactive_recovery_support_export_envelope,

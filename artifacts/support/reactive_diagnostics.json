@@ -1,0 +1,455 @@
+{
+  "active_subscriptions": [
+    {
+      "authority_epoch": 12,
+      "backpressure_mode": "realtime",
+      "binding_id": "shell.workspace_tree",
+      "completeness": "full",
+      "consumer_surfaces": [
+        "desktop_shell"
+      ],
+      "delta_seq": 4,
+      "epoch_drift": false,
+      "freshness": "authoritative",
+      "query_family": "workspace_tree",
+      "scope_class": "workspace",
+      "scope_id": "ws:alpha",
+      "snapshot_epoch": 12,
+      "subscription_id": 101,
+      "truth_claim": "consistent_snapshot",
+      "view_class": "durable_local_materialization"
+    },
+    {
+      "authority_epoch": 9,
+      "backpressure_mode": "coalesced",
+      "binding_id": "search.results",
+      "completeness": "partial",
+      "consumer_surfaces": [
+        "desktop_shell",
+        "cli_headless"
+      ],
+      "delta_seq": 2,
+      "epoch_drift": true,
+      "freshness": "stale",
+      "query_family": "search_results",
+      "scope_class": "workspace",
+      "scope_id": "ws:alpha",
+      "snapshot_epoch": 7,
+      "subscription_id": 102,
+      "truth_claim": "stale_snapshot",
+      "view_class": "ephemeral_projection"
+    },
+    {
+      "authority_epoch": 6,
+      "backpressure_mode": "coalesced",
+      "binding_id": "graph.neighborhood",
+      "completeness": "partial",
+      "consumer_surfaces": [
+        "desktop_shell"
+      ],
+      "delta_seq": 5,
+      "epoch_drift": true,
+      "freshness": "cached",
+      "query_family": "graph_neighborhood",
+      "scope_class": "window",
+      "scope_id": "win:3",
+      "snapshot_epoch": 4,
+      "subscription_id": 103,
+      "truth_claim": "coalesced_stream",
+      "view_class": "ephemeral_projection"
+    },
+    {
+      "authority_epoch": 3,
+      "backpressure_mode": "snapshot_required",
+      "binding_id": "review.workspace",
+      "completeness": "unavailable",
+      "consumer_surfaces": [
+        "review_workspace"
+      ],
+      "delta_seq": 0,
+      "epoch_drift": false,
+      "freshness": "stale",
+      "query_family": "review_workspace",
+      "scope_class": "review_workspace",
+      "scope_id": "rw:42",
+      "snapshot_epoch": 3,
+      "subscription_id": 104,
+      "truth_claim": "provider_unavailable",
+      "view_class": "exportable_snapshot"
+    },
+    {
+      "authority_epoch": 5,
+      "backpressure_mode": "coalesced",
+      "binding_id": "ai.context",
+      "completeness": "partial",
+      "consumer_surfaces": [
+        "ai_inspector"
+      ],
+      "delta_seq": 1,
+      "epoch_drift": false,
+      "freshness": "warming",
+      "query_family": "ai_context",
+      "scope_class": "workspace",
+      "scope_id": "ws:alpha",
+      "snapshot_epoch": 5,
+      "subscription_id": 105,
+      "truth_claim": "partial_projection",
+      "view_class": "ephemeral_projection"
+    },
+    {
+      "authority_epoch": 4,
+      "backpressure_mode": "snapshot_required",
+      "binding_id": "companion.panel",
+      "completeness": "partial",
+      "consumer_surfaces": [
+        "companion_snapshot"
+      ],
+      "delta_seq": 3,
+      "epoch_drift": true,
+      "freshness": "stale",
+      "query_family": "companion_panel",
+      "scope_class": "companion_surface",
+      "scope_id": "cmp:9",
+      "snapshot_epoch": 2,
+      "subscription_id": 106,
+      "truth_claim": "stale_snapshot",
+      "view_class": "managed_replicated_view"
+    }
+  ],
+  "doctor_probes": [
+    {
+      "condition_summary": "A consumer is pinned to a known-stale epoch after an invalidation gap broke causality.",
+      "confidence": "observed_authoritative",
+      "evidence_refs": [
+        "active_subscription:105",
+        "slow_consumer:ai_inspector",
+        "invalidation_history:6"
+      ],
+      "finding_code": "reactive.consumer_stale",
+      "probe_id": "probe.reactive.consumer_stale",
+      "reason_code": "consumer_stale",
+      "recovery_recommendation": "Request a fresh consistent snapshot; keep the view read-only as last-known until it applies. Do not act on the stale epoch as current truth.",
+      "repair_availability": "reviewed_repair_available",
+      "safe_next_step": "request_fresh_snapshot",
+      "severity": "blocking"
+    },
+    {
+      "condition_summary": "A consumer is trailing the live epoch and applying coalesced frames behind its producer.",
+      "confidence": "observed_authoritative",
+      "evidence_refs": [
+        "active_subscription:102",
+        "slow_consumer:cli_headless",
+        "invalidation_history:2"
+      ],
+      "finding_code": "reactive.consumer_coalescing",
+      "probe_id": "probe.reactive.consumer_coalescing",
+      "reason_code": "consumer_coalescing",
+      "recovery_recommendation": "Wait for the coalesced frame to apply and revalidate any pending action against the producer before it commits.",
+      "repair_availability": "reviewed_repair_available",
+      "safe_next_step": "wait_for_coalesced_catch_up",
+      "severity": "degraded"
+    },
+    {
+      "condition_summary": "A dropped subscription is reconnecting and must resubscribe on a new snapshot epoch before acting.",
+      "confidence": "observed_authoritative",
+      "evidence_refs": [
+        "slow_consumer:cli_headless",
+        "invalidation_history:4"
+      ],
+      "finding_code": "reactive.resubscribe_required",
+      "probe_id": "probe.reactive.resubscribe_required",
+      "reason_code": "resubscribe_required",
+      "recovery_recommendation": "Run the visible resubscribe to re-establish the subscription; exact-truth actions stay withheld until the new snapshot applies.",
+      "repair_availability": "reviewed_repair_available",
+      "safe_next_step": "resubscribe",
+      "severity": "blocking"
+    },
+    {
+      "condition_summary": "A derived surface is reading a provider overlay whose backing producer is unavailable.",
+      "confidence": "observed_authoritative",
+      "evidence_refs": [
+        "active_subscription:104",
+        "stale_materialization:review.workspace",
+        "slow_consumer:review_workspace"
+      ],
+      "finding_code": "reactive.provider_overlay_unavailable",
+      "probe_id": "probe.reactive.provider_overlay_unavailable",
+      "reason_code": "provider_overlay_unavailable",
+      "recovery_recommendation": "Reconnect the provider overlay; keep the view read-only as last-known truth and block exact-truth actions until it returns.",
+      "repair_availability": "reviewed_repair_available",
+      "safe_next_step": "reconnect_provider",
+      "severity": "blocking"
+    },
+    {
+      "condition_summary": "A consumer's snapshot epoch has drifted behind its authority epoch.",
+      "confidence": "observed_authoritative",
+      "evidence_refs": [
+        "active_subscription:102",
+        "active_subscription:103",
+        "active_subscription:106"
+      ],
+      "finding_code": "reactive.epoch_drift",
+      "probe_id": "probe.reactive.epoch_drift",
+      "reason_code": "epoch_drift",
+      "recovery_recommendation": "Request a fresh snapshot to realign the consumer to the authority epoch; narrow to last-known read-only meanwhile.",
+      "repair_availability": "reviewed_repair_available",
+      "safe_next_step": "request_fresh_snapshot",
+      "severity": "degraded"
+    },
+    {
+      "condition_summary": "A burst of invalidations is arriving faster than a consumer can apply, saturating its delta queue.",
+      "confidence": "observed_authoritative",
+      "evidence_refs": [
+        "slow_consumer:desktop_shell",
+        "invalidation_history:2"
+      ],
+      "finding_code": "reactive.invalidation_storm",
+      "probe_id": "probe.reactive.invalidation_storm",
+      "reason_code": "invalidation_storm",
+      "recovery_recommendation": "Let the storm coalesce into one consistent frame; the surface stays visible but does not claim the burst already settled.",
+      "repair_availability": "reviewed_repair_available",
+      "safe_next_step": "wait_for_coalesced_catch_up",
+      "severity": "degraded"
+    },
+    {
+      "condition_summary": "A bounded delta queue overflowed and dropped intermediate frames, breaking causality.",
+      "confidence": "observed_authoritative",
+      "evidence_refs": [
+        "slow_consumer:desktop_shell",
+        "invalidation_history:6"
+      ],
+      "finding_code": "reactive.backpressure_overflow",
+      "probe_id": "probe.reactive.backpressure_overflow",
+      "reason_code": "backpressure_overflow",
+      "recovery_recommendation": "Drop the lossy stream and request a fresh consistent snapshot; narrow to last-known read-only until it applies.",
+      "repair_availability": "reviewed_repair_available",
+      "safe_next_step": "request_fresh_snapshot",
+      "severity": "degraded"
+    },
+    {
+      "condition_summary": "A partially loaded scope is serving a stale or incomplete view.",
+      "confidence": "inferred_from_evidence",
+      "evidence_refs": [
+        "active_subscription:106",
+        "slow_consumer:companion_snapshot",
+        "invalidation_history:5"
+      ],
+      "finding_code": "reactive.partial_scope_stale",
+      "probe_id": "probe.reactive.partial_scope_stale",
+      "reason_code": "partial_scope_stale",
+      "recovery_recommendation": "Hold the last consistent projection read-only and request a fresh snapshot to reconcile the partial scope.",
+      "repair_availability": "reviewed_repair_available",
+      "safe_next_step": "hold_last_known_read_only",
+      "severity": "degraded"
+    }
+  ],
+  "invalidation_history": [
+    {
+      "from_epoch": 6,
+      "invalidation_reason": "upstream_input_stale",
+      "narration": "A workspace input changed upstream of the search index, so the projection fell behind its authority.",
+      "observed_at": "tick:000001",
+      "scope_id": "ws:alpha",
+      "sequence": 1,
+      "to_epoch": 7
+    },
+    {
+      "from_epoch": 7,
+      "invalidation_reason": "queue_saturation",
+      "narration": "A burst of edits saturated the bounded delta queue, coalescing several epochs into one catch-up frame.",
+      "observed_at": "tick:000002",
+      "scope_id": "ws:alpha",
+      "sequence": 2,
+      "to_epoch": 9
+    },
+    {
+      "from_epoch": 4,
+      "invalidation_reason": "cache_served",
+      "narration": "The graph neighborhood was served from a local cache while the live producer advanced two epochs.",
+      "observed_at": "tick:000003",
+      "scope_id": "win:3",
+      "sequence": 3,
+      "to_epoch": 6
+    },
+    {
+      "from_epoch": 3,
+      "invalidation_reason": "watcher_dropped",
+      "narration": "The review provider overlay dropped; the watcher is gone and no current truth is observable for the scope.",
+      "observed_at": "tick:000004",
+      "scope_id": "rw:42",
+      "sequence": 4,
+      "to_epoch": 3
+    },
+    {
+      "from_epoch": 2,
+      "invalidation_reason": "authority_epoch_rolled",
+      "narration": "The companion mirror's authority rolled two epochs while the panel held a stale replicated view.",
+      "observed_at": "tick:000005",
+      "scope_id": "cmp:9",
+      "sequence": 5,
+      "to_epoch": 4
+    },
+    {
+      "from_epoch": 7,
+      "invalidation_reason": "causality_lost",
+      "narration": "A contiguous run of deltas was dropped, so causality cannot be proven without a fresh snapshot.",
+      "observed_at": "tick:000006",
+      "scope_id": "ws:alpha",
+      "sequence": 6,
+      "to_epoch": 9
+    }
+  ],
+  "invariants": [
+    "Every diagnosis names an exact reason code and a narrow safe next step.",
+    "A consumer that is not on the live epoch never offers an exact-truth action or a silent retry.",
+    "A derived surface never presents exact current truth; provider-unavailable overlays block exact-truth actions.",
+    "Export packets carry finding identity and recovery vocabulary only \u2014 never raw payloads, credentials, paths, or traces."
+  ],
+  "packet_id": "packet.reactive_diagnostics",
+  "record_kind": "reactive_diagnostics_packet_record",
+  "schema_version": 1,
+  "slow_consumers": [
+    {
+      "action_posture": "revalidate_before_act",
+      "backpressure_mode": "coalesced",
+      "consumer_surface": "desktop_shell",
+      "epoch_posture": "coalescing",
+      "lag_condition": "rapid_invalidation_burst",
+      "narration": "Shell strips are coalescing an invalidation burst into one consistent frame and revalidate before any pending action commits.",
+      "offers_exact_truth_action": false,
+      "reason_code": "invalidation_storm",
+      "recommended_strategy": "coalesce_deltas",
+      "safe_next_step": "wait_for_coalesced_catch_up",
+      "silent_retry_allowed": false
+    },
+    {
+      "action_posture": "narrowed_to_last_known",
+      "backpressure_mode": "snapshot_required",
+      "consumer_surface": "desktop_shell",
+      "epoch_posture": "snapshot_recovering",
+      "lag_condition": "backpressure_overflow",
+      "narration": "The bounded delta queue overflowed; the card narrowed to last-known read-only and is reloading from a fresh snapshot.",
+      "offers_exact_truth_action": false,
+      "reason_code": "backpressure_overflow",
+      "recommended_strategy": "request_fresh_snapshot",
+      "safe_next_step": "request_fresh_snapshot",
+      "silent_retry_allowed": false
+    },
+    {
+      "action_posture": "revalidate_before_act",
+      "backpressure_mode": "coalesced",
+      "consumer_surface": "cli_headless",
+      "epoch_posture": "coalescing",
+      "lag_condition": "consumer_lag",
+      "narration": "Headless output is coalescing trailing deltas and stamps each record with its epoch and a not-current freshness flag.",
+      "offers_exact_truth_action": false,
+      "reason_code": "consumer_coalescing",
+      "recommended_strategy": "coalesce_deltas",
+      "safe_next_step": "wait_for_coalesced_catch_up",
+      "silent_retry_allowed": false
+    },
+    {
+      "action_posture": "resubscribe_required",
+      "backpressure_mode": "snapshot_required",
+      "consumer_surface": "cli_headless",
+      "epoch_posture": "resubscribe_pending",
+      "lag_condition": "reconnect_after_drop",
+      "narration": "The subscription dropped and is resubscribing on a new snapshot epoch; exact-truth actions wait for the visible resubscribe.",
+      "offers_exact_truth_action": false,
+      "reason_code": "resubscribe_required",
+      "recommended_strategy": "resubscribe",
+      "safe_next_step": "resubscribe",
+      "silent_retry_allowed": false
+    },
+    {
+      "action_posture": "narrowed_to_last_known",
+      "backpressure_mode": "snapshot_required",
+      "consumer_surface": "ai_inspector",
+      "epoch_posture": "stale_epoch",
+      "lag_condition": "invalidation_gap",
+      "narration": "An invalidation gap broke causality for the AI context panel; it is pinned to a stale epoch until a fresh snapshot applies.",
+      "offers_exact_truth_action": false,
+      "reason_code": "consumer_stale",
+      "recommended_strategy": "request_fresh_snapshot",
+      "safe_next_step": "request_fresh_snapshot",
+      "silent_retry_allowed": false
+    },
+    {
+      "action_posture": "blocked",
+      "backpressure_mode": "snapshot_required",
+      "consumer_surface": "review_workspace",
+      "epoch_posture": "stale_epoch",
+      "lag_condition": "provider_overlay_disappeared",
+      "narration": "The review workspace's provider overlay disappeared; exact-truth actions are blocked and the view holds last-known read-only.",
+      "offers_exact_truth_action": false,
+      "reason_code": "provider_overlay_unavailable",
+      "recommended_strategy": "mark_stale_epoch",
+      "safe_next_step": "reconnect_provider",
+      "silent_retry_allowed": false
+    },
+    {
+      "action_posture": "narrowed_to_last_known",
+      "backpressure_mode": "snapshot_required",
+      "consumer_surface": "companion_snapshot",
+      "epoch_posture": "stale_epoch",
+      "lag_condition": "consumer_lag",
+      "narration": "The companion panel holds a partial, stale replicated scope; it stays read-only until a fresh snapshot reconciles the scope.",
+      "offers_exact_truth_action": false,
+      "reason_code": "partial_scope_stale",
+      "recommended_strategy": "request_fresh_snapshot",
+      "safe_next_step": "hold_last_known_read_only",
+      "silent_retry_allowed": false
+    }
+  ],
+  "source_contract_refs": {
+    "doc_ref": "docs/support/reactive_diagnostics.md",
+    "fixture_manifest_ref": "fixtures/support/reactive_diagnostics/manifest.yaml",
+    "packet_ref": "artifacts/support/reactive_diagnostics.json",
+    "report_ref": "artifacts/support/reactive_diagnostics.md",
+    "runbook_ref": "artifacts/support/reactive_diagnostics_runbook.md",
+    "schema_ref": "schemas/support/reactive_diagnostics.schema.json"
+  },
+  "stale_materializations": [
+    {
+      "binding_id": "search.results",
+      "freshness": "stale",
+      "invalidation_reason": "upstream_input_stale",
+      "narration": "The search projection is stale behind a changed upstream input; rebuild it from a fresh snapshot.",
+      "persistence_class": "local_cache_or_db",
+      "rebuild_next_step": "request_fresh_snapshot",
+      "scope_id": "ws:alpha",
+      "view_class": "ephemeral_projection"
+    },
+    {
+      "binding_id": "graph.neighborhood",
+      "freshness": "cached",
+      "invalidation_reason": "cache_served",
+      "narration": "The graph neighborhood is a cached projection two epochs behind; refresh it from the live producer.",
+      "persistence_class": "memory_only",
+      "rebuild_next_step": "request_fresh_snapshot",
+      "scope_id": "win:3",
+      "view_class": "ephemeral_projection"
+    },
+    {
+      "binding_id": "companion.panel",
+      "freshness": "stale",
+      "invalidation_reason": "authority_epoch_rolled",
+      "narration": "The companion replicated view trails a rolled authority epoch; resubscribe to reconcile it.",
+      "persistence_class": "service_or_local_mirror",
+      "rebuild_next_step": "resubscribe",
+      "scope_id": "cmp:9",
+      "view_class": "managed_replicated_view"
+    },
+    {
+      "binding_id": "review.workspace",
+      "freshness": "stale",
+      "invalidation_reason": "watcher_dropped",
+      "narration": "The review snapshot's provider overlay is gone; hold the last-known snapshot read-only until it returns.",
+      "persistence_class": "saved_artifact",
+      "rebuild_next_step": "hold_last_known_read_only",
+      "scope_id": "rw:42",
+      "view_class": "exportable_snapshot"
+    }
+  ],
+  "title": "Reactive-state Project Doctor and support diagnostics"
+}
