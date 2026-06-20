@@ -88,10 +88,34 @@
 //! [`m5_env_governance::EvidenceState`], so a wrong-target run or a
 //! partial-service stack downgrades visibly across desktop, CLI, AI, and
 //! support instead of collapsing into a generic "workspace started" label.
+//!
+//! The [`env_diagnostics`] module makes those four objects portable,
+//! comparable, and diagnosable across online, mirrored, and offline
+//! profiles. It composes the existing capsule, template, prebuild, and
+//! runtime exports into one metadata-first
+//! [`env_diagnostics::EnvArtifactBundle`] stamped with an
+//! [`env_diagnostics::ArtifactProvenance`] — schema version, producer build,
+//! redaction class, and the [`env_diagnostics::SourceChannel`] plus
+//! review-safe source truth — that [`env_diagnostics::import_env_bundle`]
+//! validates and [`env_diagnostics::compare_env_bundles`] diffs across
+//! schema versions and channels. Its single
+//! [`env_diagnostics::diagnose_bundle`] engine folds each artifact's existing
+//! verdict — a capsule's [`m5_env_governance::RowVerdict`], a prebuild's
+//! [`prebuilds::StartOutcome`], a runtime's
+//! [`runtime_materialization::RuntimeParity`] — onto one
+//! [`env_diagnostics::FindingCode`] and
+//! [`env_diagnostics::HydrationOutcome`], so a withheld capsule, a cold
+//! prebuild, or a wrong-target runtime explains itself identically whether it
+//! arrived online, over a mirror, or fully offline. Desktop, headless, and
+//! support read one [`env_diagnostics::EnvDiagnosticsReport`], and
+//! [`env_diagnostics::doctor_env_probes`] projects it into Project-Doctor
+//! probes, so Doctor and support explain an environment-hydration failure
+//! from the same metadata-first source of truth, review-before-share.
 
 #![doc(html_root_url = "https://docs.rs/aureline-env/0.0.0")]
 
 pub mod capsules;
+pub mod env_diagnostics;
 pub mod hook_review;
 pub mod m5_env_governance;
 pub mod prebuilds;
@@ -115,6 +139,22 @@ pub use capsules::{
     ENVIRONMENT_CAPSULE_INSPECTION_RECORD_KIND, ENVIRONMENT_CAPSULE_PROOF_REF,
     ENVIRONMENT_CAPSULE_RECORD_KIND, ENVIRONMENT_CAPSULE_SCHEMA_REF,
     ENVIRONMENT_CAPSULE_SCHEMA_VERSION,
+};
+
+pub use env_diagnostics::{
+    assemble_env_bundle, compare_env_bundles, desktop_env_diagnostics, diagnose_bundle,
+    diagnose_capsule_export, diagnose_prebuild_export, diagnose_runtime_export,
+    diagnose_template_export, doctor_env_probes, headless_env_diagnostics, import_env_bundle,
+    seeded_env_artifact_bundles, seeded_env_diagnostics_fixtures, seeded_env_diagnostics_reports,
+    support_env_diagnostics, validate_env_artifact_bundle, validate_env_diagnostics_fixture,
+    ArtifactKind, ArtifactProvenance, EnvArtifactBundle, EnvArtifactChangeKind, EnvArtifactDelta,
+    EnvBundleComparison, EnvDiagnosticsFixture, EnvDiagnosticsReport, EnvDoctorProbe,
+    EnvHydrationDiagnostic, FindingCode, HydrationOutcome, ProbeSeverity, ProducerSurface,
+    ReviewState, SourceChannel, ENV_ARTIFACT_BUNDLE_RECORD_KIND, ENV_BUNDLE_COMPARISON_RECORD_KIND,
+    ENV_DIAGNOSTICS_DOC_REF, ENV_DIAGNOSTICS_FIXTURE_DIR, ENV_DIAGNOSTICS_FIXTURE_MANIFEST_REF,
+    ENV_DIAGNOSTICS_FIXTURE_RECORD_KIND, ENV_DIAGNOSTICS_REPORT_RECORD_KIND,
+    ENV_DIAGNOSTICS_RUNBOOK_REF, ENV_DIAGNOSTICS_SCHEMA_REF, ENV_DIAGNOSTICS_SCHEMA_VERSION,
+    ENV_DOCTOR_PROBE_RECORD_KIND,
 };
 
 pub use hook_review::{

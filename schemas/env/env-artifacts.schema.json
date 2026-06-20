@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/env/env-artifacts.schema.json",
+  "title": "Aureline environment-artifact bundle, diagnostics, and comparison",
+  "description": "Boundary schema for the mirror/offline import-export, schema-version compare, and materialization-diagnostics lane over environment capsules, templates, prebuilds, and runtimes. An environment-artifact bundle composes the existing metadata-first capsule, template, prebuild, and runtime exports under one provenance stamp — the env-artifacts schema version, the producing surface and build, the redaction class, and the source channel (online, mirror, or offline) plus a review-safe source-truth label — so the same artifacts can be exported, imported, compared, and diagnosed identically whether the vendor network is present or absent. A diagnostics report folds each artifact's upstream verdict onto one finding code and one hydration outcome; a comparison diffs two bundles across schema versions and channels; a Doctor probe projects one diagnostic for Project Doctor; a fixture wraps one bundle with the engine outcome it must reach. Every record is metadata-first: no secret, raw environment body, hook command, or provider payload crosses this boundary. This schema validates either a bundle, a diagnostics report, a comparison, a Doctor probe, or a fixture.",
+  "oneOf": [
+    { "$ref": "#/$defs/env_artifact_bundle" },
+    { "$ref": "#/$defs/env_diagnostics_report" },
+    { "$ref": "#/$defs/env_bundle_comparison" },
+    { "$ref": "#/$defs/env_doctor_probe" },
+    { "$ref": "#/$defs/env_diagnostics_fixture" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "redaction_class": {
+      "type": "string",
+      "const": "metadata_only"
+    },
+    "source_channel": {
+      "type": "string",
+      "enum": ["online", "mirror", "offline"]
+    },
+    "producer_surface": {
+      "type": "string",
+      "enum": ["desktop", "headless", "support"]
+    },
+    "artifact_kind": {
+      "type": "string",
+      "enum": ["capsule", "template", "prebuild", "runtime"]
+    },
+    "hydration_outcome": {
+      "type": "string",
+      "enum": ["trusted", "degraded", "unreusable", "untrusted"]
+    },
+    "finding_code": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "maturity_narrowed",
+        "warm_start_downgraded",
+        "claim_withheld",
+        "prebuild_partial_reuse",
+        "prebuild_cold_rebuild",
+        "prebuild_invalidated",
+        "materialization_degraded",
+        "materialization_mismatch",
+        "mirror_source_unverified",
+        "schema_version_unsupported",
+        "redaction_violation"
+      ]
+    },
+    "review_state": {
+      "type": "string",
+      "enum": ["pending_review", "blocked"]
+    },
+    "probe_severity": {
+      "type": "string",
+      "enum": ["healthy", "notice", "blocking"]
+    },
+    "change_kind": {
+      "type": "string",
+      "enum": ["added", "removed", "changed"]
+    },
+    "ref_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "token_list": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "metadata_export": {
+      "description": "An embedded metadata-first export (capsule, template, prebuild, or runtime). Its full shape is validated by its own schema; here only the load-bearing boundary fields are constrained, and additional fields are permitted.",
+      "type": "object",
+      "required": ["record_kind", "schema_version", "redaction_class"],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/non_empty_string" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "additionalProperties": true
+    },
+    "artifact_provenance": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "producer_surface",
+        "producer_build_ref",
+        "source_channel",
+        "source_truth",
+        "mirror_origin_ref",
+        "redaction_class",
+        "captured_ref"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "producer_surface": { "$ref": "#/$defs/producer_surface" },
+        "producer_build_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_channel": { "$ref": "#/$defs/source_channel" },
+        "source_truth": { "$ref": "#/$defs/non_empty_string" },
+        "mirror_origin_ref": { "type": "string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "env_artifact_bundle": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "bundle_id",
+        "provenance",
+        "capsules",
+        "templates",
+        "prebuilds",
+        "runtimes",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "env_artifact_bundle_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+        "provenance": { "$ref": "#/$defs/artifact_provenance" },
+        "capsules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/metadata_export" }
+        },
+        "templates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/metadata_export" }
+        },
+        "prebuilds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/metadata_export" }
+        },
+        "runtimes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/metadata_export" }
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "env_hydration_diagnostic": {
+      "type": "object",
+      "required": [
+        "artifact_kind",
+        "artifact_id",
+        "artifact_schema_version",
+        "source_channel",
+        "finding_code",
+        "outcome",
+        "blocks_share",
+        "reason_tokens",
+        "evidence_refs",
+        "next_step",
+        "headline",
+        "redaction_class"
+      ],
+      "properties": {
+        "artifact_kind": { "$ref": "#/$defs/artifact_kind" },
+        "artifact_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_schema_version": { "type": "integer", "minimum": 1 },
+        "source_channel": { "$ref": "#/$defs/source_channel" },
+        "finding_code": { "$ref": "#/$defs/finding_code" },
+        "outcome": { "$ref": "#/$defs/hydration_outcome" },
+        "blocks_share": { "type": "boolean" },
+        "reason_tokens": { "$ref": "#/$defs/token_list" },
+        "evidence_refs": { "$ref": "#/$defs/ref_list" },
+        "next_step": { "$ref": "#/$defs/non_empty_string" },
+        "headline": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "additionalProperties": false
+    },
+    "env_diagnostics_report": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "bundle_id",
+        "source_channel",
+        "provenance",
+        "diagnostics",
+        "trusted_count",
+        "degraded_count",
+        "unreusable_count",
+        "untrusted_count",
+        "blocking_artifact_tokens",
+        "share_blocked",
+        "review_state",
+        "headline",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "env_diagnostics_report_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_channel": { "$ref": "#/$defs/source_channel" },
+        "provenance": { "$ref": "#/$defs/artifact_provenance" },
+        "diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/env_hydration_diagnostic" }
+        },
+        "trusted_count": { "type": "integer", "minimum": 0 },
+        "degraded_count": { "type": "integer", "minimum": 0 },
+        "unreusable_count": { "type": "integer", "minimum": 0 },
+        "untrusted_count": { "type": "integer", "minimum": 0 },
+        "blocking_artifact_tokens": { "$ref": "#/$defs/token_list" },
+        "share_blocked": { "type": "boolean" },
+        "review_state": { "$ref": "#/$defs/review_state" },
+        "headline": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "additionalProperties": false
+    },
+    "env_artifact_delta": {
+      "type": "object",
+      "required": [
+        "artifact_kind",
+        "artifact_id",
+        "change_kind",
+        "field",
+        "before",
+        "after"
+      ],
+      "properties": {
+        "artifact_kind": { "$ref": "#/$defs/artifact_kind" },
+        "artifact_id": { "$ref": "#/$defs/non_empty_string" },
+        "change_kind": { "$ref": "#/$defs/change_kind" },
+        "field": { "$ref": "#/$defs/non_empty_string" },
+        "before": { "type": "string" },
+        "after": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "env_bundle_comparison": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "base_bundle_id",
+        "target_bundle_id",
+        "base_source_channel",
+        "target_source_channel",
+        "source_channel_changed",
+        "base_schema_version",
+        "target_schema_version",
+        "schema_version_compatible",
+        "identical",
+        "deltas",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "env_bundle_comparison_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "base_bundle_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_bundle_id": { "$ref": "#/$defs/non_empty_string" },
+        "base_source_channel": { "$ref": "#/$defs/source_channel" },
+        "target_source_channel": { "$ref": "#/$defs/source_channel" },
+        "source_channel_changed": { "type": "boolean" },
+        "base_schema_version": { "type": "integer", "minimum": 1 },
+        "target_schema_version": { "type": "integer", "minimum": 1 },
+        "schema_version_compatible": { "type": "boolean" },
+        "identical": { "type": "boolean" },
+        "deltas": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/env_artifact_delta" }
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "env_doctor_probe": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "probe_id",
+        "finding_code",
+        "artifact_kind",
+        "artifact_id",
+        "source_channel",
+        "severity",
+        "evidence_refs",
+        "explanation",
+        "recovery_path",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "env_doctor_probe_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "probe_id": { "$ref": "#/$defs/non_empty_string" },
+        "finding_code": { "$ref": "#/$defs/finding_code" },
+        "artifact_kind": { "$ref": "#/$defs/artifact_kind" },
+        "artifact_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_channel": { "$ref": "#/$defs/source_channel" },
+        "severity": { "$ref": "#/$defs/probe_severity" },
+        "evidence_refs": { "$ref": "#/$defs/ref_list" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" },
+        "recovery_path": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "additionalProperties": false
+    },
+    "env_diagnostics_fixture": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "fixture_id",
+        "source_channel",
+        "bundle",
+        "expected_finding_codes",
+        "expected_share_blocked",
+        "expected_review_state",
+        "consumer_ref",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": { "const": "env_diagnostics_fixture_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "fixture_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_channel": { "$ref": "#/$defs/source_channel" },
+        "bundle": { "$ref": "#/$defs/env_artifact_bundle" },
+        "expected_finding_codes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding_code" }
+        },
+        "expected_share_blocked": { "type": "boolean" },
+        "expected_review_state": { "$ref": "#/$defs/review_state" },
+        "consumer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
