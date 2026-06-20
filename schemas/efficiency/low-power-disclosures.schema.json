@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/efficiency/low-power-disclosures.schema.json",
+  "title": "Per-surface low-power disclosure case",
+  "description": "One seeded efficiency posture together with the per-surface degraded disclosures it produces. Each affected product surface states what still works, what is delayed, and how to inspect or override, deriving its action, visible state, override posture, and governance binding from the same canonical efficiency-state objects as the status, diagnostics, and support surfaces.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "case_id",
+    "workspace_id",
+    "active_state",
+    "source_of_change",
+    "hidden_surface_count",
+    "observed_at",
+    "disclosures"
+  ],
+  "properties": {
+    "case_id": { "type": "string", "minLength": 1 },
+    "workspace_id": { "type": "string", "minLength": 1 },
+    "active_state": { "$ref": "#/$defs/efficiencyState" },
+    "source_of_change": { "$ref": "#/$defs/sourceOfChange" },
+    "hidden_surface_count": { "type": "integer", "minimum": 0 },
+    "observed_at": { "type": "string", "minLength": 1 },
+    "disclosures": { "$ref": "#/$defs/disclosureSet" }
+  },
+  "$defs": {
+    "efficiencyState": {
+      "type": "string",
+      "enum": [
+        "Nominal",
+        "EfficiencyAware",
+        "ThermalConstrained",
+        "ProtectCore",
+        "Recovery"
+      ]
+    },
+    "sourceOfChange": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "ac_power",
+          "battery",
+          "os_battery_saver",
+          "user_low_power_mode",
+          "low_battery",
+          "critical_battery",
+          "thermal_pressure",
+          "frame_miss_pressure",
+          "policy_cap",
+          "pressure_cleared"
+        ]
+      }
+    },
+    "overridePosture": {
+      "type": "string",
+      "enum": [
+        "not_overridable",
+        "user_override_session_only",
+        "user_override_persistent",
+        "policy_blocked",
+        "admin_controlled"
+      ]
+    },
+    "recoveryState": {
+      "type": "string",
+      "enum": [
+        "not_in_recovery",
+        "staged_resume",
+        "awaiting_user_restore_power",
+        "awaiting_reconnect",
+        "awaiting_admin_policy",
+        "recovered"
+      ]
+    },
+    "surfaceToken": {
+      "type": "string",
+      "enum": [
+        "paused_indexing",
+        "ai_warmups",
+        "rich_preview_refresh",
+        "docs_sync",
+        "marketplace_refresh",
+        "optional_uploads"
+      ]
+    },
+    "action": {
+      "type": "string",
+      "enum": ["admit", "throttle", "defer", "pause", "deny", "staged_resume"]
+    },
+    "visibleState": {
+      "type": "string",
+      "enum": ["ready", "warming", "partial", "degraded", "overloaded"]
+    },
+    "freshnessClass": {
+      "type": "string",
+      "enum": ["current", "reduced_cadence", "deferred", "paused", "resuming"]
+    },
+    "hiddenPaneBehavior": {
+      "type": "string",
+      "enum": [
+        "render_suppressed",
+        "animation_suppressed",
+        "polling_paused",
+        "correctness_poll_only",
+        "fully_quiescent"
+      ]
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "matrix_ref",
+        "schema_ref",
+        "active_state",
+        "source_of_change",
+        "hidden_pane_behaviors",
+        "override_posture",
+        "recovery_state"
+      ],
+      "properties": {
+        "matrix_ref": { "type": "string", "minLength": 1 },
+        "schema_ref": { "type": "string", "minLength": 1 },
+        "active_state": { "$ref": "#/$defs/efficiencyState" },
+        "source_of_change": { "$ref": "#/$defs/sourceOfChange" },
+        "hidden_pane_behaviors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hiddenPaneBehavior" }
+        },
+        "override_posture": { "$ref": "#/$defs/overridePosture" },
+        "recovery_state": { "$ref": "#/$defs/recoveryState" }
+      }
+    },
+    "inspectHint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_id", "opens_surface_ref", "label"],
+      "properties": {
+        "command_id": { "type": "string", "minLength": 1 },
+        "opens_surface_ref": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "placement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor",
+        "persistent_while_active",
+        "toast_only",
+        "in_typing_hot_path",
+        "reduced_motion_safe"
+      ],
+      "properties": {
+        "anchor": { "type": "string", "minLength": 1 },
+        "persistent_while_active": { "const": true },
+        "toast_only": { "const": false },
+        "in_typing_hot_path": { "const": false },
+        "reduced_motion_safe": { "type": "boolean" }
+      }
+    },
+    "overrideAffordance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posture", "override_allowed", "explanation"],
+      "properties": {
+        "posture": { "$ref": "#/$defs/overridePosture" },
+        "override_allowed": { "type": "boolean" },
+        "override_label": { "type": "string", "minLength": 1 },
+        "policy_blocked_ref": { "type": "string", "minLength": 1 },
+        "explanation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "surfaceDisclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "surface_token",
+        "surface_label",
+        "owner_label",
+        "owner_subsystem_token",
+        "governing_subsystem_token",
+        "active_state",
+        "source_of_change",
+        "action",
+        "visible_state",
+        "freshness_class",
+        "behavior_changed",
+        "is_degraded_not_error",
+        "headline",
+        "still_works_now",
+        "what_is_delayed",
+        "inspect",
+        "override_affordance",
+        "placement"
+      ],
+      "properties": {
+        "record_kind": { "const": "efficiency_surface_disclosure" },
+        "surface_token": { "$ref": "#/$defs/surfaceToken" },
+        "surface_label": { "type": "string", "minLength": 1 },
+        "owner_label": { "type": "string", "minLength": 1 },
+        "owner_subsystem_token": { "type": "string", "minLength": 1 },
+        "governing_subsystem_token": { "type": "string", "minLength": 1 },
+        "active_state": { "$ref": "#/$defs/efficiencyState" },
+        "source_of_change": { "$ref": "#/$defs/sourceOfChange" },
+        "action": { "$ref": "#/$defs/action" },
+        "visible_state": { "$ref": "#/$defs/visibleState" },
+        "freshness_class": { "$ref": "#/$defs/freshnessClass" },
+        "behavior_changed": { "const": true },
+        "is_degraded_not_error": { "const": true },
+        "headline": { "type": "string", "minLength": 1 },
+        "still_works_now": { "type": "string", "minLength": 1 },
+        "what_is_delayed": { "type": "string", "minLength": 1 },
+        "inspect": { "$ref": "#/$defs/inspectHint" },
+        "override_affordance": { "$ref": "#/$defs/overrideAffordance" },
+        "placement": { "$ref": "#/$defs/placement" }
+      }
+    },
+    "disclosureSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "workspace_id",
+        "active_state",
+        "source_of_change",
+        "behavior_changed",
+        "override_posture",
+        "recovery_state",
+        "disclosures",
+        "unaffected_surface_tokens",
+        "protected_interactions_preserved",
+        "durability_preserved",
+        "governance",
+        "inspect_command_id",
+        "opens_surface_ref",
+        "support_export_ref",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "efficiency_surface_disclosures" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "workspace_id": { "type": "string", "minLength": 1 },
+        "active_state": { "$ref": "#/$defs/efficiencyState" },
+        "source_of_change": { "$ref": "#/$defs/sourceOfChange" },
+        "behavior_changed": { "type": "boolean" },
+        "override_posture": { "$ref": "#/$defs/overridePosture" },
+        "recovery_state": { "$ref": "#/$defs/recoveryState" },
+        "disclosures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surfaceDisclosure" }
+        },
+        "unaffected_surface_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surfaceToken" }
+        },
+        "protected_interactions_preserved": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "durability_preserved": { "const": true },
+        "governance": { "$ref": "#/$defs/governance" },
+        "inspect_command_id": { "type": "string", "minLength": 1 },
+        "opens_surface_ref": { "type": "string", "minLength": 1 },
+        "support_export_ref": { "type": "string", "minLength": 1 },
+        "observed_at": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

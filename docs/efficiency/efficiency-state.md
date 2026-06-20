@@ -91,3 +91,11 @@ cargo run -p aureline-shell --example dump_efficiency_state_surfaces
 The fixtures are validated in `crates/aureline-shell/tests/efficiency_state_surfaces.rs`,
 which round-trips each case back through the typed surfaces and asserts the three
 surfaces agree on the same object.
+
+## Surfaces that consume this state
+
+- [Hidden-surface render suppression](./hidden-surface-policy.md) — what hidden,
+  occluded, or off-screen panes shed before protected paths degrade.
+- [Per-surface low-power disclosures](./low-power-disclosures.md) — how each
+  affected product surface tells the user what still works, what is delayed, and
+  how to inspect or override.

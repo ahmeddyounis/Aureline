@@ -19,6 +19,7 @@ use crate::notifications::envelope::{
 };
 use crate::state_cards::DegradedStateToken;
 
+pub mod disclosures;
 pub mod governance;
 pub mod hidden_surfaces;
 pub mod surfaces;
@@ -102,6 +103,20 @@ impl EfficiencyState {
             Self::Recovery => Some(DegradedStateToken::Warming),
         }
     }
+
+    /// Every efficiency state, in canonical order.
+    pub const ALL: [Self; 5] = [
+        Self::Nominal,
+        Self::EfficiencyAware,
+        Self::ThermalConstrained,
+        Self::ProtectCore,
+        Self::Recovery,
+    ];
+
+    /// Resolves a stable [`as_str`](Self::as_str) token back into its state.
+    pub fn from_token(token: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|state| state.as_str() == token)
+    }
 }
 
 /// Source signal that caused an efficiency-state decision.
@@ -161,6 +176,27 @@ impl EfficiencyPressureSource {
             Self::PolicyCap => "policy cap",
             Self::PressureCleared => "pressure cleared",
         }
+    }
+
+    /// Every pressure source, in canonical order.
+    pub const ALL: [Self; 10] = [
+        Self::AcPower,
+        Self::Battery,
+        Self::OsBatterySaver,
+        Self::UserLowPowerMode,
+        Self::LowBattery,
+        Self::CriticalBattery,
+        Self::ThermalPressure,
+        Self::FrameMissPressure,
+        Self::PolicyCap,
+        Self::PressureCleared,
+    ];
+
+    /// Resolves a stable [`as_str`](Self::as_str) token back into its source.
+    pub fn from_token(token: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|source| source.as_str() == token)
     }
 }
 
@@ -1629,7 +1665,7 @@ fn build_status_projection(
 /// overridable, user-controllable causes (battery, OS battery saver, low
 /// battery, user low-power mode) allow a session-only override, and any other
 /// physical pressure stays non-overridable.
-fn derive_override_posture(
+pub(crate) fn derive_override_posture(
     state: EfficiencyState,
     sources: &[EfficiencyPressureSource],
 ) -> governance::OverridePosture {
@@ -1664,7 +1700,7 @@ fn derive_override_posture(
 
 /// Derives the recovery state for the active efficiency state. Only the
 /// `Recovery` state is mid-resume; every other state is not in recovery.
-fn derive_recovery_state(state: EfficiencyState) -> governance::EfficiencyRecoveryState {
+pub(crate) fn derive_recovery_state(state: EfficiencyState) -> governance::EfficiencyRecoveryState {
     match state {
         EfficiencyState::Recovery => governance::EfficiencyRecoveryState::StagedResume,
         _ => governance::EfficiencyRecoveryState::NotInRecovery,
