@@ -60,6 +60,7 @@ than relocating it.
 | `aureline-largefile-proto`| `crates/aureline-largefile-proto/`    | Off-cone prototype for large-file capability posture and limited mode. |
 | `aureline-reactive-state` | `crates/aureline-reactive-state/`     | Off-cone prototype for reactive state and subscription-envelope lanes. |
 | `aureline-graph-proto`    | `crates/aureline-graph-proto/`        | Off-cone prototype for semantic workspace graph and query vocabularies. |
+| `aureline-env`            | `crates/aureline-env/`                | Off-cone environment-capsule, template, prebuild-fingerprint, and runtime-materialization governance matrix. |
 
 ## Additional governed contract crates
 
@@ -92,8 +93,11 @@ than relocating it.
                                             aureline-telemetry
 
  aureline-bench, aureline-largefile-proto, aureline-reactive-state,
- aureline-graph-proto, and aureline-service are layer LX off-cone crates;
- nothing in the production cone depends on them. aureline-service holds
+ aureline-graph-proto, aureline-env, and aureline-service are layer LX
+ off-cone crates; nothing in the production cone depends on them.
+ aureline-env holds the environment-capsule, template, prebuild-fingerprint,
+ and runtime-materialization governance matrix with no internal dependencies.
+ aureline-service holds
  metadata-only commercial-control-plane truth for the optional managed lanes
  (entitlement, meter family, chargeback scope, org switch, grace period, and
  the local-safe baseline) and has no internal dependencies.

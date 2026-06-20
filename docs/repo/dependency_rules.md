@@ -28,7 +28,7 @@ in a strictly lower layer, with the explicit exemptions noted below.
 | L1    | `aureline-commands`, `aureline-rpc`, `aureline-render`, `aureline-buffer`, `aureline-ui`, `aureline-workspace`, `aureline-vfs` |
 | L2    | `aureline-editor`, `aureline-input`                     |
 | L3    | `aureline-shell`, `aureline-shell-spike`                |
-| LX    | `aureline-bench`, `aureline-largefile-proto`, `aureline-reactive-state`, `aureline-graph-proto` (off the cone; explicit allowances listed below) |
+| LX    | `aureline-bench`, `aureline-largefile-proto`, `aureline-reactive-state`, `aureline-graph-proto`, `aureline-env` (off the cone; explicit allowances listed below) |
 
 ## Allowed edges
 
@@ -52,6 +52,7 @@ in a strictly lower layer, with the explicit exemptions noted below.
 | `aureline-largefile-proto` | (no internal deps today; experimental/off-cone)         |
 | `aureline-reactive-state` | (no internal deps today; experimental/off-cone)          |
 | `aureline-graph-proto`  | (no internal deps today; experimental/off-cone)             |
+| `aureline-env`          | (no internal deps; off-cone environment-capsule governance matrix) |
 | `aureline-service`      | (no internal deps; off-cone, metadata-only managed-lane truth) |
 
 ## Incremental contract-crate edges
