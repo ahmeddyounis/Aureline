@@ -62,6 +62,7 @@ pub mod generated_lineage;
 pub mod harness;
 pub mod hooks;
 pub mod m5_mutation_lineage;
+pub mod m5_reactive_certification;
 pub mod m5_reactive_governance;
 pub mod materialized_view_policy;
 pub mod mutation_journal;
@@ -104,6 +105,34 @@ pub use m5_mutation_lineage::{
     M5_MUTATION_LINEAGE_FIXTURE_RECORD_KIND, M5_MUTATION_LINEAGE_PACKET_RECORD_KIND,
     M5_MUTATION_LINEAGE_PACKET_REF, M5_MUTATION_LINEAGE_REPORT_REF, M5_MUTATION_LINEAGE_SCHEMA_REF,
     M5_MUTATION_LINEAGE_SCHEMA_VERSION,
+};
+pub use m5_reactive_certification::{
+    certify_row_outcome as certify_m5_reactive_row_outcome,
+    seeded_m5_reactive_certification_fixtures, seeded_m5_reactive_certification_packet,
+    validate_m5_reactive_certification_fixture, validate_m5_reactive_certification_packet,
+    CertificationDimension as M5ReactiveCertificationDimension,
+    CertificationDrill as M5ReactiveCertificationDrill,
+    CertificationDrillStep as M5ReactiveCertificationDrillStep,
+    CertificationRow as M5ReactiveCertificationRow,
+    ClaimMaturity as M5ReactiveCertificationClaimMaturity,
+    ClaimedSurfaceProfile as M5ReactiveCertificationSurfaceProfile,
+    DimensionEvidence as M5ReactiveCertificationDimensionEvidence,
+    DrillFailureClass as M5ReactiveCertificationDrillFailureClass,
+    DrillPhase as M5ReactiveCertificationDrillPhase,
+    EvidenceFreshnessRule as M5ReactiveCertificationEvidenceFreshnessRule,
+    EvidenceState as M5ReactiveCertificationEvidenceState, M5ReactiveCertificationFixture,
+    M5ReactiveCertificationPacket, PublicationChannel as M5ReactiveCertificationPublicationChannel,
+    RowOutcome as M5ReactiveCertificationRowOutcome,
+    RowVerdict as M5ReactiveCertificationRowVerdict,
+    SourceContractRefs as M5ReactiveCertificationSourceContractRefs,
+    SurfaceBinding as M5ReactiveCertificationSurfaceBinding,
+    ValidationReport as M5ReactiveCertificationValidationReport,
+    ValidationViolation as M5ReactiveCertificationValidationViolation,
+    M5_REACTIVE_CERTIFICATION_DOC_REF, M5_REACTIVE_CERTIFICATION_FIXTURE_DIR,
+    M5_REACTIVE_CERTIFICATION_FIXTURE_MANIFEST_REF, M5_REACTIVE_CERTIFICATION_FIXTURE_RECORD_KIND,
+    M5_REACTIVE_CERTIFICATION_PACKET_RECORD_KIND, M5_REACTIVE_CERTIFICATION_PACKET_REF,
+    M5_REACTIVE_CERTIFICATION_REPORT_REF, M5_REACTIVE_CERTIFICATION_SCHEMA_REF,
+    M5_REACTIVE_CERTIFICATION_SCHEMA_VERSION,
 };
 pub use m5_reactive_governance::{
     narrow_truth_claim as narrow_m5_reactive_truth_claim, seeded_m5_reactive_governance_fixtures,

@@ -1,0 +1,378 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/m5-reactive-certification.schema.json",
+  "title": "Aureline reactive-state certification packet",
+  "description": "Boundary schema for the checked-in reactive-state certification packet and its scenario fixtures. The packet certifies reactive-state truth on claimed M5 shell/search/graph/AI/review/support profiles: per profile it carries the five required dimensions (authority class, epoch parity, invalidation behavior, stale-state labeling, safe-action narrowing), the evidence backing each, the narrowed verdict the engine reaches, the automatic-narrowing freshness rules, the failure/recovery drills, and the publication-channel bindings. Raw state payloads, credentials, raw provider responses, raw paths, and raw traces never cross this boundary.",
+  "oneOf": [
+    { "$ref": "#/$defs/packet" },
+    { "$ref": "#/$defs/fixture" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "surface_profile": {
+      "type": "string",
+      "enum": ["shell", "search", "graph", "ai", "review", "support"]
+    },
+    "certification_dimension": {
+      "type": "string",
+      "enum": [
+        "authority_class",
+        "epoch_parity",
+        "invalidation_behavior",
+        "stale_state_labeling",
+        "safe_action_narrowing"
+      ]
+    },
+    "claim_maturity": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "evidence_state": {
+      "type": "string",
+      "enum": ["current", "partial", "stale", "missing", "not_applicable"]
+    },
+    "row_verdict": {
+      "type": "string",
+      "enum": ["certified", "narrowed", "withheld"]
+    },
+    "publication_channel": {
+      "type": "string",
+      "enum": ["release_shiproom", "support_export", "docs", "help"]
+    },
+    "drill_failure_class": {
+      "type": "string",
+      "enum": [
+        "authority_epoch_lag",
+        "evidence_went_stale",
+        "partial_evidence_coverage",
+        "dimension_evidence_missing",
+        "provider_unavailable",
+        "policy_limited"
+      ]
+    },
+    "drill_phase": {
+      "type": "string",
+      "enum": ["inject", "observe", "narrow", "refresh", "recover", "verify"]
+    },
+    "dimension_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "evidence_state", "evidence_refs", "rationale"],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/certification_dimension" },
+        "evidence_state": { "$ref": "#/$defs/evidence_state" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "source_contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "doc_ref",
+        "schema_ref",
+        "packet_ref",
+        "report_ref",
+        "fixture_manifest_ref"
+      ],
+      "properties": {
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/state/m5-reactive-certification.md"
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/state/m5-reactive-certification.schema.json"
+        },
+        "packet_ref": {
+          "type": "string",
+          "const": "artifacts/state/m5-reactive-proof-packet.json"
+        },
+        "report_ref": {
+          "type": "string",
+          "const": "artifacts/state/m5-reactive-certification.md"
+        },
+        "fixture_manifest_ref": {
+          "type": "string",
+          "const": "fixtures/state/m5-reactive-certification/manifest.yaml"
+        }
+      }
+    },
+    "certification_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "surface_profile",
+        "surface_label",
+        "claimed_maturity",
+        "backing_surface_classes",
+        "dimensions",
+        "effective_maturity",
+        "verdict",
+        "narrowed",
+        "narrow_reason_tokens",
+        "stale_or_missing_dimension_tokens",
+        "supporting_packet_refs",
+        "consumer_refs",
+        "notes"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_profile": { "$ref": "#/$defs/surface_profile" },
+        "surface_label": { "$ref": "#/$defs/non_empty_string" },
+        "claimed_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "backing_surface_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        },
+        "dimensions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dimension_evidence" },
+          "minItems": 5
+        },
+        "effective_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "verdict": { "$ref": "#/$defs/row_verdict" },
+        "narrowed": { "type": "boolean" },
+        "narrow_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "stale_or_missing_dimension_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "supporting_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        },
+        "consumer_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "freshness_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "trigger_evidence_state",
+        "maturity_floor",
+        "effect",
+        "rationale"
+      ],
+      "properties": {
+        "rule_id": { "$ref": "#/$defs/non_empty_string" },
+        "trigger_evidence_state": {
+          "type": "string",
+          "enum": ["partial", "stale", "missing"]
+        },
+        "maturity_floor": { "$ref": "#/$defs/claim_maturity" },
+        "effect": { "$ref": "#/$defs/non_empty_string" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "drill_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "observed_maturity", "narration"],
+      "properties": {
+        "phase": { "$ref": "#/$defs/drill_phase" },
+        "observed_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "narration": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "title",
+        "surface_profile",
+        "exercised_dimension",
+        "failure_class",
+        "degraded_evidence_state",
+        "claimed_maturity",
+        "expected_degraded_verdict",
+        "expected_degraded_maturity",
+        "recovers_to_verdict",
+        "steps",
+        "asserts_claim_narrows_under_failure",
+        "asserts_recovers_after_refresh",
+        "notes"
+      ],
+      "properties": {
+        "drill_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "surface_profile": { "$ref": "#/$defs/surface_profile" },
+        "exercised_dimension": { "$ref": "#/$defs/certification_dimension" },
+        "failure_class": { "$ref": "#/$defs/drill_failure_class" },
+        "degraded_evidence_state": { "$ref": "#/$defs/evidence_state" },
+        "claimed_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "expected_degraded_verdict": { "$ref": "#/$defs/row_verdict" },
+        "expected_degraded_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "recovers_to_verdict": {
+          "type": "string",
+          "const": "certified"
+        },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/drill_step" },
+          "minItems": 1
+        },
+        "asserts_claim_narrows_under_failure": {
+          "type": "boolean",
+          "const": true
+        },
+        "asserts_recovers_after_refresh": {
+          "type": "boolean",
+          "const": true
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "surface_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "consumer_ref",
+        "ingested_packet_id",
+        "required_verbatim_fields",
+        "narrows_with_packet",
+        "summary"
+      ],
+      "properties": {
+        "channel": { "$ref": "#/$defs/publication_channel" },
+        "consumer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ingested_packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "required_verbatim_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        },
+        "narrows_with_packet": { "type": "boolean", "const": true },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "title",
+        "source_contract_refs",
+        "certified_dimensions",
+        "evidence_packet_refs",
+        "rows",
+        "freshness_rules",
+        "drills",
+        "surface_bindings",
+        "invariants"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "m5_reactive_certification_packet_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "source_contract_refs": { "$ref": "#/$defs/source_contract_refs" },
+        "certified_dimensions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/certification_dimension" },
+          "minItems": 5,
+          "uniqueItems": true
+        },
+        "evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/certification_row" },
+          "minItems": 6
+        },
+        "freshness_rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/freshness_rule" },
+          "minItems": 3
+        },
+        "drills": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/drill" },
+          "minItems": 1
+        },
+        "surface_bindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_binding" },
+          "minItems": 4
+        },
+        "invariants": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "fixture_id",
+        "surface_profile",
+        "claimed_maturity",
+        "observed_dimensions",
+        "expected_verdict",
+        "expected_effective_maturity",
+        "expected_narrow_reason_tokens",
+        "consumer_ref",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "m5_reactive_certification_fixture_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "fixture_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_profile": { "$ref": "#/$defs/surface_profile" },
+        "claimed_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "observed_dimensions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dimension_evidence" },
+          "minItems": 5
+        },
+        "expected_verdict": { "$ref": "#/$defs/row_verdict" },
+        "expected_effective_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "expected_narrow_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "consumer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
