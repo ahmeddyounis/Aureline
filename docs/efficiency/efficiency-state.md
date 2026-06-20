@@ -99,3 +99,7 @@ surfaces agree on the same object.
 - [Per-surface low-power disclosures](./low-power-disclosures.md) — how each
   affected product surface tells the user what still works, what is delayed, and
   how to inspect or override.
+- [Active-session continuity under pressure](./session-pressure.md) — how active
+  tasks, debug sessions, remote attaches, notebook kernels, traces, and captures
+  stay correct while optional work sheds first and any material downgrade is
+  warned about before it applies.

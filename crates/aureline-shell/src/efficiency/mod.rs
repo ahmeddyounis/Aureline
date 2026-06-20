@@ -22,6 +22,7 @@ use crate::state_cards::DegradedStateToken;
 pub mod disclosures;
 pub mod governance;
 pub mod hidden_surfaces;
+pub mod session_pressure;
 pub mod surfaces;
 
 /// Stable record kind for an efficiency-state shell snapshot.

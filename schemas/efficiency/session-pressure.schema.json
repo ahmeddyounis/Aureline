@@ -1,0 +1,309 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/efficiency/session-pressure.schema.json",
+  "title": "Active-session low-power continuity case",
+  "description": "One seeded efficiency posture together with how every active session — an active task run, a debug session, a remote attach, a notebook kernel, a trace capture, or a long-running capture — behaves under it. Each session records the correctness and authority it preserves, the optional assists that shed first, the continuity action taken, and — only when a material downgrade to the live run is proposed — the inline warning shown before it applies. Every field derives from the same canonical efficiency-state objects as the status, diagnostics, support, and disclosure surfaces.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "case_id",
+    "workspace_id",
+    "active_state",
+    "source_of_change",
+    "hidden_surface_count",
+    "observed_at",
+    "posture"
+  ],
+  "properties": {
+    "case_id": { "type": "string", "minLength": 1 },
+    "workspace_id": { "type": "string", "minLength": 1 },
+    "active_state": { "$ref": "#/$defs/efficiencyState" },
+    "source_of_change": { "$ref": "#/$defs/sourceOfChange" },
+    "hidden_surface_count": { "type": "integer", "minimum": 0 },
+    "observed_at": { "type": "string", "minLength": 1 },
+    "posture": { "$ref": "#/$defs/posture" }
+  },
+  "$defs": {
+    "efficiencyState": {
+      "type": "string",
+      "enum": [
+        "Nominal",
+        "EfficiencyAware",
+        "ThermalConstrained",
+        "ProtectCore",
+        "Recovery"
+      ]
+    },
+    "sourceOfChange": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "ac_power",
+          "battery",
+          "os_battery_saver",
+          "user_low_power_mode",
+          "low_battery",
+          "critical_battery",
+          "thermal_pressure",
+          "frame_miss_pressure",
+          "policy_cap",
+          "pressure_cleared"
+        ]
+      }
+    },
+    "overridePosture": {
+      "type": "string",
+      "enum": [
+        "not_overridable",
+        "user_override_session_only",
+        "user_override_persistent",
+        "policy_blocked",
+        "admin_controlled"
+      ]
+    },
+    "recoveryState": {
+      "type": "string",
+      "enum": [
+        "not_in_recovery",
+        "staged_resume",
+        "awaiting_user_restore_power",
+        "awaiting_reconnect",
+        "awaiting_admin_policy",
+        "recovered"
+      ]
+    },
+    "sessionToken": {
+      "type": "string",
+      "enum": [
+        "active_task_run",
+        "debug_session",
+        "remote_attach",
+        "notebook_kernel",
+        "trace_capture",
+        "long_running_capture"
+      ]
+    },
+    "continuityAction": {
+      "type": "string",
+      "enum": [
+        "preserve_active",
+        "shed_optional_assists",
+        "warn_before_downgrade",
+        "staged_resume"
+      ]
+    },
+    "downgradeKind": {
+      "type": "string",
+      "enum": [
+        "remote_heartbeat_widened",
+        "capture_sampling_reduced",
+        "capture_buffered_to_disk"
+      ]
+    },
+    "action": {
+      "type": "string",
+      "enum": ["admit", "throttle", "defer", "pause", "deny", "staged_resume"]
+    },
+    "visibleState": {
+      "type": "string",
+      "enum": ["ready", "warming", "partial", "degraded", "overloaded"]
+    },
+    "hiddenPaneBehavior": {
+      "type": "string",
+      "enum": [
+        "render_suppressed",
+        "animation_suppressed",
+        "polling_paused",
+        "correctness_poll_only",
+        "fully_quiescent"
+      ]
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "matrix_ref",
+        "schema_ref",
+        "active_state",
+        "source_of_change",
+        "hidden_pane_behaviors",
+        "override_posture",
+        "recovery_state"
+      ],
+      "properties": {
+        "matrix_ref": { "type": "string", "minLength": 1 },
+        "schema_ref": { "type": "string", "minLength": 1 },
+        "active_state": { "$ref": "#/$defs/efficiencyState" },
+        "source_of_change": { "$ref": "#/$defs/sourceOfChange" },
+        "hidden_pane_behaviors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hiddenPaneBehavior" }
+        },
+        "override_posture": { "$ref": "#/$defs/overridePosture" },
+        "recovery_state": { "$ref": "#/$defs/recoveryState" }
+      }
+    },
+    "assistDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_token",
+        "assist_label",
+        "owner_label",
+        "action",
+        "visible_state",
+        "user_impact_label",
+        "is_optional",
+        "shed"
+      ],
+      "properties": {
+        "record_kind": { "const": "efficiency_session_assist_decision" },
+        "assist_token": { "type": "string", "minLength": 1 },
+        "assist_label": { "type": "string", "minLength": 1 },
+        "owner_label": { "type": "string", "minLength": 1 },
+        "action": { "$ref": "#/$defs/action" },
+        "visible_state": { "$ref": "#/$defs/visibleState" },
+        "user_impact_label": { "type": "string", "minLength": 1 },
+        "is_optional": { "const": true },
+        "shed": { "type": "boolean" }
+      }
+    },
+    "continuityWarning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "downgrade_kind",
+        "headline",
+        "what_changes",
+        "what_stays_correct",
+        "shown_before_change",
+        "silent",
+        "user_keeps_authority",
+        "override_posture",
+        "override_allowed",
+        "actions",
+        "inspect_command_id",
+        "opens_surface_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "efficiency_session_continuity_warning" },
+        "downgrade_kind": { "$ref": "#/$defs/downgradeKind" },
+        "headline": { "type": "string", "minLength": 1 },
+        "what_changes": { "type": "string", "minLength": 1 },
+        "what_stays_correct": { "type": "string", "minLength": 1 },
+        "shown_before_change": { "const": true },
+        "silent": { "const": false },
+        "user_keeps_authority": { "const": true },
+        "override_posture": { "$ref": "#/$defs/overridePosture" },
+        "override_allowed": { "type": "boolean" },
+        "policy_blocked_ref": { "type": "string", "minLength": 1 },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "inspect_command_id": { "type": "string", "minLength": 1 },
+        "opens_surface_ref": { "type": "string", "minLength": 1 }
+      }
+    },
+    "sessionDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "session_token",
+        "session_label",
+        "owner_label",
+        "owner_subsystem_token",
+        "active_state",
+        "source_of_change",
+        "continuity_action",
+        "continuity_label",
+        "protected_authority",
+        "correctness_preserved",
+        "user_authority_preserved",
+        "attributable",
+        "never_silently_killed",
+        "never_replayed",
+        "behavior_changed",
+        "assists"
+      ],
+      "properties": {
+        "record_kind": { "const": "efficiency_active_session_decision" },
+        "session_token": { "$ref": "#/$defs/sessionToken" },
+        "session_label": { "type": "string", "minLength": 1 },
+        "owner_label": { "type": "string", "minLength": 1 },
+        "owner_subsystem_token": { "type": "string", "minLength": 1 },
+        "active_state": { "$ref": "#/$defs/efficiencyState" },
+        "source_of_change": { "$ref": "#/$defs/sourceOfChange" },
+        "continuity_action": { "$ref": "#/$defs/continuityAction" },
+        "continuity_label": { "type": "string", "minLength": 1 },
+        "protected_authority": { "type": "string", "minLength": 1 },
+        "correctness_preserved": { "const": true },
+        "user_authority_preserved": { "const": true },
+        "attributable": { "const": true },
+        "never_silently_killed": { "const": true },
+        "never_replayed": { "const": true },
+        "behavior_changed": { "type": "boolean" },
+        "assists": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/assistDecision" }
+        },
+        "warning": { "$ref": "#/$defs/continuityWarning" }
+      }
+    },
+    "posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "workspace_id",
+        "active_state",
+        "source_of_change",
+        "behavior_changed",
+        "override_posture",
+        "recovery_state",
+        "sessions",
+        "any_session_silently_killed",
+        "any_session_replayed",
+        "protected_interactions_preserved",
+        "durability_preserved",
+        "governance",
+        "inspect_command_id",
+        "opens_surface_ref",
+        "support_export_ref",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "efficiency_session_pressure_posture" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "workspace_id": { "type": "string", "minLength": 1 },
+        "active_state": { "$ref": "#/$defs/efficiencyState" },
+        "source_of_change": { "$ref": "#/$defs/sourceOfChange" },
+        "behavior_changed": { "type": "boolean" },
+        "override_posture": { "$ref": "#/$defs/overridePosture" },
+        "recovery_state": { "$ref": "#/$defs/recoveryState" },
+        "sessions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sessionDecision" }
+        },
+        "any_session_silently_killed": { "const": false },
+        "any_session_replayed": { "const": false },
+        "protected_interactions_preserved": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "durability_preserved": { "const": true },
+        "governance": { "$ref": "#/$defs/governance" },
+        "inspect_command_id": { "type": "string", "minLength": 1 },
+        "opens_surface_ref": { "type": "string", "minLength": 1 },
+        "support_export_ref": { "type": "string", "minLength": 1 },
+        "observed_at": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
