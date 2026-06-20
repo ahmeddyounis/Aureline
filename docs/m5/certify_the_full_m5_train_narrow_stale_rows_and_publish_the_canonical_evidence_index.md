@@ -132,3 +132,25 @@ narrows the local-core continuity lane:
 Release packets, Help/About truth, service-health summaries, and support exports
 consume the same certified/non-certified continuity verdict from this lane, so the
 continuity certification train stays cross-linked with the certification train.
+
+The canonical M5 benchmark-governance matrix is registered under this evidence
+index. It binds every protected M5 metric to one named corpus-manifest revision,
+one reference-hardware profile, one lab-image revision, one governed threshold
+state, one owner, one waiver path, and one freshness rule, and freezes the closed,
+mechanically detectable narrowing vocabulary that drops a benchmark claim when its
+corpus revision is stale, its hardware or lab-image identity is missing, its
+threshold has drifted, its run metadata is incomparable, its waiver has expired,
+its evidence is stale, or a publication pack omits a required disclosure field, so
+no M5 performance or public-comparison claim outruns its evidence:
+
+- `artifacts/benchmarks/m5-benchmark-governance.json` (matrix)
+- `artifacts/benchmarks/m5-benchmark-governance.md` (human matrix)
+- `schemas/benchmarks/m5-benchmark-governance.schema.json` (schema)
+- `docs/benchmarks/m5-benchmark-governance.md` (contract)
+- `fixtures/benchmarks/m5-benchmark-governance/` (narrowing fixtures)
+
+The matrix cites this evidence index back via its `evidence_index_ref`, so the
+benchmark-governance train stays cross-linked with the certification train.
+Release/shiproom, support-export, docs, and Help/About consume the matrix's
+effective-claim and narrowing projections rather than cloning threshold or
+comparability prose.
