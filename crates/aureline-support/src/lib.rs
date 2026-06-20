@@ -415,6 +415,7 @@ pub mod m5_storage_certification;
 pub mod m5_storage_governance;
 pub mod m5_storage_inspector;
 pub mod m5_storage_pressure;
+pub mod m5_subscription_export;
 pub mod m5_support_bundle_consent;
 pub mod m5_support_center_matrix;
 pub mod m5_support_center_ui;
@@ -618,6 +619,12 @@ pub use m5_storage_certification::{
     M5_STORAGE_CERTIFICATION_FIXTURE_DIR, M5_STORAGE_CERTIFICATION_PACKET_ID,
     M5_STORAGE_CERTIFICATION_PACKET_RECORD_KIND, M5_STORAGE_CERTIFICATION_SCHEMA_REF,
     M5_STORAGE_CERTIFICATION_SCHEMA_VERSION,
+};
+pub use m5_subscription_export::{
+    compile_subscription_support_export, M5SubscriptionSupportExport,
+    M5SubscriptionSupportExportError, M5SubscriptionSupportExportRow,
+    M5_SUBSCRIPTION_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND,
+    M5_SUBSCRIPTION_SUPPORT_EXPORT_ROW_RECORD_KIND,
 };
 pub use m5_support_bundle_consent::{
     current_m5_support_bundle_consent, ConsentClassRow, ConsentConsumerBinding,

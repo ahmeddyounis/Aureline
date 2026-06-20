@@ -70,6 +70,7 @@ pub mod reactive_views;
 pub mod runtime;
 pub mod state_class_recovery;
 pub mod store;
+pub mod subscriptions;
 pub mod trace;
 pub mod verification;
 
@@ -168,6 +169,23 @@ pub use state_class_recovery::{
 pub use store::{
     freshness_is_downgrade, ConsumerProjection, Emission, Producer, ReactiveStore, SamplePayload,
     StoreError,
+};
+pub use subscriptions::{
+    seeded_cross_surface_subscription_fixtures, seeded_cross_surface_subscription_packet,
+    validate_cross_surface_subscription_fixture, validate_cross_surface_subscription_packet,
+    ConsumerSurface, ConsumerView, CrossSurfaceSubscriptionBus, CrossSurfaceSubscriptionFixture,
+    CrossSurfaceSubscriptionPacket, FrameClass as SubscriptionFrameClass, PublishOutcome,
+    PublishedFrame, SourceContractRefs as CrossSurfaceSubscriptionSourceContractRefs,
+    StableSubscriptionFields, SubscriptionBinding, SubscriptionError, SubscriptionInspectorReport,
+    SubscriptionInspectorRow, ValidationReport as CrossSurfaceSubscriptionValidationReport,
+    ValidationViolation as CrossSurfaceSubscriptionValidationViolation,
+    CROSS_SURFACE_SUBSCRIPTION_DOC_REF, CROSS_SURFACE_SUBSCRIPTION_FIXTURE_DIR,
+    CROSS_SURFACE_SUBSCRIPTION_FIXTURE_MANIFEST_REF,
+    CROSS_SURFACE_SUBSCRIPTION_FIXTURE_RECORD_KIND,
+    CROSS_SURFACE_SUBSCRIPTION_INSPECTOR_RECORD_KIND,
+    CROSS_SURFACE_SUBSCRIPTION_PACKET_RECORD_KIND, CROSS_SURFACE_SUBSCRIPTION_PACKET_REF,
+    CROSS_SURFACE_SUBSCRIPTION_PROOF_REF, CROSS_SURFACE_SUBSCRIPTION_SCHEMA_REF,
+    CROSS_SURFACE_SUBSCRIPTION_SCHEMA_VERSION,
 };
 pub use trace::{trace_event_to_json, trace_to_json, ConsumerObservation, TraceEvent};
 pub use verification::{

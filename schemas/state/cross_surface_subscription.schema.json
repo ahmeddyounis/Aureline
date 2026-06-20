@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/cross_surface_subscription.schema.json",
+  "title": "Cross-surface subscription contract for shell, search, graph, AI, review, and support",
+  "description": "Boundary schema for the cross-surface subscription packet and fixture rows emitted by aureline-reactive-state. The packet declares the publish/subscribe bindings shared by the shell, search, graph, AI, review, and support surfaces. Each binding names the owning authority class, the query family, the subscription scope class, the materialized-view class, the default backpressure mode, and the consumer surfaces that subscribe. Fixtures bind one published frame (snapshot-plus-delta coordinates, freshness/completeness metadata, backpressure mode, terminal reason, and policy-limited flag) to the expected narrowed truth claim and the set of consumer surfaces that all observe identical stable subscription fields. The packet mirrors the subscription-envelope vocabulary frozen in the crate's envelope module and the reactive-governance narrowing engine.",
+  "oneOf": [
+    { "$ref": "#/$defs/packet" },
+    { "$ref": "#/$defs/fixture" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "pattern": "^(artifacts|crates|docs|fixtures|schemas)/.+"
+    },
+    "u64": { "type": "integer", "minimum": 0 },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs",
+        "buffer_editor",
+        "derived_knowledge",
+        "execution",
+        "policy_entitlement",
+        "provider_overlay"
+      ]
+    },
+    "derivation_class": {
+      "type": "string",
+      "enum": ["authoritative", "derived"]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["authoritative", "warming", "cached", "stale", "replayed", "imported"]
+    },
+    "completeness": {
+      "type": "string",
+      "enum": ["full", "partial", "unloaded", "unavailable"]
+    },
+    "backpressure_mode": {
+      "type": "string",
+      "enum": ["realtime", "coalesced", "snapshot_required"]
+    },
+    "view_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_projection",
+        "durable_local_materialization",
+        "exportable_snapshot",
+        "managed_replicated_view"
+      ]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "workspace",
+        "window",
+        "review_workspace",
+        "remote_session",
+        "tenant",
+        "companion_surface"
+      ]
+    },
+    "frame_class": {
+      "type": "string",
+      "enum": ["snapshot", "delta", "resync_required", "terminal"]
+    },
+    "terminal_reason": {
+      "type": "string",
+      "enum": [
+        "consumer_cancelled",
+        "producer_shutdown",
+        "scope_removed",
+        "policy_terminated",
+        "unavailable"
+      ]
+    },
+    "truth_claim": {
+      "type": "string",
+      "enum": [
+        "exact_current_truth",
+        "consistent_snapshot",
+        "coalesced_stream",
+        "partial_projection",
+        "warming_no_truth_yet",
+        "cached_projection",
+        "stale_snapshot",
+        "replayed_snapshot",
+        "imported_snapshot",
+        "policy_limited_projection",
+        "provider_unavailable"
+      ]
+    },
+    "narrowing_trigger": {
+      "type": "string",
+      "enum": [
+        "freshness_warming",
+        "freshness_cached",
+        "freshness_stale",
+        "freshness_replayed",
+        "freshness_imported",
+        "completeness_partial",
+        "completeness_unloaded",
+        "completeness_unavailable",
+        "backpressure_coalesced",
+        "backpressure_snapshot_required",
+        "terminal_unavailable",
+        "terminal_terminated",
+        "policy_limited"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": ["shell", "search", "graph", "ai", "review", "support"]
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "source_contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc_ref", "schema_ref", "packet_ref", "proof_ref", "fixture_manifest_ref"],
+      "properties": {
+        "doc_ref": { "$ref": "#/$defs/repo_ref" },
+        "schema_ref": { "$ref": "#/$defs/repo_ref" },
+        "packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "proof_ref": { "$ref": "#/$defs/repo_ref" },
+        "fixture_manifest_ref": { "$ref": "#/$defs/repo_ref" }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_id",
+        "query_family",
+        "authority_class",
+        "derivation_class",
+        "scope_class",
+        "view_class",
+        "default_backpressure_mode",
+        "consumer_surfaces",
+        "healthy_claim",
+        "notes"
+      ],
+      "properties": {
+        "binding_id": { "$ref": "#/$defs/non_empty_string" },
+        "query_family": { "$ref": "#/$defs/non_empty_string" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "derivation_class": { "$ref": "#/$defs/derivation_class" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "view_class": { "$ref": "#/$defs/view_class" },
+        "default_backpressure_mode": { "$ref": "#/$defs/backpressure_mode" },
+        "consumer_surfaces": { "$ref": "#/$defs/consumer_surfaces" },
+        "healthy_claim": { "$ref": "#/$defs/truth_claim" },
+        "notes": { "type": "string" }
+      }
+    },
+    "published_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_id",
+        "frame_class",
+        "snapshot_epoch",
+        "delta_seq",
+        "freshness",
+        "completeness",
+        "backpressure_mode",
+        "terminal_reason",
+        "policy_limited",
+        "producer_id",
+        "producer_instance",
+        "observed_at"
+      ],
+      "properties": {
+        "scope_id": { "$ref": "#/$defs/non_empty_string" },
+        "frame_class": { "$ref": "#/$defs/frame_class" },
+        "snapshot_epoch": { "$ref": "#/$defs/u64" },
+        "delta_seq": { "$ref": "#/$defs/u64" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "completeness": { "$ref": "#/$defs/completeness" },
+        "backpressure_mode": { "$ref": "#/$defs/backpressure_mode" },
+        "terminal_reason": {
+          "oneOf": [{ "$ref": "#/$defs/terminal_reason" }, { "type": "null" }]
+        },
+        "policy_limited": { "type": "boolean" },
+        "producer_id": { "$ref": "#/$defs/non_empty_string" },
+        "producer_instance": { "$ref": "#/$defs/non_empty_string" },
+        "observed_at": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "title",
+        "source_contract_refs",
+        "bindings",
+        "invariants"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "cross_surface_subscription_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "source_contract_refs": { "$ref": "#/$defs/source_contract_refs" },
+        "bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/binding" }
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "fixture_id",
+        "binding_id",
+        "frame",
+        "expected_truth_claim",
+        "expected_triggers",
+        "expected_consumer_surfaces",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "cross_surface_subscription_fixture_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "fixture_id": { "$ref": "#/$defs/non_empty_string" },
+        "binding_id": { "$ref": "#/$defs/non_empty_string" },
+        "frame": { "$ref": "#/$defs/published_frame" },
+        "expected_truth_claim": { "$ref": "#/$defs/truth_claim" },
+        "expected_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_trigger" }
+        },
+        "expected_consumer_surfaces": { "$ref": "#/$defs/consumer_surfaces" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

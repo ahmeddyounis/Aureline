@@ -1,0 +1,150 @@
+{
+  "bindings": [
+    {
+      "authority_class": "workspace_vfs",
+      "binding_id": "binding:workspace_tree",
+      "consumer_surfaces": [
+        "shell",
+        "search",
+        "graph",
+        "ai",
+        "review",
+        "support"
+      ],
+      "default_backpressure_mode": "coalesced",
+      "derivation_class": "derived",
+      "healthy_claim": "consistent_snapshot",
+      "notes": "The workspace tree is the one anchor every surface reads to scope its derived view; all six subscribe to the same VFS authority frame instead of caching their own tree.",
+      "query_family": "vfs.workspace_tree",
+      "scope_class": "workspace",
+      "view_class": "durable_local_materialization"
+    },
+    {
+      "authority_class": "execution",
+      "binding_id": "binding:execution_activity",
+      "consumer_surfaces": [
+        "shell",
+        "review",
+        "support"
+      ],
+      "default_backpressure_mode": "coalesced",
+      "derivation_class": "derived",
+      "healthy_claim": "consistent_snapshot",
+      "notes": "Shell, review, and support read one execution activity stream; under saturation it coalesces rather than presenting a saturated stream as current.",
+      "query_family": "execution.activity_stream",
+      "scope_class": "workspace",
+      "view_class": "durable_local_materialization"
+    },
+    {
+      "authority_class": "buffer_editor",
+      "binding_id": "binding:buffer_outline",
+      "consumer_surfaces": [
+        "shell",
+        "ai"
+      ],
+      "default_backpressure_mode": "coalesced",
+      "derivation_class": "derived",
+      "healthy_claim": "consistent_snapshot",
+      "notes": "The buffer outline is a window-scoped ephemeral projection shared by the shell and the AI context panel.",
+      "query_family": "buffer.outline",
+      "scope_class": "window",
+      "view_class": "ephemeral_projection"
+    },
+    {
+      "authority_class": "derived_knowledge",
+      "binding_id": "binding:search_index",
+      "consumer_surfaces": [
+        "shell",
+        "search",
+        "ai"
+      ],
+      "default_backpressure_mode": "coalesced",
+      "derivation_class": "derived",
+      "healthy_claim": "consistent_snapshot",
+      "notes": "The search index is a derived-knowledge view; shell, search, and AI read one partial/stale-labeled projection rather than three private indices.",
+      "query_family": "search.results",
+      "scope_class": "workspace",
+      "view_class": "durable_local_materialization"
+    },
+    {
+      "authority_class": "derived_knowledge",
+      "binding_id": "binding:graph_neighborhood",
+      "consumer_surfaces": [
+        "shell",
+        "graph"
+      ],
+      "default_backpressure_mode": "coalesced",
+      "derivation_class": "derived",
+      "healthy_claim": "consistent_snapshot",
+      "notes": "Graph neighborhoods are ephemeral derived projections shared by the shell and the graph surface.",
+      "query_family": "graph.neighborhood",
+      "scope_class": "workspace",
+      "view_class": "ephemeral_projection"
+    },
+    {
+      "authority_class": "policy_entitlement",
+      "binding_id": "binding:policy_trust",
+      "consumer_surfaces": [
+        "shell",
+        "ai",
+        "review",
+        "support"
+      ],
+      "default_backpressure_mode": "realtime",
+      "derivation_class": "derived",
+      "healthy_claim": "consistent_snapshot",
+      "notes": "The policy/trust state is one entitlement authority every gating surface reads; a policy-limited frame narrows identically across shell, AI, review, and support.",
+      "query_family": "policy.trust_state",
+      "scope_class": "workspace",
+      "view_class": "ephemeral_projection"
+    },
+    {
+      "authority_class": "provider_overlay",
+      "binding_id": "binding:review_overlay",
+      "consumer_surfaces": [
+        "shell",
+        "review",
+        "support"
+      ],
+      "default_backpressure_mode": "coalesced",
+      "derivation_class": "derived",
+      "healthy_claim": "consistent_snapshot",
+      "notes": "The review overlay is a managed replicated provider view; when the provider is unavailable it says so across shell, review, and support instead of replacing local truth.",
+      "query_family": "review.workspace_overlay",
+      "scope_class": "review_workspace",
+      "view_class": "managed_replicated_view"
+    },
+    {
+      "authority_class": "derived_knowledge",
+      "binding_id": "binding:support_export",
+      "consumer_surfaces": [
+        "support"
+      ],
+      "default_backpressure_mode": "realtime",
+      "derivation_class": "derived",
+      "healthy_claim": "consistent_snapshot",
+      "notes": "The support export is an exportable snapshot of captured reactive state; replayed and imported frames stay labeled for release and procurement readers.",
+      "query_family": "support.reactive_state_export",
+      "scope_class": "workspace",
+      "view_class": "exportable_snapshot"
+    }
+  ],
+  "invariants": [
+    "Every consumer surface (shell, search, graph, AI, review, support) reads one typed subscription envelope — query family, authority, scope, snapshot epoch, delta sequence, freshness, completeness, backpressure mode — instead of a private cache.",
+    "All surfaces subscribed to a binding observe identical stable subscription fields for a published frame; no surface derives a richer or staler view than the shared envelope permits.",
+    "Every subscription is scoped by a concrete scope id (workspace, window, review workspace, remote session, tenant, or companion surface); an ambient unscoped subscription is rejected by the bus.",
+    "A degraded frame narrows its truth claim through one canonical engine, so stale, warming, partial, cached, replayed, imported, coalesced, policy-limited, and provider-unavailable frames downgrade identically on every surface.",
+    "The inspector names which authority published the current view of each binding and which scope and epoch it belongs to, and review/export/support round-trip the same stable subscription fields."
+  ],
+  "packet_id": "state.cross_surface_subscription.v1",
+  "record_kind": "cross_surface_subscription_packet_record",
+  "schema_version": 1,
+  "source_contract_refs": {
+    "doc_ref": "docs/state/cross_surface_subscription.md",
+    "fixture_manifest_ref": "fixtures/state/cross_surface_subscription/manifest.yaml",
+    "packet_ref": "artifacts/state/cross_surface_subscription.json",
+    "proof_ref": "artifacts/state/cross_surface_subscription_proof.md",
+    "schema_ref": "schemas/state/cross_surface_subscription.schema.json"
+  },
+  "title": "Cross-surface subscription contract for shell, search, graph, AI, review, and support"
+}

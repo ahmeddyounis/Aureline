@@ -131,6 +131,7 @@ pub mod m5_reactive_state_explainer;
 pub mod m5_recent_items_and_reopen;
 pub mod m5_rollout_governance;
 pub mod m5_start_center_and_switcher;
+pub mod m5_subscription_inspector;
 pub mod m5_system_entry;
 pub mod macros;
 pub mod managed_boundary;
