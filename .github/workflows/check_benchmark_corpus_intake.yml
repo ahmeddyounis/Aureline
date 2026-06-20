@@ -1,0 +1,70 @@
+# Benchmark corpus-intake and redaction gate.
+#
+# Validates the corpus-intake ledger and its fixtures: every corpus a protected
+# metric binds carries an approved intake record; partner, customer, or field
+# data enters only with a cleared license, a data-steward and privacy review, a
+# verified redaction posture, and a time-boxed retention; pending or impossible
+# redaction cannot ride into real-data CI; a synthetic-only corpus names an
+# available, resolvable synthetic fallback; an overdue sensitive retention fails
+# closed; and the redaction fixtures prove each fail-closed path.
+
+name: check_benchmark_corpus_intake
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_benchmark_corpus_intake.yml"
+      - "ci/check_benchmark_corpus_intake.py"
+      - "artifacts/benchmarks/corpus-intake-ledger.json"
+      - "artifacts/benchmarks/corpus-intake-policy.md"
+      - "schemas/benchmarks/corpus-intake-record.schema.json"
+      - "fixtures/benchmarks/redaction/**"
+      - "fixtures/benchmarks/corpus_manifest.yaml"
+      - "artifacts/benchmarks/m5-benchmark-governance.json"
+      - "docs/benchmarks/corpus-intake-and-redaction.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-benchmark-corpus-intake-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark_corpus_intake:
+    name: Corpus-intake gate
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run corpus-intake validator
+        run: |
+          python3 ci/check_benchmark_corpus_intake.py --repo-root . \
+            --report artifacts/benchmarks/corpus-intake-validation.json
+
+      - name: Upload corpus-intake report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-corpus-intake-${{ github.run_id }}
+          path: artifacts/benchmarks/corpus-intake-validation.json
+          if-no-files-found: error
+          retention-days: 30

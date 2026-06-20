@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/benchmarks/corpus-intake-record.schema.json",
+  "title": "Aureline benchmark corpus-intake record and intake ledger",
+  "description": "Boundary schema for the corpus-intake gate that admits a benchmark corpus into the protected lanes. A corpus-intake record is the canonical, reviewable identity of one corpus's licensing, privacy/redaction posture, retention owner, sensitivity class, approved use classes, intake decision and approval lineage, and — when sensitive data cannot enter CI — its synthetic-fallback binding. The intake ledger is the checked-in collection of those records that the benchmark lanes resolve before a corpus may back a protected metric or a public-proof pack. Partner, customer, or field-derived material may not enter a protected lane without an approved intake decision, a cleared license, a verified redaction posture, a named retention owner, and a time-boxed retention; where real data cannot enter CI an identifiable synthetic fallback keeps the metric reproducible. Raw fixture bytes, raw customer or partner names, raw run logs, and secret material never cross this boundary; only stable ids and reviewable sentences do.",
+  "oneOf": [
+    { "$ref": "#/$defs/corpus_intake_ledger" },
+    { "$ref": "#/$defs/corpus_intake_record" }
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "stable_id": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9_.]*$" },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-term sentence safe for product copy, docs, support export, and release evidence. Raw fixture bytes, raw customer or partner names, raw run logs, and secret material MUST NOT appear."
+    },
+    "utc_date": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+      ]
+    },
+    "utc_date_time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "corpus_origin_class": {
+      "type": "string",
+      "enum": [
+        "original_project_authored",
+        "synthetic_generated",
+        "vendored_third_party",
+        "partner_provided",
+        "customer_provided",
+        "field_collected"
+      ],
+      "description": "What the corpus content is and where it came from. original_project_authored and synthetic_generated carry no external rights or privacy exposure; vendored / partner / customer / field origins require licensing and privacy intake."
+    },
+    "sensitivity_class": {
+      "type": "string",
+      "enum": [
+        "non_sensitive",
+        "internal_only",
+        "partner_confidential",
+        "customer_confidential",
+        "regulated_personal_data"
+      ],
+      "description": "The corpus sensitivity class surfaced to release, support, and evaluation packets. partner_confidential, customer_confidential, and regulated_personal_data are sensitive and require an approved intake review before any protected use."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "no_redaction_needed",
+        "redaction_applied_verified",
+        "redaction_pending",
+        "unredactable_use_synthetic"
+      ],
+      "description": "no_redaction_needed for synthetic or original content; redaction_applied_verified once a verified redaction pass clears the bytes for repo entry; redaction_pending blocks real-data CI until verified; unredactable_use_synthetic means the content cannot be safely materialised and a synthetic fallback must back the metric."
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "permanent_seed",
+        "milestone_scoped",
+        "derived_regenerable",
+        "sensitive_time_boxed"
+      ],
+      "description": "permanent_seed / milestone_scoped / derived_regenerable mirror the corpus register. sensitive_time_boxed marks material that MUST carry a purge-due date and be deleted on schedule."
+    },
+    "approved_use_class": {
+      "type": "string",
+      "enum": [
+        "protected_ci_gate",
+        "public_head_to_head_proof",
+        "aureline_only_proof",
+        "methodology_only",
+        "internal_exploration_only"
+      ],
+      "description": "The benchmark lanes this corpus is approved to back. protected_ci_gate, public_head_to_head_proof, and aureline_only_proof require an approved intake decision."
+    },
+    "ci_admissibility": {
+      "type": "string",
+      "enum": [
+        "admitted_real_data",
+        "admitted_synthetic_only",
+        "blocked_pending_intake",
+        "blocked_unredactable"
+      ],
+      "description": "admitted_real_data: the materialised corpus may enter protected CI. admitted_synthetic_only: only the identified synthetic fallback enters CI while the real data stays out. blocked_pending_intake / blocked_unredactable: the corpus may not enter any protected lane."
+    },
+    "synthetic_fallback_status": {
+      "type": "string",
+      "enum": ["not_required", "available", "pending", "unavailable"]
+    },
+    "intake_status": {
+      "type": "string",
+      "enum": ["proposed", "approved", "rejected", "expired", "withdrawn"],
+      "description": "approved is the only status that admits a corpus into a protected or public-proof lane. rejected, expired, and withdrawn must leave the corpus blocked."
+    },
+    "intake_authority": {
+      "type": "string",
+      "enum": [
+        "data_steward",
+        "privacy_review",
+        "legal_review",
+        "security_review",
+        "performance_owner"
+      ],
+      "description": "A sensitive corpus requires both a data_steward and a privacy_review approval; a licensed (vendored/partner/customer/field) corpus also requires legal_review clearance."
+    },
+    "license_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "cleared", "attribution_required", "note"],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "License posture string, aligned with the corpus register's license_statuses vocabulary where applicable."
+        },
+        "cleared": {
+          "type": "boolean",
+          "description": "True only when licensing is cleared for the approved use classes; a vendored/partner/customer/field corpus that is not cleared cannot enter a protected lane."
+        },
+        "attribution_required": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "redaction_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["redaction_class", "method", "verified_on"],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "method": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Reviewable summary of how the content was redacted or why none is needed; never the raw content."
+        },
+        "verified_on": {
+          "$ref": "#/$defs/utc_date",
+          "description": "Date a redaction pass was verified; required before redaction_applied_verified admits real data."
+        }
+      }
+    },
+    "retention_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retention_class", "retention_owner_ref", "purge_due_on", "note"],
+      "properties": {
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "retention_owner_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Owner accountable for the corpus's retention and purge; never a personal name, an owning team or role id."
+        },
+        "purge_due_on": {
+          "$ref": "#/$defs/utc_date",
+          "description": "Hard purge-due date for sensitive_time_boxed material; an overdue date on an in-force record fails closed. Null only for non-time-boxed retention."
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "synthetic_fallback_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "fallback_corpus_ref", "status", "fidelity_note"],
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "description": "True when real data cannot enter CI and a synthetic substitute must back the metric. admitted_synthetic_only implies required true."
+        },
+        "fallback_corpus_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stable_id" }
+          ],
+          "description": "Materialised synthetic corpus id that backs the metric in place of the real data; MUST resolve in the canonical corpus register. Null only when no fallback is required."
+        },
+        "status": { "$ref": "#/$defs/synthetic_fallback_status" },
+        "fidelity_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Reviewable note on how faithfully the synthetic fallback reproduces the protected workload."
+        }
+      }
+    },
+    "intake_decision_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "decided_on", "decision_note"],
+      "properties": {
+        "status": { "$ref": "#/$defs/intake_status" },
+        "decided_on": { "$ref": "#/$defs/utc_date" },
+        "decision_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "approver_ref", "approved_on"],
+      "properties": {
+        "authority": { "$ref": "#/$defs/intake_authority" },
+        "approver_ref": { "$ref": "#/$defs/non_empty_string" },
+        "approved_on": { "$ref": "#/$defs/utc_date" }
+      }
+    },
+    "corpus_intake_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "intake_ref",
+        "corpus_ref",
+        "corpus_origin_class",
+        "sensitivity_class",
+        "license",
+        "redaction",
+        "retention",
+        "approved_use_classes",
+        "ci_admissibility",
+        "synthetic_fallback",
+        "intake_decision",
+        "approvals",
+        "owner_ref",
+        "manifest_source_ref",
+        "recorded_on"
+      ],
+      "properties": {
+        "record_kind": { "const": "benchmark_corpus_intake_record" },
+        "schema_version": { "const": 1 },
+        "intake_ref": { "$ref": "#/$defs/stable_id" },
+        "corpus_ref": {
+          "$ref": "#/$defs/stable_id",
+          "description": "Stable corpus id this intake record governs. For admitted_real_data it MUST resolve in the canonical corpus register; for synthetic-only or blocked sensitive corpora it is an intake identity whose real bytes never enter the repo."
+        },
+        "corpus_origin_class": { "$ref": "#/$defs/corpus_origin_class" },
+        "sensitivity_class": { "$ref": "#/$defs/sensitivity_class" },
+        "license": { "$ref": "#/$defs/license_block" },
+        "redaction": { "$ref": "#/$defs/redaction_block" },
+        "retention": { "$ref": "#/$defs/retention_block" },
+        "approved_use_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/approved_use_class" }
+        },
+        "ci_admissibility": { "$ref": "#/$defs/ci_admissibility" },
+        "synthetic_fallback": { "$ref": "#/$defs/synthetic_fallback_block" },
+        "intake_decision": { "$ref": "#/$defs/intake_decision_block" },
+        "approvals": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/approval" }
+        },
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "manifest_source_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Repo-relative canonical register this corpus id projects from (e.g. fixtures/benchmarks/corpus_manifest.yaml)."
+        },
+        "recorded_on": { "$ref": "#/$defs/utc_date" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "corpus_intake_ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "ledger_id",
+        "generated_at",
+        "ledger_revision",
+        "title",
+        "summary",
+        "source_refs",
+        "matrix_ref",
+        "records"
+      ],
+      "properties": {
+        "record_kind": { "const": "benchmark_corpus_intake_ledger" },
+        "schema_version": { "const": 1 },
+        "ledger_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/utc_date_time" },
+        "ledger_revision": { "type": "integer", "minimum": 1 },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Schema and governance refs. MUST include this schema and the governance matrix it binds to."
+        },
+        "matrix_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Governance matrix whose protected-metric corpus bindings this ledger keeps admissible."
+        },
+        "records": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/corpus_intake_record" }
+        }
+      }
+    }
+  }
+}
