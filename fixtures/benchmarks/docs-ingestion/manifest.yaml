@@ -1,0 +1,62 @@
+# Benchmark publication-ingestion fixture register.
+#
+# Each fixture below is a single self-describing ingestion binding that is either
+# a conforming reference example or a fail-closed negative case. The
+# publication-ingestion validator (ci/check_publication_ingestion.py) reads this
+# register, validates every fixture against the publication-ingestion schema,
+# applies the per-binding admission rules against the canonical freshness ledger
+# and public-comparison register, and asserts the recorded expectation.
+#
+# These fixtures prove the lane fails closed: a binding that points at an unknown
+# entry, cites a reproducibility pack that backs a different entry, renders a
+# surface the reproducibility pack does not publish to, renders a claim or
+# freshness state that differs from the entry, discloses a forbidden raw field or
+# a field outside the export-safe allowlist, admits it does not render verbatim
+# from the entry, or omits a required field are all rejected. Conforming bindings
+# resolve to a ledger entry and its reproducibility pack and render the entry's
+# posture, narrowed effective claim, freshness state, downgrade label, and metric
+# refs verbatim with only export-safe fields.
+#
+# Planning / milestone slugs MUST NOT appear in any id, path, or note here.
+
+schema_version: 1
+register_id: aureline.benchmark_publication_ingestion_fixtures
+register_revision: 1
+
+doc_ref: docs/benchmarks/publication-ingestion.md
+validator_ref: ci/check_publication_ingestion.py
+workflow_ref: .github/workflows/check_publication_ingestion.yml
+register_artifact_ref: artifacts/benchmarks/publication-ingestion-register.json
+schema_ref: schemas/benchmarks/publication-ingestion.schema.json
+
+canonical_source_refs:
+  freshness_ledger: artifacts/benchmarks/shiproom-benchmark-freshness.json
+  public_comparison_register: artifacts/benchmarks/public-comparison-pack-register.json
+
+fixtures:
+  - file: fixtures/benchmarks/docs-ingestion/binding_docs_reference.json
+    note: Conforming docs binding rendering the Aureline-only entry verbatim; admitted.
+  - file: fixtures/benchmarks/docs-ingestion/binding_support_export_reference.json
+    note: Conforming support-export binding rendering the head-to-head entry's redaction-safe projection; admitted.
+  - file: fixtures/benchmarks/docs-ingestion/binding_quarantined_reference.json
+    note: Conforming docs binding rendering the quarantined entry so the quarantine propagates; admitted.
+  - file: fixtures/benchmarks/docs-ingestion/binding_entry_unresolved.json
+    note: A binding pointing at an entry absent from the freshness ledger is rejected.
+  - file: fixtures/benchmarks/docs-ingestion/binding_repro_pack_entry_mismatch.json
+    note: A binding whose reproducibility pack backs a different entry is rejected.
+  - file: fixtures/benchmarks/docs-ingestion/binding_surface_not_authorized.json
+    note: An evaluation-pack binding on an entry whose pack does not publish to enterprise evaluation is rejected.
+  - file: fixtures/benchmarks/docs-ingestion/binding_effective_claim_not_propagated.json
+    note: A binding that renders a claim differing from the entry's narrowed effective claim is rejected.
+  - file: fixtures/benchmarks/docs-ingestion/binding_freshness_not_propagated.json
+    note: A binding that renders current for a quarantined entry is rejected.
+  - file: fixtures/benchmarks/docs-ingestion/binding_downgrade_label_mismatch.json
+    note: A binding that rewrites the entry's downgrade label is rejected.
+  - file: fixtures/benchmarks/docs-ingestion/binding_forbidden_field.json
+    note: A binding disclosing a forbidden raw field is rejected.
+  - file: fixtures/benchmarks/docs-ingestion/binding_not_export_safe_field.json
+    note: A binding disclosing a field outside the export-safe allowlist is rejected.
+  - file: fixtures/benchmarks/docs-ingestion/binding_not_verbatim.json
+    note: A binding that admits it does not render verbatim from the entry is rejected.
+  - file: fixtures/benchmarks/docs-ingestion/binding_schema_missing_field.json
+    note: A record missing a required field fails closed at the schema boundary.

@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/benchmarks/publication-ingestion.schema.json",
+  "title": "Aureline benchmark publication-ingestion register",
+  "description": "Boundary schema for the benchmark publication-ingestion register. The register binds every consuming surface that mentions a benchmark claim -- documentation pages, in-product help, the About surface, enterprise evaluation packs, and support/diagnostics exports -- to the one canonical claim publication entry it renders, so each surface points at the same entry instead of cloning benchmark prose. Each binding carries the export-safe projection (posture, narrowed effective claim, freshness state, downgrade label, and metric refs) the surface must render verbatim from the entry, the reproducibility pack that authorizes the surface, and the export-safe field set it discloses. Raw run logs, raw machine labels, raw provider payloads, raw corpus contents, customer or repository names, competitor raw payloads, secret material, and screenshots never cross this boundary; only stable governance ids and reviewable sentences do.",
+  "oneOf": [
+    { "$ref": "#/$defs/publication_ingestion_register" },
+    { "$ref": "#/$defs/ingestion_binding" }
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-term sentence safe for product copy, docs, About, support export, and release evidence. Raw run logs, raw provider payloads, raw customer or repository names, raw machine labels, competitor raw payloads, and secret material MUST NOT appear."
+    },
+    "ref_array": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "iso_date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "utc_date_time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "claim_level": {
+      "type": "string",
+      "enum": [
+        "quarantined_not_comparable",
+        "internal_gate_only",
+        "methodology_only",
+        "aureline_only_claim",
+        "public_head_to_head_comparison"
+      ],
+      "description": "Ordered benchmark-claim strength shared with the benchmark-governance matrix and the shiproom freshness ledger."
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": ["current", "aging", "stale", "incomparable", "missing"],
+      "description": "Computed state of the run that backs the consumed claim entry, shared with the shiproom freshness ledger."
+    },
+    "surface": {
+      "type": "string",
+      "enum": ["docs", "help", "about", "evaluation_pack", "support_export"],
+      "description": "Consuming surface kind. docs is published documentation; help is in-product help; about is the in-product About surface; evaluation_pack is an enterprise evaluation pack; support_export is a support or diagnostics export."
+    },
+    "surface_kind_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "claim_bearing_capable", "requires_repro_surface", "description"],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface" },
+        "claim_bearing_capable": {
+          "type": "boolean",
+          "description": "Whether this surface may render a claim-bearing posture at all."
+        },
+        "requires_repro_surface": {
+          "type": "string",
+          "enum": [
+            "methodology_note",
+            "docs",
+            "help",
+            "public_comparison",
+            "procurement_packet",
+            "enterprise_evaluation",
+            "release_evidence"
+          ],
+          "description": "The reproducibility-pack surface a binding to this consuming surface must be authorized by, so a surface cannot render an entry the reproducibility pack does not publish to it."
+        },
+        "description": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "export_safe_field_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "description"],
+      "properties": {
+        "field": { "$ref": "#/$defs/non_empty_string" },
+        "description": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "forbidden_field_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "why"],
+      "properties": {
+        "field": { "$ref": "#/$defs/non_empty_string" },
+        "why": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "rendered_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posture",
+        "effective_claim",
+        "freshness_state",
+        "downgrade_label",
+        "metric_refs"
+      ],
+      "description": "The values a consuming surface renders for the entry. Every value MUST equal the canonical entry's value so a narrowed or quarantined claim propagates to the surface unchanged.",
+      "properties": {
+        "posture": { "$ref": "#/$defs/claim_level" },
+        "effective_claim": { "$ref": "#/$defs/claim_level" },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "downgrade_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "metric_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "ingestion_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "binding_id",
+        "surface",
+        "surface_locator",
+        "consumes_entry_id",
+        "repro_pack_ref",
+        "renders_verbatim_from_entry",
+        "rendered_projection",
+        "disclosed_fields",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": { "const": "benchmark_publication_ingestion_binding" },
+        "schema_version": { "const": 1 },
+        "binding_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/surface" },
+        "surface_locator": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Where the consuming surface renders this entry, e.g. a docs path with an anchor, a help topic id, an About section id, an evaluation-pack section id, or a support-export field group id."
+        },
+        "consumes_entry_id": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "The claim publication entry id in the shiproom freshness ledger this surface renders."
+        },
+        "repro_pack_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "The public-comparison reproducibility pack whose governance_pack_ref equals the consumed entry id and whose surfaces authorize this surface."
+        },
+        "renders_verbatim_from_entry": {
+          "type": "boolean",
+          "description": "Asserts the surface renders the entry's canonical values rather than hand-written benchmark prose. The validator requires this to be true."
+        },
+        "rendered_projection": { "$ref": "#/$defs/rendered_projection" },
+        "disclosed_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "The export-safe field names this surface discloses. Every name MUST be in the register's export_safe_fields allowlist and none may be in the forbidden_fields denylist."
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "propagation_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["narrowed_entry_ids", "quarantined_entry_ids", "surfaces_aligned", "rationale"],
+      "properties": {
+        "narrowed_entry_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Entries whose effective claim is below their published ceiling; every consuming surface must render the narrowed claim."
+        },
+        "quarantined_entry_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Entries whose effective claim is quarantined_not_comparable; every consuming surface must render the quarantine, not a stale ceiling."
+        },
+        "surfaces_aligned": { "type": "boolean" },
+        "rationale": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "publication_ingestion_register": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "register_id",
+        "generated_at",
+        "register_revision",
+        "as_of",
+        "title",
+        "summary",
+        "freshness_ledger_ref",
+        "governance_matrix_ref",
+        "public_comparison_register_ref",
+        "source_refs",
+        "surface_kinds",
+        "export_safe_fields",
+        "forbidden_fields",
+        "bindings",
+        "propagation_projection",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "benchmark_publication_ingestion_register" },
+        "schema_version": { "const": 1 },
+        "register_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/utc_date_time" },
+        "register_revision": { "type": "integer", "minimum": 1 },
+        "as_of": { "$ref": "#/$defs/iso_date" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "freshness_ledger_ref": { "$ref": "#/$defs/non_empty_string" },
+        "governance_matrix_ref": { "$ref": "#/$defs/non_empty_string" },
+        "public_comparison_register_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_refs": { "$ref": "#/$defs/ref_array" },
+        "surface_kinds": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/surface_kind_row" }
+        },
+        "export_safe_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_safe_field_row" }
+        },
+        "forbidden_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/forbidden_field_row" }
+        },
+        "bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ingestion_binding" }
+        },
+        "propagation_projection": { "$ref": "#/$defs/propagation_projection" },
+        "inspection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["how_to_recompute", "surface_authorization", "propagation_rule", "evidence_index_ref"],
+          "properties": {
+            "how_to_recompute": { "$ref": "#/$defs/reviewable_sentence" },
+            "surface_authorization": { "$ref": "#/$defs/reviewable_sentence" },
+            "propagation_rule": { "$ref": "#/$defs/reviewable_sentence" },
+            "evidence_index_ref": { "$ref": "#/$defs/non_empty_string" }
+          }
+        }
+      }
+    }
+  }
+}

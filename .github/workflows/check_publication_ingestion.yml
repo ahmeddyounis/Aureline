@@ -1,0 +1,74 @@
+# Benchmark publication-ingestion gate.
+#
+# Validates the register that binds every consuming surface that mentions a
+# benchmark claim -- documentation, in-product help, the About surface, enterprise
+# evaluation packs, and support exports -- to the one claim publication entry it
+# renders. Every binding resolves to an entry in the shiproom freshness ledger and
+# its reproducibility pack, renders the entry's posture, narrowed effective claim,
+# freshness state, downgrade label, and metric refs verbatim so a narrowed or
+# quarantined claim propagates to every surface in the same release train, is
+# authorized only for surfaces its reproducibility pack publishes to, discloses
+# only export-safe fields, and covers every entry on the surfaces it must reach.
+# The docs-ingestion fixtures and negative drills prove each rejection fires.
+
+name: check_publication_ingestion
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_publication_ingestion.yml"
+      - "ci/check_publication_ingestion.py"
+      - "artifacts/benchmarks/publication-ingestion-register.json"
+      - "artifacts/benchmarks/support-export-benchmark-fields.md"
+      - "schemas/benchmarks/publication-ingestion.schema.json"
+      - "docs/benchmarks/publication-ingestion.md"
+      - "fixtures/benchmarks/docs-ingestion/**"
+      - "artifacts/benchmarks/shiproom-benchmark-freshness.json"
+      - "artifacts/benchmarks/public-comparison-pack-register.json"
+      - "artifacts/benchmarks/m5-benchmark-governance.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-publication-ingestion-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publication_ingestion:
+    name: Benchmark publication ingestion
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run benchmark publication-ingestion validator
+        run: |
+          python3 ci/check_publication_ingestion.py --repo-root . \
+            --report artifacts/benchmarks/publication-ingestion-validation.json
+
+      - name: Upload publication-ingestion report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: publication-ingestion-${{ github.run_id }}
+          path: artifacts/benchmarks/publication-ingestion-validation.json
+          if-no-files-found: error
+          retention-days: 30
