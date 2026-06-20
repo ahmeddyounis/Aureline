@@ -1,0 +1,464 @@
+{
+  "drills": [
+    {
+      "asserts_no_stale_exact_action": true,
+      "asserts_recovery_visible": true,
+      "drill_id": "drill.reactive_recovery.rapid_invalidation_burst",
+      "exercised_flow_id": "desktop_shell_rapid_invalidation_burst",
+      "expected_final_action_posture": "exact_truth_allowed",
+      "expected_final_epoch_posture": "current",
+      "lag_condition": "rapid_invalidation_burst",
+      "notes": "Coalescing never offered an exact-truth action while behind; it re-enabled them only after reaching the live epoch.",
+      "steps": [
+        {
+          "action_posture": "revalidate_before_act",
+          "epoch_posture": "coalescing",
+          "narration": "A burst of invalidations arrives faster than the strip can apply each delta.",
+          "phase": "detect"
+        },
+        {
+          "action_posture": "revalidate_before_act",
+          "epoch_posture": "coalescing",
+          "narration": "Pending exact-truth actions switch to revalidate-before-act and a freshness cue appears.",
+          "phase": "narrow_action"
+        },
+        {
+          "action_posture": "revalidate_before_act",
+          "epoch_posture": "coalescing",
+          "narration": "The buffered deltas coalesce into one consistent frame applied in epoch order.",
+          "phase": "recover"
+        },
+        {
+          "action_posture": "exact_truth_allowed",
+          "epoch_posture": "current",
+          "narration": "The coalesced frame reaches the live epoch and exact-truth actions re-enable.",
+          "phase": "verify"
+        }
+      ],
+      "title": "Rapid invalidation burst coalesces without claiming settled truth"
+    },
+    {
+      "asserts_no_stale_exact_action": true,
+      "asserts_recovery_visible": true,
+      "drill_id": "drill.reactive_recovery.consumer_lag",
+      "exercised_flow_id": "cli_headless_consumer_lag",
+      "expected_final_action_posture": "exact_truth_allowed",
+      "expected_final_epoch_posture": "current",
+      "lag_condition": "consumer_lag",
+      "notes": "Every trailing record carried an epoch stamp and freshness flag, so no consumer could read a lagging line as current truth.",
+      "steps": [
+        {
+          "action_posture": "revalidate_before_act",
+          "epoch_posture": "coalescing",
+          "narration": "Headless output detects it is emitting records behind the live epoch.",
+          "phase": "detect"
+        },
+        {
+          "action_posture": "revalidate_before_act",
+          "epoch_posture": "coalescing",
+          "narration": "Each emitted record is stamped with its epoch and a not-current freshness flag.",
+          "phase": "narrow_action"
+        },
+        {
+          "action_posture": "revalidate_before_act",
+          "epoch_posture": "coalescing",
+          "narration": "Trailing deltas coalesce and the lane drains toward the live epoch.",
+          "phase": "recover"
+        },
+        {
+          "action_posture": "exact_truth_allowed",
+          "epoch_posture": "current",
+          "narration": "Output reaches the live epoch and clears the not-current freshness flag.",
+          "phase": "verify"
+        }
+      ],
+      "title": "Consumer lag recovers via coalesced catch-up with visible freshness"
+    },
+    {
+      "asserts_no_stale_exact_action": true,
+      "asserts_recovery_visible": true,
+      "drill_id": "drill.reactive_recovery.reconnect_after_drop",
+      "exercised_flow_id": "review_workspace_reconnect_after_drop",
+      "expected_final_action_posture": "exact_truth_allowed",
+      "expected_final_epoch_posture": "current",
+      "lag_condition": "reconnect_after_drop",
+      "notes": "The resubscribe was never silent; the banner made the changed action posture visible until the fresh epoch applied.",
+      "steps": [
+        {
+          "action_posture": "resubscribe_required",
+          "epoch_posture": "resubscribe_pending",
+          "narration": "The review workspace detects its live subscription dropped.",
+          "phase": "detect"
+        },
+        {
+          "action_posture": "resubscribe_required",
+          "epoch_posture": "resubscribe_pending",
+          "narration": "Approve and merge disable behind a visible resubscribe-required banner.",
+          "phase": "narrow_action"
+        },
+        {
+          "action_posture": "resubscribe_required",
+          "epoch_posture": "resubscribe_pending",
+          "narration": "The workspace resubscribes to the merge-queue and pipeline streams from a fresh snapshot epoch.",
+          "phase": "recover"
+        },
+        {
+          "action_posture": "exact_truth_allowed",
+          "epoch_posture": "current",
+          "narration": "The fresh snapshot applies, the banner clears, and approve or merge re-enable.",
+          "phase": "verify"
+        }
+      ],
+      "title": "Reconnect requires a visible resubscribe before exact-truth actions resume"
+    },
+    {
+      "asserts_no_stale_exact_action": true,
+      "asserts_recovery_visible": true,
+      "drill_id": "drill.reactive_recovery.provider_overlay_disappeared",
+      "exercised_flow_id": "review_workspace_provider_overlay_disappeared",
+      "expected_final_action_posture": "blocked",
+      "expected_final_epoch_posture": "stale_epoch",
+      "lag_condition": "provider_overlay_disappeared",
+      "notes": "Honest recovery here means staying blocked and stale while the provider is gone; the drill proves the workspace does not pretend nothing changed.",
+      "steps": [
+        {
+          "action_posture": "narrowed_to_last_known",
+          "epoch_posture": "stale_epoch",
+          "narration": "The remote preview provider overlay stops responding and its rows are flagged.",
+          "phase": "detect"
+        },
+        {
+          "action_posture": "blocked",
+          "epoch_posture": "stale_epoch",
+          "narration": "Exact-truth actions that depended on the missing overlay are blocked and the rows are marked stale.",
+          "phase": "narrow_action"
+        },
+        {
+          "action_posture": "blocked",
+          "epoch_posture": "stale_epoch",
+          "narration": "The workspace holds the stale marker and keeps trying to resubscribe to the provider.",
+          "phase": "recover"
+        },
+        {
+          "action_posture": "blocked",
+          "epoch_posture": "stale_epoch",
+          "narration": "With the provider still gone the rows stay blocked and stale rather than reverting to an exact-truth claim.",
+          "phase": "verify"
+        }
+      ],
+      "title": "Disappeared provider overlay blocks dependent actions without faking truth"
+    }
+  ],
+  "flows": [
+    {
+      "action_posture": "revalidate_before_act",
+      "consumer_refs": [
+        "crates/aureline-shell/src/ai_truth_strip/mod.rs",
+        "crates/aureline-shell/src/dashboard_truth/mod.rs"
+      ],
+      "consumer_surface": "desktop_shell",
+      "epoch_posture": "coalescing",
+      "fallback_strategies": [
+        "mark_stale_epoch",
+        "request_fresh_snapshot"
+      ],
+      "flow_id": "desktop_shell_rapid_invalidation_burst",
+      "lag_condition": "rapid_invalidation_burst",
+      "notes": "A rapid invalidation burst coalesces in place; the strip stays visible but does not claim the burst already settled.",
+      "offers_exact_truth_action": false,
+      "preserved_context": [
+        "layout_slot",
+        "last_known_projection",
+        "freshness_cue",
+        "invalidation_reason"
+      ],
+      "primary_strategy": "coalesce_deltas",
+      "recovery_cue_visible": true,
+      "recovery_summary": "Shell strips coalesce the invalidation burst into one consistent frame and revalidate any pending exact-truth action against the producer before it commits.",
+      "silent_retry_allowed": false,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json"
+      ],
+      "support_exportable": true,
+      "truth_posture_rationale": "While coalescing the strip trails the live epoch, so it shows a freshness cue and revalidates instead of asserting the burst is already settled truth."
+    },
+    {
+      "action_posture": "narrowed_to_last_known",
+      "consumer_refs": [
+        "crates/aureline-shell/src/drift_truth/mod.rs",
+        "crates/aureline-shell/src/graph_state_card/mod.rs"
+      ],
+      "consumer_surface": "desktop_shell",
+      "epoch_posture": "snapshot_recovering",
+      "fallback_strategies": [
+        "resubscribe"
+      ],
+      "flow_id": "desktop_shell_backpressure_overflow",
+      "lag_condition": "backpressure_overflow",
+      "notes": "Backpressure overflow narrows the card to last-known truth and reloads from a fresh snapshot instead of replaying a lossy queue.",
+      "offers_exact_truth_action": false,
+      "preserved_context": [
+        "layout_slot",
+        "last_known_projection",
+        "freshness_cue",
+        "epoch_marker"
+      ],
+      "primary_strategy": "request_fresh_snapshot",
+      "recovery_cue_visible": true,
+      "recovery_summary": "When the bounded delta queue overflows the card drops the lossy stream and requests a fresh consistent snapshot, narrowing to last-known read-only until it applies.",
+      "silent_retry_allowed": false,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json"
+      ],
+      "support_exportable": true,
+      "truth_posture_rationale": "Dropped frames break causality, so the card cannot prove current truth; it narrows to last-known and waits for the fresh snapshot rather than guessing."
+    },
+    {
+      "action_posture": "revalidate_before_act",
+      "consumer_refs": [
+        "crates/aureline-cli/src/stabilize_stable_cli_headless_schemas_machine_readable_output/mod.rs"
+      ],
+      "consumer_surface": "cli_headless",
+      "epoch_posture": "coalescing",
+      "fallback_strategies": [
+        "request_fresh_snapshot",
+        "mark_stale_epoch"
+      ],
+      "flow_id": "cli_headless_consumer_lag",
+      "lag_condition": "consumer_lag",
+      "notes": "CLI lag coalesces and stamps freshness so headless consumers can revalidate rather than trust a trailing line as current.",
+      "offers_exact_truth_action": false,
+      "preserved_context": [
+        "last_known_projection",
+        "scope_identity",
+        "freshness_cue",
+        "epoch_marker"
+      ],
+      "primary_strategy": "coalesce_deltas",
+      "recovery_cue_visible": true,
+      "recovery_summary": "Headless output coalesces trailing deltas and stamps each emitted record with its epoch and a not-current freshness flag so scripts can revalidate before acting.",
+      "silent_retry_allowed": false,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json"
+      ],
+      "support_exportable": true,
+      "truth_posture_rationale": "Machine-readable output must never imply exact truth while trailing; the freshness flag and epoch stamp let a consumer decide instead of trusting a stale line."
+    },
+    {
+      "action_posture": "resubscribe_required",
+      "consumer_refs": [
+        "crates/aureline-cli/src/stabilize_stable_cli_headless_schemas_machine_readable_output/mod.rs"
+      ],
+      "consumer_surface": "cli_headless",
+      "epoch_posture": "resubscribe_pending",
+      "fallback_strategies": [
+        "request_fresh_snapshot"
+      ],
+      "flow_id": "cli_headless_reconnect_after_drop",
+      "lag_condition": "reconnect_after_drop",
+      "notes": "A dropped subscription resubscribes from a fresh epoch and emits resubscribe-required rather than silently resuming the old stream.",
+      "offers_exact_truth_action": false,
+      "preserved_context": [
+        "scope_identity",
+        "freshness_cue",
+        "invalidation_reason",
+        "epoch_marker"
+      ],
+      "primary_strategy": "resubscribe",
+      "recovery_cue_visible": true,
+      "recovery_summary": "After a dropped watcher the headless lane resubscribes from a new snapshot epoch and surfaces an explicit resubscribe-required state before exact-truth actions resume.",
+      "silent_retry_allowed": false,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json"
+      ],
+      "support_exportable": true,
+      "truth_posture_rationale": "A reconnect cannot silently resume the old epoch; the resubscribe-required state is emitted so the change in action posture is never hidden behind an automatic retry."
+    },
+    {
+      "action_posture": "narrowed_to_last_known",
+      "consumer_refs": [
+        "crates/aureline-ai/src/context_inspector/mod.rs",
+        "crates/aureline-ai/src/stabilize_ai_route_and_spend_truth/mod.rs"
+      ],
+      "consumer_surface": "ai_inspector",
+      "epoch_posture": "stale_epoch",
+      "fallback_strategies": [
+        "request_fresh_snapshot",
+        "resubscribe"
+      ],
+      "flow_id": "ai_inspector_invalidation_gap",
+      "lag_condition": "invalidation_gap",
+      "notes": "An invalidation gap marks the inspector epoch stale and narrows context instead of presenting a possibly-mismatched pin as current.",
+      "offers_exact_truth_action": false,
+      "preserved_context": [
+        "last_known_projection",
+        "scope_identity",
+        "freshness_cue",
+        "invalidation_reason",
+        "epoch_marker"
+      ],
+      "primary_strategy": "mark_stale_epoch",
+      "recovery_cue_visible": true,
+      "recovery_summary": "When the inspector detects a gap in the invalidation sequence it marks the epoch stale, narrows context to last-known, and requests a fresh snapshot before re-asserting any pin.",
+      "silent_retry_allowed": false,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json"
+      ],
+      "support_exportable": true,
+      "truth_posture_rationale": "A causality gap means the inspector cannot prove its context matches current truth; marking the epoch stale and narrowing keeps AI context honest rather than confidently wrong."
+    },
+    {
+      "action_posture": "resubscribe_required",
+      "consumer_refs": [
+        "crates/aureline-review/src/workspace/mod.rs",
+        "crates/aureline-review/src/stabilize_review_workspace_anchors_stale_base_labels_approval/mod.rs"
+      ],
+      "consumer_surface": "review_workspace",
+      "epoch_posture": "resubscribe_pending",
+      "fallback_strategies": [
+        "request_fresh_snapshot"
+      ],
+      "flow_id": "review_workspace_reconnect_after_drop",
+      "lag_condition": "reconnect_after_drop",
+      "notes": "Review reconnect requires a visible resubscribe before approve or merge re-enable; no exact-truth action resumes silently.",
+      "offers_exact_truth_action": false,
+      "preserved_context": [
+        "layout_slot",
+        "scope_identity",
+        "freshness_cue",
+        "epoch_marker"
+      ],
+      "primary_strategy": "resubscribe",
+      "recovery_cue_visible": true,
+      "recovery_summary": "A review workspace that lost its live link resubscribes to the merge-queue and pipeline streams and shows a resubscribe-required banner before approve or merge actions re-enable.",
+      "silent_retry_allowed": false,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json"
+      ],
+      "support_exportable": true,
+      "truth_posture_rationale": "Approve and merge depend on exact current state; the workspace requires a visible resubscribe before they re-enable so a reconnect never silently restores exact-truth actions."
+    },
+    {
+      "action_posture": "blocked",
+      "consumer_refs": [
+        "crates/aureline-review/src/workspace/mod.rs",
+        "crates/aureline-review/src/stabilize_review_workspace_anchors_stale_base_labels_approval/mod.rs"
+      ],
+      "consumer_surface": "review_workspace",
+      "epoch_posture": "stale_epoch",
+      "fallback_strategies": [
+        "resubscribe"
+      ],
+      "flow_id": "review_workspace_provider_overlay_disappeared",
+      "lag_condition": "provider_overlay_disappeared",
+      "notes": "A disappeared provider overlay blocks the dependent review actions and keeps the rows marked stale instead of pretending the overlay is still live.",
+      "offers_exact_truth_action": false,
+      "preserved_context": [
+        "layout_slot",
+        "last_known_projection",
+        "scope_identity",
+        "freshness_cue",
+        "invalidation_reason"
+      ],
+      "primary_strategy": "mark_stale_epoch",
+      "recovery_cue_visible": true,
+      "recovery_summary": "When the remote preview or pipeline provider overlay disappears the workspace marks the overlaid rows stale and blocks exact-truth actions that depended on the missing provider.",
+      "silent_retry_allowed": false,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json"
+      ],
+      "support_exportable": true,
+      "truth_posture_rationale": "The provider that backed the overlay is gone, so those rows cannot claim current truth; blocking the dependent actions is honest while the workspace waits for the overlay to return."
+    },
+    {
+      "action_posture": "narrowed_to_last_known",
+      "consumer_refs": [
+        "crates/aureline-companion/src/ship_session_follow_and_incident_awareness_surfaces_with_bounded_read_write_scope_and_stale_state_honesty/mod.rs",
+        "crates/aureline-companion/src/ship_managed_sync_maturity_with_snapshot_classes_conflict_review_device_registry_and_end_to_end_encrypted_storage/mod.rs"
+      ],
+      "consumer_surface": "companion_snapshot",
+      "epoch_posture": "snapshot_recovering",
+      "fallback_strategies": [
+        "resubscribe",
+        "mark_stale_epoch"
+      ],
+      "flow_id": "companion_snapshot_provider_overlay_disappeared",
+      "lag_condition": "provider_overlay_disappeared",
+      "notes": "A companion that loses its followed overlay narrows to last-known and reloads from a fresh snapshot rather than implying the session is still live.",
+      "offers_exact_truth_action": false,
+      "preserved_context": [
+        "last_known_projection",
+        "scope_identity",
+        "freshness_cue",
+        "epoch_marker"
+      ],
+      "primary_strategy": "request_fresh_snapshot",
+      "recovery_cue_visible": true,
+      "recovery_summary": "When a followed provider overlay disappears the companion narrows its mirror to last-known and requests a fresh bounded snapshot rather than implying the followed session is still live.",
+      "silent_retry_allowed": false,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json"
+      ],
+      "support_exportable": true,
+      "truth_posture_rationale": "The companion mirror is read-bounded; if the overlay it followed is gone it shows last-known and waits for a fresh snapshot instead of asserting current followed state."
+    },
+    {
+      "action_posture": "revalidate_before_act",
+      "consumer_refs": [
+        "crates/aureline-companion/src/ship_session_follow_and_incident_awareness_surfaces_with_bounded_read_write_scope_and_stale_state_honesty/mod.rs"
+      ],
+      "consumer_surface": "companion_snapshot",
+      "epoch_posture": "coalescing",
+      "fallback_strategies": [
+        "request_fresh_snapshot"
+      ],
+      "flow_id": "companion_snapshot_consumer_lag",
+      "lag_condition": "consumer_lag",
+      "notes": "Companion lag coalesces into the bounded mirror with a freshness cue and revalidates scoped write-back instead of trusting a trailing frame.",
+      "offers_exact_truth_action": false,
+      "preserved_context": [
+        "last_known_projection",
+        "scope_identity",
+        "freshness_cue",
+        "epoch_marker"
+      ],
+      "primary_strategy": "coalesce_deltas",
+      "recovery_cue_visible": true,
+      "recovery_summary": "A trailing companion snapshot coalesces deltas into its bounded mirror and revalidates any write-back inside scope before it commits while a freshness cue marks the lag.",
+      "silent_retry_allowed": false,
+      "source_contract_refs": [
+        "docs/adr/0005-subscription-envelope-and-invalidation-semantics.md",
+        "schemas/runtime/subscription_envelope.schema.json"
+      ],
+      "support_exportable": true,
+      "truth_posture_rationale": "The companion may trail the live session; coalescing with a visible freshness cue keeps the mirror honest and revalidates scoped writes instead of trusting a trailing frame."
+    }
+  ],
+  "invariants": [
+    "A consumer that is not on the current epoch never offers an action that depends on exact current truth.",
+    "Every recovery flow keeps a visible freshness cue and is support-exportable; recovery is never silent.",
+    "A materially changed action posture is never hidden behind an automatic silent retry.",
+    "Each lagging surface coalesces, resubscribes, requests fresh snapshots, or marks the epoch stale from one shared vocabulary instead of a private cache.",
+    "When a provider overlay disappears the dependent rows stay blocked or narrowed rather than reverting to an exact-truth claim."
+  ],
+  "packet_id": "state.reactive_recovery.v1",
+  "record_kind": "reactive_recovery_packet_record",
+  "schema_version": 1,
+  "source_contract_refs": {
+    "doc_ref": "docs/state/reactive_recovery.md",
+    "drills_ref": "artifacts/state/reactive_recovery_drills.md",
+    "fixture_manifest_ref": "fixtures/state/reactive_recovery/manifest.yaml",
+    "packet_ref": "artifacts/state/reactive_recovery.json",
+    "report_ref": "artifacts/state/reactive_recovery.md",
+    "schema_ref": "schemas/state/reactive_recovery.schema.json"
+  },
+  "title": "Consumer-side reactive recovery flows for lagging subscription consumers"
+}

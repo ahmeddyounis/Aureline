@@ -67,6 +67,7 @@ pub mod materialized_view_policy;
 pub mod mutation_journal;
 pub mod producers;
 pub mod query_envelope;
+pub mod reactive_recovery;
 pub mod reactive_truth_surfaces;
 pub mod reactive_views;
 pub mod runtime;
@@ -163,6 +164,24 @@ pub use query_envelope::{
     QueryRefreshReason, QUERY_ENVELOPE_ALPHA_SCHEMA_VERSION,
     QUERY_ENVELOPE_BENCHMARK_TRACE_RECORD_KIND, QUERY_ENVELOPE_RECORD_KIND,
     QUERY_ENVELOPE_SUPPORT_ARTIFACT_RECORD_KIND,
+};
+pub use reactive_recovery::{
+    seeded_reactive_recovery_fixtures, seeded_reactive_recovery_packet,
+    validate_reactive_recovery_fixture, validate_reactive_recovery_packet,
+    ActionPosture as ReactiveRecoveryActionPosture,
+    ConsumerSurface as ReactiveRecoveryConsumerSurface, DrillPhase as ReactiveRecoveryDrillPhase,
+    DrillStep as ReactiveRecoveryDrillStep, EpochPosture as ReactiveRecoveryEpochPosture,
+    LagCondition as ReactiveRecoveryLagCondition,
+    PreservedContextClass as ReactiveRecoveryPreservedContextClass, ReactiveRecoveryFixture,
+    ReactiveRecoveryPacket, RecoveryDrill as ReactiveRecoveryDrill,
+    RecoveryFlowRow as ReactiveRecoveryFlowRow, RecoveryStrategy as ReactiveRecoveryStrategy,
+    SourceContractRefs as ReactiveRecoverySourceContractRefs,
+    ValidationReport as ReactiveRecoveryValidationReport,
+    ValidationViolation as ReactiveRecoveryValidationViolation, REACTIVE_RECOVERY_DOC_REF,
+    REACTIVE_RECOVERY_DRILLS_REF, REACTIVE_RECOVERY_FIXTURE_DIR,
+    REACTIVE_RECOVERY_FIXTURE_MANIFEST_REF, REACTIVE_RECOVERY_FIXTURE_RECORD_KIND,
+    REACTIVE_RECOVERY_PACKET_RECORD_KIND, REACTIVE_RECOVERY_PACKET_REF,
+    REACTIVE_RECOVERY_REPORT_REF, REACTIVE_RECOVERY_SCHEMA_REF, REACTIVE_RECOVERY_SCHEMA_VERSION,
 };
 pub use reactive_truth_surfaces::{
     build_reactive_truth_cue, render_cue as render_reactive_truth_cue,
