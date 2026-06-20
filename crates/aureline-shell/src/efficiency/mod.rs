@@ -19,6 +19,8 @@ use crate::notifications::envelope::{
 };
 use crate::state_cards::DegradedStateToken;
 
+pub mod governance;
+
 /// Stable record kind for an efficiency-state shell snapshot.
 pub const EFFICIENCY_STATE_SNAPSHOT_RECORD_KIND: &str = "efficiency_state_alpha_snapshot";
 

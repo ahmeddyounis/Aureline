@@ -1,0 +1,73 @@
+# M5 efficiency-state governance gate.
+#
+# Validates the canonical M5 efficiency-state governance matrix that freezes one
+# typed low-power vocabulary (efficiency state, source-of-change, throttled
+# subsystem, hidden-pane behaviour, visibility state, override posture, and
+# recovery state) and binds every M5 surface that adapts under battery or thermal
+# pressure to the evidence that backs it. Each row is recomputed from its inline
+# efficiency-state evidence, hidden-work suppression, protected-path
+# preservation, override policy-awareness, recovery staging, and consumer
+# propagation; a green tile cannot mask a fired narrowing reason; a claim-bearing
+# row that narrows below its posture holds promotion; and the recompute fixtures
+# and negative drills prove each fail-closed path.
+
+name: check_m5_efficiency_governance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_efficiency_governance.yml"
+      - "ci/check_m5_efficiency_governance.py"
+      - "tools/regenerate_m5_efficiency_governance.py"
+      - "artifacts/efficiency/m5-efficiency-governance.json"
+      - "artifacts/efficiency/m5-efficiency-governance.md"
+      - "schemas/efficiency/m5-efficiency-governance.schema.json"
+      - "schemas/efficiency/m5-efficiency-governance-fixture.schema.json"
+      - "docs/efficiency/m5-efficiency-governance.md"
+      - "fixtures/efficiency/m5-efficiency-governance/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-efficiency-governance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_efficiency_governance:
+    name: M5 efficiency governance
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run M5 efficiency-governance validator
+        run: |
+          python3 ci/check_m5_efficiency_governance.py --repo-root . \
+            --report artifacts/efficiency/m5-efficiency-governance-validation.json
+
+      - name: Upload M5 efficiency-governance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-efficiency-governance-${{ github.run_id }}
+          path: artifacts/efficiency/m5-efficiency-governance-validation.json
+          if-no-files-found: error
+          retention-days: 30
