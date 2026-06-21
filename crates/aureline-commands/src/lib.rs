@@ -33,6 +33,7 @@ pub mod registry;
 pub mod stabilize_client_origin_route_class;
 pub mod stabilize_command_contract;
 pub mod stabilize_command_discoverability_records_alias_history;
+pub mod voice_bridge;
 
 pub use alpha::{
     alpha_command_registry, AlphaCommandClaimRecord, AlphaCommandRegistryRecord,
@@ -259,4 +260,17 @@ pub use stabilize_command_discoverability_records_alias_history::{
     STABILIZE_COMMAND_DISCOVERABILITY_RECORD_KIND, STABILIZE_COMMAND_DISCOVERABILITY_SCHEMA_REF,
     STABILIZE_COMMAND_DISCOVERABILITY_SCHEMA_VERSION,
     STABILIZE_COMMAND_DISCOVERABILITY_SUMMARY_REF,
+};
+pub use voice_bridge::{
+    fixture_json as voice_bridge_fixture_json, row_fixture_file_name as voice_bridge_row_file_name,
+    seeded_voice_command_bridge_packet, write_fixtures as write_voice_bridge_fixtures,
+    CommandImpactClass, ConfidenceCue as VoiceBridgeConfidenceCue, ConfirmationGateClass,
+    GroupedUndoLineage, TranscriptCorrectionAvailability, TranscriptStripState,
+    VoiceBridgeCandidate, VoiceBridgeInvariantManifest, VoiceBridgeViolation,
+    VoiceCommandBridgePacket, VoiceCommandBridgeRow, VoiceIntentResolutionClass,
+    COMMAND_DESCRIPTOR_CONTRACT_REF as VOICE_BRIDGE_COMMAND_DESCRIPTOR_CONTRACT_REF,
+    VOICE_COMMAND_BRIDGE_DOC_REF, VOICE_COMMAND_BRIDGE_FIXTURES_DIR_REF,
+    VOICE_COMMAND_BRIDGE_PACKET_ID, VOICE_COMMAND_BRIDGE_PACKET_RECORD_KIND,
+    VOICE_COMMAND_BRIDGE_ROW_RECORD_KIND, VOICE_COMMAND_BRIDGE_SCHEMA_VERSION,
+    VOICE_COMMAND_BRIDGE_SHARED_CONTRACT_REF,
 };
