@@ -21,6 +21,10 @@
 //!   restore.
 //! - [`corpus`] is the mint-from-truth seed corpus, support export, and
 //!   validation that the checked-in fixtures and headless inspectors share.
+//! - [`speaker_notes`] governs the speaker-note objects that ride the
+//!   speaker-notes tray: local-only defaults, explicit share promotion, typed
+//!   citation refs, retention / export posture, and the audience projection that
+//!   keeps a private note off any follower surface.
 //!
 //! The geometry primitive that decides which zone each surface rides — and that
 //! it never replaces a pane — is
@@ -29,6 +33,7 @@
 
 pub mod binding;
 pub mod corpus;
+pub mod speaker_notes;
 
 pub use binding::{
     project_overlay_navigation_binding, LayoutCheckpointBinding, NavigationProvenanceBinding,
@@ -41,8 +46,8 @@ pub use corpus::{
     seeded_overlay_navigation_corpus, validate_overlay_navigation_corpus,
     OverlayBindingCorpusError, PresentationOverlayBindingCase, PresentationOverlayBindingCorpus,
     PresentationOverlayBindingSummary, PresentationOverlayBindingSupportExport,
-    PresentationOverlayBindingSupportExportRow,
-    PRESENTATION_OVERLAY_BINDING_CASE_RECORD_KIND, PRESENTATION_OVERLAY_BINDING_CORPUS_RECORD_KIND,
+    PresentationOverlayBindingSupportExportRow, PRESENTATION_OVERLAY_BINDING_CASE_RECORD_KIND,
+    PRESENTATION_OVERLAY_BINDING_CORPUS_RECORD_KIND,
     PRESENTATION_OVERLAY_BINDING_SUPPORT_EXPORT_RECORD_KIND,
     PRESENTATION_OVERLAY_BINDING_SUPPORT_EXPORT_ROW_RECORD_KIND,
 };

@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/presentation/speaker-note-export.schema.json",
+  "title": "Aureline presentation speaker-note sharing export",
+  "description": "Canonical, support-safe diagnostics export for presentation speaker-note sharing posture. One row per governed speaker note records its scope, retention, shared-state, and body-export posture, the kinds of objects it cites, and presence flags — never the note body or any citation source. Speaker notes default to a local scope (per speaker-note.schema.json) and only become shared through an explicit, separately recorded promotion; a local row therefore always carries shared_promotion_explicit=false, a local-only retention posture, the local_not_shared shared-state, and audience_visible=false, while a shared row always carries shared_promotion_explicit=true, a shared retention posture, and the shared_explicitly_promoted shared-state. raw_note_bodies_excluded, shared_rows_explicitly_promoted, and no_local_note_audience_visible are always true: a raw presenter prompt never crosses this boundary and a private note is never reported as audience visible. Diagnostics, support-export, and telemetry surfaces ingest this object rather than cloning note state by hand. Adding a new enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "export_id",
+    "generated_at",
+    "rows",
+    "raw_note_bodies_excluded",
+    "shared_rows_explicitly_promoted",
+    "no_local_note_audience_visible"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "presentation_speaker_note_sharing_export"
+    },
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": { "$ref": "#/$defs/stable_id" },
+    "export_id": { "$ref": "#/$defs/stable_id" },
+    "generated_at": { "$ref": "#/$defs/timestamp" },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/diagnostics_row" }
+    },
+    "raw_note_bodies_excluded": { "type": "boolean", "const": true },
+    "shared_rows_explicitly_promoted": { "type": "boolean", "const": true },
+    "no_local_note_audience_visible": { "type": "boolean", "const": true }
+  },
+  "$defs": {
+    "diagnostics_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "note_id",
+        "linked_waypoint_ref",
+        "scope",
+        "has_body",
+        "shared_promotion_explicit",
+        "retention",
+        "shared_state",
+        "body_export_posture",
+        "citation_count",
+        "citation_kinds",
+        "audience_visible"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "presentation_speaker_note_sharing_diagnostics_row"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": { "$ref": "#/$defs/stable_id" },
+        "note_id": { "$ref": "#/$defs/stable_id" },
+        "linked_waypoint_ref": { "$ref": "#/$defs/stable_id" },
+        "scope": { "type": "string", "enum": ["local", "shared"] },
+        "has_body": { "type": "boolean" },
+        "shared_promotion_explicit": { "type": "boolean" },
+        "retention": {
+          "type": "string",
+          "enum": [
+            "local_only_not_retained_remotely",
+            "shared_retained_in_session_store",
+            "shared_retention_disabled_by_policy"
+          ]
+        },
+        "shared_state": {
+          "type": "string",
+          "enum": ["local_not_shared", "shared_explicitly_promoted"]
+        },
+        "body_export_posture": {
+          "type": "string",
+          "const": "body_never_exported"
+        },
+        "citation_count": { "type": "integer", "minimum": 0 },
+        "citation_kinds": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["file", "symbol", "doc", "graph"] },
+          "uniqueItems": true
+        },
+        "audience_visible": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "comment": "A local note is never promoted, stays local-only, and is never audience visible.",
+          "if": { "properties": { "scope": { "const": "local" } } },
+          "then": {
+            "properties": {
+              "shared_promotion_explicit": { "const": false },
+              "retention": { "const": "local_only_not_retained_remotely" },
+              "shared_state": { "const": "local_not_shared" },
+              "audience_visible": { "const": false }
+            }
+          }
+        },
+        {
+          "comment": "A shared note carries an explicit promotion marker, a shared retention posture, and the shared shared-state.",
+          "if": { "properties": { "scope": { "const": "shared" } } },
+          "then": {
+            "properties": {
+              "shared_promotion_explicit": { "const": true },
+              "retention": {
+                "enum": [
+                  "shared_retained_in_session_store",
+                  "shared_retention_disabled_by_policy"
+                ]
+              },
+              "shared_state": { "const": "shared_explicitly_promoted" }
+            }
+          }
+        }
+      ]
+    },
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    }
+  }
+}
