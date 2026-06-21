@@ -1,0 +1,63 @@
+# Execution-evidence projection-overlay gate.
+#
+# Validates the checked-in execution-evidence projection set: the source packet
+# conforms to its schema, no projection renders wider than its effective claim, no
+# rendering surface overclaims, imported/overlay projections stay read-only, every
+# projection kind and rendering surface is represented, the revision-remap and
+# freshness labels are preserved, and every narrowing/floor rule in the perturbation
+# corpus fires as recorded.
+
+name: check_m5_execution_evidence_projections
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_execution_evidence_projections.yml"
+      - "tools/release/execution_evidence_projections.py"
+      - "schemas/tooling/m5-execution-evidence-projections.schema.json"
+      - "artifacts/tooling/m5-execution-evidence-projections/**"
+      - "fixtures/tooling/m5-execution-evidence-projections/**"
+      - "docs/tooling/m5-execution-evidence-projections.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-execution-evidence-projections-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  execution_evidence_projections:
+    name: Execution-evidence projections
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the projection set against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/tooling/m5-execution-evidence-projections.schema.json"))
+          data = json.load(open("artifacts/tooling/m5-execution-evidence-projections/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the projection set
+        run: python3 tools/release/execution_evidence_projections.py validate
+
+      - name: Run the projection self-test
+        run: python3 tools/release/execution_evidence_projections.py self-test

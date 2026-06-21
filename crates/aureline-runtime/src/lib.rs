@@ -223,6 +223,19 @@
 //! freshness, origin, channel, and proof vocabularies instead of forking a private
 //! bottom-panel truth model.
 //!
+//! [`m5_execution_evidence_projection_overlays::M5ExecutionEvidenceProjectionSetPacket`]
+//! takes the same causal chain out to the **projected overlay**: a coverage gutter,
+//! a flaky-test history strip, a perf-regression note, a notebook-output verdict, a
+//! pipeline annotation, or a review-side marker re-rendered away from the run that
+//! produced it. Each [`m5_execution_evidence_projection_overlays::ExecutionEvidenceProjection`]
+//! binds its overlay to the original run/step/provider/artifact lineage, the
+//! revision-remap quality that maps origin anchors onto the current revision/cursor,
+//! the freshness/stale/superseded state, and the reopen-to-origin target, then
+//! re-derives an effective claim per rendering surface so old evidence shown on a
+//! fresh surface can never quietly read as current truth, and a rendering surface can
+//! never render wider than the projection's effective claim. It reuses the matrix's
+//! frozen origin, confidence, freshness, reopen, and proof vocabularies.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -272,6 +285,7 @@ pub mod m5_diagnostic_source_descriptors_and_collection_snapshots;
 pub mod m5_environment_status_strips;
 pub mod m5_event_interop_certification;
 pub mod m5_execution_evidence_causality_matrix;
+pub mod m5_execution_evidence_projection_overlays;
 pub mod m5_interop_conformance;
 pub mod m5_label_parity;
 pub mod m5_problem_records_source_task_correlation_and_rerun_jump_parity;
@@ -895,6 +909,20 @@ pub use m5_execution_evidence_causality_matrix::{
     M5_EXECUTION_EVIDENCE_CAUSALITY_SCHEMA_VERSION,
     M5_EXECUTION_EVIDENCE_CAUSALITY_SUPPORT_EXPORT_REF,
     M5_EXECUTION_EVIDENCE_CAUSALITY_TAXONOMY_VERSION,
+};
+pub use m5_execution_evidence_projection_overlays::{
+    current_m5_execution_evidence_projection_set, seeded_execution_evidence_projection_set,
+    ExecutionEvidenceProjection, M5ExecutionEvidenceProjectionArtifactError,
+    M5ExecutionEvidenceProjectionSetInput, M5ExecutionEvidenceProjectionSetPacket,
+    M5ExecutionEvidenceProjectionViolation, ProjectionClaim, ProjectionClaimDistribution,
+    ProjectionConfidenceTier, ProjectionDecision, ProjectionIntegrity, ProjectionKind,
+    ProjectionLineage, ProjectionNarrowingReason, ProjectionSurface, ProjectionVerification,
+    RemapQuality, RevisionRemap, SurfaceRendering, M5_EXECUTION_EVIDENCE_PROJECTIONS_DOC_REF,
+    M5_EXECUTION_EVIDENCE_PROJECTIONS_FIXTURE_DIR, M5_EXECUTION_EVIDENCE_PROJECTIONS_PACKET_ID,
+    M5_EXECUTION_EVIDENCE_PROJECTIONS_RECORD_KIND, M5_EXECUTION_EVIDENCE_PROJECTIONS_REPORT_REF,
+    M5_EXECUTION_EVIDENCE_PROJECTIONS_SCHEMA_REF, M5_EXECUTION_EVIDENCE_PROJECTIONS_SCHEMA_VERSION,
+    M5_EXECUTION_EVIDENCE_PROJECTIONS_SUPPORT_EXPORT_REF,
+    M5_EXECUTION_EVIDENCE_PROJECTIONS_TAXONOMY_VERSION,
 };
 pub use m5_interop_conformance::{
     archetypes_for_family, current_stable_interop_conformance_input,

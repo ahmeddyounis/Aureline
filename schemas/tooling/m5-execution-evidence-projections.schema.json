@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/m5-execution-evidence-projections.schema.json",
+  "title": "Aureline M5 execution-evidence projection set",
+  "description": "Canonical, export-safe object model that freezes an individual M5 execution-evidence projection: a coverage overlay, flaky-test history strip, perf-regression note, notebook-output verdict, pipeline annotation, or review-side marker re-rendered away from the run that produced it. Each projection binds its overlay to the original run/step/provider/artifact lineage, the revision-remap quality that maps origin anchors onto the current revision/cursor, the evidence freshness/stale/superseded state, the confidence tier, and the reopen-to-origin target. The projection carries enough identity to re-derive an effective claim without trusting a grade: origin run/step and provider/artifact identity stay reopenable on demand on every rendering surface, the revision-remap quality and freshness state stay labelled, imported/remote/pipeline origins project read-only and never claim live local authority, a rendering surface never renders wider than the projection's effective claim, and a projection that flattens lineage, hides it from a surface, drops a heuristic backlink, loses its reopen path, or lets a surface overclaim floors to a raw-output / keyboard fallback rather than rendering a clean-but-false overlay. This is the per-overlay companion to schemas/tooling/m5-execution-evidence.schema.json (the lane matrix) and schemas/tooling/m5-problem-records.schema.json (the Problems row); all three speak one vocabulary so coverage, flaky, perf, notebook, pipeline, review, CLI/headless, AI evidence, and support export ingest one model. Adding an enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "as_of",
+    "taxonomy_version",
+    "redaction_class_token",
+    "verification_freshness",
+    "projections"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "m5_execution_evidence_projection_set_packet"
+    },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/stable_id" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "as_of": { "type": "string", "format": "date-time" },
+    "taxonomy_version": { "type": "integer", "const": 1 },
+    "redaction_class_token": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Default redaction posture for the packet. No raw stdout/stderr bytes, command lines, provider log bodies, env bodies, absolute paths, URLs, or secrets ever cross this boundary; refs carry opaque ids only."
+    },
+    "verification_freshness": { "$ref": "#/$defs/verification_freshness" },
+    "projections": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/projection" }
+    }
+  },
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "opaque_ref": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "opaque_ref_nullable": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_ref" }, { "type": "null" }]
+    },
+    "short_sentence": { "type": "string", "minLength": 1, "maxLength": 360 },
+    "verification_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_freshness_slo_hours",
+        "last_verification_refresh",
+        "auto_downgrade_on_stale"
+      ],
+      "properties": {
+        "verification_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_verification_refresh": { "type": "string", "format": "date-time" },
+        "auto_downgrade_on_stale": { "type": "boolean" }
+      }
+    },
+    "projection_kind": {
+      "type": "string",
+      "enum": [
+        "coverage_overlay",
+        "flaky_test_history",
+        "perf_regression_note",
+        "notebook_output_verdict",
+        "pipeline_annotation",
+        "review_side_marker"
+      ],
+      "description": "Which execution-evidence overlay this projection backs."
+    },
+    "projection_surface": {
+      "type": "string",
+      "enum": [
+        "editor_overlay",
+        "diff_review_overlay",
+        "notebook_overlay",
+        "pipeline_overlay",
+        "incident_overlay",
+        "timeline_history",
+        "support_export",
+        "ai_evidence"
+      ],
+      "description": "A surface on which the projection is rendered, away from its original run surface."
+    },
+    "remap_quality": {
+      "type": "string",
+      "enum": [
+        "exact_current_revision",
+        "shifted_tracked",
+        "approximate_remap",
+        "stale_unmapped",
+        "not_anchored"
+      ],
+      "description": "How well the origin run's anchors remap onto the current revision/cursor. A stale_unmapped anchor must read as not-on-current-revision rather than silently current."
+    },
+    "claim_posture": {
+      "type": "string",
+      "enum": ["claimed_stable", "claimed_beta", "labs_unadvertised"],
+      "description": "Whether the projection is publicly claimed. Labs/unadvertised projections make no public claim and are never widened."
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "local_task",
+        "local_test",
+        "local_debug_session",
+        "notebook_run",
+        "headless_automation",
+        "extension_owned_run",
+        "ai_triggered_run",
+        "remote_linked_run",
+        "pipeline_provider_run",
+        "imported_provider_evidence"
+      ],
+      "description": "How the run/evidence originated. First-party local/notebook/headless/extension/AI origins can certify; remote, pipeline/provider, and imported origins project as read-only overlays only."
+    },
+    "confidence_tier": {
+      "type": "string",
+      "enum": [
+        "structured_full",
+        "heuristic_high",
+        "heuristic_medium",
+        "heuristic_low",
+        "provider_mapped",
+        "unmapped_requires_review"
+      ],
+      "description": "Confidence taxonomy shared with the causality matrix. Heuristic projections carry an explicit tier and a raw-output backlink; unmapped is a first-class state, not an invisible gap."
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached_within_window",
+        "stale_expired",
+        "superseded_by_newer_run",
+        "unanchored",
+        "missing"
+      ],
+      "description": "Freshness/anchoring state of the evidence the projection came from. Stale and superseded states must remain visibly classified wherever the projection is rendered."
+    },
+    "reopen_target": {
+      "type": "string",
+      "enum": [
+        "owning_run",
+        "output_channel",
+        "generated_artifact",
+        "provider_run_page",
+        "raw_output_backlink",
+        "editor_anchor",
+        "none_keyboard_fallback"
+      ],
+      "description": "Where reopen-to-origin lands. A floored projection keeps a raw_output_backlink or none_keyboard_fallback rather than rendering a clean-but-false overlay."
+    },
+    "proof_currency": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "cached_within_window",
+        "imported_current",
+        "stale_expired",
+        "missing_proof",
+        "requires_review"
+      ],
+      "description": "Currency of the certification proof that this projection preserves its lineage (distinct from the evidence's own freshness_state)."
+    },
+    "projection_claim": {
+      "type": "string",
+      "enum": [
+        "projection_unreconstructable",
+        "projection_read_only_overlay",
+        "projection_narrowed",
+        "projection_certified",
+        "projection_labs_not_claimed"
+      ],
+      "description": "The effective claim a projection or a rendering surface asserts. A surface may never render wider than the projection's effective claim."
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_ref",
+        "origin_run_ref",
+        "origin_step_ref",
+        "provider_ref",
+        "artifact_ref",
+        "channel_ref",
+        "evidence_packet_ref",
+        "baseline_ref",
+        "raw_output_backlink_ref"
+      ],
+      "properties": {
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "origin_run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "origin_step_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "channel_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "evidence_packet_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "baseline_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "raw_output_backlink_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "revision_remap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "quality",
+        "anchored_to_current_revision",
+        "cursor_remap_applied",
+        "remap_quality_labeled"
+      ],
+      "properties": {
+        "quality": { "$ref": "#/$defs/remap_quality" },
+        "anchored_to_current_revision": { "type": "boolean" },
+        "cursor_remap_applied": { "type": "boolean" },
+        "remap_quality_labeled": { "type": "boolean" }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserves_origin_run_step",
+        "preserves_provider_artifact",
+        "lineage_visible_on_demand",
+        "freshness_state_labeled",
+        "confidence_label_visible",
+        "superseded_state_marked",
+        "imported_overlay_read_only",
+        "raw_output_backlink_present"
+      ],
+      "properties": {
+        "preserves_origin_run_step": { "type": "boolean" },
+        "preserves_provider_artifact": { "type": "boolean" },
+        "lineage_visible_on_demand": { "type": "boolean" },
+        "freshness_state_labeled": { "type": "boolean" },
+        "confidence_label_visible": { "type": "boolean" },
+        "superseded_state_marked": { "type": "boolean" },
+        "imported_overlay_read_only": { "type": "boolean" },
+        "raw_output_backlink_present": { "type": "boolean" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_currency", "proof_ref"],
+      "properties": {
+        "proof_currency": { "$ref": "#/$defs/proof_currency" },
+        "proof_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "rendering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "rendered_claim",
+        "lineage_visible",
+        "read_only",
+        "source_projection_ref"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/projection_surface" },
+        "rendered_claim": { "$ref": "#/$defs/projection_claim" },
+        "lineage_visible": { "type": "boolean" },
+        "read_only": { "type": "boolean" },
+        "source_projection_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projection_id",
+        "projection_kind",
+        "label_summary",
+        "claim_posture",
+        "origin_class",
+        "declared_confidence_tier",
+        "declared_freshness_state",
+        "declared_reopen_target",
+        "lineage",
+        "revision_remap",
+        "integrity",
+        "verification",
+        "renderings"
+      ],
+      "properties": {
+        "projection_id": { "$ref": "#/$defs/stable_id" },
+        "projection_kind": { "$ref": "#/$defs/projection_kind" },
+        "label_summary": { "$ref": "#/$defs/short_sentence" },
+        "claim_posture": { "$ref": "#/$defs/claim_posture" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "declared_confidence_tier": { "$ref": "#/$defs/confidence_tier" },
+        "declared_freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "declared_reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "revision_remap": { "$ref": "#/$defs/revision_remap" },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "verification": { "$ref": "#/$defs/verification" },
+        "renderings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rendering" }
+        }
+      }
+    }
+  }
+}
