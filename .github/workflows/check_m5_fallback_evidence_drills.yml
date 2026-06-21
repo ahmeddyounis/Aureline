@@ -1,0 +1,65 @@
+# Structured-versus-heuristic fallback drill gate.
+#
+# Validates the checked-in fallback-evidence drill set: the source packet conforms to its
+# schema, every claimable problem source, every failure drill, and every claimed tooling
+# profile is exercised, a heuristic fallback reads visibly distinct from structured
+# evidence on every profile and keeps a raw-output backlink, reconnect/lost-channel drills
+# never drop evidence, partial exports stay self-contained, imported overlays stay
+# read-only, no profile renders wider than its effective claim, a failure in causal linking
+# or confidence labeling auto-narrows the affected case, and every narrowing/floor rule in
+# the perturbation corpus fires as recorded.
+
+name: check_m5_fallback_evidence_drills
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_fallback_evidence_drills.yml"
+      - "tools/release/fallback_evidence_drills.py"
+      - "schemas/tooling/m5-fallback-evidence-drills.schema.json"
+      - "artifacts/tooling/m5-fallback-evidence-drills/**"
+      - "fixtures/tooling/m5-fallback-evidence-drills/**"
+      - "docs/tooling/m5-fallback-evidence-drills.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-fallback-evidence-drills-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  fallback_evidence_drills:
+    name: Fallback evidence drills
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the drill set against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/tooling/m5-fallback-evidence-drills.schema.json"))
+          data = json.load(open("artifacts/tooling/m5-fallback-evidence-drills/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the drill set
+        run: python3 tools/release/fallback_evidence_drills.py validate
+
+      - name: Run the drill self-test
+        run: python3 tools/release/fallback_evidence_drills.py self-test

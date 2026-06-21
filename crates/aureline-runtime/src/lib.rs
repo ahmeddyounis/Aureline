@@ -269,6 +269,22 @@
 //! threshold or a lost connection. It reuses the matrix's frozen origin, channel,
 //! confidence, freshness, reopen, and proof vocabularies.
 //!
+//! [`m5_structured_versus_heuristic_fallback_drills::M5FallbackEvidenceDrillSetPacket`]
+//! turns the same causal chain into a **proof corpus and failure-drill suite**: one
+//! parse-evidence case — a native structured diagnostic, a normalized task event, an
+//! imported provider annotation, or a heuristic text parse — exercised through a failure
+//! drill (malformed output, stale run, superseded retry, reconnect, lost channel, partial
+//! export, imported evidence, or output-channel virtualization) and rendered onto the
+//! claimed M5 tooling profiles. Each
+//! [`m5_structured_versus_heuristic_fallback_drills::FallbackDrillCase`] re-derives an
+//! effective claim so a heuristic fallback always reads visibly distinct from
+//! native/structured evidence on every profile, the confidence label and raw-output
+//! backlink survive malformed output and reconnect-heavy workflows, stale/superseded
+//! state and imported overlays never read as fresh local truth, and a failure in causal
+//! linking or confidence labeling automatically narrows the affected profile claims. It
+//! reuses the matrix's frozen origin, problem-source, channel, confidence, freshness,
+//! reopen, and proof vocabularies.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -325,6 +341,7 @@ pub mod m5_output_channel_virtualization_trust_and_freshness;
 pub mod m5_problem_records_source_task_correlation_and_rerun_jump_parity;
 pub mod m5_quality_action_proposals_and_sessions;
 pub mod m5_replay_bundles;
+pub mod m5_structured_versus_heuristic_fallback_drills;
 pub mod m5_task_event_adapter_policy;
 pub mod m5_task_event_envelope_bus;
 pub mod m5_task_problem_output_chronology_reuse;
@@ -1040,6 +1057,19 @@ pub use m5_replay_bundles::{
     REPLAY_BUNDLE_POLICY_BASELINE_REF, REPLAY_BUNDLE_RECORD_KIND, REPLAY_BUNDLE_SCHEMA_REF,
     REPLAY_BUNDLE_SCHEMA_VERSION, REPLAY_BUNDLE_SUPPORT_EXPORT_ID,
     REPLAY_BUNDLE_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_structured_versus_heuristic_fallback_drills::{
+    current_m5_fallback_evidence_drill_set, seeded_fallback_evidence_drill_set,
+    ChannelVirtualization, FallbackClaim, FallbackClaimDistribution, FallbackDecision,
+    FallbackDrillCase, FallbackDrillKind, FallbackIntegrity, FallbackLinks,
+    FallbackNarrowingReason, FallbackVerification, M5FallbackEvidenceDrillArtifactError,
+    M5FallbackEvidenceDrillSetInput, M5FallbackEvidenceDrillSetPacket,
+    M5FallbackEvidenceDrillViolation, ProfileBinding, ToolingProfile as FallbackToolingProfile,
+    M5_FALLBACK_EVIDENCE_DRILL_DOC_REF, M5_FALLBACK_EVIDENCE_DRILL_FIXTURE_DIR,
+    M5_FALLBACK_EVIDENCE_DRILL_PACKET_ID, M5_FALLBACK_EVIDENCE_DRILL_RECORD_KIND,
+    M5_FALLBACK_EVIDENCE_DRILL_REPORT_REF, M5_FALLBACK_EVIDENCE_DRILL_SCHEMA_REF,
+    M5_FALLBACK_EVIDENCE_DRILL_SCHEMA_VERSION, M5_FALLBACK_EVIDENCE_DRILL_SUPPORT_EXPORT_REF,
+    M5_FALLBACK_EVIDENCE_DRILL_TAXONOMY_VERSION,
 };
 pub use m5_task_event_adapter_policy::{
     canonical_confidence_ceiling, canonical_priority_rank,
