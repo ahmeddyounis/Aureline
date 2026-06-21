@@ -1,0 +1,78 @@
+# M5 Voice-Mode Provider / Transcript-Retention / Command-Parity Qualification Matrix
+
+- Packet: `m5-voice-qualification-matrix:stable:0001`
+- Label: `M5 Voice-Mode Provider / Transcript-Retention / Command-Parity Qualification Matrix`
+- Rows: 8 (7 claimed, 1 Labs/unadvertised, 1 provider/imported, 2 downgraded)
+- Surface kinds: 6 / 6
+- Verification freshness SLO: 168 hours (last refresh: 2026-06-14T00:00:00Z)
+
+## Profiles
+
+- **voice-qual:command-overlay:local:0001** (command_overlay): claim `qualified_claimed_profile` -> effective `qualified_claimed_profile`
+  - On-device push-to-talk command overlay routed through the canonical command graph
+  - posture `claimed_beta`, origin `first_party_local_profile`
+  - session mode = `command_mode_active`, activation = `push_to_talk_held`, policy = `user_controlled`
+  - provider `voice.provider.on_device_command` (on_device_local), locality = `local_on_device`, transport = `local_in_process_only`
+  - retention = `ephemeral_audio_local_only_no_transcript_retained`, audio = `ephemeral_audio_local_only`, export = `metadata_only_support_export`, raw_excluded = true
+  - command parity complete = true, keyboard fallback = true
+  - verification = `verified_current`
+- **voice-qual:dictation-input:local:0001** (dictation_input): claim `qualified_claimed_profile` -> effective `qualified_claimed_profile`
+  - On-device dictation that inserts text on the shared editor undo stack
+  - posture `claimed_beta`, origin `first_party_local_profile`
+  - session mode = `dictation_mode_active`, activation = `push_to_talk_toggle`, policy = `user_controlled`
+  - provider `voice.provider.on_device_dictation` (on_device_local), locality = `local_on_device`, transport = `local_in_process_only`
+  - retention = `ephemeral_audio_local_only_no_transcript_retained`, audio = `ephemeral_audio_local_only`, export = `metadata_only_support_export`, raw_excluded = true
+  - command parity complete = true, keyboard fallback = true
+  - verification = `verified_current`
+- **voice-qual:transcript-correction:local:0001** (transcript_correction): claim `qualified_claimed_profile` -> effective `qualified_claimed_profile`
+  - Transcript correction surface that requires a correction window before any privileged commit
+  - posture `claimed_beta`, origin `first_party_local_profile`
+  - session mode = `dictation_mode_active`, activation = `manual_command_activation`, policy = `user_controlled`
+  - provider `voice.provider.on_device_correction` (on_device_local), locality = `local_on_device`, transport = `local_in_process_only`
+  - retention = `ephemeral_audio_local_only_no_transcript_retained`, audio = `ephemeral_audio_local_only`, export = `metadata_only_support_export`, raw_excluded = true
+  - command parity complete = true, keyboard fallback = true
+  - verification = `cached_within_window`
+- **voice-qual:provider-privacy:enterprise:0001** (provider_privacy_settings): claim `qualified_narrowed_profile` -> effective `qualified_narrowed_profile`
+  - Enterprise-managed provider/privacy settings with disclosed hosted relay and audited per-contract retention
+  - posture `claimed_preview`, origin `enterprise_managed_profile`
+  - session mode = `command_mode_active`, activation = `push_to_talk_held`, policy = `enterprise_policy_managed`
+  - provider `voice.provider.enterprise_relay` (enterprise_relay_managed), locality = `hosted_remote_disclosed`, transport = `policy_bounded_disclosed_endpoint`
+  - retention = `transcript_retained_provider_per_contract`, audio = `audio_retained_provider_per_contract`, export = `provider_contract_retained`, raw_excluded = true
+  - command parity complete = true, keyboard fallback = true
+  - verification = `verified_current`
+- **voice-qual:high-impact-review:provider:0001** (high_impact_action_review): claim `qualified_narrowed_profile` -> effective `qualified_narrowed_profile`
+  - Provider-linked high-impact action review where spoken destructive/publish actions require transcript confirmation
+  - posture `claimed_preview`, origin `provider_linked_profile`
+  - session mode = `command_mode_active`, activation = `push_to_talk_held`, policy = `user_controlled`
+  - provider `voice.provider.linked_high_impact` (enterprise_relay_managed), locality = `hosted_remote_disclosed`, transport = `policy_bounded_disclosed_endpoint`
+  - retention = `transcript_retained_provider_per_contract`, audio = `audio_retained_provider_per_contract`, export = `provider_contract_retained`, raw_excluded = true
+  - command parity complete = true, keyboard fallback = true
+  - verification = `imported_current`
+- **voice-qual:unavailable-fallback:local:0001** (unavailable_fallback): claim `qualified_narrowed_profile` -> effective `labs_unadvertised_profile`
+  - Unavailable voice surface (no microphone) that always falls back to the keyboard / command palette
+  - posture `claimed_beta`, origin `first_party_local_profile`
+  - session mode = `idle_microphone_off`, activation = `manual_command_activation`, policy = `user_controlled`
+  - provider `voice.provider.disabled_fallback` (provider_disabled), locality = `processing_unavailable`, transport = `transport_blocked`
+  - retention = `no_audio_retained_no_transcript_retained`, audio = `audio_capture_blocked`, export = `no_transcript_export`, raw_excluded = true
+  - command parity complete = true, keyboard fallback = true
+  - verification = `verified_current`
+  - unavailable reason = `no_microphone`
+  - Downgraded: Microphone unavailable; voice held at fallback scope with a complete keyboard / command-palette path rather than claiming live capture
+- **voice-qual:command-overlay:labs-continuous:0001** (command_overlay): claim `labs_unadvertised_profile` -> effective `labs_unadvertised_profile`
+  - Labs/unadvertised wake-phrase continuous listening, opted-in and explicitly out of stable scope
+  - posture `labs_unadvertised`, origin `first_party_local_profile`
+  - session mode = `continuous_listening_active_user_opted_in`, activation = `wake_phrase_continuous_user_opted_in`, policy = `user_controlled`
+  - provider `voice.provider.labs_continuous` (on_device_local), locality = `local_on_device`, transport = `local_in_process_only`
+  - retention = `ephemeral_audio_local_only_no_transcript_retained`, audio = `ephemeral_audio_local_only`, export = `metadata_only_support_export`, raw_excluded = true
+  - command parity complete = true, keyboard fallback = true
+  - verification = `verified_current`
+- **voice-qual:command-overlay:hosted-unavailable:0001** (command_overlay): claim `qualified_claimed_profile` -> effective `qualified_narrowed_profile`
+  - Hosted command overlay that claimed full scope but whose remote provider is unavailable
+  - posture `claimed_beta`, origin `first_party_local_profile`
+  - session mode = `command_mode_active`, activation = `push_to_talk_held`, policy = `user_controlled`
+  - provider `voice.provider.hosted_unavailable` (approved_remote_disclosed), locality = `hosted_remote_disclosed`, transport = `policy_bounded_disclosed_endpoint`
+  - retention = `transcript_retained_provider_per_contract`, audio = `audio_retained_provider_per_contract`, export = `provider_contract_retained`, raw_excluded = true
+  - command parity complete = true, keyboard fallback = true
+  - verification = `verified_current`
+  - unavailable reason = `provider_unavailable`
+  - Downgraded: Remote speech provider is unavailable; held narrowed with a complete keyboard fallback rather than claiming full hosted command scope
