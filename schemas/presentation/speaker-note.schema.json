@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/presentation/speaker-note.schema.json",
+  "title": "Aureline presentation speaker note",
+  "description": "Canonical, export-safe speaker-note object for an M5 presentation or walkthrough session. A speaker note is a presenter-only prompt attached to one waypoint. Notes default to a local scope and only become shared through an explicit, separately recorded promotion: a local-scoped note never carries a promotion marker, and a shared-scoped note always does. The human-readable body_label lives on the in-memory model and the reviewable fixtures; support, diagnostics, and telemetry exports carry only the presence flag and posture, never the raw note body. Adding a new scope value is additive-minor and requires a schema_version bump on the owning session; repurposing an existing value is breaking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "note_id",
+    "linked_waypoint_ref",
+    "scope",
+    "body_label",
+    "next_step_cue_label",
+    "citation_refs",
+    "shared_promotion_explicit"
+  ],
+  "properties": {
+    "note_id": { "$ref": "#/$defs/stable_id" },
+    "linked_waypoint_ref": { "$ref": "#/$defs/stable_id" },
+    "scope": { "type": "string", "enum": ["local", "shared"] },
+    "body_label": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/short_text" }] },
+    "next_step_cue_label": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/short_text" }] },
+    "citation_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stable_id" }
+    },
+    "shared_promotion_explicit": { "type": "boolean" }
+  },
+  "allOf": [
+    {
+      "comment": "A local note never carries an explicit-promotion marker.",
+      "if": { "properties": { "scope": { "const": "local" } } },
+      "then": { "properties": { "shared_promotion_explicit": { "const": false } } }
+    },
+    {
+      "comment": "A shared note must carry an explicit-promotion marker.",
+      "if": { "properties": { "scope": { "const": "shared" } } },
+      "then": { "properties": { "shared_promotion_explicit": { "const": true } } }
+    }
+  ],
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400
+    }
+  }
+}

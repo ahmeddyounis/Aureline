@@ -1,0 +1,69 @@
+# M5 Presentation-Session / Walkthrough-Waypoint / Speaker-Note / Audience-Follow Qualification Matrix
+
+- Packet: `m5-presentation-qualification-matrix:stable:0001`
+- Label: `M5 Presentation-Session / Walkthrough-Waypoint / Speaker-Note / Audience-Follow Qualification Matrix`
+- Rows: 8 (7 claimed, 1 Labs/unadvertised, 1 shared/imported, 2 downgraded)
+- Surface kinds: 6 / 6
+- Verification freshness SLO: 168 hours (last refresh: 2026-06-14T00:00:00Z)
+
+## Surfaces
+
+- **presentation-qual:presenter-walkthrough:local:0001** (presenter_walkthrough): claim `qualified_claimed_surface` -> effective `qualified_claimed_surface`
+  - On-anchor presenter walkthrough over the editor and diff surfaces with a local-only speaker note
+  - posture `claimed_beta`, origin `first_party_local_surface`
+  - session `presentation.session.presenter_walkthrough`: layout = `focused_single`, lifecycle = `active`, leader/follow = `presenting`, audience = `shared_workspace`
+  - speaker-note privacy = true, follow truth = true, authority separation = true
+  - layout restore = true, accessibility = true, provenance preserved = true
+  - verification = `verified_current`
+- **presentation-qual:audience-follow:local:0001** (audience_follow): claim `qualified_claimed_surface` -> effective `qualified_claimed_surface`
+  - Audience-follow surface with invited guests where follow, break away, and request follow stay distinct, attributable states
+  - posture `claimed_beta`, origin `first_party_local_surface`
+  - session `presentation.session.audience_follow`: layout = `split_compare`, lifecycle = `active`, leader/follow = `following_presenter`, audience = `invited_guests`
+  - speaker-note privacy = true, follow truth = true, authority separation = true
+  - layout restore = true, accessibility = true, provenance preserved = true
+  - verification = `verified_current`
+- **presentation-qual:speaker-notes:local:0001** (speaker_notes): claim `qualified_claimed_surface` -> effective `qualified_claimed_surface`
+  - Solo-rehearsal speaker-note tray whose presenter notes default local/private and never enter an export
+  - posture `claimed_beta`, origin `first_party_local_surface`
+  - session `presentation.session.speaker_notes`: layout = `narrative_wide`, lifecycle = `active`, leader/follow = `presenting`, audience = `solo_rehearsal`
+  - speaker-note privacy = true, follow truth = true, authority separation = true
+  - layout restore = true, accessibility = true, provenance preserved = true
+  - verification = `cached_within_window`
+- **presentation-qual:classroom-teaching:shared:0001** (classroom_teaching): claim `qualified_narrowed_surface` -> effective `qualified_narrowed_surface`
+  - Shared-session classroom teaching surface where the moderator role drives attention but never edit, debug, or approval authority
+  - posture `claimed_preview`, origin `shared_session_linked_surface`
+  - session `presentation.session.classroom_teaching`: layout = `focused_single`, lifecycle = `active`, leader/follow = `presenting`, audience = `shared_workspace`
+  - classroom role = `moderator`
+  - speaker-note privacy = true, follow truth = true, authority separation = true
+  - layout restore = true, accessibility = true, provenance preserved = true
+  - verification = `imported_current`
+- **presentation-qual:layout-restore:local:0001** (layout_restore): claim `qualified_claimed_surface` -> effective `qualified_claimed_surface`
+  - Layout-restore surface where entering checkpoints the prior layout and exit, cancel, and crash recovery all restore it exactly
+  - posture `claimed_beta`, origin `first_party_local_surface`
+  - session `presentation.session.layout_restore`: layout = `split_compare`, lifecycle = `active`, leader/follow = `presenting`, audience = `shared_workspace`
+  - speaker-note privacy = true, follow truth = true, authority separation = true
+  - layout restore = true, accessibility = true, provenance preserved = true
+  - verification = `verified_current`
+- **presentation-qual:unavailable-fallback:local:0001** (unavailable_fallback): claim `qualified_claimed_surface` -> effective `labs_unadvertised_surface`
+  - Unavailable presentation surface that always falls back to a keyboard-first walkthrough path
+  - posture `claimed_beta`, origin `first_party_local_surface`
+  - session `presentation.session.unavailable_fallback`: layout = `inherit_current`, lifecycle = `active`, leader/follow = `presenting`, audience = `solo_rehearsal`
+  - speaker-note privacy = true, follow truth = true, authority separation = true
+  - layout restore = true, accessibility = true, provenance preserved = true
+  - verification = `verified_current`
+  - Downgraded: Presentation overlay unavailable; held at fallback scope with a complete keyboard-first walkthrough path rather than claiming a live overlay
+- **presentation-qual:audience-follow:labs-free-roam:0001** (audience_follow): claim `labs_unadvertised_surface` -> effective `labs_unadvertised_surface`
+  - Labs/unadvertised free-roam co-browsing where every viewer breaks away independently, explicitly out of stable scope
+  - posture `labs_unadvertised`, origin `first_party_local_surface`
+  - session `presentation.session.labs_free_roam`: layout = `narrative_wide`, lifecycle = `active`, leader/follow = `broken_away`, audience = `shared_workspace`
+  - speaker-note privacy = true, follow truth = true, authority separation = true
+  - layout restore = true, accessibility = true, provenance preserved = true
+  - verification = `verified_current`
+- **presentation-qual:presenter-walkthrough:stale:0001** (presenter_walkthrough): claim `qualified_claimed_surface` -> effective `qualified_narrowed_surface`
+  - Presenter walkthrough that claimed full scope but whose audience-follow parity proof aged outside its freshness window
+  - posture `claimed_beta`, origin `first_party_local_surface`
+  - session `presentation.session.stale_walkthrough`: layout = `focused_single`, lifecycle = `active`, leader/follow = `presenting`, audience = `shared_workspace`
+  - speaker-note privacy = true, follow truth = true, authority separation = true
+  - layout restore = true, accessibility = true, provenance preserved = true
+  - verification = `stale_expired`
+  - Downgraded: Audience-follow parity proof aged outside its freshness window; held narrowed until re-verified rather than claiming full walkthrough scope
