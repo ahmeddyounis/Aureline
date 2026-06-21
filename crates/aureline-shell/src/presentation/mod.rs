@@ -33,6 +33,12 @@
 //!   observer, approver, scribe) kept strictly separate from product authority,
 //!   command-backed and authority-bounded exercise packets, and an honest
 //!   observer-or-note-taker degrade for limited clients.
+//! - [`presentation_restore`] governs restore checkpoints, layout fidelity, and
+//!   honest crash / interrupted-resume recovery: it classifies restore fidelity
+//!   with the durable-shell restore vocabulary, degrades missing dependencies,
+//!   revoked grants, and unavailable remote targets to honest placeholder /
+//!   disconnected states, and proves restore never re-runs a mutating action or
+//!   re-acquires expired authority.
 //!
 //! The geometry primitive that decides which zone each surface rides — and that
 //! it never replaces a pane — is
@@ -43,6 +49,7 @@ pub mod binding;
 pub mod classroom;
 pub mod corpus;
 pub mod follow_state;
+pub mod presentation_restore;
 pub mod speaker_notes;
 
 pub use binding::{

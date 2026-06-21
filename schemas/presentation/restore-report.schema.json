@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/presentation/restore-report.schema.json",
+  "title": "Aureline presentation-session restore report",
+  "description": "Canonical, export-safe restore report for a presentation or walkthrough session. Entering presentation mode checkpoints the prior layout and selection context; exit, cancel, crash_recovery, and interrupted_resume all replay that checkpoint so the user is never stranded in an improvised layout. The report classifies its own fidelity with restore_class — exact_restore, compatible_restore, layout_only, evidence_only, or no_restore — mirroring the durable-shell restore vocabulary one-to-one. When a waypoint target is gone it degrades to an honest availability (placeholder for a missing dependency, disconnected for a revoked sharing grant, unavailable remote target, or expired authority), each carrying its degrade_trigger; the cause is always surfaced and never folded into a generic success. Restore replays layout and attention only: every waypoint and the report aggregate fix replayed_mutating_action / replayed_any_mutating_action and reacquired_authority / reacquired_any_authority to false, left_in_improvised_shell to false, and hides_degrade_behind_generic_success to false, so an expired privileged flow stays expired. Restore, diagnostics, help, and support-export surfaces ingest this object rather than cloning restore text. Adding a new enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "session_id",
+    "trigger",
+    "resulting_lifecycle",
+    "restore_class",
+    "checkpoint_id",
+    "restored_layout_ref",
+    "restored_focus_ref",
+    "restored_panel_visibility_ref",
+    "restored_accessibility_posture_ref",
+    "waypoint_restores",
+    "degrade_triggers",
+    "session_degrade",
+    "compatible_translation_applied",
+    "live_session_rehydrated",
+    "matches_checkpoint",
+    "replayed_any_mutating_action",
+    "reacquired_any_authority",
+    "left_in_improvised_shell",
+    "hides_degrade_behind_generic_success"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "presentation_restore_report_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": { "type": "string", "const": "shell:presentation_mode_beta:v1" },
+    "session_id": { "$ref": "#/$defs/stable_id" },
+    "trigger": { "$ref": "#/$defs/restore_trigger" },
+    "resulting_lifecycle": {
+      "type": "string",
+      "enum": [
+        "exited_restored",
+        "cancelled_restored",
+        "crash_recovered_restored",
+        "resumed_restored"
+      ]
+    },
+    "restore_class": { "$ref": "#/$defs/restore_class" },
+    "checkpoint_id": { "$ref": "#/$defs/ref_or_empty" },
+    "restored_layout_ref": { "$ref": "#/$defs/ref_or_empty" },
+    "restored_focus_ref": { "$ref": "#/$defs/ref_or_empty" },
+    "restored_panel_visibility_ref": { "$ref": "#/$defs/ref_or_empty" },
+    "restored_accessibility_posture_ref": { "$ref": "#/$defs/ref_or_empty" },
+    "waypoint_restores": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/waypoint_restore_state" }
+    },
+    "degrade_triggers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/degrade_trigger" }
+    },
+    "session_degrade": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/degrade_trigger" }]
+    },
+    "compatible_translation_applied": { "type": "boolean" },
+    "live_session_rehydrated": { "type": "boolean" },
+    "matches_checkpoint": { "type": "boolean" },
+    "replayed_any_mutating_action": { "type": "boolean", "const": false },
+    "reacquired_any_authority": { "type": "boolean", "const": false },
+    "left_in_improvised_shell": { "type": "boolean", "const": false },
+    "hides_degrade_behind_generic_success": { "type": "boolean", "const": false }
+  },
+  "allOf": [
+    {
+      "comment": "An exact restore matched the checkpoint and carries no degrade.",
+      "if": { "properties": { "restore_class": { "const": "exact_restore" } } },
+      "then": {
+        "properties": {
+          "matches_checkpoint": { "const": true },
+          "session_degrade": { "type": "null" },
+          "degrade_triggers": { "maxItems": 0 }
+        }
+      }
+    },
+    {
+      "comment": "A compatible restore is still fully live; only the layout was translated.",
+      "if": { "properties": { "restore_class": { "const": "compatible_restore" } } },
+      "then": {
+        "properties": {
+          "matches_checkpoint": { "const": false },
+          "compatible_translation_applied": { "const": true },
+          "session_degrade": { "type": "null" },
+          "degrade_triggers": { "maxItems": 0 }
+        }
+      }
+    },
+    {
+      "comment": "A layout-only restore surfaces at least one per-waypoint degrade cause.",
+      "if": { "properties": { "restore_class": { "const": "layout_only" } } },
+      "then": {
+        "properties": {
+          "matches_checkpoint": { "const": false },
+          "session_degrade": { "type": "null" },
+          "degrade_triggers": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "comment": "An evidence-only restore kept the layout but not the live walkthrough.",
+      "if": { "properties": { "restore_class": { "const": "evidence_only" } } },
+      "then": {
+        "properties": {
+          "matches_checkpoint": { "const": false },
+          "live_session_rehydrated": { "const": false },
+          "waypoint_restores": { "maxItems": 0 },
+          "session_degrade": { "$ref": "#/$defs/degrade_trigger" },
+          "degrade_triggers": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "comment": "A no-restore outcome restored nothing and keeps the user's current layout.",
+      "if": { "properties": { "restore_class": { "const": "no_restore" } } },
+      "then": {
+        "properties": {
+          "matches_checkpoint": { "const": false },
+          "checkpoint_id": { "const": "" },
+          "restored_layout_ref": { "const": "" },
+          "restored_focus_ref": { "const": "" },
+          "restored_panel_visibility_ref": { "const": "" },
+          "restored_accessibility_posture_ref": { "const": "" },
+          "waypoint_restores": { "maxItems": 0 },
+          "session_degrade": { "const": "checkpoint_unavailable" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "restore_trigger": {
+      "type": "string",
+      "enum": ["exit", "cancel", "crash_recovery", "interrupted_resume"]
+    },
+    "restore_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "evidence_only",
+        "no_restore"
+      ]
+    },
+    "degrade_trigger": {
+      "type": "string",
+      "enum": [
+        "missing_dependency",
+        "revoked_sharing_grant",
+        "unavailable_remote_target",
+        "expired_authority",
+        "live_session_unavailable",
+        "checkpoint_unavailable"
+      ]
+    },
+    "waypoint_restore_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "waypoint_id",
+        "surface_kind",
+        "boundary_label",
+        "target_object_ref",
+        "availability",
+        "degrade_trigger",
+        "placeholder_label",
+        "replayed_mutating_action",
+        "reacquired_authority"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "presentation_waypoint_restore_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": { "type": "string", "const": "shell:presentation_mode_beta:v1" },
+        "waypoint_id": { "$ref": "#/$defs/stable_id" },
+        "surface_kind": {
+          "type": "string",
+          "enum": ["editor", "diff", "docs", "graph", "notebook"]
+        },
+        "boundary_label": {
+          "type": "string",
+          "enum": ["local", "remote", "shared"]
+        },
+        "target_object_ref": { "$ref": "#/$defs/stable_id" },
+        "availability": {
+          "type": "string",
+          "enum": ["restored", "placeholder", "disconnected"]
+        },
+        "degrade_trigger": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/degrade_trigger" }]
+        },
+        "placeholder_label": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/short_text" }]
+        },
+        "replayed_mutating_action": { "type": "boolean", "const": false },
+        "reacquired_authority": { "type": "boolean", "const": false }
+      },
+      "allOf": [
+        {
+          "comment": "A restored waypoint carries neither a degrade trigger nor a placeholder.",
+          "if": { "properties": { "availability": { "const": "restored" } } },
+          "then": {
+            "properties": {
+              "degrade_trigger": { "type": "null" },
+              "placeholder_label": { "type": "null" }
+            }
+          }
+        },
+        {
+          "comment": "A placeholder comes from a missing dependency and carries an honest label.",
+          "if": { "properties": { "availability": { "const": "placeholder" } } },
+          "then": {
+            "properties": {
+              "degrade_trigger": { "const": "missing_dependency" },
+              "placeholder_label": { "$ref": "#/$defs/short_text" }
+            }
+          }
+        },
+        {
+          "comment": "A disconnected target comes from a revoked grant, unavailable remote, or expired authority.",
+          "if": { "properties": { "availability": { "const": "disconnected" } } },
+          "then": {
+            "properties": {
+              "degrade_trigger": {
+                "type": "string",
+                "enum": ["revoked_sharing_grant", "unavailable_remote_target", "expired_authority"]
+              },
+              "placeholder_label": { "$ref": "#/$defs/short_text" }
+            }
+          }
+        }
+      ]
+    },
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "ref_or_empty": {
+      "type": "string",
+      "maxLength": 300
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400
+    }
+  }
+}
