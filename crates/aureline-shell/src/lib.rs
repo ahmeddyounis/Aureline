@@ -218,6 +218,7 @@ pub mod token_overlays;
 pub mod token_state_audit;
 pub mod transfer;
 pub mod voice;
+pub mod voice_shell_state;
 pub mod warm_continuity;
 pub mod wedge_inspector;
 pub mod window_topology_restore_stable;
