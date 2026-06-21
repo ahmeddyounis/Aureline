@@ -42,11 +42,26 @@
 //! while a blocked prerequisite or cross-field invalidation is hidden, let its
 //! form-level summary contradict or replace the field anchors, or ship a
 //! blocked-submit reason that is not machine-readable or reusable.
+//!
+//! [`m5_draft_state_and_autosave::M5DraftStateSetPacket`] freezes what happens
+//! *across an interruption* to those same forms: how edits autosave to a
+//! [`m5_draft_state_and_autosave::AutosaveJournal`], how a surface keeps
+//! draft-versus-applied state explicit, and how a recover-draft action restores
+//! work after a crash, restart, reconnect, or missing-dependency condition. Each
+//! [`m5_draft_state_and_autosave::DraftJournalRecord`] re-derives a
+//! [`m5_draft_state_and_autosave::DraftClaim`] so an autosave indicator can never
+//! claim a draft reached a remote/provider target when only local state was saved,
+//! a local draft can never read as applied, an applied state must name its target,
+//! and a recover-draft action can never imply a remote write or delete unrelated
+//! workspace/profile state. Downstream settings, marketplace, request, support,
+//! admin, import, and project surfaces ingest this packet rather than minting
+//! per-feature draft/autosave/recovery semantics.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
 pub mod components;
 pub mod density;
+pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_structured_input_and_staged_review;

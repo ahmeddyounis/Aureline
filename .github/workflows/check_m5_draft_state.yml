@@ -1,0 +1,68 @@
+# Draft-state / autosave / recover-draft gate.
+#
+# Validates the checked-in draft-state set: the source packet conforms to its
+# schema, no autosave indicator claims a remote/synced target while only local
+# draft state was saved, draft and applied state stay distinguished, a local draft
+# never reads as applied, an applied state names its target, a recover-draft action
+# stays available while a journal exists and never implies a remote write or
+# deletes unrelated workspace/profile state, crash-recovery surfaces enumerate the
+# affected forms/sheets, no surface submits from ambiguous state, no imported
+# review reads as a local submit, no rendering surface overclaims, every form lane
+# / persistence tier / recovery availability / interruption kind / autosave claim
+# scope / consumer surface is represented, and every narrowing/floor rule in the
+# perturbation corpus fires as recorded.
+
+name: check_m5_draft_state
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_draft_state.yml"
+      - "tools/release/draft_state_and_autosave.py"
+      - "schemas/ux/m5-draft-state-and-autosave.schema.json"
+      - "artifacts/ux/m5-draft-state-and-autosave/**"
+      - "fixtures/ux/m5-draft-state-and-autosave/**"
+      - "docs/ux/m5-draft-state-and-autosave.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-draft-state-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  draft_state:
+    name: Draft state
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the draft-state set against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/ux/m5-draft-state-and-autosave.schema.json"))
+          data = json.load(open("artifacts/ux/m5-draft-state-and-autosave/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the draft-state set
+        run: python3 tools/release/draft_state_and_autosave.py validate
+
+      - name: Run the draft-state self-test
+        run: python3 tools/release/draft_state_and_autosave.py self-test

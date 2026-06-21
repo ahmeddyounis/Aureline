@@ -1,0 +1,361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/m5-draft-state-and-autosave.schema.json",
+  "title": "Aureline M5 draft state, autosave journals, and recover-draft semantics",
+  "description": "Canonical, export-safe object model that freezes how a mutation-capable M5 surface autosaves its edits to a local draft journal, keeps draft-versus-applied state explicit, and recovers a draft after a crash, restart, reconnect, or missing-dependency condition without implying that local draft state reached a remote target, provider, or protected file. Each surface carries enough identity to re-derive an effective claim without trusting a grade: a surface whose autosave indicator claims a remote/synced target while only local draft state was saved, whose draft and applied state are not distinguished, whose local draft reads as applied, whose applied state does not name its target, whose recover-draft action implies a remote write or deletes unrelated workspace/profile state, that loses the recover action while a journal exists, that cannot enumerate the surfaces a crash affected, that lets a submit proceed from ambiguous state, that lets an imported/restore review read as a local submit, or that renders wider than its effective claim floors to draft_blocked, while a labelled recoverable gap holds a first-party surface at draft_narrowed, an imported/restore review sits at draft_review_overlay, and a Labs/unadvertised surface makes no public claim. No credential bodies, secret values, raw provider payloads, absolute paths, or URLs ever cross this boundary; refs carry opaque ids only. Adding an enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "as_of",
+    "taxonomy_version",
+    "redaction_class_token",
+    "verification_freshness",
+    "surfaces"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "m5_draft_state_set_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/stable_id" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "as_of": { "type": "string", "format": "date-time" },
+    "taxonomy_version": { "type": "integer", "const": 1 },
+    "redaction_class_token": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Default redaction posture for the packet. No credential bodies, secret values, raw provider payloads, absolute paths, or URLs ever cross this boundary; refs carry opaque ids only."
+    },
+    "verification_freshness": { "$ref": "#/$defs/verification_freshness" },
+    "surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/surface" }
+    }
+  },
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "opaque_ref": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "opaque_ref_nullable": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_ref" }, { "type": "null" }]
+    },
+    "label": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "verification_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_freshness_slo_hours",
+        "last_verification_refresh",
+        "auto_downgrade_on_stale"
+      ],
+      "properties": {
+        "verification_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_verification_refresh": { "type": "string", "format": "date-time" },
+        "auto_downgrade_on_stale": { "type": "boolean" }
+      }
+    },
+    "form_lane": {
+      "type": "string",
+      "enum": ["provider", "admin", "request", "package", "import", "settings", "projects"]
+    },
+    "origin": {
+      "type": "string",
+      "enum": ["local_authoring", "remote_target", "provider_backed", "imported_or_restore"]
+    },
+    "claim_posture": {
+      "type": "string",
+      "enum": ["claimed_stable", "labs_unadvertised"]
+    },
+    "persistence_tier": {
+      "type": "string",
+      "enum": [
+        "unsaved_in_memory",
+        "local_journal",
+        "local_durable_checkpoint",
+        "committed_local",
+        "committed_remote"
+      ]
+    },
+    "autosave_status": {
+      "type": "string",
+      "enum": ["idle", "saving", "saved", "failed", "disabled"]
+    },
+    "autosave_claim_scope": {
+      "type": "string",
+      "enum": ["claims_local_only", "claims_remote_synced", "claims_none"]
+    },
+    "draft_applied_state": {
+      "type": "string",
+      "enum": ["draft_only", "partially_applied", "applied", "not_distinguished"]
+    },
+    "recovery_availability": {
+      "type": "string",
+      "enum": ["recoverable", "recovered", "no_journal"]
+    },
+    "interruption_kind": {
+      "type": "string",
+      "enum": ["none", "crash", "restart", "reconnect", "missing_dependency"]
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached_snapshot",
+        "stale_expired",
+        "superseded_by_newer_source",
+        "missing"
+      ]
+    },
+    "proof_currency": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "cached_within_window",
+        "stale_expired",
+        "requires_review",
+        "missing_proof"
+      ]
+    },
+    "blocked_submit_fallback": {
+      "type": "string",
+      "enum": ["shows_reason_on_submit", "disabled_with_hint", "none_silent"]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "form_view",
+        "wizard_step",
+        "review_sheet",
+        "diagnostics_panel",
+        "support_export",
+        "ai_evidence",
+        "help_inline"
+      ]
+    },
+    "draft_claim": {
+      "type": "string",
+      "enum": [
+        "draft_blocked",
+        "draft_review_overlay",
+        "draft_narrowed",
+        "draft_certified",
+        "draft_labs_not_claimed"
+      ]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_ref",
+        "canonical_surface_ref",
+        "structured_input_ref",
+        "journal_ref",
+        "provider_ref",
+        "source_artifact_ref",
+        "reopen_backlink_ref"
+      ],
+      "properties": {
+        "session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "canonical_surface_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "structured_input_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "journal_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "reopen_backlink_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "journal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "persistence_tier",
+        "autosave_status",
+        "autosave_claim_scope",
+        "journal_entry_count",
+        "local_only",
+        "indicator_labeled",
+        "last_autosave_ref",
+        "label_summary"
+      ],
+      "properties": {
+        "persistence_tier": { "$ref": "#/$defs/persistence_tier" },
+        "autosave_status": { "$ref": "#/$defs/autosave_status" },
+        "autosave_claim_scope": { "$ref": "#/$defs/autosave_claim_scope" },
+        "journal_entry_count": { "type": "integer", "minimum": 0 },
+        "local_only": { "type": "boolean" },
+        "indicator_labeled": { "type": "boolean" },
+        "last_autosave_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "label_summary": { "$ref": "#/$defs/label" }
+      }
+    },
+    "draft_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "draft_applied_state",
+        "draft_distinct_from_applied",
+        "unsaved_change_count",
+        "applied_field_count",
+        "draft_field_count",
+        "applied_target_named",
+        "label_summary"
+      ],
+      "properties": {
+        "draft_applied_state": { "$ref": "#/$defs/draft_applied_state" },
+        "draft_distinct_from_applied": { "type": "boolean" },
+        "unsaved_change_count": { "type": "integer", "minimum": 0 },
+        "applied_field_count": { "type": "integer", "minimum": 0 },
+        "draft_field_count": { "type": "integer", "minimum": 0 },
+        "applied_target_named": { "type": "boolean" },
+        "label_summary": { "$ref": "#/$defs/label" }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "availability",
+        "interruption_kind",
+        "recover_action_present",
+        "recover_preserves_unrelated_state",
+        "enumerates_affected_surfaces",
+        "recover_implies_remote_write",
+        "label_summary"
+      ],
+      "properties": {
+        "availability": { "$ref": "#/$defs/recovery_availability" },
+        "interruption_kind": { "$ref": "#/$defs/interruption_kind" },
+        "recover_action_present": { "type": "boolean" },
+        "recover_preserves_unrelated_state": { "type": "boolean" },
+        "enumerates_affected_surfaces": { "type": "boolean" },
+        "recover_implies_remote_write": { "type": "boolean" },
+        "label_summary": { "$ref": "#/$defs/label" }
+      }
+    },
+    "submit_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "submit_allowed",
+        "draft_applied_disambiguated_before_submit",
+        "commit_action_is_specific",
+        "label_summary"
+      ],
+      "properties": {
+        "submit_allowed": { "type": "boolean" },
+        "draft_applied_disambiguated_before_submit": { "type": "boolean" },
+        "commit_action_is_specific": { "type": "boolean" },
+        "label_summary": { "$ref": "#/$defs/label" }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "draft_applied_distinct",
+        "autosave_scope_truthful",
+        "local_draft_not_remote",
+        "recovery_available_when_journal",
+        "recovery_preserves_unrelated",
+        "affected_surfaces_enumerable",
+        "applied_target_disclosed",
+        "freshness_state_visible",
+        "superseded_state_marked",
+        "reopen_visible_on_demand"
+      ],
+      "properties": {
+        "draft_applied_distinct": { "type": "boolean" },
+        "autosave_scope_truthful": { "type": "boolean" },
+        "local_draft_not_remote": { "type": "boolean" },
+        "recovery_available_when_journal": { "type": "boolean" },
+        "recovery_preserves_unrelated": { "type": "boolean" },
+        "affected_surfaces_enumerable": { "type": "boolean" },
+        "applied_target_disclosed": { "type": "boolean" },
+        "freshness_state_visible": { "type": "boolean" },
+        "superseded_state_marked": { "type": "boolean" },
+        "reopen_visible_on_demand": { "type": "boolean" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_currency", "proof_ref"],
+      "properties": {
+        "proof_currency": { "$ref": "#/$defs/proof_currency" },
+        "proof_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "rendering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "rendered_claim",
+        "provenance_visible",
+        "read_only",
+        "source_surface_ref"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/consumer_surface" },
+        "rendered_claim": { "$ref": "#/$defs/draft_claim" },
+        "provenance_visible": { "type": "boolean" },
+        "read_only": { "type": "boolean" },
+        "source_surface_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "lane",
+        "origin",
+        "label_summary",
+        "claim_posture",
+        "declared_freshness_state",
+        "declared_blocked_fallback",
+        "lineage",
+        "journal",
+        "draft_state",
+        "recovery",
+        "submit_gate",
+        "integrity",
+        "verification",
+        "renderings"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/stable_id" },
+        "lane": { "$ref": "#/$defs/form_lane" },
+        "origin": { "$ref": "#/$defs/origin" },
+        "label_summary": { "$ref": "#/$defs/label" },
+        "claim_posture": { "$ref": "#/$defs/claim_posture" },
+        "declared_freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "declared_blocked_fallback": { "$ref": "#/$defs/blocked_submit_fallback" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "journal": { "$ref": "#/$defs/journal" },
+        "draft_state": { "$ref": "#/$defs/draft_state" },
+        "recovery": { "$ref": "#/$defs/recovery" },
+        "submit_gate": { "$ref": "#/$defs/submit_gate" },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "verification": { "$ref": "#/$defs/verification" },
+        "renderings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rendering" }
+        }
+      }
+    }
+  }
+}
