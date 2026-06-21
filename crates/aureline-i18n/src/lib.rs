@@ -16,6 +16,7 @@ pub mod locale_pack_delivery;
 pub mod localized_catalog;
 pub mod localized_profile_matrix;
 pub mod m5_dense_surface_lab;
+pub mod m5_localized_profile_qualification;
 pub mod message_registry;
 pub mod stable_locale_lifecycle;
 pub mod translated_help_packs;
@@ -67,6 +68,14 @@ pub use localized_profile_matrix::{
     SurfaceInventoryRow, SurfaceLocalizationState, LOCALIZED_PROFILE_MATRIX_FIXTURE_REF,
     LOCALIZED_PROFILE_MATRIX_PACKET_ID, LOCALIZED_PROFILE_MATRIX_RECORD_KIND,
     LOCALIZED_PROFILE_MATRIX_SCHEMA_VERSION,
+};
+
+pub use m5_localized_profile_qualification::{
+    seeded_localized_claim_status_packet, KnownLimitRow, LaneEvidenceState, LaneNarrowCause,
+    LocalizedClaimStatusPacket, LocalizedClaimStatusSummary, LocalizedProfileClaimRow,
+    ProfileLaneResult, QualificationLaneKind, LOCALIZED_CLAIM_STATUS_FIXTURE_REF,
+    LOCALIZED_CLAIM_STATUS_PACKET_ID, LOCALIZED_CLAIM_STATUS_RECORD_KIND,
+    LOCALIZED_CLAIM_STATUS_SCHEMA_VERSION,
 };
 
 pub use contributed_locale::{
