@@ -29,6 +29,10 @@
 //!   speaker-notes tray: local-only defaults, explicit share promotion, typed
 //!   citation refs, retention / export posture, and the audience projection that
 //!   keeps a private note off any follower surface.
+//! - [`classroom`] adds teaching / classroom roles (moderator, participant,
+//!   observer, approver, scribe) kept strictly separate from product authority,
+//!   command-backed and authority-bounded exercise packets, and an honest
+//!   observer-or-note-taker degrade for limited clients.
 //!
 //! The geometry primitive that decides which zone each surface rides — and that
 //! it never replaces a pane — is
@@ -36,6 +40,7 @@
 //! `docs/ux/presentation-overlays-and-navigation.md`.
 
 pub mod binding;
+pub mod classroom;
 pub mod corpus;
 pub mod follow_state;
 pub mod speaker_notes;

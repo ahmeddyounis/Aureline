@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/presentation/classroom-role.schema.json",
+  "title": "Aureline presentation classroom profile and teaching roles",
+  "description": "Canonical classroom truth packet for a teaching / classroom presentation session: its members, exercise packets, and the guardrail flags that keep teaching roles separate from product authority. The role (moderator, participant, observer, approver, scribe) and client_class (full, limited, low_bandwidth) vocabularies are the canonical teaching-session vocabularies reused by this M5 presentation lane. A role is a teaching capability only and never grants product authority — every member carries role_grants_terminal_or_debug_control=false and role_implies_broader_authority=false, and product_authority.granted_by_classroom_role is always false, so any real authority a member holds is sourced from a separate external grant (product_authority.external_authority_ref) rather than the badge. A constrained (limited or low-bandwidth) client joins honestly: the capability summary omits drive and mutation capabilities a constrained client cannot use, so the member is recorded as the observer or note-taker it actually is and degrades_honestly stays true. Each exercise packet is command-backed and authority-bounded (see exercise-packet.schema.json). The profile-level no_role_* / all_* flags re-state these invariants for inspection, and grants_mutation_authority / grants_control_authority are always false. Diagnostics and support surfaces ingest the support-safe projection rather than this object. Adding a new enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "session_id",
+    "members",
+    "exercise_packets",
+    "no_role_grants_terminal_or_debug_control",
+    "no_role_implies_broader_authority",
+    "no_authority_granted_by_classroom_role",
+    "all_constrained_clients_join_safely",
+    "all_packets_command_backed",
+    "all_packets_authority_bounded",
+    "no_packet_opens_hidden_mutation_path",
+    "grants_mutation_authority",
+    "grants_control_authority"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "presentation_classroom_profile_record"
+    },
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": { "$ref": "#/$defs/stable_id" },
+    "session_id": { "$ref": "#/$defs/stable_id" },
+    "members": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/member" }
+    },
+    "exercise_packets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/exercise_packet" }
+    },
+    "no_role_grants_terminal_or_debug_control": { "type": "boolean", "const": true },
+    "no_role_implies_broader_authority": { "type": "boolean", "const": true },
+    "no_authority_granted_by_classroom_role": { "type": "boolean", "const": true },
+    "all_constrained_clients_join_safely": { "type": "boolean", "const": true },
+    "all_packets_command_backed": { "type": "boolean" },
+    "all_packets_authority_bounded": { "type": "boolean" },
+    "no_packet_opens_hidden_mutation_path": { "type": "boolean", "const": true },
+    "grants_mutation_authority": { "type": "boolean", "const": false },
+    "grants_control_authority": { "type": "boolean", "const": false }
+  },
+  "$defs": {
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "participant_id",
+        "role",
+        "client_class",
+        "capability",
+        "product_authority",
+        "role_grants_terminal_or_debug_control",
+        "role_implies_broader_authority",
+        "degrades_honestly"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "presentation_classroom_member_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": { "$ref": "#/$defs/stable_id" },
+        "participant_id": { "$ref": "#/$defs/stable_id" },
+        "role": {
+          "type": "string",
+          "enum": ["moderator", "participant", "observer", "approver", "scribe"]
+        },
+        "client_class": {
+          "type": "string",
+          "enum": ["full", "limited", "low_bandwidth"]
+        },
+        "capability": { "$ref": "#/$defs/capability" },
+        "product_authority": { "$ref": "#/$defs/product_authority" },
+        "role_grants_terminal_or_debug_control": { "type": "boolean", "const": false },
+        "role_implies_broader_authority": { "type": "boolean", "const": false },
+        "degrades_honestly": { "type": "boolean" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "can_drive_session",
+        "can_take_notes",
+        "may_expose_mutation_affordance",
+        "observer_only",
+        "joins_safely"
+      ],
+      "properties": {
+        "can_drive_session": { "type": "boolean" },
+        "can_take_notes": { "type": "boolean" },
+        "may_expose_mutation_affordance": { "type": "boolean" },
+        "observer_only": { "type": "boolean" },
+        "joins_safely": { "type": "boolean" }
+      }
+    },
+    "product_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "holds_external_authority",
+        "external_authority_ref",
+        "granted_by_classroom_role"
+      ],
+      "properties": {
+        "holds_external_authority": { "type": "boolean" },
+        "external_authority_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stable_id" }]
+        },
+        "granted_by_classroom_role": { "type": "boolean", "const": false }
+      },
+      "allOf": [
+        {
+          "comment": "The grant ref is present exactly when external authority is held.",
+          "if": { "properties": { "holds_external_authority": { "const": true } } },
+          "then": { "properties": { "external_authority_ref": { "$ref": "#/$defs/stable_id" } } },
+          "else": { "properties": { "external_authority_ref": { "type": "null" } } }
+        }
+      ]
+    },
+    "exercise_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "packet_id",
+        "title",
+        "targets",
+        "expected_actions",
+        "authority_bound"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "presentation_exercise_packet_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": { "$ref": "#/$defs/stable_id" },
+        "packet_id": { "$ref": "#/$defs/stable_id" },
+        "title": { "$ref": "#/$defs/short_text" },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/target" }
+        },
+        "expected_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/expected_action" }
+        },
+        "authority_bound": { "$ref": "#/$defs/authority_bound" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_ref", "kind"],
+      "properties": {
+        "target_ref": { "$ref": "#/$defs/short_text" },
+        "kind": {
+          "type": "string",
+          "enum": ["file", "symbol", "diff", "doc", "graph"]
+        }
+      }
+    },
+    "expected_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "label", "command_id", "key_binding_ref", "target_ref"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/stable_id" },
+        "label": { "$ref": "#/$defs/short_text" },
+        "command_id": { "$ref": "#/$defs/command_id" },
+        "key_binding_ref": { "$ref": "#/$defs/stable_id" },
+        "target_ref": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "authority_bound": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "all_actions_command_backed",
+        "constrained_to_declared_targets",
+        "opens_hidden_mutation_path",
+        "widens_product_authority"
+      ],
+      "properties": {
+        "all_actions_command_backed": { "type": "boolean" },
+        "constrained_to_declared_targets": { "type": "boolean" },
+        "opens_hidden_mutation_path": { "type": "boolean", "const": false },
+        "widens_product_authority": { "type": "boolean", "const": false }
+      }
+    },
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "command_id": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 300,
+      "pattern": "^cmd:[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400
+    }
+  }
+}
