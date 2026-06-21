@@ -252,6 +252,23 @@
 //! local authority. It reuses the matrix's frozen origin, confidence, freshness,
 //! reopen, and proof vocabularies.
 //!
+//! [`m5_output_channel_virtualization_trust_and_freshness::M5OutputChannelSetPacket`]
+//! takes the same causal chain down to the **individual output channel**: a raw log
+//! stream, a trusted structured report, an HTML report bundle, a generated artifact, or
+//! a trace/profile output. Each
+//! [`m5_output_channel_virtualization_trust_and_freshness::OutputChannelRecord`] binds
+//! its channel to the original run/step/provider/artifact lineage, the stream-first
+//! virtualization profile that keeps a large log searchable and exportable without full
+//! materialization, the content trust class and pin/export controls that keep
+//! safe-preview distinct from active/open-in-external content, and the
+//! live/cached/stale freshness with fetched-at and provider-unreachable cues. It then
+//! re-derives an effective claim per rendering surface so a large log never forces full
+//! materialization into shell memory, a user can always tell raw / safe-preview /
+//! trusted-structured / untrusted-active content apart before copying, exporting, or
+//! opening, and a provider-backed channel can never masquerade as live after a freshness
+//! threshold or a lost connection. It reuses the matrix's frozen origin, channel,
+//! confidence, freshness, reopen, and proof vocabularies.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -304,6 +321,7 @@ pub mod m5_execution_evidence_causality_matrix;
 pub mod m5_execution_evidence_projection_overlays;
 pub mod m5_interop_conformance;
 pub mod m5_label_parity;
+pub mod m5_output_channel_virtualization_trust_and_freshness;
 pub mod m5_problem_records_source_task_correlation_and_rerun_jump_parity;
 pub mod m5_quality_action_proposals_and_sessions;
 pub mod m5_replay_bundles;
@@ -971,6 +989,17 @@ pub use m5_label_parity::{
     LABEL_PARITY_PACKET_ARTIFACT_REF, LABEL_PARITY_RECORD_KIND, LABEL_PARITY_SCHEMA_REF,
     LABEL_PARITY_SCHEMA_VERSION, LABEL_PARITY_SUPPORT_EXPORT_ID,
     LABEL_PARITY_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_output_channel_virtualization_trust_and_freshness::{
+    current_m5_output_channel_set, seeded_m5_output_channel_set, ChannelAccessControls,
+    ChannelClaim, ChannelClaimDistribution, ChannelDecision, ChannelFreshness, ChannelIntegrity,
+    ChannelLineage, ChannelNarrowingReason, ChannelPayloadKind, ChannelRendering, ChannelSurface,
+    ChannelVerification, ContentTrustClass, M5OutputChannelArtifactError, M5OutputChannelSetInput,
+    M5OutputChannelSetPacket, M5OutputChannelViolation, OutputChannelRecord, VirtualizationProfile,
+    LARGE_CHANNEL_CHUNK_THRESHOLD, M5_OUTPUT_CHANNELS_DOC_REF, M5_OUTPUT_CHANNELS_FIXTURE_DIR,
+    M5_OUTPUT_CHANNELS_PACKET_ID, M5_OUTPUT_CHANNELS_RECORD_KIND, M5_OUTPUT_CHANNELS_REPORT_REF,
+    M5_OUTPUT_CHANNELS_SCHEMA_REF, M5_OUTPUT_CHANNELS_SCHEMA_VERSION,
+    M5_OUTPUT_CHANNELS_SUPPORT_EXPORT_REF, M5_OUTPUT_CHANNELS_TAXONOMY_VERSION,
 };
 pub use m5_problem_records_source_task_correlation_and_rerun_jump_parity::{
     current_m5_problem_record_set, seeded_problem_record_set, ActionAvailability,

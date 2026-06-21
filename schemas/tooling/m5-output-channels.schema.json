@@ -1,0 +1,385 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/m5-output-channels.schema.json",
+  "title": "Aureline M5 output-channel set",
+  "description": "Canonical, export-safe object model that freezes an individual M5 output channel: a raw log stream, a trusted structured report, an HTML report bundle, a generated artifact, or a trace/profile output rendered into the shell, terminal, Problems panel, review surface, timeline, support bundle, or AI-evidence consumer. Each channel binds its output to the original run/step/provider/artifact lineage, the stream-first virtualization profile that keeps a large log searchable and exportable without full materialization, the content trust class and pin/export controls that keep safe-preview distinct from active/open-in-external content, and the live/cached/stale freshness with fetched-at and provider-unreachable cues. The channel carries enough identity to re-derive an effective claim without trusting a grade: the canonical channel id and origin run/step/provider identity stay reopenable on demand on every rendering surface, a large log stays stream-first/searchable/exportable with stable chunk ids and bounded memory, the content trust class stays labelled with safe-preview kept distinct from active/open-in-external content, provider-backed/imported channels disclose fetched-at and provider-unreachable cues and never claim live local authority, a rendering surface never renders wider than the channel's effective claim, and a channel that flattens lineage, hides it from a surface, drops a heuristic backlink, loses its reopen path, forces full materialization on export, blurs the trust boundary, or masquerades as live floors to a raw-output / keyboard fallback rather than rendering a clean-but-false channel. This is the per-channel companion to schemas/tooling/m5-execution-evidence.schema.json (the lane matrix), schemas/tooling/m5-problem-records.schema.json (the Problems row), and schemas/tooling/m5-execution-evidence-projections.schema.json (the projected overlay); all four speak one vocabulary so shell, terminal, Problems, debug, pipeline, notebook, CLI/headless, AI evidence, and support export ingest one model. Adding an enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "as_of",
+    "taxonomy_version",
+    "redaction_class_token",
+    "verification_freshness",
+    "channels"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "m5_output_channel_set_packet"
+    },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/stable_id" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "as_of": { "type": "string", "format": "date-time" },
+    "taxonomy_version": { "type": "integer", "const": 1 },
+    "redaction_class_token": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Default redaction posture for the packet. No raw stdout/stderr bytes, command lines, provider log bodies, env bodies, absolute paths, URLs, or secrets ever cross this boundary; refs carry opaque ids only."
+    },
+    "verification_freshness": { "$ref": "#/$defs/verification_freshness" },
+    "channels": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/channel" }
+    }
+  },
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "opaque_ref": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "opaque_ref_nullable": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_ref" }, { "type": "null" }]
+    },
+    "short_sentence": { "type": "string", "minLength": 1, "maxLength": 360 },
+    "verification_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_freshness_slo_hours",
+        "last_verification_refresh",
+        "auto_downgrade_on_stale"
+      ],
+      "properties": {
+        "verification_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_verification_refresh": { "type": "string", "format": "date-time" },
+        "auto_downgrade_on_stale": { "type": "boolean" }
+      }
+    },
+    "payload_kind": {
+      "type": "string",
+      "enum": [
+        "raw_log_stream",
+        "structured_report",
+        "html_report_bundle",
+        "generated_artifact",
+        "trace_profile_output"
+      ],
+      "description": "What the channel carries."
+    },
+    "channel_class": {
+      "type": "string",
+      "enum": [
+        "task_test_debug_output",
+        "extension_ai_tool_output",
+        "remote_provider_imported_output",
+        "evidence_bundle",
+        "not_applicable"
+      ],
+      "description": "Producer/transport class shared with the causality matrix. A real channel (anything but not_applicable) must carry a canonical channel ref."
+    },
+    "trust_class": {
+      "type": "string",
+      "enum": ["raw", "safe_preview", "trusted_structured", "untrusted_active"],
+      "description": "The content trust class surfaced before copy/export/open. untrusted_active content must never open externally without confirmation and must never leak through an export; the safe-preview versus active boundary is never blurred."
+    },
+    "claim_posture": {
+      "type": "string",
+      "enum": ["claimed_stable", "claimed_beta", "labs_unadvertised"],
+      "description": "Whether the channel is publicly claimed. Labs/unadvertised channels make no public claim and are never widened."
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "local_task",
+        "local_test",
+        "local_debug_session",
+        "notebook_run",
+        "headless_automation",
+        "extension_owned_run",
+        "ai_triggered_run",
+        "remote_linked_run",
+        "pipeline_provider_run",
+        "imported_provider_evidence"
+      ],
+      "description": "How the run/evidence originated. First-party local/notebook/headless/extension/AI origins can certify; remote, pipeline/provider, and imported origins project as read-only overlays only."
+    },
+    "confidence_tier": {
+      "type": "string",
+      "enum": [
+        "structured_full",
+        "heuristic_high",
+        "heuristic_medium",
+        "heuristic_low",
+        "provider_mapped",
+        "unmapped_requires_review"
+      ],
+      "description": "Confidence taxonomy shared with the causality matrix. Heuristic channels carry an explicit tier and a raw-output backlink; unmapped is a first-class state, not an invisible gap."
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached_within_window",
+        "stale_expired",
+        "superseded_by_newer_run",
+        "unanchored",
+        "missing"
+      ],
+      "description": "Freshness/anchoring state of the channel content. Stale and superseded states must remain visibly classified wherever the channel is rendered."
+    },
+    "reopen_target": {
+      "type": "string",
+      "enum": [
+        "owning_run",
+        "output_channel",
+        "generated_artifact",
+        "provider_run_page",
+        "raw_output_backlink",
+        "editor_anchor",
+        "none_keyboard_fallback"
+      ],
+      "description": "Where reopen-to-origin lands. A floored channel keeps a raw_output_backlink or none_keyboard_fallback rather than rendering a clean-but-false channel."
+    },
+    "proof_currency": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "cached_within_window",
+        "imported_current",
+        "stale_expired",
+        "missing_proof",
+        "requires_review"
+      ],
+      "description": "Currency of the certification proof that this channel preserves its lineage (distinct from the channel's own freshness_state)."
+    },
+    "channel_surface": {
+      "type": "string",
+      "enum": [
+        "output_pane",
+        "terminal_pane",
+        "problems_panel",
+        "diff_review_overlay",
+        "timeline_history",
+        "support_export",
+        "ai_evidence"
+      ],
+      "description": "A surface on which the channel is rendered."
+    },
+    "channel_claim": {
+      "type": "string",
+      "enum": [
+        "channel_unreconstructable",
+        "channel_read_only_overlay",
+        "channel_narrowed",
+        "channel_certified",
+        "channel_labs_not_claimed"
+      ],
+      "description": "The effective claim a channel or a rendering surface asserts. A surface may never render wider than the channel's effective claim."
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_ref",
+        "canonical_channel_ref",
+        "origin_run_ref",
+        "origin_step_ref",
+        "provider_ref",
+        "artifact_ref",
+        "evidence_packet_ref",
+        "raw_output_backlink_ref"
+      ],
+      "properties": {
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "canonical_channel_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "origin_run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "origin_step_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "evidence_packet_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "raw_output_backlink_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "virtualization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "large_log",
+        "stream_first",
+        "searchable",
+        "stable_chunk_ids",
+        "follow_mode_supported",
+        "bounded_memory",
+        "exportable_without_full_materialization",
+        "total_chunk_count",
+        "retained_window_chunks",
+        "approx_total_bytes",
+        "max_retained_bytes"
+      ],
+      "properties": {
+        "large_log": { "type": "boolean" },
+        "stream_first": { "type": "boolean" },
+        "searchable": { "type": "boolean" },
+        "stable_chunk_ids": { "type": "boolean" },
+        "follow_mode_supported": { "type": "boolean" },
+        "bounded_memory": { "type": "boolean" },
+        "exportable_without_full_materialization": { "type": "boolean" },
+        "total_chunk_count": { "type": "integer", "minimum": 0 },
+        "retained_window_chunks": { "type": "integer", "minimum": 0 },
+        "approx_total_bytes": { "type": "integer", "minimum": 0 },
+        "max_retained_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_class_labeled",
+        "safe_preview_available",
+        "pin_supported",
+        "export_supported",
+        "export_is_safe",
+        "open_in_external_requires_confirmation",
+        "trust_boundary_preserved"
+      ],
+      "properties": {
+        "trust_class_labeled": { "type": "boolean" },
+        "safe_preview_available": { "type": "boolean" },
+        "pin_supported": { "type": "boolean" },
+        "export_supported": { "type": "boolean" },
+        "export_is_safe": { "type": "boolean" },
+        "open_in_external_requires_confirmation": { "type": "boolean" },
+        "trust_boundary_preserved": { "type": "boolean" }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_backed",
+        "fetched_at_present",
+        "provider_reachable",
+        "provider_unreachable_marked",
+        "live_state_honest"
+      ],
+      "properties": {
+        "provider_backed": { "type": "boolean" },
+        "fetched_at_present": { "type": "boolean" },
+        "provider_reachable": { "type": "boolean" },
+        "provider_unreachable_marked": { "type": "boolean" },
+        "live_state_honest": { "type": "boolean" }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserves_run_step_lineage",
+        "preserves_provider_identity",
+        "lineage_visible_on_demand",
+        "freshness_state_labeled",
+        "confidence_label_visible",
+        "superseded_state_marked",
+        "imported_channel_read_only",
+        "raw_output_backlink_present"
+      ],
+      "properties": {
+        "preserves_run_step_lineage": { "type": "boolean" },
+        "preserves_provider_identity": { "type": "boolean" },
+        "lineage_visible_on_demand": { "type": "boolean" },
+        "freshness_state_labeled": { "type": "boolean" },
+        "confidence_label_visible": { "type": "boolean" },
+        "superseded_state_marked": { "type": "boolean" },
+        "imported_channel_read_only": { "type": "boolean" },
+        "raw_output_backlink_present": { "type": "boolean" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_currency", "proof_ref"],
+      "properties": {
+        "proof_currency": { "$ref": "#/$defs/proof_currency" },
+        "proof_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "rendering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "rendered_claim",
+        "lineage_visible",
+        "read_only",
+        "source_channel_ref"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/channel_surface" },
+        "rendered_claim": { "$ref": "#/$defs/channel_claim" },
+        "lineage_visible": { "type": "boolean" },
+        "read_only": { "type": "boolean" },
+        "source_channel_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "channel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel_id",
+        "payload_kind",
+        "channel_class",
+        "trust_class",
+        "label_summary",
+        "claim_posture",
+        "origin_class",
+        "declared_confidence_tier",
+        "declared_freshness_state",
+        "declared_reopen_target",
+        "lineage",
+        "virtualization",
+        "access",
+        "freshness",
+        "integrity",
+        "verification",
+        "renderings"
+      ],
+      "properties": {
+        "channel_id": { "$ref": "#/$defs/stable_id" },
+        "payload_kind": { "$ref": "#/$defs/payload_kind" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "trust_class": { "$ref": "#/$defs/trust_class" },
+        "label_summary": { "$ref": "#/$defs/short_sentence" },
+        "claim_posture": { "$ref": "#/$defs/claim_posture" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "declared_confidence_tier": { "$ref": "#/$defs/confidence_tier" },
+        "declared_freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "declared_reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "virtualization": { "$ref": "#/$defs/virtualization" },
+        "access": { "$ref": "#/$defs/access" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "verification": { "$ref": "#/$defs/verification" },
+        "renderings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rendering" }
+        }
+      }
+    }
+  }
+}
