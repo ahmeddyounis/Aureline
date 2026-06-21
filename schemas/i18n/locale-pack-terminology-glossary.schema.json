@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/i18n/locale-pack-terminology-glossary.schema.json",
+  "title": "Aureline locale-pack terminology governance glossary",
+  "description": "Governed terminology for the critical trust, policy, capability, lifecycle, recovery, evidence, and AI-safety vocabulary that localized surfaces draw from. Each term fixes one canonical meaning so translations cannot fork critical semantics. Host-stable-locked terms are rendered from the host catalog and may never be replaced by a contributed pack; review-governed terms may be translated but must preserve the canonical meaning. This artifact carries governance metadata only: no translated bodies, signing keys, or credentials.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "glossary_id",
+    "generated_at",
+    "source_language_locale",
+    "domains",
+    "host_stable_namespace_prefixes",
+    "terms"
+  ],
+  "properties": {
+    "record_kind": { "const": "locale_pack_terminology_glossary" },
+    "schema_version": { "const": 1 },
+    "glossary_id": { "$ref": "#/$defs/stable_id" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "source_language_locale": { "$ref": "#/$defs/locale" },
+    "domains": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/domain" }
+    },
+    "host_stable_namespace_prefixes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "terms": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/term" }
+    }
+  },
+  "$defs": {
+    "stable_id": { "type": "string", "minLength": 1 },
+    "locale": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$" },
+    "domain": {
+      "enum": [
+        "trust",
+        "policy",
+        "capability",
+        "lifecycle",
+        "recovery",
+        "evidence",
+        "ai_safety"
+      ]
+    },
+    "governance_class": {
+      "description": "host_stable_locked: rendered from the host catalog, never replaced or translated by a contributed pack. translatable_with_review: may be translated, but the canonical meaning and severity are fixed and the translation must preserve them under review.",
+      "enum": ["host_stable_locked", "translatable_with_review"]
+    },
+    "term": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "term_key",
+        "domain",
+        "governance_class",
+        "canonical_term",
+        "definition",
+        "forbidden_to_replace",
+        "do_not_soften"
+      ],
+      "properties": {
+        "term_key": {
+          "$ref": "#/$defs/stable_id",
+          "description": "Stable, locale-neutral key surfaces and exports anchor on."
+        },
+        "domain": { "$ref": "#/$defs/domain" },
+        "governance_class": { "$ref": "#/$defs/governance_class" },
+        "canonical_term": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Source-language term that fixes the meaning once."
+        },
+        "definition": { "type": "string", "minLength": 1 },
+        "forbidden_to_replace": {
+          "type": "boolean",
+          "description": "True when a contributed pack may render but never replace this term."
+        },
+        "do_not_soften": {
+          "type": "boolean",
+          "description": "True when a translation may not soften, strengthen, or reorder the term's meaning or severity."
+        },
+        "host_catalog_ref": {
+          "$ref": "#/$defs/stable_id",
+          "description": "Host catalog that owns the canonical vocabulary, for host-stable-locked terms."
+        },
+        "host_stable_label_class": {
+          "enum": ["trust_label", "policy_label", "capability_label", "lifecycle_label", "recovery_label"],
+          "description": "Maps to the runtime host-stable label class, when one applies."
+        },
+        "translation_review_required": {
+          "type": "boolean",
+          "description": "True when a translation of this term must pass terminology review before shipping."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "governance_class": { "const": "host_stable_locked" } } },
+          "then": {
+            "required": ["host_catalog_ref"],
+            "properties": {
+              "forbidden_to_replace": { "const": true },
+              "do_not_soften": { "const": true }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,64 @@
+# Locale-pack contribution tooling gate.
+#
+# Runs the standalone contribution validator over the terminology governance
+# glossary (must validate), every shipped authoring template (must pass with no
+# errors), and every rejected fixture (must be rejected with the finding codes
+# its expected.json declares). This holds first-party, community, and extension
+# locale packs to the same stable-id, compatibility, and host-stable-label rules,
+# and proves the guardrails fire on incompatible packs and forbidden label
+# replacement.
+
+name: check_locale_pack_contribution
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_locale_pack_contribution.yml"
+      - "tools/i18n/validate_locale_pack/**"
+      - "tools/check_locale_pack_contribution.py"
+      - "templates/locale-packs/**"
+      - "fixtures/i18n/locale-pack-contribution/**"
+      - "fixtures/i18n/message-id-stability/**"
+      - "schemas/i18n/locale-pack-authoring-manifest.schema.json"
+      - "schemas/i18n/locale-pack-terminology-glossary.schema.json"
+      - "docs/i18n/locale-pack-authoring.md"
+      - "artifacts/i18n/m5-locale-contribution-proof.md"
+      - "artifacts/i18n/m5-locale-contribution-proof/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-locale-pack-contribution-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  locale_pack_contribution:
+    name: Locale-pack contribution gate
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run locale-pack contribution gate
+        run: |
+          python3 tools/check_locale_pack_contribution.py \
+            --report artifacts/i18n/m5-locale-contribution-proof/capture.json
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: locale-pack-contribution-${{ github.run_id }}
+          path: artifacts/i18n/m5-locale-contribution-proof/capture.json
+          if-no-files-found: error
+          retention-days: 30
