@@ -15,6 +15,7 @@
 pub mod checkpoints;
 pub mod local_history;
 pub mod mutation_journal;
+pub mod voice_groups;
 
 mod storage;
 
@@ -53,6 +54,12 @@ pub use mutation_journal::{
     MUTATION_JOURNAL_ENTRY_RECORD_KIND,
 };
 pub use storage::{HistoryError, HistoryStorageRoot, IdSource};
+pub use voice_groups::{
+    DictationIntentClass, DictationRecognitionLocality, VoiceGroupViolation,
+    VoiceHistoryGroupInput, VoiceHistoryGroupMember, VoiceHistoryGroupRecord,
+    DICTATION_CAPTURE_COMMAND_ID, ORDINARY_TEXT_EDIT_UNDO_CLASS_IDS,
+    VOICE_HISTORY_GROUP_RECORD_KIND, VOICE_HISTORY_GROUP_SCHEMA_VERSION,
+};
 
 /// Stable content-addressed object id (`obj:blake3:<hex>`) for `bytes`.
 ///

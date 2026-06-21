@@ -30,6 +30,7 @@ pub mod stabilize_orientation_aids_breadcrumbs_folds_minimap;
 pub mod text_nav;
 pub mod undo;
 pub mod viewport;
+pub mod voice_input;
 
 pub use assist::{
     AssistContractError, AssistSchemaVersion, AssistSessionStore, AssistSourceCounts,
@@ -142,4 +143,15 @@ pub use undo::UndoGroupSummary;
 pub use viewport::{
     CaretMove, EditorAction, EditorViewport, EditorViewportSnapshot, ImeComposition,
     SecondarySelectionSnapshot, SelectionDelta, TextPoint, ViewportDamage,
+};
+pub use voice_input::{
+    seeded_dictation_edit_parity_packet, CaptureStatus, CorrectionGesture, DictationApplyOutcome,
+    DictationCaptureSession, DictationCaptureSummary, DictationEditParityPacket,
+    DictationEditRecord, DictationEffectClass, DictationError, DictationIntent,
+    DictationIntentClass, DictationParityInvariantManifest, DictationParityScenario,
+    DictationRecognitionLocality, DictationScenarioOutcomeClass, DictationSurface,
+    DictationSurfaceClass, DictationSurfaceCoverageRow, DictationSurfaceSupport, FormattingIntent,
+    InterimDictation, PunctuationMark, UndoRedoRoundtrip, DICTATION_EDIT_PARITY_DOC_REF,
+    DICTATION_EDIT_PARITY_FIXTURES_DIR_REF, DICTATION_EDIT_PARITY_PACKET_ID,
+    DICTATION_EDIT_PARITY_PACKET_RECORD_KIND, DICTATION_EDIT_PARITY_SCHEMA_VERSION,
 };
