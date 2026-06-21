@@ -1,0 +1,410 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/m5-form-validation-and-blocked-submit.schema.json",
+  "title": "Aureline M5 form validation, cross-field dependencies, and blocked-submit reasons",
+  "description": "Canonical, export-safe object model that freezes how a mutation-capable M5 form rolls field-level validity up into a form-level validation summary without replacing the field anchors, explains cross-field dependencies (provider/account mapping, environment selection, package source/registry auth, import/export mode, derived field constraints) when one choice narrows or invalidates another, and emits machine-readable blocked-submit reasons that desktop, CLI/headless, support-export, and docs/help surfaces can all reuse to explain the same failure state. Each form carries enough identity to re-derive an effective claim without trusting a grade: a form whose submit gate is open while a blocked prerequisite or cross-field invalidation is active, whose form-level summary contradicts or replaces the field anchors, whose cross-field invalidation is hidden before submit, whose blocked-submit reason is not machine-readable or not reusable by the machine consumers, that defers a blocking validation to a banner instead of an exact field anchor, hides a derived constraint, lets an imported/restore review read as a local submit, or renders wider than its effective claim floors to form_blocked, while a labelled recoverable gap holds a first-party form at form_narrowed, an imported/restore review sits at form_review_overlay, and a Labs/unadvertised form makes no public claim. No credential bodies, secret values, raw provider payloads, absolute paths, or URLs ever cross this boundary; refs carry opaque ids and stable machine codes only. Adding an enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "as_of",
+    "taxonomy_version",
+    "redaction_class_token",
+    "verification_freshness",
+    "surfaces"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "m5_form_validation_set_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/stable_id" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "as_of": { "type": "string", "format": "date-time" },
+    "taxonomy_version": { "type": "integer", "const": 1 },
+    "redaction_class_token": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Default redaction posture for the packet. No credential bodies, secret values, raw provider payloads, absolute paths, or URLs ever cross this boundary; refs carry opaque ids and stable machine codes only."
+    },
+    "verification_freshness": { "$ref": "#/$defs/verification_freshness" },
+    "surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/form" }
+    }
+  },
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "opaque_ref": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "opaque_ref_nullable": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_ref" }, { "type": "null" }]
+    },
+    "label": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "verification_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_freshness_slo_hours",
+        "last_verification_refresh",
+        "auto_downgrade_on_stale"
+      ],
+      "properties": {
+        "verification_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_verification_refresh": { "type": "string", "format": "date-time" },
+        "auto_downgrade_on_stale": { "type": "boolean" }
+      }
+    },
+    "form_lane": {
+      "type": "string",
+      "enum": ["provider", "admin", "request", "package", "import", "settings", "projects"]
+    },
+    "origin": {
+      "type": "string",
+      "enum": ["local_authoring", "remote_target", "provider_backed", "imported_or_restore"]
+    },
+    "claim_posture": {
+      "type": "string",
+      "enum": ["claimed_stable", "labs_unadvertised"]
+    },
+    "dependency_kind": {
+      "type": "string",
+      "enum": [
+        "provider_account_mapping",
+        "environment_selection",
+        "package_source_registry_auth",
+        "import_export_mode",
+        "derived_field_constraint"
+      ]
+    },
+    "dependency_relation": {
+      "type": "string",
+      "enum": ["narrows", "invalidates", "requires", "mutually_exclusive"]
+    },
+    "blocker_class": {
+      "type": "string",
+      "enum": [
+        "invalid_field",
+        "missing_prerequisite",
+        "cross_field_conflict",
+        "unresolved_policy_lock",
+        "pending_validation",
+        "unreviewed_side_effect"
+      ]
+    },
+    "blocked_submit_consumer": {
+      "type": "string",
+      "enum": ["desktop", "cli_headless", "support_export", "docs_help"]
+    },
+    "validation_state": {
+      "type": "string",
+      "enum": ["valid", "pending_async", "warning", "invalid_blocking", "not_validated"]
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached_snapshot",
+        "stale_expired",
+        "superseded_by_newer_source",
+        "missing"
+      ]
+    },
+    "proof_currency": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "cached_within_window",
+        "stale_expired",
+        "requires_review",
+        "missing_proof"
+      ]
+    },
+    "blocked_submit_fallback": {
+      "type": "string",
+      "enum": ["shows_reason_on_submit", "disabled_with_hint", "none_silent"]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "form_view",
+        "wizard_step",
+        "review_sheet",
+        "diagnostics_panel",
+        "support_export",
+        "ai_evidence",
+        "help_inline"
+      ]
+    },
+    "form_claim": {
+      "type": "string",
+      "enum": [
+        "form_blocked",
+        "form_review_overlay",
+        "form_narrowed",
+        "form_certified",
+        "form_labs_not_claimed"
+      ]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_ref",
+        "canonical_surface_ref",
+        "structured_input_ref",
+        "provider_ref",
+        "source_artifact_ref",
+        "reopen_backlink_ref"
+      ],
+      "properties": {
+        "session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "canonical_surface_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "structured_input_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "reopen_backlink_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "field_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_id",
+        "validation_state",
+        "state_labeled",
+        "anchored_to_field",
+        "exact_rule_text_present",
+        "rolled_up_into_summary",
+        "label_summary"
+      ],
+      "properties": {
+        "field_id": { "$ref": "#/$defs/stable_id" },
+        "validation_state": { "$ref": "#/$defs/validation_state" },
+        "state_labeled": { "type": "boolean" },
+        "anchored_to_field": { "type": "boolean" },
+        "exact_rule_text_present": { "type": "boolean" },
+        "rolled_up_into_summary": { "type": "boolean" },
+        "label_summary": { "$ref": "#/$defs/label" }
+      }
+    },
+    "form_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocked_value_count",
+        "missing_prerequisite_count",
+        "derived_constraint_count",
+        "submit_blocker_count",
+        "summarizes_field_anchors",
+        "replaces_field_anchors",
+        "consistent_with_fields",
+        "derived_constraints_disclosed",
+        "label_summary"
+      ],
+      "properties": {
+        "blocked_value_count": { "type": "integer", "minimum": 0 },
+        "missing_prerequisite_count": { "type": "integer", "minimum": 0 },
+        "derived_constraint_count": { "type": "integer", "minimum": 0 },
+        "submit_blocker_count": { "type": "integer", "minimum": 0 },
+        "summarizes_field_anchors": { "type": "boolean" },
+        "replaces_field_anchors": { "type": "boolean" },
+        "consistent_with_fields": { "type": "boolean" },
+        "derived_constraints_disclosed": { "type": "boolean" },
+        "label_summary": { "$ref": "#/$defs/label" }
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dependency_id",
+        "dependency_kind",
+        "relation",
+        "source_field_ref",
+        "target_field_ref",
+        "explained_before_submit",
+        "blocks_submit",
+        "resolution_hint_present",
+        "label_summary"
+      ],
+      "properties": {
+        "dependency_id": { "$ref": "#/$defs/stable_id" },
+        "dependency_kind": { "$ref": "#/$defs/dependency_kind" },
+        "relation": { "$ref": "#/$defs/dependency_relation" },
+        "source_field_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_field_ref": { "$ref": "#/$defs/opaque_ref" },
+        "explained_before_submit": { "type": "boolean" },
+        "blocks_submit": { "type": "boolean" },
+        "resolution_hint_present": { "type": "boolean" },
+        "label_summary": { "$ref": "#/$defs/label" }
+      }
+    },
+    "blocked_submit_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason_id",
+        "blocker_class",
+        "machine_code",
+        "blocks_submit",
+        "explained_before_submit",
+        "resolution_hint_present",
+        "reusable_by",
+        "label_summary"
+      ],
+      "properties": {
+        "reason_id": { "$ref": "#/$defs/stable_id" },
+        "blocker_class": { "$ref": "#/$defs/blocker_class" },
+        "machine_code": { "type": "string", "maxLength": 200 },
+        "blocks_submit": { "type": "boolean" },
+        "explained_before_submit": { "type": "boolean" },
+        "resolution_hint_present": { "type": "boolean" },
+        "reusable_by": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_submit_consumer" },
+          "uniqueItems": true
+        },
+        "label_summary": { "$ref": "#/$defs/label" }
+      }
+    },
+    "submit_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "submit_allowed",
+        "blockers_explained_before_submit",
+        "commit_action_is_specific",
+        "label_summary"
+      ],
+      "properties": {
+        "submit_allowed": { "type": "boolean" },
+        "blockers_explained_before_submit": { "type": "boolean" },
+        "commit_action_is_specific": { "type": "boolean" },
+        "label_summary": { "$ref": "#/$defs/label" }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_anchors_preserved",
+        "form_summary_linked",
+        "cross_field_deps_explained",
+        "blocked_reasons_machine_readable",
+        "blocked_reasons_reusable",
+        "derived_constraints_visible",
+        "imported_review_read_only",
+        "validation_state_visible",
+        "freshness_state_visible",
+        "superseded_state_marked",
+        "reopen_visible_on_demand"
+      ],
+      "properties": {
+        "field_anchors_preserved": { "type": "boolean" },
+        "form_summary_linked": { "type": "boolean" },
+        "cross_field_deps_explained": { "type": "boolean" },
+        "blocked_reasons_machine_readable": { "type": "boolean" },
+        "blocked_reasons_reusable": { "type": "boolean" },
+        "derived_constraints_visible": { "type": "boolean" },
+        "imported_review_read_only": { "type": "boolean" },
+        "validation_state_visible": { "type": "boolean" },
+        "freshness_state_visible": { "type": "boolean" },
+        "superseded_state_marked": { "type": "boolean" },
+        "reopen_visible_on_demand": { "type": "boolean" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_currency", "proof_ref"],
+      "properties": {
+        "proof_currency": { "$ref": "#/$defs/proof_currency" },
+        "proof_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "rendering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "rendered_claim",
+        "provenance_visible",
+        "read_only",
+        "source_surface_ref"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/consumer_surface" },
+        "rendered_claim": { "$ref": "#/$defs/form_claim" },
+        "provenance_visible": { "type": "boolean" },
+        "read_only": { "type": "boolean" },
+        "source_surface_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "lane",
+        "origin",
+        "label_summary",
+        "claim_posture",
+        "declared_freshness_state",
+        "declared_blocked_fallback",
+        "lineage",
+        "field_anchors",
+        "form_summary",
+        "dependencies",
+        "blocked_submit_reasons",
+        "submit_gate",
+        "integrity",
+        "verification",
+        "renderings"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/stable_id" },
+        "lane": { "$ref": "#/$defs/form_lane" },
+        "origin": { "$ref": "#/$defs/origin" },
+        "label_summary": { "$ref": "#/$defs/label" },
+        "claim_posture": { "$ref": "#/$defs/claim_posture" },
+        "declared_freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "declared_blocked_fallback": { "$ref": "#/$defs/blocked_submit_fallback" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "field_anchors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/field_anchor" }
+        },
+        "form_summary": { "$ref": "#/$defs/form_summary" },
+        "dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dependency" }
+        },
+        "blocked_submit_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_submit_reason" }
+        },
+        "submit_gate": { "$ref": "#/$defs/submit_gate" },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "verification": { "$ref": "#/$defs/verification" },
+        "renderings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rendering" }
+        }
+      }
+    }
+  }
+}

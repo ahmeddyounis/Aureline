@@ -1,0 +1,67 @@
+# Form-validation / blocked-submit gate.
+#
+# Validates the checked-in form-validation set: the source packet conforms to its
+# schema, no form submits while a blocked prerequisite or cross-field invalidation
+# is active or hidden, field-level and form-level validation stay linked rather
+# than duplicated or contradictory, no form-level summary replaces the field
+# anchors, every blocked-submit reason is machine-readable and reusable by the
+# machine consumers, cross-field invalidations are explained before submit,
+# imported/restore reviews never read as a local submit, no rendering surface
+# overclaims, every form lane / dependency kind / dependency relation / blocker
+# class / blocked-submit consumer / consumer surface is represented, and every
+# narrowing/floor rule in the perturbation corpus fires as recorded.
+
+name: check_m5_form_validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_form_validation.yml"
+      - "tools/release/form_validation_and_blocked_submit.py"
+      - "schemas/ux/m5-form-validation-and-blocked-submit.schema.json"
+      - "artifacts/ux/m5-form-validation-and-blocked-submit/**"
+      - "fixtures/ux/m5-form-validation-and-blocked-submit/**"
+      - "docs/ux/m5-form-validation-and-blocked-submit.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-form-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  form_validation:
+    name: Form validation
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the form-validation set against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/ux/m5-form-validation-and-blocked-submit.schema.json"))
+          data = json.load(open("artifacts/ux/m5-form-validation-and-blocked-submit/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the form-validation set
+        run: python3 tools/release/form_validation_and_blocked_submit.py validate
+
+      - name: Run the form-validation self-test
+        run: python3 tools/release/form_validation_and_blocked_submit.py self-test

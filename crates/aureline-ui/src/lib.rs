@@ -29,12 +29,26 @@
 //! buries a lifecycle implication floors to an explicit blocked state. The shared
 //! primitive is proven first across the provider/account-mapping, source-
 //! registration, request-environment, package/install, and migration/import lanes.
+//!
+//! [`m5_form_validation_and_blocked_submit::M5FormValidationSetPacket`] freezes the
+//! layer between them: how a form rolls field validity up into a *form-level
+//! validation summary* without replacing the field anchors, how it explains
+//! *cross-field dependencies* (provider/account mapping, environment selection,
+//! package source/registry auth, import/export mode, derived field constraints),
+//! and how it emits *machine-readable blocked-submit reasons* that desktop,
+//! CLI/headless, support-export, and docs/help surfaces can all reuse. Each
+//! [`m5_form_validation_and_blocked_submit::FormValidationRecord`] re-derives a
+//! [`m5_form_validation_and_blocked_submit::FormClaim`] so a form can never submit
+//! while a blocked prerequisite or cross-field invalidation is hidden, let its
+//! form-level summary contradict or replace the field anchors, or ship a
+//! blocked-submit reason that is not machine-readable or reusable.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
 pub mod components;
 pub mod density;
 pub mod m5_field_control_rows;
+pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_structured_input_and_staged_review;
 pub mod motion;
 pub mod themes;
