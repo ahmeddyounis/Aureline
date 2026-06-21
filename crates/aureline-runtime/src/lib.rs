@@ -206,6 +206,23 @@
 //! Problems, review, CLI/headless, support export, AI evidence, and release-visible
 //! debt ingest one certification instead of narrating diagnostic maturity by hand.
 //!
+//! [`m5_problem_records_source_task_correlation_and_rerun_jump_parity::M5ProblemRecordSetPacket`]
+//! takes the causality matrix down to the individual Problems row. Where the
+//! [`m5_execution_evidence_causality_matrix`] froze one lane per surface family,
+//! this lane freezes one [`m5_problem_records_source_task_correlation_and_rerun_jump_parity::ProblemRecord`]
+//! per run-derived finding: stable id, source tool/run refs, file/span anchor,
+//! structured-versus-heuristic parse class, confidence tier, and raw-output
+//! backlink, correlated to its editor decoration, timeline entry, source task, and
+//! owning output channel. The record re-derives an effective status and a
+//! per-action availability for the three canonical actions (jump to source, open
+//! owning output, rerun or inspect the originating task/session) so a stale,
+//! superseded, downgraded, or lineage-broken finding stays visibly classified and
+//! reopenable rather than reading as a clean, fully actionable row — and an
+//! authority-gated or imported-read-only rerun is surfaced honestly rather than
+//! silently dropped. It reuses the matrix's frozen problem-source, confidence,
+//! freshness, origin, channel, and proof vocabularies instead of forking a private
+//! bottom-panel truth model.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -257,6 +274,7 @@ pub mod m5_event_interop_certification;
 pub mod m5_execution_evidence_causality_matrix;
 pub mod m5_interop_conformance;
 pub mod m5_label_parity;
+pub mod m5_problem_records_source_task_correlation_and_rerun_jump_parity;
 pub mod m5_quality_action_proposals_and_sessions;
 pub mod m5_replay_bundles;
 pub mod m5_task_event_adapter_policy;
@@ -908,6 +926,18 @@ pub use m5_label_parity::{
     LABEL_PARITY_PACKET_ARTIFACT_REF, LABEL_PARITY_RECORD_KIND, LABEL_PARITY_SCHEMA_REF,
     LABEL_PARITY_SCHEMA_VERSION, LABEL_PARITY_SUPPORT_EXPORT_ID,
     LABEL_PARITY_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_problem_records_source_task_correlation_and_rerun_jump_parity::{
+    current_m5_problem_record_set, seeded_problem_record_set, ActionAvailability,
+    ActionAvailabilitySet, FileSpanAnchor, M5ProblemRecordSetInput, M5ProblemRecordSetPacket,
+    M5ProblemRecordsArtifactError, M5ProblemRecordsViolation, ProblemAction, ProblemCorrelations,
+    ProblemDowngradeReason, ProblemEvidence, ProblemRecord, ProblemRecordDecision,
+    ProblemRecordStatus, ProblemSeverity as M5ProblemSeverity, ProblemSourceRefs, RerunAuthority,
+    StatusDistribution as ProblemRecordStatusDistribution, M5_PROBLEM_RECORDS_DOC_REF,
+    M5_PROBLEM_RECORDS_FIXTURE_DIR, M5_PROBLEM_RECORDS_PACKET_ID, M5_PROBLEM_RECORDS_RECORD_KIND,
+    M5_PROBLEM_RECORDS_REPORT_REF, M5_PROBLEM_RECORDS_SCHEMA_REF,
+    M5_PROBLEM_RECORDS_SCHEMA_VERSION, M5_PROBLEM_RECORDS_SUPPORT_EXPORT_REF,
+    M5_PROBLEM_RECORDS_TAXONOMY_VERSION,
 };
 pub use m5_quality_action_proposals_and_sessions::{
     current_m5_quality_session_ledger_export, QualityActionConsumerProjection,

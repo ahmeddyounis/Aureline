@@ -1,0 +1,62 @@
+# Problems-record source-task correlation and rerun/jump parity gate.
+#
+# Validates the checked-in Problems-record set: the source packet conforms to its
+# schema, the report matches a fresh regeneration (no manual drift), no row renders
+# wider than its effective status, imported/overlay rows stay read-only, the four
+# problem-source origins stay inspectable, every action availability is honest, and
+# every narrowing/floor rule in the perturbation corpus fires as recorded.
+
+name: check_m5_problem_records
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_problem_records.yml"
+      - "tools/release/problem_records_causality.py"
+      - "schemas/tooling/m5-problem-records.schema.json"
+      - "artifacts/tooling/m5-problem-records/**"
+      - "fixtures/tooling/m5-problem-records/**"
+      - "docs/tooling/m5-problem-records.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-problem-records-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  problem_records:
+    name: Problems-record causality
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the Problems-record set against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/tooling/m5-problem-records.schema.json"))
+          data = json.load(open("artifacts/tooling/m5-problem-records/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the Problems-record set
+        run: python3 tools/release/problem_records_causality.py validate
+
+      - name: Run the Problems-record self-test
+        run: python3 tools/release/problem_records_causality.py self-test

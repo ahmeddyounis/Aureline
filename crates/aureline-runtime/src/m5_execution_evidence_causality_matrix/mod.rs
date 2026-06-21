@@ -1472,7 +1472,7 @@ pub fn current_m5_execution_evidence_causality_matrix(
 // --------------------------------------------------------------------------- //
 
 /// Whether a degraded label is a generic non-answer rather than a precise label.
-fn label_is_generic(label: &str) -> bool {
+pub(crate) fn label_is_generic(label: &str) -> bool {
     let trimmed = label.trim();
     if trimmed.is_empty() {
         return true;
@@ -1492,7 +1492,7 @@ fn label_is_generic(label: &str) -> bool {
 }
 
 /// Heuristic that rejects obviously forbidden material in export-safe JSON.
-fn json_contains_forbidden_boundary_material(value: &serde_json::Value) -> bool {
+pub(crate) fn json_contains_forbidden_boundary_material(value: &serde_json::Value) -> bool {
     match value {
         serde_json::Value::String(s) => {
             let lower = s.to_lowercase();
@@ -1514,7 +1514,7 @@ fn json_contains_forbidden_boundary_material(value: &serde_json::Value) -> bool 
 /// Supports the `Z`/`z` zulu suffix and `±HH:MM` / `±HHMM` numeric offsets, with an
 /// optional fractional-second component that is truncated. Returns `None` for
 /// malformed input rather than panicking.
-fn parse_rfc3339_to_epoch_seconds(value: &str) -> Option<i64> {
+pub(crate) fn parse_rfc3339_to_epoch_seconds(value: &str) -> Option<i64> {
     let s = value.trim();
     let bytes = s.as_bytes();
     if s.len() < 19 {

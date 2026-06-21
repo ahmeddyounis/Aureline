@@ -1,0 +1,326 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/m5-problem-records.schema.json",
+  "title": "Aureline M5 problem-record set",
+  "description": "Canonical, export-safe object model that freezes the individual M5 Problems-panel row. Each record is a single run-derived finding bound to its source tool/run refs, its file/span anchor, its structured-versus-heuristic parse class, its confidence tier and raw-output backlink, the editor decoration / timeline entry / source task / owning output channel it is correlated with, and the freshness / stale / superseded state of the run it came from. The record carries enough identity to re-derive an effective status and a per-action availability (jump to source, open owning output, rerun or inspect the originating task/session) without trusting a grade: structured and heuristic origins stay distinct, a heuristic parse keeps a raw-output backlink, stale/superseded/downgraded findings stay visibly classified, imported provider findings inspect read-only and never rerun locally, and a finding that loses its source lineage floors to a raw-output backlink rather than rendering a clean-but-false actionable row. This is the per-record companion to schemas/tooling/m5-execution-evidence.schema.json (the lane matrix); both speak one vocabulary so Problems, the editor, output, timeline, review, CLI/headless, AI evidence, and support export ingest one model instead of a private bottom-panel truth model. Adding an enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "as_of",
+    "taxonomy_version",
+    "redaction_class_token",
+    "verification_freshness",
+    "records"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "m5_problem_record_set_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/stable_id" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "as_of": { "type": "string", "format": "date-time" },
+    "taxonomy_version": { "type": "integer", "const": 1 },
+    "redaction_class_token": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Default redaction posture for the packet. No raw stdout/stderr bytes, command lines, provider log bodies, env bodies, absolute paths, URLs, or secrets ever cross this boundary; anchors carry an opaque file ref plus line/column numbers only."
+    },
+    "verification_freshness": { "$ref": "#/$defs/verification_freshness" },
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/problem_record" }
+    }
+  },
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "opaque_ref": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "opaque_ref_nullable": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_ref" }, { "type": "null" }]
+    },
+    "short_sentence": { "type": "string", "minLength": 1, "maxLength": 360 },
+    "line_or_column": {
+      "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }]
+    },
+    "verification_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_freshness_slo_hours",
+        "last_verification_refresh",
+        "auto_downgrade_on_stale"
+      ],
+      "properties": {
+        "verification_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_verification_refresh": { "type": "string", "format": "date-time" },
+        "auto_downgrade_on_stale": { "type": "boolean" }
+      }
+    },
+    "claim_posture": {
+      "type": "string",
+      "enum": ["claimed_stable", "claimed_beta", "labs_unadvertised"],
+      "description": "Whether the row is publicly claimed. Labs/unadvertised rows make no actionability claim and are never widened."
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "local_task",
+        "local_test",
+        "local_debug_session",
+        "notebook_run",
+        "headless_automation",
+        "extension_owned_run",
+        "ai_triggered_run",
+        "remote_linked_run",
+        "pipeline_provider_run",
+        "imported_provider_evidence"
+      ],
+      "description": "How the run/evidence originated. First-party local/notebook/headless/extension/AI origins can be fully actionable; remote, pipeline/provider, and imported origins are read-only and never offer a live local rerun."
+    },
+    "problem_source_kind": {
+      "type": "string",
+      "enum": [
+        "structured_language_diagnostic",
+        "normalized_task_event",
+        "heuristic_output_parse",
+        "imported_provider_annotation",
+        "not_applicable"
+      ],
+      "description": "Whether the finding came from a native structured diagnostic, a normalized task event, an imported provider annotation, or heuristic text parsing. Heuristic parsing requires an explicit confidence tier and a raw-output backlink; structured and heuristic origins stay distinct."
+    },
+    "problem_severity": {
+      "type": "string",
+      "enum": ["info", "warning", "error", "fatal"],
+      "description": "Finding severity, independent of source confidence."
+    },
+    "confidence_tier": {
+      "type": "string",
+      "enum": [
+        "structured_full",
+        "heuristic_high",
+        "heuristic_medium",
+        "heuristic_low",
+        "provider_mapped",
+        "unmapped_requires_review"
+      ],
+      "description": "Confidence taxonomy shared with the causality matrix. Structured fields are full confidence; heuristic parses carry an explicit tier; imported provider mappings carry their mapping quality; unmapped is a first-class state, not an invisible gap."
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached_within_window",
+        "stale_expired",
+        "superseded_by_newer_run",
+        "unanchored",
+        "missing"
+      ],
+      "description": "Freshness/anchoring state of the run the finding came from. Stale and superseded states must remain visibly classified wherever the row is rendered."
+    },
+    "rerun_authority": {
+      "type": "string",
+      "enum": [
+        "local_rerun_granted",
+        "requires_elevated_authority",
+        "remote_inspect_read_only",
+        "denied_policy",
+        "not_applicable"
+      ],
+      "description": "Authority the row has to rerun or inspect its originating task/session. Remote/imported origins inspect read-only and never offer a live local rerun; a gated rerun is surfaced as gated, not silently dropped."
+    },
+    "output_channel_class": {
+      "type": "string",
+      "enum": [
+        "task_test_debug_output",
+        "extension_ai_tool_output",
+        "remote_provider_imported_output",
+        "evidence_bundle",
+        "not_applicable"
+      ],
+      "description": "Owning output-channel class shared with the causality matrix. A real channel must carry a stable channel ref so open-owning-output stays available."
+    },
+    "proof_currency": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "cached_within_window",
+        "imported_current",
+        "stale_expired",
+        "missing_proof",
+        "requires_review"
+      ],
+      "description": "Currency of the certification proof that this row preserves its causal chain (distinct from the run's own freshness_state)."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_ref",
+        "source_tool_ref",
+        "run_ref",
+        "step_ref",
+        "provider_ref",
+        "build_toolchain_ref",
+        "host_target_ref",
+        "task_event_envelope_ref",
+        "raw_output_backlink_ref"
+      ],
+      "properties": {
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_tool_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "step_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "build_toolchain_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "host_target_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "task_event_envelope_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "raw_output_backlink_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      },
+      "description": "Stable identifiers binding the finding to the tool/run that produced it. Lineage is reconstructed from these refs, never inferred from freeform text. A heuristic parse keeps its raw_output_backlink_ref."
+    },
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file_ref",
+        "start_line",
+        "start_column",
+        "end_line",
+        "end_column",
+        "symbol_ref",
+        "anchored_to_current_revision"
+      ],
+      "properties": {
+        "file_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "start_line": { "$ref": "#/$defs/line_or_column" },
+        "start_column": { "$ref": "#/$defs/line_or_column" },
+        "end_line": { "$ref": "#/$defs/line_or_column" },
+        "end_column": { "$ref": "#/$defs/line_or_column" },
+        "symbol_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "anchored_to_current_revision": { "type": "boolean" }
+      },
+      "description": "File/span anchor. Carries an opaque workspace-relative file ref plus one-based line/column numbers only — never an absolute path or raw source text. A present anchor lets jump-to-source resolve."
+    },
+    "correlations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "editor_decoration_ref",
+        "timeline_entry_ref",
+        "source_task_ref",
+        "owning_output_channel_ref",
+        "owning_output_channel_class",
+        "rerun_authority"
+      ],
+      "properties": {
+        "editor_decoration_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "timeline_entry_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "source_task_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "owning_output_channel_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "owning_output_channel_class": { "$ref": "#/$defs/output_channel_class" },
+        "rerun_authority": { "$ref": "#/$defs/rerun_authority" }
+      },
+      "description": "How the row is correlated to the rest of the surface: editor decoration, activity-center timeline entry, source task (the rerun/inspect handle), and owning output channel. A private bottom-panel truth model is not allowed; these refs join the existing surfaces."
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "structured_vs_heuristic_distinct",
+        "raw_output_backlink_present",
+        "confidence_label_visible",
+        "preserves_source_run_lineage",
+        "superseded_state_marked",
+        "imported_overlay_read_only",
+        "mapping_downgraded"
+      ],
+      "properties": {
+        "structured_vs_heuristic_distinct": { "type": "boolean" },
+        "raw_output_backlink_present": { "type": "boolean" },
+        "confidence_label_visible": { "type": "boolean" },
+        "preserves_source_run_lineage": { "type": "boolean" },
+        "superseded_state_marked": { "type": "boolean" },
+        "imported_overlay_read_only": { "type": "boolean" },
+        "mapping_downgraded": { "type": "boolean" }
+      },
+      "description": "The origin/confidence honesty invariants a row re-derives rather than trusting: structured/heuristic distinct, raw backlink on heuristic, confidence labelled, source/run lineage preserved, superseded state marked, imported overlay read-only, and whether the provenance mapping was downgraded."
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_currency", "proof_ref"],
+      "properties": {
+        "proof_currency": { "$ref": "#/$defs/proof_currency" },
+        "proof_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "problem_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "problem_id",
+        "label_summary",
+        "claim_posture",
+        "origin_class",
+        "parse_class",
+        "severity",
+        "declared_confidence_tier",
+        "declared_freshness_state",
+        "source",
+        "anchor",
+        "correlations",
+        "evidence",
+        "verification"
+      ],
+      "properties": {
+        "problem_id": { "$ref": "#/$defs/stable_id" },
+        "label_summary": { "$ref": "#/$defs/short_sentence" },
+        "claim_posture": { "$ref": "#/$defs/claim_posture" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "parse_class": { "$ref": "#/$defs/problem_source_kind" },
+        "severity": { "$ref": "#/$defs/problem_severity" },
+        "declared_confidence_tier": { "$ref": "#/$defs/confidence_tier" },
+        "declared_freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "source": { "$ref": "#/$defs/source" },
+        "anchor": { "$ref": "#/$defs/anchor" },
+        "correlations": { "$ref": "#/$defs/correlations" },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "verification": { "$ref": "#/$defs/verification" }
+      },
+      "allOf": [
+        {
+          "description": "Remote, pipeline, and imported origins must carry a provider ref so the read-only row can name its source.",
+          "if": {
+            "properties": {
+              "origin_class": {
+                "enum": ["remote_linked_run", "pipeline_provider_run", "imported_provider_evidence"]
+              }
+            },
+            "required": ["origin_class"]
+          },
+          "then": {
+            "properties": {
+              "source": {
+                "properties": { "provider_ref": { "$ref": "#/$defs/opaque_ref" } },
+                "required": ["provider_ref"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
