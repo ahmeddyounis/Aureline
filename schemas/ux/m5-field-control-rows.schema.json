@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/m5-field-control-rows.schema.json",
+  "title": "Aureline M5 field and control row primitives",
+  "description": "Canonical, export-safe object model that freezes the per-row primitive every mutation-capable M5 form, wizard, and review sheet is built from, proven first across the provider/account-mapping, source-registration, request-environment, package/install, and migration/import lanes. Each row binds a permanent label, a required/optional/conditional/system-managed requirement that is explicitly marked, a source-of-value tag (default/detected/imported/policy-locked/user-override/required-unset, with overrides kept distinct), an exact field-anchored validation rule, and a restart/reconnect/trust/policy lifecycle implication surfaced on the control itself. The row carries enough identity to re-derive an effective claim without trusting a grade: a row that hides its label behind a placeholder, hides its source-of-value tag, silently overrides a policy lock, defers a blocking validation to a summary banner instead of an exact field anchor, buries a lifecycle implication, lets an imported value read as editable, loses its on-row fallback, or renders wider than its effective claim floors to row_blocked, while a labelled recoverable gap holds a first-party row at row_narrowed, an imported/restore value sits at row_review_overlay, and a Labs/unadvertised row makes no public claim. No credential bodies, secret values, raw provider payloads, absolute paths, or URLs ever cross this boundary; refs carry opaque ids only. Adding an enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "as_of",
+    "taxonomy_version",
+    "redaction_class_token",
+    "verification_freshness",
+    "rows"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "m5_field_control_row_set_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/stable_id" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "as_of": { "type": "string", "format": "date-time" },
+    "taxonomy_version": { "type": "integer", "const": 1 },
+    "redaction_class_token": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Default redaction posture for the packet. No credential bodies, secret values, raw provider payloads, absolute paths, or URLs ever cross this boundary; refs carry opaque ids only."
+    },
+    "verification_freshness": { "$ref": "#/$defs/verification_freshness" },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/row" }
+    }
+  },
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "opaque_ref": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "opaque_ref_nullable": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_ref" }, { "type": "null" }]
+    },
+    "label": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "verification_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_freshness_slo_hours",
+        "last_verification_refresh",
+        "auto_downgrade_on_stale"
+      ],
+      "properties": {
+        "verification_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_verification_refresh": { "type": "string", "format": "date-time" },
+        "auto_downgrade_on_stale": { "type": "boolean" }
+      }
+    },
+    "consumer_lane": {
+      "type": "string",
+      "enum": [
+        "provider_account_mapping",
+        "source_registration",
+        "request_environment",
+        "package_install",
+        "migration_import"
+      ]
+    },
+    "origin": {
+      "type": "string",
+      "enum": ["first_party", "imported_or_restore"]
+    },
+    "claim_posture": {
+      "type": "string",
+      "enum": ["claimed_stable", "labs_unadvertised"]
+    },
+    "field_state": {
+      "type": "string",
+      "enum": [
+        "editable",
+        "read_only_locked",
+        "disabled_blocked",
+        "masked_credential",
+        "computed_derived"
+      ]
+    },
+    "label_mode": {
+      "type": "string",
+      "enum": ["permanent", "placeholder_only", "none"]
+    },
+    "requirement": {
+      "type": "string",
+      "enum": ["required", "optional", "conditional", "system_managed"]
+    },
+    "source_of_value_class": {
+      "type": "string",
+      "enum": [
+        "default_value",
+        "detected_value",
+        "imported_value",
+        "policy_locked",
+        "user_override",
+        "required_unset"
+      ]
+    },
+    "validation_state": {
+      "type": "string",
+      "enum": ["valid", "pending_async", "warning", "invalid_blocking", "not_validated"]
+    },
+    "lifecycle_implication": {
+      "type": "string",
+      "enum": [
+        "none",
+        "restart_required",
+        "reconnect_required",
+        "trust_required",
+        "policy_blocked"
+      ]
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached_snapshot",
+        "stale_expired",
+        "superseded_by_newer_source",
+        "missing"
+      ]
+    },
+    "proof_currency": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "cached_within_window",
+        "stale_expired",
+        "requires_review",
+        "missing_proof"
+      ]
+    },
+    "blocked_fallback": {
+      "type": "string",
+      "enum": ["shows_reason_on_row", "disabled_with_hint", "none_silent"]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "form_view",
+        "wizard_step",
+        "review_sheet",
+        "diagnostics_panel",
+        "support_export",
+        "ai_evidence",
+        "help_inline"
+      ]
+    },
+    "row_claim": {
+      "type": "string",
+      "enum": [
+        "row_blocked",
+        "row_review_overlay",
+        "row_narrowed",
+        "row_certified",
+        "row_labs_not_claimed"
+      ]
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "state_labeled",
+        "anchored_to_field",
+        "exact_rule_text_present",
+        "summary_banner_only",
+        "rule_text"
+      ],
+      "properties": {
+        "state": { "$ref": "#/$defs/validation_state" },
+        "state_labeled": { "type": "boolean" },
+        "anchored_to_field": { "type": "boolean" },
+        "exact_rule_text_present": { "type": "boolean" },
+        "summary_banner_only": { "type": "boolean" },
+        "rule_text": { "$ref": "#/$defs/label" }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["implication", "surfaced_on_row", "implication_label"],
+      "properties": {
+        "implication": { "$ref": "#/$defs/lifecycle_implication" },
+        "surfaced_on_row": { "type": "boolean" },
+        "implication_label": { "$ref": "#/$defs/label" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_currency", "proof_ref"],
+      "properties": {
+        "proof_currency": { "$ref": "#/$defs/proof_currency" },
+        "proof_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "rendering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "rendered_claim", "anchor_visible", "read_only", "source_row_ref"],
+      "properties": {
+        "surface": { "$ref": "#/$defs/consumer_surface" },
+        "rendered_claim": { "$ref": "#/$defs/row_claim" },
+        "anchor_visible": { "type": "boolean" },
+        "read_only": { "type": "boolean" },
+        "source_row_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "consumer_lane",
+        "consumer_surface_ref",
+        "origin",
+        "claim_posture",
+        "field_state",
+        "label_mode",
+        "requirement",
+        "requirement_marked",
+        "source_class",
+        "source_tag_visible",
+        "override_distinct_from_origin",
+        "policy_lock_respected",
+        "validation",
+        "lifecycle",
+        "declared_freshness_state",
+        "freshness_state_visible",
+        "superseded_state_marked",
+        "verification",
+        "blocked_fallback",
+        "provenance_ref",
+        "renderings",
+        "label_summary"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/stable_id" },
+        "consumer_lane": { "$ref": "#/$defs/consumer_lane" },
+        "consumer_surface_ref": { "$ref": "#/$defs/opaque_ref" },
+        "origin": { "$ref": "#/$defs/origin" },
+        "claim_posture": { "$ref": "#/$defs/claim_posture" },
+        "field_state": { "$ref": "#/$defs/field_state" },
+        "label_mode": { "$ref": "#/$defs/label_mode" },
+        "requirement": { "$ref": "#/$defs/requirement" },
+        "requirement_marked": { "type": "boolean" },
+        "source_class": { "$ref": "#/$defs/source_of_value_class" },
+        "source_tag_visible": { "type": "boolean" },
+        "override_distinct_from_origin": { "type": "boolean" },
+        "policy_lock_respected": { "type": "boolean" },
+        "validation": { "$ref": "#/$defs/validation" },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "declared_freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "freshness_state_visible": { "type": "boolean" },
+        "superseded_state_marked": { "type": "boolean" },
+        "verification": { "$ref": "#/$defs/verification" },
+        "blocked_fallback": { "$ref": "#/$defs/blocked_fallback" },
+        "provenance_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "renderings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rendering" }
+        },
+        "label_summary": { "$ref": "#/$defs/label" }
+      }
+    }
+  }
+}

@@ -1,0 +1,66 @@
+# Field/control-row primitive gate.
+#
+# Validates the checked-in field-control-row set: the source packet conforms to its
+# schema, every row keeps a permanent label and a marked requirement, shows its
+# source-of-value tag, anchors a blocking validation directly to the field with
+# exact rule text rather than a summary banner, surfaces any
+# restart/reconnect/trust/policy implication on the control, keeps imported values
+# read-only, never lets a rendering overclaim, keeps a floored row's on-row
+# fallback, represents every consumer lane / source-of-value class / lifecycle
+# implication / requirement class / consumer surface, and fires every
+# narrowing/floor rule in the perturbation corpus as recorded.
+
+name: check_m5_field_control_rows
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_field_control_rows.yml"
+      - "tools/release/field_control_rows.py"
+      - "schemas/ux/m5-field-control-rows.schema.json"
+      - "artifacts/ux/m5-field-control-rows/**"
+      - "fixtures/ux/m5-field-control-rows/**"
+      - "docs/ux/m5-field-control-rows.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-field-control-rows-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  field_control_rows:
+    name: Field control rows
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the field-control-row set against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/ux/m5-field-control-rows.schema.json"))
+          data = json.load(open("artifacts/ux/m5-field-control-rows/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the field-control-row set
+        run: python3 tools/release/field_control_rows.py validate
+
+      - name: Run the field-control-row self-test
+        run: python3 tools/release/field_control_rows.py self-test
