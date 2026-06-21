@@ -236,6 +236,22 @@
 //! never render wider than the projection's effective claim. It reuses the matrix's
 //! frozen origin, confidence, freshness, reopen, and proof vocabularies.
 //!
+//! [`m5_task_problem_output_chronology_reuse::M5ChronologyReuseSetPacket`] closes the
+//! loop by taking the same causal chain into the **timeline**: one durable
+//! run-lifecycle event — start, progress, retry, cancel, failure, or completion —
+//! written once and *reused* across the activity center, the history/timeline, an
+//! exported issue packet, a support bundle, and an AI-evidence packet rather than each
+//! surface re-summarising what ran. Each
+//! [`m5_task_problem_output_chronology_reuse::ChronologyEntry`] binds its
+//! actor/action/object/outcome grammar to the canonical task/run/channel/problem
+//! objects, the provider/adapter and target scope it ran against, and its retry
+//! lineage, then re-derives an effective claim per reuse surface so a failure shown in
+//! the activity center, a support bundle, and an AI-evidence packet resolves to one
+//! canonical run/channel/problem id, exported packets stay reviewable without the
+//! originating UI state, and an imported/remote/pipeline chronology never reads as live
+//! local authority. It reuses the matrix's frozen origin, confidence, freshness,
+//! reopen, and proof vocabularies.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -293,6 +309,7 @@ pub mod m5_quality_action_proposals_and_sessions;
 pub mod m5_replay_bundles;
 pub mod m5_task_event_adapter_policy;
 pub mod m5_task_event_envelope_bus;
+pub mod m5_task_problem_output_chronology_reuse;
 pub mod macro_sessions;
 pub mod managed_alpha;
 pub mod managed_workspace_lifecycle_beta;
@@ -1024,6 +1041,18 @@ pub use m5_task_event_envelope_bus::{
     TASK_EVENT_FIRST_CONSUMERS_SCHEMA_REF, TASK_EVENT_FIRST_CONSUMERS_SCHEMA_VERSION,
     TASK_EVENT_FIRST_CONSUMERS_SUPPORT_EXPORT_ID,
     TASK_EVENT_FIRST_CONSUMERS_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_task_problem_output_chronology_reuse::{
+    current_m5_chronology_reuse_set, seeded_chronology_reuse_set, ChronologyActorAction,
+    ChronologyActorKind, ChronologyClaim, ChronologyClaimDistribution, ChronologyDecision,
+    ChronologyEntry, ChronologyIntegrity, ChronologyLinks, ChronologyNarrowingReason,
+    ChronologyObjectKind, ChronologyOutcome, ChronologyPhase, ChronologyScope, ChronologySurface,
+    ChronologySurfaceBinding, ChronologyVerification, M5ChronologyReuseArtifactError,
+    M5ChronologyReuseSetInput, M5ChronologyReuseSetPacket, M5ChronologyReuseViolation,
+    RetryLineage, M5_CHRONOLOGY_REUSE_DOC_REF, M5_CHRONOLOGY_REUSE_FIXTURE_DIR,
+    M5_CHRONOLOGY_REUSE_PACKET_ID, M5_CHRONOLOGY_REUSE_RECORD_KIND, M5_CHRONOLOGY_REUSE_REPORT_REF,
+    M5_CHRONOLOGY_REUSE_SCHEMA_REF, M5_CHRONOLOGY_REUSE_SCHEMA_VERSION,
+    M5_CHRONOLOGY_REUSE_SUPPORT_EXPORT_REF, M5_CHRONOLOGY_REUSE_TAXONOMY_VERSION,
 };
 pub use macro_sessions::{
     canonical_reused_contract_refs as macro_recorder_reused_contract_refs,

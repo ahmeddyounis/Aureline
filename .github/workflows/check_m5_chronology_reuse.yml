@@ -1,0 +1,63 @@
+# Chronology-reuse gate.
+#
+# Validates the checked-in chronology-reuse set: the source packet conforms to its
+# schema, a failure reused across surfaces points at one canonical run/channel/problem
+# id, no reuse surface renders wider than its effective claim, imported/overlay entries
+# stay read-only, exported packets stay self-contained, every lifecycle phase and reuse
+# surface is represented, the action/outcome and retry-lineage invariants hold, and
+# every narrowing/floor rule in the perturbation corpus fires as recorded.
+
+name: check_m5_chronology_reuse
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_chronology_reuse.yml"
+      - "tools/release/chronology_reuse.py"
+      - "schemas/tooling/m5-chronology-reuse.schema.json"
+      - "artifacts/tooling/m5-chronology-reuse/**"
+      - "fixtures/tooling/m5-chronology-reuse/**"
+      - "docs/tooling/m5-chronology-reuse.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-chronology-reuse-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  chronology_reuse:
+    name: Chronology reuse
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the chronology set against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/tooling/m5-chronology-reuse.schema.json"))
+          data = json.load(open("artifacts/tooling/m5-chronology-reuse/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the chronology set
+        run: python3 tools/release/chronology_reuse.py validate
+
+      - name: Run the chronology self-test
+        run: python3 tools/release/chronology_reuse.py self-test

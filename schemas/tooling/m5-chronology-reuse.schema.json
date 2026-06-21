@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/m5-chronology-reuse.schema.json",
+  "title": "Aureline M5 task/problem/output chronology reuse set",
+  "description": "Canonical, export-safe object model that freezes one durable run-lifecycle chronology entry — a run started, reported progress, was retried, was cancelled, failed, or completed — written once and reused across the activity center, the history/timeline, an exported issue packet, a support bundle, and an AI-evidence packet rather than each surface re-summarising what ran. Each entry binds its actor/action/object/outcome grammar to the canonical task/run/channel/problem objects, the provider/adapter and target scope it ran against, its retry lineage, the evidence freshness/stale/superseded state, the confidence tier, and the reopen-to-origin target. The entry carries enough identity to re-derive an effective claim without trusting a grade: a failure shown in the activity center, a support bundle, and an AI-evidence packet resolves to one canonical run/channel/problem id rather than three restatements; grammar, provider/adapter, target scope, retry lineage, and canonical ids stay reopenable on demand on every reuse surface; the freshness and confidence labels stay visible; imported/remote/pipeline origins reuse read-only and never claim live local authority; an exported packet stays reviewable without the originating UI; a reuse surface never renders wider than the entry's effective claim; and an entry that flattens its grammar or ids, lets two surfaces disagree about a canonical id, hides lineage from a surface, drops a heuristic backlink, loses its reopen path, exports a non-self-contained packet, or lets a surface overclaim floors to a raw-output / keyboard fallback rather than reusing a clean-but-false row. This is the timeline companion to schemas/tooling/m5-execution-evidence.schema.json (the lane matrix), schemas/tooling/m5-problem-records.schema.json (the Problems row), and schemas/tooling/m5-execution-evidence-projections.schema.json (the projected overlay); all four speak one vocabulary so activity, history, issue export, support export, and AI evidence ingest one model. Adding an enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "as_of",
+    "taxonomy_version",
+    "redaction_class_token",
+    "verification_freshness",
+    "entries"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "m5_chronology_reuse_set_packet"
+    },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/stable_id" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "as_of": { "type": "string", "format": "date-time" },
+    "taxonomy_version": { "type": "integer", "const": 1 },
+    "redaction_class_token": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Default redaction posture for the packet. No raw stdout/stderr bytes, command lines, provider log bodies, env bodies, absolute paths, URLs, or secrets ever cross this boundary; refs carry opaque ids only."
+    },
+    "verification_freshness": { "$ref": "#/$defs/verification_freshness" },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "opaque_ref": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "opaque_ref_nullable": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_ref" }, { "type": "null" }]
+    },
+    "short_sentence": { "type": "string", "minLength": 1, "maxLength": 360 },
+    "verification_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_freshness_slo_hours",
+        "last_verification_refresh",
+        "auto_downgrade_on_stale"
+      ],
+      "properties": {
+        "verification_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_verification_refresh": { "type": "string", "format": "date-time" },
+        "auto_downgrade_on_stale": { "type": "boolean" }
+      }
+    },
+    "chronology_phase": {
+      "type": "string",
+      "enum": [
+        "run_started",
+        "run_progress",
+        "run_retried",
+        "run_cancelled",
+        "run_failed",
+        "run_completed"
+      ],
+      "description": "The lifecycle action a chronology entry records (the action in the actor/action/object/outcome grammar)."
+    },
+    "actor_kind": {
+      "type": "string",
+      "enum": [
+        "user",
+        "ai_agent",
+        "automation",
+        "extension",
+        "provider_adapter",
+        "system"
+      ],
+      "description": "Who or what performed the action."
+    },
+    "object_kind": {
+      "type": "string",
+      "enum": [
+        "task_run",
+        "test_run",
+        "debug_session",
+        "notebook_run",
+        "pipeline_run",
+        "build_task",
+        "output_channel"
+      ],
+      "description": "The object the action was performed on."
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "in_progress",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "retried",
+        "superseded"
+      ],
+      "description": "The outcome an action resolved to. The recorded outcome must be consistent with the recorded action: run_started/run_progress imply in_progress, run_retried implies retried, run_cancelled implies cancelled, run_failed implies failed, run_completed implies succeeded."
+    },
+    "chronology_surface": {
+      "type": "string",
+      "enum": [
+        "activity_center",
+        "history_timeline",
+        "issue_packet",
+        "support_bundle",
+        "ai_evidence_packet"
+      ],
+      "description": "A surface a chronology entry is reused on, away from where it was first written. issue_packet, support_bundle, and ai_evidence_packet are exported packets that must stay self-contained."
+    },
+    "claim_posture": {
+      "type": "string",
+      "enum": ["claimed_stable", "claimed_beta", "labs_unadvertised"],
+      "description": "Whether the entry is publicly claimed. Labs/unadvertised entries make no public claim and are never widened."
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "local_task",
+        "local_test",
+        "local_debug_session",
+        "notebook_run",
+        "headless_automation",
+        "extension_owned_run",
+        "ai_triggered_run",
+        "remote_linked_run",
+        "pipeline_provider_run",
+        "imported_provider_evidence"
+      ],
+      "description": "How the run/evidence originated. First-party local/notebook/headless/extension/AI origins reuse faithfully; remote, pipeline/provider, and imported origins reuse as read-only overlays only."
+    },
+    "confidence_tier": {
+      "type": "string",
+      "enum": [
+        "structured_full",
+        "heuristic_high",
+        "heuristic_medium",
+        "heuristic_low",
+        "provider_mapped",
+        "unmapped_requires_review"
+      ],
+      "description": "Confidence taxonomy shared with the causality matrix. Heuristic entries carry an explicit tier and a raw-output backlink; unmapped is a first-class state, not an invisible gap."
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached_within_window",
+        "stale_expired",
+        "superseded_by_newer_run",
+        "unanchored",
+        "missing"
+      ],
+      "description": "Freshness state of the evidence the entry came from. Stale and superseded states must remain visibly classified wherever the entry is reused."
+    },
+    "reopen_target": {
+      "type": "string",
+      "enum": [
+        "owning_run",
+        "output_channel",
+        "generated_artifact",
+        "provider_run_page",
+        "raw_output_backlink",
+        "editor_anchor",
+        "none_keyboard_fallback"
+      ],
+      "description": "Where reopen-to-origin lands. A floored entry keeps a raw_output_backlink or none_keyboard_fallback rather than reusing a clean-but-false row."
+    },
+    "proof_currency": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "cached_within_window",
+        "imported_current",
+        "stale_expired",
+        "missing_proof",
+        "requires_review"
+      ],
+      "description": "Currency of the certification proof that this entry preserves its lineage (distinct from the evidence's own freshness_state)."
+    },
+    "chronology_claim": {
+      "type": "string",
+      "enum": [
+        "chronology_unreconstructable",
+        "chronology_read_only_overlay",
+        "chronology_narrowed",
+        "chronology_reused",
+        "chronology_labs_not_claimed"
+      ],
+      "description": "The effective claim an entry or a reuse surface asserts. A surface may never render wider than the entry's effective claim."
+    },
+    "grammar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_kind", "actor_ref", "action", "object_kind", "outcome"],
+      "properties": {
+        "actor_kind": { "$ref": "#/$defs/actor_kind" },
+        "actor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "action": { "$ref": "#/$defs/chronology_phase" },
+        "object_kind": { "$ref": "#/$defs/object_kind" },
+        "outcome": { "$ref": "#/$defs/outcome" }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_ref",
+        "run_ref",
+        "step_ref",
+        "task_ref",
+        "channel_ref",
+        "problem_ref",
+        "artifact_ref",
+        "provider_ref",
+        "adapter_ref",
+        "raw_output_backlink_ref"
+      ],
+      "properties": {
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "step_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "task_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "channel_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "problem_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "adapter_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "raw_output_backlink_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_scope_ref", "build_toolchain_ref", "host_target_ref"],
+      "properties": {
+        "target_scope_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "build_toolchain_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "host_target_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "retry_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempt_index",
+        "retry_of_run_ref",
+        "previous_attempt_ref"
+      ],
+      "properties": {
+        "attempt_index": { "type": "integer", "minimum": 1 },
+        "retry_of_run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "previous_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserves_actor_action_object_outcome",
+        "preserves_provider_adapter",
+        "preserves_target_scope",
+        "preserves_retry_lineage",
+        "preserves_canonical_ids",
+        "lineage_visible_on_demand",
+        "freshness_state_labeled",
+        "confidence_label_visible",
+        "superseded_state_marked",
+        "imported_chronology_read_only",
+        "raw_output_backlink_present",
+        "export_self_contained"
+      ],
+      "properties": {
+        "preserves_actor_action_object_outcome": { "type": "boolean" },
+        "preserves_provider_adapter": { "type": "boolean" },
+        "preserves_target_scope": { "type": "boolean" },
+        "preserves_retry_lineage": { "type": "boolean" },
+        "preserves_canonical_ids": { "type": "boolean" },
+        "lineage_visible_on_demand": { "type": "boolean" },
+        "freshness_state_labeled": { "type": "boolean" },
+        "confidence_label_visible": { "type": "boolean" },
+        "superseded_state_marked": { "type": "boolean" },
+        "imported_chronology_read_only": { "type": "boolean" },
+        "raw_output_backlink_present": { "type": "boolean" },
+        "export_self_contained": { "type": "boolean" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_currency", "proof_ref"],
+      "properties": {
+        "proof_currency": { "$ref": "#/$defs/proof_currency" },
+        "proof_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "rendered_claim",
+        "lineage_visible",
+        "read_only",
+        "source_entry_ref",
+        "bound_run_ref",
+        "bound_channel_ref",
+        "bound_problem_ref"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/chronology_surface" },
+        "rendered_claim": { "$ref": "#/$defs/chronology_claim" },
+        "lineage_visible": { "type": "boolean" },
+        "read_only": { "type": "boolean" },
+        "source_entry_ref": { "$ref": "#/$defs/opaque_ref" },
+        "bound_run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "bound_channel_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "bound_problem_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "label_summary",
+        "claim_posture",
+        "origin_class",
+        "declared_confidence_tier",
+        "declared_freshness_state",
+        "declared_reopen_target",
+        "grammar",
+        "links",
+        "scope",
+        "retry_lineage",
+        "integrity",
+        "verification",
+        "bindings"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/stable_id" },
+        "label_summary": { "$ref": "#/$defs/short_sentence" },
+        "claim_posture": { "$ref": "#/$defs/claim_posture" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "declared_confidence_tier": { "$ref": "#/$defs/confidence_tier" },
+        "declared_freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "declared_reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "grammar": { "$ref": "#/$defs/grammar" },
+        "links": { "$ref": "#/$defs/links" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "retry_lineage": { "$ref": "#/$defs/retry_lineage" },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "verification": { "$ref": "#/$defs/verification" },
+        "bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/binding" }
+        }
+      }
+    }
+  }
+}
