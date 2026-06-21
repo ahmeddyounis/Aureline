@@ -1,0 +1,463 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/i18n/locale-diagnostics.schema.json",
+  "title": "Aureline locale diagnostics, Help/About, and support-export packet",
+  "description": "Consolidated localization diagnostics truth packet. Joins the active locale, installed locale-pack versions, per-pack compatibility and signature state, the requested-to-source fallback chain, missing-translation counts, and degraded-localization reasons into one inspectable record consumed by Help/About, the diagnostics surface, support exports, and release/shiproom tooling. The metadata-only support export preserves stable pack ids, locale tags, and source-language route refs and classifies each locale's problem origin (requested locale, base fallback, source-language fallback, pack skew, or missing translations) while omitting translated bodies, signing keys, and provider payloads. The release gate narrows or blocks a locale-bearing claim when diagnostics show an incompatible or degraded localization state.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "target_build_identity_ref",
+    "source_language_locale",
+    "requested_locale",
+    "effective_locale",
+    "fallback_chain",
+    "fallback_origin",
+    "degraded_state",
+    "problem_origin",
+    "source_language_route_active",
+    "total_message_count",
+    "missing_key_count",
+    "source_contract_refs",
+    "runtime_consumer_refs",
+    "installed_packs",
+    "locale_profiles",
+    "help_about_card",
+    "support_export",
+    "release_gate",
+    "summary"
+  ],
+  "properties": {
+    "record_kind": { "const": "locale_diagnostics_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/stable_id" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "target_build_identity_ref": { "$ref": "#/$defs/stable_id" },
+    "source_language_locale": { "$ref": "#/$defs/locale" },
+    "requested_locale": { "$ref": "#/$defs/locale" },
+    "effective_locale": { "$ref": "#/$defs/locale" },
+    "fallback_chain": { "$ref": "#/$defs/fallback_chain" },
+    "fallback_origin": { "$ref": "#/$defs/fallback_origin" },
+    "degraded_state": { "$ref": "#/$defs/degraded_state" },
+    "problem_origin": { "$ref": "#/$defs/problem_origin" },
+    "source_language_route_active": { "type": "boolean" },
+    "total_message_count": { "type": "integer", "minimum": 0 },
+    "missing_key_count": { "type": "integer", "minimum": 0 },
+    "source_contract_refs": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "runtime_consumer_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/stable_id" },
+      "uniqueItems": true
+    },
+    "installed_packs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/installed_pack_row" }
+    },
+    "locale_profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/locale_profile_row" }
+    },
+    "help_about_card": { "$ref": "#/$defs/help_about_card" },
+    "support_export": { "$ref": "#/$defs/support_export" },
+    "release_gate": { "$ref": "#/$defs/release_gate" },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "stable_id": { "type": "string", "minLength": 1 },
+    "locale": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$" },
+    "fallback_chain": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/locale" }
+    },
+    "problem_origin": {
+      "enum": [
+        "requested_locale",
+        "base_fallback",
+        "source_language_fallback",
+        "pack_skew",
+        "missing_translations"
+      ]
+    },
+    "gate_state": {
+      "enum": [
+        "claim_holds_fully_localized",
+        "claim_narrowed_partial",
+        "claim_narrowed_source_language",
+        "claim_blocked_incompatible_pack"
+      ]
+    },
+    "source_class": {
+      "enum": [
+        "first_party_source_language",
+        "first_party_locale_pack",
+        "reviewed_community_pack",
+        "extension_owned_pack"
+      ]
+    },
+    "signature_state": {
+      "enum": [
+        "signed_verified",
+        "signed_unverified",
+        "unsigned_explicit_acceptance",
+        "signature_failed_blocked",
+        "not_applicable_built_in"
+      ]
+    },
+    "version_match_state": {
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ]
+    },
+    "application_decision": {
+      "enum": [
+        "apply_localized_with_disclosed_missing_keys",
+        "degrade_to_source_language_only"
+      ]
+    },
+    "skew_degrade_reason": {
+      "enum": [
+        "not_degraded",
+        "pack_missing",
+        "signature_failed",
+        "signature_unverified_not_accepted",
+        "integrity_digest_mismatch",
+        "build_outside_compatibility_range",
+        "incompatible_version_drift",
+        "unknown_target_build",
+        "policy_disabled_locale"
+      ]
+    },
+    "fallback_origin": {
+      "enum": [
+        "requested_locale_authoritative",
+        "requested_locale_partial_with_base_fill",
+        "base_locale_fallback",
+        "source_language_fallback",
+        "pack_signature_failed_source_language_only",
+        "pack_missing_source_language_only",
+        "policy_disabled_source_language_only"
+      ]
+    },
+    "degraded_state": {
+      "enum": [
+        "fully_localized",
+        "partial_translation_disclosed",
+        "mixed_locale_strict_separation",
+        "glossary_only_localized",
+        "source_language_with_pseudoloc",
+        "failed_pack_source_language_only"
+      ]
+    },
+    "installed_pack_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pack_id",
+        "pack_version",
+        "pack_revision_ref",
+        "locale",
+        "source_class",
+        "signature_state",
+        "version_match_state",
+        "compatible_with_active_build",
+        "application_decision",
+        "skew_degrade_reason",
+        "total_key_count",
+        "missing_key_count",
+        "claimed_localized_profile",
+        "problem_origin",
+        "open_in_source_language_route_ref",
+        "raw_translated_body_omitted"
+      ],
+      "properties": {
+        "pack_id": { "$ref": "#/$defs/stable_id" },
+        "pack_version": { "type": "string", "minLength": 1 },
+        "pack_revision_ref": { "$ref": "#/$defs/stable_id" },
+        "locale": { "$ref": "#/$defs/locale" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "signature_state": { "$ref": "#/$defs/signature_state" },
+        "version_match_state": { "$ref": "#/$defs/version_match_state" },
+        "compatible_with_active_build": { "type": "boolean" },
+        "application_decision": { "$ref": "#/$defs/application_decision" },
+        "skew_degrade_reason": { "$ref": "#/$defs/skew_degrade_reason" },
+        "total_key_count": { "type": "integer", "minimum": 0 },
+        "missing_key_count": { "type": "integer", "minimum": 0 },
+        "claimed_localized_profile": { "type": "boolean" },
+        "problem_origin": { "$ref": "#/$defs/problem_origin" },
+        "open_in_source_language_route_ref": { "type": "string", "minLength": 1 },
+        "raw_translated_body_omitted": { "const": true }
+      }
+    },
+    "locale_profile_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_locale",
+        "effective_locale",
+        "source_language_locale",
+        "fallback_chain",
+        "fallback_origin",
+        "degraded_state",
+        "problem_origin",
+        "source_language_route_active",
+        "total_key_count",
+        "missing_key_count"
+      ],
+      "properties": {
+        "requested_locale": { "$ref": "#/$defs/locale" },
+        "effective_locale": { "$ref": "#/$defs/locale" },
+        "source_language_locale": { "$ref": "#/$defs/locale" },
+        "fallback_chain": { "$ref": "#/$defs/fallback_chain" },
+        "fallback_origin": { "$ref": "#/$defs/fallback_origin" },
+        "degraded_state": { "$ref": "#/$defs/degraded_state" },
+        "problem_origin": { "$ref": "#/$defs/problem_origin" },
+        "source_language_route_active": { "type": "boolean" },
+        "total_key_count": { "type": "integer", "minimum": 0 },
+        "missing_key_count": { "type": "integer", "minimum": 0 },
+        "backing_pack_id_ref": { "$ref": "#/$defs/stable_id" }
+      }
+    },
+    "help_about_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "heading",
+        "requested_locale",
+        "effective_locale",
+        "source_language_locale",
+        "fallback_chain",
+        "degraded_state",
+        "problem_origin",
+        "installed_pack_count",
+        "incompatible_pack_count",
+        "missing_key_count",
+        "source_language_route_active",
+        "open_in_source_language_route_ref",
+        "honesty_marker_present",
+        "raw_translated_body_omitted"
+      ],
+      "properties": {
+        "record_kind": { "const": "locale_diagnostics_help_about_card" },
+        "heading": { "type": "string", "minLength": 1 },
+        "requested_locale": { "$ref": "#/$defs/locale" },
+        "effective_locale": { "$ref": "#/$defs/locale" },
+        "source_language_locale": { "$ref": "#/$defs/locale" },
+        "fallback_chain": { "$ref": "#/$defs/fallback_chain" },
+        "degraded_state": { "$ref": "#/$defs/degraded_state" },
+        "problem_origin": { "$ref": "#/$defs/problem_origin" },
+        "installed_pack_count": { "type": "integer", "minimum": 0 },
+        "incompatible_pack_count": { "type": "integer", "minimum": 0 },
+        "missing_key_count": { "type": "integer", "minimum": 0 },
+        "source_language_route_active": { "type": "boolean" },
+        "open_in_source_language_route_ref": { "type": "string" },
+        "honesty_marker_present": { "type": "boolean" },
+        "raw_translated_body_omitted": { "const": true }
+      }
+    },
+    "support_export_pack_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pack_id",
+        "pack_version",
+        "locale",
+        "signature_state",
+        "version_match_state",
+        "missing_key_count",
+        "problem_origin",
+        "raw_translated_body_omitted"
+      ],
+      "properties": {
+        "pack_id": { "$ref": "#/$defs/stable_id" },
+        "pack_version": { "type": "string", "minLength": 1 },
+        "locale": { "$ref": "#/$defs/locale" },
+        "signature_state": { "$ref": "#/$defs/signature_state" },
+        "version_match_state": { "$ref": "#/$defs/version_match_state" },
+        "missing_key_count": { "type": "integer", "minimum": 0 },
+        "problem_origin": { "$ref": "#/$defs/problem_origin" },
+        "raw_translated_body_omitted": { "const": true }
+      }
+    },
+    "support_export_profile_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_locale",
+        "effective_locale",
+        "fallback_chain",
+        "fallback_origin",
+        "degraded_state",
+        "problem_origin",
+        "missing_key_count",
+        "used_source_language_fallback",
+        "raw_translated_body_omitted"
+      ],
+      "properties": {
+        "requested_locale": { "$ref": "#/$defs/locale" },
+        "effective_locale": { "$ref": "#/$defs/locale" },
+        "fallback_chain": { "$ref": "#/$defs/fallback_chain" },
+        "fallback_origin": { "$ref": "#/$defs/fallback_origin" },
+        "degraded_state": { "$ref": "#/$defs/degraded_state" },
+        "problem_origin": { "$ref": "#/$defs/problem_origin" },
+        "missing_key_count": { "type": "integer", "minimum": 0 },
+        "used_source_language_fallback": { "type": "boolean" },
+        "raw_translated_body_omitted": { "const": true }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "source_packet_id",
+        "generated_at",
+        "target_build_identity_ref",
+        "requested_locale",
+        "effective_locale",
+        "source_language_locale",
+        "fallback_chain",
+        "fallback_origin",
+        "degraded_state",
+        "problem_origin",
+        "missing_key_count",
+        "source_language_route_active",
+        "installed_pack_rows",
+        "profile_rows",
+        "preserved_stable_anchor_refs",
+        "raw_translated_bodies_exported",
+        "omitted_material_classes"
+      ],
+      "properties": {
+        "record_kind": { "const": "locale_diagnostics_support_export" },
+        "schema_version": { "const": 1 },
+        "export_id": { "$ref": "#/$defs/stable_id" },
+        "source_packet_id": { "$ref": "#/$defs/stable_id" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "target_build_identity_ref": { "$ref": "#/$defs/stable_id" },
+        "requested_locale": { "$ref": "#/$defs/locale" },
+        "effective_locale": { "$ref": "#/$defs/locale" },
+        "source_language_locale": { "$ref": "#/$defs/locale" },
+        "fallback_chain": { "$ref": "#/$defs/fallback_chain" },
+        "fallback_origin": { "$ref": "#/$defs/fallback_origin" },
+        "degraded_state": { "$ref": "#/$defs/degraded_state" },
+        "problem_origin": { "$ref": "#/$defs/problem_origin" },
+        "missing_key_count": { "type": "integer", "minimum": 0 },
+        "source_language_route_active": { "type": "boolean" },
+        "installed_pack_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_export_pack_row" }
+        },
+        "profile_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_export_profile_row" }
+        },
+        "preserved_stable_anchor_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_id" },
+          "uniqueItems": true
+        },
+        "raw_translated_bodies_exported": { "const": false },
+        "omitted_material_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "claim_narrow_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claimed_locale",
+        "gate_state",
+        "problem_origin",
+        "narrowed",
+        "publishable_localized_claim",
+        "narrow_reason"
+      ],
+      "properties": {
+        "claimed_locale": { "$ref": "#/$defs/locale" },
+        "backing_pack_id_ref": { "$ref": "#/$defs/stable_id" },
+        "gate_state": { "$ref": "#/$defs/gate_state" },
+        "problem_origin": { "$ref": "#/$defs/problem_origin" },
+        "narrowed": { "type": "boolean" },
+        "publishable_localized_claim": { "type": "boolean" },
+        "narrow_reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "release_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "target_build_identity_ref",
+        "rows",
+        "any_claim_narrowed",
+        "any_claim_blocked"
+      ],
+      "properties": {
+        "record_kind": { "const": "locale_diagnostics_release_gate" },
+        "target_build_identity_ref": { "$ref": "#/$defs/stable_id" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/claim_narrow_row" }
+        },
+        "any_claim_narrowed": { "type": "boolean" },
+        "any_claim_blocked": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "installed_pack_count",
+        "renderable_pack_count",
+        "incompatible_pack_count",
+        "profiled_locale_count",
+        "fully_localized_locale_count",
+        "source_language_fallback_locale_count",
+        "total_missing_key_count",
+        "problem_origin_counts",
+        "source_language_locale"
+      ],
+      "properties": {
+        "installed_pack_count": { "type": "integer", "minimum": 0 },
+        "renderable_pack_count": { "type": "integer", "minimum": 0 },
+        "incompatible_pack_count": { "type": "integer", "minimum": 0 },
+        "profiled_locale_count": { "type": "integer", "minimum": 0 },
+        "fully_localized_locale_count": { "type": "integer", "minimum": 0 },
+        "source_language_fallback_locale_count": { "type": "integer", "minimum": 0 },
+        "total_missing_key_count": { "type": "integer", "minimum": 0 },
+        "problem_origin_counts": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "source_language_locale": { "$ref": "#/$defs/locale" }
+      }
+    }
+  }
+}

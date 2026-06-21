@@ -11,13 +11,18 @@
 //! locale-pack skew and signature view; [`localized_surface`] for the
 //! per-locale render of localized command, settings, help, error, and
 //! notification labels with preserved command ids, keyboard paths, and
-//! truncation that never hides scope or severity; and [`contributed_support`]
+//! truncation that never hides scope or severity; [`contributed_support`]
 //! for extension and companion locale support, host-stable label protection,
-//! and per-source localization-issue attribution.
+//! and per-source localization-issue attribution; and [`locale_diagnostics`]
+//! for the consolidated localization diagnostics, Help/About, support-export,
+//! and release-gate packet that joins active locale, installed pack versions,
+//! compatibility state, fallback chain, missing-key counts, and
+//! degraded-localization reasons into one inspectable truth packet.
 
 pub mod attention_vocabulary;
 pub mod contributed_support;
 pub mod fallback_inspector;
+pub mod locale_diagnostics;
 pub mod localized_surface;
 pub mod pack_compatibility;
 
@@ -50,6 +55,19 @@ pub use contributed_support::{
     project_user_contributed_locale_support, ContributedLocaleSupportView,
     ContributedSupportAudience, ContributedSupportRowView, IssueCountsBySource,
     CONTRIBUTED_LOCALE_SUPPORT_VIEW_RECORD_KIND,
+};
+
+pub use locale_diagnostics::{
+    seeded_locale_diagnostics_packet, seeded_locale_diagnostics_support_export,
+    InstalledLocalePackRow, LocaleClaimGateState, LocaleClaimNarrowRow, LocaleDiagnosticsFinding,
+    LocaleDiagnosticsHelpAboutCard, LocaleDiagnosticsPacket, LocaleDiagnosticsProfileRow,
+    LocaleDiagnosticsReleaseGate, LocaleDiagnosticsSummary, LocaleDiagnosticsSupportExport,
+    LocaleProblemOrigin, SupportExportPackRow, SupportExportProfileRow,
+    LOCALE_DIAGNOSTICS_FIXTURE_REF, LOCALE_DIAGNOSTICS_HELP_ABOUT_RECORD_KIND,
+    LOCALE_DIAGNOSTICS_PACKET_ID, LOCALE_DIAGNOSTICS_RECORD_KIND,
+    LOCALE_DIAGNOSTICS_RELEASE_GATE_RECORD_KIND, LOCALE_DIAGNOSTICS_SCHEMA_REF,
+    LOCALE_DIAGNOSTICS_SCHEMA_VERSION, LOCALE_DIAGNOSTICS_SUPPORT_EXPORT_FIXTURE_REF,
+    LOCALE_DIAGNOSTICS_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 #[cfg(test)]
