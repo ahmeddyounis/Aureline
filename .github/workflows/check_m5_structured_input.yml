@@ -1,0 +1,65 @@
+# Structured-input / staged-review gate.
+#
+# Validates the checked-in structured-input set: the source packet conforms to its
+# schema, no surface submits from a source-hidden or ambiguous state, no surface
+# hides target scope, omitted defaults, blocked prerequisites, or rollback
+# consequences behind a generic Continue, draft-versus-applied state stays distinct
+# and recoverable across interruption/restart/reconnect, imported/restore reviews
+# never read as a local apply, no rendering surface overclaims, every surface kind /
+# lane / mutation class / source-of-value class / consumer surface is represented,
+# and every narrowing/floor rule in the perturbation corpus fires as recorded.
+
+name: check_m5_structured_input
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_structured_input.yml"
+      - "tools/release/structured_input_staged_review.py"
+      - "schemas/ux/m5-structured-input-and-staged-review.schema.json"
+      - "artifacts/ux/m5-structured-input-and-staged-review/**"
+      - "fixtures/ux/m5-structured-input-and-staged-review/**"
+      - "docs/ux/m5-structured-input-and-staged-review.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-structured-input-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  structured_input:
+    name: Structured input
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the structured-input set against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/ux/m5-structured-input-and-staged-review.schema.json"))
+          data = json.load(open("artifacts/ux/m5-structured-input-and-staged-review/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the structured-input set
+        run: python3 tools/release/structured_input_staged_review.py validate
+
+      - name: Run the structured-input self-test
+        run: python3 tools/release/structured_input_staged_review.py self-test
