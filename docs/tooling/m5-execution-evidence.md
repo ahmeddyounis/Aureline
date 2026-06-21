@@ -42,6 +42,13 @@ must update in the same change.
   — the perturbation corpus that pins each narrowing/floor rule.
 - `tools/release/execution_evidence_causality.py` — the engine that re-derives the
   effective causal claim per lane and emits/validates the matrix and report.
+- `crates/aureline-runtime/src/m5_execution_evidence_causality_matrix/` — the
+  in-process Rust truth source. It deserializes the checked-in support export into
+  one typed packet, re-derives the same per-lane causal claim, narrowing reasons,
+  and floor/overlay/labs ladder as the Python engine, and exposes
+  `current_m5_execution_evidence_causality_matrix()` so desktop, CLI/headless, AI
+  evidence, support export, review, and docs consumers ingest the governed
+  projection without re-parsing raw logs or forking a parallel causal vocabulary.
 
 ## The causal chain every lane preserves
 

@@ -254,6 +254,7 @@ pub mod m5_diagnostic_quality_snapshots_and_imported_versus_live_deltas;
 pub mod m5_diagnostic_source_descriptors_and_collection_snapshots;
 pub mod m5_environment_status_strips;
 pub mod m5_event_interop_certification;
+pub mod m5_execution_evidence_causality_matrix;
 pub mod m5_interop_conformance;
 pub mod m5_label_parity;
 pub mod m5_quality_action_proposals_and_sessions;
@@ -855,6 +856,27 @@ pub use m5_event_interop_certification::{
     EVENT_INTEROP_CERTIFICATION_SCHEMA_REF, EVENT_INTEROP_CERTIFICATION_SCHEMA_VERSION,
     EVENT_INTEROP_CERTIFICATION_SUPPORT_EXPORT_ID,
     EVENT_INTEROP_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_execution_evidence_causality_matrix::{
+    current_m5_execution_evidence_causality_matrix, CausalChain as ExecEvidenceCausalChain,
+    CausalClaim as ExecEvidenceCausalClaim, CausalityLaneRow,
+    ClaimDistribution as ExecEvidenceClaimDistribution, ClaimPosture as ExecEvidenceClaimPosture,
+    ConfidenceTier as ExecEvidenceConfidenceTier, ExportPacket as ExecEvidenceExportPacket,
+    FreshnessState as ExecEvidenceFreshnessState, LaneCausalDecision,
+    LaneIdentity as ExecEvidenceLaneIdentity, LaneVerification as ExecEvidenceLaneVerification,
+    M5ExecutionEvidenceCausalityArtifactError, M5ExecutionEvidenceCausalityMatrixInput,
+    M5ExecutionEvidenceCausalityMatrixPacket, M5ExecutionEvidenceCausalityViolation,
+    NarrowingReason as ExecEvidenceNarrowingReason, OriginClass as ExecEvidenceOriginClass,
+    OutputChannelClass as ExecEvidenceOutputChannelClass,
+    ProblemSourceKind as ExecEvidenceProblemSourceKind, ProofCurrency as ExecEvidenceProofCurrency,
+    ReopenTarget as ExecEvidenceReopenTarget, SurfaceFamily as ExecEvidenceSurfaceFamily,
+    VerificationFreshness as ExecEvidenceVerificationFreshness,
+    M5_EXECUTION_EVIDENCE_CAUSALITY_DOC_REF, M5_EXECUTION_EVIDENCE_CAUSALITY_FIXTURE_DIR,
+    M5_EXECUTION_EVIDENCE_CAUSALITY_MATRIX_REF, M5_EXECUTION_EVIDENCE_CAUSALITY_RECORD_KIND,
+    M5_EXECUTION_EVIDENCE_CAUSALITY_REPORT_REF, M5_EXECUTION_EVIDENCE_CAUSALITY_SCHEMA_REF,
+    M5_EXECUTION_EVIDENCE_CAUSALITY_SCHEMA_VERSION,
+    M5_EXECUTION_EVIDENCE_CAUSALITY_SUPPORT_EXPORT_REF,
+    M5_EXECUTION_EVIDENCE_CAUSALITY_TAXONOMY_VERSION,
 };
 pub use m5_interop_conformance::{
     archetypes_for_family, current_stable_interop_conformance_input,
