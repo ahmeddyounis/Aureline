@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/voice/transcript-redaction-and-support-export.schema.json",
+  "title": "Aureline voice session support export and transcript redaction",
+  "description": "Versioned, export-safe support packet for claimed voice sessions. It folds one metadata-only diagnostics row per session (mode, provider class, processing locality, retention/audio/export posture, policy state, an aggregate recognition-confidence class, and the failure, blocked-action, and provider-drift classes), the explicit reviewed transcript-export decisions, and the no-audio-default telemetry/crash/log posture into one inspectable record. Raw audio bytes, raw transcript text, raw provider payloads, private paths, and credentials never cross this boundary; the packet carries only typed class tokens, booleans, opaque ids, redaction counts, and redaction-aware labels. Transcript text is excluded by default; the only inclusion path is an explicit, user-reviewed, redacted, bounded export, and even then only a content-free redaction summary travels into support.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "sessions",
+    "transcript_export_decisions",
+    "telemetry_posture",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "voice_support_export_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "label": { "$ref": "#/$defs/non_empty_string" },
+    "sessions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/session_diagnostics_row" }
+    },
+    "transcript_export_decisions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/transcript_export_decision" }
+    },
+    "telemetry_posture": { "$ref": "#/$defs/telemetry_posture" },
+    "guardrails": { "$ref": "#/$defs/guardrails" },
+    "consumer_projection": { "$ref": "#/$defs/consumer_projection" },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "session_diagnostics_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "session_id",
+        "session_label",
+        "mode",
+        "provider_class",
+        "processing_locality",
+        "retention_mode",
+        "audio_retention",
+        "transcript_export",
+        "policy_state",
+        "provider_drift_class",
+        "keyboard_fallback_available",
+        "raw_audio_excluded",
+        "raw_transcript_excluded"
+      ],
+      "properties": {
+        "record_kind": { "const": "voice_session_diagnostics_row" },
+        "schema_version": { "const": 1 },
+        "session_id": { "$ref": "#/$defs/non_empty_string" },
+        "session_label": { "$ref": "#/$defs/non_empty_string" },
+        "mode": { "$ref": "#/$defs/voice_mode_class" },
+        "provider_class": { "$ref": "#/$defs/voice_provider_class" },
+        "processing_locality": { "$ref": "#/$defs/processing_locality_cue" },
+        "retention_mode": { "$ref": "#/$defs/retention_mode" },
+        "audio_retention": { "$ref": "#/$defs/audio_retention_class" },
+        "transcript_export": { "$ref": "#/$defs/transcript_export_posture" },
+        "policy_state": { "$ref": "#/$defs/voice_policy_state" },
+        "aggregate_confidence": { "$ref": "#/$defs/confidence_cue" },
+        "failure_class": { "$ref": "#/$defs/voice_session_failure_class" },
+        "blocked_action_class": { "$ref": "#/$defs/voice_blocked_action_class" },
+        "provider_drift_class": { "$ref": "#/$defs/voice_provider_drift_class" },
+        "keyboard_fallback_available": { "type": "boolean" },
+        "raw_audio_excluded": { "const": true },
+        "raw_transcript_excluded": { "const": true }
+      }
+    },
+    "transcript_export_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "inclusion_state",
+        "transcript_export_posture",
+        "redaction_applied",
+        "reviewed_by_user",
+        "user_visible_label",
+        "bounded_segment_count"
+      ],
+      "properties": {
+        "record_kind": { "const": "voice_transcript_export_decision" },
+        "schema_version": { "const": 1 },
+        "inclusion_state": { "$ref": "#/$defs/transcript_inclusion_state" },
+        "transcript_export_posture": { "$ref": "#/$defs/transcript_export_posture" },
+        "redaction_applied": { "type": "boolean" },
+        "reviewed_by_user": { "type": "boolean" },
+        "user_visible_label": { "$ref": "#/$defs/non_empty_string" },
+        "bounded_segment_count": { "type": "integer", "minimum": 0 },
+        "redaction_summary": { "$ref": "#/$defs/transcript_redaction_summary" }
+      }
+    },
+    "transcript_redaction_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "redacted_span_count",
+        "classes_redacted",
+        "residual_text_excluded_from_support"
+      ],
+      "properties": {
+        "record_kind": { "const": "voice_transcript_redaction_summary" },
+        "schema_version": { "const": 1 },
+        "redacted_span_count": { "type": "integer", "minimum": 0 },
+        "classes_redacted": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_class" }
+        },
+        "residual_text_excluded_from_support": { "const": true }
+      }
+    },
+    "telemetry_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "raw_audio_in_telemetry",
+        "raw_transcript_in_telemetry",
+        "raw_audio_in_crash_packets",
+        "sensitive_transcript_in_logs",
+        "captured_metadata_classes"
+      ],
+      "properties": {
+        "record_kind": { "const": "voice_telemetry_posture" },
+        "schema_version": { "const": 1 },
+        "raw_audio_in_telemetry": { "const": false },
+        "raw_transcript_in_telemetry": { "const": false },
+        "raw_audio_in_crash_packets": { "const": false },
+        "sensitive_transcript_in_logs": { "const": false },
+        "captured_metadata_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_audio_excluded_by_default",
+        "raw_transcript_excluded_by_default",
+        "transcript_export_explicit_and_redacted",
+        "failures_blocked_actions_and_drift_diagnosable",
+        "supportability_does_not_widen_retention",
+        "keyboard_fallback_always_available"
+      ],
+      "properties": {
+        "raw_audio_excluded_by_default": { "const": true },
+        "raw_transcript_excluded_by_default": { "const": true },
+        "transcript_export_explicit_and_redacted": { "const": true },
+        "failures_blocked_actions_and_drift_diagnosable": { "const": true },
+        "supportability_does_not_widen_retention": { "const": true },
+        "keyboard_fallback_always_available": { "const": true }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostics_ingests",
+        "support_export_ingests",
+        "help_about_ingests",
+        "release_center_ingests",
+        "telemetry_schema_ingests"
+      ],
+      "properties": {
+        "diagnostics_ingests": { "const": true },
+        "support_export_ingests": { "const": true },
+        "help_about_ingests": { "const": true },
+        "release_center_ingests": { "const": true },
+        "telemetry_schema_ingests": { "const": true }
+      }
+    },
+    "voice_mode_class": {
+      "type": "string",
+      "enum": [
+        "idle_microphone_off",
+        "dictation_mode_active",
+        "command_mode_active",
+        "continuous_listening_active_user_opted_in",
+        "voice_mode_blocked_by_policy",
+        "voice_mode_blocked_by_envelope"
+      ]
+    },
+    "voice_provider_class": {
+      "type": "string",
+      "enum": [
+        "on_device_local",
+        "approved_remote_disclosed",
+        "enterprise_relay_managed",
+        "mocked_test_provider",
+        "provider_disabled"
+      ]
+    },
+    "processing_locality_cue": {
+      "type": "string",
+      "enum": ["local_on_device", "hosted_remote_disclosed", "processing_unavailable"]
+    },
+    "retention_mode": {
+      "type": "string",
+      "enum": [
+        "no_audio_no_transcript_retained",
+        "ephemeral_audio_local_only_no_transcript_retained",
+        "transcript_retained_local_only",
+        "transcript_retained_redacted_in_support_bundle",
+        "transcript_retained_provider_per_contract",
+        "retention_blocked_by_policy",
+        "retention_unavailable_in_envelope"
+      ]
+    },
+    "audio_retention_class": {
+      "type": "string",
+      "enum": [
+        "no_audio_retained",
+        "ephemeral_audio_local_only",
+        "bounded_audio_local_window",
+        "audio_retained_provider_per_contract",
+        "audio_capture_blocked"
+      ]
+    },
+    "transcript_export_posture": {
+      "type": "string",
+      "enum": [
+        "no_transcript_export",
+        "explicit_user_export_redacted",
+        "metadata_only_support_export",
+        "provider_contract_retained",
+        "export_blocked_by_policy"
+      ]
+    },
+    "voice_policy_state": {
+      "type": "string",
+      "enum": ["user_controlled", "enterprise_policy_managed", "policy_blocked"]
+    },
+    "confidence_cue": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "voice_session_failure_class": {
+      "type": "string",
+      "enum": [
+        "capture_start_failed_no_microphone",
+        "capture_interrupted_device_lost",
+        "recognition_low_confidence_aborted",
+        "hosted_provider_unreachable_fell_back_local",
+        "hosted_provider_unreachable_blocked",
+        "language_pack_unavailable_used_baseline",
+        "transcript_correction_timed_out",
+        "command_disambiguation_unresolved",
+        "policy_blocked_capture",
+        "envelope_blocked_capture"
+      ]
+    },
+    "voice_blocked_action_class": {
+      "type": "string",
+      "enum": [
+        "high_impact_command_held_for_confirmation",
+        "privileged_action_held_for_preview",
+        "command_outside_capability_envelope",
+        "command_denied_by_policy",
+        "dictation_target_surface_unsupported",
+        "continuous_listening_blocked_by_policy"
+      ]
+    },
+    "voice_provider_drift_class": {
+      "type": "string",
+      "enum": [
+        "no_drift_observed",
+        "provider_downgraded_to_local",
+        "locality_moved_to_local",
+        "language_pack_fell_back_to_baseline",
+        "retention_posture_narrowed",
+        "export_posture_narrowed",
+        "provider_became_unavailable"
+      ]
+    },
+    "transcript_inclusion_state": {
+      "type": "string",
+      "enum": [
+        "excluded_by_default",
+        "redacted_included_after_explicit_review",
+        "blocked_by_policy",
+        "no_transcript_available"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "email_address",
+        "long_numeric_sequence",
+        "absolute_path",
+        "url",
+        "ip_address",
+        "credential_token"
+      ]
+    }
+  }
+}

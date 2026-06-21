@@ -467,6 +467,7 @@ pub mod stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_an
 pub mod state_class_recovery;
 pub mod storage_inspector;
 pub mod supervised_restart_evidence_pipeline;
+pub mod voice_redaction;
 
 pub use crash_store::{
     seeded_crash_store_viewer_packet, seeded_expired_dump_crash_store_viewer_packet,
@@ -799,4 +800,22 @@ pub use supervised_restart_evidence_pipeline::{
     SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF,
     SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_VERSION,
     SUPERVISED_RESTART_REVIEW_DECISION_RECORD_KIND,
+};
+pub use voice_redaction::{
+    current_voice_support_export, redact_transcript, seeded_voice_support_export_packet,
+    AudioRetentionClass as VoiceAudioRetentionClass, ConfidenceCue as VoiceConfidenceCue,
+    ProcessingLocality as VoiceProcessingLocality, RedactionClass,
+    RetentionMode as VoiceRetentionMode, TranscriptExportPosture as VoiceTranscriptExportPosture,
+    TranscriptInclusionState, TranscriptRedactionResult, TranscriptRedactionSummary,
+    VoiceBlockedActionClass, VoicePolicyState as VoiceSessionPolicyState,
+    VoiceProviderClass as VoiceSessionProviderClass, VoiceProviderDriftClass,
+    VoiceSessionDiagnosticsRow, VoiceSessionFailureClass, VoiceSessionMode,
+    VoiceSupportExportConsumerProjection, VoiceSupportExportGuardrails, VoiceSupportExportPacket,
+    VoiceSupportExportPacketInput, VoiceSupportExportViolation, VoiceTelemetryPosture,
+    VoiceTranscriptExportDecision, VOICE_SESSION_DIAGNOSTICS_ROW_RECORD_KIND,
+    VOICE_SUPPORT_EXPORT_DOC_REF, VOICE_SUPPORT_EXPORT_FIXTURES_DIR_REF,
+    VOICE_SUPPORT_EXPORT_PACKET_RECORD_KIND, VOICE_SUPPORT_EXPORT_PACKET_REF,
+    VOICE_SUPPORT_EXPORT_REPORT_REF, VOICE_SUPPORT_EXPORT_SCHEMA_REF,
+    VOICE_SUPPORT_EXPORT_SCHEMA_VERSION, VOICE_TELEMETRY_POSTURE_RECORD_KIND,
+    VOICE_TRANSCRIPT_EXPORT_DECISION_RECORD_KIND, VOICE_TRANSCRIPT_REDACTION_SUMMARY_RECORD_KIND,
 };
