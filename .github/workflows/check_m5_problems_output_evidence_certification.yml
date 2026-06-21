@@ -1,0 +1,66 @@
+# M5 Problems / output / execution-evidence qualification capstone gate.
+#
+# Validates the checked-in qualification packet: the support export conforms to its
+# schema; every claimed M5 tooling profile is graded across all seven causal-chain
+# dimensions; a broken Problems-correlation, output-channel-identity,
+# projection-lineage, causal-link, confidence, stale/superseded, or reopen invariant
+# auto-narrows the profile to blocked; honestly labeled stale proof narrows to
+# retest_pending; imported-on-local proof never reads as a live claim; read-only
+# overlays hold at limited; the four release-bearing integrity axes each appear as an
+# explicit release-evidence row; and every narrowing rule in the perturbation corpus
+# fires as recorded.
+
+name: check_m5_problems_output_evidence_certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_problems_output_evidence_certification.yml"
+      - "tools/release/problems_output_evidence_certification.py"
+      - "schemas/tooling/m5-problems-output-evidence-certification.schema.json"
+      - "artifacts/tooling/m5-problems-output-evidence-certification/**"
+      - "fixtures/tooling/m5-problems-output-evidence-certification/**"
+      - "docs/tooling/m5-problems-output-evidence-certification.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-problems-output-evidence-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  problems_output_evidence_certification:
+    name: Problems / output / evidence qualification
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the qualification packet against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/tooling/m5-problems-output-evidence-certification.schema.json"))
+          data = json.load(open("artifacts/tooling/m5-problems-output-evidence-certification/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the qualification packet
+        run: python3 tools/release/problems_output_evidence_certification.py validate
+
+      - name: Run the qualification self-test
+        run: python3 tools/release/problems_output_evidence_certification.py self-test

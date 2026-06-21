@@ -285,6 +285,23 @@
 //! reuses the matrix's frozen origin, problem-source, channel, confidence, freshness,
 //! reopen, and proof vocabularies.
 //!
+//! [`certify_m5_problems_output_and_execution_evidence_truth::ProblemsOutputEvidenceCertificationPacket`]
+//! is the **capstone qualification gate** that binds those Problems/output/evidence
+//! lanes into the M5 promotion model. It publishes one
+//! [`certify_m5_problems_output_and_execution_evidence_truth::ProfileQualification`]
+//! per claimed M5 tooling profile, graded across the seven causal-chain dimensions —
+//! Problems correlation, output-channel identity, evidence-projection lineage,
+//! causal-link integrity, confidence honesty, stale/superseded handling, and
+//! reopen-to-origin parity. A profile keeps its claim only while every dimension's
+//! invariant holds and its proof is current and reopenable: a broken invariant,
+//! missing proof, or imported-on-local proof auto-narrows it to `blocked`, honestly
+//! labeled stale proof narrows it to `retest_pending`, and a read-only overlay holds
+//! at `limited` — each with a recorded trigger and a precise narrowed label. The
+//! packet also carries explicit release-evidence rows for the four release-bearing
+//! integrity axes, and asserts About/help, service-health, compatibility, release,
+//! support, and AI surfaces ingest one qualification state instead of restating
+//! tooling claims by hand.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -298,6 +315,7 @@ pub mod build_test_event_interoperability;
 pub mod capability_negotiation;
 pub mod capsule_resolver;
 pub mod certify_m5_diagnostic_record_source_collection_remap_and_quality_session_truth;
+pub mod certify_m5_problems_output_and_execution_evidence_truth;
 pub mod certify_test_discovery_session_watch_coverage_flaky_snapshot_evidence_quality;
 pub mod cluster_m5_diagnostics_with_cross_source_dedupe_and_source_preserving_detail_sheets;
 pub mod coverage_overlays_and_snapshot_golden_review;
