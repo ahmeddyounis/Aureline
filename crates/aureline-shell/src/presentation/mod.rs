@@ -39,12 +39,20 @@
 //!   revoked grants, and unavailable remote targets to honest placeholder /
 //!   disconnected states, and proves restore never re-runs a mutating action or
 //!   re-acquires expired authority.
+//! - [`a11y`] holds accessibility, reduced-motion, and local/remote/shared
+//!   boundary conformance for the overlay surfaces: it proves keyboard order,
+//!   visible focus, reduced-motion behavior, screen-reader reachability,
+//!   high-zoom support, and accessible labels across every surface, keeps the
+//!   boundary labels visible through the overlay and into diagnostics / export,
+//!   and classifies conformance with the shell's accessibility-support
+//!   vocabulary rather than a softer presentation-only bar.
 //!
 //! The geometry primitive that decides which zone each surface rides — and that
 //! it never replaces a pane — is
 //! [`crate::layout::presentation_overlays`]. The human-readable contract is
 //! `docs/ux/presentation-overlays-and-navigation.md`.
 
+pub mod a11y;
 pub mod binding;
 pub mod classroom;
 pub mod corpus;
