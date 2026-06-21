@@ -1,0 +1,53 @@
+# Problems / output-channel / execution-evidence causality gate.
+#
+# Validates the checked-in execution-evidence causality matrix: the source packet
+# conforms to its schema, the generated claim matrix and report match a fresh
+# regeneration (no manual drift), no consumer projection renders wider than a
+# lane's effective causal claim, imported/overlay lanes stay marked read-only, and
+# every narrowing/floor rule in the perturbation corpus fires as recorded.
+
+name: check_m5_execution_evidence_causality
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_execution_evidence_causality.yml"
+      - "tools/release/execution_evidence_causality.py"
+      - "tools/release/execution-evidence-causality/**"
+      - "schemas/tooling/m5-execution-evidence.schema.json"
+      - "artifacts/tooling/m5-execution-evidence/**"
+      - "fixtures/tooling/m5-execution-evidence/**"
+      - "docs/tooling/m5-execution-evidence.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-execution-evidence-causality-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  execution_evidence_causality:
+    name: Execution-evidence causality
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the causality claim matrix
+        run: python3 tools/release/execution_evidence_causality.py validate
+
+      - name: Run the causality self-test
+        run: python3 tools/release/execution_evidence_causality.py self-test

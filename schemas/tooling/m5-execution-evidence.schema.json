@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/m5-execution-evidence.schema.json",
+  "title": "Aureline M5 execution-evidence causality matrix",
+  "description": "Canonical, export-safe object model that freezes the M5 Problems / output-channel / execution-evidence causality matrix into one packet. Each row is a claimed (or Labs) tooling causality lane that binds a problem record, output channel, execution-evidence projection, or evidence-bundle export to its origin run/step/provider/channel/build-toolchain/host-target identity, its problem-source kind (structured vs heuristic vs imported-provider), its confidence tier, its evidence freshness / stale / superseded state, and its reopen-to-origin target. Structured and heuristic origins stay distinct; large logs stay stream-first, searchable, and exportable; and support, AI, review, and pipeline overlays never flatten away the original run/channel/artifact lineage. The same row vocabulary describes local, remote, notebook, extension-owned, AI-triggered, headless, pipeline/provider, and imported evidence paths without erasing adapter-specific detail. Downstream Problems, output, diagnostics, AI evidence, support-export, review, and docs surfaces ingest this packet rather than inventing a parallel causal model. Adding an enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "as_of",
+    "taxonomy_version",
+    "redaction_class_token",
+    "verification_freshness",
+    "rows"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "m5_execution_evidence_causality_matrix_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/stable_id" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "as_of": { "type": "string", "format": "date-time" },
+    "taxonomy_version": { "type": "integer", "const": 1 },
+    "redaction_class_token": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Default redaction posture for the packet. No raw stdout/stderr bytes, command lines, provider log bodies, env bodies, absolute paths, URLs, or secrets ever cross this boundary."
+    },
+    "verification_freshness": { "$ref": "#/$defs/verification_freshness" },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/causality_lane_row" }
+    }
+  },
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "opaque_ref": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "opaque_ref_nullable": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_ref" }, { "type": "null" }]
+    },
+    "short_sentence": { "type": "string", "minLength": 1, "maxLength": 360 },
+    "verification_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_freshness_slo_hours",
+        "last_verification_refresh",
+        "auto_downgrade_on_stale"
+      ],
+      "properties": {
+        "verification_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_verification_refresh": { "type": "string", "format": "date-time" },
+        "auto_downgrade_on_stale": { "type": "boolean" }
+      }
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "problems_panel",
+        "output_channel",
+        "execution_evidence_projection",
+        "evidence_bundle_export"
+      ],
+      "description": "Which Problems/output/execution-evidence surface family this lane primarily backs. All four share one causal vocabulary."
+    },
+    "claim_posture": {
+      "type": "string",
+      "enum": ["claimed_stable", "claimed_beta", "labs_unadvertised"],
+      "description": "Whether the lane is publicly claimed. Labs/unadvertised lanes make no causal-authority claim and are never widened."
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "local_task",
+        "local_test",
+        "local_debug_session",
+        "notebook_run",
+        "headless_automation",
+        "extension_owned_run",
+        "ai_triggered_run",
+        "remote_linked_run",
+        "pipeline_provider_run",
+        "imported_provider_evidence"
+      ],
+      "description": "How the run/evidence originated. First-party local/notebook/headless/extension/AI origins can claim a full local causal chain; remote, pipeline/provider, and imported origins are read-only overlays that never claim live local authority."
+    },
+    "problem_source_kind": {
+      "type": "string",
+      "enum": [
+        "structured_language_diagnostic",
+        "normalized_task_event",
+        "heuristic_output_parse",
+        "imported_provider_annotation",
+        "not_applicable"
+      ],
+      "description": "Appendix BI.1 problem-source class. Heuristic output parsing requires an explicit confidence tier and a raw-output backlink; structured and heuristic origins stay distinct."
+    },
+    "output_channel_class": {
+      "type": "string",
+      "enum": [
+        "task_test_debug_output",
+        "extension_ai_tool_output",
+        "remote_provider_imported_output",
+        "evidence_bundle",
+        "not_applicable"
+      ],
+      "description": "Appendix BI.2 output-channel/evidence class. Canonical channel names stay stable across UI, CLI, export, and support; no anonymous hidden channels."
+    },
+    "confidence_tier": {
+      "type": "string",
+      "enum": [
+        "structured_full",
+        "heuristic_high",
+        "heuristic_medium",
+        "heuristic_low",
+        "provider_mapped",
+        "unmapped_requires_review"
+      ],
+      "description": "Confidence taxonomy. Structured fields are full confidence; heuristic parses carry an explicit tier; imported provider mappings carry their mapping quality; unmapped is a first-class state, not an invisible gap."
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached_within_window",
+        "stale_expired",
+        "superseded_by_newer_run",
+        "unanchored",
+        "missing"
+      ],
+      "description": "The evidence projection's own freshness/anchoring state. Stale and superseded states must remain visible wherever the evidence is rendered."
+    },
+    "reopen_target": {
+      "type": "string",
+      "enum": [
+        "owning_run",
+        "output_channel",
+        "generated_artifact",
+        "provider_run_page",
+        "raw_output_backlink",
+        "editor_anchor",
+        "none_keyboard_fallback"
+      ],
+      "description": "Where reopen-to-origin lands. The canonical evidence must stay reopenable; none_keyboard_fallback means lineage could not be reconstructed and only a raw/keyboard fallback remains."
+    },
+    "proof_currency": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "cached_within_window",
+        "imported_current",
+        "stale_expired",
+        "missing_proof",
+        "requires_review"
+      ],
+      "description": "Currency of the certification proof that this lane preserves the causal chain (distinct from the evidence's own freshness_state)."
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_ref",
+        "run_ref",
+        "step_ref",
+        "provider_ref",
+        "channel_ref",
+        "build_toolchain_ref",
+        "host_target_ref",
+        "task_event_envelope_ref",
+        "problem_record_id",
+        "evidence_bundle_id"
+      ],
+      "properties": {
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "step_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "channel_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "build_toolchain_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "host_target_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "task_event_envelope_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "problem_record_id": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "evidence_bundle_id": { "$ref": "#/$defs/opaque_ref_nullable" }
+      },
+      "description": "Stable identifiers binding the lane to its execution context, run/step, provider, channel, build/toolchain, host/target, task-event envelope, problem record, and evidence bundle. Lineage is reconstructed from these refs, never inferred from freeform display text."
+    },
+    "causal_chain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "structured_vs_heuristic_distinct",
+        "raw_output_backlink_present",
+        "preserves_origin_adapter",
+        "preserves_run_step_provider_channel",
+        "preserves_build_toolchain_host_target",
+        "confidence_label_visible",
+        "stream_first_searchable_exportable",
+        "overlay_preserves_lineage",
+        "superseded_state_marked",
+        "imported_overlay_read_only"
+      ],
+      "properties": {
+        "structured_vs_heuristic_distinct": { "type": "boolean" },
+        "raw_output_backlink_present": { "type": "boolean" },
+        "preserves_origin_adapter": { "type": "boolean" },
+        "preserves_run_step_provider_channel": { "type": "boolean" },
+        "preserves_build_toolchain_host_target": { "type": "boolean" },
+        "confidence_label_visible": { "type": "boolean" },
+        "stream_first_searchable_exportable": { "type": "boolean" },
+        "overlay_preserves_lineage": { "type": "boolean" },
+        "superseded_state_marked": { "type": "boolean" },
+        "imported_overlay_read_only": { "type": "boolean" }
+      },
+      "description": "The causal-chain invariants every lane must keep true to certify. Each maps to a guardrail in TDD §7.6.14: structured/heuristic distinct, raw backlink on heuristic, origin adapter preserved, run/step/provider/channel preserved, build/toolchain/host/target preserved, confidence labelled, logs stream-first/searchable/exportable, overlays never flatten lineage, superseded state marked, imported overlays stay read-only."
+    },
+    "export_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_id_present",
+        "included_event_refs_present",
+        "included_channel_refs_present",
+        "included_evidence_refs_present",
+        "redaction_profile_present",
+        "retention_state_present",
+        "reopen_refs_present"
+      ],
+      "properties": {
+        "bundle_id_present": { "type": "boolean" },
+        "included_event_refs_present": { "type": "boolean" },
+        "included_channel_refs_present": { "type": "boolean" },
+        "included_evidence_refs_present": { "type": "boolean" },
+        "redaction_profile_present": { "type": "boolean" },
+        "retention_state_present": { "type": "boolean" },
+        "reopen_refs_present": { "type": "boolean" }
+      },
+      "description": "Minimum evidence-bundle export identity (Appendix BI.2 / §9.20). A bundle must be attributable and reopenable without the original UI state or a live provider session."
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_currency", "proof_ref"],
+      "properties": {
+        "proof_currency": { "$ref": "#/$defs/proof_currency" },
+        "proof_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "causality_lane_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane_id",
+        "surface_family",
+        "label_summary",
+        "claim_posture",
+        "origin_class",
+        "problem_source_kind",
+        "output_channel_class",
+        "declared_confidence_tier",
+        "declared_freshness_state",
+        "declared_reopen_target",
+        "identity",
+        "causal_chain",
+        "export_packet",
+        "verification"
+      ],
+      "properties": {
+        "lane_id": { "$ref": "#/$defs/stable_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "label_summary": { "$ref": "#/$defs/short_sentence" },
+        "claim_posture": { "$ref": "#/$defs/claim_posture" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "problem_source_kind": { "$ref": "#/$defs/problem_source_kind" },
+        "output_channel_class": { "$ref": "#/$defs/output_channel_class" },
+        "declared_confidence_tier": { "$ref": "#/$defs/confidence_tier" },
+        "declared_freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "declared_reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "identity": { "$ref": "#/$defs/identity" },
+        "causal_chain": { "$ref": "#/$defs/causal_chain" },
+        "export_packet": { "$ref": "#/$defs/export_packet" },
+        "verification": { "$ref": "#/$defs/verification" }
+      },
+      "allOf": [
+        {
+          "description": "Provider, pipeline, remote, and imported origins must carry a provider ref so the read-only overlay can name its source.",
+          "if": {
+            "properties": {
+              "origin_class": {
+                "enum": ["remote_linked_run", "pipeline_provider_run", "imported_provider_evidence"]
+              }
+            },
+            "required": ["origin_class"]
+          },
+          "then": {
+            "properties": {
+              "identity": {
+                "properties": { "provider_ref": { "$ref": "#/$defs/opaque_ref" } },
+                "required": ["provider_ref"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
