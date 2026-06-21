@@ -21,6 +21,10 @@
 //!   restore.
 //! - [`corpus`] is the mint-from-truth seed corpus, support export, and
 //!   validation that the checked-in fixtures and headless inspectors share.
+//! - [`follow_state`] is the cross-client follow-state truth: it makes follow,
+//!   break away, request follow, take over, and cached-snapshot explicit,
+//!   attributable states spoken identically on desktop, browser, and companion,
+//!   with a durable breakaway banner and a snapshot that never claims to be live.
 //! - [`speaker_notes`] governs the speaker-note objects that ride the
 //!   speaker-notes tray: local-only defaults, explicit share promotion, typed
 //!   citation refs, retention / export posture, and the audience projection that
@@ -33,6 +37,7 @@
 
 pub mod binding;
 pub mod corpus;
+pub mod follow_state;
 pub mod speaker_notes;
 
 pub use binding::{

@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/presentation/follow-state-truth.schema.json",
+  "title": "Aureline presentation cross-client follow-state truth",
+  "description": "Canonical, export-safe cross-client follow-state object for an M5 presentation or walkthrough session. It records, per claimed client (desktop, browser, companion), one explicit and attributable follow_mode — presenting, following_live, broken_away, requesting_follow, requesting_take_over, or cached_snapshot — never a state inferred from viewport drift, connection timing, or a transient toast. Each mode resolves to a liveness class (live, independent, or cached_snapshot) so a viewer can always tell whether they are watching the presenter live, browsing independently, or looking at a cached snapshot. A broken_away view carries a durable breakaway banner with a keyboard-reachable return-to-presenter path; a cached_snapshot view carries a snapshot_identity that labels itself as a snapshot (labeled_as_snapshot=true) and never claims to be a live shared route (claims_live_shared_route=false). Recovery actions are drawn from one canonical vocabulary, so the follow-state and recovery vocabulary is identical across clients. The packet never widens authority: grants_mutation_authority and grants_control_authority are always false, while vocabulary_parity_across_clients, recovery_actions_parity_across_clients, breakaway_banner_durable, no_state_from_viewport_drift, no_state_from_connection_timing, no_transient_toast_only_state, and no_snapshot_implies_live are always true. Restore, diagnostics, help, support-export, and browser/companion truth surfaces ingest this object rather than cloning follow-state text. Adding a new enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "session_id",
+    "presenter_anchor_ref",
+    "client_views",
+    "vocabulary_parity_across_clients",
+    "recovery_actions_parity_across_clients",
+    "breakaway_banner_durable",
+    "no_state_from_viewport_drift",
+    "no_state_from_connection_timing",
+    "no_transient_toast_only_state",
+    "no_snapshot_implies_live",
+    "grants_mutation_authority",
+    "grants_control_authority"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "presentation_follow_state_truth_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": { "type": "string", "const": "shell:presentation_mode_beta:v1" },
+    "session_id": { "$ref": "#/$defs/stable_id" },
+    "presenter_anchor_ref": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stable_id" }] },
+    "client_views": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/client_follow_view" }
+    },
+    "vocabulary_parity_across_clients": { "type": "boolean", "const": true },
+    "recovery_actions_parity_across_clients": { "type": "boolean", "const": true },
+    "breakaway_banner_durable": { "type": "boolean", "const": true },
+    "no_state_from_viewport_drift": { "type": "boolean", "const": true },
+    "no_state_from_connection_timing": { "type": "boolean", "const": true },
+    "no_transient_toast_only_state": { "type": "boolean", "const": true },
+    "no_snapshot_implies_live": { "type": "boolean", "const": true },
+    "grants_mutation_authority": { "type": "boolean", "const": false },
+    "grants_control_authority": { "type": "boolean", "const": false }
+  },
+  "$defs": {
+    "client_follow_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "client_surface",
+        "follow_mode",
+        "liveness",
+        "presenter_anchor_ref",
+        "viewing_anchor_ref",
+        "breakaway_banner",
+        "snapshot_identity",
+        "recovery_actions",
+        "inferred_from_viewport_drift",
+        "inferred_from_connection_timing",
+        "relies_on_transient_toast_only"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "presentation_client_follow_view_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": { "type": "string", "const": "shell:presentation_mode_beta:v1" },
+        "client_surface": {
+          "type": "string",
+          "enum": ["desktop", "browser", "companion"]
+        },
+        "follow_mode": {
+          "type": "string",
+          "enum": [
+            "presenting",
+            "following_live",
+            "broken_away",
+            "requesting_follow",
+            "requesting_take_over",
+            "cached_snapshot"
+          ]
+        },
+        "liveness": {
+          "type": "string",
+          "enum": ["live", "independent", "cached_snapshot"]
+        },
+        "presenter_anchor_ref": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stable_id" }] },
+        "viewing_anchor_ref": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stable_id" }] },
+        "breakaway_banner": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/durable_breakaway_banner" }]
+        },
+        "snapshot_identity": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/snapshot_identity" }]
+        },
+        "recovery_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_action" }
+        },
+        "inferred_from_viewport_drift": { "type": "boolean", "const": false },
+        "inferred_from_connection_timing": { "type": "boolean", "const": false },
+        "relies_on_transient_toast_only": { "type": "boolean", "const": false }
+      },
+      "allOf": [
+        {
+          "comment": "A live mode reads as live and carries neither a banner nor a snapshot.",
+          "if": {
+            "properties": {
+              "follow_mode": { "enum": ["presenting", "following_live", "requesting_take_over"] }
+            }
+          },
+          "then": {
+            "properties": {
+              "liveness": { "const": "live" },
+              "breakaway_banner": { "type": "null" },
+              "snapshot_identity": { "type": "null" }
+            }
+          }
+        },
+        {
+          "comment": "A broken-away view reads as independent and carries a durable banner.",
+          "if": { "properties": { "follow_mode": { "const": "broken_away" } } },
+          "then": {
+            "properties": {
+              "liveness": { "const": "independent" },
+              "breakaway_banner": { "$ref": "#/$defs/durable_breakaway_banner" },
+              "snapshot_identity": { "type": "null" }
+            }
+          }
+        },
+        {
+          "comment": "A request-follow view reads as independent and carries no banner or snapshot.",
+          "if": { "properties": { "follow_mode": { "const": "requesting_follow" } } },
+          "then": {
+            "properties": {
+              "liveness": { "const": "independent" },
+              "breakaway_banner": { "type": "null" },
+              "snapshot_identity": { "type": "null" }
+            }
+          }
+        },
+        {
+          "comment": "A cached-snapshot view reads as a cached snapshot and carries a self-labeled snapshot identity.",
+          "if": { "properties": { "follow_mode": { "const": "cached_snapshot" } } },
+          "then": {
+            "properties": {
+              "liveness": { "const": "cached_snapshot" },
+              "breakaway_banner": { "type": "null" },
+              "snapshot_identity": { "$ref": "#/$defs/snapshot_identity" }
+            }
+          }
+        }
+      ]
+    },
+    "durable_breakaway_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state_label", "presenter_anchor_ref", "return_to_presenter", "durable"],
+      "properties": {
+        "state_label": { "$ref": "#/$defs/short_text" },
+        "presenter_anchor_ref": { "$ref": "#/$defs/stable_id" },
+        "return_to_presenter": { "$ref": "#/$defs/recovery_action" },
+        "durable": { "type": "boolean", "const": true }
+      }
+    },
+    "snapshot_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot_captured_at_ref",
+        "staleness_reason",
+        "presenter_route_diverged",
+        "labeled_as_snapshot",
+        "claims_live_shared_route"
+      ],
+      "properties": {
+        "snapshot_captured_at_ref": { "$ref": "#/$defs/stable_id" },
+        "staleness_reason": {
+          "type": "string",
+          "enum": ["connection_lost", "provider_offline", "reconnect_pending", "paused_by_viewer"]
+        },
+        "presenter_route_diverged": { "type": "boolean" },
+        "labeled_as_snapshot": { "type": "boolean", "const": true },
+        "claims_live_shared_route": { "type": "boolean", "const": false }
+      }
+    },
+    "recovery_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "label", "command_id", "key_binding_ref", "accessible_label"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "return_to_presenter",
+            "refresh_live_route",
+            "request_follow",
+            "request_take_over"
+          ]
+        },
+        "label": { "$ref": "#/$defs/short_text" },
+        "command_id": { "$ref": "#/$defs/stable_id" },
+        "key_binding_ref": { "$ref": "#/$defs/stable_id" },
+        "accessible_label": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400
+    }
+  }
+}
