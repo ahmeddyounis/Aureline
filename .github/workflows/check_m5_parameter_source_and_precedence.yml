@@ -1,0 +1,68 @@
+# Parameter-source and precedence inspector gate.
+#
+# Validates the checked-in parameter-source inspector set: the source packet conforms
+# to its schema, every covered M5 form's field declares its source candidates and the
+# effective value's winning layer, the effective layer is the highest-precedence
+# present candidate, imported values, policy locks, detected values, and user overrides
+# stay visually distinct rather than collapsing into one current field state, a policy
+# lock is surfaced and pins the effective value, a fallback to a default discloses its
+# reason, the value scope is visible, no mutation-capable field submits from an
+# ambiguous source-hidden state, an imported review never reads as a user-set value, the
+# inspect-to-source path is kept, no rendering surface overclaims, every form / lane /
+# source layer / value scope / consumer surface is represented, and every
+# narrowing/floor rule in the perturbation corpus fires as recorded.
+
+name: check_m5_parameter_source_and_precedence
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_parameter_source_and_precedence.yml"
+      - "tools/release/parameter_source_and_precedence.py"
+      - "schemas/ux/m5-parameter-source-and-precedence.schema.json"
+      - "artifacts/ux/m5-parameter-source-and-precedence/**"
+      - "fixtures/ux/m5-parameter-source-and-precedence/**"
+      - "docs/ux/m5-parameter-source-and-precedence.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-parameter-source-and-precedence-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  parameter_source_and_precedence:
+    name: Parameter source and precedence
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the parameter-source set against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/ux/m5-parameter-source-and-precedence.schema.json"))
+          data = json.load(open("artifacts/ux/m5-parameter-source-and-precedence/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the parameter-source set
+        run: python3 tools/release/parameter_source_and_precedence.py validate
+
+      - name: Run the parameter-source self-test
+        run: python3 tools/release/parameter_source_and_precedence.py self-test

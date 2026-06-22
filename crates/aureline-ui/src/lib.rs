@@ -74,6 +74,28 @@
 //! one review model is reused across provider publish-later, admin/source-management,
 //! request replay/mutation, package install/update/remove, and import/export/publish
 //! flows.
+//!
+//! [`m5_parameter_source_and_precedence::M5ParameterSourceSetPacket`] freezes the
+//! *parameter-source inspector* those same forms open to answer **why a current
+//! value is present and which source actually wins** before a change is committed.
+//! Each [`m5_parameter_source_and_precedence::ParameterFieldRecord`] binds a field's
+//! per-layer [`m5_parameter_source_and_precedence::SourceCandidate`] values
+//! (default, detected, imported, environment-resolved, user-override,
+//! policy-provided), each carrying a personal/local vs workspace/shared vs
+//! policy-owned [`m5_parameter_source_and_precedence::ValueScope`], to an
+//! [`m5_parameter_source_and_precedence::EffectiveResolution`] that must be the
+//! highest-precedence present candidate, a
+//! [`m5_parameter_source_and_precedence::PolicyLock`] that pins and forbids a silent
+//! override, and a [`m5_parameter_source_and_precedence::FallbackDisclosure`] that
+//! explains a fall back to a default. It then re-derives a
+//! [`m5_parameter_source_and_precedence::ParameterClaim`] so an inspector that hides
+//! its effective source, collapses its distinct layers, mis-orders precedence, hides
+//! or fails to enforce a lock, lets an imported review read as a user-set value,
+//! hides a fallback reason or scope, or allows a submit from an ambiguous
+//! source-hidden state floors to an explicit blocked-submit state — keeping imported
+//! values, policy locks, detected values, and user overrides visually distinct
+//! across the inspector panel, field popover, diagnostics, support export, CLI
+//! inspect, and docs/help surfaces.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -82,6 +104,7 @@ pub mod density;
 pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;
 pub mod m5_form_validation_and_blocked_submit;
+pub mod m5_parameter_source_and_precedence;
 pub mod m5_staged_review_sheets;
 pub mod m5_structured_input_and_staged_review;
 pub mod motion;

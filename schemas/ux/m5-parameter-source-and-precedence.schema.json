@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/m5-parameter-source-and-precedence.schema.json",
+  "title": "Aureline M5 parameter-source and precedence inspectors across forms",
+  "description": "Canonical, export-safe object model for the parameter-source inspector an M5 mutation-capable form opens to answer why a current value is present and which source actually wins before a change is committed. One inspector model is reused across the provider account-mapping, source-registration, request-environment, package-install, settings-config, import-migration, and project-bootstrap forms. Each field binds a per-layer source candidate (default, detected, imported, environment_resolved, user_override, policy_provided), each carrying a personal/local vs workspace/shared vs policy-owned value scope, to an effective resolution that must be the highest-precedence present candidate, a policy lock that pins and forbids a silent override, and a fallback disclosure that explains a fall back to a default, so an effective claim can be re-derived without trusting a grade: a field that hides its effective source, collapses its distinct source layers into one current field state, declares an effective layer that is not the highest-precedence present candidate, hides or fails to enforce a policy lock, lets an imported/migration review read as a user-set value, hides a fallback reason or the value scope, allows a submit from an ambiguous source-hidden state, loses its inspect-to-source path, or renders wider than its claim floors to parameter_unsafe, while a labelled recoverable gap holds a first-party field at parameter_narrowed, an import/migration review sits at parameter_review_overlay, and a Labs/unadvertised field makes no public claim. No credential bodies, secret values, raw provider payloads, absolute paths, or URLs ever cross this boundary; refs carry opaque ids only. Adding an enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "as_of",
+    "taxonomy_version",
+    "redaction_class_token",
+    "verification_freshness",
+    "fields"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "m5_parameter_source_set_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/stable_id" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 220 },
+    "as_of": { "type": "string", "format": "date-time" },
+    "taxonomy_version": { "type": "integer", "const": 1 },
+    "redaction_class_token": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Default redaction posture for the packet. No credential bodies, secret values, raw provider payloads, absolute paths, or URLs ever cross this boundary; refs carry opaque ids only."
+    },
+    "verification_freshness": { "$ref": "#/$defs/verification_freshness" },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/field" }
+    }
+  },
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "opaque_ref": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "opaque_ref_nullable": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_ref" }, { "type": "null" }]
+    },
+    "label": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "rank": { "type": "integer", "minimum": 0, "maximum": 5 },
+    "verification_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_freshness_slo_hours",
+        "last_verification_refresh",
+        "auto_downgrade_on_stale"
+      ],
+      "properties": {
+        "verification_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_verification_refresh": { "type": "string", "format": "date-time" },
+        "auto_downgrade_on_stale": { "type": "boolean" }
+      }
+    },
+    "source_layer": {
+      "type": "string",
+      "enum": [
+        "default",
+        "detected",
+        "imported",
+        "environment_resolved",
+        "user_override",
+        "policy_provided"
+      ]
+    },
+    "value_scope": {
+      "type": "string",
+      "enum": ["personal_local", "workspace_shared", "policy_owned"]
+    },
+    "field_form": {
+      "type": "string",
+      "enum": [
+        "provider_account_mapping",
+        "source_registration",
+        "request_environment",
+        "package_install_config",
+        "settings_config_editor",
+        "import_migration_mapping",
+        "project_bootstrap"
+      ]
+    },
+    "field_lane": {
+      "type": "string",
+      "enum": ["provider", "admin", "request", "package", "settings", "import", "projects"]
+    },
+    "field_origin": {
+      "type": "string",
+      "enum": ["local_form", "remote_form", "provider_form", "imported_review"]
+    },
+    "detection_state": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached_snapshot",
+        "stale_expired",
+        "superseded_by_newer_source",
+        "missing"
+      ]
+    },
+    "proof_currency": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "cached_within_window",
+        "stale_expired",
+        "requires_review",
+        "missing_proof"
+      ]
+    },
+    "reopen_target": {
+      "type": "string",
+      "enum": ["field_and_inspector", "inspector_only", "none_keyboard_fallback"]
+    },
+    "claim_posture": {
+      "type": "string",
+      "enum": ["claimed_stable", "labs_unadvertised"]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "inspector_panel",
+        "field_popover",
+        "diagnostics_panel",
+        "support_export",
+        "ai_evidence",
+        "help_inline",
+        "cli_inspect"
+      ]
+    },
+    "parameter_claim": {
+      "type": "string",
+      "enum": [
+        "parameter_unsafe",
+        "parameter_review_overlay",
+        "parameter_narrowed",
+        "parameter_certified",
+        "parameter_labs_not_claimed"
+      ]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_ref",
+        "canonical_inspector_ref",
+        "form_ref",
+        "provider_ref",
+        "source_artifact_ref",
+        "policy_ref",
+        "environment_profile_ref",
+        "reopen_backlink_ref"
+      ],
+      "properties": {
+        "session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "canonical_inspector_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "form_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "policy_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "environment_profile_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "reopen_backlink_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "source_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "source_layer",
+        "value_scope",
+        "present",
+        "source_labeled",
+        "scope_labeled",
+        "label_summary"
+      ],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/stable_id" },
+        "source_layer": { "$ref": "#/$defs/source_layer" },
+        "value_scope": { "$ref": "#/$defs/value_scope" },
+        "present": { "type": "boolean" },
+        "source_labeled": { "type": "boolean" },
+        "scope_labeled": { "type": "boolean" },
+        "label_summary": { "$ref": "#/$defs/label" }
+      }
+    },
+    "effective_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effective_source_layer",
+        "effective_value_scope",
+        "effective_source_visible",
+        "effective_scope_visible",
+        "precedence_rank_declared",
+        "value_label"
+      ],
+      "properties": {
+        "effective_source_layer": { "$ref": "#/$defs/source_layer" },
+        "effective_value_scope": { "$ref": "#/$defs/value_scope" },
+        "effective_source_visible": { "type": "boolean" },
+        "effective_scope_visible": { "type": "boolean" },
+        "precedence_rank_declared": { "$ref": "#/$defs/rank" },
+        "value_label": { "$ref": "#/$defs/label" }
+      }
+    },
+    "policy_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_locked",
+        "lock_surfaced",
+        "override_allowed_despite_lock",
+        "lock_label"
+      ],
+      "properties": {
+        "policy_locked": { "type": "boolean" },
+        "lock_surfaced": { "type": "boolean" },
+        "override_allowed_despite_lock": { "type": "boolean" },
+        "lock_label": { "$ref": "#/$defs/label" }
+      }
+    },
+    "fallback_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "is_fallback",
+        "fallback_reason_disclosed",
+        "fallback_reason_labeled",
+        "fallback_label"
+      ],
+      "properties": {
+        "is_fallback": { "type": "boolean" },
+        "fallback_reason_disclosed": { "type": "boolean" },
+        "fallback_reason_labeled": { "type": "boolean" },
+        "fallback_label": { "$ref": "#/$defs/label" }
+      }
+    },
+    "inspector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidates",
+        "sources_distinct",
+        "precedence_explained",
+        "effective",
+        "policy_lock",
+        "fallback"
+      ],
+      "properties": {
+        "candidates": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_candidate" }
+        },
+        "sources_distinct": { "type": "boolean" },
+        "precedence_explained": { "type": "boolean" },
+        "effective": { "$ref": "#/$defs/effective_resolution" },
+        "policy_lock": { "$ref": "#/$defs/policy_lock" },
+        "fallback": { "$ref": "#/$defs/fallback_disclosure" }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effective_source_visible",
+        "sources_visually_distinct",
+        "precedence_visible",
+        "policy_lock_visible",
+        "value_scope_visible",
+        "fallback_reason_visible",
+        "imported_review_read_only",
+        "submit_gated_on_source_clarity",
+        "detection_state_visible",
+        "superseded_state_marked"
+      ],
+      "properties": {
+        "effective_source_visible": { "type": "boolean" },
+        "sources_visually_distinct": { "type": "boolean" },
+        "precedence_visible": { "type": "boolean" },
+        "policy_lock_visible": { "type": "boolean" },
+        "value_scope_visible": { "type": "boolean" },
+        "fallback_reason_visible": { "type": "boolean" },
+        "imported_review_read_only": { "type": "boolean" },
+        "submit_gated_on_source_clarity": { "type": "boolean" },
+        "detection_state_visible": { "type": "boolean" },
+        "superseded_state_marked": { "type": "boolean" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_currency", "proof_ref"],
+      "properties": {
+        "proof_currency": { "$ref": "#/$defs/proof_currency" },
+        "proof_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "rendering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "rendered_claim", "source_visible", "read_only", "source_field_ref"],
+      "properties": {
+        "surface": { "$ref": "#/$defs/consumer_surface" },
+        "rendered_claim": { "$ref": "#/$defs/parameter_claim" },
+        "source_visible": { "type": "boolean" },
+        "read_only": { "type": "boolean" },
+        "source_field_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_id",
+        "form",
+        "lane",
+        "origin",
+        "label_summary",
+        "claim_posture",
+        "declared_detection_state",
+        "declared_reopen_target",
+        "lineage",
+        "inspector",
+        "integrity",
+        "verification",
+        "renderings"
+      ],
+      "properties": {
+        "field_id": { "$ref": "#/$defs/stable_id" },
+        "form": { "$ref": "#/$defs/field_form" },
+        "lane": { "$ref": "#/$defs/field_lane" },
+        "origin": { "$ref": "#/$defs/field_origin" },
+        "label_summary": { "$ref": "#/$defs/label" },
+        "claim_posture": { "$ref": "#/$defs/claim_posture" },
+        "declared_detection_state": { "$ref": "#/$defs/detection_state" },
+        "declared_reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "inspector": { "$ref": "#/$defs/inspector" },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "verification": { "$ref": "#/$defs/verification" },
+        "renderings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rendering" }
+        }
+      }
+    }
+  }
+}
