@@ -1,0 +1,1121 @@
+{
+  "record_kind": "m5_operator_board_set",
+  "m5_operator_boards_schema_version": 1,
+  "schema_ref": "schemas/ops/m5-operator-boards.schema.json",
+  "set_id": "m5-operator-boards:set:0001",
+  "as_of": "2026-06-22T00:00:00Z",
+  "summary": "The first real Aureline operator overview boards — incident response, support queue, admin approvals, and release readiness — as trustworthy summaries over many canonical objects, with one shared filter/saved-view vocabulary, computed no-silent-green tile state, first-class owner and blocker/waiver state, canonical open-detail routing, and export parity, all bound to the operator-surface matrix.",
+  "matrix_ref": "fixtures/ops/m5-operator-surfaces/canonical_matrix.json",
+  "matrix_record_kind": "m5_operator_surface_matrix",
+  "filter_facets": [
+    {
+      "facet": "state",
+      "token": "state",
+      "label": "Effective state",
+      "closed_vocabulary": true,
+      "allowed_tokens": [
+        "clear",
+        "unconfirmed",
+        "attention",
+        "blocked",
+        "scheduled_window",
+        "read_only_window",
+        "drain_window",
+        "reconciling",
+        "failover_in_progress",
+        "migration_in_progress",
+        "boundary_drift_recheck_required",
+        "embedded_boundary_handoff",
+        "imported_snapshot_no_live",
+        "unknown_requires_review"
+      ]
+    },
+    {
+      "facet": "freshness",
+      "token": "freshness",
+      "label": "Freshness",
+      "closed_vocabulary": true,
+      "allowed_tokens": [
+        "fresh",
+        "recent",
+        "stale",
+        "very_stale",
+        "never"
+      ]
+    },
+    {
+      "facet": "owner",
+      "token": "owner",
+      "label": "Owner",
+      "closed_vocabulary": false,
+      "allowed_tokens": []
+    },
+    {
+      "facet": "blocker_waiver",
+      "token": "blocker_waiver",
+      "label": "Blocker / waiver",
+      "closed_vocabulary": true,
+      "allowed_tokens": [
+        "none",
+        "blocked",
+        "waived",
+        "waiver_expired"
+      ]
+    },
+    {
+      "facet": "scope",
+      "token": "scope",
+      "label": "Scope",
+      "closed_vocabulary": true,
+      "allowed_tokens": [
+        "local_private",
+        "shared_team",
+        "managed_org"
+      ]
+    },
+    {
+      "facet": "object_kind",
+      "token": "object_kind",
+      "label": "Object kind",
+      "closed_vocabulary": true,
+      "allowed_tokens": [
+        "incident_record",
+        "support_case",
+        "admin_approval_request",
+        "release_gate",
+        "service_health_record",
+        "review_item"
+      ]
+    }
+  ],
+  "order_keys": [
+    {
+      "token": "effective_state_severity",
+      "label": "Effective-state severity"
+    },
+    {
+      "token": "freshness",
+      "label": "Freshness"
+    },
+    {
+      "token": "explicit_rank",
+      "label": "Explicit rank"
+    },
+    {
+      "token": "owner",
+      "label": "Owner"
+    }
+  ],
+  "object_kinds": [
+    {
+      "token": "incident_record",
+      "label": "Incident record"
+    },
+    {
+      "token": "support_case",
+      "label": "Support case"
+    },
+    {
+      "token": "admin_approval_request",
+      "label": "Admin approval request"
+    },
+    {
+      "token": "release_gate",
+      "label": "Release gate"
+    },
+    {
+      "token": "service_health_record",
+      "label": "Service-health record"
+    },
+    {
+      "token": "review_item",
+      "label": "Review item"
+    }
+  ],
+  "boards": [
+    {
+      "board": "incident_response",
+      "board_id": "operator_board.incident_response",
+      "label": "Incident response",
+      "summary": "Open incidents and post-incident review items, triaged against the canonical incident objects the incident workspace owns.",
+      "surface": "triage_inbox",
+      "surface_id": "operator_surface.triage_inbox",
+      "scope": "shared_team",
+      "consumed_by": [
+        "shell_ui",
+        "cli_headless",
+        "incident_workspace",
+        "support_export",
+        "admin_queue"
+      ],
+      "default_redaction": "metadata_safe_default",
+      "live_vs_snapshot": "snapshot_capable",
+      "default_view": "all_by_severity",
+      "saved_views": [
+        {
+          "view_id": "operator_board.incident_response.view.all_by_severity",
+          "token": "all_by_severity",
+          "label": "All, most severe first",
+          "summary": "Every open item ordered by computed effective-state severity; stale and waived items never sort as clear.",
+          "shared": true,
+          "scope": "shared_team",
+          "owner": "on_call_driver",
+          "filters": [],
+          "order": {
+            "key": "effective_state_severity",
+            "descending": true,
+            "reason": "Most severe effective state first."
+          }
+        },
+        {
+          "view_id": "operator_board.incident_response.view.blocked_and_waived",
+          "token": "blocked_and_waived",
+          "label": "Blocked and waived",
+          "summary": "Only items whose blocker/waiver state needs an owner decision.",
+          "shared": true,
+          "scope": "shared_team",
+          "owner": "on_call_driver",
+          "filters": [
+            {
+              "facet": "blocker_waiver",
+              "include_tokens": [
+                "blocked",
+                "waived",
+                "waiver_expired"
+              ]
+            }
+          ],
+          "order": {
+            "key": "effective_state_severity",
+            "descending": true,
+            "reason": "Blocking items above waived items."
+          }
+        }
+      ],
+      "actions": [
+        {
+          "action": "open_detail",
+          "label": "Open detail",
+          "routes_to_canonical_object": true,
+          "summary": "Open the canonical incident/support/admin/release object behind a tile."
+        },
+        {
+          "action": "compare",
+          "label": "Compare",
+          "routes_to_canonical_object": true,
+          "summary": "Add tiles to a compare set; each entry resolves to its canonical object."
+        },
+        {
+          "action": "apply_view",
+          "label": "Apply view",
+          "routes_to_canonical_object": false,
+          "summary": "Apply a saved view's filters and order."
+        },
+        {
+          "action": "save_view",
+          "label": "Save view",
+          "routes_to_canonical_object": false,
+          "summary": "Save the current filters and order as a named, shareable view."
+        },
+        {
+          "action": "filter",
+          "label": "Filter",
+          "routes_to_canonical_object": false,
+          "summary": "Adjust the live filters across the shared facet vocabulary."
+        },
+        {
+          "action": "export_view",
+          "label": "Export view",
+          "routes_to_canonical_object": false,
+          "summary": "Export the current view as a frozen, machine-readable snapshot."
+        }
+      ],
+      "tiles": [
+        {
+          "tile_id": "operator_board.incident_response.tile.0001",
+          "object_ref": "aureline://incident/inc-2048",
+          "object_kind": "incident_record",
+          "title": "Auth provider latency",
+          "owner": "on_call_driver",
+          "decision_right": "incident_commander",
+          "displayed_state": "attention",
+          "evidence_ref": "aureline://evidence/inc-2048-alert",
+          "freshness": "fresh",
+          "blocker_waiver": "none",
+          "blocker_reason": "",
+          "effective_state": "attention",
+          "scope": "shared_team",
+          "rank": 2,
+          "open_detail_ref": "aureline://incident/inc-2048",
+          "comparable": true
+        },
+        {
+          "tile_id": "operator_board.incident_response.tile.0002",
+          "object_ref": "aureline://incident/inc-2049",
+          "object_kind": "incident_record",
+          "title": "Index rebuild backlog",
+          "owner": "on_call_driver",
+          "decision_right": "incident_commander",
+          "displayed_state": "clear",
+          "evidence_ref": "aureline://evidence/inc-2049-metric",
+          "freshness": "stale",
+          "blocker_waiver": "none",
+          "blocker_reason": "",
+          "effective_state": "unconfirmed",
+          "scope": "shared_team",
+          "rank": 3,
+          "open_detail_ref": "aureline://incident/inc-2049",
+          "comparable": true
+        },
+        {
+          "tile_id": "operator_board.incident_response.tile.0003",
+          "object_ref": "aureline://incident/inc-2050",
+          "object_kind": "incident_record",
+          "title": "Managed control-plane errors",
+          "owner": "on_call_driver",
+          "decision_right": "incident_commander",
+          "displayed_state": "attention",
+          "evidence_ref": "aureline://evidence/inc-2050-alert",
+          "freshness": "recent",
+          "blocker_waiver": "blocked",
+          "blocker_reason": "Mitigation needs a managed approval that has not been granted.",
+          "effective_state": "blocked",
+          "scope": "shared_team",
+          "rank": 1,
+          "open_detail_ref": "aureline://incident/inc-2050",
+          "comparable": true
+        },
+        {
+          "tile_id": "operator_board.incident_response.tile.0004",
+          "object_ref": "aureline://review-item/rev-771",
+          "object_kind": "review_item",
+          "title": "Post-incident review: token refresh",
+          "owner": "review_lead",
+          "decision_right": "review_lead",
+          "displayed_state": "clear",
+          "evidence_ref": "aureline://evidence/rev-771-summary",
+          "freshness": "fresh",
+          "blocker_waiver": "waived",
+          "blocker_reason": "Follow-up waived by the incident commander until 2026-07-01.",
+          "effective_state": "attention",
+          "scope": "shared_team",
+          "rank": 4,
+          "open_detail_ref": "aureline://review-item/rev-771",
+          "comparable": true
+        }
+      ],
+      "export": {
+        "export_id": "operator_board.incident_response.export.all_by_severity",
+        "board": "incident_response",
+        "board_id": "operator_board.incident_response",
+        "applied_view_id": "operator_board.incident_response.view.all_by_severity",
+        "applied_view_token": "all_by_severity",
+        "filters": [],
+        "order": {
+          "key": "effective_state_severity",
+          "descending": true,
+          "reason": "Most severe effective state first."
+        },
+        "scope": "shared_team",
+        "view_owner": "on_call_driver",
+        "redaction_class": "metadata_safe_default",
+        "live_vs_snapshot": "snapshot_only",
+        "summary": "Frozen export of board operator_board.incident_response via saved view 'all_by_severity' — 4 rows; filters, order, scope, freshness, ownership, and blocker/waiver state preserved.",
+        "row_count": 4,
+        "rows": [
+          {
+            "rank_in_export": 1,
+            "tile_id": "operator_board.incident_response.tile.0003",
+            "object_ref": "aureline://incident/inc-2050",
+            "object_kind": "incident_record",
+            "title": "Managed control-plane errors",
+            "owner": "on_call_driver",
+            "decision_right": "incident_commander",
+            "effective_state": "blocked",
+            "freshness": "recent",
+            "blocker_waiver": "blocked",
+            "blocker_reason": "Mitigation needs a managed approval that has not been granted.",
+            "open_detail_ref": "aureline://incident/inc-2050"
+          },
+          {
+            "rank_in_export": 2,
+            "tile_id": "operator_board.incident_response.tile.0001",
+            "object_ref": "aureline://incident/inc-2048",
+            "object_kind": "incident_record",
+            "title": "Auth provider latency",
+            "owner": "on_call_driver",
+            "decision_right": "incident_commander",
+            "effective_state": "attention",
+            "freshness": "fresh",
+            "blocker_waiver": "none",
+            "blocker_reason": "",
+            "open_detail_ref": "aureline://incident/inc-2048"
+          },
+          {
+            "rank_in_export": 3,
+            "tile_id": "operator_board.incident_response.tile.0004",
+            "object_ref": "aureline://review-item/rev-771",
+            "object_kind": "review_item",
+            "title": "Post-incident review: token refresh",
+            "owner": "review_lead",
+            "decision_right": "review_lead",
+            "effective_state": "attention",
+            "freshness": "fresh",
+            "blocker_waiver": "waived",
+            "blocker_reason": "Follow-up waived by the incident commander until 2026-07-01.",
+            "open_detail_ref": "aureline://review-item/rev-771"
+          },
+          {
+            "rank_in_export": 4,
+            "tile_id": "operator_board.incident_response.tile.0002",
+            "object_ref": "aureline://incident/inc-2049",
+            "object_kind": "incident_record",
+            "title": "Index rebuild backlog",
+            "owner": "on_call_driver",
+            "decision_right": "incident_commander",
+            "effective_state": "unconfirmed",
+            "freshness": "stale",
+            "blocker_waiver": "none",
+            "blocker_reason": "",
+            "open_detail_ref": "aureline://incident/inc-2049"
+          }
+        ]
+      }
+    },
+    {
+      "board": "support_queue",
+      "board_id": "operator_board.support_queue",
+      "label": "Support queue",
+      "summary": "Open support cases, triaged against the canonical support-case objects the support center owns.",
+      "surface": "triage_inbox",
+      "surface_id": "operator_surface.triage_inbox",
+      "scope": "shared_team",
+      "consumed_by": [
+        "shell_ui",
+        "cli_headless",
+        "support_export",
+        "incident_workspace"
+      ],
+      "default_redaction": "internal_support_restricted",
+      "live_vs_snapshot": "snapshot_capable",
+      "default_view": "open_oldest_first",
+      "saved_views": [
+        {
+          "view_id": "operator_board.support_queue.view.open_oldest_first",
+          "token": "open_oldest_first",
+          "label": "Open, oldest first",
+          "summary": "Every open case ordered by evidence age so the stalest case surfaces first.",
+          "shared": true,
+          "scope": "shared_team",
+          "owner": "support_lead",
+          "filters": [],
+          "order": {
+            "key": "freshness",
+            "descending": true,
+            "reason": "Oldest evidence first."
+          }
+        },
+        {
+          "view_id": "operator_board.support_queue.view.blocking_only",
+          "token": "blocking_only",
+          "label": "Blocking only",
+          "summary": "Cases an owner must unblock, ordered by severity.",
+          "shared": true,
+          "scope": "shared_team",
+          "owner": "support_lead",
+          "filters": [
+            {
+              "facet": "blocker_waiver",
+              "include_tokens": [
+                "blocked",
+                "waiver_expired"
+              ]
+            }
+          ],
+          "order": {
+            "key": "effective_state_severity",
+            "descending": true,
+            "reason": "Most severe first."
+          }
+        }
+      ],
+      "actions": [
+        {
+          "action": "open_detail",
+          "label": "Open detail",
+          "routes_to_canonical_object": true,
+          "summary": "Open the canonical incident/support/admin/release object behind a tile."
+        },
+        {
+          "action": "compare",
+          "label": "Compare",
+          "routes_to_canonical_object": true,
+          "summary": "Add tiles to a compare set; each entry resolves to its canonical object."
+        },
+        {
+          "action": "apply_view",
+          "label": "Apply view",
+          "routes_to_canonical_object": false,
+          "summary": "Apply a saved view's filters and order."
+        },
+        {
+          "action": "save_view",
+          "label": "Save view",
+          "routes_to_canonical_object": false,
+          "summary": "Save the current filters and order as a named, shareable view."
+        },
+        {
+          "action": "filter",
+          "label": "Filter",
+          "routes_to_canonical_object": false,
+          "summary": "Adjust the live filters across the shared facet vocabulary."
+        },
+        {
+          "action": "export_view",
+          "label": "Export view",
+          "routes_to_canonical_object": false,
+          "summary": "Export the current view as a frozen, machine-readable snapshot."
+        }
+      ],
+      "tiles": [
+        {
+          "tile_id": "operator_board.support_queue.tile.0001",
+          "object_ref": "aureline://support-case/case-7741",
+          "object_kind": "support_case",
+          "title": "Export bundle stuck preparing",
+          "owner": "support_lead",
+          "decision_right": "support_lead",
+          "displayed_state": "attention",
+          "evidence_ref": "aureline://evidence/case-7741-trace",
+          "freshness": "recent",
+          "blocker_waiver": "none",
+          "blocker_reason": "",
+          "effective_state": "attention",
+          "scope": "shared_team",
+          "rank": 1,
+          "open_detail_ref": "aureline://support-case/case-7741",
+          "comparable": true
+        },
+        {
+          "tile_id": "operator_board.support_queue.tile.0002",
+          "object_ref": "aureline://support-case/case-7799",
+          "object_kind": "support_case",
+          "title": "Redaction policy question",
+          "owner": "support_triage",
+          "decision_right": "support_lead",
+          "displayed_state": "clear",
+          "evidence_ref": "aureline://evidence/case-7799-note",
+          "freshness": "fresh",
+          "blocker_waiver": "none",
+          "blocker_reason": "",
+          "effective_state": "clear",
+          "scope": "shared_team",
+          "rank": 3,
+          "open_detail_ref": "aureline://support-case/case-7799",
+          "comparable": true
+        },
+        {
+          "tile_id": "operator_board.support_queue.tile.0003",
+          "object_ref": "aureline://support-case/case-7802",
+          "object_kind": "support_case",
+          "title": "Cannot reach managed control plane",
+          "owner": "support_lead",
+          "decision_right": "support_lead",
+          "displayed_state": "attention",
+          "evidence_ref": "aureline://evidence/case-7802-route",
+          "freshness": "fresh",
+          "blocker_waiver": "blocked",
+          "blocker_reason": "Boundary drift detected; recheck required before a managed reply.",
+          "effective_state": "blocked",
+          "scope": "shared_team",
+          "rank": 2,
+          "open_detail_ref": "aureline://support-case/case-7802",
+          "comparable": true
+        }
+      ],
+      "export": {
+        "export_id": "operator_board.support_queue.export.open_oldest_first",
+        "board": "support_queue",
+        "board_id": "operator_board.support_queue",
+        "applied_view_id": "operator_board.support_queue.view.open_oldest_first",
+        "applied_view_token": "open_oldest_first",
+        "filters": [],
+        "order": {
+          "key": "freshness",
+          "descending": true,
+          "reason": "Oldest evidence first."
+        },
+        "scope": "shared_team",
+        "view_owner": "support_lead",
+        "redaction_class": "internal_support_restricted",
+        "live_vs_snapshot": "snapshot_only",
+        "summary": "Frozen export of board operator_board.support_queue via saved view 'open_oldest_first' — 3 rows; filters, order, scope, freshness, ownership, and blocker/waiver state preserved.",
+        "row_count": 3,
+        "rows": [
+          {
+            "rank_in_export": 1,
+            "tile_id": "operator_board.support_queue.tile.0001",
+            "object_ref": "aureline://support-case/case-7741",
+            "object_kind": "support_case",
+            "title": "Export bundle stuck preparing",
+            "owner": "support_lead",
+            "decision_right": "support_lead",
+            "effective_state": "attention",
+            "freshness": "recent",
+            "blocker_waiver": "none",
+            "blocker_reason": "",
+            "open_detail_ref": "aureline://support-case/case-7741"
+          },
+          {
+            "rank_in_export": 2,
+            "tile_id": "operator_board.support_queue.tile.0002",
+            "object_ref": "aureline://support-case/case-7799",
+            "object_kind": "support_case",
+            "title": "Redaction policy question",
+            "owner": "support_triage",
+            "decision_right": "support_lead",
+            "effective_state": "clear",
+            "freshness": "fresh",
+            "blocker_waiver": "none",
+            "blocker_reason": "",
+            "open_detail_ref": "aureline://support-case/case-7799"
+          },
+          {
+            "rank_in_export": 3,
+            "tile_id": "operator_board.support_queue.tile.0003",
+            "object_ref": "aureline://support-case/case-7802",
+            "object_kind": "support_case",
+            "title": "Cannot reach managed control plane",
+            "owner": "support_lead",
+            "decision_right": "support_lead",
+            "effective_state": "blocked",
+            "freshness": "fresh",
+            "blocker_waiver": "blocked",
+            "blocker_reason": "Boundary drift detected; recheck required before a managed reply.",
+            "open_detail_ref": "aureline://support-case/case-7802"
+          }
+        ]
+      }
+    },
+    {
+      "board": "admin_approvals",
+      "board_id": "operator_board.admin_approvals",
+      "label": "Admin approvals",
+      "summary": "Pending governance approval requests, triaged against the canonical admin objects the admin console owns.",
+      "surface": "triage_inbox",
+      "surface_id": "operator_surface.triage_inbox",
+      "scope": "managed_org",
+      "consumed_by": [
+        "shell_ui",
+        "cli_headless",
+        "admin_queue",
+        "support_export"
+      ],
+      "default_redaction": "operator_only_restricted",
+      "live_vs_snapshot": "snapshot_capable",
+      "default_view": "pending_by_severity",
+      "saved_views": [
+        {
+          "view_id": "operator_board.admin_approvals.view.pending_by_severity",
+          "token": "pending_by_severity",
+          "label": "Pending, most severe first",
+          "summary": "Every pending request ordered by effective-state severity; a very-stale request never sorts as clear.",
+          "shared": true,
+          "scope": "managed_org",
+          "owner": "org_admin",
+          "filters": [],
+          "order": {
+            "key": "effective_state_severity",
+            "descending": true,
+            "reason": "Most severe effective state first."
+          }
+        },
+        {
+          "view_id": "operator_board.admin_approvals.view.mine_org_admin",
+          "token": "mine_org_admin",
+          "label": "Owned by org admin",
+          "summary": "Requests this owner holds the decision right for, in explicit rank order.",
+          "shared": false,
+          "scope": "local_private",
+          "owner": "org_admin",
+          "filters": [
+            {
+              "facet": "owner",
+              "include_tokens": [
+                "org_admin"
+              ]
+            }
+          ],
+          "order": {
+            "key": "explicit_rank",
+            "descending": false,
+            "reason": "Operator's explicit rank order."
+          }
+        }
+      ],
+      "actions": [
+        {
+          "action": "open_detail",
+          "label": "Open detail",
+          "routes_to_canonical_object": true,
+          "summary": "Open the canonical incident/support/admin/release object behind a tile."
+        },
+        {
+          "action": "compare",
+          "label": "Compare",
+          "routes_to_canonical_object": true,
+          "summary": "Add tiles to a compare set; each entry resolves to its canonical object."
+        },
+        {
+          "action": "apply_view",
+          "label": "Apply view",
+          "routes_to_canonical_object": false,
+          "summary": "Apply a saved view's filters and order."
+        },
+        {
+          "action": "save_view",
+          "label": "Save view",
+          "routes_to_canonical_object": false,
+          "summary": "Save the current filters and order as a named, shareable view."
+        },
+        {
+          "action": "filter",
+          "label": "Filter",
+          "routes_to_canonical_object": false,
+          "summary": "Adjust the live filters across the shared facet vocabulary."
+        },
+        {
+          "action": "export_view",
+          "label": "Export view",
+          "routes_to_canonical_object": false,
+          "summary": "Export the current view as a frozen, machine-readable snapshot."
+        }
+      ],
+      "tiles": [
+        {
+          "tile_id": "operator_board.admin_approvals.tile.0001",
+          "object_ref": "aureline://admin-approval/req-301",
+          "object_kind": "admin_approval_request",
+          "title": "Policy change: telemetry retention",
+          "owner": "org_admin",
+          "decision_right": "org_admin",
+          "displayed_state": "attention",
+          "evidence_ref": "aureline://evidence/req-301-diff",
+          "freshness": "fresh",
+          "blocker_waiver": "none",
+          "blocker_reason": "",
+          "effective_state": "attention",
+          "scope": "managed_org",
+          "rank": 1,
+          "open_detail_ref": "aureline://admin-approval/req-301",
+          "comparable": true
+        },
+        {
+          "tile_id": "operator_board.admin_approvals.tile.0002",
+          "object_ref": "aureline://admin-approval/req-318",
+          "object_kind": "admin_approval_request",
+          "title": "Provider credential rotation",
+          "owner": "security_admin",
+          "decision_right": "security_admin",
+          "displayed_state": "clear",
+          "evidence_ref": "aureline://evidence/req-318-plan",
+          "freshness": "very_stale",
+          "blocker_waiver": "none",
+          "blocker_reason": "",
+          "effective_state": "unconfirmed",
+          "scope": "managed_org",
+          "rank": 3,
+          "open_detail_ref": "aureline://admin-approval/req-318",
+          "comparable": true
+        },
+        {
+          "tile_id": "operator_board.admin_approvals.tile.0003",
+          "object_ref": "aureline://admin-approval/req-322",
+          "object_kind": "admin_approval_request",
+          "title": "Tenant migration sign-off",
+          "owner": "org_admin",
+          "decision_right": "org_admin",
+          "displayed_state": "attention",
+          "evidence_ref": "aureline://evidence/req-322-boundary",
+          "freshness": "fresh",
+          "blocker_waiver": "blocked",
+          "blocker_reason": "Awaiting a boundary recheck after the tenant migration.",
+          "effective_state": "blocked",
+          "scope": "managed_org",
+          "rank": 2,
+          "open_detail_ref": "aureline://admin-approval/req-322",
+          "comparable": true
+        }
+      ],
+      "export": {
+        "export_id": "operator_board.admin_approvals.export.pending_by_severity",
+        "board": "admin_approvals",
+        "board_id": "operator_board.admin_approvals",
+        "applied_view_id": "operator_board.admin_approvals.view.pending_by_severity",
+        "applied_view_token": "pending_by_severity",
+        "filters": [],
+        "order": {
+          "key": "effective_state_severity",
+          "descending": true,
+          "reason": "Most severe effective state first."
+        },
+        "scope": "managed_org",
+        "view_owner": "org_admin",
+        "redaction_class": "operator_only_restricted",
+        "live_vs_snapshot": "snapshot_only",
+        "summary": "Frozen export of board operator_board.admin_approvals via saved view 'pending_by_severity' — 3 rows; filters, order, scope, freshness, ownership, and blocker/waiver state preserved.",
+        "row_count": 3,
+        "rows": [
+          {
+            "rank_in_export": 1,
+            "tile_id": "operator_board.admin_approvals.tile.0003",
+            "object_ref": "aureline://admin-approval/req-322",
+            "object_kind": "admin_approval_request",
+            "title": "Tenant migration sign-off",
+            "owner": "org_admin",
+            "decision_right": "org_admin",
+            "effective_state": "blocked",
+            "freshness": "fresh",
+            "blocker_waiver": "blocked",
+            "blocker_reason": "Awaiting a boundary recheck after the tenant migration.",
+            "open_detail_ref": "aureline://admin-approval/req-322"
+          },
+          {
+            "rank_in_export": 2,
+            "tile_id": "operator_board.admin_approvals.tile.0001",
+            "object_ref": "aureline://admin-approval/req-301",
+            "object_kind": "admin_approval_request",
+            "title": "Policy change: telemetry retention",
+            "owner": "org_admin",
+            "decision_right": "org_admin",
+            "effective_state": "attention",
+            "freshness": "fresh",
+            "blocker_waiver": "none",
+            "blocker_reason": "",
+            "open_detail_ref": "aureline://admin-approval/req-301"
+          },
+          {
+            "rank_in_export": 3,
+            "tile_id": "operator_board.admin_approvals.tile.0002",
+            "object_ref": "aureline://admin-approval/req-318",
+            "object_kind": "admin_approval_request",
+            "title": "Provider credential rotation",
+            "owner": "security_admin",
+            "decision_right": "security_admin",
+            "effective_state": "unconfirmed",
+            "freshness": "very_stale",
+            "blocker_waiver": "none",
+            "blocker_reason": "",
+            "open_detail_ref": "aureline://admin-approval/req-318"
+          }
+        ]
+      }
+    },
+    {
+      "board": "release_readiness",
+      "board_id": "operator_board.release_readiness",
+      "label": "Release readiness",
+      "summary": "Release gates and the services they depend on, summarized against the canonical release and service-health objects the release surfaces own.",
+      "surface": "operational_overview_board",
+      "surface_id": "operator_surface.operational_overview_board",
+      "scope": "shared_team",
+      "consumed_by": [
+        "shell_ui",
+        "cli_headless",
+        "release_evidence",
+        "support_export"
+      ],
+      "default_redaction": "metadata_safe_default",
+      "live_vs_snapshot": "snapshot_capable",
+      "default_view": "readiness_overview",
+      "saved_views": [
+        {
+          "view_id": "operator_board.release_readiness.view.readiness_overview",
+          "token": "readiness_overview",
+          "label": "Readiness overview",
+          "summary": "Every gate and dependency ordered by effective-state severity; a stale or waived gate never shows as a clear green tile.",
+          "shared": true,
+          "scope": "shared_team",
+          "owner": "release_owner",
+          "filters": [],
+          "order": {
+            "key": "effective_state_severity",
+            "descending": true,
+            "reason": "Most severe effective state first."
+          }
+        },
+        {
+          "view_id": "operator_board.release_readiness.view.needs_attention",
+          "token": "needs_attention",
+          "label": "Needs attention",
+          "summary": "Only gates and dependencies that are not confirmed clear.",
+          "shared": true,
+          "scope": "shared_team",
+          "owner": "release_owner",
+          "filters": [
+            {
+              "facet": "state",
+              "include_tokens": [
+                "unconfirmed",
+                "attention",
+                "blocked"
+              ]
+            }
+          ],
+          "order": {
+            "key": "freshness",
+            "descending": true,
+            "reason": "Oldest evidence first."
+          }
+        }
+      ],
+      "actions": [
+        {
+          "action": "open_detail",
+          "label": "Open detail",
+          "routes_to_canonical_object": true,
+          "summary": "Open the canonical incident/support/admin/release object behind a tile."
+        },
+        {
+          "action": "compare",
+          "label": "Compare",
+          "routes_to_canonical_object": true,
+          "summary": "Add tiles to a compare set; each entry resolves to its canonical object."
+        },
+        {
+          "action": "apply_view",
+          "label": "Apply view",
+          "routes_to_canonical_object": false,
+          "summary": "Apply a saved view's filters and order."
+        },
+        {
+          "action": "save_view",
+          "label": "Save view",
+          "routes_to_canonical_object": false,
+          "summary": "Save the current filters and order as a named, shareable view."
+        },
+        {
+          "action": "filter",
+          "label": "Filter",
+          "routes_to_canonical_object": false,
+          "summary": "Adjust the live filters across the shared facet vocabulary."
+        },
+        {
+          "action": "export_view",
+          "label": "Export view",
+          "routes_to_canonical_object": false,
+          "summary": "Export the current view as a frozen, machine-readable snapshot."
+        }
+      ],
+      "tiles": [
+        {
+          "tile_id": "operator_board.release_readiness.tile.0001",
+          "object_ref": "aureline://release-gate/gate-evidence",
+          "object_kind": "release_gate",
+          "title": "Release evidence complete",
+          "owner": "release_owner",
+          "decision_right": "release_owner",
+          "displayed_state": "clear",
+          "evidence_ref": "aureline://evidence/gate-evidence-bundle",
+          "freshness": "fresh",
+          "blocker_waiver": "none",
+          "blocker_reason": "",
+          "effective_state": "clear",
+          "scope": "shared_team",
+          "rank": 3,
+          "open_detail_ref": "aureline://release-gate/gate-evidence",
+          "comparable": true
+        },
+        {
+          "tile_id": "operator_board.release_readiness.tile.0002",
+          "object_ref": "aureline://release-gate/gate-perf",
+          "object_kind": "release_gate",
+          "title": "Performance budget",
+          "owner": "release_owner",
+          "decision_right": "release_owner",
+          "displayed_state": "clear",
+          "evidence_ref": "aureline://evidence/gate-perf-run",
+          "freshness": "stale",
+          "blocker_waiver": "none",
+          "blocker_reason": "",
+          "effective_state": "unconfirmed",
+          "scope": "shared_team",
+          "rank": 2,
+          "open_detail_ref": "aureline://release-gate/gate-perf",
+          "comparable": true
+        },
+        {
+          "tile_id": "operator_board.release_readiness.tile.0003",
+          "object_ref": "aureline://release-gate/gate-license",
+          "object_kind": "release_gate",
+          "title": "License scan",
+          "owner": "release_owner",
+          "decision_right": "security_admin",
+          "displayed_state": "clear",
+          "evidence_ref": "aureline://evidence/gate-license-scan",
+          "freshness": "fresh",
+          "blocker_waiver": "waived",
+          "blocker_reason": "Finding waived by security until 2026-07-15.",
+          "effective_state": "attention",
+          "scope": "shared_team",
+          "rank": 1,
+          "open_detail_ref": "aureline://release-gate/gate-license",
+          "comparable": true
+        },
+        {
+          "tile_id": "operator_board.release_readiness.tile.0004",
+          "object_ref": "aureline://service-health/svc-build-farm",
+          "object_kind": "service_health_record",
+          "title": "Build farm",
+          "owner": "platform_oncall",
+          "decision_right": "platform_oncall",
+          "displayed_state": "attention",
+          "evidence_ref": "aureline://evidence/svc-build-farm-card",
+          "freshness": "recent",
+          "blocker_waiver": "none",
+          "blocker_reason": "",
+          "effective_state": "attention",
+          "scope": "shared_team",
+          "rank": 4,
+          "open_detail_ref": "aureline://service-health/svc-build-farm",
+          "comparable": true
+        }
+      ],
+      "export": {
+        "export_id": "operator_board.release_readiness.export.readiness_overview",
+        "board": "release_readiness",
+        "board_id": "operator_board.release_readiness",
+        "applied_view_id": "operator_board.release_readiness.view.readiness_overview",
+        "applied_view_token": "readiness_overview",
+        "filters": [],
+        "order": {
+          "key": "effective_state_severity",
+          "descending": true,
+          "reason": "Most severe effective state first."
+        },
+        "scope": "shared_team",
+        "view_owner": "release_owner",
+        "redaction_class": "metadata_safe_default",
+        "live_vs_snapshot": "snapshot_only",
+        "summary": "Frozen export of board operator_board.release_readiness via saved view 'readiness_overview' — 4 rows; filters, order, scope, freshness, ownership, and blocker/waiver state preserved.",
+        "row_count": 4,
+        "rows": [
+          {
+            "rank_in_export": 1,
+            "tile_id": "operator_board.release_readiness.tile.0003",
+            "object_ref": "aureline://release-gate/gate-license",
+            "object_kind": "release_gate",
+            "title": "License scan",
+            "owner": "release_owner",
+            "decision_right": "security_admin",
+            "effective_state": "attention",
+            "freshness": "fresh",
+            "blocker_waiver": "waived",
+            "blocker_reason": "Finding waived by security until 2026-07-15.",
+            "open_detail_ref": "aureline://release-gate/gate-license"
+          },
+          {
+            "rank_in_export": 2,
+            "tile_id": "operator_board.release_readiness.tile.0004",
+            "object_ref": "aureline://service-health/svc-build-farm",
+            "object_kind": "service_health_record",
+            "title": "Build farm",
+            "owner": "platform_oncall",
+            "decision_right": "platform_oncall",
+            "effective_state": "attention",
+            "freshness": "recent",
+            "blocker_waiver": "none",
+            "blocker_reason": "",
+            "open_detail_ref": "aureline://service-health/svc-build-farm"
+          },
+          {
+            "rank_in_export": 3,
+            "tile_id": "operator_board.release_readiness.tile.0002",
+            "object_ref": "aureline://release-gate/gate-perf",
+            "object_kind": "release_gate",
+            "title": "Performance budget",
+            "owner": "release_owner",
+            "decision_right": "release_owner",
+            "effective_state": "unconfirmed",
+            "freshness": "stale",
+            "blocker_waiver": "none",
+            "blocker_reason": "",
+            "open_detail_ref": "aureline://release-gate/gate-perf"
+          },
+          {
+            "rank_in_export": 4,
+            "tile_id": "operator_board.release_readiness.tile.0001",
+            "object_ref": "aureline://release-gate/gate-evidence",
+            "object_kind": "release_gate",
+            "title": "Release evidence complete",
+            "owner": "release_owner",
+            "decision_right": "release_owner",
+            "effective_state": "clear",
+            "freshness": "fresh",
+            "blocker_waiver": "none",
+            "blocker_reason": "",
+            "open_detail_ref": "aureline://release-gate/gate-evidence"
+          }
+        ]
+      }
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "operator_boards.canonical_object_identity",
+      "statement": "Every tile carries a canonical aureline:// object handle and routes open-detail to that exact handle, so boards never invent a separate identity layer for the objects they summarize.",
+      "holds": true
+    },
+    {
+      "invariant_id": "operator_boards.surface_binding",
+      "statement": "Every board binds a surface family that exists in the operator-surface matrix, by the matrix's own surface id, rather than cloning a per-surface model.",
+      "holds": true
+    },
+    {
+      "invariant_id": "operator_boards.no_silent_green",
+      "statement": "Every tile's effective state equals the computed no-silent-green state, so a stale or waived tile can never be frozen as a clear green tile.",
+      "holds": true
+    },
+    {
+      "invariant_id": "operator_boards.owner_blocker_visible",
+      "statement": "Every tile names an owner and decision right, and any blocked or waived tile carries a visible reason rather than hiding it behind hover-only chrome.",
+      "holds": true
+    },
+    {
+      "invariant_id": "operator_boards.saved_views_present",
+      "statement": "Every board offers at least one saved view, its default view resolves to one, and every view names its order with a stated reason.",
+      "holds": true
+    },
+    {
+      "invariant_id": "operator_boards.shared_filter_vocabulary",
+      "statement": "Every filter clause references a facet from the shared vocabulary, and every value on a closed-vocabulary facet is one of that facet's allowed tokens.",
+      "holds": true
+    },
+    {
+      "invariant_id": "operator_boards.open_detail_parity",
+      "statement": "Every board offers a canonical open-detail action and every tile's open-detail route is its canonical object handle.",
+      "holds": true
+    },
+    {
+      "invariant_id": "operator_boards.export_parity",
+      "statement": "Every board's frozen export equals re-applying its default saved view, so the export preserves the exact filters, order, and per-tile state.",
+      "holds": true
+    },
+    {
+      "invariant_id": "operator_boards.export_preserves_truth",
+      "statement": "Every export carries the applied view's scope, owner, filters, and order, labels itself a snapshot, and preserves each row's effective state, freshness, ownership, and blocker/waiver reason.",
+      "holds": true
+    },
+    {
+      "invariant_id": "operator_boards.first_real_boards_present",
+      "statement": "The incident-response, support-queue, admin-approvals, and release-readiness boards are all present, proving the shared contract across real boards.",
+      "holds": true
+    },
+    {
+      "invariant_id": "operator_boards.stable_ids_unique",
+      "statement": "Board ids, saved-view ids, and tile ids are each defined once and unique across the set.",
+      "holds": true
+    }
+  ],
+  "raw_payload_excluded": true
+}

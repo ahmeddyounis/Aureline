@@ -1,0 +1,432 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/m5-operator-boards.schema.json",
+  "title": "Aureline M5 operator overview boards",
+  "description": "Boundary schema for the M5 operator-board set: the first real Aureline operator overview boards — incident response, support queue, admin approvals, and release readiness — as trustworthy summaries over many canonical objects. Each board binds a surface family from the operator-surface matrix and renders tiles that summarize canonical incident/support/admin/release objects by their own aureline:// handles, never a dashboard-only id. A tile's effective state is the computed no-silent-green downgrade of its displayed state, freshness, and blocker/waiver state, so a stale or waived tile is never reported clear. Owner, decision right, and a visible blocker/waiver reason are required tile fields. One shared filter-facet vocabulary spans every board, saved views name their filters and order, and each board freezes its default view as a machine-readable export that preserves the exact filters, order, scope, freshness, ownership, and blocker/waiver semantics outside the live UI. No endpoint URLs, hostnames, credentials, raw payloads, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_operator_boards_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "summary",
+    "matrix_ref",
+    "matrix_record_kind",
+    "filter_facets",
+    "order_keys",
+    "object_kinds",
+    "boards",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_operator_board_set" },
+    "m5_operator_boards_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/ops/m5-operator-boards.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_record_kind": { "const": "m5_operator_surface_matrix" },
+    "filter_facets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/filter_facet" }
+    },
+    "order_keys": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "object_kinds": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "boards": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/overview_board" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/board_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "object_handle": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A canonical object handle.",
+      "pattern": "^aureline://"
+    },
+    "board_token": {
+      "enum": [
+        "incident_response",
+        "support_queue",
+        "admin_approvals",
+        "release_readiness"
+      ]
+    },
+    "surface_token": {
+      "enum": [
+        "operational_overview_board",
+        "triage_inbox",
+        "action_plan",
+        "handoff_bundle",
+        "shift_digest",
+        "service_ownership_strip",
+        "runbook_step_card",
+        "maintenance_notice",
+        "failover_notice",
+        "embedded_boundary_state"
+      ]
+    },
+    "object_kind_token": {
+      "enum": [
+        "incident_record",
+        "support_case",
+        "admin_approval_request",
+        "release_gate",
+        "service_health_record",
+        "review_item"
+      ]
+    },
+    "state_token": {
+      "enum": [
+        "clear",
+        "unconfirmed",
+        "attention",
+        "blocked",
+        "scheduled_window",
+        "read_only_window",
+        "drain_window",
+        "reconciling",
+        "failover_in_progress",
+        "migration_in_progress",
+        "boundary_drift_recheck_required",
+        "embedded_boundary_handoff",
+        "imported_snapshot_no_live",
+        "unknown_requires_review"
+      ]
+    },
+    "freshness_token": {
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"]
+    },
+    "blocker_waiver_token": {
+      "enum": ["none", "blocked", "waived", "waiver_expired"]
+    },
+    "facet_token": {
+      "enum": ["state", "freshness", "owner", "blocker_waiver", "scope", "object_kind"]
+    },
+    "order_key_token": {
+      "enum": ["effective_state_severity", "freshness", "explicit_rank", "owner"]
+    },
+    "action_token": {
+      "enum": ["open_detail", "compare", "export_view", "save_view", "apply_view", "filter"]
+    },
+    "scope_class": {
+      "enum": ["local_private", "shared_team", "managed_org"]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ]
+    },
+    "live_snapshot_class": {
+      "enum": ["live_only", "snapshot_capable", "snapshot_only"]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_ui",
+        "cli_headless",
+        "incident_workspace",
+        "support_export",
+        "admin_queue",
+        "release_evidence",
+        "managed_service",
+        "companion_browser"
+      ]
+    },
+    "token_def": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "label"],
+      "properties": {
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "filter_facet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facet", "token", "label", "closed_vocabulary", "allowed_tokens"],
+      "properties": {
+        "facet": { "$ref": "#/$defs/facet_token" },
+        "token": { "$ref": "#/$defs/facet_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "closed_vocabulary": { "type": "boolean" },
+        "allowed_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "filter_clause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facet", "include_tokens"],
+      "properties": {
+        "facet": { "$ref": "#/$defs/facet_token" },
+        "include_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "board_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "descending", "reason"],
+      "properties": {
+        "key": { "$ref": "#/$defs/order_key_token" },
+        "descending": { "type": "boolean" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "saved_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "token",
+        "label",
+        "summary",
+        "shared",
+        "scope",
+        "owner",
+        "filters",
+        "order"
+      ],
+      "properties": {
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "shared": { "type": "boolean" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "filters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/filter_clause" }
+        },
+        "order": { "$ref": "#/$defs/board_order" }
+      }
+    },
+    "board_tile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tile_id",
+        "object_ref",
+        "object_kind",
+        "title",
+        "owner",
+        "decision_right",
+        "displayed_state",
+        "evidence_ref",
+        "freshness",
+        "blocker_waiver",
+        "blocker_reason",
+        "effective_state",
+        "scope",
+        "rank",
+        "open_detail_ref",
+        "comparable"
+      ],
+      "properties": {
+        "tile_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "object_kind": { "$ref": "#/$defs/object_kind_token" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "decision_right": { "$ref": "#/$defs/non_empty_string" },
+        "displayed_state": { "$ref": "#/$defs/state_token" },
+        "evidence_ref": { "$ref": "#/$defs/object_handle" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "blocker_waiver": { "$ref": "#/$defs/blocker_waiver_token" },
+        "blocker_reason": { "type": "string" },
+        "effective_state": { "$ref": "#/$defs/state_token" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "rank": { "type": "integer", "minimum": 0 },
+        "open_detail_ref": { "$ref": "#/$defs/object_handle" },
+        "comparable": { "type": "boolean" }
+      }
+    },
+    "board_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "label", "routes_to_canonical_object", "summary"],
+      "properties": {
+        "action": { "$ref": "#/$defs/action_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "routes_to_canonical_object": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "exported_tile_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rank_in_export",
+        "tile_id",
+        "object_ref",
+        "object_kind",
+        "title",
+        "owner",
+        "decision_right",
+        "effective_state",
+        "freshness",
+        "blocker_waiver",
+        "blocker_reason",
+        "open_detail_ref"
+      ],
+      "properties": {
+        "rank_in_export": { "type": "integer", "minimum": 1 },
+        "tile_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "object_kind": { "$ref": "#/$defs/object_kind_token" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "decision_right": { "$ref": "#/$defs/non_empty_string" },
+        "effective_state": { "$ref": "#/$defs/state_token" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "blocker_waiver": { "$ref": "#/$defs/blocker_waiver_token" },
+        "blocker_reason": { "type": "string" },
+        "open_detail_ref": { "$ref": "#/$defs/object_handle" }
+      }
+    },
+    "board_export_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_id",
+        "board",
+        "board_id",
+        "applied_view_id",
+        "applied_view_token",
+        "filters",
+        "order",
+        "scope",
+        "view_owner",
+        "redaction_class",
+        "live_vs_snapshot",
+        "summary",
+        "row_count",
+        "rows"
+      ],
+      "properties": {
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "board": { "$ref": "#/$defs/board_token" },
+        "board_id": { "$ref": "#/$defs/non_empty_string" },
+        "applied_view_id": { "$ref": "#/$defs/non_empty_string" },
+        "applied_view_token": { "$ref": "#/$defs/non_empty_string" },
+        "filters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/filter_clause" }
+        },
+        "order": { "$ref": "#/$defs/board_order" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "view_owner": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "live_vs_snapshot": { "const": "snapshot_only" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "row_count": { "type": "integer", "minimum": 0 },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/exported_tile_row" }
+        }
+      }
+    },
+    "overview_board": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "board",
+        "board_id",
+        "label",
+        "summary",
+        "surface",
+        "surface_id",
+        "scope",
+        "consumed_by",
+        "default_redaction",
+        "live_vs_snapshot",
+        "default_view",
+        "saved_views",
+        "actions",
+        "tiles",
+        "export"
+      ],
+      "properties": {
+        "board": { "$ref": "#/$defs/board_token" },
+        "board_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "consumed_by": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "default_redaction": { "$ref": "#/$defs/redaction_class" },
+        "live_vs_snapshot": { "$ref": "#/$defs/live_snapshot_class" },
+        "default_view": { "$ref": "#/$defs/non_empty_string" },
+        "saved_views": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/saved_view" }
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/board_action" }
+        },
+        "tiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/board_tile" }
+        },
+        "export": { "$ref": "#/$defs/board_export_view" }
+      }
+    },
+    "board_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}
