@@ -16,6 +16,7 @@ pub mod highlight;
 pub mod large_file;
 pub mod large_file_mode;
 pub mod large_file_posture;
+pub mod m5_assist_descriptors;
 pub mod m5_editor_assist;
 pub mod modes;
 pub mod orientation;
@@ -71,6 +72,15 @@ pub use large_file_posture::{
     LargeFilePostureQualification, LargeFilePostureRecord, PreviewFidelitySummary,
     RestrictedWritePosture, LARGE_FILE_POSTURE_RECORD_KIND, LARGE_FILE_POSTURE_SCHEMA_REF,
     LARGE_FILE_POSTURE_SCHEMA_VERSION,
+};
+pub use m5_assist_descriptors::{
+    assist_descriptor_model, assist_descriptor_model_lines, AccessibilityProfile,
+    ActionabilityClass, AssistConfidenceClass, AssistDescriptor, AssistDescriptorFamily,
+    AssistDescriptorModel, AssistFreshnessClass, DensityTier, DescriptorSource, ModelInvariant,
+    MotionClass, PlacementClass, PrecedenceConflictCase, RenderContext, ResolutionScenario,
+    ResolvedDescriptor, SuppressionReason, TextAnchor, VisibilityVerdict, ZoomTier,
+    M5_ASSIST_DESCRIPTORS_AS_OF, M5_ASSIST_DESCRIPTORS_MODEL_ID, M5_ASSIST_DESCRIPTORS_RECORD_KIND,
+    M5_ASSIST_DESCRIPTORS_SCHEMA_REF, M5_ASSIST_DESCRIPTORS_SCHEMA_VERSION,
 };
 pub use m5_editor_assist::{
     editor_assist_matrix, editor_assist_matrix_lines, AssistChannelClass, AssistDegradeClass,
