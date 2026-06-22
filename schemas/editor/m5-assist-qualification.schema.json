@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/editor/m5-assist-qualification.schema.json",
+  "title": "Aureline editor-assist qualification packet",
+  "description": "Boundary schema for the editor-assist qualification packet: the certification lane that binds the editor-assist micro-surface proof sources (the editor-assist matrix, assist descriptors, completion rows, signature/snippet, hover/peek, constrained-assist, advanced editing, and the assist support packet) into one per-family claim verdict. Each proof dimension (assist-source honesty, precedence, completion, hint, hover, peek, constrained-file narrowing, IME/multi-cursor safety, accessibility parity) resolves to a freshness/failure state, and each claimed editor family resolves to a support level that auto-narrows or blocks when an applicable dimension's proof is stale, failing, or missing. About/help, service-health, compatibility, release automation, and support-export consumers render this verdict rather than restating assist-quality claims by hand. No file contents, credential bodies, or raw provider payloads cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_assist_qualification_schema_version",
+    "schema_ref",
+    "packet_id",
+    "as_of",
+    "dimensions",
+    "families",
+    "rollup",
+    "invariants",
+    "raw_payload_excluded",
+    "summary"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_assist_qualification_packet" },
+    "m5_assist_qualification_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/editor/m5-assist-qualification.schema.json" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "dimensions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/dimension_proof" }
+    },
+    "families": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/family_qualification_row" }
+    },
+    "rollup": { "$ref": "#/$defs/qualification_rollup" },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/qualification_invariant" }
+    },
+    "raw_payload_excluded": { "type": "boolean", "const": true },
+    "summary": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600
+    },
+    "proof_dimension": {
+      "type": "string",
+      "enum": [
+        "assist_source_honesty",
+        "precedence",
+        "completion",
+        "hint",
+        "hover",
+        "peek",
+        "constrained_file_narrowing",
+        "ime_multi_cursor_safety",
+        "accessibility_parity"
+      ]
+    },
+    "proof_state": {
+      "type": "string",
+      "enum": ["fresh", "stale", "failing", "missing"]
+    },
+    "claim_support": {
+      "type": "string",
+      "enum": ["fully_supported", "narrowed", "blocked"]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "code_file",
+        "config_file",
+        "notebook_cell",
+        "request_editor",
+        "sql_editor",
+        "docs_code_block",
+        "generated_file",
+        "protected_file",
+        "partial_index_state",
+        "large_file_restricted"
+      ]
+    },
+    "schema_ref_string": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "dimension_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimension",
+        "label",
+        "critical",
+        "proof_source_ref",
+        "contributing_proof_refs",
+        "freshness_budget_days",
+        "state",
+        "detail"
+      ],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/proof_dimension" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "critical": { "type": "boolean" },
+        "proof_source_ref": { "type": "string", "maxLength": 300 },
+        "contributing_proof_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/schema_ref_string" }
+        },
+        "captured_as_of": { "type": "string", "format": "date-time" },
+        "freshness_budget_days": { "type": "integer" },
+        "state": { "$ref": "#/$defs/proof_state" },
+        "detail": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "dimension_verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "applicable", "state", "effect"],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/proof_dimension" },
+        "applicable": { "type": "boolean" },
+        "state": { "$ref": "#/$defs/proof_state" },
+        "effect": { "$ref": "#/$defs/claim_support" }
+      }
+    },
+    "family_qualification_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "label",
+        "is_constrained",
+        "support",
+        "dimension_verdicts",
+        "narrowed_by",
+        "blocked_by",
+        "summary"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "is_constrained": { "type": "boolean" },
+        "support": { "$ref": "#/$defs/claim_support" },
+        "dimension_verdicts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dimension_verdict" }
+        },
+        "narrowed_by": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/proof_dimension" }
+        },
+        "blocked_by": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/proof_dimension" }
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "qualification_rollup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fully_supported",
+        "narrowed",
+        "blocked",
+        "stale_dimensions",
+        "failing_dimensions",
+        "missing_dimensions"
+      ],
+      "properties": {
+        "fully_supported": { "type": "integer", "minimum": 0 },
+        "narrowed": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 },
+        "stale_dimensions": { "type": "integer", "minimum": 0 },
+        "failing_dimensions": { "type": "integer", "minimum": 0 },
+        "missing_dimensions": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "qualification_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "type": "boolean" }
+      }
+    }
+  }
+}

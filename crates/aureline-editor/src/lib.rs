@@ -18,6 +18,7 @@ pub mod large_file_mode;
 pub mod large_file_posture;
 pub mod m5_advanced_editing;
 pub mod m5_assist_descriptors;
+pub mod m5_assist_qualification;
 pub mod m5_assist_support;
 pub mod m5_completion_rows;
 pub mod m5_constrained_assist;
@@ -95,6 +96,14 @@ pub use m5_assist_descriptors::{
     ResolvedDescriptor, SuppressionReason, TextAnchor, VisibilityVerdict, ZoomTier,
     M5_ASSIST_DESCRIPTORS_AS_OF, M5_ASSIST_DESCRIPTORS_MODEL_ID, M5_ASSIST_DESCRIPTORS_RECORD_KIND,
     M5_ASSIST_DESCRIPTORS_SCHEMA_REF, M5_ASSIST_DESCRIPTORS_SCHEMA_VERSION,
+};
+pub use m5_assist_qualification::{
+    assist_qualification_lines, assist_qualification_packet, project_assist_qualification,
+    AssistQualificationPacket, ClaimSupportClass, DimensionProof, DimensionVerdict,
+    FamilyQualificationRow, ProofDimension, ProofInput, ProofState, QualificationInvariant,
+    QualificationRollup, DEFAULT_PROOF_FRESHNESS_BUDGET_DAYS, M5_ASSIST_QUALIFICATION_AS_OF,
+    M5_ASSIST_QUALIFICATION_PACKET_ID, M5_ASSIST_QUALIFICATION_RECORD_KIND,
+    M5_ASSIST_QUALIFICATION_SCHEMA_REF, M5_ASSIST_QUALIFICATION_SCHEMA_VERSION,
 };
 pub use m5_assist_support::{
     assist_support_packet, assist_support_packet_lines, AssistContentStateClass,
