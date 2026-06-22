@@ -56,6 +56,24 @@
 //! workspace/profile state. Downstream settings, marketplace, request, support,
 //! admin, import, and project surfaces ingest this packet rather than minting
 //! per-feature draft/autosave/recovery semantics.
+//!
+//! [`m5_staged_review_sheets::M5StagedReviewSheetSetPacket`] freezes the *commit
+//! sheet itself* as the first-class object every consequential M5 mutation flow
+//! stops at before it changes remote/provider/admin/package/request/import state.
+//! Each [`m5_staged_review_sheets::ReviewSheetRecord`] declares a target scope (a
+//! [`m5_staged_review_sheets::ScopeKind`] from single-object to query-backed or
+//! workspace-wide), disclosed omitted defaults, a reconciled
+//! [`m5_staged_review_sheets::MemberCounts`] of included/excluded/blocked/hidden
+//! objects, a disclosed side-effect summary with a rollback/export path, and a
+//! scope-and-effect-specific commit action, then re-derives a
+//! [`m5_staged_review_sheets::SheetClaim`] so a sheet that hides its scope, lets its
+//! counts disagree, leaves collapsed members uncounted, hides the
+//! included/excluded/blocked counts, hides omitted defaults or a side effect, buries
+//! a blocked prerequisite or rollback consequence behind a generic Continue, or lets
+//! an imported review read as a local apply floors to an explicit blocked state. The
+//! one review model is reused across provider publish-later, admin/source-management,
+//! request replay/mutation, package install/update/remove, and import/export/publish
+//! flows.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -64,6 +82,7 @@ pub mod density;
 pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;
 pub mod m5_form_validation_and_blocked_submit;
+pub mod m5_staged_review_sheets;
 pub mod m5_structured_input_and_staged_review;
 pub mod motion;
 pub mod themes;

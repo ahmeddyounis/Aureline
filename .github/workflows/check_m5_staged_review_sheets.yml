@@ -1,0 +1,68 @@
+# Staged-review (commit) sheet gate.
+#
+# Validates the checked-in staged-review sheet set: the source packet conforms to
+# its schema, every consequential mutation flow stops at a sheet that declares its
+# target scope, the included/excluded/blocked/hidden counts reconcile with the total
+# matched, a query-backed/broad action's collapsed members carry a hidden count, a
+# multi-object action surfaces its counts, omitted defaults and side effects are
+# disclosed before commit, blocked prerequisites are explained, the rollback/export
+# consequence is visible, the commit action names the scope/effect rather than a
+# generic Continue, no imported review reads as a local apply, no rendering surface
+# overclaims, every mutation flow / lane / scope kind / member class / side-effect
+# class / consumer surface is represented, and every narrowing/floor rule in the
+# perturbation corpus fires as recorded.
+
+name: check_m5_staged_review_sheets
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_staged_review_sheets.yml"
+      - "tools/release/staged_review_sheets.py"
+      - "schemas/ux/m5-staged-review-sheets.schema.json"
+      - "artifacts/ux/m5-staged-review-sheets/**"
+      - "fixtures/ux/m5-staged-review-sheets/**"
+      - "docs/ux/m5-staged-review-sheets.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-staged-review-sheets-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  staged_review_sheets:
+    name: Staged review sheets
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the staged-review set against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/ux/m5-staged-review-sheets.schema.json"))
+          data = json.load(open("artifacts/ux/m5-staged-review-sheets/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the staged-review set
+        run: python3 tools/release/staged_review_sheets.py validate
+
+      - name: Run the staged-review self-test
+        run: python3 tools/release/staged_review_sheets.py self-test
