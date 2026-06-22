@@ -1,0 +1,356 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/m5-maintenance-windows.schema.json",
+  "title": "Aureline M5 maintenance / failover / reconciliation windows",
+  "description": "Boundary schema for the M5 maintenance-window set: the planned operational windows that make scheduled maintenance, read-only windows, drain phases, failover, migration, and post-window reconciliation distinguishable from a generic outage, bound to the operator-surface matrix. Each window declares its operation kind (planned maintenance, regional failover, or tenant migration), its operational phase (scheduled, read-only, drain, migration, failover, reconciling, or resolved), an exact start and end timestamp with an IANA time zone and explicit UTC offset, the latest-refresh stamp and freshness, and the computed no-silent-green effective state so a resolved-but-unconfirmed window never reads as a confirmed clear. A window in effect names exactly which write classes are blocked and, for each, the local-safe alternative; its write posture and publish-later capture keep blocked writes queued rather than lost. A failover or migration that moves the tenant, region, residency, key-ownership, or endpoint boundary restates that axis explicitly instead of implying an unchanged route, and queued actions that would cross a changed or unknown boundary force a computed review-before-replay. No endpoint URLs, hostnames, credentials, raw payloads, or absolute paths cross this boundary; the record carries opaque aureline:// object handles, repo-relative refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_maintenance_windows_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "summary",
+    "matrix_ref",
+    "matrix_record_kind",
+    "phase_vocabulary",
+    "write_posture_vocabulary",
+    "blocked_write_vocabulary",
+    "boundary_axis_vocabulary",
+    "windows",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_maintenance_window_set" },
+    "m5_maintenance_windows_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/ops/m5-maintenance-windows.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_record_kind": { "const": "m5_operator_surface_matrix" },
+    "phase_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "write_posture_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "blocked_write_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "boundary_axis_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "windows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/maintenance_window" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/window_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "object_handle": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A canonical object handle.",
+      "pattern": "^aureline://"
+    },
+    "rfc3339_with_offset": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An RFC3339 timestamp carrying an explicit UTC offset (a trailing Z or a ±hh:mm offset) — never a zone-less local time.",
+      "pattern": "T.*(Z|[+-][0-9][0-9]:[0-9][0-9])$"
+    },
+    "utc_offset": {
+      "type": "string",
+      "description": "A ±hh:mm UTC offset.",
+      "pattern": "^[+-][0-9][0-9]:[0-9][0-9]$"
+    },
+    "surface_token": {
+      "enum": ["maintenance_notice", "failover_notice"]
+    },
+    "state_token": {
+      "enum": [
+        "clear",
+        "unconfirmed",
+        "attention",
+        "blocked",
+        "scheduled_window",
+        "read_only_window",
+        "drain_window",
+        "reconciling",
+        "failover_in_progress",
+        "migration_in_progress",
+        "boundary_drift_recheck_required",
+        "embedded_boundary_handoff",
+        "imported_snapshot_no_live",
+        "unknown_requires_review"
+      ]
+    },
+    "freshness_token": {
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"]
+    },
+    "scope_class": {
+      "enum": ["local_private", "shared_team", "managed_org"]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ]
+    },
+    "live_snapshot_class": {
+      "enum": ["live_only", "snapshot_capable", "snapshot_only"]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_ui",
+        "cli_headless",
+        "incident_workspace",
+        "support_export",
+        "admin_queue",
+        "release_evidence",
+        "managed_service",
+        "companion_browser"
+      ]
+    },
+    "window_kind_token": {
+      "enum": ["planned_maintenance", "regional_failover", "tenant_migration"]
+    },
+    "phase_token": {
+      "enum": [
+        "scheduled",
+        "read_only",
+        "drain",
+        "migration",
+        "failover",
+        "reconciling",
+        "resolved"
+      ]
+    },
+    "write_posture_token": {
+      "enum": [
+        "writes_live",
+        "local_draft_preserved",
+        "publish_later_queued",
+        "blocked_pending_boundary_recheck",
+        "read_only_replay"
+      ]
+    },
+    "blocked_write_token": {
+      "enum": [
+        "managed_settings_apply",
+        "managed_policy_change",
+        "provider_mutation",
+        "remote_workspace_write",
+        "authority_change",
+        "ticket_or_incident_publish",
+        "release_publish"
+      ]
+    },
+    "boundary_axis_token": {
+      "enum": [
+        "tenant",
+        "region",
+        "residency",
+        "key_ownership",
+        "endpoint_identity"
+      ]
+    },
+    "boundary_axis_state_token": {
+      "enum": ["unchanged", "changed", "unknown"]
+    },
+    "replay_review_trigger_token": {
+      "enum": [
+        "no_review_needed",
+        "changed_policy",
+        "changed_tenant",
+        "changed_region",
+        "changed_residency",
+        "changed_endpoint",
+        "changed_authority"
+      ]
+    },
+    "token_def": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "label"],
+      "properties": {
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "window_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "starts_at",
+        "ends_at",
+        "time_zone",
+        "utc_offset",
+        "end_is_estimated",
+        "latest_refresh_at",
+        "refresh_freshness"
+      ],
+      "properties": {
+        "starts_at": { "$ref": "#/$defs/rfc3339_with_offset" },
+        "ends_at": { "$ref": "#/$defs/rfc3339_with_offset" },
+        "time_zone": { "$ref": "#/$defs/non_empty_string" },
+        "utc_offset": { "$ref": "#/$defs/utc_offset" },
+        "end_is_estimated": { "type": "boolean" },
+        "latest_refresh_at": { "$ref": "#/$defs/rfc3339_with_offset" },
+        "refresh_freshness": { "$ref": "#/$defs/freshness_token" }
+      }
+    },
+    "blocked_write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "label", "local_alternative"],
+      "properties": {
+        "class": { "$ref": "#/$defs/blocked_write_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "local_alternative": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "boundary_axis_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axis", "state", "disclosure"],
+      "properties": {
+        "axis": { "$ref": "#/$defs/boundary_axis_token" },
+        "state": { "$ref": "#/$defs/boundary_axis_state_token" },
+        "disclosure": { "type": "string" }
+      }
+    },
+    "boundary_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axes", "recheck_required"],
+      "properties": {
+        "axes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/boundary_axis_disclosure" }
+        },
+        "recheck_required": { "type": "boolean" }
+      }
+    },
+    "replay_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "trigger", "reconcile_action"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "trigger": { "$ref": "#/$defs/replay_review_trigger_token" },
+        "reconcile_action": { "type": "string" }
+      }
+    },
+    "maintenance_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_id",
+        "object_ref",
+        "title",
+        "summary",
+        "kind",
+        "surface",
+        "surface_id",
+        "phase",
+        "effective_state",
+        "owner",
+        "decision_right",
+        "scope",
+        "default_redaction",
+        "consumed_by",
+        "live_vs_snapshot",
+        "window_time",
+        "write_posture",
+        "blocked_writes",
+        "local_safe_actions",
+        "publish_later_available",
+        "next_safe_action",
+        "boundary_disclosure",
+        "queued_actions_present",
+        "replay_review",
+        "distinguishable_from_outage",
+        "outage_distinction",
+        "open_detail_ref"
+      ],
+      "properties": {
+        "window_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/window_kind_token" },
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "phase": { "$ref": "#/$defs/phase_token" },
+        "effective_state": { "$ref": "#/$defs/state_token" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "decision_right": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "default_redaction": { "$ref": "#/$defs/redaction_class" },
+        "consumed_by": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "live_vs_snapshot": { "$ref": "#/$defs/live_snapshot_class" },
+        "window_time": { "$ref": "#/$defs/window_time" },
+        "write_posture": { "$ref": "#/$defs/write_posture_token" },
+        "blocked_writes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_write" }
+        },
+        "local_safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "publish_later_available": { "type": "boolean" },
+        "next_safe_action": { "$ref": "#/$defs/non_empty_string" },
+        "boundary_disclosure": { "$ref": "#/$defs/boundary_disclosure" },
+        "queued_actions_present": { "type": "boolean" },
+        "replay_review": { "$ref": "#/$defs/replay_review" },
+        "distinguishable_from_outage": { "const": true },
+        "outage_distinction": { "$ref": "#/$defs/non_empty_string" },
+        "open_detail_ref": { "$ref": "#/$defs/object_handle" }
+      }
+    },
+    "window_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}
