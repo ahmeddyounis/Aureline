@@ -117,12 +117,29 @@
 //! provider-owned surfaces ingest this packet rather than re-inventing focus order,
 //! screen-reader labelling, or recovery semantics, so they cannot quietly regress
 //! accessibility or interruption behavior.
+//!
+//! [`m5_form_family_certification::M5FormFamilyCertificationSetPacket`] is the *promotion
+//! model* that certifies the seven preceding component lanes as a whole: it freezes one
+//! [`m5_form_family_certification::FamilyRecord`] per claimed M5 mutation-capable form
+//! family (provider, admin, request, package, settings, import, and project lanes), binds an
+//! [`m5_form_family_certification::EvidenceCell`] per required `(dimension, lane)` proof pair
+//! — field/form validation, parameter provenance, draft-versus-applied truth, interruption
+//! recovery, and staged-review-before-commit, each pointing at the upstream lane's support
+//! export — and re-derives a [`m5_form_family_certification::FamilyDecision`] that floors the
+//! family's claimed [`m5_form_family_certification::QualificationTier`] when any of that
+//! proof is stale, partial, missing, or failing, or when the certification-freshness window
+//! has elapsed or a consumer surface renders a wider tier than the evidence supports. The
+//! About, help, service-health, compatibility, release, and support surfaces ingest this
+//! packet rather than re-deciding which form families are certified, so a claimed family can
+//! never read wider than its current structured-input, provenance, draft-recovery, and
+//! staged-review evidence backs.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
 pub mod components;
 pub mod density;
 pub mod m5_accessibility_and_continuity;
+pub mod m5_form_family_certification;
 pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;
 pub mod m5_form_validation_and_blocked_submit;

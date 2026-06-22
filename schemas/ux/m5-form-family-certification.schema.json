@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/m5-form-family-certification.schema.json",
+  "title": "Aureline M5 mutation-capable form family certification and auto-narrowing",
+  "description": "Canonical, export-safe object model for the promotion lane that certifies each claimed M5 mutation-capable form family (provider, admin, request, package, settings, import, and project lanes) against the shared structured-input component lanes and auto-narrows the family's qualification claim when its proof is stale, partial, missing, or failing. Each family binds one evidence cell per required (dimension, lane) proof pair — field/form validation (field_control_rows + form_validation_and_blocked_submit), parameter provenance (parameter_source_and_precedence), draft-versus-applied truth (draft_state_and_autosave), interruption recovery (accessibility_and_continuity), and staged-review-before-commit (staged_review_sheets + structured_input_and_staged_review) — each pointing at the upstream lane's support export, so an effective tier can be re-derived without trusting a grade: a stale or partial proof caps the family at beta, a missing required proof caps it at preview, a failing proof or a consumer surface that renders a wider tier than the evidence supports withdraws it, and an elapsed certification-freshness window ages every certified family to beta. About, help, service-health, compatibility, the release packet, the support export, and the public docs truth render the verdict they consume rather than restating a form-quality claim. No credential bodies, secret values, raw provider payloads, absolute paths, or URLs ever cross this boundary; refs carry opaque ids only. Adding an enum value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "as_of",
+    "taxonomy_version",
+    "redaction_class_token",
+    "certification_freshness",
+    "families"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "m5_form_family_certification_set_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/stable_id" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 220 },
+    "as_of": { "type": "string", "format": "date-time" },
+    "taxonomy_version": { "type": "integer", "const": 1 },
+    "redaction_class_token": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Default redaction posture for the packet. No credential bodies, secret values, raw provider payloads, absolute paths, or URLs ever cross this boundary; refs carry opaque ids only."
+    },
+    "certification_freshness": { "$ref": "#/$defs/certification_freshness" },
+    "families": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/family" }
+    }
+  },
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._@#/-]*$"
+    },
+    "opaque_ref": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "opaque_ref_nullable": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_ref" }, { "type": "null" }]
+    },
+    "label": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "date_time_nullable": {
+      "oneOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+    },
+    "certification_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "certification_freshness_slo_hours",
+        "last_certification_refresh",
+        "auto_downgrade_on_stale"
+      ],
+      "properties": {
+        "certification_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_certification_refresh": { "type": "string", "format": "date-time" },
+        "auto_downgrade_on_stale": { "type": "boolean" }
+      }
+    },
+    "form_family": {
+      "type": "string",
+      "enum": [
+        "provider_connect",
+        "admin_source_management",
+        "request_workspace",
+        "package_install_review",
+        "settings_config_editor",
+        "import_migration_center",
+        "generated_project_bootstrap"
+      ]
+    },
+    "proof_dimension": {
+      "type": "string",
+      "enum": [
+        "field_form_validation",
+        "parameter_provenance",
+        "draft_versus_applied",
+        "interruption_recovery",
+        "staged_review_before_commit"
+      ]
+    },
+    "proof_lane": {
+      "type": "string",
+      "enum": [
+        "field_control_rows",
+        "form_validation_and_blocked_submit",
+        "parameter_source_and_precedence",
+        "draft_state_and_autosave",
+        "staged_review_sheets",
+        "structured_input_and_staged_review",
+        "accessibility_and_continuity"
+      ]
+    },
+    "evidence_state": {
+      "type": "string",
+      "enum": ["current", "stale", "partial", "missing", "failing", "not_applicable"]
+    },
+    "qualification_tier": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "about",
+        "help_inline",
+        "service_health",
+        "compatibility",
+        "release_packet",
+        "support_export",
+        "docs_public_truth"
+      ]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_run_ref", "rerun_ref"],
+      "properties": {
+        "evidence_run_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rerun_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "evidence_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimension",
+        "source_lane",
+        "state",
+        "proof_ref",
+        "captured_at",
+        "proof_label"
+      ],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/proof_dimension" },
+        "source_lane": { "$ref": "#/$defs/proof_lane" },
+        "state": { "$ref": "#/$defs/evidence_state" },
+        "proof_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "captured_at": { "$ref": "#/$defs/date_time_nullable" },
+        "proof_label": { "$ref": "#/$defs/label" }
+      }
+    },
+    "rendering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "rendered_tier", "source_family_ref"],
+      "properties": {
+        "surface": { "$ref": "#/$defs/consumer_surface" },
+        "rendered_tier": { "$ref": "#/$defs/qualification_tier" },
+        "source_family_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family_id",
+        "family",
+        "claimed_tier",
+        "label_summary",
+        "lineage",
+        "evidence",
+        "renderings"
+      ],
+      "properties": {
+        "family_id": { "$ref": "#/$defs/stable_id" },
+        "family": { "$ref": "#/$defs/form_family" },
+        "claimed_tier": { "$ref": "#/$defs/qualification_tier" },
+        "label_summary": { "$ref": "#/$defs/label" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_cell" }
+        },
+        "renderings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rendering" }
+        }
+      }
+    }
+  }
+}

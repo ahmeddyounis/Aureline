@@ -1,0 +1,65 @@
+# Mutation-capable form family certification gate.
+#
+# Validates the checked-in form-family certification set: the source packet conforms to its
+# schema, every claimed M5 form family certifies all five proof dimensions against the
+# upstream component lanes, a stale/partial proof caps the family at beta, a missing required
+# proof caps it at preview, a failing proof or a consumer surface that renders a wider tier
+# withdraws it, an elapsed certification-freshness window ages certified families to beta, a
+# narrowed family keeps an actionable rerun path and a non-generic narrow label, no rendering
+# overclaims, every form family / proof dimension / proof lane / consumer surface is
+# represented, and every narrowing/floor rule in the perturbation corpus fires as recorded.
+
+name: check_m5_form_family_certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_form_family_certification.yml"
+      - "tools/release/form_family_certification.py"
+      - "schemas/ux/m5-form-family-certification.schema.json"
+      - "artifacts/ux/m5-form-family-certification/**"
+      - "fixtures/ux/m5-form-family-certification/**"
+      - "docs/ux/m5-form-family-certification.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-form-family-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  form_family_certification:
+    name: Form family certification
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the form-family certification set against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/ux/m5-form-family-certification.schema.json"))
+          data = json.load(open("artifacts/ux/m5-form-family-certification/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the form-family certification set
+        run: python3 tools/release/form_family_certification.py validate
+
+      - name: Run the form-family certification self-test
+        run: python3 tools/release/form_family_certification.py self-test
