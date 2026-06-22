@@ -16,6 +16,7 @@ pub mod highlight;
 pub mod large_file;
 pub mod large_file_mode;
 pub mod large_file_posture;
+pub mod m5_editor_assist;
 pub mod modes;
 pub mod orientation;
 pub mod orientation_aids;
@@ -70,6 +71,15 @@ pub use large_file_posture::{
     LargeFilePostureQualification, LargeFilePostureRecord, PreviewFidelitySummary,
     RestrictedWritePosture, LARGE_FILE_POSTURE_RECORD_KIND, LARGE_FILE_POSTURE_SCHEMA_REF,
     LARGE_FILE_POSTURE_SCHEMA_VERSION,
+};
+pub use m5_editor_assist::{
+    editor_assist_matrix, editor_assist_matrix_lines, AssistChannelClass, AssistDegradeClass,
+    ClassDescriptor, CodeLensClass, DecorationClass, EditorAssistMatrix, EditorLayerClass,
+    EditorSurfaceClass, HoverPeekModeClass, IdentityContract, InlayHintClass, MatrixInvariant,
+    MicroSurfaceKind, PrecedenceLayer, SignatureHelpStateClass, SupportExportMinimum,
+    SurfaceAssistCell, SurfaceAssistProfile, TruthTier, M5_EDITOR_ASSIST_AS_OF,
+    M5_EDITOR_ASSIST_MATRIX_ID, M5_EDITOR_ASSIST_RECORD_KIND, M5_EDITOR_ASSIST_SCHEMA_REF,
+    M5_EDITOR_ASSIST_SCHEMA_VERSION,
 };
 pub use modes::{
     build_alpha_mode_state_record, AlphaModeStateInput, EditorModeClass, EditorModeStateRecord,
