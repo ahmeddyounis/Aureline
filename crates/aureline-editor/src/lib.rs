@@ -17,6 +17,7 @@ pub mod large_file;
 pub mod large_file_mode;
 pub mod large_file_posture;
 pub mod m5_assist_descriptors;
+pub mod m5_completion_rows;
 pub mod m5_editor_assist;
 pub mod modes;
 pub mod orientation;
@@ -81,6 +82,14 @@ pub use m5_assist_descriptors::{
     ResolvedDescriptor, SuppressionReason, TextAnchor, VisibilityVerdict, ZoomTier,
     M5_ASSIST_DESCRIPTORS_AS_OF, M5_ASSIST_DESCRIPTORS_MODEL_ID, M5_ASSIST_DESCRIPTORS_RECORD_KIND,
     M5_ASSIST_DESCRIPTORS_SCHEMA_REF, M5_ASSIST_DESCRIPTORS_SCHEMA_VERSION,
+};
+pub use m5_completion_rows::{
+    completion_row_model, completion_row_model_lines, AdditionalEditCue, CompletionAssistClass,
+    CompletionAvailabilityClass, CompletionProviderPosture, CompletionRow, CompletionRowCounts,
+    CompletionRowInit, CompletionRowInvariant, CompletionRowModel, CompletionRowSnapshot,
+    TrustWeightClass, M5_COMPLETION_ROWS_AS_OF, M5_COMPLETION_ROWS_MODEL_ID,
+    M5_COMPLETION_ROWS_RECORD_KIND, M5_COMPLETION_ROWS_SCHEMA_REF,
+    M5_COMPLETION_ROWS_SCHEMA_VERSION,
 };
 pub use m5_editor_assist::{
     editor_assist_matrix, editor_assist_matrix_lines, AssistChannelClass, AssistDegradeClass,

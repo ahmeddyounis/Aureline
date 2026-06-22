@@ -1,0 +1,438 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/editor/m5-completion-rows.schema.json",
+  "title": "Aureline completion-row model",
+  "description": "Boundary schema for the one canonical, frozen, export-safe completion-row model. The model materializes a single source-labeled, commit-honest completion row for every claimed editor family (code, config, notebook, request, SQL, docs code-block, generated, protected, partial-index, and large-file). Each row carries its primary label, kind and icon, a deterministic-versus-AI assist class with a pinned trust weight, the canonical assist source/provenance descriptor (provider identity, support, freshness, locality, degraded state), an additional-edit/import cue that must be disclosed before commit, availability and documentation truth, and a non-color differentiator. Each surface snapshot pins a visible provider posture (full semantic, degraded provider, stale partial index, restricted mode, large-file fallback, offline cached-only) and derives the canonical shared completion-list snapshot from the same rows so the row projection and the shared assist packet cannot drift. The model proves, over its own data, that AI-backed and local-word rows never inherit full-semantic trust, that every additional-edit effect discloses before commit, and that every degraded posture is labeled. No file contents, credential bodies, or raw provider payloads cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_completion_rows_schema_version",
+    "schema_ref",
+    "model_id",
+    "as_of",
+    "assist_classes",
+    "trust_weights",
+    "additional_edit_cues",
+    "availability_classes",
+    "provider_postures",
+    "surface_snapshots",
+    "invariants",
+    "raw_payload_excluded",
+    "summary"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_completion_row_model" },
+    "m5_completion_rows_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/editor/m5-completion-rows.schema.json" },
+    "model_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "assist_classes": { "$ref": "#/$defs/class_descriptor_array" },
+    "trust_weights": { "$ref": "#/$defs/class_descriptor_array" },
+    "additional_edit_cues": { "$ref": "#/$defs/class_descriptor_array" },
+    "availability_classes": { "$ref": "#/$defs/class_descriptor_array" },
+    "provider_postures": { "$ref": "#/$defs/class_descriptor_array" },
+    "surface_snapshots": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/surface_snapshot" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/invariant" }
+    },
+    "raw_payload_excluded": { "const": true },
+    "summary": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "assist_class": {
+      "enum": [
+        "deterministic_language",
+        "cached_fallback",
+        "local_word",
+        "snippet_only",
+        "ai_backed",
+        "project_graph",
+        "framework_provider",
+        "tool_adapter"
+      ]
+    },
+    "trust_weight": {
+      "enum": ["full_semantic", "advisory", "heuristic_fallback"]
+    },
+    "additional_edit_cue": {
+      "enum": [
+        "none",
+        "additional_edits_in_file",
+        "adds_import",
+        "adds_dependency",
+        "edits_config",
+        "generated_output_effect"
+      ]
+    },
+    "availability": {
+      "enum": ["available", "deprecated", "unavailable"]
+    },
+    "provider_posture": {
+      "enum": [
+        "full_semantic",
+        "degraded_provider",
+        "stale_partial_index",
+        "restricted_mode",
+        "large_file_fallback",
+        "offline_cached_only"
+      ]
+    },
+    "surface_class": {
+      "enum": [
+        "code_file",
+        "config_file",
+        "notebook_cell",
+        "request_editor",
+        "sql_editor",
+        "docs_code_block",
+        "generated_file",
+        "protected_file",
+        "partial_index_state",
+        "large_file_restricted"
+      ]
+    },
+    "class_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class_token", "label", "note"],
+      "properties": {
+        "class_token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "class_descriptor_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/class_descriptor" }
+    },
+    "invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "type": "boolean" }
+      }
+    },
+    "assist_source_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_descriptor_id",
+        "source_family",
+        "source_label_class",
+        "source_label",
+        "provider_id",
+        "router_decision_ref",
+        "source_ref",
+        "support_class",
+        "freshness_class",
+        "scope_claim_class",
+        "completeness_class",
+        "scope_limit_classes",
+        "locality_class",
+        "degraded_state_class",
+        "summary"
+      ],
+      "properties": {
+        "source_descriptor_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_family": { "type": "string" },
+        "source_label_class": { "type": "string" },
+        "source_label": { "$ref": "#/$defs/non_empty_string" },
+        "provider_id": { "type": ["string", "null"] },
+        "router_decision_ref": { "type": ["string", "null"] },
+        "source_ref": { "type": ["string", "null"] },
+        "support_class": { "type": "string" },
+        "freshness_class": { "type": "string" },
+        "scope_claim_class": { "type": "string" },
+        "completeness_class": { "type": "string" },
+        "scope_limit_classes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "locality_class": { "type": "string" },
+        "degraded_state_class": { "type": "string" },
+        "summary": { "type": "string" }
+      }
+    },
+    "completion_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "m5_completion_rows_schema_version",
+        "row_id",
+        "completion_session_id",
+        "primary_label",
+        "kind_class",
+        "kind_icon_token",
+        "assist_class",
+        "trust_weight",
+        "source",
+        "additional_edit_cue",
+        "additional_edit_summary",
+        "commit_disclosure_required",
+        "preview_required",
+        "availability",
+        "docs_available",
+        "docs_command_ref",
+        "accept_command_ref",
+        "detail_command_ref",
+        "rank",
+        "sort_group",
+        "requires_visual_distinction",
+        "non_color_differentiator",
+        "accessibility_label",
+        "redaction_class",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_completion_row" },
+        "m5_completion_rows_schema_version": { "type": "integer", "const": 1 },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "completion_session_id": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label": { "$ref": "#/$defs/non_empty_string" },
+        "kind_class": { "type": "string" },
+        "kind_icon_token": { "$ref": "#/$defs/non_empty_string" },
+        "assist_class": { "$ref": "#/$defs/assist_class" },
+        "trust_weight": { "$ref": "#/$defs/trust_weight" },
+        "source": { "$ref": "#/$defs/assist_source_descriptor" },
+        "additional_edit_cue": { "$ref": "#/$defs/additional_edit_cue" },
+        "additional_edit_summary": { "type": ["string", "null"] },
+        "commit_disclosure_required": { "type": "boolean" },
+        "preview_required": { "type": "boolean" },
+        "availability": { "$ref": "#/$defs/availability" },
+        "docs_available": { "type": "boolean" },
+        "docs_command_ref": { "type": ["string", "null"] },
+        "accept_command_ref": { "$ref": "#/$defs/non_empty_string" },
+        "detail_command_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rank": { "type": "integer", "minimum": 0 },
+        "sort_group": { "type": "integer", "minimum": 0 },
+        "requires_visual_distinction": { "type": "boolean" },
+        "non_color_differentiator": { "$ref": "#/$defs/non_empty_string" },
+        "accessibility_label": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "type": "string" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "completion_row_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "deterministic_language",
+        "ai_backed",
+        "cached_fallback",
+        "local_word",
+        "snippet_only",
+        "framework_provider",
+        "project_graph",
+        "tool_adapter",
+        "additional_edit_disclosed",
+        "preview_required",
+        "deprecated",
+        "unavailable",
+        "docs_available"
+      ],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "deterministic_language": { "type": "integer", "minimum": 0 },
+        "ai_backed": { "type": "integer", "minimum": 0 },
+        "cached_fallback": { "type": "integer", "minimum": 0 },
+        "local_word": { "type": "integer", "minimum": 0 },
+        "snippet_only": { "type": "integer", "minimum": 0 },
+        "framework_provider": { "type": "integer", "minimum": 0 },
+        "project_graph": { "type": "integer", "minimum": 0 },
+        "tool_adapter": { "type": "integer", "minimum": 0 },
+        "additional_edit_disclosed": { "type": "integer", "minimum": 0 },
+        "preview_required": { "type": "integer", "minimum": 0 },
+        "deprecated": { "type": "integer", "minimum": 0 },
+        "unavailable": { "type": "integer", "minimum": 0 },
+        "docs_available": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "completion_acceptance_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accept_command_id_ref",
+        "detail_command_id_ref",
+        "side_effect_class",
+        "preview_required",
+        "undo_group_label",
+        "additional_edit_summary"
+      ],
+      "properties": {
+        "accept_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "detail_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "side_effect_class": { "type": "string" },
+        "preview_required": { "type": "boolean" },
+        "undo_group_label": { "$ref": "#/$defs/non_empty_string" },
+        "additional_edit_summary": { "type": ["string", "null"] }
+      }
+    },
+    "completion_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_schema_version",
+        "completion_item_id",
+        "completion_session_id",
+        "label",
+        "kind_class",
+        "source",
+        "insert_text_ref",
+        "rank",
+        "sort_group",
+        "acceptance",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "assist_completion_item_record" },
+        "assist_schema_version": { "type": "integer" },
+        "completion_item_id": { "$ref": "#/$defs/non_empty_string" },
+        "completion_session_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "kind_class": { "type": "string" },
+        "source": { "$ref": "#/$defs/assist_source_descriptor" },
+        "insert_text_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rank": { "type": "integer", "minimum": 0 },
+        "sort_group": { "type": "integer", "minimum": 0 },
+        "acceptance": { "$ref": "#/$defs/completion_acceptance_contract" },
+        "redaction_class": { "type": "string" },
+        "captured_at": { "type": "string" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "assist_source_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completion_total_count",
+        "deterministic_language_completion_count",
+        "lsp_completion_count",
+        "fallback_completion_count",
+        "snippet_completion_count",
+        "ai_assist_completion_count",
+        "preview_required_count",
+        "active_snippet_session_count",
+        "signature_help_count",
+        "source_label_count",
+        "source_families",
+        "source_label_classes"
+      ],
+      "properties": {
+        "completion_total_count": { "type": "integer", "minimum": 0 },
+        "deterministic_language_completion_count": { "type": "integer", "minimum": 0 },
+        "lsp_completion_count": { "type": "integer", "minimum": 0 },
+        "fallback_completion_count": { "type": "integer", "minimum": 0 },
+        "snippet_completion_count": { "type": "integer", "minimum": 0 },
+        "ai_assist_completion_count": { "type": "integer", "minimum": 0 },
+        "preview_required_count": { "type": "integer", "minimum": 0 },
+        "active_snippet_session_count": { "type": "integer", "minimum": 0 },
+        "signature_help_count": { "type": "integer", "minimum": 0 },
+        "source_label_count": { "type": "integer", "minimum": 0 },
+        "source_families": { "type": "array", "items": { "type": "string" } },
+        "source_label_classes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "completion_list_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_schema_version",
+        "completion_session_id",
+        "workspace_id",
+        "document_ref",
+        "language_id",
+        "request_anchor_ref",
+        "items",
+        "source_counts",
+        "router_decision_refs",
+        "disclosure_required",
+        "redaction_class",
+        "captured_at",
+        "accessibility_summary",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "assist_completion_list_snapshot" },
+        "assist_schema_version": { "type": "integer" },
+        "completion_session_id": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "document_ref": { "$ref": "#/$defs/non_empty_string" },
+        "language_id": { "$ref": "#/$defs/non_empty_string" },
+        "request_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/completion_item_record" }
+        },
+        "source_counts": { "$ref": "#/$defs/assist_source_counts" },
+        "router_decision_refs": { "type": "array", "items": { "type": "string" } },
+        "disclosure_required": { "type": "boolean" },
+        "redaction_class": { "type": "string" },
+        "captured_at": { "type": "string" },
+        "accessibility_summary": { "$ref": "#/$defs/non_empty_string" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "surface_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "m5_completion_rows_schema_version",
+        "snapshot_id",
+        "surface_class",
+        "workspace_id",
+        "document_ref",
+        "language_id",
+        "provider_posture",
+        "provider_posture_label",
+        "fallback_label_required",
+        "rows",
+        "counts",
+        "canonical_snapshot",
+        "disclosure_required",
+        "accessibility_summary",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_completion_row_snapshot" },
+        "m5_completion_rows_schema_version": { "type": "integer", "const": 1 },
+        "snapshot_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "document_ref": { "$ref": "#/$defs/non_empty_string" },
+        "language_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_posture": { "$ref": "#/$defs/provider_posture" },
+        "provider_posture_label": { "$ref": "#/$defs/non_empty_string" },
+        "fallback_label_required": { "type": "boolean" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/completion_row" }
+        },
+        "counts": { "$ref": "#/$defs/completion_row_counts" },
+        "canonical_snapshot": { "$ref": "#/$defs/completion_list_snapshot" },
+        "disclosure_required": { "type": "boolean" },
+        "accessibility_summary": { "$ref": "#/$defs/non_empty_string" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
