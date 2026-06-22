@@ -1,0 +1,68 @@
+# Keyboard, assistive-tech, reduced-motion, and interruption-safe continuity gate.
+#
+# Validates the checked-in accessibility-and-continuity set: the source packet conforms
+# to its schema, every covered M5 surface declares a deterministic keyboard focus order
+# with every control reachable and batch-review actions at keyboard parity, permanent
+# screen-reader labels with inline validation links and blocked-submit reasons announced
+# to assistive tech, a reduced-motion substitution class under which state never depends
+# on animation, and an interruption-safe continuity snapshot that resumes on the correct
+# step with blocked fields and draft intact across reconnect, restart, missing
+# dependency, and crash, while an imported review stays read-only, the keyboard recovery
+# path is kept, no rendering surface overclaims, every surface kind / lane / origin /
+# interruption path / reduced-motion class / consumer surface is represented, and every
+# narrowing/floor rule in the perturbation corpus fires as recorded.
+
+name: check_m5_accessibility_and_continuity
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_accessibility_and_continuity.yml"
+      - "tools/release/accessibility_and_continuity.py"
+      - "schemas/ux/m5-accessibility-and-continuity.schema.json"
+      - "artifacts/ux/m5-accessibility-and-continuity/**"
+      - "fixtures/ux/m5-accessibility-and-continuity/**"
+      - "docs/ux/m5-accessibility-and-continuity.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-accessibility-and-continuity-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  accessibility_and_continuity:
+    name: Accessibility and continuity
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validators
+        run: python3 -m pip install --upgrade jsonschema referencing
+
+      - name: Validate the accessibility-and-continuity set against its schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open("schemas/ux/m5-accessibility-and-continuity.schema.json"))
+          data = json.load(open("artifacts/ux/m5-accessibility-and-continuity/support_export.json"))
+          jsonschema.validate(data, schema)
+          print("schema OK")
+          PY
+
+      - name: Validate the accessibility-and-continuity set
+        run: python3 tools/release/accessibility_and_continuity.py validate
+
+      - name: Run the accessibility-and-continuity self-test
+        run: python3 tools/release/accessibility_and_continuity.py self-test

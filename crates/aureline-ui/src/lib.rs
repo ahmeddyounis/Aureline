@@ -96,11 +96,33 @@
 //! values, policy locks, detected values, and user overrides visually distinct
 //! across the inspector panel, field popover, diagnostics, support export, CLI
 //! inspect, and docs/help surfaces.
+//!
+//! [`m5_accessibility_and_continuity::M5AccessibilityContinuitySetPacket`] freezes the
+//! *accessibility and interruption-safety contract* those same dense surfaces must hold
+//! so the shared structured-input model stays fully usable under keyboard-only,
+//! assistive-tech, reduced-motion, reconnect, and restart conditions. Each
+//! [`m5_accessibility_and_continuity::SurfaceRecord`] binds a surface's keyboard
+//! reachability (deterministic focus order, roving focus, batch-action parity, an
+//! escapable focus trap), its assistive-tech reachability (permanent screen-reader
+//! labels, inline validation links announced, blocked-submit reasons in a live region,
+//! the step position announced), its reduced-motion behavior (bound to the shared
+//! [`motion::ReducedMotionSubstitutionClass`] so state never depends on animation), and
+//! its interruption-safe continuity (a recovery journal that preserves the current step,
+//! blocked fields, and draft across reconnect, restart, missing dependency, and crash),
+//! then re-derives a [`m5_accessibility_and_continuity::ContinuityClaim`] so a surface
+//! that drops a keyboard path, a screen-reader label, an announced validation link or
+//! blocked submit, a motion-independent state, a preserved step/blocked-field/draft, a
+//! read-only imported review, a recovery path, or a continuity journal floors to an
+//! explicit blocked-submit state with a keyboard recovery path. Extension and
+//! provider-owned surfaces ingest this packet rather than re-inventing focus order,
+//! screen-reader labelling, or recovery semantics, so they cannot quietly regress
+//! accessibility or interruption behavior.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
 pub mod components;
 pub mod density;
+pub mod m5_accessibility_and_continuity;
 pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;
 pub mod m5_form_validation_and_blocked_submit;
