@@ -16,6 +16,7 @@ pub mod highlight;
 pub mod large_file;
 pub mod large_file_mode;
 pub mod large_file_posture;
+pub mod m5_advanced_editing;
 pub mod m5_assist_descriptors;
 pub mod m5_completion_rows;
 pub mod m5_constrained_assist;
@@ -76,6 +77,14 @@ pub use large_file_posture::{
     LargeFilePostureQualification, LargeFilePostureRecord, PreviewFidelitySummary,
     RestrictedWritePosture, LARGE_FILE_POSTURE_RECORD_KIND, LARGE_FILE_POSTURE_SCHEMA_REF,
     LARGE_FILE_POSTURE_SCHEMA_VERSION,
+};
+pub use m5_advanced_editing::{
+    advanced_editing_model, advanced_editing_model_lines, AdvancedEditingInvariant,
+    AdvancedEditingModel, AdvancedEditorSnapshot, FoldRiskClass, FoldRiskSummary,
+    OverviewAidParity, RenderAwarenessPolicy, SelectionModeClass, SelectionSemanticsClass,
+    SelectionSummaryStrip, UnsupportedOperationNote, M5_ADVANCED_EDITING_AS_OF,
+    M5_ADVANCED_EDITING_MODEL_ID, M5_ADVANCED_EDITING_RECORD_KIND, M5_ADVANCED_EDITING_SCHEMA_REF,
+    M5_ADVANCED_EDITING_SCHEMA_VERSION,
 };
 pub use m5_assist_descriptors::{
     assist_descriptor_model, assist_descriptor_model_lines, AccessibilityProfile,
