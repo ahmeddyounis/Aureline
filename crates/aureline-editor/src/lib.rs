@@ -18,6 +18,7 @@ pub mod large_file_mode;
 pub mod large_file_posture;
 pub mod m5_assist_descriptors;
 pub mod m5_completion_rows;
+pub mod m5_constrained_assist;
 pub mod m5_editor_assist;
 pub mod m5_hover_peek;
 pub mod m5_signature_snippet;
@@ -92,6 +93,14 @@ pub use m5_completion_rows::{
     TrustWeightClass, M5_COMPLETION_ROWS_AS_OF, M5_COMPLETION_ROWS_MODEL_ID,
     M5_COMPLETION_ROWS_RECORD_KIND, M5_COMPLETION_ROWS_SCHEMA_REF,
     M5_COMPLETION_ROWS_SCHEMA_VERSION,
+};
+pub use m5_constrained_assist::{
+    constrained_assist_model, constrained_assist_model_lines, AssistNarrowingCell,
+    ConstrainedAssistInvariant, ConstrainedAssistModel, ConstrainedFileStateClass,
+    ConstrainedStateProfile, ConsumerSurfaceProof, DegradedProviderCase, NarrowReasonClass,
+    NextSafeActionClass, M5_CONSTRAINED_ASSIST_AS_OF, M5_CONSTRAINED_ASSIST_MODEL_ID,
+    M5_CONSTRAINED_ASSIST_RECORD_KIND, M5_CONSTRAINED_ASSIST_SCHEMA_REF,
+    M5_CONSTRAINED_ASSIST_SCHEMA_VERSION,
 };
 pub use m5_editor_assist::{
     editor_assist_matrix, editor_assist_matrix_lines, AssistChannelClass, AssistDegradeClass,
