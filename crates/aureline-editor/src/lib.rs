@@ -18,6 +18,7 @@ pub mod large_file_mode;
 pub mod large_file_posture;
 pub mod m5_advanced_editing;
 pub mod m5_assist_descriptors;
+pub mod m5_assist_support;
 pub mod m5_completion_rows;
 pub mod m5_constrained_assist;
 pub mod m5_editor_assist;
@@ -94,6 +95,14 @@ pub use m5_assist_descriptors::{
     ResolvedDescriptor, SuppressionReason, TextAnchor, VisibilityVerdict, ZoomTier,
     M5_ASSIST_DESCRIPTORS_AS_OF, M5_ASSIST_DESCRIPTORS_MODEL_ID, M5_ASSIST_DESCRIPTORS_RECORD_KIND,
     M5_ASSIST_DESCRIPTORS_SCHEMA_REF, M5_ASSIST_DESCRIPTORS_SCHEMA_VERSION,
+};
+pub use m5_assist_support::{
+    assist_support_packet, assist_support_packet_lines, AssistContentStateClass,
+    AssistDecisionKind, AssistDecisionRecord, AssistDriftClass, AssistDriftRollup,
+    AssistSupportInvariant, AssistSupportPacket, AssistSurfaceRollup, DriftDescriptor,
+    IndexFreshnessClass, SupportExportContract, M5_ASSIST_SUPPORT_AS_OF,
+    M5_ASSIST_SUPPORT_PACKET_ID, M5_ASSIST_SUPPORT_RECORD_KIND, M5_ASSIST_SUPPORT_SCHEMA_REF,
+    M5_ASSIST_SUPPORT_SCHEMA_VERSION,
 };
 pub use m5_completion_rows::{
     completion_row_model, completion_row_model_lines, AdditionalEditCue, CompletionAssistClass,
