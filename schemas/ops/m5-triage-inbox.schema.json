@@ -1,0 +1,606 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/m5-triage-inbox.schema.json",
+  "title": "Aureline M5 triage inboxes",
+  "description": "Boundary schema for the M5 triage-inbox set: the first real Aureline operator triage inboxes — incident, support, and admin — as reason-bearing rows over many canonical objects. Each inbox binds the triage-inbox family from the operator-surface matrix. Every row names why it needs attention (one of six distinct attention classes plus a written reason, never a bare unread badge), whose queue it is in, its priority and SLA (with a reason when at risk or breached), where it came from (source and provider), the boundary it belongs to, and whether its state is local, shared, deferred, or imported. A row's effective state is the computed no-silent-green downgrade of its displayed state, freshness, and blocker/waiver state, so a stale or waived row is never reported clear. Owner, decision right, and a visible blocker/waiver reason are required row fields. One shared filter-facet vocabulary spans every inbox, saved views name both their grouping and order, and each inbox freezes its default view as a batch-review preview and a machine-readable handoff bundle that preserve the filters, grouping, order, scope, ownership, freshness, source, provider, priority, and SLA labels outside the live UI. No endpoint URLs, hostnames, credentials, raw payloads, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_triage_inbox_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "summary",
+    "matrix_ref",
+    "matrix_record_kind",
+    "filter_facets",
+    "group_keys",
+    "order_keys",
+    "attention_classes",
+    "priority_classes",
+    "sla_states",
+    "source_classes",
+    "sync_states",
+    "object_kinds",
+    "inboxes",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_triage_inbox_set" },
+    "m5_triage_inbox_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/ops/m5-triage-inbox.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_record_kind": { "const": "m5_operator_surface_matrix" },
+    "filter_facets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/triage_facet" }
+    },
+    "group_keys": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "order_keys": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "attention_classes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "priority_classes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "sla_states": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "source_classes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "sync_states": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "object_kinds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "inboxes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/triage_inbox" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/triage_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "object_handle": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A canonical object handle.",
+      "pattern": "^aureline://"
+    },
+    "inbox_token": {
+      "enum": ["incident_triage", "support_triage", "admin_triage"]
+    },
+    "surface_token": {
+      "enum": [
+        "operational_overview_board",
+        "triage_inbox",
+        "action_plan",
+        "handoff_bundle",
+        "shift_digest",
+        "service_ownership_strip",
+        "runbook_step_card",
+        "maintenance_notice",
+        "failover_notice",
+        "embedded_boundary_state"
+      ]
+    },
+    "object_kind_token": {
+      "enum": [
+        "incident_record",
+        "support_case",
+        "admin_approval_request",
+        "release_gate",
+        "service_health_record",
+        "review_item"
+      ]
+    },
+    "state_token": {
+      "enum": [
+        "clear",
+        "unconfirmed",
+        "attention",
+        "blocked",
+        "scheduled_window",
+        "read_only_window",
+        "drain_window",
+        "reconciling",
+        "failover_in_progress",
+        "migration_in_progress",
+        "boundary_drift_recheck_required",
+        "embedded_boundary_handoff",
+        "imported_snapshot_no_live",
+        "unknown_requires_review"
+      ]
+    },
+    "freshness_token": {
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"]
+    },
+    "blocker_waiver_token": {
+      "enum": ["none", "blocked", "waived", "waiver_expired"]
+    },
+    "attention_token": {
+      "enum": [
+        "assigned",
+        "watched",
+        "policy_blocked",
+        "stale",
+        "waiting_on_approval",
+        "locally_deferred"
+      ]
+    },
+    "priority_token": {
+      "enum": ["p0_critical", "p1_high", "p2_normal", "p3_low"]
+    },
+    "sla_token": {
+      "enum": ["within_sla", "at_risk", "breached", "paused_in_window", "no_sla"]
+    },
+    "source_token": {
+      "enum": [
+        "incident_alert",
+        "support_intake",
+        "admin_governance",
+        "release_gate",
+        "provider_webhook",
+        "companion_capture",
+        "imported_snapshot"
+      ]
+    },
+    "sync_state_token": {
+      "enum": ["local_only", "shared_live", "deferred_publish_later", "imported_snapshot"]
+    },
+    "boundary_token": {
+      "enum": ["local", "remote", "managed", "mirrored_offline", "browser_webview", "imported_snapshot"]
+    },
+    "facet_token": {
+      "enum": [
+        "attention",
+        "priority",
+        "sla",
+        "source",
+        "sync_state",
+        "boundary",
+        "scope",
+        "state",
+        "freshness",
+        "owner",
+        "object_kind",
+        "blocker_waiver"
+      ]
+    },
+    "group_key_token": {
+      "enum": ["object", "severity", "owner", "source"]
+    },
+    "order_key_token": {
+      "enum": [
+        "priority",
+        "sla_urgency",
+        "effective_state_severity",
+        "freshness",
+        "explicit_rank",
+        "owner"
+      ]
+    },
+    "action_token": {
+      "enum": [
+        "open_detail",
+        "batch_review",
+        "handoff",
+        "export_view",
+        "save_view",
+        "apply_view",
+        "filter"
+      ]
+    },
+    "scope_class": {
+      "enum": ["local_private", "shared_team", "managed_org"]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ]
+    },
+    "live_snapshot_class": {
+      "enum": ["live_only", "snapshot_capable", "snapshot_only"]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_ui",
+        "cli_headless",
+        "incident_workspace",
+        "support_export",
+        "admin_queue",
+        "release_evidence",
+        "managed_service",
+        "companion_browser"
+      ]
+    },
+    "token_def": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "label"],
+      "properties": {
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "triage_facet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facet", "token", "label", "closed_vocabulary", "allowed_tokens"],
+      "properties": {
+        "facet": { "$ref": "#/$defs/facet_token" },
+        "token": { "$ref": "#/$defs/facet_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "closed_vocabulary": { "type": "boolean" },
+        "allowed_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "filter_clause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facet", "include_tokens"],
+      "properties": {
+        "facet": { "$ref": "#/$defs/facet_token" },
+        "include_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "triage_grouping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "reason"],
+      "properties": {
+        "key": { "$ref": "#/$defs/group_key_token" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "triage_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "descending", "reason"],
+      "properties": {
+        "key": { "$ref": "#/$defs/order_key_token" },
+        "descending": { "type": "boolean" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "saved_triage_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "token",
+        "label",
+        "summary",
+        "shared",
+        "scope",
+        "owner",
+        "filters",
+        "group_by",
+        "order"
+      ],
+      "properties": {
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "shared": { "type": "boolean" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "filters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/filter_clause" }
+        },
+        "group_by": { "$ref": "#/$defs/triage_grouping" },
+        "order": { "$ref": "#/$defs/triage_order" }
+      }
+    },
+    "triage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "object_ref",
+        "object_kind",
+        "title",
+        "owner",
+        "decision_right",
+        "attention_class",
+        "reason_for_attention",
+        "priority",
+        "sla_state",
+        "sla_reason",
+        "source",
+        "provider",
+        "boundary",
+        "scope",
+        "sync_state",
+        "displayed_state",
+        "evidence_ref",
+        "freshness",
+        "blocker_waiver",
+        "blocker_reason",
+        "effective_state",
+        "rank",
+        "open_detail_ref",
+        "batch_reviewable",
+        "batch_excluded_reason"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "object_kind": { "$ref": "#/$defs/object_kind_token" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "decision_right": { "$ref": "#/$defs/non_empty_string" },
+        "attention_class": { "$ref": "#/$defs/attention_token" },
+        "reason_for_attention": { "$ref": "#/$defs/non_empty_string" },
+        "priority": { "$ref": "#/$defs/priority_token" },
+        "sla_state": { "$ref": "#/$defs/sla_token" },
+        "sla_reason": { "type": "string" },
+        "source": { "$ref": "#/$defs/source_token" },
+        "provider": { "$ref": "#/$defs/non_empty_string" },
+        "boundary": { "$ref": "#/$defs/boundary_token" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "sync_state": { "$ref": "#/$defs/sync_state_token" },
+        "displayed_state": { "$ref": "#/$defs/state_token" },
+        "evidence_ref": { "$ref": "#/$defs/object_handle" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "blocker_waiver": { "$ref": "#/$defs/blocker_waiver_token" },
+        "blocker_reason": { "type": "string" },
+        "effective_state": { "$ref": "#/$defs/state_token" },
+        "rank": { "type": "integer", "minimum": 0 },
+        "open_detail_ref": { "$ref": "#/$defs/object_handle" },
+        "batch_reviewable": { "type": "boolean" },
+        "batch_excluded_reason": { "type": "string" }
+      }
+    },
+    "inbox_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "label", "routes_to_canonical_object", "summary"],
+      "properties": {
+        "action": { "$ref": "#/$defs/action_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "routes_to_canonical_object": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "exported_triage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rank_in_export",
+        "row_id",
+        "object_ref",
+        "object_kind",
+        "title",
+        "owner",
+        "decision_right",
+        "attention_class",
+        "reason_for_attention",
+        "priority",
+        "sla_state",
+        "sla_reason",
+        "source",
+        "provider",
+        "boundary",
+        "scope",
+        "sync_state",
+        "effective_state",
+        "freshness",
+        "blocker_waiver",
+        "blocker_reason",
+        "open_detail_ref"
+      ],
+      "properties": {
+        "rank_in_export": { "type": "integer", "minimum": 1 },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "object_kind": { "$ref": "#/$defs/object_kind_token" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "decision_right": { "$ref": "#/$defs/non_empty_string" },
+        "attention_class": { "$ref": "#/$defs/attention_token" },
+        "reason_for_attention": { "$ref": "#/$defs/non_empty_string" },
+        "priority": { "$ref": "#/$defs/priority_token" },
+        "sla_state": { "$ref": "#/$defs/sla_token" },
+        "sla_reason": { "type": "string" },
+        "source": { "$ref": "#/$defs/source_token" },
+        "provider": { "$ref": "#/$defs/non_empty_string" },
+        "boundary": { "$ref": "#/$defs/boundary_token" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "sync_state": { "$ref": "#/$defs/sync_state_token" },
+        "effective_state": { "$ref": "#/$defs/state_token" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "blocker_waiver": { "$ref": "#/$defs/blocker_waiver_token" },
+        "blocker_reason": { "type": "string" },
+        "open_detail_ref": { "$ref": "#/$defs/object_handle" }
+      }
+    },
+    "triage_handoff_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_id",
+        "inbox",
+        "inbox_id",
+        "applied_view_id",
+        "applied_view_token",
+        "filters",
+        "group_by",
+        "order",
+        "scope",
+        "view_owner",
+        "redaction_class",
+        "live_vs_snapshot",
+        "summary",
+        "row_count",
+        "rows"
+      ],
+      "properties": {
+        "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+        "inbox": { "$ref": "#/$defs/inbox_token" },
+        "inbox_id": { "$ref": "#/$defs/non_empty_string" },
+        "applied_view_id": { "$ref": "#/$defs/non_empty_string" },
+        "applied_view_token": { "$ref": "#/$defs/non_empty_string" },
+        "filters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/filter_clause" }
+        },
+        "group_by": { "$ref": "#/$defs/triage_grouping" },
+        "order": { "$ref": "#/$defs/triage_order" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "view_owner": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "live_vs_snapshot": { "const": "snapshot_only" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "row_count": { "type": "integer", "minimum": 0 },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/exported_triage_row" }
+        }
+      }
+    },
+    "batch_review_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row_id", "object_ref", "object_kind", "attention_class", "effective_state"],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "object_kind": { "$ref": "#/$defs/object_kind_token" },
+        "attention_class": { "$ref": "#/$defs/attention_token" },
+        "effective_state": { "$ref": "#/$defs/state_token" }
+      }
+    },
+    "batch_review_exclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row_id", "object_ref", "reason"],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "batch_review_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_id",
+        "inbox",
+        "inbox_id",
+        "applied_view_token",
+        "candidate_count",
+        "excluded_count",
+        "outcome",
+        "preserves_object_identity",
+        "candidates",
+        "excluded"
+      ],
+      "properties": {
+        "preview_id": { "$ref": "#/$defs/non_empty_string" },
+        "inbox": { "$ref": "#/$defs/inbox_token" },
+        "inbox_id": { "$ref": "#/$defs/non_empty_string" },
+        "applied_view_token": { "$ref": "#/$defs/non_empty_string" },
+        "candidate_count": { "type": "integer", "minimum": 0 },
+        "excluded_count": { "type": "integer", "minimum": 0 },
+        "outcome": { "$ref": "#/$defs/non_empty_string" },
+        "preserves_object_identity": { "const": true },
+        "candidates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/batch_review_candidate" }
+        },
+        "excluded": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/batch_review_exclusion" }
+        }
+      }
+    },
+    "triage_inbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inbox",
+        "inbox_id",
+        "label",
+        "summary",
+        "surface",
+        "surface_id",
+        "scope",
+        "consumed_by",
+        "default_redaction",
+        "live_vs_snapshot",
+        "default_view",
+        "saved_views",
+        "actions",
+        "rows",
+        "batch_review",
+        "handoff"
+      ],
+      "properties": {
+        "inbox": { "$ref": "#/$defs/inbox_token" },
+        "inbox_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "consumed_by": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "default_redaction": { "$ref": "#/$defs/redaction_class" },
+        "live_vs_snapshot": { "$ref": "#/$defs/live_snapshot_class" },
+        "default_view": { "$ref": "#/$defs/non_empty_string" },
+        "saved_views": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/saved_triage_view" }
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/inbox_action" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/triage_row" }
+        },
+        "batch_review": { "$ref": "#/$defs/batch_review_preview" },
+        "handoff": { "$ref": "#/$defs/triage_handoff_bundle" }
+      }
+    },
+    "triage_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}
