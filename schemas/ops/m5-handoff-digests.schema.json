@@ -1,0 +1,531 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/m5-handoff-digests.schema.json",
+  "title": "Aureline M5 handoff bundles and shift digests",
+  "description": "Boundary schema for the M5 handoff/digest set: the first real Aureline operator continuity packets — an outgoing-shift handoff, a client-facing handoff, a daily operations digest, and a private night-shift digest — that preserve, outside the live session, the same object identity, grouping, freshness, ownership, redaction, unresolved questions, and live-versus-snapshot truth the operator saw. Each packet binds either the handoff_bundle or the shift_digest family from the operator-surface matrix. Every piece of evidence carries a storage_class (live_link, cached, mirrored, snapshot) and a freshness; the packet never flattens these into one blob, and the roll-up counts each storage class separately. Every group and packet carries a reopen anchor that resolves to a canonical object (live, cached, or mirrored) or a truthful placeholder that names what the object was — never a generic dashboard; resolves_object is true for everything but a truthful placeholder. Digests group by object and severity before chronology: groups are ordered by severity (most severe first), each group preserves its latest update time and major blocker, and events are ordered chronologically only within a group. Unresolved questions name an owner, a canonical object, and a next safe action, with a reason when blocked. Each packet declares an explicit scope and share posture (private, workspace_shared, org_shared) and an export gate naming exactly what crosses the boundary on share/export, and freezes a snapshot-only export that preserves every truth field plus a roll-up answering what changed, what remains unresolved, and the next safe action. No endpoint URLs, hostnames, credentials, raw payloads, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_handoff_digests_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "summary",
+    "matrix_ref",
+    "matrix_record_kind",
+    "packet_kinds",
+    "storage_classes",
+    "reopen_anchor_classes",
+    "severities",
+    "question_statuses",
+    "target_audiences",
+    "share_postures",
+    "object_kinds",
+    "packets",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_handoff_digest_set" },
+    "m5_handoff_digests_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/ops/m5-handoff-digests.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_record_kind": { "const": "m5_operator_surface_matrix" },
+    "packet_kinds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "storage_classes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "reopen_anchor_classes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "severities": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "question_statuses": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "target_audiences": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "share_postures": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "object_kinds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "packets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/continuity_packet" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/continuity_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "object_handle": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A canonical object handle.",
+      "pattern": "^aureline://"
+    },
+    "packet_token": {
+      "enum": [
+        "outgoing_shift_handoff",
+        "client_status_handoff",
+        "daily_operations_digest",
+        "night_shift_digest"
+      ]
+    },
+    "packet_kind_token": {
+      "enum": ["handoff_bundle", "shift_digest"]
+    },
+    "surface_token": {
+      "enum": [
+        "operational_overview_board",
+        "triage_inbox",
+        "action_plan",
+        "handoff_bundle",
+        "shift_digest",
+        "service_ownership_strip",
+        "runbook_step_card",
+        "maintenance_notice",
+        "failover_notice",
+        "embedded_boundary_state"
+      ]
+    },
+    "object_kind_token": {
+      "enum": [
+        "incident_record",
+        "support_case",
+        "admin_approval_request",
+        "release_gate",
+        "service_health_record",
+        "review_item"
+      ]
+    },
+    "storage_token": {
+      "enum": ["live_link", "cached", "mirrored", "snapshot"]
+    },
+    "freshness_token": {
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"]
+    },
+    "severity_token": {
+      "enum": ["sev1_critical", "sev2_major", "sev3_minor", "sev4_info"]
+    },
+    "blocker_token": {
+      "enum": ["none", "blocked", "waived", "waiver_expired"]
+    },
+    "anchor_token": {
+      "enum": [
+        "live_object",
+        "cached_object_snapshot",
+        "mirrored_offline_view",
+        "truthful_placeholder"
+      ]
+    },
+    "question_status_token": {
+      "enum": ["open", "investigating", "blocked", "needs_decision"]
+    },
+    "target_audience_token": {
+      "enum": ["next_operator_shift", "client_facing", "team_wide"]
+    },
+    "share_posture_token": {
+      "enum": ["private", "workspace_shared", "org_shared"]
+    },
+    "action_token": {
+      "enum": [
+        "open_object",
+        "open_evidence",
+        "reopen_at_anchor",
+        "capture_answer",
+        "export_snapshot",
+        "share_packet"
+      ]
+    },
+    "scope_class": {
+      "enum": ["local_private", "shared_team", "managed_org"]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ]
+    },
+    "live_snapshot_class": {
+      "enum": ["live_only", "snapshot_capable", "snapshot_only"]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_ui",
+        "cli_headless",
+        "incident_workspace",
+        "support_export",
+        "admin_queue",
+        "release_evidence",
+        "managed_service",
+        "companion_browser"
+      ]
+    },
+    "token_def": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "label"],
+      "properties": {
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "coverage_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "label"],
+      "properties": {
+        "start": { "$ref": "#/$defs/non_empty_string" },
+        "end": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "evidence_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "label",
+        "evidence_ref",
+        "storage_class",
+        "freshness",
+        "origin",
+        "captured_at",
+        "is_live",
+        "can_refresh"
+      ],
+      "properties": {
+        "evidence_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_ref": { "$ref": "#/$defs/object_handle" },
+        "storage_class": { "$ref": "#/$defs/storage_token" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "origin": { "$ref": "#/$defs/non_empty_string" },
+        "captured_at": { "$ref": "#/$defs/non_empty_string" },
+        "is_live": { "type": "boolean" },
+        "can_refresh": { "type": "boolean" }
+      }
+    },
+    "digest_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_id", "at", "summary", "severity"],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "at": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "severity": { "$ref": "#/$defs/severity_token" }
+      }
+    },
+    "reopen_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor_class", "target_ref", "placeholder_label", "resolves_object", "note"],
+      "properties": {
+        "anchor_class": { "$ref": "#/$defs/anchor_token" },
+        "target_ref": {
+          "type": "string",
+          "description": "A canonical aureline:// handle for a resolvable anchor, or empty for a truthful placeholder.",
+          "pattern": "^(aureline://.*)?$"
+        },
+        "placeholder_label": { "type": "string" },
+        "resolves_object": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "description": "A truthful placeholder names what the object was, carries no live target, and resolves nothing.",
+          "if": {
+            "properties": { "anchor_class": { "const": "truthful_placeholder" } },
+            "required": ["anchor_class"]
+          },
+          "then": {
+            "properties": {
+              "target_ref": { "const": "" },
+              "placeholder_label": { "$ref": "#/$defs/non_empty_string" },
+              "resolves_object": { "const": false }
+            }
+          },
+          "else": {
+            "properties": {
+              "target_ref": { "$ref": "#/$defs/object_handle" },
+              "placeholder_label": { "const": "" },
+              "resolves_object": { "const": true }
+            }
+          }
+        }
+      ]
+    },
+    "object_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_id",
+        "object_ref",
+        "object_kind",
+        "object_label",
+        "severity",
+        "blocker",
+        "blocker_reason",
+        "freshness",
+        "latest_update_at",
+        "what_changed",
+        "reopen_anchor",
+        "evidence",
+        "events"
+      ],
+      "properties": {
+        "group_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "object_kind": { "$ref": "#/$defs/object_kind_token" },
+        "object_label": { "$ref": "#/$defs/non_empty_string" },
+        "severity": { "$ref": "#/$defs/severity_token" },
+        "blocker": { "$ref": "#/$defs/blocker_token" },
+        "blocker_reason": { "type": "string" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "latest_update_at": { "$ref": "#/$defs/non_empty_string" },
+        "what_changed": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_anchor": { "$ref": "#/$defs/reopen_anchor" },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence_item" } },
+        "events": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/digest_event" } }
+      }
+    },
+    "unresolved_question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_id",
+        "question",
+        "status",
+        "owner",
+        "linked_object_ref",
+        "next_safe_action",
+        "blocker_reason"
+      ],
+      "properties": {
+        "question_id": { "$ref": "#/$defs/non_empty_string" },
+        "question": { "$ref": "#/$defs/non_empty_string" },
+        "status": { "$ref": "#/$defs/question_status_token" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "linked_object_ref": { "$ref": "#/$defs/object_handle" },
+        "next_safe_action": { "$ref": "#/$defs/non_empty_string" },
+        "blocker_reason": { "type": "string" }
+      }
+    },
+    "continuity_export_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "share_posture",
+        "requires_boundary_ack",
+        "crosses_on_share",
+        "redaction_class",
+        "raw_payload_excluded"
+      ],
+      "properties": {
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "share_posture": { "$ref": "#/$defs/share_posture_token" },
+        "requires_boundary_ack": { "type": "boolean" },
+        "crosses_on_share": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "raw_payload_excluded": { "const": true }
+      }
+    },
+    "continuity_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "label", "local_safe", "routes_to_canonical_object", "summary"],
+      "properties": {
+        "action": { "$ref": "#/$defs/action_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "local_safe": { "type": "boolean" },
+        "routes_to_canonical_object": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "continuity_roll_up": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_count",
+        "sev1_count",
+        "sev2_count",
+        "sev3_count",
+        "sev4_count",
+        "blocked_object_count",
+        "live_link_count",
+        "cached_count",
+        "mirrored_count",
+        "snapshot_count",
+        "unresolved_open",
+        "unresolved_investigating",
+        "unresolved_blocked",
+        "unresolved_needs_decision",
+        "unresolved_total",
+        "latest_update_at",
+        "what_changed",
+        "what_unresolved",
+        "next_safe_action",
+        "headline"
+      ],
+      "properties": {
+        "object_count": { "type": "integer", "minimum": 0 },
+        "sev1_count": { "type": "integer", "minimum": 0 },
+        "sev2_count": { "type": "integer", "minimum": 0 },
+        "sev3_count": { "type": "integer", "minimum": 0 },
+        "sev4_count": { "type": "integer", "minimum": 0 },
+        "blocked_object_count": { "type": "integer", "minimum": 0 },
+        "live_link_count": { "type": "integer", "minimum": 0 },
+        "cached_count": { "type": "integer", "minimum": 0 },
+        "mirrored_count": { "type": "integer", "minimum": 0 },
+        "snapshot_count": { "type": "integer", "minimum": 0 },
+        "unresolved_open": { "type": "integer", "minimum": 0 },
+        "unresolved_investigating": { "type": "integer", "minimum": 0 },
+        "unresolved_blocked": { "type": "integer", "minimum": 0 },
+        "unresolved_needs_decision": { "type": "integer", "minimum": 0 },
+        "unresolved_total": { "type": "integer", "minimum": 0 },
+        "latest_update_at": { "$ref": "#/$defs/non_empty_string" },
+        "what_changed": { "$ref": "#/$defs/non_empty_string" },
+        "what_unresolved": { "$ref": "#/$defs/non_empty_string" },
+        "next_safe_action": { "$ref": "#/$defs/non_empty_string" },
+        "headline": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "continuity_handoff_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_id",
+        "packet",
+        "packet_id",
+        "kind",
+        "scope",
+        "share_posture",
+        "target_role",
+        "redaction_class",
+        "live_vs_snapshot",
+        "crosses_on_share",
+        "summary",
+        "coverage_window",
+        "object_count",
+        "object_groups",
+        "unresolved_questions",
+        "reopen_anchor",
+        "roll_up"
+      ],
+      "properties": {
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "packet": { "$ref": "#/$defs/packet_token" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/packet_kind_token" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "share_posture": { "$ref": "#/$defs/share_posture_token" },
+        "target_role": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "live_vs_snapshot": { "const": "snapshot_only" },
+        "crosses_on_share": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "coverage_window": { "$ref": "#/$defs/coverage_window" },
+        "object_count": { "type": "integer", "minimum": 0 },
+        "object_groups": { "type": "array", "items": { "$ref": "#/$defs/object_group" } },
+        "unresolved_questions": { "type": "array", "items": { "$ref": "#/$defs/unresolved_question" } },
+        "reopen_anchor": { "$ref": "#/$defs/reopen_anchor" },
+        "roll_up": { "$ref": "#/$defs/continuity_roll_up" }
+      }
+    },
+    "continuity_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet",
+        "packet_id",
+        "label",
+        "summary",
+        "kind",
+        "surface",
+        "surface_id",
+        "target_role",
+        "target_audience",
+        "owning_role",
+        "decision_right",
+        "scope",
+        "share_posture",
+        "consumed_by",
+        "default_redaction",
+        "live_vs_snapshot",
+        "coverage_window",
+        "boundary_note",
+        "reopen_anchor",
+        "export_gate",
+        "actions",
+        "object_groups",
+        "unresolved_questions",
+        "roll_up",
+        "export"
+      ],
+      "properties": {
+        "packet": { "$ref": "#/$defs/packet_token" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/packet_kind_token" },
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_role": { "$ref": "#/$defs/non_empty_string" },
+        "target_audience": { "$ref": "#/$defs/target_audience_token" },
+        "owning_role": { "$ref": "#/$defs/non_empty_string" },
+        "decision_right": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "share_posture": { "$ref": "#/$defs/share_posture_token" },
+        "consumed_by": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "default_redaction": { "$ref": "#/$defs/redaction_class" },
+        "live_vs_snapshot": { "$ref": "#/$defs/live_snapshot_class" },
+        "coverage_window": { "$ref": "#/$defs/coverage_window" },
+        "boundary_note": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_anchor": { "$ref": "#/$defs/reopen_anchor" },
+        "export_gate": { "$ref": "#/$defs/continuity_export_gate" },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/continuity_action" }
+        },
+        "object_groups": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/object_group" }
+        },
+        "unresolved_questions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/unresolved_question" }
+        },
+        "roll_up": { "$ref": "#/$defs/continuity_roll_up" },
+        "export": { "$ref": "#/$defs/continuity_handoff_export" }
+      }
+    },
+    "continuity_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}

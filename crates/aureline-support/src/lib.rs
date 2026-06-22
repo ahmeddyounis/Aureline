@@ -416,6 +416,7 @@ pub mod m5_fault_crash_certification;
 pub mod m5_fault_crash_governance;
 pub mod m5_forensic_packet;
 pub mod m5_fs_mutation_lineage_certification;
+pub mod m5_handoff_digests;
 pub mod m5_host_failure_drills;
 pub mod m5_mutation_lineage;
 pub mod m5_offboarding_continuity;
