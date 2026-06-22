@@ -408,6 +408,7 @@ pub mod incident_workspace_beta;
 pub mod local_history_timeline;
 pub mod locale_beta;
 pub mod m3_scenario_corpus;
+pub mod m5_action_plans;
 pub mod m5_cache_repair;
 pub mod m5_clear_data_review;
 pub mod m5_crash_intake_and_recovery;

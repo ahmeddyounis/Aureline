@@ -1,0 +1,431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/m5-action-plans.schema.json",
+  "title": "Aureline M5 action plans",
+  "description": "Boundary schema for the M5 action-plan set: the first real Aureline operator action-plan / checklist workspaces — incident response, support remediation, and admin access review — as ordered, ownership-bearing next-step plans over the same canonical incident/support/admin objects the detail surfaces own. Each plan binds the action-plan family from the operator-surface matrix. Every item keeps its local check-off (local_state) distinct from any external mutation (external_mutation_state); resolves_external_object is true only for an executed-and-confirmed mutation, never from a local check-off, so checking a box can never resolve a provider-owned object. Each item carries one of six controlled classes (observe, verify, mitigate, rollback, communicate, custom), a written intent, owner and decision right, approval/policy state with a reason when non-authorized, linked canonical evidence, a due/expiry pair with a deadline state, and the boundary it sits on. Each plan declares an explicit scope and share posture (private, workspace-shared, or org-shared) and an export gate naming exactly what crosses the boundary on share/export, and freezes a snapshot-only handoff that preserves every truth field plus a progress roll-up that reports local check-offs and confirmed external resolutions as separate counts. No endpoint URLs, hostnames, credentials, raw payloads, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_action_plans_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "summary",
+    "matrix_ref",
+    "matrix_record_kind",
+    "item_classes",
+    "local_states",
+    "external_link_classes",
+    "external_mutation_states",
+    "approval_states",
+    "time_states",
+    "share_postures",
+    "object_kinds",
+    "plans",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_action_plan_set" },
+    "m5_action_plans_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/ops/m5-action-plans.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_record_kind": { "const": "m5_operator_surface_matrix" },
+    "item_classes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "local_states": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "external_link_classes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "external_mutation_states": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "approval_states": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "time_states": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "share_postures": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "object_kinds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+    "plans": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/action_plan" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/plan_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "object_handle": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A canonical object handle.",
+      "pattern": "^aureline://"
+    },
+    "plan_token": {
+      "enum": ["incident_response", "support_remediation", "admin_access_review"]
+    },
+    "surface_token": {
+      "enum": [
+        "operational_overview_board",
+        "triage_inbox",
+        "action_plan",
+        "handoff_bundle",
+        "shift_digest",
+        "service_ownership_strip",
+        "runbook_step_card",
+        "maintenance_notice",
+        "failover_notice",
+        "embedded_boundary_state"
+      ]
+    },
+    "object_kind_token": {
+      "enum": [
+        "incident_record",
+        "support_case",
+        "admin_approval_request",
+        "release_gate",
+        "service_health_record",
+        "review_item"
+      ]
+    },
+    "item_class_token": {
+      "enum": ["observe", "verify", "mitigate", "rollback", "communicate", "custom"]
+    },
+    "local_state_token": {
+      "enum": ["not_started", "in_progress", "done_local", "skipped", "blocked_local"]
+    },
+    "external_link_token": {
+      "enum": [
+        "none",
+        "provider_ticket",
+        "deployment",
+        "managed_config",
+        "access_grant",
+        "external_record"
+      ]
+    },
+    "external_mutation_token": {
+      "enum": [
+        "not_applicable",
+        "not_started",
+        "previewed",
+        "approved",
+        "executed_confirmed",
+        "failed"
+      ]
+    },
+    "approval_token": {
+      "enum": [
+        "not_required",
+        "current",
+        "pending",
+        "blocked",
+        "expired",
+        "revoked",
+        "missing",
+        "forbidden"
+      ]
+    },
+    "time_state_token": {
+      "enum": ["no_deadline", "on_track", "due_soon", "overdue", "expired"]
+    },
+    "share_posture_token": {
+      "enum": ["private", "workspace_shared", "org_shared"]
+    },
+    "boundary_token": {
+      "enum": ["local", "remote", "managed", "mirrored_offline", "browser_webview", "imported_snapshot"]
+    },
+    "action_token": {
+      "enum": [
+        "open_item_detail",
+        "capture_evidence",
+        "draft_note",
+        "mark_item_done_local",
+        "preview_mutation",
+        "request_approval",
+        "export_plan_snapshot",
+        "share_plan"
+      ]
+    },
+    "scope_class": {
+      "enum": ["local_private", "shared_team", "managed_org"]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ]
+    },
+    "live_snapshot_class": {
+      "enum": ["live_only", "snapshot_capable", "snapshot_only"]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_ui",
+        "cli_headless",
+        "incident_workspace",
+        "support_export",
+        "admin_queue",
+        "release_evidence",
+        "managed_service",
+        "companion_browser"
+      ]
+    },
+    "token_def": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "label"],
+      "properties": {
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "plan_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "ordinal",
+        "title",
+        "item_class",
+        "intent",
+        "owner",
+        "decision_right",
+        "local_state",
+        "local_note",
+        "external_link",
+        "external_object_ref",
+        "external_mutation_state",
+        "mutation_note",
+        "resolves_external_object",
+        "approval_state",
+        "approval_reason",
+        "time_state",
+        "due",
+        "expiry",
+        "time_reason",
+        "boundary",
+        "linked_evidence"
+      ],
+      "properties": {
+        "item_id": { "$ref": "#/$defs/non_empty_string" },
+        "ordinal": { "type": "integer", "minimum": 1 },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "item_class": { "$ref": "#/$defs/item_class_token" },
+        "intent": { "$ref": "#/$defs/non_empty_string" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "decision_right": { "$ref": "#/$defs/non_empty_string" },
+        "local_state": { "$ref": "#/$defs/local_state_token" },
+        "local_note": { "type": "string" },
+        "external_link": { "$ref": "#/$defs/external_link_token" },
+        "external_object_ref": {
+          "type": "string",
+          "description": "A canonical aureline:// handle when the item is externally linked, or empty when the item is local-only.",
+          "pattern": "^(aureline://.*)?$"
+        },
+        "external_mutation_state": { "$ref": "#/$defs/external_mutation_token" },
+        "mutation_note": { "type": "string" },
+        "resolves_external_object": { "type": "boolean" },
+        "approval_state": { "$ref": "#/$defs/approval_token" },
+        "approval_reason": { "type": "string" },
+        "time_state": { "$ref": "#/$defs/time_state_token" },
+        "due": { "type": "string" },
+        "expiry": { "type": "string" },
+        "time_reason": { "type": "string" },
+        "boundary": { "$ref": "#/$defs/boundary_token" },
+        "linked_evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/object_handle" }
+        }
+      }
+    },
+    "plan_export_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "share_posture",
+        "requires_boundary_ack",
+        "crosses_on_share",
+        "redaction_class",
+        "raw_payload_excluded"
+      ],
+      "properties": {
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "share_posture": { "$ref": "#/$defs/share_posture_token" },
+        "requires_boundary_ack": { "type": "boolean" },
+        "crosses_on_share": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "raw_payload_excluded": { "const": true }
+      }
+    },
+    "plan_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "label", "local_safe", "routes_to_canonical_object", "summary"],
+      "properties": {
+        "action": { "$ref": "#/$defs/action_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "local_safe": { "type": "boolean" },
+        "routes_to_canonical_object": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "plan_progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_items",
+        "not_started",
+        "in_progress",
+        "done_local",
+        "skipped",
+        "blocked_local",
+        "external_linked",
+        "externally_resolved",
+        "mutations_in_flight",
+        "mutations_failed",
+        "overdue",
+        "expired",
+        "headline"
+      ],
+      "properties": {
+        "total_items": { "type": "integer", "minimum": 0 },
+        "not_started": { "type": "integer", "minimum": 0 },
+        "in_progress": { "type": "integer", "minimum": 0 },
+        "done_local": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "blocked_local": { "type": "integer", "minimum": 0 },
+        "external_linked": { "type": "integer", "minimum": 0 },
+        "externally_resolved": { "type": "integer", "minimum": 0 },
+        "mutations_in_flight": { "type": "integer", "minimum": 0 },
+        "mutations_failed": { "type": "integer", "minimum": 0 },
+        "overdue": { "type": "integer", "minimum": 0 },
+        "expired": { "type": "integer", "minimum": 0 },
+        "headline": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "plan_handoff_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_id",
+        "plan",
+        "plan_id",
+        "subject_object_ref",
+        "scope",
+        "share_posture",
+        "plan_owner",
+        "redaction_class",
+        "live_vs_snapshot",
+        "crosses_on_share",
+        "summary",
+        "item_count",
+        "items",
+        "progress"
+      ],
+      "properties": {
+        "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+        "plan": { "$ref": "#/$defs/plan_token" },
+        "plan_id": { "$ref": "#/$defs/non_empty_string" },
+        "subject_object_ref": { "$ref": "#/$defs/object_handle" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "share_posture": { "$ref": "#/$defs/share_posture_token" },
+        "plan_owner": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "live_vs_snapshot": { "const": "snapshot_only" },
+        "crosses_on_share": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "item_count": { "type": "integer", "minimum": 0 },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/plan_item" }
+        },
+        "progress": { "$ref": "#/$defs/plan_progress" }
+      }
+    },
+    "action_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plan",
+        "plan_id",
+        "label",
+        "summary",
+        "surface",
+        "surface_id",
+        "subject_object_ref",
+        "subject_object_kind",
+        "owning_role",
+        "decision_right",
+        "scope",
+        "share_posture",
+        "consumed_by",
+        "default_redaction",
+        "live_vs_snapshot",
+        "boundary_note",
+        "export_gate",
+        "actions",
+        "items",
+        "progress",
+        "handoff"
+      ],
+      "properties": {
+        "plan": { "$ref": "#/$defs/plan_token" },
+        "plan_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "subject_object_ref": { "$ref": "#/$defs/object_handle" },
+        "subject_object_kind": { "$ref": "#/$defs/object_kind_token" },
+        "owning_role": { "$ref": "#/$defs/non_empty_string" },
+        "decision_right": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "share_posture": { "$ref": "#/$defs/share_posture_token" },
+        "consumed_by": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "default_redaction": { "$ref": "#/$defs/redaction_class" },
+        "live_vs_snapshot": { "$ref": "#/$defs/live_snapshot_class" },
+        "boundary_note": { "$ref": "#/$defs/non_empty_string" },
+        "export_gate": { "$ref": "#/$defs/plan_export_gate" },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/plan_action" }
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/plan_item" }
+        },
+        "progress": { "$ref": "#/$defs/plan_progress" },
+        "handoff": { "$ref": "#/$defs/plan_handoff_bundle" }
+      }
+    },
+    "plan_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}
