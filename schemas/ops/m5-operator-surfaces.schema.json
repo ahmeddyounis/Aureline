@@ -1,0 +1,336 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/m5-operator-surfaces.schema.json",
+  "title": "Aureline M5 operator-surface matrix",
+  "description": "Boundary schema for the M5 operator-surface matrix: the frozen, typed contract for Aureline's operator-facing overview boards, triage inboxes, action plans, evidence handoff bundles, shift digests, service-ownership / on-call strips, runbook-step cards, maintenance / read-only / drain notices, failover / migration notices, and embedded provider/auth boundary states. The matrix names each surface family, cites the canonical schemas/ops boundary schema(s) and producing crate(s) it binds, pins one shared state vocabulary spanning operational overview, triage, maintenance, failover, reconciling, boundary drift, and embedded browser/auth handoff, and covers the local, remote, managed, mirrored/offline, browser/webview, and imported-snapshot operator paths. Stable surface ids, path ids, state tokens, ownership fields, freshness rules, redaction classes, local-versus-shared scope, and live-versus-snapshot labels are defined once and reused by shell UI, CLI/headless, support export, and companion/browser consumers. No endpoint URLs, hostnames, credentials, raw payloads, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_operator_surfaces_schema_version",
+    "schema_ref",
+    "matrix_id",
+    "as_of",
+    "summary",
+    "shared_vocabulary",
+    "state_vocabulary",
+    "surfaces",
+    "operator_paths",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_operator_surface_matrix" },
+    "m5_operator_surfaces_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/ops/m5-operator-surfaces.schema.json" },
+    "matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "shared_vocabulary": { "$ref": "#/$defs/shared_vocabulary" },
+    "state_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/state_term" }
+    },
+    "surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/operator_surface_entry" }
+    },
+    "operator_paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/operator_path_entry" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/matrix_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "surface_token": {
+      "enum": [
+        "operational_overview_board",
+        "triage_inbox",
+        "action_plan",
+        "handoff_bundle",
+        "shift_digest",
+        "service_ownership_strip",
+        "runbook_step_card",
+        "maintenance_notice",
+        "failover_notice",
+        "embedded_boundary_state"
+      ]
+    },
+    "state_token": {
+      "enum": [
+        "clear",
+        "unconfirmed",
+        "attention",
+        "blocked",
+        "scheduled_window",
+        "read_only_window",
+        "drain_window",
+        "reconciling",
+        "failover_in_progress",
+        "migration_in_progress",
+        "boundary_drift_recheck_required",
+        "embedded_boundary_handoff",
+        "imported_snapshot_no_live",
+        "unknown_requires_review"
+      ]
+    },
+    "path_token": {
+      "enum": [
+        "local",
+        "remote",
+        "managed",
+        "mirrored_offline",
+        "browser_webview",
+        "imported_snapshot"
+      ]
+    },
+    "deployment_profile_class": {
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ]
+    },
+    "scope_class": {
+      "enum": ["local_private", "shared_team", "managed_org"]
+    },
+    "live_snapshot_class": {
+      "enum": ["live_only", "snapshot_capable", "snapshot_only"]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_ui",
+        "cli_headless",
+        "incident_workspace",
+        "support_export",
+        "admin_queue",
+        "release_evidence",
+        "managed_service",
+        "companion_browser"
+      ]
+    },
+    "write_posture_class": {
+      "enum": [
+        "writes_live",
+        "publish_later_queued",
+        "local_draft_preserved",
+        "read_only_replay",
+        "blocked_pending_boundary_recheck"
+      ]
+    },
+    "token_def": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "label"],
+      "properties": {
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "shared_vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_profiles",
+        "redaction_classes",
+        "trust_postures",
+        "scope_classes",
+        "live_snapshot_classes",
+        "consumer_classes",
+        "boundary_axes",
+        "source_schema_refs"
+      ],
+      "properties": {
+        "deployment_profiles": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+        "redaction_classes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+        "trust_postures": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+        "scope_classes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+        "live_snapshot_classes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+        "consumer_classes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+        "boundary_axes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/token_def" } },
+        "source_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_ref" }
+        }
+      }
+    },
+    "state_term": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "token", "label", "blocking_default", "derived_from_refs"],
+      "properties": {
+        "state": { "$ref": "#/$defs/state_token" },
+        "token": { "$ref": "#/$defs/state_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "blocking_default": { "type": "boolean" },
+        "derived_from_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_ref" }
+        }
+      }
+    },
+    "ownership_field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_id", "label", "required"],
+      "properties": {
+        "field_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "required": { "type": "boolean" }
+      }
+    },
+    "freshness_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["age_tokens", "downgrades_green", "rule"],
+      "properties": {
+        "age_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "downgrades_green": { "type": "boolean" },
+        "rule": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "operator_surface_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_id",
+        "label",
+        "summary",
+        "canonical_schema_refs",
+        "produced_by_refs",
+        "consumed_by",
+        "applicable_states",
+        "ownership_fields",
+        "freshness_rule",
+        "default_redaction",
+        "scope",
+        "live_vs_snapshot",
+        "captures_user_writes",
+        "local_safe_actions",
+        "publish_later_capture",
+        "boundary_honest",
+        "boundary_note",
+        "typed_not_screenshot_only"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_ref" }
+        },
+        "produced_by_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_ref" }
+        },
+        "consumed_by": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "applicable_states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/state_token" }
+        },
+        "ownership_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ownership_field" }
+        },
+        "freshness_rule": { "$ref": "#/$defs/freshness_rule" },
+        "default_redaction": { "$ref": "#/$defs/redaction_class" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "live_vs_snapshot": { "$ref": "#/$defs/live_snapshot_class" },
+        "captures_user_writes": { "type": "boolean" },
+        "local_safe_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "publish_later_capture": { "type": "boolean" },
+        "boundary_honest": { "type": "boolean" },
+        "boundary_note": { "$ref": "#/$defs/non_empty_string" },
+        "typed_not_screenshot_only": { "type": "boolean" }
+      }
+    },
+    "operator_path_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "path_id",
+        "label",
+        "summary",
+        "deployment_profiles",
+        "default_live_vs_snapshot",
+        "write_posture",
+        "boundary_recheck_required",
+        "local_safe_baseline_ref",
+        "notes"
+      ],
+      "properties": {
+        "path": { "$ref": "#/$defs/path_token" },
+        "path_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_class" }
+        },
+        "default_live_vs_snapshot": { "$ref": "#/$defs/live_snapshot_class" },
+        "write_posture": { "$ref": "#/$defs/write_posture_class" },
+        "boundary_recheck_required": { "type": "boolean" },
+        "local_safe_baseline_ref": { "$ref": "#/$defs/repo_ref" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "matrix_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}

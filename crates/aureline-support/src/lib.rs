@@ -418,6 +418,7 @@ pub mod m5_fs_mutation_lineage_certification;
 pub mod m5_host_failure_drills;
 pub mod m5_mutation_lineage;
 pub mod m5_offboarding_continuity;
+pub mod m5_operator_surfaces;
 pub mod m5_pin_retention;
 pub mod m5_precedence_inspector;
 pub mod m5_reactive_governance;
