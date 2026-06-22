@@ -1,0 +1,445 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/m5-response-panes.schema.json",
+  "title": "Aureline M5 operator response panes",
+  "description": "Boundary schema for the M5 response-pane set: the first real Aureline operator response surfaces — service-ownership / on-call strips, runbook-guided response panes, and local-outage continuity views — bound to the operator-surface matrix. Each strip names the service, environment, primary and backup owner, active on-call lane, advisory-versus-authoritative source, escalation action, and last-checked freshness; its effective state is the computed no-silent-green downgrade of its displayed state and freshness, so a stale strip is never reported clear. Each runbook step declares its intent (observe, verify, mitigate, rollback, communicate), its local-versus-remote/managed action boundary, dry-run availability, approval gate and state, and a rollback note; its execution admission is the computed preview/approval rule, so a mutating step is never silently run. Each continuity view names which boundary failed, what still works locally, what is blocked, and the next safe action, and offers publish-later capture while managed writes are blocked. No endpoint URLs, hostnames, credentials, raw payloads, or absolute paths cross this boundary; the record carries opaque aureline:// object handles, repo-relative refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_response_panes_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "summary",
+    "matrix_ref",
+    "matrix_record_kind",
+    "step_intents",
+    "action_boundaries",
+    "execution_classes",
+    "service_strips",
+    "runbook_panes",
+    "continuity_views",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_response_pane_set" },
+    "m5_response_panes_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/ops/m5-response-panes.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_record_kind": { "const": "m5_operator_surface_matrix" },
+    "step_intents": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "action_boundaries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "execution_classes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "service_strips": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/service_ownership_strip" }
+    },
+    "runbook_panes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/runbook_response_pane" }
+    },
+    "continuity_views": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/continuity_view" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/pane_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "object_handle": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A canonical object handle.",
+      "pattern": "^aureline://"
+    },
+    "surface_token": {
+      "enum": [
+        "operational_overview_board",
+        "triage_inbox",
+        "action_plan",
+        "handoff_bundle",
+        "shift_digest",
+        "service_ownership_strip",
+        "runbook_step_card",
+        "maintenance_notice",
+        "failover_notice",
+        "embedded_boundary_state"
+      ]
+    },
+    "state_token": {
+      "enum": [
+        "clear",
+        "unconfirmed",
+        "attention",
+        "blocked",
+        "scheduled_window",
+        "read_only_window",
+        "drain_window",
+        "reconciling",
+        "failover_in_progress",
+        "migration_in_progress",
+        "boundary_drift_recheck_required",
+        "embedded_boundary_handoff",
+        "imported_snapshot_no_live",
+        "unknown_requires_review"
+      ]
+    },
+    "freshness_token": {
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"]
+    },
+    "scope_class": {
+      "enum": ["local_private", "shared_team", "managed_org"]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ]
+    },
+    "live_snapshot_class": {
+      "enum": ["live_only", "snapshot_capable", "snapshot_only"]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_ui",
+        "cli_headless",
+        "incident_workspace",
+        "support_export",
+        "admin_queue",
+        "release_evidence",
+        "managed_service",
+        "companion_browser"
+      ]
+    },
+    "authority_source_token": {
+      "enum": ["authoritative", "advisory_mirror", "advisory_third_party"]
+    },
+    "local_continuity_token": {
+      "enum": [
+        "fully_local",
+        "local_core_safe",
+        "mirror_read_only",
+        "remote_required_no_fallback"
+      ]
+    },
+    "step_intent_token": {
+      "enum": ["observe", "verify", "mitigate", "rollback", "communicate"]
+    },
+    "action_boundary_token": {
+      "enum": [
+        "local_only",
+        "remote_workspace",
+        "managed_control_plane",
+        "browser_handoff"
+      ]
+    },
+    "approval_gate_token": {
+      "enum": ["none", "single_approval", "dual_control"]
+    },
+    "approval_state_token": {
+      "enum": ["not_required", "pending", "granted", "expired"]
+    },
+    "step_execution_token": {
+      "enum": [
+        "run_local",
+        "preview_before_apply",
+        "blocked_awaiting_approval",
+        "blocked_by_boundary",
+        "external_browser_handoff",
+        "read_only_imported_snapshot"
+      ]
+    },
+    "continuity_kind_token": {
+      "enum": [
+        "planned_maintenance",
+        "read_only_window",
+        "drain_window",
+        "regional_failover",
+        "tenant_migration",
+        "provider_outage"
+      ]
+    },
+    "failed_boundary_token": {
+      "enum": [
+        "none",
+        "control_plane",
+        "region",
+        "tenant",
+        "provider_endpoint",
+        "network_reachability"
+      ]
+    },
+    "local_capability_token": {
+      "enum": [
+        "edit",
+        "save",
+        "search",
+        "git_versioning",
+        "build_test",
+        "export_diagnostics",
+        "inspect_evidence",
+        "publish_later",
+        "open_local_history"
+      ]
+    },
+    "next_safe_action_token": {
+      "enum": [
+        "continue_local",
+        "publish_later",
+        "export_diagnostics",
+        "review_new_boundary",
+        "retry_when_restored",
+        "open_continuity_packet"
+      ]
+    },
+    "token_def": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "label"],
+      "properties": {
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "escalation_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "label", "routes_to_ref", "summary"],
+      "properties": {
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "routes_to_ref": { "$ref": "#/$defs/object_handle" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "service_ownership_strip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strip_id",
+        "object_ref",
+        "service_family",
+        "environment",
+        "surface",
+        "surface_id",
+        "primary_owner",
+        "backup_owner",
+        "on_call_lane",
+        "decision_right",
+        "authority_source",
+        "escalation",
+        "displayed_state",
+        "freshness",
+        "effective_state",
+        "local_continuity",
+        "evidence_ref",
+        "scope",
+        "open_detail_ref"
+      ],
+      "properties": {
+        "strip_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "service_family": { "$ref": "#/$defs/non_empty_string" },
+        "environment": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "const": "service_ownership_strip" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "primary_owner": { "$ref": "#/$defs/non_empty_string" },
+        "backup_owner": { "$ref": "#/$defs/non_empty_string" },
+        "on_call_lane": { "$ref": "#/$defs/non_empty_string" },
+        "decision_right": { "$ref": "#/$defs/non_empty_string" },
+        "authority_source": { "$ref": "#/$defs/authority_source_token" },
+        "escalation": { "$ref": "#/$defs/escalation_action" },
+        "displayed_state": { "$ref": "#/$defs/state_token" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "effective_state": { "$ref": "#/$defs/state_token" },
+        "local_continuity": { "$ref": "#/$defs/local_continuity_token" },
+        "evidence_ref": { "$ref": "#/$defs/object_handle" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "open_detail_ref": { "$ref": "#/$defs/object_handle" }
+      }
+    },
+    "runbook_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "ordinal",
+        "title",
+        "object_ref",
+        "intent",
+        "boundary",
+        "target_scope",
+        "dry_run_available",
+        "approval_gate",
+        "approval_state",
+        "rollback_note",
+        "boundary_state",
+        "live_target_present",
+        "execution",
+        "evidence_ref",
+        "open_detail_ref"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/non_empty_string" },
+        "ordinal": { "type": "integer", "minimum": 1 },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "intent": { "$ref": "#/$defs/step_intent_token" },
+        "boundary": { "$ref": "#/$defs/action_boundary_token" },
+        "target_scope": { "$ref": "#/$defs/non_empty_string" },
+        "dry_run_available": { "type": "boolean" },
+        "approval_gate": { "$ref": "#/$defs/approval_gate_token" },
+        "approval_state": { "$ref": "#/$defs/approval_state_token" },
+        "rollback_note": { "type": "string" },
+        "boundary_state": { "$ref": "#/$defs/state_token" },
+        "live_target_present": { "type": "boolean" },
+        "execution": { "$ref": "#/$defs/step_execution_token" },
+        "evidence_ref": { "$ref": "#/$defs/object_handle" },
+        "open_detail_ref": { "$ref": "#/$defs/object_handle" }
+      }
+    },
+    "runbook_response_pane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pane_id",
+        "object_ref",
+        "title",
+        "summary",
+        "surface",
+        "surface_id",
+        "incident_ref",
+        "owner",
+        "decision_right",
+        "scope",
+        "default_redaction",
+        "consumed_by",
+        "live_vs_snapshot",
+        "steps",
+        "open_detail_ref"
+      ],
+      "properties": {
+        "pane_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "const": "runbook_step_card" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "incident_ref": { "$ref": "#/$defs/object_handle" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "decision_right": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "default_redaction": { "$ref": "#/$defs/redaction_class" },
+        "consumed_by": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "live_vs_snapshot": { "$ref": "#/$defs/live_snapshot_class" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/runbook_step" }
+        },
+        "open_detail_ref": { "$ref": "#/$defs/object_handle" }
+      }
+    },
+    "continuity_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "object_ref",
+        "title",
+        "summary",
+        "kind",
+        "surface",
+        "surface_id",
+        "owner",
+        "displayed_state",
+        "freshness",
+        "effective_state",
+        "failed_boundary",
+        "local_capabilities",
+        "blocked_capabilities",
+        "next_safe_action",
+        "publish_later_capture",
+        "scope",
+        "open_detail_ref"
+      ],
+      "properties": {
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/continuity_kind_token" },
+        "surface": {
+          "enum": ["maintenance_notice", "failover_notice"]
+        },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "displayed_state": { "$ref": "#/$defs/state_token" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "effective_state": { "$ref": "#/$defs/state_token" },
+        "failed_boundary": { "$ref": "#/$defs/failed_boundary_token" },
+        "local_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/local_capability_token" }
+        },
+        "blocked_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "next_safe_action": { "$ref": "#/$defs/next_safe_action_token" },
+        "publish_later_capture": { "type": "boolean" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "open_detail_ref": { "$ref": "#/$defs/object_handle" }
+      }
+    },
+    "pane_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}

@@ -426,6 +426,7 @@ pub mod m5_pin_retention;
 pub mod m5_precedence_inspector;
 pub mod m5_reactive_governance;
 pub mod m5_records_policy_governance;
+pub mod m5_response_panes;
 pub mod m5_storage_certification;
 pub mod m5_storage_governance;
 pub mod m5_storage_inspector;
