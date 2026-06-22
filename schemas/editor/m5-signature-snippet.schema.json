@@ -1,0 +1,481 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/editor/m5-signature-snippet.schema.json",
+  "title": "Aureline signature-help and snippet-session model",
+  "description": "Boundary schema for the one canonical, frozen, export-safe model that binds signature-help cards and snippet-session strips into a single typing-loop contract across the claimed editor families (code, config, notebook, request, SQL, docs code-block, generated, protected, partial-index, and large-file). Each surface snapshot pins a visible degrade posture and resolves an optional signature card and snippet strip. A signature card always exposes its active overload and active parameter, stays non-blocking and never obscures the active line, and discloses a limited cue when stale. A snippet strip always exposes its placeholder count, active placeholder index, and a visible exit path; it never hijacks Tab invisibly; it stays coherent for the whole selection set or degrades explicitly to one disclosed composition target under IME composition; and it discloses any import / generated-scaffolding / dependency / config side effect before commit. Every card and strip embeds the canonical assist source/provenance descriptor and derives the canonical signature-help / snippet-session record from the same data so the surface binding and the shared session model cannot drift. The model proves these honesty invariants over its own data. No file contents, credential bodies, or raw provider payloads cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_signature_snippet_schema_version",
+    "schema_ref",
+    "model_id",
+    "as_of",
+    "signature_state_classes",
+    "snippet_state_classes",
+    "ime_posture_classes",
+    "cursor_posture_classes",
+    "accept_side_effect_classes",
+    "block_reason_classes",
+    "surface_snapshots",
+    "invariants",
+    "raw_payload_excluded",
+    "summary"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_signature_snippet_model" },
+    "m5_signature_snippet_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/editor/m5-signature-snippet.schema.json" },
+    "model_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "signature_state_classes": { "$ref": "#/$defs/class_descriptor_array" },
+    "snippet_state_classes": { "$ref": "#/$defs/class_descriptor_array" },
+    "ime_posture_classes": { "$ref": "#/$defs/class_descriptor_array" },
+    "cursor_posture_classes": { "$ref": "#/$defs/class_descriptor_array" },
+    "accept_side_effect_classes": { "$ref": "#/$defs/class_descriptor_array" },
+    "block_reason_classes": { "$ref": "#/$defs/class_descriptor_array" },
+    "surface_snapshots": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/surface_snapshot" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/invariant" }
+    },
+    "raw_payload_excluded": { "const": true },
+    "summary": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "signature_state": {
+      "enum": [
+        "hidden",
+        "visible_single",
+        "visible_overloaded",
+        "stale_pending_refresh",
+        "unavailable"
+      ]
+    },
+    "snippet_state": {
+      "enum": ["inactive", "active", "exited", "cancelled"]
+    },
+    "ime_posture": {
+      "enum": [
+        "no_composition",
+        "composition_active_pass_through",
+        "composition_primary_caret_only",
+        "composition_blocked"
+      ]
+    },
+    "cursor_posture": {
+      "enum": [
+        "stable",
+        "remapped",
+        "recoverable_after_movement",
+        "lost_outside_session"
+      ]
+    },
+    "tab_behavior": {
+      "enum": [
+        "traverse_placeholders_while_active",
+        "exit_on_final_placeholder",
+        "pass_through_outside_session"
+      ]
+    },
+    "placement_class": {
+      "enum": ["non_blocking_near_caret", "moved_to_detail", "hidden_unavailable"]
+    },
+    "accept_side_effect": {
+      "enum": [
+        "edits_target_range_only",
+        "adds_import",
+        "adds_generated_scaffolding",
+        "adds_dependency",
+        "adds_config_edit"
+      ]
+    },
+    "block_reason": {
+      "enum": [
+        "large_file_suppressed",
+        "partial_index_pending",
+        "restricted_read_only",
+        "provider_unavailable",
+        "stale_awaiting_refresh"
+      ]
+    },
+    "degrade_class": {
+      "enum": [
+        "full_fidelity",
+        "source_labeled_fallback",
+        "read_only_no_apply",
+        "suppressed_large_file",
+        "pending_partial_index",
+        "blocked_unavailable"
+      ]
+    },
+    "surface_class": {
+      "enum": [
+        "code_file",
+        "config_file",
+        "notebook_cell",
+        "request_editor",
+        "sql_editor",
+        "docs_code_block",
+        "generated_file",
+        "protected_file",
+        "partial_index_state",
+        "large_file_restricted"
+      ]
+    },
+    "class_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class_token", "label", "note"],
+      "properties": {
+        "class_token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "class_descriptor_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/class_descriptor" }
+    },
+    "invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "type": "boolean" }
+      }
+    },
+    "assist_source_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_descriptor_id",
+        "source_family",
+        "source_label_class",
+        "source_label",
+        "provider_id",
+        "router_decision_ref",
+        "source_ref",
+        "support_class",
+        "freshness_class",
+        "scope_claim_class",
+        "completeness_class",
+        "scope_limit_classes",
+        "locality_class",
+        "degraded_state_class",
+        "summary"
+      ],
+      "properties": {
+        "source_descriptor_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_family": { "type": "string" },
+        "source_label_class": { "type": "string" },
+        "source_label": { "$ref": "#/$defs/non_empty_string" },
+        "provider_id": { "type": ["string", "null"] },
+        "router_decision_ref": { "type": ["string", "null"] },
+        "source_ref": { "type": ["string", "null"] },
+        "support_class": { "type": "string" },
+        "freshness_class": { "type": "string" },
+        "scope_claim_class": { "type": "string" },
+        "completeness_class": { "type": "string" },
+        "scope_limit_classes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "locality_class": { "type": "string" },
+        "degraded_state_class": { "type": "string" },
+        "summary": { "type": "string" }
+      }
+    },
+    "signature_help_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_schema_version",
+        "signature_help_id",
+        "assist_session_id",
+        "document_ref",
+        "language_id",
+        "invocation_anchor_ref",
+        "source",
+        "active_signature_index",
+        "signature_count",
+        "active_parameter_index",
+        "parameter_count",
+        "placement_class",
+        "non_blocking",
+        "ime_composition_safe",
+        "dismiss_command_id_ref",
+        "redaction_class",
+        "captured_at",
+        "accessibility_label",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "assist_signature_help_record" },
+        "assist_schema_version": { "type": "integer" },
+        "signature_help_id": { "$ref": "#/$defs/non_empty_string" },
+        "assist_session_id": { "$ref": "#/$defs/non_empty_string" },
+        "document_ref": { "$ref": "#/$defs/non_empty_string" },
+        "language_id": { "$ref": "#/$defs/non_empty_string" },
+        "invocation_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source": { "$ref": "#/$defs/assist_source_descriptor" },
+        "active_signature_index": { "type": "integer", "minimum": 0 },
+        "signature_count": { "type": "integer", "minimum": 0 },
+        "active_parameter_index": { "type": "integer", "minimum": 0 },
+        "parameter_count": { "type": "integer", "minimum": 0 },
+        "placement_class": { "$ref": "#/$defs/placement_class" },
+        "non_blocking": { "type": "boolean" },
+        "ime_composition_safe": { "type": "boolean" },
+        "dismiss_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "type": "string" },
+        "captured_at": { "type": "string" },
+        "accessibility_label": { "$ref": "#/$defs/non_empty_string" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "snippet_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_schema_version",
+        "snippet_session_id",
+        "document_ref",
+        "language_id",
+        "source",
+        "state_class",
+        "active_placeholder_index",
+        "placeholder_count",
+        "selection_count",
+        "multi_cursor_compatible",
+        "tab_behavior_class",
+        "unrelated_key_policy_class",
+        "ime_posture_class",
+        "cursor_posture_class",
+        "primary_caret_ref",
+        "next_placeholder_command_id_ref",
+        "previous_placeholder_command_id_ref",
+        "exit_command_id_ref",
+        "escape_command_id_ref",
+        "visible_strip_required",
+        "redaction_class",
+        "captured_at",
+        "accessibility_label",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "assist_snippet_session_record" },
+        "assist_schema_version": { "type": "integer" },
+        "snippet_session_id": { "$ref": "#/$defs/non_empty_string" },
+        "document_ref": { "$ref": "#/$defs/non_empty_string" },
+        "language_id": { "$ref": "#/$defs/non_empty_string" },
+        "source": { "$ref": "#/$defs/assist_source_descriptor" },
+        "state_class": { "$ref": "#/$defs/snippet_state" },
+        "active_placeholder_index": { "type": ["integer", "null"], "minimum": 0 },
+        "placeholder_count": { "type": "integer", "minimum": 0 },
+        "selection_count": { "type": "integer", "minimum": 0 },
+        "multi_cursor_compatible": { "type": "boolean" },
+        "tab_behavior_class": { "$ref": "#/$defs/tab_behavior" },
+        "unrelated_key_policy_class": { "type": "string" },
+        "ime_posture_class": { "$ref": "#/$defs/ime_posture" },
+        "cursor_posture_class": { "$ref": "#/$defs/cursor_posture" },
+        "primary_caret_ref": { "type": ["string", "null"] },
+        "next_placeholder_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "previous_placeholder_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "exit_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "escape_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "visible_strip_required": { "type": "boolean" },
+        "redaction_class": { "type": "string" },
+        "captured_at": { "type": "string" },
+        "accessibility_label": { "$ref": "#/$defs/non_empty_string" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "snippet_exit_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "next_placeholder_command_id_ref",
+        "previous_placeholder_command_id_ref",
+        "exit_command_id_ref",
+        "escape_command_id_ref",
+        "exits_on_final_placeholder",
+        "exit_label"
+      ],
+      "properties": {
+        "next_placeholder_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "previous_placeholder_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "exit_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "escape_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "exits_on_final_placeholder": { "type": "boolean" },
+        "exit_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "signature_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "card_id",
+        "state_class",
+        "source",
+        "active_signature_index",
+        "signature_count",
+        "active_parameter_index",
+        "parameter_count",
+        "placement_class",
+        "non_blocking",
+        "ime_composition_safe",
+        "obscures_active_line",
+        "stale_disclosed",
+        "accept_side_effect",
+        "side_effect_summary",
+        "commit_disclosure_required",
+        "preview_required",
+        "blocked_reason",
+        "keyboard_reachable",
+        "dismiss_command_id_ref",
+        "non_color_differentiator",
+        "accessibility_label",
+        "canonical_record"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_signature_card" },
+        "card_id": { "$ref": "#/$defs/non_empty_string" },
+        "state_class": { "$ref": "#/$defs/signature_state" },
+        "source": { "$ref": "#/$defs/assist_source_descriptor" },
+        "active_signature_index": { "type": "integer", "minimum": 0 },
+        "signature_count": { "type": "integer", "minimum": 0 },
+        "active_parameter_index": { "type": "integer", "minimum": 0 },
+        "parameter_count": { "type": "integer", "minimum": 0 },
+        "placement_class": { "$ref": "#/$defs/placement_class" },
+        "non_blocking": { "type": "boolean" },
+        "ime_composition_safe": { "type": "boolean" },
+        "obscures_active_line": { "const": false },
+        "stale_disclosed": { "type": "boolean" },
+        "accept_side_effect": { "$ref": "#/$defs/accept_side_effect" },
+        "side_effect_summary": { "type": ["string", "null"] },
+        "commit_disclosure_required": { "type": "boolean" },
+        "preview_required": { "type": "boolean" },
+        "blocked_reason": {
+          "oneOf": [{ "$ref": "#/$defs/block_reason" }, { "type": "null" }]
+        },
+        "keyboard_reachable": { "type": "boolean" },
+        "dismiss_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "non_color_differentiator": { "$ref": "#/$defs/non_empty_string" },
+        "accessibility_label": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_record": { "$ref": "#/$defs/signature_help_record" }
+      }
+    },
+    "snippet_strip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "strip_id",
+        "state_class",
+        "source",
+        "active_placeholder_index",
+        "placeholder_count",
+        "selection_count",
+        "multi_cursor_compatible",
+        "tab_behavior_class",
+        "ime_posture_class",
+        "cursor_posture_class",
+        "primary_caret_ref",
+        "composition_disclosure_required",
+        "visible_strip_required",
+        "tab_capture_disclosed",
+        "exit_path",
+        "accept_side_effect",
+        "side_effect_summary",
+        "commit_disclosure_required",
+        "preview_required",
+        "blocked_reason",
+        "keyboard_reachable",
+        "non_color_differentiator",
+        "accessibility_label",
+        "canonical_record"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_snippet_strip" },
+        "strip_id": { "$ref": "#/$defs/non_empty_string" },
+        "state_class": { "$ref": "#/$defs/snippet_state" },
+        "source": { "$ref": "#/$defs/assist_source_descriptor" },
+        "active_placeholder_index": { "type": ["integer", "null"], "minimum": 0 },
+        "placeholder_count": { "type": "integer", "minimum": 0 },
+        "selection_count": { "type": "integer", "minimum": 0 },
+        "multi_cursor_compatible": { "type": "boolean" },
+        "tab_behavior_class": { "$ref": "#/$defs/tab_behavior" },
+        "ime_posture_class": { "$ref": "#/$defs/ime_posture" },
+        "cursor_posture_class": { "$ref": "#/$defs/cursor_posture" },
+        "primary_caret_ref": { "type": ["string", "null"] },
+        "composition_disclosure_required": { "type": "boolean" },
+        "visible_strip_required": { "type": "boolean" },
+        "tab_capture_disclosed": { "type": "boolean" },
+        "exit_path": { "$ref": "#/$defs/snippet_exit_path" },
+        "accept_side_effect": { "$ref": "#/$defs/accept_side_effect" },
+        "side_effect_summary": { "type": ["string", "null"] },
+        "commit_disclosure_required": { "type": "boolean" },
+        "preview_required": { "type": "boolean" },
+        "blocked_reason": {
+          "oneOf": [{ "$ref": "#/$defs/block_reason" }, { "type": "null" }]
+        },
+        "keyboard_reachable": { "type": "boolean" },
+        "non_color_differentiator": { "$ref": "#/$defs/non_empty_string" },
+        "accessibility_label": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_record": { "$ref": "#/$defs/snippet_session_record" }
+      }
+    },
+    "surface_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "m5_signature_snippet_schema_version",
+        "snapshot_id",
+        "surface_class",
+        "workspace_id",
+        "document_ref",
+        "language_id",
+        "degrade_class",
+        "degrade_label",
+        "signature_card",
+        "snippet_strip",
+        "disclosure_required",
+        "accessibility_summary",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_signature_snippet_snapshot" },
+        "m5_signature_snippet_schema_version": { "type": "integer", "const": 1 },
+        "snapshot_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "document_ref": { "$ref": "#/$defs/non_empty_string" },
+        "language_id": { "$ref": "#/$defs/non_empty_string" },
+        "degrade_class": { "$ref": "#/$defs/degrade_class" },
+        "degrade_label": { "$ref": "#/$defs/non_empty_string" },
+        "signature_card": {
+          "oneOf": [{ "$ref": "#/$defs/signature_card" }, { "type": "null" }]
+        },
+        "snippet_strip": {
+          "oneOf": [{ "$ref": "#/$defs/snippet_strip" }, { "type": "null" }]
+        },
+        "disclosure_required": { "type": "boolean" },
+        "accessibility_summary": { "$ref": "#/$defs/non_empty_string" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

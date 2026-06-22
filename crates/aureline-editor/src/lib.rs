@@ -19,6 +19,7 @@ pub mod large_file_posture;
 pub mod m5_assist_descriptors;
 pub mod m5_completion_rows;
 pub mod m5_editor_assist;
+pub mod m5_signature_snippet;
 pub mod modes;
 pub mod orientation;
 pub mod orientation_aids;
@@ -99,6 +100,13 @@ pub use m5_editor_assist::{
     SurfaceAssistCell, SurfaceAssistProfile, TruthTier, M5_EDITOR_ASSIST_AS_OF,
     M5_EDITOR_ASSIST_MATRIX_ID, M5_EDITOR_ASSIST_RECORD_KIND, M5_EDITOR_ASSIST_SCHEMA_REF,
     M5_EDITOR_ASSIST_SCHEMA_VERSION,
+};
+pub use m5_signature_snippet::{
+    signature_snippet_model, signature_snippet_model_lines, AcceptSideEffectClass,
+    AssistBlockReason, SignatureCard, SignatureSnippetInvariant, SignatureSnippetModel,
+    SignatureSnippetSnapshot, SnippetExitPath, SnippetStrip, M5_SIGNATURE_SNIPPET_AS_OF,
+    M5_SIGNATURE_SNIPPET_MODEL_ID, M5_SIGNATURE_SNIPPET_RECORD_KIND,
+    M5_SIGNATURE_SNIPPET_SCHEMA_REF, M5_SIGNATURE_SNIPPET_SCHEMA_VERSION,
 };
 pub use modes::{
     build_alpha_mode_state_record, AlphaModeStateInput, EditorModeClass, EditorModeStateRecord,
