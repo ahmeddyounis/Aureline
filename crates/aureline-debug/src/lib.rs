@@ -18,6 +18,16 @@
 //! discovery/session/watch/quarantine/imported-CI packets shared by runtime,
 //! support, and release evidence surfaces.
 //!
+//! It also exposes [`m5_debug_contracts`] — the frozen, typed matrix that names
+//! the M5 debugger object families (debug session, attach target, breakpoint spec,
+//! frame mapping, variable/watch snapshot, evaluate request/result, console
+//! emission, chronology capability, replay session, and notebook-debug parity),
+//! pins one controlled vocabulary across session modes, breakpoint/mapping states,
+//! variable freshness, evaluate purity, mapping fidelity, and restore/reattach
+//! posture, and maps each object to the proof packet that keeps it current — so
+//! notebook, profiler, incident, support, AI, and core debug surfaces consume one
+//! debugger object model instead of re-expressing debug truth ad hoc.
+//!
 //! The reviewer-facing contract is at
 //! [`/docs/m4/qualify-chronology-capture-and-replay-support-classes.md`](../../../docs/m4/qualify-chronology-capture-and-replay-support-classes.md).
 //! The cross-tool boundary schema is at
@@ -28,8 +38,20 @@
 #![doc(html_root_url = "https://docs.rs/aureline-debug/0.0.0")]
 
 pub mod canonical_test_discovery_session_and_watch_truth;
+pub mod m5_debug_contracts;
 pub mod qualify_chronology_capture_and_replay_support_classes;
 pub mod symbolication;
+
+pub use m5_debug_contracts::{
+    m5_debug_contracts_lines, m5_debug_contracts_matrix, DebugConsumer, DebugContractInvariant,
+    DebugContractsValidationError, DebugFieldDef, DebugObjectClass, DebugObjectEntry,
+    DebugRedactionClass, DebugSharedVocabulary, DebugStateClass, DebugStateTerm, DebugTokenDef,
+    DebugVocabulary, M5DebugContractsMatrix, M5_DEBUG_CONTRACTS_ARTIFACT_REF,
+    M5_DEBUG_CONTRACTS_AS_OF, M5_DEBUG_CONTRACTS_DOC_REF, M5_DEBUG_CONTRACTS_FIXTURE_REF,
+    M5_DEBUG_CONTRACTS_FREEZE_GATE_REF, M5_DEBUG_CONTRACTS_MATRIX_ID,
+    M5_DEBUG_CONTRACTS_RECORD_KIND, M5_DEBUG_CONTRACTS_SCHEMA_REF,
+    M5_DEBUG_CONTRACTS_SCHEMA_VERSION,
+};
 
 pub use symbolication::{
     current_symbolication_contract, BuildMatchState, DebugFormatClass, MirrorPolicyRow,
