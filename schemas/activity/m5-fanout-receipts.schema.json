@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/activity/m5-fanout-receipts.schema.json",
+  "title": "Aureline M5 fanout-receipts bundle",
+  "description": "Boundary schema for the M5 fanout-receipts bundle: the working engine that mints one durable, privacy-safe delivery-truth receipt per cross-client destination (the native OS notification and the browser and mobile companions) when an attention object is fanned out. The bundle freezes the governed destinations, a representative source corpus, the transport-condition corpus, and every dispatch (one per source per condition). Each receipt names its source notification-envelope id, canonical event id, destination client class, delivery state, an explicit stale/undelivered reason, the privacy-safe summary posture, the applied redaction class, and the reopen route back to the same authoritative object. A failed or stale copy is labeled rather than counted as delivered; a non-compliant managed endpoint never receives the payload; suppression-by-policy stays distinct from a transport failure; the authoritative in-product record survives any fanout outcome; and an alert whose source routes through preview/approval never executes the action inline. Every privacy class, scope, redaction class, reopen target, severity, dedupe scheme, and resulting state binds back to the attention-routing matrix. No message bodies, credentials, raw provider payloads, hostnames, device identifiers, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_fanout_receipts_schema_version",
+    "schema_ref",
+    "bundle_id",
+    "as_of",
+    "matrix_ref",
+    "matrix_id",
+    "freeze_gate_ref",
+    "summary",
+    "governed_destinations",
+    "sources",
+    "conditions",
+    "dispatches",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_fanout_receipts_bundle" },
+    "m5_fanout_receipts_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/activity/m5-fanout-receipts.schema.json" },
+    "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "governed_destinations": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "$ref": "#/$defs/governed_destination" }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/fanout_source" }
+    },
+    "conditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/condition" }
+    },
+    "dispatches": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/fanout_dispatch" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/bundle_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "destination": {
+      "enum": ["os_native_notification", "browser_companion", "mobile_companion"]
+    },
+    "delivery_state": {
+      "enum": ["delivered", "stale", "undelivered", "suppressed", "unknown"]
+    },
+    "stale_or_undelivered_reason": {
+      "enum": [
+        "none",
+        "superseded_by_newer_state",
+        "client_unreachable",
+        "delivery_timed_out",
+        "managed_endpoint_blocked",
+        "transport_indeterminate"
+      ]
+    },
+    "suppression_reason": {
+      "enum": ["none", "quiet_hours_policy", "admin_policy"]
+    },
+    "summary_posture": {
+      "enum": [
+        "clear_summary",
+        "redacted_summary",
+        "lock_screen_safe",
+        "open_app_only",
+        "no_summary"
+      ]
+    },
+    "condition": {
+      "enum": [
+        "all_delivered",
+        "mobile_stale",
+        "companion_undelivered",
+        "os_timed_out",
+        "locked_screen",
+        "managed_endpoint_blocked",
+        "policy_withheld",
+        "transport_unknown"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "minor_success",
+        "informational",
+        "progress",
+        "degraded",
+        "handoff_actionable",
+        "security_advisory"
+      ]
+    },
+    "scope": {
+      "enum": [
+        "app_global",
+        "window",
+        "workspace",
+        "session",
+        "collaboration",
+        "tenant_org"
+      ]
+    },
+    "privacy_class": {
+      "enum": [
+        "summary_safe",
+        "workspace_sensitive",
+        "security_critical",
+        "managed_sensitive"
+      ]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "summary_only",
+        "redacted_payload",
+        "count_only",
+        "internal_support_restricted"
+      ]
+    },
+    "dedupe_key_scheme": {
+      "enum": [
+        "canonical_key_coalesce",
+        "root_cause_collapse",
+        "latest_supersedes",
+        "count_rollup",
+        "no_dedupe"
+      ]
+    },
+    "reopen_target": {
+      "enum": [
+        "activity_job_row",
+        "evidence_packet",
+        "policy_diff",
+        "review_request",
+        "incident_thread",
+        "route_object",
+        "audit_event"
+      ]
+    },
+    "source_subsystem": {
+      "enum": [
+        "shell",
+        "notebook",
+        "task_runner",
+        "ai",
+        "collaboration",
+        "incident",
+        "operator",
+        "managed_policy",
+        "companion",
+        "security",
+        "sync",
+        "support"
+      ]
+    },
+    "resulting_state": {
+      "enum": [
+        "shown",
+        "suppressed",
+        "fanout_stale",
+        "fanout_undelivered",
+        "unknown_requires_review"
+      ]
+    },
+    "governed_destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "destination",
+        "destination_id",
+        "label",
+        "client_scope",
+        "is_durable_authoritative",
+        "note"
+      ],
+      "properties": {
+        "destination": { "$ref": "#/$defs/destination" },
+        "destination_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "client_scope": { "$ref": "#/$defs/non_empty_string" },
+        "is_durable_authoritative": { "const": false },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "fanout_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_envelope_id",
+        "canonical_event_id",
+        "label",
+        "source_subsystem",
+        "severity",
+        "scope",
+        "privacy_class",
+        "dedupe_key_scheme",
+        "reopen_target",
+        "reopen_anchor_ref",
+        "routes_through_preview_approval",
+        "carries_durable_record",
+        "created_at"
+      ],
+      "properties": {
+        "source_envelope_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_event_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/repo_ref" },
+        "routes_through_preview_approval": { "type": "boolean" },
+        "carries_durable_record": { "const": true },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "fanout_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_id",
+        "source_envelope_id",
+        "canonical_event_id",
+        "destination",
+        "destination_id",
+        "client_scope",
+        "delivery_state",
+        "delivery_state_token",
+        "resulting_state",
+        "stale_or_undelivered_reason",
+        "stale_or_undelivered_reason_token",
+        "suppression_reason",
+        "summary_posture",
+        "summary_posture_token",
+        "applied_redaction",
+        "redaction_token",
+        "dedupe_key_scheme",
+        "reopen_target",
+        "reopen_anchor_ref",
+        "reopen_is_exact",
+        "routes_through_preview_approval",
+        "inline_action_allowed",
+        "durable_record_present",
+        "minted_at",
+        "note"
+      ],
+      "properties": {
+        "receipt_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_envelope_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_event_id": { "$ref": "#/$defs/non_empty_string" },
+        "destination": { "$ref": "#/$defs/destination" },
+        "destination_id": { "$ref": "#/$defs/non_empty_string" },
+        "client_scope": { "$ref": "#/$defs/non_empty_string" },
+        "delivery_state": { "$ref": "#/$defs/delivery_state" },
+        "delivery_state_token": { "$ref": "#/$defs/non_empty_string" },
+        "resulting_state": { "$ref": "#/$defs/resulting_state" },
+        "stale_or_undelivered_reason": { "$ref": "#/$defs/stale_or_undelivered_reason" },
+        "stale_or_undelivered_reason_token": { "$ref": "#/$defs/non_empty_string" },
+        "suppression_reason": { "$ref": "#/$defs/suppression_reason" },
+        "summary_posture": { "$ref": "#/$defs/summary_posture" },
+        "summary_posture_token": { "$ref": "#/$defs/non_empty_string" },
+        "applied_redaction": { "$ref": "#/$defs/redaction_class" },
+        "redaction_token": { "$ref": "#/$defs/non_empty_string" },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/repo_ref" },
+        "reopen_is_exact": { "const": true },
+        "routes_through_preview_approval": { "type": "boolean" },
+        "inline_action_allowed": { "type": "boolean" },
+        "durable_record_present": { "const": true },
+        "minted_at": { "type": "string", "format": "date-time" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "fanout_dispatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dispatch_id",
+        "source_envelope_id",
+        "canonical_event_id",
+        "condition",
+        "source_subsystem",
+        "severity",
+        "receipts",
+        "delivered_count",
+        "stale_count",
+        "undelivered_count",
+        "suppressed_count",
+        "unknown_count",
+        "all_failures_labeled",
+        "durable_record_present"
+      ],
+      "properties": {
+        "dispatch_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_envelope_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_event_id": { "$ref": "#/$defs/non_empty_string" },
+        "condition": { "$ref": "#/$defs/condition" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "receipts": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/fanout_receipt" }
+        },
+        "delivered_count": { "type": "integer", "minimum": 0 },
+        "stale_count": { "type": "integer", "minimum": 0 },
+        "undelivered_count": { "type": "integer", "minimum": 0 },
+        "suppressed_count": { "type": "integer", "minimum": 0 },
+        "unknown_count": { "type": "integer", "minimum": 0 },
+        "all_failures_labeled": { "const": true },
+        "durable_record_present": { "const": true }
+      }
+    },
+    "bundle_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "type": "boolean" }
+      }
+    }
+  }
+}

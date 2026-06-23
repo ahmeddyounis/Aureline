@@ -22,4 +22,5 @@ pub mod m5_activity_objects;
 pub mod m5_attention_actions;
 pub mod m5_attention_routing;
 pub mod m5_envelope_routing;
+pub mod m5_fanout_receipts;
 pub mod m5_quiet_hours_suppression;
