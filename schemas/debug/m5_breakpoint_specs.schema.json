@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/debug/m5_breakpoint_specs.schema.json",
+  "title": "Aureline M5 breakpoint-spec set",
+  "description": "Boundary schema for the typed M5 breakpoint specs and mapping-state pills: the canonical record every debugger-capable surface reads to show what a breakpoint requested, where it actually bound, and whether its source mapping is still trustworthy. Every breakpoint carries one canonical pill that pins one verification state (pending, verified, unbound, unsupported, policy_blocked) and one mapping state (exact, misaligned, needs_remap, unmapped), so a breakpoint shown in a gutter, session header, list, notebook cell, replay timeline, or export packet traces back to one spec and one state vocabulary. A green confirmed-stop icon renders only when a breakpoint is verified, exact, and not replay-only; an unbound, misaligned, replay-only, or policy-blocked breakpoint always discloses. Breakpoint identity survives rename/reformat/import where a stable logical source identity exists and degrades to an explicit needs_remap rather than vanishing when it does not; a lexical fallback is never presented as an exact semantic mapping; and notebook and replay views keep stable cell and frame identity. No source bodies, raw paths, provider payloads, URLs, hostnames, or credentials cross this boundary; the record carries opaque object refs, stable tokens, opaque digests, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_breakpoint_specs_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "freeze_gate_ref",
+    "summary",
+    "source_schema_refs",
+    "producer_refs",
+    "consumer_surfaces",
+    "breakpoints",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_breakpoint_spec_set" },
+    "m5_breakpoint_specs_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/debug/m5_breakpoint_specs.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "source_schema_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repo_ref" }
+    },
+    "producer_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repo_ref" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_class" }
+    },
+    "breakpoints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/breakpoint_spec" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/breakpoint_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "breakpoint_kind": {
+      "type": "string",
+      "enum": ["line", "conditional", "logpoint", "function", "data", "exception"]
+    },
+    "enablement": {
+      "type": "string",
+      "enum": ["enabled", "disabled"]
+    },
+    "verification_state": {
+      "type": "string",
+      "enum": ["pending", "verified", "unbound", "unsupported", "policy_blocked"]
+    },
+    "mapping_state": {
+      "type": "string",
+      "enum": ["exact", "misaligned", "needs_remap", "unmapped"]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "workspace_source",
+        "session_local",
+        "notebook_cell",
+        "replay_timeline",
+        "exception_category"
+      ]
+    },
+    "mapping_provenance": {
+      "type": "string",
+      "enum": [
+        "stable_source_id",
+        "re_resolved_after_reformat",
+        "imported_source_map",
+        "lexical_fallback",
+        "source_identity_lost"
+      ]
+    },
+    "consumer_class": {
+      "type": "string",
+      "enum": [
+        "core_debugger",
+        "notebook_debug",
+        "profiler",
+        "incident_review",
+        "support_export",
+        "ai_context",
+        "review_workspace",
+        "cli_headless",
+        "docs_help"
+      ]
+    },
+    "source_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logical_source_ref", "line"],
+      "properties": {
+        "logical_source_ref": { "$ref": "#/$defs/non_empty_string" },
+        "physical_path_hint": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 0 },
+        "end_line": { "type": "integer", "minimum": 0 },
+        "column": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "notebook_cell_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["notebook_ref", "cell_id"],
+      "properties": {
+        "notebook_ref": { "$ref": "#/$defs/non_empty_string" },
+        "cell_id": { "$ref": "#/$defs/non_empty_string" },
+        "cell_execution_ref": { "type": "string", "minLength": 1 }
+      }
+    },
+    "replay_frame_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capture_ref", "timeline_ref"],
+      "properties": {
+        "capture_ref": { "$ref": "#/$defs/non_empty_string" },
+        "timeline_ref": { "$ref": "#/$defs/non_empty_string" },
+        "frame_ref": { "type": "string", "minLength": 1 }
+      }
+    },
+    "breakpoint_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["has_condition", "has_log_message"],
+      "properties": {
+        "has_condition": { "type": "boolean" },
+        "condition_digest": { "type": "string", "minLength": 1 },
+        "has_log_message": { "type": "boolean" },
+        "log_message_digest": { "type": "string", "minLength": 1 },
+        "hit_condition": { "type": "string", "minLength": 1 }
+      }
+    },
+    "breakpoint_pill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification",
+        "verification_token",
+        "mapping",
+        "mapping_token",
+        "label",
+        "is_confirmed_binding",
+        "shows_clean_confirmed",
+        "requires_disclosure",
+        "needs_explicit_remap",
+        "is_replay_only"
+      ],
+      "properties": {
+        "verification": { "$ref": "#/$defs/verification_state" },
+        "verification_token": { "$ref": "#/$defs/verification_state" },
+        "mapping": { "$ref": "#/$defs/mapping_state" },
+        "mapping_token": { "$ref": "#/$defs/mapping_state" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "is_confirmed_binding": { "type": "boolean" },
+        "shows_clean_confirmed": { "type": "boolean" },
+        "requires_disclosure": { "type": "boolean" },
+        "needs_explicit_remap": { "type": "boolean" },
+        "is_replay_only": { "type": "boolean" }
+      }
+    },
+    "breakpoint_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "breakpoint_id",
+        "kind",
+        "kind_token",
+        "kind_targets_source_location",
+        "enablement",
+        "enablement_token",
+        "enablement_is_active",
+        "source_anchor",
+        "payload",
+        "scope",
+        "scope_token",
+        "mapping_provenance",
+        "mapping_provenance_token",
+        "mapping_provenance_is_semantic",
+        "mapping_provenance_requires_disclosure",
+        "pill",
+        "proof_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "breakpoint_id": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/breakpoint_kind" },
+        "kind_token": { "$ref": "#/$defs/breakpoint_kind" },
+        "kind_targets_source_location": { "type": "boolean" },
+        "enablement": { "$ref": "#/$defs/enablement" },
+        "enablement_token": { "$ref": "#/$defs/enablement" },
+        "enablement_is_active": { "type": "boolean" },
+        "source_anchor": { "$ref": "#/$defs/source_anchor" },
+        "notebook_anchor": { "$ref": "#/$defs/notebook_cell_anchor" },
+        "replay_anchor": { "$ref": "#/$defs/replay_frame_anchor" },
+        "payload": { "$ref": "#/$defs/breakpoint_payload" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "scope_token": { "$ref": "#/$defs/scope_class" },
+        "mapping_provenance": { "$ref": "#/$defs/mapping_provenance" },
+        "mapping_provenance_token": { "$ref": "#/$defs/mapping_provenance" },
+        "mapping_provenance_is_semantic": { "type": "boolean" },
+        "mapping_provenance_requires_disclosure": { "type": "boolean" },
+        "pill": { "$ref": "#/$defs/breakpoint_pill" },
+        "proof_packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "breakpoint_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}
