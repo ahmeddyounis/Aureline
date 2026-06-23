@@ -33,10 +33,21 @@
 //! export actions identically across the references pane, search panel, docs links,
 //! and keyboard routes, and projects to review, support, AI, and graph consumers
 //! without flattening a reference set into generic search hits.
+//!
+//! [`hierarchy_views`] turns the hierarchy edge into a typed view and export model:
+//! it builds call, type, override, and ownership hierarchy views that group edges by
+//! a direct/transitive/inferred/runtime-observed legend, separate current-scope from
+//! captured-scope counts, name every hidden or missing scope explicitly, preserve
+//! provider attribution, freshness, and confidence, expose competing roots and a
+//! disambiguation path before a jump when the root is ambiguous, carry stable
+//! open/peek/split/expand/export actions across the hierarchy view, graph overlay,
+//! search panel, docs link, and keyboard routes, and project to review, support, AI,
+//! graph, and docs consumers without flattening a hierarchy into one opaque tree.
 
 #![doc(html_root_url = "https://docs.rs/aureline-navigation/0.0.0")]
 
 pub mod bookmark_history_and_drift_continuity;
+pub mod hierarchy_views;
 pub mod m5_relation_navigation;
 pub mod reference_panes;
 pub mod relation_resolution;
@@ -54,6 +65,18 @@ pub use bookmark_history_and_drift_continuity::{
     BOOKMARK_HISTORY_CONTINUITY_PACKET_RECORD_KIND, BOOKMARK_HISTORY_CONTINUITY_SCHEMA_REF,
     BOOKMARK_HISTORY_CONTINUITY_SCHEMA_VERSION, REQUIRED_CONTINUITY_SURFACES,
     REQUIRED_DRIFT_STATES,
+};
+
+pub use hierarchy_views::{
+    build_hierarchy_view, edge_legend, hierarchy_views_lines, hierarchy_views_set,
+    HierarchyActionAffordance, HierarchyActionKind, HierarchyActionRoute, HierarchyAmbiguityState,
+    HierarchyDirection, HierarchyEdgeCounts, HierarchyEdgeLegend, HierarchyHistoryEffect,
+    HierarchyLabel, HierarchyScopeGap, HierarchyTier, HierarchyView, HierarchyViewInput,
+    HierarchyViewInvariant, HierarchyViewKind, HierarchyViewProjection, HierarchyViewScenario,
+    HierarchyViewSet, HierarchyViewValidationError, HIERARCHY_LEGEND_ORDER,
+    HIERARCHY_VIEWS_ARTIFACT_REF, HIERARCHY_VIEWS_AS_OF, HIERARCHY_VIEWS_DOC_REF,
+    HIERARCHY_VIEWS_FIXTURE_REF, HIERARCHY_VIEWS_FREEZE_GATE_REF, HIERARCHY_VIEWS_RECORD_KIND,
+    HIERARCHY_VIEWS_SCHEMA_REF, HIERARCHY_VIEWS_SCHEMA_VERSION, HIERARCHY_VIEWS_SET_ID,
 };
 
 pub use m5_relation_navigation::{
