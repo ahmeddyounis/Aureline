@@ -1,0 +1,439 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/m5-embedded-dashboards.schema.json",
+  "title": "Aureline M5 embedded service-dashboard / auth-handoff surfaces",
+  "description": "Boundary schema for the M5 embedded-surface set: the origin bars, device-permission rows, and browser / device-code auth handoff cards that keep embedded service dashboards and auth handoffs boundary-honest, bound to the operator-surface matrix. Every card binds the matrix embedded-boundary family by that matrix's own surface id and carries an origin bar that names who owns and renders the content (native chrome, Aureline webview, extension, third-party provider, or unknown origin), an opaque owner label and aureline:// origin handle, the optional providing extension, the permission state, the named capability limitations, an open-in-browser action, a freshness stamp, and the required visible language shown verbatim — and it never impersonates a native approval, update, or product-security surface. A device-capture surface carries device-permission rows that name the actor, the processing class (local-only, provider-processed, or mixed), the retention class and a storage/retention note, a revoke / open-system-settings action, and the local-continuity posture. An auth handoff card makes the handoff reason, target, fallback, verification-code class and expiry, and return path explicit, never hidden behind a generic Continue; an expired or no-fallback handoff is in the blocked state rather than retried silently. The effective state is the computed no-silent-green downgrade of the displayed state and the origin-bar freshness. No endpoint URLs, hostnames, credentials, raw payloads, or verification-code values cross this boundary; the record carries opaque aureline:// object handles, repo-relative refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_embedded_dashboards_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "summary",
+    "matrix_ref",
+    "matrix_record_kind",
+    "surface_kind_vocabulary",
+    "origin_owner_vocabulary",
+    "capability_limitation_vocabulary",
+    "device_permission_vocabulary",
+    "handoff_target_vocabulary",
+    "handoff_reason_vocabulary",
+    "surfaces",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_embedded_surface_set" },
+    "m5_embedded_dashboards_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/ops/m5-embedded-dashboards.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_record_kind": { "const": "m5_operator_surface_matrix" },
+    "surface_kind_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "origin_owner_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "capability_limitation_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "device_permission_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "handoff_target_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "handoff_reason_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/token_def" }
+    },
+    "surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/embedded_surface_card" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/embedded_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "object_handle": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A canonical object handle.",
+      "pattern": "^aureline://"
+    },
+    "rfc3339_with_offset": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An RFC3339 timestamp carrying an explicit UTC offset (a trailing Z or a ±hh:mm offset) — never a zone-less local time.",
+      "pattern": "T.*(Z|[+-][0-9][0-9]:[0-9][0-9])$"
+    },
+    "surface_token": {
+      "enum": ["embedded_boundary_state"]
+    },
+    "state_token": {
+      "enum": [
+        "clear",
+        "unconfirmed",
+        "attention",
+        "blocked",
+        "scheduled_window",
+        "read_only_window",
+        "drain_window",
+        "reconciling",
+        "failover_in_progress",
+        "migration_in_progress",
+        "boundary_drift_recheck_required",
+        "embedded_boundary_handoff",
+        "imported_snapshot_no_live",
+        "unknown_requires_review"
+      ]
+    },
+    "freshness_token": {
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"]
+    },
+    "scope_class": {
+      "enum": ["local_private", "shared_team", "managed_org"]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ]
+    },
+    "live_snapshot_class": {
+      "enum": ["live_only", "snapshot_capable", "snapshot_only"]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_ui",
+        "cli_headless",
+        "incident_workspace",
+        "support_export",
+        "admin_queue",
+        "release_evidence",
+        "managed_service",
+        "companion_browser"
+      ]
+    },
+    "surface_kind_token": {
+      "enum": [
+        "service_dashboard",
+        "provider_page",
+        "device_capture_surface",
+        "browser_auth_handoff",
+        "device_code_auth_handoff"
+      ]
+    },
+    "origin_owner_token": {
+      "enum": [
+        "first_party_native_chrome",
+        "first_party_webview",
+        "extension_provided",
+        "third_party_provider",
+        "unknown_origin"
+      ]
+    },
+    "permission_state_token": {
+      "enum": [
+        "sandboxed",
+        "scoped_granted",
+        "broad_granted",
+        "revoked",
+        "requires_review"
+      ]
+    },
+    "capability_limitation_token": {
+      "enum": [
+        "no_native_approval",
+        "no_filesystem_access",
+        "no_credential_access",
+        "no_local_command_execution",
+        "network_scoped_to_origin",
+        "read_only_content"
+      ]
+    },
+    "device_permission_token": {
+      "enum": [
+        "camera",
+        "microphone",
+        "screen_capture",
+        "clipboard",
+        "location",
+        "notifications"
+      ]
+    },
+    "processing_token": {
+      "enum": ["local_only", "provider_processed", "mixed_local_then_provider"]
+    },
+    "retention_token": {
+      "enum": [
+        "not_stored",
+        "local_session_only",
+        "local_persisted",
+        "provider_retained"
+      ]
+    },
+    "revoke_action_token": {
+      "enum": [
+        "revoke_in_aureline",
+        "open_system_settings",
+        "revoke_and_open_system_settings"
+      ]
+    },
+    "handoff_reason_token": {
+      "enum": [
+        "claimed_identity_auth",
+        "provider_auth_required",
+        "high_risk_approval",
+        "provider_managed_page",
+        "policy_requires_external"
+      ]
+    },
+    "handoff_target_token": {
+      "enum": [
+        "system_browser",
+        "vendor_portal_in_browser",
+        "provider_console_in_browser",
+        "device_code_verification"
+      ]
+    },
+    "handoff_fallback_token": {
+      "enum": [
+        "system_browser_opened",
+        "device_code_fallback_available",
+        "manual_code_entry_available",
+        "polling_for_completion",
+        "no_fallback_blocked"
+      ]
+    },
+    "local_continuity_token": {
+      "enum": ["local_work_continues", "read_only_until_return", "blocked_until_auth"]
+    },
+    "token_def": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "label"],
+      "properties": {
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "open_in_browser_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "target", "label"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "target": { "$ref": "#/$defs/handoff_target_token" },
+        "label": { "type": "string" }
+      }
+    },
+    "capability_limitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "label", "note"],
+      "properties": {
+        "class": { "$ref": "#/$defs/capability_limitation_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "origin_bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_class",
+        "owner_label",
+        "origin_ref",
+        "extension_ref",
+        "permission_state",
+        "capability_limitations",
+        "open_in_browser",
+        "freshness",
+        "latest_refresh_at",
+        "native_surface_impersonation",
+        "required_visible_language"
+      ],
+      "properties": {
+        "owner_class": { "$ref": "#/$defs/origin_owner_token" },
+        "owner_label": { "$ref": "#/$defs/non_empty_string" },
+        "origin_ref": { "$ref": "#/$defs/object_handle" },
+        "extension_ref": {
+          "oneOf": [{ "$ref": "#/$defs/object_handle" }, { "type": "null" }]
+        },
+        "permission_state": { "$ref": "#/$defs/permission_state_token" },
+        "capability_limitations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_limitation" }
+        },
+        "open_in_browser": { "$ref": "#/$defs/open_in_browser_action" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "latest_refresh_at": { "$ref": "#/$defs/rfc3339_with_offset" },
+        "native_surface_impersonation": { "const": false },
+        "required_visible_language": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "device_permission_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "permission",
+        "label",
+        "actor",
+        "processing_class",
+        "retention_class",
+        "retention_note",
+        "revoke_action",
+        "opens_system_settings",
+        "local_continuity",
+        "granted"
+      ],
+      "properties": {
+        "permission": { "$ref": "#/$defs/device_permission_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "actor": { "$ref": "#/$defs/non_empty_string" },
+        "processing_class": { "$ref": "#/$defs/processing_token" },
+        "retention_class": { "$ref": "#/$defs/retention_token" },
+        "retention_note": { "$ref": "#/$defs/non_empty_string" },
+        "revoke_action": { "$ref": "#/$defs/revoke_action_token" },
+        "opens_system_settings": { "type": "boolean" },
+        "local_continuity": { "$ref": "#/$defs/non_empty_string" },
+        "granted": { "type": "boolean" }
+      }
+    },
+    "auth_handoff_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason",
+        "reason_note",
+        "target",
+        "prefers_external",
+        "fallback",
+        "verification_code_shown",
+        "code_display_class",
+        "code_expiry_at",
+        "code_expired",
+        "return_path",
+        "return_anchor_ref",
+        "hidden_behind_generic_continue"
+      ],
+      "properties": {
+        "reason": { "$ref": "#/$defs/handoff_reason_token" },
+        "reason_note": { "$ref": "#/$defs/non_empty_string" },
+        "target": { "$ref": "#/$defs/handoff_target_token" },
+        "prefers_external": { "const": true },
+        "fallback": { "$ref": "#/$defs/handoff_fallback_token" },
+        "verification_code_shown": { "type": "boolean" },
+        "code_display_class": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "code_expiry_at": {
+          "oneOf": [{ "$ref": "#/$defs/rfc3339_with_offset" }, { "type": "null" }]
+        },
+        "code_expired": { "type": "boolean" },
+        "return_path": { "$ref": "#/$defs/non_empty_string" },
+        "return_anchor_ref": { "$ref": "#/$defs/object_handle" },
+        "hidden_behind_generic_continue": { "const": false }
+      }
+    },
+    "embedded_surface_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "card_id",
+        "object_ref",
+        "title",
+        "summary",
+        "kind",
+        "surface",
+        "surface_id",
+        "displayed_state",
+        "effective_state",
+        "owner",
+        "decision_right",
+        "scope",
+        "default_redaction",
+        "consumed_by",
+        "live_vs_snapshot",
+        "origin_bar",
+        "device_permissions",
+        "auth_handoff",
+        "local_continuity",
+        "open_detail_ref"
+      ],
+      "properties": {
+        "card_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_ref": { "$ref": "#/$defs/object_handle" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/surface_kind_token" },
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "displayed_state": { "$ref": "#/$defs/state_token" },
+        "effective_state": { "$ref": "#/$defs/state_token" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "decision_right": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "default_redaction": { "$ref": "#/$defs/redaction_class" },
+        "consumed_by": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "live_vs_snapshot": { "$ref": "#/$defs/live_snapshot_class" },
+        "origin_bar": { "$ref": "#/$defs/origin_bar" },
+        "device_permissions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/device_permission_row" }
+        },
+        "auth_handoff": {
+          "oneOf": [{ "$ref": "#/$defs/auth_handoff_card" }, { "type": "null" }]
+        },
+        "local_continuity": { "$ref": "#/$defs/local_continuity_token" },
+        "open_detail_ref": { "$ref": "#/$defs/object_handle" }
+      }
+    },
+    "embedded_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}

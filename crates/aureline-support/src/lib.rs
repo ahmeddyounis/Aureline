@@ -412,6 +412,7 @@ pub mod m5_action_plans;
 pub mod m5_cache_repair;
 pub mod m5_clear_data_review;
 pub mod m5_crash_intake_and_recovery;
+pub mod m5_embedded_dashboards;
 pub mod m5_fault_crash_certification;
 pub mod m5_fault_crash_governance;
 pub mod m5_forensic_packet;
