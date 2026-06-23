@@ -28,6 +28,19 @@
 //! notebook, profiler, incident, support, AI, and core debug surfaces consume one
 //! debugger object model instead of re-expressing debug truth ad hoc.
 //!
+//! It also exposes [`m5_debug_session_descriptors`] — the typed, frozen
+//! [`DebugSessionDescriptor`](m5_debug_session_descriptors::DebugSessionDescriptor)
+//! and
+//! [`AttachTargetDescriptor`](m5_debug_session_descriptors::AttachTargetDescriptor)
+//! records that materialize two of those families. The canonical
+//! [`DebugSessionDescriptorSet`](m5_debug_session_descriptors::DebugSessionDescriptorSet)
+//! holds one descriptor per session mode plus the restore/reattach cases, so every
+//! debugger-capable surface can explain what was launched or attached, against which
+//! target, with what current authority and adapter posture — launch, attach,
+//! core-file, replay, and inspect-only stay distinct; attach-target identity,
+//! mutability, privilege, and adapter drift survive from picker to session to export;
+//! and a restored layout never silently reattaches.
+//!
 //! The reviewer-facing contract is at
 //! [`/docs/m4/qualify-chronology-capture-and-replay-support-classes.md`](../../../docs/m4/qualify-chronology-capture-and-replay-support-classes.md).
 //! The cross-tool boundary schema is at
@@ -39,6 +52,7 @@
 
 pub mod canonical_test_discovery_session_and_watch_truth;
 pub mod m5_debug_contracts;
+pub mod m5_debug_session_descriptors;
 pub mod qualify_chronology_capture_and_replay_support_classes;
 pub mod symbolication;
 
@@ -51,6 +65,19 @@ pub use m5_debug_contracts::{
     M5_DEBUG_CONTRACTS_FREEZE_GATE_REF, M5_DEBUG_CONTRACTS_MATRIX_ID,
     M5_DEBUG_CONTRACTS_RECORD_KIND, M5_DEBUG_CONTRACTS_SCHEMA_REF,
     M5_DEBUG_CONTRACTS_SCHEMA_VERSION,
+};
+
+pub use m5_debug_session_descriptors::{
+    m5_debug_session_descriptor_lines, m5_debug_session_descriptor_set, AdapterDriftClass,
+    AttachTargetDescriptor, DebugAdapterRef, DebugEntrypointClass, DebugSessionDescriptor,
+    DebugSessionDescriptorSet, DebugSessionModeClass, DebugTargetIdentity, DescriptorInvariant,
+    DescriptorSetValidationError, ReentryPosture, SessionRunStateClass, TargetBoundaryClass,
+    TargetIdentityEcho, TargetKindClass, TargetMutabilityClass, TargetPrivilegeClass,
+    M5_DEBUG_SESSION_DESCRIPTORS_ARTIFACT_REF, M5_DEBUG_SESSION_DESCRIPTORS_AS_OF,
+    M5_DEBUG_SESSION_DESCRIPTORS_DOC_REF, M5_DEBUG_SESSION_DESCRIPTORS_FIXTURE_REF,
+    M5_DEBUG_SESSION_DESCRIPTORS_FREEZE_GATE_REF, M5_DEBUG_SESSION_DESCRIPTORS_RECORD_KIND,
+    M5_DEBUG_SESSION_DESCRIPTORS_SCHEMA_REF, M5_DEBUG_SESSION_DESCRIPTORS_SCHEMA_VERSION,
+    M5_DEBUG_SESSION_DESCRIPTORS_SET_ID,
 };
 
 pub use symbolication::{

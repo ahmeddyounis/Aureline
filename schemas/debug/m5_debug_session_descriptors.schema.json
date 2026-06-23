@@ -1,0 +1,317 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/debug/m5_debug_session_descriptors.schema.json",
+  "title": "Aureline M5 debug-session descriptor set",
+  "description": "Boundary schema for the typed M5 debug-session and attach-target descriptors: the canonical record every debugger-capable surface reads to explain what was launched or attached, against which target, with what current authority and adapter posture. Launch, attach, core-file, replay, and inspect-only appear as five distinct session modes and command/result objects; an attach target carries its identity, local/remote/container/managed boundary, mutability, privilege class, adapter ref/version, adapter drift, and build/artifact identity, and every session echoes that identity so it survives from picker to active session to export packet; adapter drift, reconnect-required, inspect-only, and unsupported-skew are first-class labels; and a session restore reopens layout and history but never silently relaunches or reattaches — the re-entry posture names re-entry explicitly and live authority is derived from mode, posture, and adapter drift together. No source bodies, raw paths, provider payloads, URLs, hostnames, or credentials cross this boundary; the record carries opaque object refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_debug_session_descriptors_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "freeze_gate_ref",
+    "summary",
+    "source_schema_refs",
+    "producer_refs",
+    "consumer_surfaces",
+    "targets",
+    "sessions",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_debug_session_descriptor_set" },
+    "m5_debug_session_descriptors_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/debug/m5_debug_session_descriptors.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "source_schema_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repo_ref" }
+    },
+    "producer_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repo_ref" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_class" }
+    },
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/attach_target" }
+    },
+    "sessions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/debug_session" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/descriptor_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "session_mode": {
+      "type": "string",
+      "enum": ["launch", "attach", "core_file", "replay", "inspect_only"]
+    },
+    "entrypoint_class": {
+      "type": "string",
+      "enum": [
+        "launch_target",
+        "attach_target",
+        "open_core_file",
+        "open_replay",
+        "restore_session",
+        "reattach",
+        "restart",
+        "open_in_support"
+      ]
+    },
+    "boundary_class": {
+      "type": "string",
+      "enum": ["local", "remote", "container", "managed"]
+    },
+    "mutability_class": {
+      "type": "string",
+      "enum": ["mutable", "read_only_capture", "policy_write_protected"]
+    },
+    "privilege_class": {
+      "type": "string",
+      "enum": ["sandboxed", "user_standard", "elevated", "system"]
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "process",
+        "container_process",
+        "remote_helper_process",
+        "managed_runtime_process",
+        "core_file",
+        "replay_capture"
+      ]
+    },
+    "adapter_drift_class": {
+      "type": "string",
+      "enum": [
+        "adapter_current",
+        "adapter_drifted",
+        "reconnect_required",
+        "inspect_only_no_adapter",
+        "unsupported_skew"
+      ]
+    },
+    "reentry_posture": {
+      "type": "string",
+      "enum": [
+        "initial_entry",
+        "restored_layout_only",
+        "reattach_required",
+        "reattached_reacquired_authority",
+        "opened_in_support"
+      ]
+    },
+    "run_state_class": {
+      "type": "string",
+      "enum": [
+        "running",
+        "paused",
+        "reconstructed_inspectable",
+        "awaiting_reattach",
+        "terminated"
+      ]
+    },
+    "consumer_class": {
+      "type": "string",
+      "enum": [
+        "core_debugger",
+        "notebook_debug",
+        "profiler",
+        "incident_review",
+        "support_export",
+        "ai_context",
+        "review_workspace",
+        "cli_headless",
+        "docs_help"
+      ]
+    },
+    "target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_target_id", "target_label", "build_artifact_id"],
+      "properties": {
+        "canonical_target_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_label": { "$ref": "#/$defs/non_empty_string" },
+        "inferior_process_ref": { "type": "string", "minLength": 1 },
+        "working_directory_digest": { "type": "string", "minLength": 1 },
+        "build_artifact_id": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "adapter_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter_id", "adapter_label", "adapter_version"],
+      "properties": {
+        "adapter_id": { "$ref": "#/$defs/non_empty_string" },
+        "adapter_label": { "$ref": "#/$defs/non_empty_string" },
+        "adapter_version": { "$ref": "#/$defs/non_empty_string" },
+        "negotiated_protocol_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "identity_echo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_target_id",
+        "build_artifact_id",
+        "mutability_token",
+        "privilege_token",
+        "boundary_token",
+        "adapter_drift_token"
+      ],
+      "properties": {
+        "canonical_target_id": { "$ref": "#/$defs/non_empty_string" },
+        "build_artifact_id": { "$ref": "#/$defs/non_empty_string" },
+        "mutability_token": { "$ref": "#/$defs/mutability_class" },
+        "privilege_token": { "$ref": "#/$defs/privilege_class" },
+        "boundary_token": { "$ref": "#/$defs/boundary_class" },
+        "adapter_drift_token": { "$ref": "#/$defs/adapter_drift_class" }
+      }
+    },
+    "attach_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "descriptor_id",
+        "target_kind",
+        "target_kind_token",
+        "target_identity",
+        "boundary_class",
+        "boundary_token",
+        "boundary_crosses_trust",
+        "mutability_class",
+        "mutability_token",
+        "permits_mutation",
+        "privilege_class",
+        "privilege_token",
+        "privilege_requires_disclosure",
+        "adapter",
+        "adapter_drift",
+        "adapter_drift_token",
+        "adapter_drift_requires_disclosure",
+        "capability_refs",
+        "negotiation_evidence_ref",
+        "summary"
+      ],
+      "properties": {
+        "descriptor_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_kind_token": { "$ref": "#/$defs/target_kind" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "boundary_class": { "$ref": "#/$defs/boundary_class" },
+        "boundary_token": { "$ref": "#/$defs/boundary_class" },
+        "boundary_crosses_trust": { "type": "boolean" },
+        "mutability_class": { "$ref": "#/$defs/mutability_class" },
+        "mutability_token": { "$ref": "#/$defs/mutability_class" },
+        "permits_mutation": { "type": "boolean" },
+        "privilege_class": { "$ref": "#/$defs/privilege_class" },
+        "privilege_token": { "$ref": "#/$defs/privilege_class" },
+        "privilege_requires_disclosure": { "type": "boolean" },
+        "adapter": { "$ref": "#/$defs/adapter_ref" },
+        "adapter_drift": { "$ref": "#/$defs/adapter_drift_class" },
+        "adapter_drift_token": { "$ref": "#/$defs/adapter_drift_class" },
+        "adapter_drift_requires_disclosure": { "type": "boolean" },
+        "capability_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "negotiation_evidence_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "debug_session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_id",
+        "execution_context_id",
+        "entrypoint",
+        "entrypoint_token",
+        "mode",
+        "mode_token",
+        "mode_holds_live_authority",
+        "mode_is_inspect_only",
+        "run_state",
+        "run_state_token",
+        "reentry_posture",
+        "reentry_token",
+        "reentry_implies_live_authority",
+        "adapter_drift",
+        "adapter_drift_token",
+        "adapter_drift_requires_disclosure",
+        "holds_live_authority",
+        "target_descriptor_ref",
+        "target_identity_echo",
+        "thread_refs",
+        "proof_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "session_id": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "entrypoint": { "$ref": "#/$defs/entrypoint_class" },
+        "entrypoint_token": { "$ref": "#/$defs/entrypoint_class" },
+        "mode": { "$ref": "#/$defs/session_mode" },
+        "mode_token": { "$ref": "#/$defs/session_mode" },
+        "mode_holds_live_authority": { "type": "boolean" },
+        "mode_is_inspect_only": { "type": "boolean" },
+        "run_state": { "$ref": "#/$defs/run_state_class" },
+        "run_state_token": { "$ref": "#/$defs/run_state_class" },
+        "reentry_posture": { "$ref": "#/$defs/reentry_posture" },
+        "reentry_token": { "$ref": "#/$defs/reentry_posture" },
+        "reentry_implies_live_authority": { "type": "boolean" },
+        "adapter_drift": { "$ref": "#/$defs/adapter_drift_class" },
+        "adapter_drift_token": { "$ref": "#/$defs/adapter_drift_class" },
+        "adapter_drift_requires_disclosure": { "type": "boolean" },
+        "holds_live_authority": { "type": "boolean" },
+        "target_descriptor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_identity_echo": { "$ref": "#/$defs/identity_echo" },
+        "thread_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "stop_reason": { "type": "string", "minLength": 1 },
+        "proof_packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "descriptor_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}

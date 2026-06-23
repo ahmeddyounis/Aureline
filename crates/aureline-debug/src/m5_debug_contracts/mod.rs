@@ -1109,6 +1109,7 @@ fn build_objects() -> Vec<DebugObjectEntry> {
                 "schemas/execution/debug_session.schema.json",
             ]),
             produced_by_refs: strvec(&[
+                "crates/aureline-debug/src/m5_debug_session_descriptors/mod.rs",
                 "crates/aureline-runtime/src/debug/host.rs",
                 "crates/aureline-runtime/src/debug/records.rs",
             ]),
@@ -1175,6 +1176,7 @@ fn build_objects() -> Vec<DebugObjectEntry> {
                 "schemas/remote/attach_session.schema.json",
             ]),
             produced_by_refs: strvec(&[
+                "crates/aureline-debug/src/m5_debug_session_descriptors/mod.rs",
                 "crates/aureline-runtime/src/stabilize_debugger_host_and_adapter_negotiation/mod.rs",
             ]),
             proof_packet_ref:
