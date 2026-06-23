@@ -56,6 +56,18 @@
 //! path before a jump, carries stable open/peek/split/reveal/export actions across every
 //! route, and projects to review, support, AI, graph, and docs consumers without
 //! flattening into generic smart links.
+//!
+//! [`rename_preview`] turns the rename-preview set into a typed, governed preview-and-
+//! apply model: it groups rename candidates into the editable set and the held set
+//! (blocked, conflict, generated, read-only, partial-scope) by a fixed precedence so a
+//! held candidate is never folded into the editable count, separates change-versus-held
+//! and current-versus-captured counts, keeps every omitted candidate visible with its
+//! omission reason and label, names whether evidence is semantic, framework-derived,
+//! runtime-observed, imported, or a lexical fallback so a grep match is never renamed as
+//! certainty, enforces an inspect-before-mutate apply gate that always blocks a blind
+//! apply and binds an undo checkpoint, projects the frozen rename-preview-set object, and
+//! reaches review, support, AI, graph, docs, and editor consumers without flattening a
+//! broad rename into one generic apply action.
 
 #![doc(html_root_url = "https://docs.rs/aureline-navigation/0.0.0")]
 
@@ -65,6 +77,7 @@ pub mod m5_relation_navigation;
 pub mod reference_panes;
 pub mod related_object_navigation;
 pub mod relation_resolution;
+pub mod rename_preview;
 pub mod target_model;
 
 pub use bookmark_history_and_drift_continuity::{
@@ -127,6 +140,17 @@ pub use related_object_navigation::{
     RELATED_OBJECT_NAV_DOC_REF, RELATED_OBJECT_NAV_FIXTURE_REF, RELATED_OBJECT_NAV_FREEZE_GATE_REF,
     RELATED_OBJECT_NAV_RECORD_KIND, RELATED_OBJECT_NAV_SCHEMA_REF,
     RELATED_OBJECT_NAV_SCHEMA_VERSION, RELATED_OBJECT_NAV_SET_ID, RELATED_OBJECT_SOURCE_ORDER,
+};
+
+pub use rename_preview::{
+    build_rename_preview, rename_preview_lines, rename_preview_set, GovernedRenamePreview,
+    RenameApplyGate, RenameApplyPrecondition, RenameCandidate, RenameCandidateCounts,
+    RenameCandidateGroup, RenameCandidateGroupKind, RenameCandidateLabel, RenameEvidenceClass,
+    RenameOmissionReason, RenamePreviewGovernanceSet, RenamePreviewInput, RenamePreviewInvariant,
+    RenamePreviewProjection, RenamePreviewScenario, RenamePreviewValidationError,
+    RENAME_GROUP_ORDER, RENAME_PREVIEW_ARTIFACT_REF, RENAME_PREVIEW_AS_OF, RENAME_PREVIEW_DOC_REF,
+    RENAME_PREVIEW_FIXTURE_REF, RENAME_PREVIEW_FREEZE_GATE_REF, RENAME_PREVIEW_RECORD_KIND,
+    RENAME_PREVIEW_SCHEMA_REF, RENAME_PREVIEW_SCHEMA_VERSION, RENAME_PREVIEW_SET_ID,
 };
 
 pub use relation_resolution::{

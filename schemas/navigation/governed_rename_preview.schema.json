@@ -1,0 +1,625 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/navigation/governed_rename_preview.schema.json",
+  "title": "Aureline governed rename-preview corpus",
+  "description": "Boundary schema for the governed rename-preview corpus: the frozen contract for how Aureline turns a broad rename into an inspectable change object. Each scenario carries a preview-building input and the preview the builder produces for it. A preview groups rename candidates by a fixed precedence into the editable set and the held set (blocked, conflict, generated-boundary, read-only-or-external, partial-scope-omitted), separates change-versus-held and current-versus-captured counts, keeps every held candidate visible with an omission reason and label, names whether each group's and the preview's evidence is semantic, framework-derived, runtime-observed, imported, a lexical fallback, a syntax fallback, or mixed, enforces an inspect-before-mutate apply gate that always blocks a blind apply, derives an apply posture and preconditions, binds an undo checkpoint, projects the frozen rename-preview-set object, and reaches every consumer surface without flattening into one apply action or exporting code bodies. A held candidate never disappears, and a group resting on a lexical or syntax fallback always carries a fallback note and a downgrade reason, so a grep match is never renamed as if semantic. This corpus is distinct from the language-wedge rename_preview_record packet; it governs the preview-and-apply model over the rename-preview-set object. No source bodies, raw paths, identifiers, provider payloads, URLs, hostnames, or credentials cross this boundary; the record carries opaque object handles, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "rename_preview_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "freeze_gate_ref",
+    "summary",
+    "scenarios",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "rename_preview_governance_set" },
+    "rename_preview_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/navigation/governed_rename_preview.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/scenario" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "pattern": "^(schemas|crates|artifacts|fixtures|docs)/"
+    },
+    "handle_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(aureline://|schemas/|crates/|artifacts/|fixtures/|docs/)"
+    },
+    "nullable_handle_ref": {
+      "anyOf": [{ "$ref": "#/$defs/handle_ref" }, { "type": "null" }]
+    },
+    "relation_kind": {
+      "type": "string",
+      "enum": [
+        "definition",
+        "declaration",
+        "implementation",
+        "reference",
+        "type",
+        "call",
+        "route-binding",
+        "owner-link",
+        "doc-link"
+      ]
+    },
+    "access_kind": {
+      "type": "string",
+      "enum": ["read", "write", "call", "inherit", "import", "export", "test-only", "generated"]
+    },
+    "proof_class": {
+      "type": "string",
+      "enum": [
+        "direct_semantic",
+        "indexed_semantic",
+        "lexical_fallback",
+        "syntax_fallback",
+        "imported_evidence",
+        "framework_derived",
+        "runtime_observed",
+        "ai_inferred",
+        "unavailable"
+      ]
+    },
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "syntax",
+        "project_graph",
+        "language_server",
+        "framework_pack",
+        "notebook_adapter",
+        "generated_source_bridge",
+        "search_index",
+        "remote_index",
+        "imported_snapshot",
+        "runtime_observer",
+        "ai_assist"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "indexed",
+        "imported",
+        "partial",
+        "stale",
+        "unavailable",
+        "heuristic",
+        "workspace_slice_limited"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["authoritative_live", "warm_cached", "degraded_cached", "stale", "unverified"]
+    },
+    "scope_completeness": {
+      "type": "string",
+      "enum": [
+        "complete_for_declared_scope",
+        "partial_for_declared_scope",
+        "stale_for_declared_scope",
+        "unavailable_for_declared_scope"
+      ]
+    },
+    "generated_or_external_state": {
+      "type": "string",
+      "enum": [
+        "authored_source",
+        "generated_source",
+        "external_dependency",
+        "read_only_source",
+        "imported_snapshot"
+      ]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "sparse_workset",
+        "policy_limited",
+        "missing_provider",
+        "provider_unavailable",
+        "stale_shard",
+        "lexical_fallback_only",
+        "syntax_fallback_only",
+        "generated_boundary",
+        "runtime_or_framework_only",
+        "ambiguous_candidates",
+        "bookmark_or_history_drift",
+        "metadata_only_export"
+      ]
+    },
+    "export_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "editor_ui",
+        "cli_headless",
+        "ai_context",
+        "review_workspace",
+        "support_export",
+        "graph_overlay",
+        "shell_continuity"
+      ]
+    },
+    "rename_apply_posture": {
+      "type": "string",
+      "enum": [
+        "ready_for_apply_after_preview",
+        "blocked_pending_scope_review",
+        "blocked_pending_refresh",
+        "blocked_pending_policy_or_protected_review",
+        "inspect_only_unavailable"
+      ]
+    },
+    "rename_candidate_group_kind": {
+      "type": "string",
+      "enum": [
+        "editable",
+        "blocked_for_review",
+        "conflict",
+        "generated_boundary",
+        "read_only_or_external",
+        "partial_scope_omitted"
+      ]
+    },
+    "rename_omission_reason": {
+      "type": "string",
+      "enum": [
+        "blocked_pending_review",
+        "policy_limited",
+        "conflict_pending_resolution",
+        "generated_boundary",
+        "read_only_or_protected",
+        "external_dependency",
+        "out_of_scope_sparse",
+        "partially_loaded",
+        "stale_scope",
+        "unresolved_anchor"
+      ]
+    },
+    "rename_candidate_label": {
+      "type": "string",
+      "enum": [
+        "generated",
+        "external",
+        "read_only",
+        "imported_snapshot",
+        "test_only",
+        "lexical_fallback",
+        "syntax_fallback",
+        "runtime_observed",
+        "framework_derived",
+        "conflict",
+        "blocked",
+        "out_of_scope",
+        "unresolved",
+        "captured_scope_only"
+      ]
+    },
+    "rename_evidence_class": {
+      "type": "string",
+      "enum": [
+        "semantic",
+        "framework_derived",
+        "runtime_observed",
+        "imported_snapshot",
+        "lexical_fallback",
+        "syntax_fallback",
+        "mixed",
+        "unavailable"
+      ]
+    },
+    "rename_apply_precondition": {
+      "type": "string",
+      "enum": [
+        "review_blocked_candidates",
+        "resolve_conflicts",
+        "acknowledge_generated_boundary",
+        "acknowledge_read_only_omission",
+        "acknowledge_partial_scope",
+        "refresh_stale_scope",
+        "widen_sparse_scope"
+      ]
+    },
+    "downgrade_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_reason" }
+    },
+    "handle_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/handle_ref" }
+    },
+    "string_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "labels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rename_candidate_label" }
+    },
+    "omission_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rename_omission_reason" }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_count",
+        "will_change_count",
+        "blocked_count",
+        "conflict_count",
+        "generated_count",
+        "read_only_count",
+        "partial_scope_omitted_count",
+        "unresolved_count",
+        "current_scope_count",
+        "captured_scope_count"
+      ],
+      "properties": {
+        "total_count": { "type": "integer", "minimum": 0 },
+        "will_change_count": { "type": "integer", "minimum": 0 },
+        "blocked_count": { "type": "integer", "minimum": 0 },
+        "conflict_count": { "type": "integer", "minimum": 0 },
+        "generated_count": { "type": "integer", "minimum": 0 },
+        "read_only_count": { "type": "integer", "minimum": 0 },
+        "partial_scope_omitted_count": { "type": "integer", "minimum": 0 },
+        "unresolved_count": { "type": "integer", "minimum": 0 },
+        "current_scope_count": { "type": "integer", "minimum": 0 },
+        "captured_scope_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "count_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "changed_count",
+        "unresolved_count",
+        "generated_count",
+        "protected_count",
+        "skipped_count"
+      ],
+      "properties": {
+        "changed_count": { "type": "integer", "minimum": 0 },
+        "unresolved_count": { "type": "integer", "minimum": 0 },
+        "generated_count": { "type": "integer", "minimum": 0 },
+        "protected_count": { "type": "integer", "minimum": 0 },
+        "skipped_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "target_ref",
+        "anchor_ref",
+        "access_kind",
+        "scope_ref",
+        "generated_or_external_state",
+        "proof_class",
+        "provider_class",
+        "confidence",
+        "freshness",
+        "scope_completeness",
+        "block_reason",
+        "conflict_note",
+        "anchor_resolved",
+        "downgrade_reasons",
+        "evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_ref": { "$ref": "#/$defs/handle_ref" },
+        "anchor_ref": { "$ref": "#/$defs/handle_ref" },
+        "access_kind": { "$ref": "#/$defs/access_kind" },
+        "scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "generated_or_external_state": { "$ref": "#/$defs/generated_or_external_state" },
+        "proof_class": { "$ref": "#/$defs/proof_class" },
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "scope_completeness": { "$ref": "#/$defs/scope_completeness" },
+        "block_reason": {
+          "anyOf": [{ "$ref": "#/$defs/rename_omission_reason" }, { "type": "null" }]
+        },
+        "conflict_note": {
+          "anyOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "anchor_resolved": { "type": "boolean" },
+        "downgrade_reasons": { "$ref": "#/$defs/downgrade_reasons" },
+        "evidence_refs": { "$ref": "#/$defs/handle_refs" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_id",
+        "root_target_ref",
+        "current_name_ref",
+        "proposed_name_ref",
+        "scope_ref",
+        "captured_scope_ref",
+        "redaction_class",
+        "candidates"
+      ],
+      "properties": {
+        "preview_id": { "$ref": "#/$defs/non_empty_string" },
+        "root_target_ref": { "$ref": "#/$defs/handle_ref" },
+        "current_name_ref": { "$ref": "#/$defs/handle_ref" },
+        "proposed_name_ref": { "$ref": "#/$defs/handle_ref" },
+        "scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "captured_scope_ref": { "$ref": "#/$defs/nullable_handle_ref" },
+        "redaction_class": { "$ref": "#/$defs/export_redaction_class" },
+        "candidates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/candidate" }
+        }
+      }
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_kind",
+        "candidate_refs",
+        "counts",
+        "evidence_class",
+        "omission_reasons",
+        "conflict_notes",
+        "provider_classes",
+        "labels",
+        "downgrade_reasons",
+        "fallback_notes",
+        "mutates_on_apply",
+        "remains_visible_when_redacted",
+        "summary"
+      ],
+      "properties": {
+        "group_kind": { "$ref": "#/$defs/rename_candidate_group_kind" },
+        "candidate_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "counts": { "$ref": "#/$defs/counts" },
+        "evidence_class": { "$ref": "#/$defs/rename_evidence_class" },
+        "omission_reasons": { "$ref": "#/$defs/omission_reasons" },
+        "conflict_notes": { "$ref": "#/$defs/string_list" },
+        "provider_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/provider_class" }
+        },
+        "labels": { "$ref": "#/$defs/labels" },
+        "downgrade_reasons": { "$ref": "#/$defs/downgrade_reasons" },
+        "fallback_notes": { "$ref": "#/$defs/string_list" },
+        "mutates_on_apply": { "type": "boolean" },
+        "remains_visible_when_redacted": { "const": true },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "apply_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "apply_posture",
+        "inspect_before_mutate_required",
+        "blind_apply_blocked",
+        "apply_allowed_after_preview",
+        "will_change_count",
+        "held_count",
+        "preconditions",
+        "omitted_candidates_remain_visible",
+        "redacted_candidates_remain_visible",
+        "undo_checkpoint_ref",
+        "summary"
+      ],
+      "properties": {
+        "apply_posture": { "$ref": "#/$defs/rename_apply_posture" },
+        "inspect_before_mutate_required": { "const": true },
+        "blind_apply_blocked": { "const": true },
+        "apply_allowed_after_preview": { "type": "boolean" },
+        "will_change_count": { "type": "integer", "minimum": 0 },
+        "held_count": { "type": "integer", "minimum": 0 },
+        "preconditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rename_apply_precondition" }
+        },
+        "omitted_candidates_remain_visible": { "const": true },
+        "redacted_candidates_remain_visible": { "const": true },
+        "undo_checkpoint_ref": { "$ref": "#/$defs/handle_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "preview_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rename_preview_id",
+        "root_target_ref",
+        "candidate_occurrence_refs",
+        "blocked_refs",
+        "conflict_notes",
+        "sparse_or_partial_reasons",
+        "generated_scope_notes",
+        "count_summary",
+        "proof_class",
+        "confidence",
+        "freshness",
+        "scope_completeness",
+        "apply_posture",
+        "redaction_class",
+        "evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "rename_preview_id": { "$ref": "#/$defs/non_empty_string" },
+        "root_target_ref": { "$ref": "#/$defs/handle_ref" },
+        "candidate_occurrence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "blocked_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "conflict_notes": { "$ref": "#/$defs/string_list" },
+        "sparse_or_partial_reasons": { "$ref": "#/$defs/string_list" },
+        "generated_scope_notes": { "$ref": "#/$defs/string_list" },
+        "count_summary": { "$ref": "#/$defs/count_summary" },
+        "proof_class": { "$ref": "#/$defs/proof_class" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "scope_completeness": { "$ref": "#/$defs/scope_completeness" },
+        "apply_posture": { "$ref": "#/$defs/rename_apply_posture" },
+        "redaction_class": { "$ref": "#/$defs/export_redaction_class" },
+        "evidence_refs": { "$ref": "#/$defs/handle_refs" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "projected_group_count",
+        "preserves_candidate_grouping",
+        "preserves_counts",
+        "preserves_omission_reasons",
+        "preserves_conflict_notes",
+        "preserves_apply_gate",
+        "preserves_undo_checkpoint",
+        "omitted_candidates_remain_visible",
+        "flattens_to_single_apply_action",
+        "exports_code_bodies",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "projected_group_count": { "type": "integer", "minimum": 0 },
+        "preserves_candidate_grouping": { "type": "boolean" },
+        "preserves_counts": { "type": "boolean" },
+        "preserves_omission_reasons": { "type": "boolean" },
+        "preserves_conflict_notes": { "type": "boolean" },
+        "preserves_apply_gate": { "type": "boolean" },
+        "preserves_undo_checkpoint": { "type": "boolean" },
+        "omitted_candidates_remain_visible": { "const": true },
+        "flattens_to_single_apply_action": { "const": false },
+        "exports_code_bodies": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/export_redaction_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_id",
+        "root_target_ref",
+        "root_relation_kind",
+        "current_name_ref",
+        "proposed_name_ref",
+        "scope_ref",
+        "captured_scope_ref",
+        "groups",
+        "totals",
+        "preview_evidence_class",
+        "labels",
+        "omission_reasons",
+        "conflict_notes",
+        "apply_gate",
+        "preview_set",
+        "consumer_projections",
+        "downgrade_reasons",
+        "fallback_notes",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "preview_id": { "$ref": "#/$defs/non_empty_string" },
+        "root_target_ref": { "$ref": "#/$defs/handle_ref" },
+        "root_relation_kind": { "const": "definition" },
+        "current_name_ref": { "$ref": "#/$defs/handle_ref" },
+        "proposed_name_ref": { "$ref": "#/$defs/handle_ref" },
+        "scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "captured_scope_ref": { "$ref": "#/$defs/nullable_handle_ref" },
+        "groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/group" }
+        },
+        "totals": { "$ref": "#/$defs/counts" },
+        "preview_evidence_class": { "$ref": "#/$defs/rename_evidence_class" },
+        "labels": { "$ref": "#/$defs/labels" },
+        "omission_reasons": { "$ref": "#/$defs/omission_reasons" },
+        "conflict_notes": { "$ref": "#/$defs/string_list" },
+        "apply_gate": { "$ref": "#/$defs/apply_gate" },
+        "preview_set": { "$ref": "#/$defs/preview_set" },
+        "consumer_projections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/projection" }
+        },
+        "downgrade_reasons": { "$ref": "#/$defs/downgrade_reasons" },
+        "fallback_notes": { "$ref": "#/$defs/string_list" },
+        "redaction_class": { "$ref": "#/$defs/export_redaction_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario_id", "title", "input", "preview", "expectation_note"],
+      "properties": {
+        "scenario_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "input": { "$ref": "#/$defs/input" },
+        "preview": { "$ref": "#/$defs/preview" },
+        "expectation_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "type": "boolean" }
+      }
+    }
+  }
+}
