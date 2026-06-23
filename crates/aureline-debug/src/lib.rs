@@ -70,6 +70,24 @@
 //! a lost mapping degrades to an explicit unmapped frame, async/runtime boundaries stay
 //! visible, and a captured or stale value never implies live authority.
 //!
+//! It also exposes [`m5_evaluate_repl_sheets`] — the typed, frozen
+//! [`EvaluateRecord`](m5_evaluate_repl_sheets::EvaluateRecord) and
+//! [`ConsoleEmission`](m5_evaluate_repl_sheets::ConsoleEmission) records that materialize
+//! the evaluate-request/result and console-emission families. The canonical
+//! [`EvaluateReplSheetSet`](m5_evaluate_repl_sheets::EvaluateReplSheetSet) carries one
+//! purity vocabulary (pure, unknown, may-mutate) and one approval-disposition vocabulary
+//! (not-required, pending, approved, denied, blocked, expired), so an evaluate/REPL surface
+//! tells the user whether an expression is pure, unknown, or may-mutate before dispatch and
+//! after a result returns: a pure expression needs no approval, an unknown or mutating
+//! expression discloses its risk and requires review, a pending/denied/blocked/expired
+//! evaluation never permits dispatch and carries no result, an effectful expression against
+//! an inspect-only context is blocked rather than silently mutating a recording, and actor
+//! lineage names who requested and who reviewed it. Every console emission carries one pill
+//! that pins one direction (user input vs target output) and one liveness (live vs
+//! replayed), so console history and export packets distinguish interactive input from
+//! target output, never present a replayed line as live, and preserve redaction review
+//! rather than flattening one transcript.
+//!
 //! The reviewer-facing contract is at
 //! [`/docs/m4/qualify-chronology-capture-and-replay-support-classes.md`](../../../docs/m4/qualify-chronology-capture-and-replay-support-classes.md).
 //! The cross-tool boundary schema is at
@@ -83,6 +101,7 @@ pub mod canonical_test_discovery_session_and_watch_truth;
 pub mod m5_breakpoint_specs;
 pub mod m5_debug_contracts;
 pub mod m5_debug_session_descriptors;
+pub mod m5_evaluate_repl_sheets;
 pub mod m5_frame_variable_snapshots;
 pub mod qualify_chronology_capture_and_replay_support_classes;
 pub mod symbolication;
@@ -134,6 +153,19 @@ pub use m5_frame_variable_snapshots::{
     M5_FRAME_VARIABLE_SNAPSHOTS_FIXTURE_REF, M5_FRAME_VARIABLE_SNAPSHOTS_FREEZE_GATE_REF,
     M5_FRAME_VARIABLE_SNAPSHOTS_RECORD_KIND, M5_FRAME_VARIABLE_SNAPSHOTS_SCHEMA_REF,
     M5_FRAME_VARIABLE_SNAPSHOTS_SCHEMA_VERSION, M5_FRAME_VARIABLE_SNAPSHOTS_SET_ID,
+};
+
+pub use m5_evaluate_repl_sheets::{
+    m5_evaluate_repl_sheet_lines, m5_evaluate_repl_sheet_set, ActorLineage, ApprovalDisposition,
+    ConsoleDirection, ConsoleEmission, ConsoleEmissionPill, ConsoleLiveness, ConsoleStreamClass,
+    EvaluateActorClass, EvaluateContextAuthority, EvaluateContextScope, EvaluateOutcome,
+    EvaluatePosturePill, EvaluatePurityClass, EvaluateRecord, EvaluateRedactionClass,
+    EvaluateReplInvariant, EvaluateReplSheetSet, EvaluateReplSheetSetValidationError,
+    EvaluateResult, ExpressionContext, M5_EVALUATE_REPL_SHEETS_ARTIFACT_REF,
+    M5_EVALUATE_REPL_SHEETS_AS_OF, M5_EVALUATE_REPL_SHEETS_DOC_REF,
+    M5_EVALUATE_REPL_SHEETS_FIXTURE_REF, M5_EVALUATE_REPL_SHEETS_FREEZE_GATE_REF,
+    M5_EVALUATE_REPL_SHEETS_RECORD_KIND, M5_EVALUATE_REPL_SHEETS_SCHEMA_REF,
+    M5_EVALUATE_REPL_SHEETS_SCHEMA_VERSION, M5_EVALUATE_REPL_SHEETS_SET_ID,
 };
 
 pub use symbolication::{

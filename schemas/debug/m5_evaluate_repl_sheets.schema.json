@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/debug/m5_evaluate_repl_sheets.schema.json",
+  "title": "Aureline M5 evaluate/REPL sheet set",
+  "description": "Boundary schema for the typed M5 evaluate/REPL review sheets and console emissions: the canonical records every debugger evaluate pane, REPL, notebook console, replay inspector, and exported support packet reads. Every evaluation carries one posture pill that pins one purity class (pure, unknown, may_mutate) and one approval disposition (not_required, pending, approved, denied, blocked, expired), so the user is told whether an expression is harmless inspection, unknown, or mutating before dispatch and after a result returns: a pure expression needs no approval, an unknown or mutating expression discloses its risk and requires review, a pending/denied/blocked/expired evaluation never permits dispatch and carries no result, an effectful expression against an inspect-only context is blocked rather than silently mutating a recording, and actor lineage names who requested and who reviewed it. Every console emission carries one pill that pins one direction (user_input vs target_output) derived from its stream class, one liveness (live vs replayed), and a redaction marker, so console history and export packets distinguish interactive input from target output, never present a replayed line as live, and preserve redaction review rather than flattening one transcript. No raw expression source, value bodies, console bodies, raw paths, provider payloads, URLs, hostnames, or credentials cross this boundary; the record carries opaque object refs, stable tokens, opaque digests, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_evaluate_repl_sheets_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "freeze_gate_ref",
+    "summary",
+    "source_schema_refs",
+    "producer_refs",
+    "consumer_surfaces",
+    "evaluations",
+    "console",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_evaluate_repl_sheet_set" },
+    "m5_evaluate_repl_sheets_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/debug/m5_evaluate_repl_sheets.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "source_schema_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repo_ref" }
+    },
+    "producer_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repo_ref" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_class" }
+    },
+    "evaluations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/evaluate_record" }
+    },
+    "console": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/console_emission" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/evaluate_repl_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "non_negative_integer": { "type": "integer", "minimum": 0 },
+    "purity_class": {
+      "type": "string",
+      "enum": ["pure", "unknown", "may_mutate"]
+    },
+    "approval_disposition": {
+      "type": "string",
+      "enum": ["not_required", "pending", "approved", "denied", "blocked", "expired"]
+    },
+    "context_scope": {
+      "type": "string",
+      "enum": ["frame", "thread", "global_scope", "session", "repl"]
+    },
+    "context_authority": {
+      "type": "string",
+      "enum": ["live_mutable", "inspect_only"]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": ["human", "ai_agent", "automation"]
+    },
+    "evaluate_outcome": {
+      "type": "string",
+      "enum": ["completed", "no_value", "raised_error"]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": ["not_redacted", "secret_redacted", "pii_redacted", "policy_withheld"]
+    },
+    "console_direction": {
+      "type": "string",
+      "enum": ["user_input", "target_output"]
+    },
+    "console_stream_class": {
+      "type": "string",
+      "enum": ["stdin", "evaluate_input", "stdout", "stderr", "debug_console", "evaluate_result"]
+    },
+    "console_liveness": {
+      "type": "string",
+      "enum": ["live", "replayed_capture"]
+    },
+    "consumer_class": {
+      "type": "string",
+      "enum": [
+        "core_debugger",
+        "notebook_debug",
+        "profiler",
+        "incident_review",
+        "support_export",
+        "ai_context",
+        "review_workspace",
+        "cli_headless",
+        "docs_help"
+      ]
+    },
+    "expression_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_id", "scope", "scope_token", "authority", "authority_token"],
+      "properties": {
+        "session_id": { "$ref": "#/$defs/non_empty_string" },
+        "thread_id": { "$ref": "#/$defs/non_empty_string" },
+        "frame_id": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/context_scope" },
+        "scope_token": { "$ref": "#/$defs/context_scope" },
+        "authority": { "$ref": "#/$defs/context_authority" },
+        "authority_token": { "$ref": "#/$defs/context_authority" },
+        "notebook_cell_ref": { "$ref": "#/$defs/non_empty_string" },
+        "replay_capture_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "actor_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested_by_ref", "actor_class", "actor_class_token", "origin_surface"],
+      "properties": {
+        "requested_by_ref": { "$ref": "#/$defs/non_empty_string" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_class_token": { "$ref": "#/$defs/actor_class" },
+        "origin_surface": { "$ref": "#/$defs/consumer_class" },
+        "reviewed_by_ref": { "$ref": "#/$defs/non_empty_string" },
+        "on_behalf_of_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "evaluate_posture_pill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purity",
+        "purity_token",
+        "disposition",
+        "disposition_token",
+        "context_authority",
+        "context_authority_token",
+        "label",
+        "approval_required",
+        "discloses_side_effect_risk",
+        "permits_dispatch",
+        "requires_review_affordance",
+        "is_blocked",
+        "blocked_by_inspect_only"
+      ],
+      "properties": {
+        "purity": { "$ref": "#/$defs/purity_class" },
+        "purity_token": { "$ref": "#/$defs/purity_class" },
+        "disposition": { "$ref": "#/$defs/approval_disposition" },
+        "disposition_token": { "$ref": "#/$defs/approval_disposition" },
+        "context_authority": { "$ref": "#/$defs/context_authority" },
+        "context_authority_token": { "$ref": "#/$defs/context_authority" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "approval_required": { "type": "boolean" },
+        "discloses_side_effect_risk": { "type": "boolean" },
+        "permits_dispatch": { "type": "boolean" },
+        "requires_review_affordance": { "type": "boolean" },
+        "is_blocked": { "type": "boolean" },
+        "blocked_by_inspect_only": { "type": "boolean" }
+      }
+    },
+    "evaluate_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_id",
+        "outcome",
+        "outcome_token",
+        "result_summary",
+        "side_effect_note",
+        "observed_mutation",
+        "redaction",
+        "redaction_token",
+        "is_redacted",
+        "result_body_present",
+        "returned_as_of"
+      ],
+      "properties": {
+        "result_id": { "$ref": "#/$defs/non_empty_string" },
+        "outcome": { "$ref": "#/$defs/evaluate_outcome" },
+        "outcome_token": { "$ref": "#/$defs/evaluate_outcome" },
+        "result_summary": { "$ref": "#/$defs/non_empty_string" },
+        "result_repr_digest": { "$ref": "#/$defs/non_empty_string" },
+        "side_effect_note": { "$ref": "#/$defs/non_empty_string" },
+        "observed_mutation": { "type": "boolean" },
+        "redaction": { "$ref": "#/$defs/redaction_class" },
+        "redaction_token": { "$ref": "#/$defs/redaction_class" },
+        "is_redacted": { "type": "boolean" },
+        "result_body_present": { "type": "boolean" },
+        "returned_as_of": { "type": "string", "format": "date-time" }
+      }
+    },
+    "evaluate_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evaluate_id",
+        "expression_digest",
+        "expression_redaction",
+        "expression_redaction_token",
+        "context",
+        "purity",
+        "purity_token",
+        "disposition",
+        "disposition_token",
+        "posture",
+        "actor",
+        "proof_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "evaluate_id": { "$ref": "#/$defs/non_empty_string" },
+        "expression_digest": { "$ref": "#/$defs/non_empty_string" },
+        "expression_redaction": { "$ref": "#/$defs/redaction_class" },
+        "expression_redaction_token": { "$ref": "#/$defs/redaction_class" },
+        "context": { "$ref": "#/$defs/expression_context" },
+        "purity": { "$ref": "#/$defs/purity_class" },
+        "purity_token": { "$ref": "#/$defs/purity_class" },
+        "disposition": { "$ref": "#/$defs/approval_disposition" },
+        "disposition_token": { "$ref": "#/$defs/approval_disposition" },
+        "posture": { "$ref": "#/$defs/evaluate_posture_pill" },
+        "actor": { "$ref": "#/$defs/actor_lineage" },
+        "result": { "$ref": "#/$defs/evaluate_result" },
+        "proof_packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "console_emission_pill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "direction",
+        "direction_token",
+        "stream",
+        "stream_token",
+        "liveness",
+        "liveness_token",
+        "label",
+        "is_user_input",
+        "is_target_output",
+        "is_live",
+        "is_replayed",
+        "requires_disclosure",
+        "is_redacted",
+        "body_present"
+      ],
+      "properties": {
+        "direction": { "$ref": "#/$defs/console_direction" },
+        "direction_token": { "$ref": "#/$defs/console_direction" },
+        "stream": { "$ref": "#/$defs/console_stream_class" },
+        "stream_token": { "$ref": "#/$defs/console_stream_class" },
+        "liveness": { "$ref": "#/$defs/console_liveness" },
+        "liveness_token": { "$ref": "#/$defs/console_liveness" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "is_user_input": { "type": "boolean" },
+        "is_target_output": { "type": "boolean" },
+        "is_live": { "type": "boolean" },
+        "is_replayed": { "type": "boolean" },
+        "requires_disclosure": { "type": "boolean" },
+        "is_redacted": { "type": "boolean" },
+        "body_present": { "type": "boolean" }
+      }
+    },
+    "console_emission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "emission_id",
+        "sequence",
+        "stream",
+        "stream_token",
+        "direction",
+        "direction_token",
+        "liveness",
+        "liveness_token",
+        "session_ref",
+        "redaction",
+        "redaction_token",
+        "replayable",
+        "pill",
+        "proof_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "emission_id": { "$ref": "#/$defs/non_empty_string" },
+        "sequence": { "$ref": "#/$defs/non_negative_integer" },
+        "stream": { "$ref": "#/$defs/console_stream_class" },
+        "stream_token": { "$ref": "#/$defs/console_stream_class" },
+        "direction": { "$ref": "#/$defs/console_direction" },
+        "direction_token": { "$ref": "#/$defs/console_direction" },
+        "liveness": { "$ref": "#/$defs/console_liveness" },
+        "liveness_token": { "$ref": "#/$defs/console_liveness" },
+        "session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "thread_ref": { "$ref": "#/$defs/non_empty_string" },
+        "frame_ref": { "$ref": "#/$defs/non_empty_string" },
+        "notebook_cell_ref": { "$ref": "#/$defs/non_empty_string" },
+        "replay_capture_ref": { "$ref": "#/$defs/non_empty_string" },
+        "linked_evaluate_id": { "$ref": "#/$defs/non_empty_string" },
+        "body_digest": { "$ref": "#/$defs/non_empty_string" },
+        "redaction": { "$ref": "#/$defs/redaction_class" },
+        "redaction_token": { "$ref": "#/$defs/redaction_class" },
+        "replayable": { "type": "boolean" },
+        "pill": { "$ref": "#/$defs/console_emission_pill" },
+        "proof_packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "evaluate_repl_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}
