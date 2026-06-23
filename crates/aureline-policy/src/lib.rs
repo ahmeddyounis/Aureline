@@ -26,6 +26,7 @@ pub mod harden_identity_and_admin_support_export_parity_audit;
 pub mod harden_os_keychain_and_trust_store_integration_trust;
 pub mod implement_approval_ticket_issuance_deny_reason_packets_replay_nonce_or_expiry_enforcement_and_local_first_verification_f;
 pub mod implement_execution_surface_classes_sandbox_profile_descriptors_and_unsupported_or_stricter_profile_truth;
+pub mod m5_admin_certification;
 pub mod m5_admin_plane;
 pub mod m5_admin_render;
 pub mod m5_decision_history;
