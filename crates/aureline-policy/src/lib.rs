@@ -26,6 +26,7 @@ pub mod harden_identity_and_admin_support_export_parity_audit;
 pub mod harden_os_keychain_and_trust_store_integration_trust;
 pub mod implement_approval_ticket_issuance_deny_reason_packets_replay_nonce_or_expiry_enforcement_and_local_first_verification_f;
 pub mod implement_execution_surface_classes_sandbox_profile_descriptors_and_unsupported_or_stricter_profile_truth;
+pub mod m5_admin_plane;
 pub mod m5_exception_expiry;
 pub mod policy_simulation_and_expiry;
 pub mod publish_enterprise_self_hosted_and_air_gapped_docs_matrices_and_known_limits;
@@ -137,6 +138,16 @@ pub use m5_exception_expiry::{
     M5_EXCEPTION_EXPIRY_SCHEMA_VERSION, M5_EXCEPTION_EXPIRY_SHARED_CONTRACT_REF,
     M5_EXCEPTION_REQUEST_SHEET_RECORD_KIND, M5_EXPIRY_BANNER_RECORD_KIND,
     M5_REMEMBERED_DECISION_REVALIDATION_RECORD_KIND,
+};
+
+pub use m5_admin_plane::{
+    admin_plane_lines, admin_plane_matrix, AdminConsumerClass, AdminDeploymentProfileClass,
+    AdminFreshnessRule, AdminLiveSnapshotClass, AdminMatrixInvariant, AdminMatrixValidationError,
+    AdminOwnershipField, AdminPathClass, AdminPathEntry, AdminPathWritePostureClass,
+    AdminPlaneMatrix, AdminRedactionClass, AdminScopeClass, AdminSharedVocabulary, AdminStateClass,
+    AdminStateTerm, AdminSurfaceClass, AdminSurfaceEntry, AdminTokenDef, ControlledVocabulary,
+    M5_ADMIN_PLANE_AS_OF, M5_ADMIN_PLANE_FREEZE_GATE_REF, M5_ADMIN_PLANE_MATRIX_ID,
+    M5_ADMIN_PLANE_RECORD_KIND, M5_ADMIN_PLANE_SCHEMA_REF, M5_ADMIN_PLANE_SCHEMA_VERSION,
 };
 
 pub use records_policy_governance_snapshot::{
