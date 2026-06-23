@@ -999,14 +999,14 @@ impl AdminPlaneMatrix {
     }
 }
 
-fn all_unique<'a>(iter: impl Iterator<Item = &'a str>) -> bool {
+pub(crate) fn all_unique<'a>(iter: impl Iterator<Item = &'a str>) -> bool {
     let mut seen = std::collections::BTreeSet::new();
     iter.into_iter().all(|item| seen.insert(item))
 }
 
 /// Whether a ref is safe to export: a repo-relative object ref or opaque
 /// `aureline://` handle, never a URL, host, credential, or absolute path.
-fn is_export_safe_ref(r: &str) -> bool {
+pub(crate) fn is_export_safe_ref(r: &str) -> bool {
     if r.is_empty() || r.starts_with('/') || (r.contains("://") && !r.starts_with("aureline://")) {
         return false;
     }

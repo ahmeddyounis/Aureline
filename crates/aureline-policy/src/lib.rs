@@ -27,6 +27,7 @@ pub mod harden_os_keychain_and_trust_store_integration_trust;
 pub mod implement_approval_ticket_issuance_deny_reason_packets_replay_nonce_or_expiry_enforcement_and_local_first_verification_f;
 pub mod implement_execution_surface_classes_sandbox_profile_descriptors_and_unsupported_or_stricter_profile_truth;
 pub mod m5_admin_plane;
+pub mod m5_admin_render;
 pub mod m5_exception_expiry;
 pub mod policy_simulation_and_expiry;
 pub mod publish_enterprise_self_hosted_and_air_gapped_docs_matrices_and_known_limits;
@@ -148,6 +149,18 @@ pub use m5_admin_plane::{
     AdminStateTerm, AdminSurfaceClass, AdminSurfaceEntry, AdminTokenDef, ControlledVocabulary,
     M5_ADMIN_PLANE_AS_OF, M5_ADMIN_PLANE_FREEZE_GATE_REF, M5_ADMIN_PLANE_MATRIX_ID,
     M5_ADMIN_PLANE_RECORD_KIND, M5_ADMIN_PLANE_SCHEMA_REF, M5_ADMIN_PLANE_SCHEMA_VERSION,
+};
+
+pub use m5_admin_render::{
+    admin_render_bundle, admin_render_lines, AdminRenderBundle, AdminRenderInvariant,
+    AdminRenderPacket, AdminRenderValidationError, DataResidencyClass, EffectivePolicyControl,
+    EffectivePolicyView, EndpointPostureCard, EvidenceAgeClass, IdentityStatusClass,
+    InstallModeClass, LockedStateExplanation, MirrorSourceRef, OwnerEscalationRoleClass,
+    PolicyChangeKindClass, PolicyDiffEntry, PolicyDiffSheet, PolicySourceLink,
+    PolicySourceStateClass, TrustRootRef, UpdateRingClass, VerificationPostureClass,
+    M5_ADMIN_RENDER_AS_OF, M5_ADMIN_RENDER_BUNDLE_ID, M5_ADMIN_RENDER_FREEZE_GATE_REF,
+    M5_ADMIN_RENDER_MATRIX_REF, M5_ADMIN_RENDER_RECORD_KIND, M5_ADMIN_RENDER_SCHEMA_REF,
+    M5_ADMIN_RENDER_SCHEMA_VERSION, RENDERED_PROFILES,
 };
 
 pub use records_policy_governance_snapshot::{

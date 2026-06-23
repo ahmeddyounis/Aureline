@@ -1,0 +1,472 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/admin/m5-admin-render.schema.json",
+  "title": "Aureline M5 admin-plane render bundle",
+  "description": "Boundary schema for the M5 admin-plane render bundle: the concrete, typed instances of Aureline's local admin surfaces — the effective-policy view, the policy-diff sheet, the locked-state explanations, and the endpoint-posture card — rendered across the claimed managed-cloud, self-hosted, sovereign/air-gapped, and mirrored/offline profiles. Each rendered surface binds back to the frozen admin-plane matrix (schemas/admin/m5-admin-plane.schema.json): every state it shows is one the matrix declares applicable for that surface family, and every policy-source, verification, data-residency, owner, and freshness token it uses is a term the matrix's shared vocabulary defines. There is exactly one typed packet per profile, consumed identically by the shell admin center, CLI/headless inspect, Help/About, support export, and release evidence, so policy source, diff, and endpoint state are identical across surfaces by construction. No endpoint URLs, hostnames, credentials, raw provider payloads, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, rendered metadata-safe value summaries, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_admin_render_schema_version",
+    "schema_ref",
+    "bundle_id",
+    "as_of",
+    "matrix_ref",
+    "matrix_id",
+    "freeze_gate_ref",
+    "summary",
+    "profiles",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_admin_render_bundle" },
+    "m5_admin_render_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/admin/m5-admin-render.schema.json" },
+    "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/render_packet" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/render_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "safe_token": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An opaque stable token with no URL scheme or absolute path.",
+      "not": { "anyOf": [{ "pattern": "://" }, { "pattern": "^/" }] }
+    },
+    "surface_token": {
+      "enum": [
+        "effective_policy_view",
+        "policy_diff",
+        "decision_history_timeline",
+        "locked_state_explanation",
+        "retention_deletion_matrix",
+        "offboarding_wizard",
+        "procurement_verification_packet",
+        "endpoint_posture_card"
+      ]
+    },
+    "path_token": {
+      "enum": [
+        "local_individual",
+        "managed_cloud",
+        "self_hosted",
+        "sovereign_air_gapped",
+        "mirrored_offline",
+        "imported_snapshot"
+      ]
+    },
+    "state_token": {
+      "enum": [
+        "active_enforced",
+        "locked_by_policy",
+        "inherited_default",
+        "overridden_local",
+        "unconfirmed_stale",
+        "pending_managed_sync",
+        "signature_unverified",
+        "delete_pending",
+        "delete_blocked_by_hold",
+        "delete_receipted",
+        "export_available_now",
+        "export_deferred",
+        "mirror_offline_last_known",
+        "boundary_changed_recheck_required",
+        "imported_snapshot_no_live",
+        "unknown_requires_review"
+      ]
+    },
+    "deployment_profile_class": {
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "sovereign_air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "admin_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "compliance_restricted"
+      ]
+    },
+    "scope_class": {
+      "enum": ["local_private", "shared_workspace", "managed_org"]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_admin_center",
+        "cli_headless",
+        "help_about",
+        "support_export",
+        "commercial_procurement",
+        "release_evidence",
+        "managed_service"
+      ]
+    },
+    "policy_source_state": {
+      "enum": [
+        "local_default",
+        "workspace_setting",
+        "managed_policy_bundle",
+        "mirrored_policy_bundle",
+        "remembered_decision",
+        "signed_offline_bundle",
+        "unknown_source"
+      ]
+    },
+    "verification_posture": {
+      "enum": [
+        "signed_verified",
+        "signed_unverified",
+        "unsigned_local",
+        "signature_expired",
+        "signature_revoked",
+        "unverifiable_offline"
+      ]
+    },
+    "data_residency_class": {
+      "enum": [
+        "local_only",
+        "managed_copy",
+        "mirrored_copy",
+        "shared_workspace_copy",
+        "exported_snapshot"
+      ]
+    },
+    "owner_escalation_role": {
+      "enum": [
+        "local_user",
+        "workspace_owner",
+        "org_admin",
+        "security_owner",
+        "compliance_owner",
+        "vendor_support"
+      ]
+    },
+    "evidence_age_class": {
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"]
+    },
+    "policy_change_kind": {
+      "enum": [
+        "newly_locked",
+        "unlocked",
+        "rescoped",
+        "value_changed",
+        "source_changed",
+        "no_change"
+      ]
+    },
+    "install_mode_class": {
+      "enum": ["per_user", "per_machine", "portable", "managed_image", "sovereign_image"]
+    },
+    "update_ring_class": {
+      "enum": ["stable", "extended", "beta", "pinned_managed", "pinned_offline"]
+    },
+    "identity_status_class": {
+      "enum": [
+        "signed_in_verified",
+        "managed_session",
+        "signed_out_local_only",
+        "session_expired",
+        "rebind_required"
+      ]
+    },
+    "policy_source_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "source_state", "label", "winning"],
+      "properties": {
+        "order": { "type": "integer", "minimum": 0 },
+        "source_state": { "$ref": "#/$defs/policy_source_state" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "winning": { "type": "boolean" }
+      }
+    },
+    "effective_policy_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_id",
+        "label",
+        "feature_family",
+        "effective_value",
+        "state",
+        "scope",
+        "verification",
+        "source_chain",
+        "applied_at",
+        "evidence_age",
+        "data_residency",
+        "owner",
+        "posture_note"
+      ],
+      "properties": {
+        "control_id": { "$ref": "#/$defs/safe_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "feature_family": { "$ref": "#/$defs/non_empty_string" },
+        "effective_value": { "$ref": "#/$defs/non_empty_string" },
+        "state": { "$ref": "#/$defs/state_token" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "verification": { "$ref": "#/$defs/verification_posture" },
+        "source_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/policy_source_link" }
+        },
+        "applied_at": { "type": "string", "format": "date-time" },
+        "evidence_age": { "$ref": "#/$defs/evidence_age_class" },
+        "data_residency": { "$ref": "#/$defs/data_residency_class" },
+        "owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "posture_note": { "$ref": "#/$defs/non_empty_string" },
+        "locked_explanation_ref": { "$ref": "#/$defs/safe_token" }
+      }
+    },
+    "effective_policy_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "surface_id", "summary", "controls"],
+      "properties": {
+        "surface": { "const": "effective_policy_view" },
+        "surface_id": { "$ref": "#/$defs/safe_token" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "controls": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/effective_policy_control" }
+        }
+      }
+    },
+    "policy_diff_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_id",
+        "control_id",
+        "feature_family",
+        "change_kind",
+        "from_state",
+        "to_state",
+        "from_source",
+        "to_source",
+        "user_visible_consequence",
+        "redaction",
+        "owner"
+      ],
+      "properties": {
+        "change_id": { "$ref": "#/$defs/safe_token" },
+        "control_id": { "$ref": "#/$defs/safe_token" },
+        "feature_family": { "$ref": "#/$defs/non_empty_string" },
+        "change_kind": { "$ref": "#/$defs/policy_change_kind" },
+        "from_state": { "$ref": "#/$defs/state_token" },
+        "to_state": { "$ref": "#/$defs/state_token" },
+        "from_source": { "$ref": "#/$defs/policy_source_state" },
+        "to_source": { "$ref": "#/$defs/policy_source_state" },
+        "user_visible_consequence": { "$ref": "#/$defs/non_empty_string" },
+        "redaction": { "$ref": "#/$defs/redaction_class" },
+        "owner": { "$ref": "#/$defs/owner_escalation_role" }
+      }
+    },
+    "policy_diff_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_id",
+        "summary",
+        "from_label",
+        "to_label",
+        "provisional",
+        "changes"
+      ],
+      "properties": {
+        "surface": { "const": "policy_diff" },
+        "surface_id": { "$ref": "#/$defs/safe_token" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "from_label": { "$ref": "#/$defs/non_empty_string" },
+        "to_label": { "$ref": "#/$defs/non_empty_string" },
+        "provisional": { "type": "boolean" },
+        "changes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/policy_diff_entry" }
+        }
+      }
+    },
+    "locked_state_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_id",
+        "explanation_id",
+        "locked_target_ref",
+        "lock_state",
+        "lock_reason",
+        "lock_source",
+        "verification",
+        "change_owner",
+        "local_safe_actions"
+      ],
+      "properties": {
+        "surface": { "const": "locked_state_explanation" },
+        "surface_id": { "$ref": "#/$defs/safe_token" },
+        "explanation_id": { "$ref": "#/$defs/safe_token" },
+        "locked_target_ref": { "$ref": "#/$defs/safe_token" },
+        "lock_state": { "$ref": "#/$defs/state_token" },
+        "lock_reason": { "$ref": "#/$defs/non_empty_string" },
+        "lock_source": { "$ref": "#/$defs/policy_source_state" },
+        "verification": { "$ref": "#/$defs/verification_posture" },
+        "change_owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "escalation_owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "local_safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "mirror_source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "label", "freshness", "verification"],
+      "properties": {
+        "source_id": { "$ref": "#/$defs/safe_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "freshness": { "$ref": "#/$defs/evidence_age_class" },
+        "verification": { "$ref": "#/$defs/verification_posture" }
+      }
+    },
+    "trust_root_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_id", "label", "verification"],
+      "properties": {
+        "root_id": { "$ref": "#/$defs/safe_token" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "verification": { "$ref": "#/$defs/verification_posture" }
+      }
+    },
+    "endpoint_posture_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_id",
+        "summary",
+        "device_or_install_id",
+        "posture_state",
+        "install_mode",
+        "update_ring",
+        "mirror_sources",
+        "trust_roots",
+        "bundle_freshness",
+        "identity_status",
+        "check_age",
+        "enrollment_owner",
+        "data_residency",
+        "diagnostics_actions",
+        "exportable",
+        "posture_note"
+      ],
+      "properties": {
+        "surface": { "const": "endpoint_posture_card" },
+        "surface_id": { "$ref": "#/$defs/safe_token" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "device_or_install_id": { "$ref": "#/$defs/safe_token" },
+        "posture_state": { "$ref": "#/$defs/state_token" },
+        "install_mode": { "$ref": "#/$defs/install_mode_class" },
+        "update_ring": { "$ref": "#/$defs/update_ring_class" },
+        "mirror_sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mirror_source_ref" }
+        },
+        "trust_roots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/trust_root_ref" }
+        },
+        "bundle_freshness": { "$ref": "#/$defs/evidence_age_class" },
+        "identity_status": { "$ref": "#/$defs/identity_status_class" },
+        "check_age": { "$ref": "#/$defs/evidence_age_class" },
+        "enrollment_owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "data_residency": { "$ref": "#/$defs/data_residency_class" },
+        "diagnostics_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "exportable": { "type": "boolean" },
+        "posture_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "render_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "profile_id",
+        "deployment_profile",
+        "summary",
+        "consumers",
+        "effective_policy",
+        "policy_diff",
+        "locked_states",
+        "endpoint_posture"
+      ],
+      "properties": {
+        "profile": { "$ref": "#/$defs/path_token" },
+        "profile_id": { "$ref": "#/$defs/safe_token" },
+        "deployment_profile": { "$ref": "#/$defs/deployment_profile_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "consumers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "effective_policy": { "$ref": "#/$defs/effective_policy_view" },
+        "policy_diff": { "$ref": "#/$defs/policy_diff_sheet" },
+        "locked_states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/locked_state_explanation" }
+        },
+        "endpoint_posture": { "$ref": "#/$defs/endpoint_posture_card" }
+      }
+    },
+    "render_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}
