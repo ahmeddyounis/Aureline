@@ -1,0 +1,410 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/activity/m5-quiet-hours-suppression.schema.json",
+  "title": "Aureline M5 quiet-hours-suppression bundle",
+  "description": "Boundary schema for the M5 quiet-hours-suppression bundle: the working engine that applies one coherent suppression policy (quiet-hours, do-not-disturb, presentation/follow, lock-screen privacy, admin suppression, and managed-endpoint posture) across the in-app activity center, OS notification, and browser/mobile companion surfaces, and explains for every surface whether the event was shown, downgraded, or withheld. The bundle freezes the governed surfaces, a representative policy corpus, a representative signal corpus, and every decision (one per signal per policy). Each decision keeps a durable in-app record, evaluates every governed surface against the same policy, downgrades or withholds out-of-window surfaces with a stable suppression-source token and a reviewable reason, records a suppression-ledger entry separate from audit history for every withheld or downgraded out-of-window surface, lets a high-importance security/trust/approval/route warning escape quiet-hours only when it names its scope and consequence, never silences a security advisory, and never widens privacy on a downgrade. Every privacy class, scope, redaction class, reopen target, severity, and suppression state binds back to the attention-routing matrix. No message bodies, credentials, raw provider payloads, hostnames, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_quiet_hours_suppression_schema_version",
+    "schema_ref",
+    "bundle_id",
+    "as_of",
+    "matrix_ref",
+    "matrix_id",
+    "freeze_gate_ref",
+    "summary",
+    "governed_surfaces",
+    "policies",
+    "signals",
+    "decisions",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_quiet_hours_suppression_bundle" },
+    "m5_quiet_hours_suppression_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/activity/m5-quiet-hours-suppression.schema.json" },
+    "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "governed_surfaces": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/governed_surface" }
+    },
+    "policies": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/suppression_policy" }
+    },
+    "signals": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/attention_signal" }
+    },
+    "decisions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/suppression_decision" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/bundle_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "surface": {
+      "enum": [
+        "in_app_activity_center",
+        "os_native_notification",
+        "dock_taskbar_badge",
+        "browser_companion",
+        "mobile_companion",
+        "operator_dashboard"
+      ]
+    },
+    "disposition": {
+      "enum": ["shown", "downgraded", "withheld"]
+    },
+    "suppression_source": {
+      "enum": [
+        "none",
+        "quiet_hours",
+        "do_not_disturb",
+        "presentation_follow",
+        "lock_screen_privacy",
+        "admin_suppression",
+        "managed_endpoint_policy"
+      ]
+    },
+    "consequence": {
+      "enum": [
+        "none",
+        "security_advisory",
+        "trust_change",
+        "approval_required",
+        "route_warning"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "minor_success",
+        "informational",
+        "progress",
+        "degraded",
+        "handoff_actionable",
+        "security_advisory"
+      ]
+    },
+    "scope": {
+      "enum": [
+        "app_global",
+        "window",
+        "workspace",
+        "session",
+        "collaboration",
+        "tenant_org"
+      ]
+    },
+    "privacy_class": {
+      "enum": [
+        "summary_safe",
+        "workspace_sensitive",
+        "security_critical",
+        "managed_sensitive"
+      ]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "summary_only",
+        "redacted_payload",
+        "count_only",
+        "internal_support_restricted"
+      ]
+    },
+    "reopen_target": {
+      "enum": [
+        "activity_job_row",
+        "evidence_packet",
+        "policy_diff",
+        "review_request",
+        "incident_thread",
+        "route_object",
+        "audit_event"
+      ]
+    },
+    "source_subsystem": {
+      "enum": [
+        "shell",
+        "notebook",
+        "task_runner",
+        "ai",
+        "collaboration",
+        "incident",
+        "operator",
+        "managed_policy",
+        "companion",
+        "security",
+        "sync",
+        "support"
+      ]
+    },
+    "lifecycle_state": {
+      "enum": [
+        "pending",
+        "routed",
+        "shown",
+        "acknowledged",
+        "snoozed",
+        "quiet_hours_deferred",
+        "suppressed",
+        "running",
+        "queued_waiting",
+        "partially_completed",
+        "failed",
+        "completed",
+        "resolved",
+        "dismissed",
+        "archived",
+        "fanout_stale",
+        "fanout_undelivered",
+        "unknown_requires_review"
+      ]
+    },
+    "quiet_hours_mode": { "enum": ["off", "active"] },
+    "do_not_disturb": { "enum": ["off", "on"] },
+    "presentation_mode": { "enum": ["off", "presenting", "follow_mode"] },
+    "lock_screen_state": { "enum": ["unlocked", "locked"] },
+    "admin_policy": {
+      "enum": [
+        "unmanaged",
+        "managed_default",
+        "managed_restricted",
+        "managed_locked"
+      ]
+    },
+    "managed_endpoint_posture": {
+      "enum": ["unmanaged", "compliant", "non_compliant"]
+    },
+    "governed_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_id",
+        "label",
+        "privacy_ceiling",
+        "default_redaction",
+        "default_redaction_token",
+        "is_durable_authoritative",
+        "mirrors_authoritative",
+        "governed_note"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "privacy_ceiling": { "$ref": "#/$defs/privacy_class" },
+        "default_redaction": { "$ref": "#/$defs/redaction_class" },
+        "default_redaction_token": { "$ref": "#/$defs/non_empty_string" },
+        "is_durable_authoritative": { "type": "boolean" },
+        "mirrors_authoritative": { "type": "boolean" },
+        "governed_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "suppression_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_id",
+        "summary",
+        "quiet_hours",
+        "do_not_disturb",
+        "presentation_mode",
+        "lock_screen",
+        "admin_suppression",
+        "managed_endpoint"
+      ],
+      "properties": {
+        "policy_id": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "quiet_hours": { "$ref": "#/$defs/quiet_hours_mode" },
+        "do_not_disturb": { "$ref": "#/$defs/do_not_disturb" },
+        "presentation_mode": { "$ref": "#/$defs/presentation_mode" },
+        "lock_screen": { "$ref": "#/$defs/lock_screen_state" },
+        "admin_suppression": { "$ref": "#/$defs/admin_policy" },
+        "managed_endpoint": { "$ref": "#/$defs/managed_endpoint_posture" }
+      }
+    },
+    "attention_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_id",
+        "label",
+        "source_subsystem",
+        "severity",
+        "scope",
+        "privacy_class",
+        "consequence",
+        "consequence_note",
+        "reopen_target",
+        "reopen_anchor_ref",
+        "default_redaction",
+        "carries_durable_record",
+        "created_at"
+      ],
+      "properties": {
+        "signal_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "consequence": { "$ref": "#/$defs/consequence" },
+        "consequence_note": { "type": "string" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/repo_ref" },
+        "default_redaction": { "$ref": "#/$defs/redaction_class" },
+        "carries_durable_record": { "const": true },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "surface_suppression_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_id",
+        "disposition",
+        "suppression_source",
+        "source_token",
+        "applied_redaction",
+        "redaction_token",
+        "delivers_durable_record",
+        "escaped_suppression",
+        "names_scope_and_consequence",
+        "audit_trail_required",
+        "resulting_state",
+        "reason"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "disposition": { "$ref": "#/$defs/disposition" },
+        "suppression_source": { "$ref": "#/$defs/suppression_source" },
+        "source_token": { "$ref": "#/$defs/non_empty_string" },
+        "applied_redaction": { "$ref": "#/$defs/redaction_class" },
+        "redaction_token": { "$ref": "#/$defs/non_empty_string" },
+        "delivers_durable_record": { "type": "boolean" },
+        "escaped_suppression": { "type": "boolean" },
+        "names_scope_and_consequence": { "type": "boolean" },
+        "audit_trail_required": { "type": "boolean" },
+        "resulting_state": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/lifecycle_state" }]
+        },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "suppression_ledger_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledger_entry_id",
+        "signal_id",
+        "surface",
+        "disposition",
+        "suppression_source",
+        "source_token",
+        "scope",
+        "consequence",
+        "consequence_note",
+        "resulting_state",
+        "reopen_target",
+        "reopen_anchor_ref",
+        "separate_from_audit_history",
+        "implies_underlying_disappeared",
+        "high_importance",
+        "note"
+      ],
+      "properties": {
+        "ledger_entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "signal_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/surface" },
+        "disposition": { "$ref": "#/$defs/disposition" },
+        "suppression_source": { "$ref": "#/$defs/suppression_source" },
+        "source_token": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "consequence": { "$ref": "#/$defs/consequence" },
+        "consequence_note": { "$ref": "#/$defs/non_empty_string" },
+        "resulting_state": { "$ref": "#/$defs/lifecycle_state" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/repo_ref" },
+        "separate_from_audit_history": { "const": true },
+        "implies_underlying_disappeared": { "const": false },
+        "high_importance": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "suppression_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "signal_id",
+        "policy_id",
+        "source_subsystem",
+        "severity",
+        "durable_record_present",
+        "security_silenced",
+        "high_importance_escaped",
+        "outcomes",
+        "ledger_entries"
+      ],
+      "properties": {
+        "decision_id": { "$ref": "#/$defs/non_empty_string" },
+        "signal_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "durable_record_present": { "const": true },
+        "security_silenced": { "const": false },
+        "high_importance_escaped": { "type": "boolean" },
+        "outcomes": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/surface_suppression_outcome" }
+        },
+        "ledger_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppression_ledger_entry" }
+        }
+      }
+    },
+    "bundle_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "type": "boolean" }
+      }
+    }
+  }
+}
