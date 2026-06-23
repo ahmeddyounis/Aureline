@@ -1,0 +1,461 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/debug/m5_chronology_replay_parity.schema.json",
+  "title": "Aureline M5 chronology / replay / notebook-debug parity set",
+  "description": "Boundary schema for the typed M5 chronology-capability descriptors, replay sessions, timeline bookmarks, notebook-kernel capability descriptors, cell-frame links, and restart/reconnect consequence records: the canonical records every live-debug, replay, notebook, profiler, AI, and support surface reads. Every capability descriptor carries one support pill that pins one support class (supported, limited, unavailable, policy_blocked) and one timeline state, derived only from its own backend, so an unsupported runtime never inherits a neighbor's chronology or notebook-debug claim; a replay session is always inspect-only and names the capture/session/target identity it reconstructs; a timeline bookmark is bound to one capture/session/target identity and survives support export and restore review; a restart/reconnect consequence itemizes — per variables, queued cells, debug state, breakpoints, and transient outputs — what was preserved, lost, invalidated, or left stale rather than flattening into one banner; and a frame-to-cell link renders exact only when its mapping is exact and supported. No raw capture bodies, value bodies, raw paths, provider payloads, URLs, hostnames, or credentials cross this boundary; the record carries opaque object refs, stable tokens, opaque digests, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_chronology_replay_parity_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "freeze_gate_ref",
+    "summary",
+    "source_schema_refs",
+    "producer_refs",
+    "consumer_surfaces",
+    "chronology_capabilities",
+    "replay_sessions",
+    "timeline_bookmarks",
+    "notebook_kernels",
+    "cell_frame_links",
+    "restart_consequences",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_chronology_replay_parity_set" },
+    "m5_chronology_replay_parity_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/debug/m5_chronology_replay_parity.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "source_schema_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repo_ref" }
+    },
+    "producer_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repo_ref" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_class" }
+    },
+    "chronology_capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/chronology_capability" }
+    },
+    "replay_sessions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/replay_session" }
+    },
+    "timeline_bookmarks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/timeline_bookmark" }
+    },
+    "notebook_kernels": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/notebook_kernel" }
+    },
+    "cell_frame_links": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/cell_frame_link" }
+    },
+    "restart_consequences": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/restart_consequence" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/parity_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "backend_family": {
+      "type": "string",
+      "enum": [
+        "local_native",
+        "remote_helper",
+        "container",
+        "managed_runtime",
+        "browser_runtime",
+        "notebook_kernel"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": ["supported", "limited", "unavailable", "policy_blocked"]
+    },
+    "timeline_state": {
+      "type": "string",
+      "enum": [
+        "live_no_recording",
+        "recording",
+        "recorded_complete",
+        "recorded_partial",
+        "replay_active",
+        "expired",
+        "mismatched",
+        "unavailable"
+      ]
+    },
+    "capability_verb": {
+      "type": "string",
+      "enum": [
+        "set_breakpoint",
+        "step",
+        "continue",
+        "reverse_step",
+        "reverse_continue",
+        "jump_to_event",
+        "set_bookmark",
+        "jump_to_bookmark",
+        "evaluate",
+        "inspect_variables",
+        "inspect_historical_frame"
+      ]
+    },
+    "recorded_scope": {
+      "type": "string",
+      "enum": ["full_session", "since_attach", "bounded_window", "none"]
+    },
+    "notebook_parity_class": {
+      "type": "string",
+      "enum": ["mirrored", "divergent", "unsupported", "not_applicable"]
+    },
+    "bookmark_kind": {
+      "type": "string",
+      "enum": ["user_set", "auto_event", "error_stop"]
+    },
+    "cell_link_fidelity": {
+      "type": "string",
+      "enum": ["exact", "approximate", "stale", "unmapped"]
+    },
+    "consequence_trigger": {
+      "type": "string",
+      "enum": [
+        "session_restart",
+        "reconnect",
+        "kernel_restart",
+        "transport_lost_reconnect",
+        "replay_reacquire"
+      ]
+    },
+    "consequence_subject": {
+      "type": "string",
+      "enum": ["variables", "queued_cells", "debug_state", "breakpoints", "transient_outputs"]
+    },
+    "consequence_disposition": {
+      "type": "string",
+      "enum": ["preserved", "lost", "invalidated", "stale"]
+    },
+    "consumer_class": {
+      "type": "string",
+      "enum": [
+        "core_debugger",
+        "notebook_debug",
+        "profiler",
+        "incident_review",
+        "support_export",
+        "ai_context",
+        "review_workspace",
+        "cli_headless",
+        "docs_help"
+      ]
+    },
+    "support_pill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_class",
+        "support_class_token",
+        "timeline_state",
+        "timeline_state_token",
+        "label",
+        "permits_use",
+        "time_travel_available",
+        "requires_disclosure",
+        "is_inert",
+        "is_inspect_only_timeline"
+      ],
+      "properties": {
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "support_class_token": { "$ref": "#/$defs/support_class" },
+        "timeline_state": { "$ref": "#/$defs/timeline_state" },
+        "timeline_state_token": { "$ref": "#/$defs/timeline_state" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "permits_use": { "type": "boolean" },
+        "time_travel_available": { "type": "boolean" },
+        "requires_disclosure": { "type": "boolean" },
+        "is_inert": { "type": "boolean" },
+        "is_inspect_only_timeline": { "type": "boolean" }
+      }
+    },
+    "capture_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capture_id", "session_id", "target_id"],
+      "properties": {
+        "capture_id": { "$ref": "#/$defs/non_empty_string" },
+        "session_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_id": { "$ref": "#/$defs/non_empty_string" },
+        "build_artifact_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "chronology_capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "descriptor_id",
+        "backend_family",
+        "backend_family_token",
+        "support_class",
+        "support_class_token",
+        "timeline_state",
+        "timeline_state_token",
+        "support_pill",
+        "supported_verbs",
+        "recorded_scope",
+        "recorded_scope_token",
+        "notebook_parity",
+        "notebook_parity_token",
+        "session_ref",
+        "proof_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "descriptor_id": { "$ref": "#/$defs/non_empty_string" },
+        "backend_family": { "$ref": "#/$defs/backend_family" },
+        "backend_family_token": { "$ref": "#/$defs/backend_family" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "support_class_token": { "$ref": "#/$defs/support_class" },
+        "timeline_state": { "$ref": "#/$defs/timeline_state" },
+        "timeline_state_token": { "$ref": "#/$defs/timeline_state" },
+        "support_pill": { "$ref": "#/$defs/support_pill" },
+        "supported_verbs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_verb" }
+        },
+        "recorded_scope": { "$ref": "#/$defs/recorded_scope" },
+        "recorded_scope_token": { "$ref": "#/$defs/recorded_scope" },
+        "notebook_parity": { "$ref": "#/$defs/notebook_parity_class" },
+        "notebook_parity_token": { "$ref": "#/$defs/notebook_parity_class" },
+        "session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "capture_ref": { "$ref": "#/$defs/non_empty_string" },
+        "proof_packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "replay_session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "replay_session_id",
+        "backend_family",
+        "backend_family_token",
+        "support_class",
+        "support_class_token",
+        "timeline_state",
+        "timeline_state_token",
+        "support_pill",
+        "supported_verbs",
+        "capture",
+        "inspect_only",
+        "source_chronology_ref",
+        "notebook_parity",
+        "notebook_parity_token",
+        "proof_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "replay_session_id": { "$ref": "#/$defs/non_empty_string" },
+        "backend_family": { "$ref": "#/$defs/backend_family" },
+        "backend_family_token": { "$ref": "#/$defs/backend_family" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "support_class_token": { "$ref": "#/$defs/support_class" },
+        "timeline_state": { "$ref": "#/$defs/timeline_state" },
+        "timeline_state_token": { "$ref": "#/$defs/timeline_state" },
+        "support_pill": { "$ref": "#/$defs/support_pill" },
+        "supported_verbs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_verb" }
+        },
+        "capture": { "$ref": "#/$defs/capture_identity" },
+        "inspect_only": { "const": true },
+        "source_chronology_ref": { "$ref": "#/$defs/non_empty_string" },
+        "restart_consequence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "notebook_parity": { "$ref": "#/$defs/notebook_parity_class" },
+        "notebook_parity_token": { "$ref": "#/$defs/notebook_parity_class" },
+        "proof_packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "timeline_bookmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bookmark_id",
+        "capture",
+        "replay_session_ref",
+        "position_digest",
+        "kind",
+        "kind_token",
+        "label",
+        "survives_support_export",
+        "survives_restore_review",
+        "proof_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "bookmark_id": { "$ref": "#/$defs/non_empty_string" },
+        "capture": { "$ref": "#/$defs/capture_identity" },
+        "replay_session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "position_digest": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/bookmark_kind" },
+        "kind_token": { "$ref": "#/$defs/bookmark_kind" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "survives_support_export": { "const": true },
+        "survives_restore_review": { "const": true },
+        "proof_packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "notebook_kernel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kernel_id",
+        "backend_family",
+        "backend_family_token",
+        "support_class",
+        "support_class_token",
+        "timeline_state",
+        "timeline_state_token",
+        "support_pill",
+        "supported_verbs",
+        "kernel_ref",
+        "restart_consequence_ref",
+        "proof_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "kernel_id": { "$ref": "#/$defs/non_empty_string" },
+        "backend_family": { "const": "notebook_kernel" },
+        "backend_family_token": { "const": "notebook_kernel" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "support_class_token": { "$ref": "#/$defs/support_class" },
+        "timeline_state": { "$ref": "#/$defs/timeline_state" },
+        "timeline_state_token": { "$ref": "#/$defs/timeline_state" },
+        "support_pill": { "$ref": "#/$defs/support_pill" },
+        "supported_verbs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_verb" }
+        },
+        "kernel_ref": { "$ref": "#/$defs/non_empty_string" },
+        "restart_consequence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "proof_packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "cell_frame_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "link_id",
+        "kernel_ref",
+        "frame_ref",
+        "cell_ref",
+        "fidelity",
+        "fidelity_token",
+        "support_class",
+        "support_class_token",
+        "renders_exact_link",
+        "proof_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "link_id": { "$ref": "#/$defs/non_empty_string" },
+        "kernel_ref": { "$ref": "#/$defs/non_empty_string" },
+        "frame_ref": { "$ref": "#/$defs/non_empty_string" },
+        "cell_ref": { "$ref": "#/$defs/non_empty_string" },
+        "fidelity": { "$ref": "#/$defs/cell_link_fidelity" },
+        "fidelity_token": { "$ref": "#/$defs/cell_link_fidelity" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "support_class_token": { "$ref": "#/$defs/support_class" },
+        "renders_exact_link": { "type": "boolean" },
+        "proof_packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consequence_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject", "subject_token", "disposition", "disposition_token", "detail"],
+      "properties": {
+        "subject": { "$ref": "#/$defs/consequence_subject" },
+        "subject_token": { "$ref": "#/$defs/consequence_subject" },
+        "disposition": { "$ref": "#/$defs/consequence_disposition" },
+        "disposition_token": { "$ref": "#/$defs/consequence_disposition" },
+        "detail": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "restart_consequence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consequence_id",
+        "trigger",
+        "trigger_token",
+        "session_ref",
+        "entries",
+        "proof_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "consequence_id": { "$ref": "#/$defs/non_empty_string" },
+        "trigger": { "$ref": "#/$defs/consequence_trigger" },
+        "trigger_token": { "$ref": "#/$defs/consequence_trigger" },
+        "session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "entries": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/consequence_entry" }
+        },
+        "proof_packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "parity_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}

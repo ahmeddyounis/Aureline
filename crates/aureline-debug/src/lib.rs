@@ -88,6 +88,27 @@
 //! target output, never present a replayed line as live, and preserve redaction review
 //! rather than flattening one transcript.
 //!
+//! It also exposes [`m5_chronology_replay_parity`] — the typed, frozen
+//! [`ChronologyCapabilityDescriptor`](m5_chronology_replay_parity::ChronologyCapabilityDescriptor),
+//! [`ReplaySession`](m5_chronology_replay_parity::ReplaySession),
+//! [`TimelineBookmark`](m5_chronology_replay_parity::TimelineBookmark),
+//! [`NotebookKernelCapabilityDescriptor`](m5_chronology_replay_parity::NotebookKernelCapabilityDescriptor),
+//! [`CellFrameLink`](m5_chronology_replay_parity::CellFrameLink), and
+//! [`RestartConsequenceRecord`](m5_chronology_replay_parity::RestartConsequenceRecord) records
+//! that materialize the chronology-capability, replay-session, and notebook-debug-parity
+//! families. The canonical
+//! [`ChronologyReplayParitySet`](m5_chronology_replay_parity::ChronologyReplayParitySet) pins
+//! one support-class vocabulary (`supported`, `limited`, `unavailable`, `policy_blocked`)
+//! shared across live debug, replay, notebook bridge, presentation, and support export, so
+//! every descriptor derives its support pill only from its own backend and an unsupported
+//! runtime never inherits a neighbor's chronology or notebook-debug claim; a replay session
+//! is always inspect-only and names the capture it reconstructs; a timeline bookmark is bound
+//! to one capture/session/target identity and survives support export and restore review; a
+//! restart/reconnect consequence itemizes — per variables, queued cells, debug state,
+//! breakpoints, and transient outputs — what was preserved, lost, invalidated, or left stale
+//! rather than flattening into one banner; and a frame-to-cell link renders exact only when
+//! its mapping is exact and supported.
+//!
 //! The reviewer-facing contract is at
 //! [`/docs/m4/qualify-chronology-capture-and-replay-support-classes.md`](../../../docs/m4/qualify-chronology-capture-and-replay-support-classes.md).
 //! The cross-tool boundary schema is at
@@ -99,6 +120,7 @@
 
 pub mod canonical_test_discovery_session_and_watch_truth;
 pub mod m5_breakpoint_specs;
+pub mod m5_chronology_replay_parity;
 pub mod m5_debug_contracts;
 pub mod m5_debug_session_descriptors;
 pub mod m5_evaluate_repl_sheets;
@@ -115,6 +137,21 @@ pub use m5_debug_contracts::{
     M5_DEBUG_CONTRACTS_FREEZE_GATE_REF, M5_DEBUG_CONTRACTS_MATRIX_ID,
     M5_DEBUG_CONTRACTS_RECORD_KIND, M5_DEBUG_CONTRACTS_SCHEMA_REF,
     M5_DEBUG_CONTRACTS_SCHEMA_VERSION,
+};
+
+pub use m5_chronology_replay_parity::{
+    m5_chronology_replay_parity_lines, m5_chronology_replay_parity_set, BookmarkKind,
+    CapabilitySupportPill, CapabilityVerb, CaptureIdentity, CellFrameLink, CellLinkFidelity,
+    ChronologyCapabilityDescriptor, ChronologyReplayParitySet,
+    ChronologyReplayParitySetValidationError, ConsequenceDisposition, ConsequenceEntry,
+    ConsequenceSubject, ConsequenceTrigger, DebugSupportClass, NotebookKernelCapabilityDescriptor,
+    NotebookParityClass, ParityInvariant, RecordedScope, ReplaySession, RestartConsequenceRecord,
+    RuntimeBackendFamily, TimelineBookmark, TimelineState,
+    M5_CHRONOLOGY_REPLAY_PARITY_ARTIFACT_REF, M5_CHRONOLOGY_REPLAY_PARITY_AS_OF,
+    M5_CHRONOLOGY_REPLAY_PARITY_DOC_REF, M5_CHRONOLOGY_REPLAY_PARITY_FIXTURE_REF,
+    M5_CHRONOLOGY_REPLAY_PARITY_FREEZE_GATE_REF, M5_CHRONOLOGY_REPLAY_PARITY_RECORD_KIND,
+    M5_CHRONOLOGY_REPLAY_PARITY_SCHEMA_REF, M5_CHRONOLOGY_REPLAY_PARITY_SCHEMA_VERSION,
+    M5_CHRONOLOGY_REPLAY_PARITY_SET_ID,
 };
 
 pub use m5_breakpoint_specs::{
