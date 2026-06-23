@@ -1,0 +1,472 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/admin/m5-offboarding.schema.json",
+  "title": "Aureline M5 offboarding bundle",
+  "description": "Boundary schema for the M5 offboarding bundle: the concrete, typed instances of Aureline's offboarding wizards, rendered across the claimed managed-cloud, self-hosted, sovereign/air-gapped, and mirrored/offline profiles. Each wizard binds back to the frozen admin-plane matrix (schemas/admin/m5-admin-plane.schema.json): every machine-readable state and coverage state it shows is one the matrix declares applicable for the offboarding surface family, and every owner and data-residency token it uses is a term the matrix's shared vocabulary defines. Each wizard is an ordered set of checkpoints — review artifacts, export, transfer, confirm, delete, and local continuation — and each checkpoint names its scope (personal, workspace, team, or org), its outcome (completed, available-now, deferred, blocked, or failed-recoverable), its machine-readable state, and the managed copies remaining after it. A checkpoint that leaves a managed copy names what remains, where, when it clears, and who controls it; a transfer checkpoint names the owner ownership moves to; a delete checkpoint carries an immediate/deferred/blocked deletion schedule and is confirmation-gated; and a blocked or failed checkpoint retains a typed recovery — a restore checkpoint, a typed diagnostic, and next-step guidance — so a failed flow is repaired rather than restarted. Every trigger (seat loss, cancellation, deprovision, org switch, plan downgrade) explains the impacted managed features, export rights, local-safe continuation, and managed copies remaining; no checkpoint, trigger, or coverage view requires a still-active paid seat to recover user-owned data; and every profile guarantees the local-only continuation rights and stays locally inspectable without a vendor console. There is exactly one typed packet per profile, consumed identically by the shell admin center, CLI/headless inspect, Help/About, support export, and procurement surfaces. No endpoint URLs, hostnames, credentials, raw provider payloads, raw record bodies, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, rendered metadata-safe summaries, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_offboarding_schema_version",
+    "schema_ref",
+    "bundle_id",
+    "as_of",
+    "matrix_ref",
+    "matrix_id",
+    "freeze_gate_ref",
+    "summary",
+    "profiles",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_offboarding_bundle" },
+    "m5_offboarding_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/admin/m5-offboarding.schema.json" },
+    "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/offboarding_packet" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/offboarding_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "safe_token": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An opaque stable token with no URL scheme or absolute path.",
+      "not": { "anyOf": [{ "pattern": "://" }, { "pattern": "^/" }] }
+    },
+    "surface_token": { "const": "offboarding_wizard" },
+    "path_token": {
+      "enum": [
+        "local_individual",
+        "managed_cloud",
+        "self_hosted",
+        "sovereign_air_gapped",
+        "mirrored_offline",
+        "imported_snapshot"
+      ]
+    },
+    "state_token": {
+      "enum": [
+        "active_enforced",
+        "locked_by_policy",
+        "inherited_default",
+        "overridden_local",
+        "unconfirmed_stale",
+        "pending_managed_sync",
+        "signature_unverified",
+        "delete_pending",
+        "delete_blocked_by_hold",
+        "delete_receipted",
+        "export_available_now",
+        "export_deferred",
+        "mirror_offline_last_known",
+        "boundary_changed_recheck_required",
+        "imported_snapshot_no_live",
+        "unknown_requires_review"
+      ]
+    },
+    "deployment_profile_class": {
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "sovereign_air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "admin_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "compliance_restricted"
+      ]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_admin_center",
+        "cli_headless",
+        "help_about",
+        "support_export",
+        "commercial_procurement",
+        "release_evidence",
+        "managed_service"
+      ]
+    },
+    "data_residency_class": {
+      "enum": [
+        "local_only",
+        "managed_copy",
+        "mirrored_copy",
+        "shared_workspace_copy",
+        "exported_snapshot"
+      ]
+    },
+    "owner_escalation_role": {
+      "enum": [
+        "local_user",
+        "workspace_owner",
+        "org_admin",
+        "security_owner",
+        "compliance_owner",
+        "vendor_support"
+      ]
+    },
+    "evidence_age_class": {
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"]
+    },
+    "completeness_class": {
+      "enum": ["complete", "partial_offline", "partial_imported", "partial_redacted"]
+    },
+    "export_format_class": {
+      "enum": ["machine_readable_json", "plain_language_handoff"]
+    },
+    "delete_outcome_class": {
+      "enum": ["immediate", "deferred", "blocked"]
+    },
+    "trigger_class": {
+      "enum": [
+        "seat_loss",
+        "subscription_cancellation",
+        "deprovision",
+        "org_switch",
+        "plan_downgrade"
+      ]
+    },
+    "scope_class": {
+      "enum": ["personal", "workspace", "team", "org"]
+    },
+    "checkpoint_kind_class": {
+      "enum": [
+        "review_artifacts",
+        "export",
+        "transfer",
+        "confirm",
+        "delete",
+        "local_continuation"
+      ]
+    },
+    "checkpoint_outcome_class": {
+      "enum": ["completed", "available_now", "deferred", "blocked", "failed_recoverable"]
+    },
+    "recovery_affordance_class": {
+      "enum": [
+        "restore_checkpoint",
+        "retained_diagnostics",
+        "next_step_guidance",
+        "resume_from_checkpoint"
+      ]
+    },
+    "offboarding_diagnostic_class": {
+      "enum": [
+        "export_reauth_required",
+        "transfer_recipient_unavailable",
+        "delete_blocked_by_hold",
+        "boundary_recheck_required",
+        "mirror_offline_retry_queued",
+        "partial_export_retryable"
+      ]
+    },
+    "managed_copy_disposition_class": {
+      "enum": [
+        "none_remaining",
+        "deleted_with_receipt",
+        "pending_scheduled_delete",
+        "retained_under_hold",
+        "retained_upstream_mirror",
+        "transferred_to_owner"
+      ]
+    },
+    "continuity_right_class": {
+      "enum": [
+        "export_user_owned_artifacts",
+        "continue_local_only",
+        "edit_local_artifacts",
+        "publish_later"
+      ]
+    },
+    "offboarding_trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trigger",
+        "label",
+        "impacted_features",
+        "export_rights",
+        "local_safe_continuation",
+        "managed_copies_summary",
+        "requires_active_seat_for_recovery",
+        "plain_language"
+      ],
+      "properties": {
+        "trigger": { "$ref": "#/$defs/trigger_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "impacted_features": { "$ref": "#/$defs/non_empty_string" },
+        "export_rights": { "$ref": "#/$defs/non_empty_string" },
+        "local_safe_continuation": { "$ref": "#/$defs/non_empty_string" },
+        "managed_copies_summary": { "$ref": "#/$defs/non_empty_string" },
+        "requires_active_seat_for_recovery": { "const": false },
+        "plain_language": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "managed_copies_remaining": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disposition",
+        "count_label",
+        "location",
+        "what_remains",
+        "cleared_when",
+        "owner",
+        "note"
+      ],
+      "properties": {
+        "disposition": { "$ref": "#/$defs/managed_copy_disposition_class" },
+        "count_label": { "$ref": "#/$defs/non_empty_string" },
+        "location": { "$ref": "#/$defs/data_residency_class" },
+        "what_remains": { "type": "string" },
+        "cleared_when": { "type": "string" },
+        "owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "transfer_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transfer_owner", "recipient_ref", "scope", "note"],
+      "properties": {
+        "transfer_owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "recipient_ref": { "$ref": "#/$defs/safe_token" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "deletion_schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "when", "what_remains", "where_remains", "next_step_owner", "note"],
+      "properties": {
+        "outcome": { "$ref": "#/$defs/delete_outcome_class" },
+        "when": { "$ref": "#/$defs/non_empty_string" },
+        "what_remains": { "type": "string" },
+        "where_remains": { "$ref": "#/$defs/data_residency_class" },
+        "next_step_owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "checkpoint_recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affordances",
+        "restore_checkpoint_ref",
+        "diagnostic",
+        "diagnostic_detail",
+        "next_step",
+        "next_step_owner",
+        "note"
+      ],
+      "properties": {
+        "affordances": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recovery_affordance_class" }
+        },
+        "restore_checkpoint_ref": { "$ref": "#/$defs/safe_token" },
+        "diagnostic": { "$ref": "#/$defs/offboarding_diagnostic_class" },
+        "diagnostic_detail": { "$ref": "#/$defs/non_empty_string" },
+        "next_step": { "$ref": "#/$defs/non_empty_string" },
+        "next_step_owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "continuity_guarantee": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["right", "label", "available_offline", "requires_paid_seat", "note"],
+      "properties": {
+        "right": { "$ref": "#/$defs/continuity_right_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "available_offline": { "const": true },
+        "requires_paid_seat": { "const": false },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "offboarding_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_id",
+        "kind",
+        "order",
+        "label",
+        "scope",
+        "outcome",
+        "machine_state",
+        "evidence_age",
+        "location",
+        "owner",
+        "requires_paid_seat",
+        "confirmation_required",
+        "managed_copies",
+        "governing_schema_ref",
+        "schema_note",
+        "machine_summary",
+        "plain_language"
+      ],
+      "properties": {
+        "checkpoint_id": { "$ref": "#/$defs/safe_token" },
+        "kind": { "$ref": "#/$defs/checkpoint_kind_class" },
+        "order": { "type": "integer", "minimum": 1, "maximum": 6 },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "outcome": { "$ref": "#/$defs/checkpoint_outcome_class" },
+        "machine_state": { "$ref": "#/$defs/state_token" },
+        "evidence_age": { "$ref": "#/$defs/evidence_age_class" },
+        "location": { "$ref": "#/$defs/data_residency_class" },
+        "owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "requires_paid_seat": { "const": false },
+        "confirmation_required": { "type": "boolean" },
+        "managed_copies": { "$ref": "#/$defs/managed_copies_remaining" },
+        "transfer": { "$ref": "#/$defs/transfer_plan" },
+        "deletion_schedule": { "$ref": "#/$defs/deletion_schedule" },
+        "recovery": { "$ref": "#/$defs/checkpoint_recovery" },
+        "governing_schema_ref": { "$ref": "#/$defs/repo_ref" },
+        "schema_note": { "$ref": "#/$defs/non_empty_string" },
+        "machine_summary": { "$ref": "#/$defs/non_empty_string" },
+        "plain_language": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "offboarding_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coverage_state",
+        "completeness",
+        "window_label",
+        "coverage_note",
+        "locally_inspectable",
+        "vendor_console_independent",
+        "completable_without_paid_seat"
+      ],
+      "properties": {
+        "coverage_state": { "$ref": "#/$defs/state_token" },
+        "completeness": { "$ref": "#/$defs/completeness_class" },
+        "window_label": { "$ref": "#/$defs/non_empty_string" },
+        "coverage_note": { "$ref": "#/$defs/non_empty_string" },
+        "locally_inspectable": { "type": "boolean" },
+        "vendor_console_independent": { "type": "boolean" },
+        "completable_without_paid_seat": { "const": true }
+      }
+    },
+    "offboarding_wizard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_id",
+        "summary",
+        "triggers",
+        "checkpoints",
+        "export_forms",
+        "continuity",
+        "coverage"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_id": { "$ref": "#/$defs/safe_token" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "triggers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/offboarding_trigger" }
+        },
+        "checkpoints": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/offboarding_checkpoint" }
+        },
+        "export_forms": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/export_form" }
+        },
+        "continuity": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/continuity_guarantee" }
+        },
+        "coverage": { "$ref": "#/$defs/offboarding_coverage" }
+      }
+    },
+    "export_form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "label", "artifact_ref", "redaction", "description"],
+      "properties": {
+        "format": { "$ref": "#/$defs/export_format_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_ref": { "$ref": "#/$defs/safe_token" },
+        "redaction": { "$ref": "#/$defs/redaction_class" },
+        "description": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "offboarding_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "profile_id",
+        "deployment_profile",
+        "summary",
+        "consumers",
+        "wizard"
+      ],
+      "properties": {
+        "profile": { "$ref": "#/$defs/path_token" },
+        "profile_id": { "$ref": "#/$defs/safe_token" },
+        "deployment_profile": { "$ref": "#/$defs/deployment_profile_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "consumers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "wizard": { "$ref": "#/$defs/offboarding_wizard" }
+      }
+    },
+    "offboarding_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}

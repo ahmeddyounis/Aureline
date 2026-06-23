@@ -30,6 +30,7 @@ pub mod m5_admin_plane;
 pub mod m5_admin_render;
 pub mod m5_decision_history;
 pub mod m5_exception_expiry;
+pub mod m5_offboarding;
 pub mod m5_retention_deletion;
 pub mod policy_simulation_and_expiry;
 pub mod publish_enterprise_self_hosted_and_air_gapped_docs_matrices_and_known_limits;
