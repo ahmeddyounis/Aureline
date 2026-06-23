@@ -89,8 +89,7 @@ fn class_maps_onto_the_shell_accessibility_vocabulary() {
 #[test]
 fn standard_zoom_overlay_is_fully_accessible() {
     let session = session(LeaderFollowState::Presenting, BoundaryLabel::Local);
-    let report =
-        project_accessibility_report(&session, &AccessibilityProjectionInputs::standard());
+    let report = project_accessibility_report(&session, &AccessibilityProjectionInputs::standard());
     assert!(report.validate().is_empty(), "{:?}", report.validate());
     assert_eq!(
         report.conformance_class,
@@ -107,8 +106,12 @@ fn standard_zoom_overlay_is_fully_accessible() {
     assert!(report.boundary_labels_preserved);
     assert!(report.accessible_labels_complete);
     // The required surfaces are present and the spotlight rides on a focused step.
-    assert!(report.surface(PresentationSurfaceTag::PresenterBar).is_some());
-    assert!(report.surface(PresentationSurfaceTag::WaypointRail).is_some());
+    assert!(report
+        .surface(PresentationSurfaceTag::PresenterBar)
+        .is_some());
+    assert!(report
+        .surface(PresentationSurfaceTag::WaypointRail)
+        .is_some());
     assert!(report
         .surface(PresentationSurfaceTag::ProvenanceStrip)
         .is_some());
@@ -120,8 +123,7 @@ fn standard_zoom_overlay_is_fully_accessible() {
 #[test]
 fn focus_ring_is_a_contiguous_order_over_actionable_surfaces() {
     let session = session(LeaderFollowState::Presenting, BoundaryLabel::Local);
-    let report =
-        project_accessibility_report(&session, &AccessibilityProjectionInputs::standard());
+    let report = project_accessibility_report(&session, &AccessibilityProjectionInputs::standard());
     let mut indices: Vec<u32> = report
         .surfaces
         .iter()
@@ -155,7 +157,10 @@ fn high_zoom_summarizes_dense_surfaces_without_dropping_them() {
         PresentationSurfaceTag::AudienceStrip,
     ] {
         let surface = report.surface(tag).unwrap();
-        assert_eq!(surface.high_zoom_reflow, HighZoomReflow::SummarizedReachable);
+        assert_eq!(
+            surface.high_zoom_reflow,
+            HighZoomReflow::SummarizedReachable
+        );
         assert_eq!(surface.support_state, SupportState::DegradedAccessible);
         assert!(surface.keyboard_reachable);
         assert!(surface.screen_reader_reachable);
@@ -169,8 +174,7 @@ fn high_zoom_summarizes_dense_surfaces_without_dropping_them() {
 #[test]
 fn breakaway_banner_joins_the_focus_ring_when_broken_away() {
     let broken = session(LeaderFollowState::BrokenAway, BoundaryLabel::Shared);
-    let report =
-        project_accessibility_report(&broken, &AccessibilityProjectionInputs::standard());
+    let report = project_accessibility_report(&broken, &AccessibilityProjectionInputs::standard());
     assert!(report.validate().is_empty(), "{:?}", report.validate());
     let banner = report
         .surface(PresentationSurfaceTag::BreakawayBanner)
@@ -199,8 +203,14 @@ fn boundary_labels_are_preserved_not_flattened() {
         let session = session(LeaderFollowState::Presenting, boundary);
         let report =
             project_accessibility_report(&session, &AccessibilityProjectionInputs::standard());
-        assert_eq!(report.boundary_posture.current_boundary_label, Some(boundary));
-        assert_eq!(report.boundary_posture.distinct_boundary_labels, vec![boundary]);
+        assert_eq!(
+            report.boundary_posture.current_boundary_label,
+            Some(boundary)
+        );
+        assert_eq!(
+            report.boundary_posture.distinct_boundary_labels,
+            vec![boundary]
+        );
         assert!(report.boundary_posture.boundary_labels_visible);
         assert!(!report.boundary_posture.flattened_to_generic);
         // Source-bearing surfaces carry the boundary label explicitly.
@@ -228,8 +238,7 @@ fn mixed_boundary_labels_are_kept_distinct() {
     .waypoint(waypoint("wp:mixed:2", BoundaryLabel::Shared))
     .waypoint(waypoint("wp:mixed:3", BoundaryLabel::Remote))
     .build();
-    let report =
-        project_accessibility_report(&session, &AccessibilityProjectionInputs::standard());
+    let report = project_accessibility_report(&session, &AccessibilityProjectionInputs::standard());
     assert!(report.validate().is_empty(), "{:?}", report.validate());
     assert_eq!(
         report.boundary_posture.current_boundary_label,
@@ -237,7 +246,11 @@ fn mixed_boundary_labels_are_kept_distinct() {
     );
     assert_eq!(
         report.boundary_posture.distinct_boundary_labels,
-        vec![BoundaryLabel::Local, BoundaryLabel::Remote, BoundaryLabel::Shared]
+        vec![
+            BoundaryLabel::Local,
+            BoundaryLabel::Remote,
+            BoundaryLabel::Shared
+        ]
     );
 }
 
@@ -248,10 +261,9 @@ fn a_pointer_only_surface_fails_validation() {
         project_accessibility_report(&session, &AccessibilityProjectionInputs::standard());
     report.surfaces[0].pointer_only = true;
     let violations = report.validate();
-    assert!(violations.iter().any(|v| matches!(
-        v,
-        PresentationA11yViolation::PointerOrMotionOnly { .. }
-    )));
+    assert!(violations
+        .iter()
+        .any(|v| matches!(v, PresentationA11yViolation::PointerOrMotionOnly { .. })));
 }
 
 #[test]
@@ -279,10 +291,9 @@ fn an_erased_boundary_label_fails_validation() {
         .unwrap();
     provenance.boundary_label = None;
     let violations = report.validate();
-    assert!(violations.iter().any(|v| matches!(
-        v,
-        PresentationA11yViolation::BoundaryLabelErased { .. }
-    )));
+    assert!(violations
+        .iter()
+        .any(|v| matches!(v, PresentationA11yViolation::BoundaryLabelErased { .. })));
 }
 
 #[test]
@@ -364,8 +375,14 @@ fn seeded_corpus_validates_and_round_trips() {
         .boundary_labels_covered
         .contains(&BoundaryLabel::Shared));
     // Both zoom tiers are covered.
-    assert!(corpus.summary.zoom_tiers_covered.contains(&ZoomTier::Standard));
-    assert!(corpus.summary.zoom_tiers_covered.contains(&ZoomTier::HighZoom));
+    assert!(corpus
+        .summary
+        .zoom_tiers_covered
+        .contains(&ZoomTier::Standard));
+    assert!(corpus
+        .summary
+        .zoom_tiers_covered
+        .contains(&ZoomTier::HighZoom));
 }
 
 #[test]

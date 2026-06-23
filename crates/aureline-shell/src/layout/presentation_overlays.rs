@@ -212,7 +212,12 @@ fn title_bar_placement(
         if is_provenance {
             Rect::new(bar.x, bar.y, half, bar.height)
         } else {
-            Rect::new(bar.x.saturating_add(half), bar.y, bar.width.saturating_sub(half), bar.height)
+            Rect::new(
+                bar.x.saturating_add(half),
+                bar.y,
+                bar.width.saturating_sub(half),
+                bar.height,
+            )
         }
     } else {
         bar

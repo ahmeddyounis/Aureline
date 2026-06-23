@@ -33,7 +33,7 @@ use crate::presentation_mode::{
 
 use super::conformance::{
     project_accessibility_report, AccessibilityProjectionInputs, PresentationA11yClass,
-    PresentationAccessibilityReport, PresentationA11ySupportExport, PresentationA11yViolation,
+    PresentationA11ySupportExport, PresentationA11yViolation, PresentationAccessibilityReport,
     PresentationSurfaceTag, ZoomTier,
 };
 
@@ -246,7 +246,13 @@ fn summarize(cases: &[A11yCase]) -> A11yCorpusSummary {
         classes.insert(report.conformance_class);
         zoom_tiers.insert(report.zoom_tier);
         audience_scopes.insert(report.boundary_posture.audience_scope);
-        boundary_labels.extend(report.boundary_posture.distinct_boundary_labels.iter().copied());
+        boundary_labels.extend(
+            report
+                .boundary_posture
+                .distinct_boundary_labels
+                .iter()
+                .copied(),
+        );
         all_reports_valid &= report.validate().is_empty();
         all_keyboard_complete &= report.keyboard_complete;
         none_pointer_only &= !report.pointer_only;
@@ -266,7 +272,10 @@ fn summarize(cases: &[A11yCase]) -> A11yCorpusSummary {
         {
             breakaway = true;
         }
-        if report.surface(PresentationSurfaceTag::SpotlightFrame).is_some() {
+        if report
+            .surface(PresentationSurfaceTag::SpotlightFrame)
+            .is_some()
+        {
             spotlight = true;
         }
     }
@@ -316,7 +325,9 @@ fn waypoint(id: &str, ordinal: u32, boundary: BoundaryLabel) -> FollowWaypoint {
         step_title: format!("Step {ordinal}"),
         surface_kind: WalkthroughSurfaceKind::Editor,
         target_object_ref: format!("obj:{id}"),
-        file_path_ref: Some("crates/aureline-shell/src/presentation/a11y/conformance.rs".to_owned()),
+        file_path_ref: Some(
+            "crates/aureline-shell/src/presentation/a11y/conformance.rs".to_owned(),
+        ),
         symbol_anchor_ref: Some("fn project_accessibility_report".to_owned()),
         branch_workspace_ref: "branch:main@workspace:local".to_owned(),
         boundary_label: boundary,
@@ -388,9 +399,14 @@ fn presenter_high_zoom_case() -> A11yCase {
     .waypoint(waypoint(&wp1, 1, BoundaryLabel::Shared))
     .waypoint(waypoint(&wp2, 2, BoundaryLabel::Shared))
     .participant(participant("p:1", ParticipantFollowState::Following, false))
-    .participant(participant("p:2", ParticipantFollowState::BrokenAway, false))
+    .participant(participant(
+        "p:2",
+        ParticipantFollowState::BrokenAway,
+        false,
+    ))
     .build();
-    let report = project_accessibility_report(&session, &AccessibilityProjectionInputs::high_zoom());
+    let report =
+        project_accessibility_report(&session, &AccessibilityProjectionInputs::high_zoom());
     case(
         "a11y-case:presenter-high-zoom-summarized",
         "A shared session driven at high zoom / large text. The dense agenda rail \
@@ -437,7 +453,11 @@ fn invited_guests_remote_case() -> A11yCase {
     )
     .focus(wp.clone())
     .waypoint(waypoint(&wp, 1, BoundaryLabel::Remote))
-    .participant(participant("guest:1", ParticipantFollowState::Following, true))
+    .participant(participant(
+        "guest:1",
+        ParticipantFollowState::Following,
+        true,
+    ))
     .build();
     let report = project_accessibility_report(&session, &AccessibilityProjectionInputs::standard());
     case(
@@ -467,7 +487,8 @@ fn mixed_boundary_case() -> A11yCase {
     .waypoint(waypoint(&wp2, 2, BoundaryLabel::Shared))
     .waypoint(waypoint(&wp3, 3, BoundaryLabel::Remote))
     .build();
-    let report = project_accessibility_report(&session, &AccessibilityProjectionInputs::high_zoom());
+    let report =
+        project_accessibility_report(&session, &AccessibilityProjectionInputs::high_zoom());
     case(
         "a11y-case:mixed-boundary-rail",
         "A walkthrough whose steps span local, shared, and remote targets, driven \

@@ -157,7 +157,10 @@ impl LocaleProblemOrigin {
             SkewDegradeReason::NotDegraded => {
                 if !application_decision.applies() {
                     Self::SourceLanguageFallback
-                } else if matches!(fallback_origin, LocaleFallbackOriginClass::BaseLocaleFallback) {
+                } else if matches!(
+                    fallback_origin,
+                    LocaleFallbackOriginClass::BaseLocaleFallback
+                ) {
                     Self::BaseFallback
                 } else if missing_key_count == 0 {
                     Self::RequestedLocale
@@ -815,8 +818,7 @@ fn derive_help_about_card(packet: &LocaleDiagnosticsPacket) -> LocaleDiagnostics
         .and_then(|pack_id| packet.installed_pack(&pack_id))
         .map(|pack| pack.open_in_source_language_route_ref.clone())
         .unwrap_or_default();
-    let honesty_marker_present =
-        packet.problem_origin.is_degraded() || incompatible_pack_count > 0;
+    let honesty_marker_present = packet.problem_origin.is_degraded() || incompatible_pack_count > 0;
     LocaleDiagnosticsHelpAboutCard {
         record_kind: LOCALE_DIAGNOSTICS_HELP_ABOUT_RECORD_KIND.to_owned(),
         heading: "Language and localization".to_owned(),
@@ -1017,7 +1019,10 @@ fn derive_summary(packet: &LocaleDiagnosticsPacket) -> LocaleDiagnosticsSummary 
 }
 
 /// Builds the consolidated packet from an evaluated compatibility report.
-fn build_packet(report: &LocalePackCompatibilityReport, active_locale: &str) -> LocaleDiagnosticsPacket {
+fn build_packet(
+    report: &LocalePackCompatibilityReport,
+    active_locale: &str,
+) -> LocaleDiagnosticsPacket {
     let installed_packs: Vec<InstalledLocalePackRow> =
         report.rows.iter().map(installed_row_from).collect();
     let locale_profiles: Vec<LocaleDiagnosticsProfileRow> =

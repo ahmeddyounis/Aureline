@@ -15,11 +15,21 @@
 //! freshness, partiality, generated/runtime labels, and rename omission reasons,
 //! maps each object to the proof packet that keeps it current, and states the
 //! invariants every search, graph, docs, and editor surface must hold.
+//!
+//! [`relation_resolution`] turns that object model into a no-silent-aliasing
+//! resolver: given a Go to Definition / Declaration / Implementation command and
+//! the candidate targets providers returned, it resolves to a single distinct
+//! relation kind, opens a disambiguation set instead of guessing when multiple
+//! candidates could change behavior, and never relabels one relation kind as
+//! another — it discloses a fallback or reports the command unavailable, and
+//! records a replayable explanation so support and debug packets can reconstruct
+//! which relation kind was navigated and why.
 
 #![doc(html_root_url = "https://docs.rs/aureline-navigation/0.0.0")]
 
 pub mod bookmark_history_and_drift_continuity;
 pub mod m5_relation_navigation;
+pub mod relation_resolution;
 pub mod target_model;
 
 pub use bookmark_history_and_drift_continuity::{
@@ -45,6 +55,17 @@ pub use m5_relation_navigation::{
     M5_RELATION_NAVIGATION_FREEZE_GATE_REF, M5_RELATION_NAVIGATION_MATRIX_ID,
     M5_RELATION_NAVIGATION_RECORD_KIND, M5_RELATION_NAVIGATION_SCHEMA_REF,
     M5_RELATION_NAVIGATION_SCHEMA_VERSION,
+};
+
+pub use relation_resolution::{
+    relation_resolution_lines, relation_resolution_set, resolve_navigation, AliasingPosture,
+    NavigationCommand, NavigationRequest, NavigationResolution, ProviderReach,
+    RelationResolutionInvariant, RelationResolutionScenario, RelationResolutionSet,
+    RelationResolutionValidationError, RelationResolvedTarget, ResolutionDisposition,
+    RELATION_RESOLUTION_ARTIFACT_REF, RELATION_RESOLUTION_AS_OF, RELATION_RESOLUTION_DOC_REF,
+    RELATION_RESOLUTION_FIXTURE_REF, RELATION_RESOLUTION_FREEZE_GATE_REF,
+    RELATION_RESOLUTION_RECORD_KIND, RELATION_RESOLUTION_SCHEMA_REF,
+    RELATION_RESOLUTION_SCHEMA_VERSION, RELATION_RESOLUTION_SET_ID,
 };
 
 pub use target_model::{

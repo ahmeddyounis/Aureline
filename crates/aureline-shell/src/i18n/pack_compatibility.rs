@@ -20,8 +20,7 @@ use aureline_i18n::{
 };
 
 /// Record kind for [`LocalePackCompatibilityView`].
-pub const LOCALE_PACK_COMPATIBILITY_VIEW_RECORD_KIND: &str =
-    "shell_locale_pack_compatibility_view";
+pub const LOCALE_PACK_COMPATIBILITY_VIEW_RECORD_KIND: &str = "shell_locale_pack_compatibility_view";
 
 /// Who is reading the compatibility view.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -125,7 +124,9 @@ impl LocalePackCompatibilityView {
 
     /// Returns true when every pack resolves to a defined state.
     pub fn all_states_resolved(&self) -> bool {
-        self.rows.iter().all(LocalePackCompatibilityRowView::is_resolved)
+        self.rows
+            .iter()
+            .all(LocalePackCompatibilityRowView::is_resolved)
     }
 }
 

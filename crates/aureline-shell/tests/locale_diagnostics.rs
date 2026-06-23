@@ -31,8 +31,9 @@ fn packet_fixture_matches_seeded_packet() {
 
 #[test]
 fn support_export_fixture_matches_derived_projection() {
-    let from_file: LocaleDiagnosticsSupportExport =
-        load_json("fixtures/i18n/locale-diagnostics-exports/locale-diagnostics-support-export.json");
+    let from_file: LocaleDiagnosticsSupportExport = load_json(
+        "fixtures/i18n/locale-diagnostics-exports/locale-diagnostics-support-export.json",
+    );
     let from_code = seeded_locale_diagnostics_packet().support_export;
     assert_eq!(from_file, from_code);
 }

@@ -21,7 +21,9 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let mode = std::env::args().nth(1).unwrap_or_else(|| "corpus".to_owned());
+    let mode = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "corpus".to_owned());
     let corpus = seeded_overlay_navigation_corpus();
     validate_overlay_navigation_corpus(&corpus)
         .map_err(|err| format!("seeded corpus failed validation: {err:?}"))?;

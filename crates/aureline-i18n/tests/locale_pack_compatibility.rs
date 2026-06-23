@@ -3,10 +3,9 @@
 use std::path::{Path, PathBuf};
 
 use aureline_i18n::{
-    decide_application, seeded_core_locale_pack_artifacts,
-    seeded_locale_pack_compatibility_report, LocalePackArtifact, LocalePackCompatibilityReport,
-    LocalePackSignatureState, PackApplicationDecision, PackEvaluationInput, SkewDegradeReason,
-    VersionMatchState,
+    decide_application, seeded_core_locale_pack_artifacts, seeded_locale_pack_compatibility_report,
+    LocalePackArtifact, LocalePackCompatibilityReport, LocalePackSignatureState,
+    PackApplicationDecision, PackEvaluationInput, SkewDegradeReason, VersionMatchState,
 };
 
 fn repo_root() -> PathBuf {
@@ -36,11 +35,26 @@ fn report_fixture_matches_seeded_report_and_validates() {
 #[test]
 fn checked_in_core_artifacts_match_seeded_artifacts() {
     let cases = [
-        ("locale-packs/core/en-US/pack.json", "locale-pack:core:source:en-us"),
-        ("locale-packs/core/es-MX/pack.json", "locale-pack:core:es-mx"),
-        ("locale-packs/core/fr-FR/pack.json", "locale-pack:core:fr-fr"),
-        ("locale-packs/core/ja-JP/pack.json", "locale-pack:core:ja-jp"),
-        ("locale-packs/core/de-DE/pack.json", "locale-pack:core:de-de"),
+        (
+            "locale-packs/core/en-US/pack.json",
+            "locale-pack:core:source:en-us",
+        ),
+        (
+            "locale-packs/core/es-MX/pack.json",
+            "locale-pack:core:es-mx",
+        ),
+        (
+            "locale-packs/core/fr-FR/pack.json",
+            "locale-pack:core:fr-fr",
+        ),
+        (
+            "locale-packs/core/ja-JP/pack.json",
+            "locale-pack:core:ja-jp",
+        ),
+        (
+            "locale-packs/core/de-DE/pack.json",
+            "locale-pack:core:de-de",
+        ),
     ];
     let seeded = seeded_core_locale_pack_artifacts();
     assert_eq!(seeded.len(), cases.len());
@@ -64,7 +78,9 @@ fn signature_failure_degrades_fully_without_applying_translations() {
 
     // The on-disk pack is fully translated, yet a signature failure must drop
     // every key to source language rather than apply a single stale string.
-    let artifact = report.artifact("locale-pack:core:ja-jp").expect("ja-jp artifact");
+    let artifact = report
+        .artifact("locale-pack:core:ja-jp")
+        .expect("ja-jp artifact");
     assert_eq!(artifact.declared_missing_key_count(), 0);
 
     assert_eq!(
@@ -110,7 +126,8 @@ fn renderable_partial_pack_applies_and_discloses_missing_keys() {
     assert!(fr.missing_key_count > 0 && fr.missing_key_count < fr.total_key_count);
     assert!(fr.claimed_localized_profile);
     assert_eq!(
-        fr.missing_key_count_by_surface.get("docs_tour_or_auth_text"),
+        fr.missing_key_count_by_surface
+            .get("docs_tour_or_auth_text"),
         Some(&3)
     );
 }
@@ -118,7 +135,9 @@ fn renderable_partial_pack_applies_and_discloses_missing_keys() {
 #[test]
 fn unsigned_accepted_pack_applies_but_is_never_claimed() {
     let report = seeded_locale_pack_compatibility_report();
-    let pt = report.row("locale-pack:community:pt-br").expect("pt-br row");
+    let pt = report
+        .row("locale-pack:community:pt-br")
+        .expect("pt-br row");
 
     assert_eq!(
         pt.signature_state,
@@ -150,11 +169,17 @@ fn decide_application_is_conservative_about_skew() {
 
     let cases = [
         (
-            PackEvaluationInput { pack_present: false, ..base.clone() },
+            PackEvaluationInput {
+                pack_present: false,
+                ..base.clone()
+            },
             SkewDegradeReason::PackMissing,
         ),
         (
-            PackEvaluationInput { policy_locale_enabled: false, ..base.clone() },
+            PackEvaluationInput {
+                policy_locale_enabled: false,
+                ..base.clone()
+            },
             SkewDegradeReason::PolicyDisabledLocale,
         ),
         (
@@ -172,7 +197,10 @@ fn decide_application_is_conservative_about_skew() {
             SkewDegradeReason::SignatureUnverifiedNotAccepted,
         ),
         (
-            PackEvaluationInput { integrity_digest_matches: false, ..base.clone() },
+            PackEvaluationInput {
+                integrity_digest_matches: false,
+                ..base.clone()
+            },
             SkewDegradeReason::IntegrityDigestMismatch,
         ),
         (

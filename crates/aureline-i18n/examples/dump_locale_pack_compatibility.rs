@@ -15,9 +15,7 @@
 //!   > locale-packs/core/en-US/pack.json
 //! ```
 
-use aureline_i18n::{
-    seeded_core_locale_pack_artifacts, seeded_locale_pack_compatibility_report,
-};
+use aureline_i18n::{seeded_core_locale_pack_artifacts, seeded_locale_pack_compatibility_report};
 
 fn main() {
     if let Err(err) = run() {
@@ -29,18 +27,15 @@ fn main() {
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let report = seeded_locale_pack_compatibility_report();
-    report
-        .validate()
-        .map_err(|findings| format!("seeded compatibility report failed validation: {findings:?}"))?;
+    report.validate().map_err(|findings| {
+        format!("seeded compatibility report failed validation: {findings:?}")
+    })?;
 
     match args.first().map(String::as_str) {
         Some("report") | None => print_json(&report)?,
         Some("artifacts") => print_json(&seeded_core_locale_pack_artifacts())?,
         Some("artifact") => {
-            let pack_id = args
-                .get(1)
-                .ok_or("usage: artifact <pack_id>")?
-                .as_str();
+            let pack_id = args.get(1).ok_or("usage: artifact <pack_id>")?.as_str();
             let artifact = seeded_core_locale_pack_artifacts()
                 .into_iter()
                 .find(|artifact| artifact.pack_id == pack_id)

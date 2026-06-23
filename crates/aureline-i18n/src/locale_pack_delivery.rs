@@ -120,7 +120,8 @@ pub struct SurfaceKeyCoverage {
 impl SurfaceKeyCoverage {
     /// Returns keys that would fall back to source language for this surface.
     pub const fn missing_key_count(&self) -> usize {
-        self.total_key_count.saturating_sub(self.translated_key_count)
+        self.total_key_count
+            .saturating_sub(self.translated_key_count)
     }
 }
 
@@ -209,7 +210,11 @@ impl LocalePackArtifact {
     /// The decision is binary: a renderable pack applies (disclosing any missing
     /// keys per surface); an unsupported, unsigned, tampered, or skewed pack
     /// degrades fully to source language so no stale partial translation ships.
-    pub fn evaluate(&self, requested_locale: &str, input: &PackEvaluationInput) -> PackApplicationOutcome {
+    pub fn evaluate(
+        &self,
+        requested_locale: &str,
+        input: &PackEvaluationInput,
+    ) -> PackApplicationOutcome {
         let (decision, reason) = decide_application(input);
         let total_by_surface = self.surface_total_key_map();
 
@@ -246,7 +251,8 @@ impl LocalePackArtifact {
                 skew_degrade_reason: reason,
                 effective_locale: self.source_language_locale.clone(),
                 fallback_origin_class: degrade_origin(reason),
-                degraded_localization_state: DegradedLocalizationState::FailedPackSourceLanguageOnly,
+                degraded_localization_state:
+                    DegradedLocalizationState::FailedPackSourceLanguageOnly,
                 total_key_count: self.total_key_count(),
                 translated_key_count: self.translated_key_count(),
                 missing_key_count: self.total_key_count(),
@@ -337,7 +343,9 @@ pub struct PackApplicationOutcome {
 pub fn decide_application(
     input: &PackEvaluationInput,
 ) -> (PackApplicationDecision, SkewDegradeReason) {
-    use PackApplicationDecision::{ApplyLocalizedWithDisclosedMissingKeys, DegradeToSourceLanguageOnly};
+    use PackApplicationDecision::{
+        ApplyLocalizedWithDisclosedMissingKeys, DegradeToSourceLanguageOnly,
+    };
 
     if !input.pack_present {
         return (DegradeToSourceLanguageOnly, SkewDegradeReason::PackMissing);
@@ -390,7 +398,9 @@ fn degrade_origin(reason: SkewDegradeReason) -> LocaleFallbackOriginClass {
         }
         SkewDegradeReason::BuildOutsideCompatibilityRange
         | SkewDegradeReason::IncompatibleVersionDrift
-        | SkewDegradeReason::UnknownTargetBuild => LocaleFallbackOriginClass::SourceLanguageFallback,
+        | SkewDegradeReason::UnknownTargetBuild => {
+            LocaleFallbackOriginClass::SourceLanguageFallback
+        }
         SkewDegradeReason::NotDegraded => LocaleFallbackOriginClass::RequestedLocaleAuthoritative,
     }
 }
@@ -581,7 +591,9 @@ pub struct LocalePackCompatibilityReport {
 impl LocalePackCompatibilityReport {
     /// Returns the artifact for a pack id, when present.
     pub fn artifact(&self, pack_id: &str) -> Option<&LocalePackArtifact> {
-        self.artifacts.iter().find(|artifact| artifact.pack_id == pack_id)
+        self.artifacts
+            .iter()
+            .find(|artifact| artifact.pack_id == pack_id)
     }
 
     /// Returns the compatibility row for a pack id, when present.
@@ -692,8 +704,16 @@ fn validate_artifact(
             "pack artifact integrity digest must be lowercase hex sha256",
         ));
     }
-    if artifact.compatibility_build_range.min_build_identity_ref.trim().is_empty()
-        || artifact.compatibility_build_range.max_build_identity_ref.trim().is_empty()
+    if artifact
+        .compatibility_build_range
+        .min_build_identity_ref
+        .trim()
+        .is_empty()
+        || artifact
+            .compatibility_build_range
+            .max_build_identity_ref
+            .trim()
+            .is_empty()
     {
         findings.push(LocalePackValidationFinding::new(
             artifact.pack_id.clone(),
@@ -731,7 +751,8 @@ fn validate_artifact(
     }
 
     // Signature material must be paired, and a built-in source pack carries none.
-    let signed = artifact.signer_identity_ref.is_some() || artifact.signature_artifact_ref.is_some();
+    let signed =
+        artifact.signer_identity_ref.is_some() || artifact.signature_artifact_ref.is_some();
     if signed
         && (artifact.signer_identity_ref.is_none() || artifact.signature_artifact_ref.is_none())
     {
@@ -1000,10 +1021,15 @@ fn surface_family_key(surface_family: MessageSurfaceFamily) -> &'static str {
 }
 
 fn is_sha256_hex(value: &str) -> bool {
-    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
-fn finish(findings: Vec<LocalePackValidationFinding>) -> Result<(), Vec<LocalePackValidationFinding>> {
+fn finish(
+    findings: Vec<LocalePackValidationFinding>,
+) -> Result<(), Vec<LocalePackValidationFinding>> {
     if findings.is_empty() {
         Ok(())
     } else {
@@ -1281,7 +1307,10 @@ fn row_for(
     let presentation_label = match outcome.application_decision {
         PackApplicationDecision::ApplyLocalizedWithDisclosedMissingKeys => {
             if outcome.missing_key_count == 0 {
-                format!("{} {}: fully localized", artifact.presentation_label, artifact.pack_version)
+                format!(
+                    "{} {}: fully localized",
+                    artifact.presentation_label, artifact.pack_version
+                )
             } else {
                 format!(
                     "{} {}: localized, {} keys fall back to source",
@@ -1380,8 +1409,8 @@ fn source_artifact() -> LocalePackArtifact {
         distribution_class: LocalePackDistributionClass::BuiltInWithProduct,
         signer_identity_ref: None,
         signature_artifact_ref: None,
-        integrity_digest_sha256:
-            "d65d050d50ea37f29a3e28116cd5a8672aee1e3177d6f9f27a1f1bae6ee128f2".to_owned(),
+        integrity_digest_sha256: "d65d050d50ea37f29a3e28116cd5a8672aee1e3177d6f9f27a1f1bae6ee128f2"
+            .to_owned(),
         mirrorability_class: LocalePackMirrorabilityClass::MirrorAllowed,
         mirror_receipt_refs: vec!["mirror-receipt:core:source:en-us".to_owned()],
         offline_import_ref: Some("offline-import:core:source:en-us".to_owned()),
@@ -1412,8 +1441,8 @@ fn es_mx_artifact() -> LocalePackArtifact {
         distribution_class: LocalePackDistributionClass::MirroredOfficialPack,
         signer_identity_ref: Some("signer:first-party:locale-pack-release-root".to_owned()),
         signature_artifact_ref: Some("signature:locale-pack:core:es-mx:2026.05.18-01".to_owned()),
-        integrity_digest_sha256:
-            "c1c51dec3981f8ce56570c36e15cf699c6aea490ae51510a9e99aaf8dea854c5".to_owned(),
+        integrity_digest_sha256: "c1c51dec3981f8ce56570c36e15cf699c6aea490ae51510a9e99aaf8dea854c5"
+            .to_owned(),
         mirrorability_class: LocalePackMirrorabilityClass::MirrorWithAttributionRequired,
         mirror_receipt_refs: vec![
             "mirror-receipt:official:locale-pack:core:es-mx".to_owned(),
@@ -1447,8 +1476,8 @@ fn fr_fr_artifact() -> LocalePackArtifact {
         distribution_class: LocalePackDistributionClass::MirroredOfficialPack,
         signer_identity_ref: Some("signer:first-party:locale-pack-release-root".to_owned()),
         signature_artifact_ref: Some("signature:locale-pack:core:fr-fr:2026.05.18-01".to_owned()),
-        integrity_digest_sha256:
-            "bd8523ae43daab35bea125e6d113a2cfbd14b63f5cec0fc38a50aae41c8ed286".to_owned(),
+        integrity_digest_sha256: "bd8523ae43daab35bea125e6d113a2cfbd14b63f5cec0fc38a50aae41c8ed286"
+            .to_owned(),
         mirrorability_class: LocalePackMirrorabilityClass::MirrorWithAttributionRequired,
         mirror_receipt_refs: vec!["mirror-receipt:official:locale-pack:core:fr-fr".to_owned()],
         offline_import_ref: Some("offline-import:locale-pack:core:fr-fr:bundle-01".to_owned()),
@@ -1480,8 +1509,8 @@ fn ja_jp_artifact() -> LocalePackArtifact {
         distribution_class: LocalePackDistributionClass::MirroredOfficialPack,
         signer_identity_ref: Some("signer:first-party:locale-pack-release-root".to_owned()),
         signature_artifact_ref: Some("signature:locale-pack:core:ja-jp:2026.05.18-01".to_owned()),
-        integrity_digest_sha256:
-            "67f666f2144c5f9bc152131619be81eba6f26c02550c4abe46eb884660082cf7".to_owned(),
+        integrity_digest_sha256: "67f666f2144c5f9bc152131619be81eba6f26c02550c4abe46eb884660082cf7"
+            .to_owned(),
         mirrorability_class: LocalePackMirrorabilityClass::MirrorWithAttributionRequired,
         mirror_receipt_refs: vec!["mirror-receipt:official:locale-pack:core:ja-jp".to_owned()],
         offline_import_ref: Some("offline-import:locale-pack:core:ja-jp:bundle-01".to_owned()),
@@ -1513,8 +1542,8 @@ fn de_de_artifact() -> LocalePackArtifact {
         distribution_class: LocalePackDistributionClass::MirroredOfficialPack,
         signer_identity_ref: Some("signer:first-party:locale-pack-release-root".to_owned()),
         signature_artifact_ref: Some("signature:locale-pack:core:de-de:2026.05.18-01".to_owned()),
-        integrity_digest_sha256:
-            "5c732f8b8509e0d7d92847f2d16284c91f2874feb9fe463ab2bfb1b382595474".to_owned(),
+        integrity_digest_sha256: "5c732f8b8509e0d7d92847f2d16284c91f2874feb9fe463ab2bfb1b382595474"
+            .to_owned(),
         mirrorability_class: LocalePackMirrorabilityClass::MirrorWithAttributionRequired,
         mirror_receipt_refs: vec!["mirror-receipt:official:locale-pack:core:de-de".to_owned()],
         offline_import_ref: Some("offline-import:locale-pack:core:de-de:bundle-01".to_owned()),
@@ -1550,8 +1579,8 @@ fn pt_br_artifact() -> LocalePackArtifact {
         // Unsigned community pack admitted only through an explicit decision row.
         signer_identity_ref: None,
         signature_artifact_ref: None,
-        integrity_digest_sha256:
-            "fc5b6f087901c80867507150628b37d6fa9be1e9e39ca3a28634c271aa035032".to_owned(),
+        integrity_digest_sha256: "fc5b6f087901c80867507150628b37d6fa9be1e9e39ca3a28634c271aa035032"
+            .to_owned(),
         mirrorability_class: LocalePackMirrorabilityClass::MirrorWithAttributionRequired,
         mirror_receipt_refs: vec!["mirror-receipt:community:locale-pack:pt-br".to_owned()],
         offline_import_ref: Some("offline-import:locale-pack:community:pt-br:bundle-01".to_owned()),

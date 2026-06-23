@@ -199,8 +199,11 @@ impl PresentationOverlayBindingSupportExport {
                     .collect::<BTreeSet<_>>()
                     .into_iter()
                     .collect();
-                let fallback_placement_count =
-                    b.placements.iter().filter(|p| p.is_fallback_placement).count() as u32;
+                let fallback_placement_count = b
+                    .placements
+                    .iter()
+                    .filter(|p| p.is_fallback_placement)
+                    .count() as u32;
                 PresentationOverlayBindingSupportExportRow {
                     record_kind: PRESENTATION_OVERLAY_BINDING_SUPPORT_EXPORT_ROW_RECORD_KIND
                         .to_owned(),

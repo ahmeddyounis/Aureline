@@ -478,7 +478,10 @@ impl PresentationAccessibilityReport {
     /// Re-derive the conformance class from the surface records so a hand-edited
     /// report cannot claim a fidelity it did not deliver.
     fn expected_class(&self) -> PresentationA11yClass {
-        if self.surfaces.iter().any(|s| s.consistency_violation().is_some())
+        if self
+            .surfaces
+            .iter()
+            .any(|s| s.consistency_violation().is_some())
             || !self.boundary_posture.is_preserved()
             || !self.focus_ring_contiguous()
         {
@@ -535,9 +538,8 @@ impl PresentationAccessibilityReport {
             PresentationSurfaceTag::ProvenanceStrip,
         ] {
             if self.surface(required).is_none() {
-                violations.push(PresentationA11yViolation::RequiredSurfaceMissing {
-                    surface: required,
-                });
+                violations
+                    .push(PresentationA11yViolation::RequiredSurfaceMissing { surface: required });
             }
         }
 
@@ -615,7 +617,9 @@ impl AggregateFlags {
             pointer_only: surfaces.iter().any(|s| s.pointer_only),
             screen_reader_reachable: surfaces.iter().all(|s| s.screen_reader_reachable),
             reduced_motion_respected: surfaces.iter().all(|s| s.respects_reduced_motion),
-            high_zoom_supported: surfaces.iter().all(|s| !s.traps_focus && s.keyboard_reachable),
+            high_zoom_supported: surfaces
+                .iter()
+                .all(|s| !s.traps_focus && s.keyboard_reachable),
             focus_order_contiguous: report.focus_ring_contiguous(),
             no_focus_trap: surfaces.iter().all(|s| !s.traps_focus),
             boundary_labels_preserved: report.boundary_posture.is_preserved()
@@ -1038,10 +1042,7 @@ impl PresentationA11ySupportExport {
                 support_state: report.support_state,
                 role_confidence: report.role_confidence,
                 current_boundary_label: report.boundary_posture.current_boundary_label,
-                distinct_boundary_labels: report
-                    .boundary_posture
-                    .distinct_boundary_labels
-                    .clone(),
+                distinct_boundary_labels: report.boundary_posture.distinct_boundary_labels.clone(),
                 audience_scope: report.boundary_posture.audience_scope,
                 surface_count: report.surfaces.len() as u32,
                 reflowing_surface_count: report.reflowing_surface_count(),

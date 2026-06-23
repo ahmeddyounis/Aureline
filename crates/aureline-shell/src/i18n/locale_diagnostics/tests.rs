@@ -22,7 +22,10 @@ fn active_locale_is_a_profiled_locale() {
 fn every_profile_carries_a_problem_origin_and_chain() {
     let packet = seeded_locale_diagnostics_packet();
     for profile in &packet.locale_profiles {
-        assert_eq!(profile.fallback_chain.first(), Some(&profile.requested_locale));
+        assert_eq!(
+            profile.fallback_chain.first(),
+            Some(&profile.requested_locale)
+        );
         assert_eq!(
             profile.fallback_chain.last(),
             Some(&packet.source_language_locale)

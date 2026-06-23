@@ -42,15 +42,16 @@ pub use conformance::{
     project_accessibility_report, AccessibilityProjectionInputs, BoundaryPosture, HighZoomReflow,
     PresentationA11yClass, PresentationA11ySupportExport, PresentationA11ySupportExportRow,
     PresentationA11yViolation, PresentationAccessibilityReport, PresentationSurfaceTag,
-    SurfaceConformance, ZoomTier, PRESENTATION_ACCESSIBILITY_AND_BOUNDARY_REPORT_REF,
-    PRESENTATION_ACCESSIBILITY_DOC_REF, PRESENTATION_A11Y_FIXTURE_DIR,
+    SurfaceConformance, ZoomTier, PRESENTATION_A11Y_FIXTURE_DIR,
     PRESENTATION_A11Y_REPORT_RECORD_KIND, PRESENTATION_A11Y_SUPPORT_EXPORT_RECORD_KIND,
     PRESENTATION_A11Y_SUPPORT_EXPORT_ROW_RECORD_KIND, PRESENTATION_A11Y_SURFACE_RECORD_KIND,
+    PRESENTATION_ACCESSIBILITY_AND_BOUNDARY_REPORT_REF, PRESENTATION_ACCESSIBILITY_DOC_REF,
 };
 pub use corpus::{
     presentation_a11y_support_export, seeded_presentation_a11y_corpus,
     validate_presentation_a11y_corpus, A11yCase, A11yCorpusError, A11yCorpusSummary,
-    PresentationA11yCorpus, PRESENTATION_A11Y_CASE_RECORD_KIND, PRESENTATION_A11Y_CORPUS_RECORD_KIND,
+    PresentationA11yCorpus, PRESENTATION_A11Y_CASE_RECORD_KIND,
+    PRESENTATION_A11Y_CORPUS_RECORD_KIND,
 };
 
 #[cfg(test)]
