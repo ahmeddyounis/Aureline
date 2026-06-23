@@ -1,0 +1,368 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/admin/m5-decision-history.schema.json",
+  "title": "Aureline M5 decision-history bundle",
+  "description": "Boundary schema for the M5 decision-history bundle: the concrete, typed instances of Aureline's decision-history timelines and audit-event explorers, rendered across the claimed managed-cloud, self-hosted, sovereign/air-gapped, and mirrored/offline profiles. Each timeline binds back to the frozen admin-plane matrix (schemas/admin/m5-admin-plane.schema.json): every outcome and coverage state it shows is one the matrix declares applicable for the decision-history surface family, and every owner and data-residency token it uses is a term the matrix's shared vocabulary defines. Each material allow/deny/quota/force-disable/publish-scope decision carries a stable decision code, a distinguished actor class (user action, admin action, policy evaluation, provider limitation, or client limitation), a policy epoch, an affected target and scope, a time, an explanation link, and both a machine-readable summary and a plain-language support/admin handoff sentence. The explorer offers a filter for each of the eight audit families and labels offline, imported, or partial-history coverage rather than implying a complete history. There is exactly one typed packet per profile, consumed identically by the shell admin center, CLI/headless inspect, support export, procurement, and managed-service surfaces, and every profile stays locally inspectable without a vendor console. No endpoint URLs, hostnames, credentials, raw provider payloads, raw policy bodies, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, rendered metadata-safe summaries, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_decision_history_schema_version",
+    "schema_ref",
+    "bundle_id",
+    "as_of",
+    "matrix_ref",
+    "matrix_id",
+    "freeze_gate_ref",
+    "summary",
+    "profiles",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_decision_history_bundle" },
+    "m5_decision_history_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/admin/m5-decision-history.schema.json" },
+    "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/history_packet" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/history_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "safe_token": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An opaque stable token with no URL scheme or absolute path.",
+      "not": { "anyOf": [{ "pattern": "://" }, { "pattern": "^/" }] }
+    },
+    "surface_token": {
+      "enum": [
+        "effective_policy_view",
+        "policy_diff",
+        "decision_history_timeline",
+        "locked_state_explanation",
+        "retention_deletion_matrix",
+        "offboarding_wizard",
+        "procurement_verification_packet",
+        "endpoint_posture_card"
+      ]
+    },
+    "path_token": {
+      "enum": [
+        "local_individual",
+        "managed_cloud",
+        "self_hosted",
+        "sovereign_air_gapped",
+        "mirrored_offline",
+        "imported_snapshot"
+      ]
+    },
+    "state_token": {
+      "enum": [
+        "active_enforced",
+        "locked_by_policy",
+        "inherited_default",
+        "overridden_local",
+        "unconfirmed_stale",
+        "pending_managed_sync",
+        "signature_unverified",
+        "delete_pending",
+        "delete_blocked_by_hold",
+        "delete_receipted",
+        "export_available_now",
+        "export_deferred",
+        "mirror_offline_last_known",
+        "boundary_changed_recheck_required",
+        "imported_snapshot_no_live",
+        "unknown_requires_review"
+      ]
+    },
+    "deployment_profile_class": {
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "sovereign_air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "admin_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "compliance_restricted"
+      ]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_admin_center",
+        "cli_headless",
+        "help_about",
+        "support_export",
+        "commercial_procurement",
+        "release_evidence",
+        "managed_service"
+      ]
+    },
+    "data_residency_class": {
+      "enum": [
+        "local_only",
+        "managed_copy",
+        "mirrored_copy",
+        "shared_workspace_copy",
+        "exported_snapshot"
+      ]
+    },
+    "owner_escalation_role": {
+      "enum": [
+        "local_user",
+        "workspace_owner",
+        "org_admin",
+        "security_owner",
+        "compliance_owner",
+        "vendor_support"
+      ]
+    },
+    "evidence_age_class": {
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"]
+    },
+    "actor_class": {
+      "enum": [
+        "user_action",
+        "admin_action",
+        "policy_evaluation",
+        "provider_limitation",
+        "client_limitation"
+      ]
+    },
+    "decision_code_class": {
+      "enum": [
+        "allow",
+        "deny",
+        "narrow",
+        "force_disable",
+        "quota_limit",
+        "defer_pending_refresh",
+        "defer_pending_admin",
+        "escalate",
+        "export_only",
+        "local_only_continue",
+        "mutation_recorded",
+        "request_recorded",
+        "rollback_recorded",
+        "unknown_offline"
+      ]
+    },
+    "event_family_class": {
+      "enum": [
+        "trust_change",
+        "policy_change",
+        "auth_session",
+        "remote_mutation",
+        "provider_routing",
+        "collaboration_control",
+        "publish_state",
+        "managed_identity_scope"
+      ]
+    },
+    "scope_kind_class": {
+      "enum": [
+        "tenant_or_org",
+        "deployment_profile",
+        "workspace",
+        "group",
+        "seat",
+        "device",
+        "capability_scope",
+        "session_or_command"
+      ]
+    },
+    "completeness_class": {
+      "enum": ["complete", "partial_offline", "partial_imported", "partial_redacted"]
+    },
+    "export_format_class": {
+      "enum": ["machine_readable_json", "plain_language_handoff"]
+    },
+    "decision_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "decision_code",
+        "event_family",
+        "actor_class",
+        "actor_label",
+        "affected_target",
+        "scope_kind",
+        "scope_label",
+        "policy_epoch",
+        "event_at",
+        "sequence",
+        "outcome_state",
+        "evidence_age",
+        "data_residency",
+        "owner",
+        "machine_summary",
+        "plain_language"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/safe_token" },
+        "decision_code": { "$ref": "#/$defs/decision_code_class" },
+        "event_family": { "$ref": "#/$defs/event_family_class" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_label": { "$ref": "#/$defs/non_empty_string" },
+        "affected_target": { "$ref": "#/$defs/safe_token" },
+        "scope_kind": { "$ref": "#/$defs/scope_kind_class" },
+        "scope_label": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/safe_token" },
+        "entitlement_epoch": { "$ref": "#/$defs/safe_token" },
+        "event_at": { "type": "string", "format": "date-time" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "outcome_state": { "$ref": "#/$defs/state_token" },
+        "evidence_age": { "$ref": "#/$defs/evidence_age_class" },
+        "data_residency": { "$ref": "#/$defs/data_residency_class" },
+        "owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "explanation_ref": { "$ref": "#/$defs/safe_token" },
+        "machine_summary": { "$ref": "#/$defs/non_empty_string" },
+        "plain_language": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "explorer_filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filter_id", "family", "label", "description", "matched_event_ids"],
+      "properties": {
+        "filter_id": { "$ref": "#/$defs/safe_token" },
+        "family": { "$ref": "#/$defs/event_family_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "description": { "$ref": "#/$defs/non_empty_string" },
+        "matched_event_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_token" }
+        }
+      }
+    },
+    "export_form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "label", "artifact_ref", "redaction", "description"],
+      "properties": {
+        "format": { "$ref": "#/$defs/export_format_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_ref": { "$ref": "#/$defs/safe_token" },
+        "redaction": { "$ref": "#/$defs/redaction_class" },
+        "description": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "coverage_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coverage_state",
+        "completeness",
+        "window_label",
+        "coverage_note",
+        "locally_inspectable",
+        "vendor_console_independent"
+      ],
+      "properties": {
+        "coverage_state": { "$ref": "#/$defs/state_token" },
+        "completeness": { "$ref": "#/$defs/completeness_class" },
+        "window_label": { "$ref": "#/$defs/non_empty_string" },
+        "coverage_note": { "$ref": "#/$defs/non_empty_string" },
+        "locally_inspectable": { "type": "boolean" },
+        "vendor_console_independent": { "type": "boolean" }
+      }
+    },
+    "decision_history_timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_id",
+        "summary",
+        "events",
+        "filters",
+        "export_forms",
+        "coverage"
+      ],
+      "properties": {
+        "surface": { "const": "decision_history_timeline" },
+        "surface_id": { "$ref": "#/$defs/safe_token" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/decision_event" }
+        },
+        "filters": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/explorer_filter" }
+        },
+        "export_forms": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/export_form" }
+        },
+        "coverage": { "$ref": "#/$defs/coverage_posture" }
+      }
+    },
+    "history_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "profile_id",
+        "deployment_profile",
+        "summary",
+        "consumers",
+        "timeline"
+      ],
+      "properties": {
+        "profile": { "$ref": "#/$defs/path_token" },
+        "profile_id": { "$ref": "#/$defs/safe_token" },
+        "deployment_profile": { "$ref": "#/$defs/deployment_profile_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "consumers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "timeline": { "$ref": "#/$defs/decision_history_timeline" }
+      }
+    },
+    "history_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}

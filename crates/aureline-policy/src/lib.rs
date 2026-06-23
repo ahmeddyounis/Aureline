@@ -28,6 +28,7 @@ pub mod implement_approval_ticket_issuance_deny_reason_packets_replay_nonce_or_e
 pub mod implement_execution_surface_classes_sandbox_profile_descriptors_and_unsupported_or_stricter_profile_truth;
 pub mod m5_admin_plane;
 pub mod m5_admin_render;
+pub mod m5_decision_history;
 pub mod m5_exception_expiry;
 pub mod policy_simulation_and_expiry;
 pub mod publish_enterprise_self_hosted_and_air_gapped_docs_matrices_and_known_limits;
