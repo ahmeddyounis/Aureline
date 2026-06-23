@@ -1,0 +1,584 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/admin/m5-procurement.schema.json",
+  "title": "Aureline M5 procurement bundle",
+  "description": "Boundary schema for the M5 procurement bundle: the concrete, typed instances of Aureline's procurement/verification packets, renewal/trial/seat-change summary cards, and admin-handoff packets, rendered across the claimed managed-cloud, self-hosted, sovereign/air-gapped, and mirrored/offline profiles. Each profile packet binds back to the frozen admin-plane matrix (schemas/admin/m5-admin-plane.schema.json): every machine-readable state a verification packet, event card, admin-handoff packet, or the coverage posture shows is one the matrix declares applicable for the procurement-verification surface family, and every owner and residency token it uses is a term the matrix's shared vocabulary defines. Each verification packet names its deployment mode, supported export paths, billing/owner scope, validity window and signature posture, evidence refs, residual dependencies, the canonical managed-state objects it reuses, and its support/renewal handoff data; a packet past its validity window or not currently verified is labeled rather than shown verified. Each renewal/trial/seat-change card discloses its event type, effective date, impacted managed features, as-of date, local-only path, and export/support next step, and keeps the export, delete, support, and local-continuation actions ahead of any commercial call-to-action (outranks_recovery_actions is always false; recovery never requires a paid seat). Each admin-handoff packet carries build/channel, install mode, workspace archetype, bundle ids, and affected features, auto-derived from current state. Every surface reuses the same canonical managed-state objects by ref rather than restating them, stays locally inspectable without a vendor console, and keeps export reachable without a still-active paid seat. There is exactly one typed packet per profile, consumed identically by the commercial/procurement, Help/About, support export, release-evidence, and managed-service surfaces. No endpoint URLs, hostnames, credentials, raw provider payloads, raw record bodies, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, rendered metadata-safe summaries, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_procurement_schema_version",
+    "schema_ref",
+    "bundle_id",
+    "as_of",
+    "matrix_ref",
+    "matrix_id",
+    "freeze_gate_ref",
+    "summary",
+    "profiles",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_procurement_bundle" },
+    "m5_procurement_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/admin/m5-procurement.schema.json" },
+    "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/procurement_profile_packet" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/procurement_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "safe_token": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An opaque stable token with no URL scheme or absolute path.",
+      "not": { "anyOf": [{ "pattern": "://" }, { "pattern": "^/" }] }
+    },
+    "surface_token": { "const": "procurement_verification_packet" },
+    "path_token": {
+      "enum": [
+        "local_individual",
+        "managed_cloud",
+        "self_hosted",
+        "sovereign_air_gapped",
+        "mirrored_offline",
+        "imported_snapshot"
+      ]
+    },
+    "state_token": {
+      "enum": [
+        "active_enforced",
+        "locked_by_policy",
+        "inherited_default",
+        "overridden_local",
+        "unconfirmed_stale",
+        "pending_managed_sync",
+        "signature_unverified",
+        "delete_pending",
+        "delete_blocked_by_hold",
+        "delete_receipted",
+        "export_available_now",
+        "export_deferred",
+        "mirror_offline_last_known",
+        "boundary_changed_recheck_required",
+        "imported_snapshot_no_live",
+        "unknown_requires_review"
+      ]
+    },
+    "deployment_profile_class": {
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "sovereign_air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "admin_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "compliance_restricted"
+      ]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_admin_center",
+        "cli_headless",
+        "help_about",
+        "support_export",
+        "commercial_procurement",
+        "release_evidence",
+        "managed_service"
+      ]
+    },
+    "data_residency_class": {
+      "enum": [
+        "local_only",
+        "managed_copy",
+        "mirrored_copy",
+        "shared_workspace_copy",
+        "exported_snapshot"
+      ]
+    },
+    "owner_escalation_role": {
+      "enum": [
+        "local_user",
+        "workspace_owner",
+        "org_admin",
+        "security_owner",
+        "compliance_owner",
+        "vendor_support"
+      ]
+    },
+    "evidence_age_class": {
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"]
+    },
+    "completeness_class": {
+      "enum": ["complete", "partial_offline", "partial_imported", "partial_redacted"]
+    },
+    "export_format_class": {
+      "enum": ["machine_readable_json", "plain_language_handoff"]
+    },
+    "verification_posture_class": {
+      "enum": [
+        "signed_verified",
+        "signed_unverified",
+        "unsigned_local",
+        "signature_expired",
+        "signature_revoked",
+        "unverifiable_offline"
+      ]
+    },
+    "install_mode_class": {
+      "enum": ["per_user", "per_machine", "portable", "managed_image", "sovereign_image"]
+    },
+    "update_ring_class": {
+      "enum": ["stable", "extended", "beta", "pinned_managed", "pinned_offline"]
+    },
+    "commercial_event_class": {
+      "enum": [
+        "renewal",
+        "trial_start",
+        "trial_expiry",
+        "seat_increase",
+        "seat_decrease",
+        "plan_downgrade",
+        "cancellation"
+      ]
+    },
+    "export_path_class": {
+      "enum": [
+        "local_direct_export",
+        "offline_bundle_export",
+        "deferred_managed_export",
+        "support_assisted_export",
+        "imported_snapshot_replay"
+      ]
+    },
+    "billing_scope_class": {
+      "enum": [
+        "personal_self_serve",
+        "workspace_billed",
+        "org_contract",
+        "self_hosted_license",
+        "sovereign_entitlement",
+        "mirrored_entitlement"
+      ]
+    },
+    "next_action_class": {
+      "enum": [
+        "export_user_data",
+        "delete_user_data",
+        "open_support",
+        "continue_local_only",
+        "review_renewal",
+        "contact_billing",
+        "upgrade_plan"
+      ]
+    },
+    "workspace_archetype_class": {
+      "enum": [
+        "individual_workspace",
+        "team_workspace",
+        "managed_org_workspace",
+        "self_hosted_workspace",
+        "sovereign_workspace",
+        "mirrored_workspace"
+      ]
+    },
+    "evidence_kind_class": {
+      "enum": [
+        "signed_release_packet",
+        "admin_audit_export",
+        "destruction_receipt_index",
+        "policy_bundle_proof",
+        "endpoint_posture_proof"
+      ]
+    },
+    "canonical_object_class": {
+      "enum": [
+        "effective_policy",
+        "entitlement_seat",
+        "retention_deletion",
+        "offboarding_continuity",
+        "endpoint_posture",
+        "decision_history"
+      ]
+    },
+    "residual_dependency_class": {
+      "enum": [
+        "managed_control_plane",
+        "identity_provider",
+        "signing_authority",
+        "mirror_upstream",
+        "billing_processor"
+      ]
+    },
+    "validity_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["opens", "closes", "within_window", "window_label", "note"],
+      "properties": {
+        "opens": { "type": "string", "format": "date-time" },
+        "closes": { "type": "string", "format": "date-time" },
+        "within_window": { "type": "boolean" },
+        "window_label": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "supported_export_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "label", "lands_in", "available_offline", "requires_paid_seat", "note"],
+      "properties": {
+        "path": { "$ref": "#/$defs/export_path_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "lands_in": { "$ref": "#/$defs/data_residency_class" },
+        "available_offline": { "type": "boolean" },
+        "requires_paid_seat": { "const": false },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "kind", "schema_ref", "label", "note"],
+      "properties": {
+        "evidence_id": { "$ref": "#/$defs/safe_token" },
+        "kind": { "$ref": "#/$defs/evidence_kind_class" },
+        "schema_ref": { "$ref": "#/$defs/repo_ref" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "canonical_source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object", "schema_ref", "label", "note"],
+      "properties": {
+        "object": { "$ref": "#/$defs/canonical_object_class" },
+        "schema_ref": { "$ref": "#/$defs/repo_ref" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "residual_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dependency", "label", "local_safe_fallback", "note"],
+      "properties": {
+        "dependency": { "$ref": "#/$defs/residual_dependency_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "local_safe_fallback": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "renewal_owner", "next_step", "support_route", "note"],
+      "properties": {
+        "owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "renewal_owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "next_step": { "$ref": "#/$defs/non_empty_string" },
+        "support_route": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "event_next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "order", "label", "recovery_action", "note"],
+      "properties": {
+        "action": { "$ref": "#/$defs/next_action_class" },
+        "order": { "type": "integer", "minimum": 1 },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "recovery_action": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "procurement_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_id",
+        "deployment_mode",
+        "summary",
+        "verification_posture",
+        "machine_state",
+        "validity_window",
+        "evidence_age",
+        "billing_scope",
+        "packet_owner",
+        "as_of",
+        "supported_export_paths",
+        "evidence_refs",
+        "residual_dependencies",
+        "canonical_sources",
+        "support_handoff",
+        "requires_paid_seat_for_export",
+        "governing_schema_ref",
+        "schema_note",
+        "machine_summary",
+        "plain_language"
+      ],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/safe_token" },
+        "deployment_mode": { "$ref": "#/$defs/deployment_profile_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "verification_posture": { "$ref": "#/$defs/verification_posture_class" },
+        "machine_state": { "$ref": "#/$defs/state_token" },
+        "validity_window": { "$ref": "#/$defs/validity_window" },
+        "evidence_age": { "$ref": "#/$defs/evidence_age_class" },
+        "billing_scope": { "$ref": "#/$defs/billing_scope_class" },
+        "packet_owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "as_of": { "type": "string", "format": "date-time" },
+        "supported_export_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/supported_export_path" }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_ref" }
+        },
+        "residual_dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/residual_dependency" }
+        },
+        "canonical_sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/canonical_source_ref" }
+        },
+        "support_handoff": { "$ref": "#/$defs/support_handoff" },
+        "requires_paid_seat_for_export": { "const": false },
+        "governing_schema_ref": { "$ref": "#/$defs/repo_ref" },
+        "schema_note": { "$ref": "#/$defs/non_empty_string" },
+        "machine_summary": { "$ref": "#/$defs/non_empty_string" },
+        "plain_language": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "commercial_event_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "card_id",
+        "event",
+        "label",
+        "effective_date",
+        "as_of",
+        "impacted_features",
+        "impacted_scope",
+        "machine_state",
+        "evidence_age",
+        "entitlement_loss",
+        "local_only_path",
+        "next_actions",
+        "outranks_recovery_actions",
+        "export_next_step",
+        "support_next_step",
+        "canonical_sources",
+        "requires_paid_seat_for_recovery",
+        "machine_summary",
+        "plain_language"
+      ],
+      "properties": {
+        "card_id": { "$ref": "#/$defs/safe_token" },
+        "event": { "$ref": "#/$defs/commercial_event_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "effective_date": { "type": "string", "format": "date-time" },
+        "as_of": { "type": "string", "format": "date-time" },
+        "impacted_features": { "$ref": "#/$defs/non_empty_string" },
+        "impacted_scope": { "$ref": "#/$defs/billing_scope_class" },
+        "machine_state": { "$ref": "#/$defs/state_token" },
+        "evidence_age": { "$ref": "#/$defs/evidence_age_class" },
+        "entitlement_loss": { "type": "boolean" },
+        "local_only_path": { "$ref": "#/$defs/non_empty_string" },
+        "next_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/event_next_action" }
+        },
+        "outranks_recovery_actions": { "const": false },
+        "export_next_step": { "$ref": "#/$defs/non_empty_string" },
+        "support_next_step": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/canonical_source_ref" }
+        },
+        "requires_paid_seat_for_recovery": { "const": false },
+        "machine_summary": { "$ref": "#/$defs/non_empty_string" },
+        "plain_language": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "admin_handoff_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_id",
+        "build_ref",
+        "channel",
+        "install_mode",
+        "workspace_archetype",
+        "bundle_ids",
+        "affected_features",
+        "machine_state",
+        "as_of",
+        "handoff_owner",
+        "canonical_sources",
+        "export_safe_summary",
+        "auto_derived",
+        "governing_schema_ref",
+        "schema_note",
+        "machine_summary",
+        "plain_language"
+      ],
+      "properties": {
+        "handoff_id": { "$ref": "#/$defs/safe_token" },
+        "build_ref": { "$ref": "#/$defs/safe_token" },
+        "channel": { "$ref": "#/$defs/update_ring_class" },
+        "install_mode": { "$ref": "#/$defs/install_mode_class" },
+        "workspace_archetype": { "$ref": "#/$defs/workspace_archetype_class" },
+        "bundle_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safe_token" }
+        },
+        "affected_features": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "machine_state": { "$ref": "#/$defs/state_token" },
+        "as_of": { "type": "string", "format": "date-time" },
+        "handoff_owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "canonical_sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/canonical_source_ref" }
+        },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" },
+        "auto_derived": { "const": true },
+        "governing_schema_ref": { "$ref": "#/$defs/repo_ref" },
+        "schema_note": { "$ref": "#/$defs/non_empty_string" },
+        "machine_summary": { "$ref": "#/$defs/non_empty_string" },
+        "plain_language": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "export_form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "label", "artifact_ref", "redaction", "description"],
+      "properties": {
+        "format": { "$ref": "#/$defs/export_format_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_ref": { "$ref": "#/$defs/safe_token" },
+        "redaction": { "$ref": "#/$defs/redaction_class" },
+        "description": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "procurement_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coverage_state",
+        "completeness",
+        "window_label",
+        "coverage_note",
+        "locally_inspectable",
+        "vendor_console_independent",
+        "exportable_without_paid_seat"
+      ],
+      "properties": {
+        "coverage_state": { "$ref": "#/$defs/state_token" },
+        "completeness": { "$ref": "#/$defs/completeness_class" },
+        "window_label": { "$ref": "#/$defs/non_empty_string" },
+        "coverage_note": { "$ref": "#/$defs/non_empty_string" },
+        "locally_inspectable": { "type": "boolean" },
+        "vendor_console_independent": { "type": "boolean" },
+        "exportable_without_paid_seat": { "const": true }
+      }
+    },
+    "procurement_profile_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "profile_id",
+        "surface",
+        "surface_id",
+        "deployment_profile",
+        "summary",
+        "consumers",
+        "verification_packet",
+        "event_cards",
+        "admin_handoff",
+        "export_forms",
+        "coverage"
+      ],
+      "properties": {
+        "profile": { "$ref": "#/$defs/path_token" },
+        "profile_id": { "$ref": "#/$defs/safe_token" },
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_id": { "$ref": "#/$defs/safe_token" },
+        "deployment_profile": { "$ref": "#/$defs/deployment_profile_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "consumers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "verification_packet": { "$ref": "#/$defs/procurement_packet" },
+        "event_cards": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/commercial_event_card" }
+        },
+        "admin_handoff": { "$ref": "#/$defs/admin_handoff_packet" },
+        "export_forms": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/export_form" }
+        },
+        "coverage": { "$ref": "#/$defs/procurement_coverage" }
+      }
+    },
+    "procurement_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}
