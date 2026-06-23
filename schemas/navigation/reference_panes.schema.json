@@ -1,0 +1,457 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/navigation/reference_panes.schema.json",
+  "title": "Aureline references-pane corpus",
+  "description": "Boundary schema for the references-pane corpus: the frozen contract for how Aureline turns a Find References result into a typed pane. Each scenario carries a pane-building input and the pane the builder produces for it. A pane groups reference occurrences by access kind (read, write, call, inherit, import, export, test-only, generated), separates current-scope from captured-scope counts, names whether each group's and the pane's evidence is semantic, framework-derived, runtime-observed, imported, a lexical fallback, a syntax fallback, or mixed, keeps generated/external/read-only/imported/test-only labels visible, exposes the four open/peek/split/export actions identically across the references pane, search panel, docs link, and keyboard routes with one stable history effect each, and projects to every consumer surface without flattening into generic hits or exporting code bodies. A group resting on a lexical or syntax fallback always carries a fallback note and a downgrade reason, so a grep fallback never masquerades as semantic certainty. No source bodies, raw paths, provider payloads, URLs, hostnames, or credentials cross this boundary; the record carries opaque object handles, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "reference_panes_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "freeze_gate_ref",
+    "summary",
+    "scenarios",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "reference_panes_set" },
+    "reference_panes_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/navigation/reference_panes.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/scenario" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "pattern": "^(schemas|crates|artifacts|fixtures|docs)/"
+    },
+    "handle_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(aureline://|schemas/|crates/|artifacts/|fixtures/|docs/)"
+    },
+    "nullable_handle_ref": {
+      "anyOf": [{ "$ref": "#/$defs/handle_ref" }, { "type": "null" }]
+    },
+    "relation_kind": {
+      "type": "string",
+      "enum": [
+        "definition",
+        "declaration",
+        "implementation",
+        "reference",
+        "type",
+        "call",
+        "route-binding",
+        "owner-link",
+        "doc-link"
+      ]
+    },
+    "access_kind": {
+      "type": "string",
+      "enum": [
+        "read",
+        "write",
+        "call",
+        "inherit",
+        "import",
+        "export",
+        "test-only",
+        "generated"
+      ]
+    },
+    "proof_class": {
+      "type": "string",
+      "enum": [
+        "direct_semantic",
+        "indexed_semantic",
+        "lexical_fallback",
+        "syntax_fallback",
+        "imported_evidence",
+        "framework_derived",
+        "runtime_observed",
+        "ai_inferred",
+        "unavailable"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "indexed",
+        "imported",
+        "partial",
+        "stale",
+        "unavailable",
+        "heuristic",
+        "workspace_slice_limited"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["authoritative_live", "warm_cached", "degraded_cached", "stale", "unverified"]
+    },
+    "scope_completeness": {
+      "type": "string",
+      "enum": [
+        "complete_for_declared_scope",
+        "partial_for_declared_scope",
+        "stale_for_declared_scope",
+        "unavailable_for_declared_scope"
+      ]
+    },
+    "generated_or_external_state": {
+      "type": "string",
+      "enum": [
+        "authored_source",
+        "generated_source",
+        "external_dependency",
+        "read_only_source",
+        "imported_snapshot"
+      ]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "sparse_workset",
+        "policy_limited",
+        "missing_provider",
+        "provider_unavailable",
+        "stale_shard",
+        "lexical_fallback_only",
+        "syntax_fallback_only",
+        "generated_boundary",
+        "runtime_or_framework_only",
+        "ambiguous_candidates",
+        "bookmark_or_history_drift",
+        "metadata_only_export"
+      ]
+    },
+    "export_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "editor_ui",
+        "cli_headless",
+        "ai_context",
+        "review_workspace",
+        "support_export",
+        "graph_overlay",
+        "shell_continuity"
+      ]
+    },
+    "pane_action_kind": {
+      "type": "string",
+      "enum": ["open", "peek", "split_open", "export"]
+    },
+    "history_effect": {
+      "type": "string",
+      "enum": ["advances_history", "preserves_current", "no_editor_history"]
+    },
+    "action_route": {
+      "type": "string",
+      "enum": ["references_pane", "search_panel", "docs_link", "keyboard_shortcut"]
+    },
+    "evidence_class": {
+      "type": "string",
+      "enum": [
+        "semantic",
+        "framework_derived",
+        "runtime_observed",
+        "imported_snapshot",
+        "lexical_fallback",
+        "syntax_fallback",
+        "mixed",
+        "unavailable"
+      ]
+    },
+    "reference_label": {
+      "type": "string",
+      "enum": [
+        "generated",
+        "external",
+        "read_only",
+        "imported_snapshot",
+        "test_only",
+        "lexical_fallback",
+        "syntax_fallback",
+        "runtime_observed",
+        "framework_derived",
+        "captured_scope_only"
+      ]
+    },
+    "downgrade_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_reason" }
+    },
+    "handle_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/handle_ref" }
+    },
+    "string_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "labels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reference_label" }
+    },
+    "scope_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_count",
+        "current_scope_count",
+        "captured_scope_count",
+        "generated_count",
+        "external_count",
+        "test_only_count",
+        "fallback_count",
+        "runtime_observed_count",
+        "framework_derived_count"
+      ],
+      "properties": {
+        "total_count": { "type": "integer", "minimum": 0 },
+        "current_scope_count": { "type": "integer", "minimum": 0 },
+        "captured_scope_count": { "type": "integer", "minimum": 0 },
+        "generated_count": { "type": "integer", "minimum": 0 },
+        "external_count": { "type": "integer", "minimum": 0 },
+        "test_only_count": { "type": "integer", "minimum": 0 },
+        "fallback_count": { "type": "integer", "minimum": 0 },
+        "runtime_observed_count": { "type": "integer", "minimum": 0 },
+        "framework_derived_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reference_occurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "occurrence_id",
+        "target_ref",
+        "anchor_ref",
+        "access_kind",
+        "scope_ref",
+        "generated_or_external_state",
+        "proof_class",
+        "confidence",
+        "freshness",
+        "scope_completeness",
+        "downgrade_reasons",
+        "evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "occurrence_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_ref": { "$ref": "#/$defs/handle_ref" },
+        "anchor_ref": { "$ref": "#/$defs/handle_ref" },
+        "access_kind": { "$ref": "#/$defs/access_kind" },
+        "scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "generated_or_external_state": { "$ref": "#/$defs/generated_or_external_state" },
+        "proof_class": { "$ref": "#/$defs/proof_class" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "scope_completeness": { "$ref": "#/$defs/scope_completeness" },
+        "downgrade_reasons": { "$ref": "#/$defs/downgrade_reasons" },
+        "evidence_refs": { "$ref": "#/$defs/handle_refs" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pane_id",
+        "root_target_ref",
+        "scope_ref",
+        "captured_scope_ref",
+        "redaction_class",
+        "occurrences"
+      ],
+      "properties": {
+        "pane_id": { "$ref": "#/$defs/non_empty_string" },
+        "root_target_ref": { "$ref": "#/$defs/handle_ref" },
+        "scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "captured_scope_ref": { "$ref": "#/$defs/nullable_handle_ref" },
+        "redaction_class": { "$ref": "#/$defs/export_redaction_class" },
+        "occurrences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reference_occurrence" }
+        }
+      }
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "access_kind",
+        "occurrence_refs",
+        "counts",
+        "evidence_class",
+        "labels",
+        "downgrade_reasons",
+        "fallback_notes",
+        "summary"
+      ],
+      "properties": {
+        "access_kind": { "$ref": "#/$defs/access_kind" },
+        "occurrence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "counts": { "$ref": "#/$defs/scope_counts" },
+        "evidence_class": { "$ref": "#/$defs/evidence_class" },
+        "labels": { "$ref": "#/$defs/labels" },
+        "downgrade_reasons": { "$ref": "#/$defs/downgrade_reasons" },
+        "fallback_notes": { "$ref": "#/$defs/string_list" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "action_affordance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_kind",
+        "history_effect",
+        "available_routes",
+        "target_ref",
+        "preserves_target_identity",
+        "summary"
+      ],
+      "properties": {
+        "action_kind": { "$ref": "#/$defs/pane_action_kind" },
+        "history_effect": { "$ref": "#/$defs/history_effect" },
+        "available_routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action_route" }
+        },
+        "target_ref": { "$ref": "#/$defs/handle_ref" },
+        "preserves_target_identity": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "projected_group_count",
+        "preserves_access_kind_grouping",
+        "preserves_scope_counts",
+        "preserves_evidence_class",
+        "preserves_generated_external_test_labels",
+        "flattens_to_generic_hits",
+        "exports_code_bodies",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "projected_group_count": { "type": "integer", "minimum": 0 },
+        "preserves_access_kind_grouping": { "type": "boolean" },
+        "preserves_scope_counts": { "type": "boolean" },
+        "preserves_evidence_class": { "type": "boolean" },
+        "preserves_generated_external_test_labels": { "type": "boolean" },
+        "flattens_to_generic_hits": { "const": false },
+        "exports_code_bodies": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/export_redaction_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "pane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pane_id",
+        "root_target_ref",
+        "root_relation_kind",
+        "scope_ref",
+        "captured_scope_ref",
+        "groups",
+        "totals",
+        "pane_evidence_class",
+        "labels",
+        "actions",
+        "consumer_projections",
+        "downgrade_reasons",
+        "fallback_notes",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "pane_id": { "$ref": "#/$defs/non_empty_string" },
+        "root_target_ref": { "$ref": "#/$defs/handle_ref" },
+        "root_relation_kind": { "const": "reference" },
+        "scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "captured_scope_ref": { "$ref": "#/$defs/nullable_handle_ref" },
+        "groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/group" }
+        },
+        "totals": { "$ref": "#/$defs/scope_counts" },
+        "pane_evidence_class": { "$ref": "#/$defs/evidence_class" },
+        "labels": { "$ref": "#/$defs/labels" },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_affordance" }
+        },
+        "consumer_projections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/projection" }
+        },
+        "downgrade_reasons": { "$ref": "#/$defs/downgrade_reasons" },
+        "fallback_notes": { "$ref": "#/$defs/string_list" },
+        "redaction_class": { "$ref": "#/$defs/export_redaction_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario_id", "title", "input", "pane", "expectation_note"],
+      "properties": {
+        "scenario_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "input": { "$ref": "#/$defs/input" },
+        "pane": { "$ref": "#/$defs/pane" },
+        "expectation_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "type": "boolean" }
+      }
+    }
+  }
+}
