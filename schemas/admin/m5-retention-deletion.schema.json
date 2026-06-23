@@ -1,0 +1,389 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/admin/m5-retention-deletion.schema.json",
+  "title": "Aureline M5 retention/deletion bundle",
+  "description": "Boundary schema for the M5 retention/deletion bundle: the concrete, typed instances of Aureline's retention/deletion matrices, rendered across the claimed managed-cloud, self-hosted, sovereign/air-gapped, and mirrored/offline profiles. Each matrix binds back to the frozen admin-plane matrix (schemas/admin/m5-admin-plane.schema.json): every machine-readable state and coverage state it shows is one the matrix declares applicable for the retention/deletion surface family, and every owner and data-residency token it uses is a term the matrix's shared vocabulary defines. Each row is one claimed managed artifact family and names its data class (user-owned, workspace-owned, tenant-owned, imported, or derived-cache), its local-only versus hosted location, its default retention, its export and delete routes, its retention owner, and the schema that governs it, plus a current immediate/deferred/blocked delete outcome. A delete that cannot complete immediately explains what remains, where it remains, when it is expected to complete, and who controls the next step; deletion states link to destruction receipts, privacy-request cases, holds, and partial-delete reasons as distinct linkages rather than one generic pending status. A row shown as deleted carries a destruction receipt and a hold-blocked delete names its hold. Every row carries both a machine-readable summary and a plain-language support/admin handoff sentence, and every matrix names propagation into support export, offboarding, compliance packet, and Help/About public truth so the states reach those surfaces unchanged. There is exactly one typed packet per profile, consumed identically by the shell admin center, CLI/headless inspect, Help/About, support export, and procurement surfaces, and every profile stays locally inspectable without a vendor console. No endpoint URLs, hostnames, credentials, raw provider payloads, raw record bodies, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, rendered metadata-safe summaries, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_retention_deletion_schema_version",
+    "schema_ref",
+    "bundle_id",
+    "as_of",
+    "matrix_ref",
+    "matrix_id",
+    "freeze_gate_ref",
+    "summary",
+    "profiles",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_retention_deletion_bundle" },
+    "m5_retention_deletion_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/admin/m5-retention-deletion.schema.json" },
+    "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/retention_packet" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/retention_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "safe_token": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An opaque stable token with no URL scheme or absolute path.",
+      "not": { "anyOf": [{ "pattern": "://" }, { "pattern": "^/" }] }
+    },
+    "surface_token": { "const": "retention_deletion_matrix" },
+    "path_token": {
+      "enum": [
+        "local_individual",
+        "managed_cloud",
+        "self_hosted",
+        "sovereign_air_gapped",
+        "mirrored_offline",
+        "imported_snapshot"
+      ]
+    },
+    "state_token": {
+      "enum": [
+        "active_enforced",
+        "locked_by_policy",
+        "inherited_default",
+        "overridden_local",
+        "unconfirmed_stale",
+        "pending_managed_sync",
+        "signature_unverified",
+        "delete_pending",
+        "delete_blocked_by_hold",
+        "delete_receipted",
+        "export_available_now",
+        "export_deferred",
+        "mirror_offline_last_known",
+        "boundary_changed_recheck_required",
+        "imported_snapshot_no_live",
+        "unknown_requires_review"
+      ]
+    },
+    "deployment_profile_class": {
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "sovereign_air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "admin_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "compliance_restricted"
+      ]
+    },
+    "consumer_class": {
+      "enum": [
+        "shell_admin_center",
+        "cli_headless",
+        "help_about",
+        "support_export",
+        "commercial_procurement",
+        "release_evidence",
+        "managed_service"
+      ]
+    },
+    "data_residency_class": {
+      "enum": [
+        "local_only",
+        "managed_copy",
+        "mirrored_copy",
+        "shared_workspace_copy",
+        "exported_snapshot"
+      ]
+    },
+    "owner_escalation_role": {
+      "enum": [
+        "local_user",
+        "workspace_owner",
+        "org_admin",
+        "security_owner",
+        "compliance_owner",
+        "vendor_support"
+      ]
+    },
+    "evidence_age_class": {
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"]
+    },
+    "completeness_class": {
+      "enum": ["complete", "partial_offline", "partial_imported", "partial_redacted"]
+    },
+    "export_format_class": {
+      "enum": ["machine_readable_json", "plain_language_handoff"]
+    },
+    "artifact_owner_class": {
+      "enum": ["user_owned", "workspace_owned", "tenant_owned", "imported", "derived_cache"]
+    },
+    "delete_outcome_class": {
+      "enum": ["immediate", "deferred", "blocked"]
+    },
+    "retention_rule_class": {
+      "enum": [
+        "user_controlled",
+        "fixed_window",
+        "regulatory_hold",
+        "entitlement_lifetime",
+        "ephemeral_regenerable",
+        "mirror_last_synced"
+      ]
+    },
+    "export_route_class": {
+      "enum": [
+        "local_export_now",
+        "export_after_reauth",
+        "export_via_offboarding",
+        "export_from_mirror",
+        "export_not_applicable"
+      ]
+    },
+    "delete_route_class": {
+      "enum": [
+        "local_delete_now",
+        "delete_via_request",
+        "delete_via_offboarding",
+        "delete_on_reconnect",
+        "delete_blocked_hold",
+        "delete_not_applicable"
+      ]
+    },
+    "deletion_linkage_class": {
+      "enum": [
+        "destruction_receipt",
+        "privacy_request_case",
+        "legal_hold",
+        "partial_delete_reason"
+      ]
+    },
+    "propagation_target_class": {
+      "enum": [
+        "support_export",
+        "offboarding_flow",
+        "compliance_packet",
+        "help_about_public_truth"
+      ]
+    },
+    "deletion_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["linkage", "label", "linked_ref", "note"],
+      "properties": {
+        "linkage": { "$ref": "#/$defs/deletion_linkage_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "linked_ref": { "$ref": "#/$defs/safe_token" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "deletion_remainder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "what_remains",
+        "where_it_remains",
+        "expected_completion",
+        "next_step_owner",
+        "note"
+      ],
+      "properties": {
+        "what_remains": { "$ref": "#/$defs/non_empty_string" },
+        "where_it_remains": { "$ref": "#/$defs/data_residency_class" },
+        "expected_completion": { "$ref": "#/$defs/non_empty_string" },
+        "next_step_owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "retention_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "record_family",
+        "record_family_label",
+        "data_class",
+        "location",
+        "retention",
+        "retention_label",
+        "export_route",
+        "export_label",
+        "delete_route",
+        "delete_label",
+        "delete_outcome",
+        "machine_state",
+        "evidence_age",
+        "owner",
+        "governing_schema_ref",
+        "schema_note",
+        "linkages",
+        "machine_summary",
+        "plain_language"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/safe_token" },
+        "record_family": { "$ref": "#/$defs/safe_token" },
+        "record_family_label": { "$ref": "#/$defs/non_empty_string" },
+        "data_class": { "$ref": "#/$defs/artifact_owner_class" },
+        "location": { "$ref": "#/$defs/data_residency_class" },
+        "retention": { "$ref": "#/$defs/retention_rule_class" },
+        "retention_label": { "$ref": "#/$defs/non_empty_string" },
+        "export_route": { "$ref": "#/$defs/export_route_class" },
+        "export_label": { "$ref": "#/$defs/non_empty_string" },
+        "delete_route": { "$ref": "#/$defs/delete_route_class" },
+        "delete_label": { "$ref": "#/$defs/non_empty_string" },
+        "delete_outcome": { "$ref": "#/$defs/delete_outcome_class" },
+        "machine_state": { "$ref": "#/$defs/state_token" },
+        "evidence_age": { "$ref": "#/$defs/evidence_age_class" },
+        "owner": { "$ref": "#/$defs/owner_escalation_role" },
+        "governing_schema_ref": { "$ref": "#/$defs/repo_ref" },
+        "schema_note": { "$ref": "#/$defs/non_empty_string" },
+        "remainder": { "$ref": "#/$defs/deletion_remainder" },
+        "linkages": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deletion_linkage" }
+        },
+        "machine_summary": { "$ref": "#/$defs/non_empty_string" },
+        "plain_language": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "export_form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "label", "artifact_ref", "redaction", "description"],
+      "properties": {
+        "format": { "$ref": "#/$defs/export_format_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_ref": { "$ref": "#/$defs/safe_token" },
+        "redaction": { "$ref": "#/$defs/redaction_class" },
+        "description": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "propagation_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "label", "note"],
+      "properties": {
+        "target": { "$ref": "#/$defs/propagation_target_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "retention_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coverage_state",
+        "completeness",
+        "window_label",
+        "coverage_note",
+        "locally_inspectable",
+        "vendor_console_independent"
+      ],
+      "properties": {
+        "coverage_state": { "$ref": "#/$defs/state_token" },
+        "completeness": { "$ref": "#/$defs/completeness_class" },
+        "window_label": { "$ref": "#/$defs/non_empty_string" },
+        "coverage_note": { "$ref": "#/$defs/non_empty_string" },
+        "locally_inspectable": { "type": "boolean" },
+        "vendor_console_independent": { "type": "boolean" }
+      }
+    },
+    "retention_deletion_matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_id",
+        "summary",
+        "rows",
+        "export_forms",
+        "propagation",
+        "coverage"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_id": { "$ref": "#/$defs/safe_token" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/retention_row" }
+        },
+        "export_forms": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/export_form" }
+        },
+        "propagation": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/propagation_target" }
+        },
+        "coverage": { "$ref": "#/$defs/retention_coverage" }
+      }
+    },
+    "retention_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "profile_id",
+        "deployment_profile",
+        "summary",
+        "consumers",
+        "matrix"
+      ],
+      "properties": {
+        "profile": { "$ref": "#/$defs/path_token" },
+        "profile_id": { "$ref": "#/$defs/safe_token" },
+        "deployment_profile": { "$ref": "#/$defs/deployment_profile_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "consumers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        },
+        "matrix": { "$ref": "#/$defs/retention_deletion_matrix" }
+      }
+    },
+    "retention_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}
