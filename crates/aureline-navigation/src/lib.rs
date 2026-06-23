@@ -57,6 +57,17 @@
 //! route, and projects to review, support, AI, graph, and docs consumers without
 //! flattening into generic smart links.
 //!
+//! [`relation_continuity`] turns peek, temporary reveal, open-in-split, back/forward
+//! history, and recent-location entries into a relation-aware, replay-safe support/export
+//! packet: each entry preserves its relation kind, origin surface, return anchor, and
+//! current-versus-captured target truth; a remapped, drifted, missing-target,
+//! scope-unavailable, or archived entry keeps its drift state, reason, and recovery
+//! choices visible and never silently jumps to a nearby guess; every entry and rename-
+//! preview-evidence row names its evidence class so a grep fallback is never replayed as
+//! semantic and carries a replay-safe target id; and every consumer surface preserves that
+//! truth without retargeting or exporting code bodies — so symbol navigation and rename
+//! evidence survive replay, drift, and return-context restoration.
+//!
 //! [`rename_preview`] turns the rename-preview set into a typed, governed preview-and-
 //! apply model: it groups rename candidates into the editable set and the held set
 //! (blocked, conflict, generated, read-only, partial-scope) by a fixed precedence so a
@@ -76,6 +87,7 @@ pub mod hierarchy_views;
 pub mod m5_relation_navigation;
 pub mod reference_panes;
 pub mod related_object_navigation;
+pub mod relation_continuity;
 pub mod relation_resolution;
 pub mod rename_preview;
 pub mod target_model;
@@ -151,6 +163,20 @@ pub use rename_preview::{
     RENAME_GROUP_ORDER, RENAME_PREVIEW_ARTIFACT_REF, RENAME_PREVIEW_AS_OF, RENAME_PREVIEW_DOC_REF,
     RENAME_PREVIEW_FIXTURE_REF, RENAME_PREVIEW_FREEZE_GATE_REF, RENAME_PREVIEW_RECORD_KIND,
     RENAME_PREVIEW_SCHEMA_REF, RENAME_PREVIEW_SCHEMA_VERSION, RENAME_PREVIEW_SET_ID,
+};
+
+pub use relation_continuity::{
+    build_relation_continuity_packet, relation_continuity_lines, relation_continuity_set,
+    RelationContinuityCounts, RelationContinuityEvidenceClass, RelationContinuityInput,
+    RelationContinuityInvariant, RelationContinuityLabel, RelationContinuityPacket,
+    RelationContinuityProjection, RelationContinuityScenario, RelationContinuitySet,
+    RelationContinuityValidationError, RelationNavEntryInput, RelationNavEntryKind,
+    RelationNavigationEntry, RelationRecoveryChoice, RelationTargetSnapshot, RenamePreviewEvidence,
+    RenamePreviewEvidenceInput, ReturnAnchor, RELATION_CONTINUITY_ARTIFACT_REF,
+    RELATION_CONTINUITY_AS_OF, RELATION_CONTINUITY_DOC_REF, RELATION_CONTINUITY_DRIFT_STATES,
+    RELATION_CONTINUITY_FIXTURE_REF, RELATION_CONTINUITY_FREEZE_GATE_REF,
+    RELATION_CONTINUITY_RECORD_KIND, RELATION_CONTINUITY_SCHEMA_REF,
+    RELATION_CONTINUITY_SCHEMA_VERSION, RELATION_CONTINUITY_SET_ID, RELATION_NAV_ENTRY_ORDER,
 };
 
 pub use relation_resolution::{

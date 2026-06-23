@@ -1,0 +1,662 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/navigation/relation_continuity.schema.json",
+  "title": "Aureline relation-continuity corpus",
+  "description": "Boundary schema for the relation-continuity corpus: the frozen contract for how Aureline keeps symbol navigation and rename evidence relation-aware across replay, drift, and return-context restoration. Each scenario carries a packet-building input and the packet the builder produces for it. A packet lists relation-aware navigation entries (peek, temporary reveal, open-in-split, back/forward history, recent location) in canonical order, each preserving its relation kind, origin surface, a return anchor that restores the origin selection and viewport, a captured target snapshot, and — for a bound or remapped entry — a current target snapshot of the same relation kind. An entry auto-opens only when it is bound with fresh, semantic evidence; a remapped entry cites stable remap evidence and never a nearby fallback; and a drifted, missing-target, scope-unavailable, or archived entry carries no current target, keeps its drift reason and recovery choices visible, and routes selection ambiguity through a disambiguation set — so a return jump never lands on a nearby guess. Every entry and rename-preview-evidence row names its evidence class so a grep fallback is never replayed as semantic, and carries a replay-safe target id derived from its own stable id. The packet separates current-versus-captured truth in its counts and projects to every consumer surface without retargeting or exporting code bodies. No source bodies, raw paths, identifiers, provider payloads, URLs, hostnames, or credentials cross this boundary; the record carries opaque object handles, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "relation_continuity_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "freeze_gate_ref",
+    "summary",
+    "scenarios",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "relation_continuity_set" },
+    "relation_continuity_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/navigation/relation_continuity.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/scenario" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "pattern": "^(schemas|crates|artifacts|fixtures|docs)/"
+    },
+    "handle_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(aureline://|schemas/|crates/|artifacts/|fixtures/|docs/)"
+    },
+    "relation_kind": {
+      "type": "string",
+      "enum": [
+        "definition",
+        "declaration",
+        "implementation",
+        "reference",
+        "type",
+        "call",
+        "route-binding",
+        "owner-link",
+        "doc-link"
+      ]
+    },
+    "entry_kind": {
+      "type": "string",
+      "enum": [
+        "peek",
+        "temporary_reveal",
+        "open_in_split",
+        "back_history",
+        "forward_history",
+        "recent_location"
+      ]
+    },
+    "drift_state": {
+      "type": "string",
+      "enum": [
+        "bound",
+        "remapped",
+        "drifted",
+        "missing_target",
+        "scope_unavailable",
+        "archived"
+      ]
+    },
+    "evidence_class": {
+      "type": "string",
+      "enum": [
+        "semantic",
+        "framework_derived",
+        "runtime_observed",
+        "imported_snapshot",
+        "lexical_fallback",
+        "syntax_fallback",
+        "unavailable"
+      ]
+    },
+    "access_kind": {
+      "type": "string",
+      "enum": [
+        "read",
+        "write",
+        "call",
+        "inherit",
+        "import",
+        "export",
+        "test-only",
+        "generated"
+      ]
+    },
+    "proof_class": {
+      "type": "string",
+      "enum": [
+        "direct_semantic",
+        "indexed_semantic",
+        "lexical_fallback",
+        "syntax_fallback",
+        "imported_evidence",
+        "framework_derived",
+        "runtime_observed",
+        "ai_inferred",
+        "unavailable"
+      ]
+    },
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "syntax",
+        "project_graph",
+        "language_server",
+        "framework_pack",
+        "notebook_adapter",
+        "generated_source_bridge",
+        "search_index",
+        "remote_index",
+        "imported_snapshot",
+        "runtime_observer",
+        "ai_assist"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "indexed",
+        "imported",
+        "partial",
+        "stale",
+        "unavailable",
+        "heuristic",
+        "workspace_slice_limited"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["authoritative_live", "warm_cached", "degraded_cached", "stale", "unverified"]
+    },
+    "ambiguity_class": {
+      "type": "string",
+      "enum": [
+        "unambiguous",
+        "ambiguous_needs_selection",
+        "multiple_candidates_ranked",
+        "drifted_needs_review",
+        "missing_target",
+        "scope_unavailable"
+      ]
+    },
+    "scope_completeness": {
+      "type": "string",
+      "enum": [
+        "complete_for_declared_scope",
+        "partial_for_declared_scope",
+        "stale_for_declared_scope",
+        "unavailable_for_declared_scope"
+      ]
+    },
+    "generated_or_external_state": {
+      "type": "string",
+      "enum": [
+        "authored_source",
+        "generated_source",
+        "external_dependency",
+        "read_only_source",
+        "imported_snapshot"
+      ]
+    },
+    "recovery_choice": {
+      "type": "string",
+      "enum": [
+        "open_remapped_target",
+        "inspect_drift",
+        "choose_from_disambiguation",
+        "restore_return_anchor_only",
+        "widen_scope",
+        "refresh_provider",
+        "keep_archived_reference"
+      ]
+    },
+    "label": {
+      "type": "string",
+      "enum": [
+        "captured_scope_only",
+        "runtime_observed",
+        "framework_derived",
+        "imported_snapshot",
+        "lexical_fallback",
+        "syntax_fallback",
+        "generated",
+        "external",
+        "read_only",
+        "test_only",
+        "remapped",
+        "drifted",
+        "missing_target",
+        "scope_unavailable",
+        "archived",
+        "ambiguous_needs_selection"
+      ]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "sparse_workset",
+        "policy_limited",
+        "missing_provider",
+        "provider_unavailable",
+        "stale_shard",
+        "lexical_fallback_only",
+        "syntax_fallback_only",
+        "generated_boundary",
+        "runtime_or_framework_only",
+        "ambiguous_candidates",
+        "bookmark_or_history_drift",
+        "metadata_only_export"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "editor_ui",
+        "cli_headless",
+        "ai_context",
+        "review_workspace",
+        "support_export",
+        "graph_overlay",
+        "shell_continuity"
+      ]
+    },
+    "apply_posture": {
+      "type": "string",
+      "enum": [
+        "ready_for_apply_after_preview",
+        "blocked_pending_scope_review",
+        "blocked_pending_refresh",
+        "blocked_pending_policy_or_protected_review",
+        "inspect_only_unavailable"
+      ]
+    },
+    "return_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "return_anchor_ref",
+        "origin_surface",
+        "origin_object_ref",
+        "origin_scope_ref",
+        "restores_selection",
+        "restores_viewport"
+      ],
+      "properties": {
+        "return_anchor_ref": { "$ref": "#/$defs/handle_ref" },
+        "origin_surface": { "$ref": "#/$defs/consumer_surface" },
+        "origin_object_ref": { "$ref": "#/$defs/handle_ref" },
+        "origin_scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "restores_selection": { "const": true },
+        "restores_viewport": { "const": true }
+      }
+    },
+    "target_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_id", "relation_kind", "object_ref", "anchor_ref", "scope_ref"],
+      "properties": {
+        "target_id": { "$ref": "#/$defs/handle_ref" },
+        "relation_kind": { "$ref": "#/$defs/relation_kind" },
+        "object_ref": { "$ref": "#/$defs/handle_ref" },
+        "anchor_ref": { "$ref": "#/$defs/handle_ref" },
+        "scope_ref": { "$ref": "#/$defs/handle_ref" }
+      }
+    },
+    "entry_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "entry_kind",
+        "relation_kind",
+        "origin_surface",
+        "origin_object_ref",
+        "origin_scope_ref",
+        "captured_target_id",
+        "captured_object_ref",
+        "captured_anchor_ref",
+        "captured_scope_ref",
+        "drift_state",
+        "remap_evidence_refs",
+        "access_kind",
+        "proof_class",
+        "provider_class",
+        "confidence",
+        "freshness",
+        "ambiguity_class",
+        "scope_completeness",
+        "generated_or_external_state",
+        "downgrade_reasons",
+        "evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "entry_kind": { "$ref": "#/$defs/entry_kind" },
+        "relation_kind": { "$ref": "#/$defs/relation_kind" },
+        "origin_surface": { "$ref": "#/$defs/consumer_surface" },
+        "origin_object_ref": { "$ref": "#/$defs/handle_ref" },
+        "origin_scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "captured_target_id": { "$ref": "#/$defs/handle_ref" },
+        "captured_object_ref": { "$ref": "#/$defs/handle_ref" },
+        "captured_anchor_ref": { "$ref": "#/$defs/handle_ref" },
+        "captured_scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "drift_state": { "$ref": "#/$defs/drift_state" },
+        "remapped_object_ref": { "$ref": "#/$defs/handle_ref" },
+        "remapped_anchor_ref": { "$ref": "#/$defs/handle_ref" },
+        "remap_evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/handle_ref" } },
+        "access_kind": { "$ref": "#/$defs/access_kind" },
+        "proof_class": { "$ref": "#/$defs/proof_class" },
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "ambiguity_class": { "$ref": "#/$defs/ambiguity_class" },
+        "scope_completeness": { "$ref": "#/$defs/scope_completeness" },
+        "generated_or_external_state": { "$ref": "#/$defs/generated_or_external_state" },
+        "disambiguation_set_ref": { "$ref": "#/$defs/handle_ref" },
+        "drift_reason": { "$ref": "#/$defs/non_empty_string" },
+        "downgrade_reasons": { "type": "array", "items": { "$ref": "#/$defs/downgrade_reason" } },
+        "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/handle_ref" } },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "navigation_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "entry_kind",
+        "relation_kind",
+        "return_anchor",
+        "captured_target",
+        "drift_state",
+        "remap_evidence_refs",
+        "used_nearby_fallback",
+        "auto_open_allowed",
+        "proof_class",
+        "evidence_class",
+        "provider_class",
+        "confidence",
+        "freshness",
+        "ambiguity_class",
+        "scope_completeness",
+        "current_scope",
+        "replay_target_id",
+        "recovery_choices",
+        "labels",
+        "downgrade_reasons",
+        "fallback_notes",
+        "evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "entry_kind": { "$ref": "#/$defs/entry_kind" },
+        "relation_kind": { "$ref": "#/$defs/relation_kind" },
+        "return_anchor": { "$ref": "#/$defs/return_anchor" },
+        "captured_target": { "$ref": "#/$defs/target_snapshot" },
+        "current_target": { "$ref": "#/$defs/target_snapshot" },
+        "drift_state": { "$ref": "#/$defs/drift_state" },
+        "drift_reason": { "$ref": "#/$defs/non_empty_string" },
+        "remap_evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/handle_ref" } },
+        "used_nearby_fallback": { "const": false },
+        "auto_open_allowed": { "type": "boolean" },
+        "proof_class": { "$ref": "#/$defs/proof_class" },
+        "evidence_class": { "$ref": "#/$defs/evidence_class" },
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "ambiguity_class": { "$ref": "#/$defs/ambiguity_class" },
+        "scope_completeness": { "$ref": "#/$defs/scope_completeness" },
+        "current_scope": { "type": "boolean" },
+        "disambiguation_set_ref": { "$ref": "#/$defs/handle_ref" },
+        "replay_target_id": { "$ref": "#/$defs/handle_ref" },
+        "recovery_choices": { "type": "array", "items": { "$ref": "#/$defs/recovery_choice" } },
+        "labels": { "type": "array", "items": { "$ref": "#/$defs/label" } },
+        "downgrade_reasons": { "type": "array", "items": { "$ref": "#/$defs/downgrade_reason" } },
+        "fallback_notes": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/handle_ref" } },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rename_evidence_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "rename_preview_ref",
+        "origin_surface",
+        "origin_object_ref",
+        "origin_scope_ref",
+        "proof_class",
+        "apply_posture",
+        "ambiguity_class",
+        "drift_state",
+        "changed_count",
+        "held_count",
+        "downgrade_reasons",
+        "evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "evidence_id": { "$ref": "#/$defs/non_empty_string" },
+        "rename_preview_ref": { "$ref": "#/$defs/handle_ref" },
+        "origin_surface": { "$ref": "#/$defs/consumer_surface" },
+        "origin_object_ref": { "$ref": "#/$defs/handle_ref" },
+        "origin_scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "proof_class": { "$ref": "#/$defs/proof_class" },
+        "apply_posture": { "$ref": "#/$defs/apply_posture" },
+        "ambiguity_class": { "$ref": "#/$defs/ambiguity_class" },
+        "drift_state": { "$ref": "#/$defs/drift_state" },
+        "changed_count": { "type": "integer", "minimum": 0 },
+        "held_count": { "type": "integer", "minimum": 0 },
+        "disambiguation_set_ref": { "$ref": "#/$defs/handle_ref" },
+        "drift_reason": { "$ref": "#/$defs/non_empty_string" },
+        "downgrade_reasons": { "type": "array", "items": { "$ref": "#/$defs/downgrade_reason" } },
+        "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/handle_ref" } },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rename_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "rename_preview_ref",
+        "root_relation_kind",
+        "return_anchor",
+        "evidence_class",
+        "apply_posture",
+        "ambiguity_class",
+        "drift_state",
+        "changed_count",
+        "held_count",
+        "replay_target_id",
+        "downgrade_reasons",
+        "fallback_notes",
+        "evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "evidence_id": { "$ref": "#/$defs/non_empty_string" },
+        "rename_preview_ref": { "$ref": "#/$defs/handle_ref" },
+        "root_relation_kind": { "const": "definition" },
+        "return_anchor": { "$ref": "#/$defs/return_anchor" },
+        "evidence_class": { "$ref": "#/$defs/evidence_class" },
+        "apply_posture": { "$ref": "#/$defs/apply_posture" },
+        "ambiguity_class": { "$ref": "#/$defs/ambiguity_class" },
+        "drift_state": { "$ref": "#/$defs/drift_state" },
+        "drift_reason": { "$ref": "#/$defs/non_empty_string" },
+        "changed_count": { "type": "integer", "minimum": 0 },
+        "held_count": { "type": "integer", "minimum": 0 },
+        "disambiguation_set_ref": { "$ref": "#/$defs/handle_ref" },
+        "replay_target_id": { "$ref": "#/$defs/handle_ref" },
+        "downgrade_reasons": { "type": "array", "items": { "$ref": "#/$defs/downgrade_reason" } },
+        "fallback_notes": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/handle_ref" } },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_count",
+        "peek_count",
+        "temporary_reveal_count",
+        "open_in_split_count",
+        "back_history_count",
+        "forward_history_count",
+        "recent_location_count",
+        "bound_count",
+        "remapped_count",
+        "drifted_count",
+        "missing_target_count",
+        "scope_unavailable_count",
+        "archived_count",
+        "current_scope_count",
+        "captured_scope_count",
+        "requires_disclosure_count",
+        "ambiguous_count"
+      ],
+      "properties": {
+        "total_count": { "type": "integer", "minimum": 0 },
+        "peek_count": { "type": "integer", "minimum": 0 },
+        "temporary_reveal_count": { "type": "integer", "minimum": 0 },
+        "open_in_split_count": { "type": "integer", "minimum": 0 },
+        "back_history_count": { "type": "integer", "minimum": 0 },
+        "forward_history_count": { "type": "integer", "minimum": 0 },
+        "recent_location_count": { "type": "integer", "minimum": 0 },
+        "bound_count": { "type": "integer", "minimum": 0 },
+        "remapped_count": { "type": "integer", "minimum": 0 },
+        "drifted_count": { "type": "integer", "minimum": 0 },
+        "missing_target_count": { "type": "integer", "minimum": 0 },
+        "scope_unavailable_count": { "type": "integer", "minimum": 0 },
+        "archived_count": { "type": "integer", "minimum": 0 },
+        "current_scope_count": { "type": "integer", "minimum": 0 },
+        "captured_scope_count": { "type": "integer", "minimum": 0 },
+        "requires_disclosure_count": { "type": "integer", "minimum": 0 },
+        "ambiguous_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "projected_entry_count",
+        "projected_rename_evidence_count",
+        "preserves_relation_kind",
+        "preserves_origin_surface",
+        "preserves_return_anchor",
+        "preserves_current_vs_captured",
+        "preserves_drift_state",
+        "preserves_fallback_class",
+        "preserves_ambiguity_state",
+        "preserves_replay_target_ids",
+        "silently_retargets",
+        "exports_code_bodies",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "projected_entry_count": { "type": "integer", "minimum": 0 },
+        "projected_rename_evidence_count": { "type": "integer", "minimum": 0 },
+        "preserves_relation_kind": { "const": true },
+        "preserves_origin_surface": { "const": true },
+        "preserves_return_anchor": { "const": true },
+        "preserves_current_vs_captured": { "const": true },
+        "preserves_drift_state": { "const": true },
+        "preserves_fallback_class": { "const": true },
+        "preserves_ambiguity_state": { "const": true },
+        "preserves_replay_target_ids": { "const": true },
+        "silently_retargets": { "const": false },
+        "exports_code_bodies": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_id",
+        "origin_surface",
+        "scope_ref",
+        "redaction_class",
+        "entries"
+      ],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "origin_surface": { "$ref": "#/$defs/consumer_surface" },
+        "scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "captured_scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "entries": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/entry_input" } },
+        "rename_evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rename_evidence_input" }
+        }
+      }
+    },
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_id",
+        "origin_surface",
+        "scope_ref",
+        "entries",
+        "rename_evidence",
+        "counts",
+        "covered_drift_states",
+        "consumer_projections",
+        "redaction_class",
+        "downgrade_reasons",
+        "fallback_notes",
+        "replay_safe",
+        "summary"
+      ],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "origin_surface": { "$ref": "#/$defs/consumer_surface" },
+        "scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "captured_scope_ref": { "$ref": "#/$defs/handle_ref" },
+        "entries": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/navigation_entry" } },
+        "rename_evidence": { "type": "array", "items": { "$ref": "#/$defs/rename_evidence" } },
+        "counts": { "$ref": "#/$defs/counts" },
+        "covered_drift_states": { "type": "array", "items": { "$ref": "#/$defs/drift_state" } },
+        "consumer_projections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_projection" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "downgrade_reasons": { "type": "array", "items": { "$ref": "#/$defs/downgrade_reason" } },
+        "fallback_notes": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "replay_safe": { "const": true },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario_id", "title", "input", "packet", "expectation_note"],
+      "properties": {
+        "scenario_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "input": { "$ref": "#/$defs/input" },
+        "packet": { "$ref": "#/$defs/packet" },
+        "expectation_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "type": "boolean" }
+      }
+    }
+  }
+}
