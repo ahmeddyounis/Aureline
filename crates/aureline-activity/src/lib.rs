@@ -18,5 +18,6 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-activity/0.0.0")]
 
+pub mod m5_activity_objects;
 pub mod m5_attention_routing;
 pub mod m5_envelope_routing;

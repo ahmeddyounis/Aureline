@@ -1,0 +1,408 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/activity/m5-activity-objects.schema.json",
+  "title": "Aureline M5 activity-objects bundle",
+  "description": "Boundary schema for the M5 activity-objects bundle: the working durable activity object model every long-running, retryable, or reviewable M5 job becomes, and the deterministic projection that renders it as an activity-center row across the shell, support export, companion, and operator surfaces. The bundle freezes the job-family registry (every claimed M5 family — notebook runs, task / CI jobs, AI runs, preview routes, pipeline actions, continuity sync, offboarding, operator handoffs, and managed alerts — each long-running and never spinner-or-toast-only), the activity-object corpus (each carrying a stable job id, actor subsystem, phase / progress state, cancel / retry / open-details affordances, evidence links, cost / trust / policy flags, created / updated stamps, a retention policy, and an archive / expiry state), and every rendered row (one per object, with one projection per consumer surface). Every object is the durable authoritative record that survives focus change and reopens its authoritative object; completion and failure history is retained until archived or expired by policy; the archive state is one shared truth on every surface; privacy never widens on a surface; and badges derive only from durable, attention-pending rows. Every progress state, reopen target, privacy class, and retention class binds back to the attention-routing matrix. No message bodies, credentials, raw provider payloads, hostnames, or absolute paths cross this boundary; the record carries opaque object refs, localizable copy keys, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_activity_objects_schema_version",
+    "schema_ref",
+    "bundle_id",
+    "as_of",
+    "matrix_ref",
+    "matrix_id",
+    "freeze_gate_ref",
+    "summary",
+    "families",
+    "objects",
+    "rows",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_activity_objects_bundle" },
+    "m5_activity_objects_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/activity/m5-activity-objects.schema.json" },
+    "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "families": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/job_family_entry" }
+    },
+    "objects": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/activity_object" }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/activity_row" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/bundle_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "localizable_key": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A localizable copy key, never raw user-facing text.",
+      "pattern": "^activity\\."
+    },
+    "job_family": {
+      "enum": [
+        "notebook",
+        "task",
+        "ai_run",
+        "preview_route",
+        "pipeline_action",
+        "sync",
+        "offboarding",
+        "operator_handoff",
+        "managed_alert"
+      ]
+    },
+    "actor_subsystem": {
+      "enum": [
+        "shell",
+        "notebook",
+        "task_runner",
+        "ai",
+        "collaboration",
+        "incident",
+        "operator",
+        "managed_policy",
+        "companion",
+        "security",
+        "sync",
+        "support"
+      ]
+    },
+    "scope": {
+      "enum": [
+        "app_global",
+        "window",
+        "workspace",
+        "session",
+        "collaboration",
+        "tenant_org"
+      ]
+    },
+    "privacy_class": {
+      "enum": [
+        "summary_safe",
+        "workspace_sensitive",
+        "security_critical",
+        "managed_sensitive"
+      ]
+    },
+    "redaction": {
+      "enum": [
+        "metadata_safe_default",
+        "summary_only",
+        "redacted_payload",
+        "count_only",
+        "internal_support_restricted"
+      ]
+    },
+    "reopen_target": {
+      "enum": [
+        "activity_job_row",
+        "evidence_packet",
+        "policy_diff",
+        "review_request",
+        "incident_thread",
+        "route_object",
+        "audit_event"
+      ]
+    },
+    "progress_state": {
+      "enum": [
+        "pending",
+        "routed",
+        "shown",
+        "acknowledged",
+        "snoozed",
+        "quiet_hours_deferred",
+        "suppressed",
+        "running",
+        "queued_waiting",
+        "partially_completed",
+        "failed",
+        "completed",
+        "resolved",
+        "dismissed",
+        "archived",
+        "fanout_stale",
+        "fanout_undelivered",
+        "unknown_requires_review"
+      ]
+    },
+    "phase": { "enum": ["queued", "running", "review", "settled"] },
+    "archive_state": { "enum": ["active", "archived", "expired"] },
+    "affordance": {
+      "enum": [
+        "cancel",
+        "retry",
+        "open_details",
+        "review_approve",
+        "acknowledge",
+        "archive"
+      ]
+    },
+    "consumer": {
+      "enum": [
+        "shell_activity_center",
+        "os_notification",
+        "companion_cross_client",
+        "operator_dashboard",
+        "support_export",
+        "help_about",
+        "cli_headless"
+      ]
+    },
+    "retention_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_class",
+        "archive_after_days",
+        "expire_after_days",
+        "separate_suppression_from_history",
+        "rule"
+      ],
+      "properties": {
+        "retention_class": { "const": "durable_until_archived" },
+        "archive_after_days": { "type": "integer", "minimum": 0 },
+        "expire_after_days": { "type": "integer", "minimum": 0 },
+        "separate_suppression_from_history": { "type": "boolean" },
+        "rule": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "reopen_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reopen_target", "object_ref", "label_key"],
+      "properties": {
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "object_ref": { "$ref": "#/$defs/repo_ref" },
+        "label_key": { "$ref": "#/$defs/localizable_key" }
+      }
+    },
+    "activity_flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cost_flag", "trust_flag", "policy_impact_flag"],
+      "properties": {
+        "cost_flag": { "type": "boolean" },
+        "trust_flag": { "type": "boolean" },
+        "policy_impact_flag": { "type": "boolean" }
+      }
+    },
+    "activity_progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "progress_state", "progress_permille", "determinate"],
+      "properties": {
+        "phase": { "$ref": "#/$defs/phase" },
+        "progress_state": { "$ref": "#/$defs/progress_state" },
+        "progress_permille": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "determinate": { "type": "boolean" }
+      }
+    },
+    "job_family_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "job_family",
+        "label",
+        "summary",
+        "actor_subsystem",
+        "long_running",
+        "retryable",
+        "evidence_bearing",
+        "default_reopen_target",
+        "default_privacy",
+        "default_redaction",
+        "retention",
+        "produced_by_refs",
+        "example_object_ids",
+        "spinner_or_toast_only"
+      ],
+      "properties": {
+        "job_family": { "$ref": "#/$defs/job_family" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subsystem": { "$ref": "#/$defs/actor_subsystem" },
+        "long_running": { "const": true },
+        "retryable": { "type": "boolean" },
+        "evidence_bearing": { "const": true },
+        "default_reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "default_privacy": { "$ref": "#/$defs/privacy_class" },
+        "default_redaction": { "$ref": "#/$defs/redaction" },
+        "retention": { "$ref": "#/$defs/retention_policy" },
+        "produced_by_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_ref" }
+        },
+        "example_object_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "spinner_or_toast_only": { "const": false }
+      }
+    },
+    "activity_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activity_job_id",
+        "job_family",
+        "actor_subsystem",
+        "title_key",
+        "scope",
+        "scope_ref",
+        "privacy_class",
+        "default_redaction",
+        "progress",
+        "can_cancel",
+        "can_retry",
+        "can_open_details",
+        "affordances",
+        "evidence_refs",
+        "reopen_anchor",
+        "flags",
+        "created_at",
+        "updated_at",
+        "age_days",
+        "retention",
+        "archive_state",
+        "durable",
+        "survives_focus_change",
+        "toast_only"
+      ],
+      "properties": {
+        "activity_job_id": { "$ref": "#/$defs/non_empty_string" },
+        "job_family": { "$ref": "#/$defs/job_family" },
+        "actor_subsystem": { "$ref": "#/$defs/actor_subsystem" },
+        "title_key": { "$ref": "#/$defs/localizable_key" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "scope_ref": { "$ref": "#/$defs/repo_ref" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "default_redaction": { "$ref": "#/$defs/redaction" },
+        "progress": { "$ref": "#/$defs/activity_progress" },
+        "can_cancel": { "type": "boolean" },
+        "can_retry": { "type": "boolean" },
+        "can_open_details": { "const": true },
+        "affordances": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/affordance" }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_ref" }
+        },
+        "reopen_anchor": { "$ref": "#/$defs/reopen_anchor" },
+        "flags": { "$ref": "#/$defs/activity_flags" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "age_days": { "type": "integer", "minimum": 0 },
+        "retention": { "$ref": "#/$defs/retention_policy" },
+        "archive_state": { "$ref": "#/$defs/archive_state" },
+        "durable": { "const": true },
+        "survives_focus_change": { "const": true },
+        "toast_only": { "const": false }
+      }
+    },
+    "activity_row_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer",
+        "consumer_token",
+        "included",
+        "archive_state",
+        "applied_redaction",
+        "shown_affordances",
+        "reason"
+      ],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "consumer_token": { "$ref": "#/$defs/non_empty_string" },
+        "included": { "type": "boolean" },
+        "archive_state": { "$ref": "#/$defs/archive_state" },
+        "applied_redaction": { "$ref": "#/$defs/redaction" },
+        "shown_affordances": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/affordance" }
+        },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "activity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activity_row_id",
+        "activity_job_id",
+        "job_family",
+        "status_label_token",
+        "reopen_target_id",
+        "reopen_anchor",
+        "archive_state",
+        "badge_counts_toward",
+        "durable",
+        "surface_projections"
+      ],
+      "properties": {
+        "activity_row_id": { "$ref": "#/$defs/non_empty_string" },
+        "activity_job_id": { "$ref": "#/$defs/non_empty_string" },
+        "job_family": { "$ref": "#/$defs/job_family" },
+        "status_label_token": { "$ref": "#/$defs/progress_state" },
+        "reopen_target_id": { "$ref": "#/$defs/reopen_target" },
+        "reopen_anchor": { "$ref": "#/$defs/reopen_anchor" },
+        "archive_state": { "$ref": "#/$defs/archive_state" },
+        "badge_counts_toward": { "type": "boolean" },
+        "durable": { "const": true },
+        "surface_projections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/activity_row_projection" }
+        }
+      }
+    },
+    "bundle_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "type": "boolean" }
+      }
+    }
+  }
+}
