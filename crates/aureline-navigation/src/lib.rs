@@ -43,6 +43,19 @@
 //! open/peek/split/expand/export actions across the hierarchy view, graph overlay,
 //! search panel, docs link, and keyboard routes, and project to review, support, AI,
 //! graph, and docs consumers without flattening a hierarchy into one opaque tree.
+//!
+//! [`related_object_navigation`] turns the related-object relation into a typed,
+//! source-attributed panel and export model: it builds route, component, test, doc,
+//! owner, and generated-artifact links grouped by a graph-derived/framework-derived/
+//! curated/runtime-derived source legend, carries each link's fallback mode, freshness,
+//! proof, and scope so a framework guess never poses as a graph-proven fact, separates
+//! current-scope from captured-scope counts, names the anchor context the panel was
+//! invoked from and whether it supports stable relation anchors so notebook, diff,
+//! docs-linked, and generated-artifact contexts reuse the same relation semantics and
+//! unsupported parity is labeled honestly, exposes competing links and a disambiguation
+//! path before a jump, carries stable open/peek/split/reveal/export actions across every
+//! route, and projects to review, support, AI, graph, and docs consumers without
+//! flattening into generic smart links.
 
 #![doc(html_root_url = "https://docs.rs/aureline-navigation/0.0.0")]
 
@@ -50,6 +63,7 @@ pub mod bookmark_history_and_drift_continuity;
 pub mod hierarchy_views;
 pub mod m5_relation_navigation;
 pub mod reference_panes;
+pub mod related_object_navigation;
 pub mod relation_resolution;
 pub mod target_model;
 
@@ -99,6 +113,20 @@ pub use reference_panes::{
     REFERENCE_PANES_DOC_REF, REFERENCE_PANES_FIXTURE_REF, REFERENCE_PANES_FREEZE_GATE_REF,
     REFERENCE_PANES_RECORD_KIND, REFERENCE_PANES_SCHEMA_REF, REFERENCE_PANES_SCHEMA_VERSION,
     REFERENCE_PANES_SET_ID,
+};
+
+pub use related_object_navigation::{
+    build_related_object_panel, related_object_navigation_lines, related_object_navigation_set,
+    AnchorParity, RelatedObjectActionAffordance, RelatedObjectActionKind, RelatedObjectActionRoute,
+    RelatedObjectAnchorContext, RelatedObjectCounts, RelatedObjectDisambiguation,
+    RelatedObjectFallbackMode, RelatedObjectGroup, RelatedObjectHeadline,
+    RelatedObjectHistoryEffect, RelatedObjectInvariant, RelatedObjectKind, RelatedObjectLabel,
+    RelatedObjectLink, RelatedObjectNavigationSet, RelatedObjectPanel, RelatedObjectPanelInput,
+    RelatedObjectProjection, RelatedObjectScenario, RelatedObjectSourceClass,
+    RelatedObjectValidationError, RELATED_OBJECT_NAV_ARTIFACT_REF, RELATED_OBJECT_NAV_AS_OF,
+    RELATED_OBJECT_NAV_DOC_REF, RELATED_OBJECT_NAV_FIXTURE_REF, RELATED_OBJECT_NAV_FREEZE_GATE_REF,
+    RELATED_OBJECT_NAV_RECORD_KIND, RELATED_OBJECT_NAV_SCHEMA_REF,
+    RELATED_OBJECT_NAV_SCHEMA_VERSION, RELATED_OBJECT_NAV_SET_ID, RELATED_OBJECT_SOURCE_ORDER,
 };
 
 pub use relation_resolution::{
