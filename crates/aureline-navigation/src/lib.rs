@@ -79,6 +79,18 @@
 //! apply and binds an undo checkpoint, projects the frozen rename-preview-set object, and
 //! reaches review, support, AI, graph, docs, and editor consumers without flattening a
 //! broad rename into one generic apply action.
+//!
+//! [`relation_navigation_qualification`] turns that object model and its sibling
+//! lanes into a claim-governance certification: it names every certified relation-
+//! navigation family (definition/declaration/implementation target-kind honesty,
+//! references/access-kind truth, hierarchy proof classes, related-object attribution,
+//! rename-preview completeness, and continuity/replay fidelity), publishes one
+//! qualification row per claimed search/graph/docs/editor surface, derives every
+//! claim state purely from its proof state and freshness so a stale or failing proof
+//! narrows or withdraws the affected claim automatically, emits explicit release
+//! evidence rows for each family, and projects to the About, Help, search/navigation,
+//! support, compatibility, release-truth, and public-truth surfaces that consume the
+//! same qualification state instead of restating relation-navigation quality by hand.
 
 #![doc(html_root_url = "https://docs.rs/aureline-navigation/0.0.0")]
 
@@ -88,6 +100,7 @@ pub mod m5_relation_navigation;
 pub mod reference_panes;
 pub mod related_object_navigation;
 pub mod relation_continuity;
+pub mod relation_navigation_qualification;
 pub mod relation_resolution;
 pub mod rename_preview;
 pub mod target_model;
@@ -177,6 +190,21 @@ pub use relation_continuity::{
     RELATION_CONTINUITY_FIXTURE_REF, RELATION_CONTINUITY_FREEZE_GATE_REF,
     RELATION_CONTINUITY_RECORD_KIND, RELATION_CONTINUITY_SCHEMA_REF,
     RELATION_CONTINUITY_SCHEMA_VERSION, RELATION_CONTINUITY_SET_ID, RELATION_NAV_ENTRY_ORDER,
+};
+
+pub use relation_navigation_qualification::{
+    certify, default_qualification_input, narrow_claim, relation_navigation_qualification,
+    relation_navigation_qualification_lines, ClaimState, ClaimedSurface, FamilyProofPosture,
+    ProofFreshness, ProofState, QualificationConsumer, QualificationConsumerProjection,
+    RelationNavQualificationCertification, RelationNavQualificationFamily,
+    RelationNavQualificationFamilyEntry, RelationNavQualificationInput,
+    RelationNavQualificationInvariant, RelationNavQualificationRow,
+    RelationNavQualificationValidationError, ReleaseEvidenceRow,
+    RELATION_NAV_QUALIFICATION_ARTIFACT_REF, RELATION_NAV_QUALIFICATION_AS_OF,
+    RELATION_NAV_QUALIFICATION_CERTIFICATION_ID, RELATION_NAV_QUALIFICATION_DOC_REF,
+    RELATION_NAV_QUALIFICATION_FIXTURE_REF, RELATION_NAV_QUALIFICATION_FREEZE_GATE_REF,
+    RELATION_NAV_QUALIFICATION_RECORD_KIND, RELATION_NAV_QUALIFICATION_SCHEMA_REF,
+    RELATION_NAV_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use relation_resolution::{
