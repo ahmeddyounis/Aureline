@@ -33,6 +33,7 @@ pub mod m5_exception_expiry;
 pub mod m5_offboarding;
 pub mod m5_procurement;
 pub mod m5_retention_deletion;
+pub mod m5_rollout_simulation;
 pub mod policy_simulation_and_expiry;
 pub mod publish_enterprise_self_hosted_and_air_gapped_docs_matrices_and_known_limits;
 pub mod records_policy_governance_snapshot;

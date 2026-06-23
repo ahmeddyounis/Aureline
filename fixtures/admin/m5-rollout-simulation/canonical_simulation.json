@@ -1,0 +1,602 @@
+{
+  "record_kind": "m5_rollout_simulation_bundle",
+  "m5_rollout_simulation_schema_version": 1,
+  "schema_ref": "schemas/admin/m5-rollout-simulation.schema.json",
+  "bundle_id": "m5-rollout-simulation:bundle:0001",
+  "as_of": "2026-06-23T00:00:00Z",
+  "matrix_ref": "fixtures/admin/m5-admin-plane/canonical_matrix.json",
+  "matrix_id": "m5-admin-plane:matrix:0001",
+  "freeze_gate_ref": "crates/aureline-policy/tests/m5_rollout_simulation.rs",
+  "summary": "Dry-run rollout simulation — policy imports, promotions, bundle rollouts, mirror-source changes, trust-root changes, and route/egress expansions previewed before they widen privilege or feature access — bound back to the frozen admin-plane matrix and simulated identically for shell, CLI/headless, Help/About, support export, and release evidence across the managed-cloud, self-hosted, sovereign/air-gapped, and mirrored/offline profiles. Widening is gated harder than tightening, and a profile's managed claim auto-narrows when simulation, mirror, or endpoint-posture evidence goes stale.",
+  "profiles": [
+    {
+      "profile": "managed_cloud",
+      "profile_id": "admin_path.managed_cloud",
+      "deployment_profile": "managed_cloud",
+      "summary": "Managed-cloud profile: the control plane is online and posture is fresh; widening changes preview a staged ring rollout while tightening can apply immediately.",
+      "consumers": [
+        "shell_admin_center",
+        "cli_headless",
+        "help_about",
+        "support_export",
+        "release_evidence",
+        "managed_service"
+      ],
+      "bound_surfaces": [
+        "policy_diff",
+        "endpoint_posture_card"
+      ],
+      "scenarios": [
+        {
+          "scenario_id": "rollout_sim.managed_cloud.tighten_telemetry",
+          "change_kind": "policy_import",
+          "title": "Import managed policy bundle that shortens telemetry retention",
+          "summary": "A pure tightening: importing the next managed bundle shortens diagnostics retention. It can apply immediately and revert instantly.",
+          "direction": "tightening",
+          "widening_dimensions": [],
+          "impacted_endpoints": [
+            {
+              "endpoint_ref": "endpoint:managed:fleet",
+              "label": "Managed fleet",
+              "posture_before": "active_enforced",
+              "posture_after": "active_enforced",
+              "impact_note": "Retention window shortens; no access is broadened."
+            }
+          ],
+          "impacted_features": [
+            {
+              "feature_family": "Diagnostics",
+              "effect_note": "Telemetry retention is shortened from 90 to 30 days.",
+              "newly_widened": false
+            }
+          ],
+          "review_requirement": "single_admin_review",
+          "staging": "immediate_allowed",
+          "rollback": "instant_local_revert",
+          "simulation_freshness": "fresh",
+          "outcome": "safe_to_promote",
+          "owner": "org_admin",
+          "redaction": "metadata_safe_default",
+          "review_note": "Restriction only: a single admin review clears it, it may apply at once, and it reverts instantly.",
+          "dry_run": true
+        },
+        {
+          "scenario_id": "rollout_sim.managed_cloud.egress_expansion",
+          "change_kind": "route_egress_expansion",
+          "title": "Open a new egress class for a managed integration",
+          "summary": "A mixed change: it opens a new egress class while removing an unused one. Because it broadens egress it needs security review, a staged ring rollout, and a staged rollback.",
+          "direction": "mixed",
+          "widening_dimensions": [
+            "new_egress_class"
+          ],
+          "impacted_endpoints": [
+            {
+              "endpoint_ref": "endpoint:managed:fleet",
+              "label": "Managed fleet",
+              "posture_before": "active_enforced",
+              "posture_after": "pending_managed_sync",
+              "impact_note": "The new egress class reaches endpoints ring by ring after review."
+            }
+          ],
+          "impacted_features": [
+            {
+              "feature_family": "Networking",
+              "effect_note": "A new egress destination class is reachable from managed endpoints.",
+              "newly_widened": true
+            }
+          ],
+          "review_requirement": "security_compliance_review",
+          "staging": "staged_ring_required",
+          "rollback": "staged_revert",
+          "simulation_freshness": "fresh",
+          "outcome": "promote_with_staged_rollout",
+          "owner": "security_owner",
+          "escalation_owner": "compliance_owner",
+          "redaction": "metadata_safe_default",
+          "review_note": "New egress widens reach: security/compliance sign-off, a staged ring rollout, and a staged rollback are required before promotion.",
+          "dry_run": true
+        },
+        {
+          "scenario_id": "rollout_sim.managed_cloud.add_ai_provider",
+          "change_kind": "policy_promotion",
+          "title": "Promote a staged bundle that allows a new AI provider",
+          "summary": "A widening promotion: it allows a new AI provider. It needs security/compliance review, a staged rollout, and a staged rollback.",
+          "direction": "widening",
+          "widening_dimensions": [
+            "new_ai_provider"
+          ],
+          "impacted_endpoints": [
+            {
+              "endpoint_ref": "endpoint:managed:fleet",
+              "label": "Managed fleet",
+              "posture_before": "active_enforced",
+              "posture_after": "pending_managed_sync",
+              "impact_note": "The new provider becomes selectable ring by ring after review."
+            }
+          ],
+          "impacted_features": [
+            {
+              "feature_family": "AI / assistants",
+              "effect_note": "A new AI provider is added to the approved managed list.",
+              "newly_widened": true
+            }
+          ],
+          "review_requirement": "security_compliance_review",
+          "staging": "staged_ring_required",
+          "rollback": "staged_revert",
+          "simulation_freshness": "fresh",
+          "outcome": "promote_with_staged_rollout",
+          "owner": "security_owner",
+          "escalation_owner": "compliance_owner",
+          "redaction": "metadata_safe_default",
+          "review_note": "A new provider widens data flow: security/compliance sign-off and a staged rollout are required before promotion.",
+          "dry_run": true
+        }
+      ],
+      "mirror_backed": false,
+      "mirror_freshness": "fresh",
+      "endpoint_posture_freshness": "fresh",
+      "simulation_freshness": "fresh",
+      "claim_state": "active_enforced",
+      "narrow_reasons": [],
+      "claim_note": "All simulation, mirror, and endpoint-posture evidence is fresh; the managed claim is confirmed."
+    },
+    {
+      "profile": "self_hosted",
+      "profile_id": "admin_path.self_hosted",
+      "deployment_profile": "self_hosted",
+      "summary": "Self-hosted profile: the customer operates the control plane; a trust-root rotation is held for a boundary recheck and a registry-source change previews a staged rollout.",
+      "consumers": [
+        "shell_admin_center",
+        "cli_headless",
+        "help_about",
+        "support_export",
+        "release_evidence",
+        "managed_service"
+      ],
+      "bound_surfaces": [
+        "policy_diff",
+        "endpoint_posture_card"
+      ],
+      "scenarios": [
+        {
+          "scenario_id": "rollout_sim.self_hosted.tighten_egress",
+          "change_kind": "bundle_rollout",
+          "title": "Roll out a self-hosted bundle that narrows egress to internal endpoints",
+          "summary": "A tightening rollout: it narrows egress to customer-internal endpoints. A single admin review clears it, staged by ring for safety.",
+          "direction": "tightening",
+          "widening_dimensions": [],
+          "impacted_endpoints": [
+            {
+              "endpoint_ref": "endpoint:self_hosted:fleet",
+              "label": "Self-hosted fleet",
+              "posture_before": "active_enforced",
+              "posture_after": "active_enforced",
+              "impact_note": "Egress narrows to internal endpoints; nothing is broadened."
+            }
+          ],
+          "impacted_features": [
+            {
+              "feature_family": "Networking",
+              "effect_note": "Egress is restricted to self-hosted endpoints.",
+              "newly_widened": false
+            }
+          ],
+          "review_requirement": "single_admin_review",
+          "staging": "staged_ring_required",
+          "rollback": "staged_revert",
+          "simulation_freshness": "fresh",
+          "outcome": "safe_to_promote",
+          "owner": "security_owner",
+          "redaction": "metadata_safe_default",
+          "review_note": "Restriction only: a single admin review clears it; it is staged by ring for operational safety, not because it broadens access.",
+          "dry_run": true
+        },
+        {
+          "scenario_id": "rollout_sim.self_hosted.rotate_trust_root",
+          "change_kind": "trust_root_change",
+          "title": "Rotate the customer trust root",
+          "summary": "A trust-root rotation: it changes the root every signature verifies against, so it is held pending a boundary recheck before it can apply.",
+          "direction": "widening",
+          "widening_dimensions": [
+            "trust_root_change"
+          ],
+          "impacted_endpoints": [
+            {
+              "endpoint_ref": "endpoint:self_hosted:fleet",
+              "label": "Self-hosted fleet",
+              "posture_before": "active_enforced",
+              "posture_after": "boundary_changed_recheck_required",
+              "impact_note": "Verification is held until the new root is rechecked at the boundary."
+            }
+          ],
+          "impacted_features": [
+            {
+              "feature_family": "Security / trust",
+              "effect_note": "The trust root every bundle verifies against is replaced.",
+              "newly_widened": true
+            }
+          ],
+          "review_requirement": "blocked_pending_boundary_recheck",
+          "staging": "pinned_manual_signed_only",
+          "rollback": "signed_rollback_bundle",
+          "simulation_freshness": "recent",
+          "outcome": "blocked_boundary_recheck",
+          "owner": "security_owner",
+          "escalation_owner": "compliance_owner",
+          "redaction": "metadata_safe_default",
+          "review_note": "A trust-root change is the strongest widening: it is blocked pending a boundary recheck, arrives only as a signed bundle, and reverts only via a signed rollback bundle.",
+          "dry_run": true
+        },
+        {
+          "scenario_id": "rollout_sim.self_hosted.registry_and_permission",
+          "change_kind": "policy_import",
+          "title": "Import a bundle that grants a new capability and changes the registry source",
+          "summary": "A widening import: it grants a new capability permission and repoints the extension registry. Both broaden supply, so it needs security review and a staged rollout.",
+          "direction": "widening",
+          "widening_dimensions": [
+            "new_permission",
+            "registry_source_change"
+          ],
+          "impacted_endpoints": [
+            {
+              "endpoint_ref": "endpoint:self_hosted:fleet",
+              "label": "Self-hosted fleet",
+              "posture_before": "active_enforced",
+              "posture_after": "pending_managed_sync",
+              "impact_note": "The new capability and registry source reach endpoints ring by ring."
+            }
+          ],
+          "impacted_features": [
+            {
+              "feature_family": "Capabilities",
+              "effect_note": "A new capability permission is granted to managed launches.",
+              "newly_widened": true
+            },
+            {
+              "feature_family": "Extensions",
+              "effect_note": "The extension registry source is repointed.",
+              "newly_widened": true
+            }
+          ],
+          "review_requirement": "security_compliance_review",
+          "staging": "staged_ring_required",
+          "rollback": "staged_revert",
+          "simulation_freshness": "recent",
+          "outcome": "promote_with_staged_rollout",
+          "owner": "security_owner",
+          "escalation_owner": "compliance_owner",
+          "redaction": "metadata_safe_default",
+          "review_note": "A new permission and a registry-source change both widen supply: security/compliance sign-off and a staged rollout are required.",
+          "dry_run": true
+        }
+      ],
+      "mirror_backed": false,
+      "mirror_freshness": "fresh",
+      "endpoint_posture_freshness": "recent",
+      "simulation_freshness": "recent",
+      "claim_state": "active_enforced",
+      "narrow_reasons": [],
+      "claim_note": "All simulation, mirror, and endpoint-posture evidence is fresh; the managed claim is confirmed."
+    },
+    {
+      "profile": "sovereign_air_gapped",
+      "profile_id": "admin_path.sovereign_air_gapped",
+      "deployment_profile": "sovereign_air_gapped",
+      "summary": "Sovereign / air-gapped profile: no outbound control plane; every change arrives as a signed offline bundle, the managed claim auto-narrows because simulation and posture evidence are past their windows, and a stale promotion is held.",
+      "consumers": [
+        "shell_admin_center",
+        "cli_headless",
+        "help_about",
+        "support_export",
+        "release_evidence",
+        "managed_service"
+      ],
+      "bound_surfaces": [
+        "policy_diff",
+        "endpoint_posture_card"
+      ],
+      "scenarios": [
+        {
+          "scenario_id": "rollout_sim.sovereign.tighten_providers",
+          "change_kind": "policy_import",
+          "title": "Import a fresh signed offline bundle that narrows the provider list",
+          "summary": "A tightening import: a freshly signed offline bundle narrows the allowed provider list. It arrives only as a signed bundle and reverts via a signed rollback bundle.",
+          "direction": "tightening",
+          "widening_dimensions": [],
+          "impacted_endpoints": [
+            {
+              "endpoint_ref": "endpoint:sovereign:image",
+              "label": "Sovereign image",
+              "posture_before": "active_enforced",
+              "posture_after": "active_enforced",
+              "impact_note": "The provider list narrows; no access is broadened."
+            }
+          ],
+          "impacted_features": [
+            {
+              "feature_family": "AI / assistants",
+              "effect_note": "The allowed offline provider list is narrowed.",
+              "newly_widened": false
+            }
+          ],
+          "review_requirement": "single_admin_review",
+          "staging": "pinned_manual_signed_only",
+          "rollback": "signed_rollback_bundle",
+          "simulation_freshness": "recent",
+          "outcome": "safe_to_promote",
+          "owner": "security_owner",
+          "redaction": "metadata_safe_default",
+          "review_note": "Restriction only: a single admin review clears it; pinned-signed delivery and a signed rollback are inherent to the air-gapped profile, not extra gating for widening.",
+          "dry_run": true
+        },
+        {
+          "scenario_id": "rollout_sim.sovereign.rotate_pinned_root",
+          "change_kind": "trust_root_change",
+          "title": "Rotate the pinned offline trust root",
+          "summary": "A trust-root rotation on an air-gapped image: it changes the pinned offline root, so it is held for security/compliance review before the signed bundle is accepted.",
+          "direction": "widening",
+          "widening_dimensions": [
+            "trust_root_change"
+          ],
+          "impacted_endpoints": [
+            {
+              "endpoint_ref": "endpoint:sovereign:image",
+              "label": "Sovereign image",
+              "posture_before": "active_enforced",
+              "posture_after": "unconfirmed_stale",
+              "impact_note": "Verification is held until the rotated root is reviewed and accepted."
+            }
+          ],
+          "impacted_features": [
+            {
+              "feature_family": "Security / trust",
+              "effect_note": "The pinned offline trust root is replaced.",
+              "newly_widened": true
+            }
+          ],
+          "review_requirement": "security_compliance_review",
+          "staging": "pinned_manual_signed_only",
+          "rollback": "signed_rollback_bundle",
+          "simulation_freshness": "recent",
+          "outcome": "hold_for_review",
+          "owner": "security_owner",
+          "escalation_owner": "compliance_owner",
+          "redaction": "metadata_safe_default",
+          "review_note": "A trust-root change widens trust: security/compliance sign-off is required, delivery is a signed bundle, and rollback is a signed bundle.",
+          "dry_run": true
+        },
+        {
+          "scenario_id": "rollout_sim.sovereign.stale_promotion",
+          "change_kind": "policy_promotion",
+          "title": "Promote a staged offline bundle whose simulation evidence is stale",
+          "summary": "A tightening promotion that is blocked: its simulation evidence is past the soft-refresh window, so it can never read as safe to promote until a fresh signed bundle is imported.",
+          "direction": "tightening",
+          "widening_dimensions": [],
+          "impacted_endpoints": [
+            {
+              "endpoint_ref": "endpoint:sovereign:image",
+              "label": "Sovereign image",
+              "posture_before": "active_enforced",
+              "posture_after": "unconfirmed_stale",
+              "impact_note": "The promotion is held; the last-known value is shown unconfirmed."
+            }
+          ],
+          "impacted_features": [
+            {
+              "feature_family": "Policy",
+              "effect_note": "The promotion is held because its simulation evidence is stale.",
+              "newly_widened": false
+            }
+          ],
+          "review_requirement": "single_admin_review",
+          "staging": "pinned_manual_signed_only",
+          "rollback": "signed_rollback_bundle",
+          "simulation_freshness": "stale",
+          "outcome": "blocked_stale_evidence",
+          "owner": "security_owner",
+          "escalation_owner": "compliance_owner",
+          "redaction": "metadata_safe_default",
+          "review_note": "Stale evidence: the promotion is blocked until a fresh signed bundle refreshes the simulation, never auto-promoted on a stale preview.",
+          "dry_run": true
+        }
+      ],
+      "mirror_backed": false,
+      "mirror_freshness": "fresh",
+      "endpoint_posture_freshness": "stale",
+      "simulation_freshness": "stale",
+      "claim_state": "unconfirmed_stale",
+      "narrow_reasons": [
+        "simulation_evidence_stale",
+        "endpoint_posture_stale"
+      ],
+      "claim_note": "Managed claim auto-narrowed off confirmed because evidence is stale: simulation_evidence_stale, endpoint_posture_stale."
+    },
+    {
+      "profile": "mirrored_offline",
+      "profile_id": "admin_path.mirrored_offline",
+      "deployment_profile": "managed_cloud",
+      "summary": "Mirrored / offline profile: the managed source is offline; the managed claim auto-narrows to last-known because the mirror is stale, and a mirror-source change previews a staged rollout.",
+      "consumers": [
+        "shell_admin_center",
+        "cli_headless",
+        "help_about",
+        "support_export",
+        "release_evidence",
+        "managed_service"
+      ],
+      "bound_surfaces": [
+        "policy_diff",
+        "endpoint_posture_card"
+      ],
+      "scenarios": [
+        {
+          "scenario_id": "rollout_sim.mirrored.switch_mirror_source",
+          "change_kind": "mirror_source_change",
+          "title": "Switch to the backup mirror source",
+          "summary": "A widening change: repointing to a backup mirror source changes where managed truth is fetched from, so it needs security review and a staged rollout, and is held while the current mirror is stale.",
+          "direction": "widening",
+          "widening_dimensions": [
+            "registry_source_change"
+          ],
+          "impacted_endpoints": [
+            {
+              "endpoint_ref": "endpoint:mirrored:fleet",
+              "label": "Mirror-backed fleet",
+              "posture_before": "mirror_offline_last_known",
+              "posture_after": "pending_managed_sync",
+              "impact_note": "Endpoints would resync from the backup source ring by ring after review."
+            }
+          ],
+          "impacted_features": [
+            {
+              "feature_family": "Policy distribution",
+              "effect_note": "The mirror source managed bundles are fetched from is repointed.",
+              "newly_widened": true
+            }
+          ],
+          "review_requirement": "security_compliance_review",
+          "staging": "staged_ring_required",
+          "rollback": "staged_revert",
+          "simulation_freshness": "recent",
+          "outcome": "hold_for_review",
+          "owner": "org_admin",
+          "escalation_owner": "security_owner",
+          "redaction": "metadata_safe_default",
+          "review_note": "A mirror-source change widens where truth comes from: security review and a staged rollout are required, and it is held while the mirror is stale.",
+          "dry_run": true
+        },
+        {
+          "scenario_id": "rollout_sim.mirrored.apply_last_synced_tightening",
+          "change_kind": "bundle_rollout",
+          "title": "Apply the last-synced mirrored bundle tightening",
+          "summary": "A tightening from the last-synced mirror: a diagnostics restriction. It may apply immediately and reverts instantly, but the result is labeled last-known while the mirror is offline.",
+          "direction": "tightening",
+          "widening_dimensions": [],
+          "impacted_endpoints": [
+            {
+              "endpoint_ref": "endpoint:mirrored:fleet",
+              "label": "Mirror-backed fleet",
+              "posture_before": "mirror_offline_last_known",
+              "posture_after": "mirror_offline_last_known",
+              "impact_note": "The restriction applies from the last sync; the value stays labeled last-known."
+            }
+          ],
+          "impacted_features": [
+            {
+              "feature_family": "Diagnostics",
+              "effect_note": "A diagnostics restriction from the last mirror sync is applied.",
+              "newly_widened": false
+            }
+          ],
+          "review_requirement": "single_admin_review",
+          "staging": "immediate_allowed",
+          "rollback": "instant_local_revert",
+          "simulation_freshness": "recent",
+          "outcome": "safe_to_promote",
+          "owner": "org_admin",
+          "redaction": "metadata_safe_default",
+          "review_note": "Restriction only: a single admin review clears it and it reverts instantly; the value is labeled last-known while the mirror is offline.",
+          "dry_run": true
+        }
+      ],
+      "mirror_backed": true,
+      "mirror_freshness": "stale",
+      "endpoint_posture_freshness": "recent",
+      "simulation_freshness": "recent",
+      "claim_state": "mirror_offline_last_known",
+      "narrow_reasons": [
+        "mirror_freshness_stale"
+      ],
+      "claim_note": "Managed claim auto-narrowed off confirmed because evidence is stale: mirror_freshness_stale."
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "rollout_sim.surface_states_within_matrix",
+      "statement": "Every endpoint posture state a scenario shows — before and after — and every per-profile claim state is one the frozen admin-plane matrix declares applicable for the endpoint-posture surface, so the simulation cannot drift from the contract.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.bound_surfaces_in_matrix",
+      "statement": "Each profile binds the policy-diff and endpoint-posture surfaces, and both are present in the matrix, locally explainable, and typed rather than portal-only.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.widening_requires_stronger_review",
+      "statement": "Every widening or mixed scenario clears at least dual-control review, a staged (non-immediate) rollout, a non-instant rollback, and names a widening dimension; every pure tightening needs at most a single admin review and names no widening dimension.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.tightening_not_overgated",
+      "statement": "At least one tightening scenario across the bundle is a light, immediately-applicable restriction with no more than a single admin review, so simple restrictions are not held to the widening floor.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.scenarios_are_reviewable_dry_runs",
+      "statement": "Every scenario is a dry-run preview that names at least one impacted endpoint and feature, a review requirement, a staged-rollout requirement, and a rollback path before any promotion.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.stale_scenarios_held",
+      "statement": "A scenario whose own simulation evidence is stale is held (blocked for stale evidence) and never read as safe to promote.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.boundary_recheck_consistent",
+      "statement": "A scenario blocked pending a boundary recheck reports the boundary-recheck outcome and a pinned, signed-only delivery, and vice versa, so a boundary block is never silently promotable.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.claim_auto_narrows_on_stale",
+      "statement": "A profile's managed claim reads confirmed only when its simulation, mirror, and endpoint-posture evidence are all fresh; when any is stale the claim downgrades off confirmed and names exactly which dimension went stale.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.simulation_freshness_is_worst_case",
+      "statement": "Each profile's reported simulation freshness is the stalest of its scenarios, so a single stale scenario cannot hide behind fresher siblings.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.widening_dimensions_consistent",
+      "statement": "A scenario names at least one widening dimension exactly when it widens or mixes, and none when it only tightens or has no effect.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.widened_features_only_on_widening",
+      "statement": "A scenario flags an impacted feature as newly widened only when the change itself widens or mixes, so a tightening never claims to broaden a feature.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.profiles_covered",
+      "statement": "The bundle simulates the managed-cloud, self-hosted, sovereign/air-gapped, and mirrored/offline profiles.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.change_kinds_covered",
+      "statement": "Every rollout flow — policy import, promotion, bundle rollout, mirror-source change, trust-root change, and route/egress expansion — is simulated somewhere in the bundle.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.widening_dimensions_covered",
+      "statement": "Every widening dimension — new permission, new egress class, new AI provider, registry-source change, and trust-root change — is simulated somewhere in the bundle.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.consumer_parity",
+      "statement": "Each profile is one typed packet consumed identically by shell, CLI/headless, Help/About, support export, and release evidence, so the simulated blast radius is identical across surfaces by construction.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.stable_ids_unique",
+      "statement": "Profile ids, scenario ids, and endpoint refs are unique within their scope, so a consumer can resolve any object by a stable id.",
+      "holds": true
+    },
+    {
+      "invariant_id": "rollout_sim.export_safe",
+      "statement": "Every stable profile, scenario, and endpoint id is an opaque token with no URL scheme or absolute path, so the bundle is safe to embed in a support export verbatim.",
+      "holds": true
+    }
+  ],
+  "raw_payload_excluded": true
+}
