@@ -1,0 +1,543 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/activity/m5-badge-aggregates.schema.json",
+  "title": "Aureline M5 badge-aggregates bundle",
+  "description": "Boundary schema for the M5 badge-aggregates bundle: the working engine that turns a corpus of durable attention items into deduped, per-scope badge counts, coalesces repeated failures from one root cause into a single durable object, projects one shared count across every badge-bearing surface, and emits stable telemetry enums. A scope's badge count equals the number of distinct durable objects pending attention after canonical-key dedupe; repeated raw events never inflate it. Muted, suppressed, and quiet-hours-deferred items are excluded from the count but their reasons are named. Repeated failures sharing one root cause collapse into one object counted once, with the correct authoritative reopen path, instead of spamming toasts, badges, and companion alerts. The shell activity center, dock/taskbar badge, browser and mobile companions, and operator dashboard project the same count without widening privacy; a security advisory is never silenced; and telemetry records the notification class, route, and outcome by stable token plus a count only. Every privacy class, scope, redaction class, reopen target, severity, dedupe scheme, suppression reason, and quiet-hours mode binds back to the attention-routing matrix. No message bodies, credentials, raw provider payloads, hostnames, device identifiers, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, short reviewable sentences, and counts only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_badge_aggregates_schema_version",
+    "schema_ref",
+    "bundle_id",
+    "as_of",
+    "matrix_ref",
+    "matrix_id",
+    "freeze_gate_ref",
+    "summary",
+    "governed_surfaces",
+    "items",
+    "aggregates",
+    "surface_badges",
+    "coalesced_failures",
+    "telemetry",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_badge_aggregates_bundle" },
+    "m5_badge_aggregates_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/activity/m5-badge-aggregates.schema.json" },
+    "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "governed_surfaces": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/governed_surface" }
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/durable_item" }
+    },
+    "aggregates": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/badge_aggregate" }
+    },
+    "surface_badges": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/surface_badge" }
+    },
+    "coalesced_failures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/coalesced_failure" }
+    },
+    "telemetry": { "$ref": "#/$defs/telemetry" },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/bundle_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(schemas|crates|artifacts|fixtures|docs)/"
+    },
+    "export_safe_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "scope": {
+      "enum": ["app_global", "window", "workspace", "session", "collaboration", "tenant_org"]
+    },
+    "privacy_class": {
+      "enum": ["summary_safe", "workspace_sensitive", "security_critical", "managed_sensitive"]
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "summary_only",
+        "redacted_payload",
+        "count_only",
+        "internal_support_restricted"
+      ]
+    },
+    "reopen_target": {
+      "enum": [
+        "activity_job_row",
+        "evidence_packet",
+        "policy_diff",
+        "review_request",
+        "incident_thread",
+        "route_object",
+        "audit_event"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "minor_success",
+        "informational",
+        "progress",
+        "degraded",
+        "handoff_actionable",
+        "security_advisory"
+      ]
+    },
+    "source_subsystem": {
+      "enum": [
+        "shell",
+        "notebook",
+        "task_runner",
+        "ai",
+        "collaboration",
+        "incident",
+        "operator",
+        "managed_policy",
+        "companion",
+        "security",
+        "sync",
+        "support"
+      ]
+    },
+    "dedupe_scheme": {
+      "enum": [
+        "canonical_key_coalesce",
+        "root_cause_collapse",
+        "latest_supersedes",
+        "count_rollup",
+        "no_dedupe"
+      ]
+    },
+    "state": {
+      "enum": [
+        "pending",
+        "routed",
+        "shown",
+        "acknowledged",
+        "snoozed",
+        "quiet_hours_deferred",
+        "suppressed",
+        "running",
+        "queued_waiting",
+        "partially_completed",
+        "failed",
+        "completed",
+        "resolved",
+        "dismissed",
+        "archived",
+        "fanout_stale",
+        "fanout_undelivered",
+        "unknown_requires_review"
+      ]
+    },
+    "surface": {
+      "enum": [
+        "in_app_activity_center",
+        "os_native_notification",
+        "dock_taskbar_badge",
+        "browser_companion",
+        "mobile_companion",
+        "operator_dashboard"
+      ]
+    },
+    "count_class": { "enum": ["none", "single", "few", "many", "saturated"] },
+    "freshness": { "enum": ["fresh", "recent", "aging", "stale", "none"] },
+    "mute_reason": {
+      "enum": ["none", "user_muted_source", "muted_by_focus_mode", "muted_by_scope_rule"]
+    },
+    "suppression_reason": {
+      "enum": ["none", "policy_suppressed", "rate_limited", "superseded"]
+    },
+    "quiet_hours_mode": {
+      "enum": [
+        "none",
+        "defer_unless_opted_in",
+        "defer_to_in_product",
+        "follow_admin_policy",
+        "always_defer"
+      ]
+    },
+    "named_mute_reason": {
+      "enum": ["user_muted_source", "muted_by_focus_mode", "muted_by_scope_rule"]
+    },
+    "named_suppression_reason": {
+      "enum": ["policy_suppressed", "rate_limited", "superseded"]
+    },
+    "active_quiet_hours_mode": {
+      "enum": [
+        "defer_unless_opted_in",
+        "defer_to_in_product",
+        "follow_admin_policy",
+        "always_defer"
+      ]
+    },
+    "outcome": {
+      "enum": [
+        "counted_in_badge",
+        "deduped_repeat",
+        "muted",
+        "suppressed",
+        "quiet_hours_deferred",
+        "settled"
+      ]
+    },
+    "governed_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_id",
+        "label",
+        "base_redaction",
+        "base_redaction_token",
+        "is_durable_authoritative",
+        "note"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "base_redaction": { "$ref": "#/$defs/redaction_class" },
+        "base_redaction_token": { "$ref": "#/$defs/redaction_class" },
+        "is_durable_authoritative": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "durable_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "canonical_event_id",
+        "dedupe_key",
+        "label",
+        "source_subsystem",
+        "severity",
+        "scope",
+        "privacy_class",
+        "dedupe_key_scheme",
+        "state",
+        "freshness",
+        "mute_reason",
+        "suppression_reason",
+        "quiet_hours_mode",
+        "root_cause_key",
+        "reopen_target",
+        "reopen_anchor_ref",
+        "carries_durable_record"
+      ],
+      "properties": {
+        "item_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_event_id": { "$ref": "#/$defs/non_empty_string" },
+        "dedupe_key": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_scheme" },
+        "state": { "$ref": "#/$defs/state" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "mute_reason": { "$ref": "#/$defs/mute_reason" },
+        "suppression_reason": { "$ref": "#/$defs/suppression_reason" },
+        "quiet_hours_mode": { "$ref": "#/$defs/quiet_hours_mode" },
+        "root_cause_key": { "type": "string" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/export_safe_ref" },
+        "carries_durable_record": { "const": true }
+      }
+    },
+    "badge_object_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_key",
+        "canonical_event_id",
+        "label",
+        "severity",
+        "severity_token",
+        "freshness",
+        "reopen_target",
+        "reopen_anchor_ref"
+      ],
+      "properties": {
+        "object_key": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_event_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "severity_token": { "$ref": "#/$defs/severity" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/export_safe_ref" }
+      }
+    },
+    "badge_aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aggregate_id",
+        "scope",
+        "scope_key",
+        "count",
+        "count_class",
+        "count_class_token",
+        "count_display",
+        "raw_event_count",
+        "deduped_count",
+        "freshness",
+        "freshness_token",
+        "privacy_floor",
+        "privacy_floor_token",
+        "deduped_objects",
+        "muted_reasons",
+        "suppressed_reasons",
+        "active_quiet_hours_modes",
+        "reopen_target",
+        "reopen_anchor_ref",
+        "derives_from_durable_items",
+        "note"
+      ],
+      "properties": {
+        "aggregate_id": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "scope_key": { "$ref": "#/$defs/scope" },
+        "count": { "type": "integer", "minimum": 0 },
+        "count_class": { "$ref": "#/$defs/count_class" },
+        "count_class_token": { "$ref": "#/$defs/count_class" },
+        "count_display": { "$ref": "#/$defs/non_empty_string" },
+        "raw_event_count": { "type": "integer", "minimum": 0 },
+        "deduped_count": { "type": "integer", "minimum": 0 },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "freshness_token": { "$ref": "#/$defs/freshness" },
+        "privacy_floor": { "$ref": "#/$defs/redaction_class" },
+        "privacy_floor_token": { "$ref": "#/$defs/redaction_class" },
+        "deduped_objects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/badge_object_ref" }
+        },
+        "muted_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/named_mute_reason" }
+        },
+        "suppressed_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/named_suppression_reason" }
+        },
+        "active_quiet_hours_modes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/active_quiet_hours_mode" }
+        },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/export_safe_ref" },
+        "derives_from_durable_items": { "const": true },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "surface_badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_id",
+        "scope",
+        "scope_key",
+        "count",
+        "count_class",
+        "count_class_token",
+        "count_display",
+        "applied_redaction",
+        "applied_redaction_token",
+        "reopen_target",
+        "reopen_anchor_ref",
+        "note"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "scope_key": { "$ref": "#/$defs/scope" },
+        "count": { "type": "integer", "minimum": 0 },
+        "count_class": { "$ref": "#/$defs/count_class" },
+        "count_class_token": { "$ref": "#/$defs/count_class" },
+        "count_display": { "$ref": "#/$defs/non_empty_string" },
+        "applied_redaction": { "$ref": "#/$defs/redaction_class" },
+        "applied_redaction_token": { "$ref": "#/$defs/redaction_class" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/export_safe_ref" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "coalesced_failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coalesced_id",
+        "root_cause_key",
+        "label",
+        "scope",
+        "scope_key",
+        "occurrence_count",
+        "representative_item_id",
+        "canonical_event_id",
+        "dedupe_key_scheme",
+        "dedupe_key_scheme_token",
+        "severity",
+        "severity_token",
+        "state",
+        "state_token",
+        "reopen_target",
+        "reopen_anchor_ref",
+        "coalesced_surfaces",
+        "spam_prevented",
+        "durable_record_present",
+        "note"
+      ],
+      "properties": {
+        "coalesced_id": { "$ref": "#/$defs/non_empty_string" },
+        "root_cause_key": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "scope_key": { "$ref": "#/$defs/scope" },
+        "occurrence_count": { "type": "integer", "minimum": 1 },
+        "representative_item_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_event_id": { "$ref": "#/$defs/non_empty_string" },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_scheme" },
+        "dedupe_key_scheme_token": { "$ref": "#/$defs/dedupe_scheme" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "severity_token": { "$ref": "#/$defs/severity" },
+        "state": { "$ref": "#/$defs/state" },
+        "state_token": { "$ref": "#/$defs/state" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/export_safe_ref" },
+        "coalesced_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface" }
+        },
+        "spam_prevented": { "type": "boolean" },
+        "durable_record_present": { "const": true },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "telemetry_outcome_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notification_class",
+        "notification_class_token",
+        "outcome",
+        "outcome_token",
+        "count"
+      ],
+      "properties": {
+        "notification_class": { "$ref": "#/$defs/source_subsystem" },
+        "notification_class_token": { "$ref": "#/$defs/source_subsystem" },
+        "outcome": { "$ref": "#/$defs/outcome" },
+        "outcome_token": { "$ref": "#/$defs/outcome" },
+        "count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "telemetry_route_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route",
+        "route_token",
+        "badge_count_total",
+        "count_class",
+        "count_class_token"
+      ],
+      "properties": {
+        "route": { "$ref": "#/$defs/surface" },
+        "route_token": { "$ref": "#/$defs/non_empty_string" },
+        "badge_count_total": { "type": "integer", "minimum": 0 },
+        "count_class": { "$ref": "#/$defs/count_class" },
+        "count_class_token": { "$ref": "#/$defs/count_class" }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_items",
+        "total_counted",
+        "total_raw_counted",
+        "total_deduped_repeats",
+        "total_muted",
+        "total_suppressed",
+        "total_deferred",
+        "total_settled",
+        "total_coalesced_failures",
+        "total_failure_occurrences",
+        "outcome_rollup",
+        "route_rollup",
+        "captures_message_text",
+        "note"
+      ],
+      "properties": {
+        "total_items": { "type": "integer", "minimum": 0 },
+        "total_counted": { "type": "integer", "minimum": 0 },
+        "total_raw_counted": { "type": "integer", "minimum": 0 },
+        "total_deduped_repeats": { "type": "integer", "minimum": 0 },
+        "total_muted": { "type": "integer", "minimum": 0 },
+        "total_suppressed": { "type": "integer", "minimum": 0 },
+        "total_deferred": { "type": "integer", "minimum": 0 },
+        "total_settled": { "type": "integer", "minimum": 0 },
+        "total_coalesced_failures": { "type": "integer", "minimum": 0 },
+        "total_failure_occurrences": { "type": "integer", "minimum": 0 },
+        "outcome_rollup": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/telemetry_outcome_row" }
+        },
+        "route_rollup": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/telemetry_route_row" }
+        },
+        "captures_message_text": { "const": false },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "bundle_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}
