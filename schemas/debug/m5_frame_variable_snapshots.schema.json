@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/debug/m5_frame_variable_snapshots.schema.json",
+  "title": "Aureline M5 frame-mapping and variable/watch snapshot set",
+  "description": "Boundary schema for the typed M5 frame mappings and variable/watch snapshots: the canonical records every debugger frame stack, variables/watch pane, notebook variable explorer, replay inspector, and exported crash reads. Every frame carries one pill that pins one mapping fidelity (exact, approximate, symbol_only, unmapped) and one build-match outcome, so a frame stack never flattens exact, approximate, symbol-only, and unresolved frames into one generic location link: a precise source link renders only for an exact mapping backed by an exact-build match; current-frame identity is preserved per thread; a source-map mapping always discloses; a lost mapping degrades to an explicit unmapped frame; and async/runtime boundaries stay visible. Every value snapshot — variable or watch, live session, notebook cell, or replay capture — carries one disclosure pill that pins one of live, captured, stale, unavailable, or redacted, so a value is shown as a live read only when it truly is one, an unavailable value names its reason, a redacted value withholds its body, and a captured or stale value never implies live authority. No source bodies, value bodies, raw paths, provider payloads, URLs, hostnames, or credentials cross this boundary; the record carries opaque object refs, stable tokens, opaque digests, type/shape summaries, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_frame_variable_snapshots_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "freeze_gate_ref",
+    "summary",
+    "source_schema_refs",
+    "producer_refs",
+    "consumer_surfaces",
+    "frames",
+    "snapshots",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_frame_variable_snapshot_set" },
+    "m5_frame_variable_snapshots_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/debug/m5_frame_variable_snapshots.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "source_schema_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repo_ref" }
+    },
+    "producer_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repo_ref" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_class" }
+    },
+    "frames": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/frame_mapping" }
+    },
+    "snapshots": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/value_snapshot" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/snapshot_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "non_negative_integer": { "type": "integer", "minimum": 0 },
+    "mapping_fidelity": {
+      "type": "string",
+      "enum": ["exact", "approximate", "symbol_only", "unmapped"]
+    },
+    "mapping_provenance": {
+      "type": "string",
+      "enum": [
+        "direct_source_line",
+        "source_map",
+        "symbol_table",
+        "heuristic_line_only",
+        "unresolved"
+      ]
+    },
+    "build_match": {
+      "type": "string",
+      "enum": [
+        "exact_build_verified",
+        "approximate_candidate",
+        "mismatched_rejected",
+        "no_candidate"
+      ]
+    },
+    "continuity_class": {
+      "type": "string",
+      "enum": ["contiguous", "async_resumption", "runtime_gap"]
+    },
+    "entry_kind": {
+      "type": "string",
+      "enum": ["variable", "watch"]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": ["local", "argument", "closure", "global", "register", "watch_expression"]
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": ["live", "captured_snapshot", "stale", "unavailable"]
+    },
+    "value_disclosure": {
+      "type": "string",
+      "enum": ["live", "captured", "stale", "unavailable", "redacted"]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": ["not_redacted", "secret_redacted", "pii_redacted", "policy_withheld"]
+    },
+    "unavailable_reason": {
+      "type": "string",
+      "enum": [
+        "optimized_out",
+        "out_of_scope",
+        "not_loaded",
+        "target_resumed",
+        "evaluation_error",
+        "unsupported"
+      ]
+    },
+    "shape_class": {
+      "type": "string",
+      "enum": ["scalar", "text", "collection", "map", "struct", "reference", "opaque"]
+    },
+    "truncation_reason": {
+      "type": "string",
+      "enum": ["size_limit", "depth_limit", "element_count_limit", "string_length_limit"]
+    },
+    "consumer_class": {
+      "type": "string",
+      "enum": [
+        "core_debugger",
+        "notebook_debug",
+        "profiler",
+        "incident_review",
+        "support_export",
+        "ai_context",
+        "review_workspace",
+        "cli_headless",
+        "docs_help"
+      ]
+    },
+    "frame_source_location": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "logical_source_ref": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_ref": { "$ref": "#/$defs/repo_ref" },
+        "line": { "$ref": "#/$defs/non_negative_integer" },
+        "end_line": { "$ref": "#/$defs/non_negative_integer" },
+        "column": { "$ref": "#/$defs/non_negative_integer" }
+      }
+    },
+    "build_artifact_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["match_state", "match_state_token", "match_requires_disclosure"],
+      "properties": {
+        "build_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_ref": { "$ref": "#/$defs/repo_ref" },
+        "match_state": { "$ref": "#/$defs/build_match" },
+        "match_state_token": { "$ref": "#/$defs/build_match" },
+        "match_requires_disclosure": { "type": "boolean" }
+      }
+    },
+    "frame_mapping_pill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fidelity",
+        "fidelity_token",
+        "build_match",
+        "build_match_token",
+        "label",
+        "shows_exact_source_link",
+        "requires_disclosure",
+        "allows_source_navigation",
+        "is_async_boundary"
+      ],
+      "properties": {
+        "fidelity": { "$ref": "#/$defs/mapping_fidelity" },
+        "fidelity_token": { "$ref": "#/$defs/mapping_fidelity" },
+        "build_match": { "$ref": "#/$defs/build_match" },
+        "build_match_token": { "$ref": "#/$defs/build_match" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "shows_exact_source_link": { "type": "boolean" },
+        "requires_disclosure": { "type": "boolean" },
+        "allows_source_navigation": { "type": "boolean" },
+        "is_async_boundary": { "type": "boolean" }
+      }
+    },
+    "frame_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frame_id",
+        "session_id",
+        "thread_id",
+        "frame_index",
+        "function_label",
+        "location",
+        "build_identity",
+        "mapping_provenance",
+        "mapping_provenance_token",
+        "mapping_provenance_requires_disclosure",
+        "continuity",
+        "continuity_token",
+        "is_async_boundary",
+        "is_current_frame",
+        "is_selected_frame",
+        "pill",
+        "proof_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "frame_id": { "$ref": "#/$defs/non_empty_string" },
+        "session_id": { "$ref": "#/$defs/non_empty_string" },
+        "thread_id": { "$ref": "#/$defs/non_empty_string" },
+        "frame_index": { "$ref": "#/$defs/non_negative_integer" },
+        "function_label": { "$ref": "#/$defs/non_empty_string" },
+        "symbol_label": { "$ref": "#/$defs/non_empty_string" },
+        "location": { "$ref": "#/$defs/frame_source_location" },
+        "build_identity": { "$ref": "#/$defs/build_artifact_identity" },
+        "mapping_provenance": { "$ref": "#/$defs/mapping_provenance" },
+        "mapping_provenance_token": { "$ref": "#/$defs/mapping_provenance" },
+        "mapping_provenance_requires_disclosure": { "type": "boolean" },
+        "continuity": { "$ref": "#/$defs/continuity_class" },
+        "continuity_token": { "$ref": "#/$defs/continuity_class" },
+        "is_async_boundary": { "type": "boolean" },
+        "is_current_frame": { "type": "boolean" },
+        "is_selected_frame": { "type": "boolean" },
+        "pill": { "$ref": "#/$defs/frame_mapping_pill" },
+        "proof_packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "snapshot_capture_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_id", "captured_as_of"],
+      "properties": {
+        "session_id": { "$ref": "#/$defs/non_empty_string" },
+        "thread_id": { "$ref": "#/$defs/non_empty_string" },
+        "frame_id": { "$ref": "#/$defs/non_empty_string" },
+        "captured_as_of": { "type": "string", "format": "date-time" },
+        "capture_stop_seq": { "$ref": "#/$defs/non_negative_integer" },
+        "notebook_cell_ref": { "$ref": "#/$defs/non_empty_string" },
+        "replay_capture_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "type_shape_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type_name", "shape", "shape_token"],
+      "properties": {
+        "type_name": { "$ref": "#/$defs/non_empty_string" },
+        "shape": { "$ref": "#/$defs/shape_class" },
+        "shape_token": { "$ref": "#/$defs/shape_class" },
+        "element_count": { "$ref": "#/$defs/non_negative_integer" },
+        "size_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "value_truncation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["is_truncated"],
+      "properties": {
+        "is_truncated": { "type": "boolean" },
+        "reason": { "$ref": "#/$defs/truncation_reason" },
+        "reason_token": { "$ref": "#/$defs/truncation_reason" },
+        "shown_extent": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "snapshot_disclosure_pill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness",
+        "freshness_token",
+        "disclosure",
+        "disclosure_token",
+        "label",
+        "is_live_read",
+        "implies_live_authority",
+        "requires_disclosure",
+        "value_body_present",
+        "is_redacted"
+      ],
+      "properties": {
+        "freshness": { "$ref": "#/$defs/freshness_state" },
+        "freshness_token": { "$ref": "#/$defs/freshness_state" },
+        "disclosure": { "$ref": "#/$defs/value_disclosure" },
+        "disclosure_token": { "$ref": "#/$defs/value_disclosure" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "is_live_read": { "type": "boolean" },
+        "implies_live_authority": { "type": "boolean" },
+        "requires_disclosure": { "type": "boolean" },
+        "value_body_present": { "type": "boolean" },
+        "is_redacted": { "type": "boolean" }
+      }
+    },
+    "value_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot_id",
+        "entry_kind",
+        "entry_kind_token",
+        "display_name",
+        "scope",
+        "scope_token",
+        "capture_context",
+        "type_shape",
+        "truncation",
+        "lazy_loadable",
+        "redaction",
+        "redaction_token",
+        "disclosure",
+        "proof_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "snapshot_id": { "$ref": "#/$defs/non_empty_string" },
+        "entry_kind": { "$ref": "#/$defs/entry_kind" },
+        "entry_kind_token": { "$ref": "#/$defs/entry_kind" },
+        "display_name": { "$ref": "#/$defs/non_empty_string" },
+        "watch_expression_digest": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/scope_class" },
+        "scope_token": { "$ref": "#/$defs/scope_class" },
+        "capture_context": { "$ref": "#/$defs/snapshot_capture_context" },
+        "type_shape": { "$ref": "#/$defs/type_shape_summary" },
+        "truncation": { "$ref": "#/$defs/value_truncation" },
+        "value_repr_digest": { "$ref": "#/$defs/non_empty_string" },
+        "lazy_loadable": { "type": "boolean" },
+        "unavailable_reason": { "$ref": "#/$defs/unavailable_reason" },
+        "unavailable_reason_token": { "$ref": "#/$defs/unavailable_reason" },
+        "redaction": { "$ref": "#/$defs/redaction_class" },
+        "redaction_token": { "$ref": "#/$defs/redaction_class" },
+        "disclosure": { "$ref": "#/$defs/snapshot_disclosure_pill" },
+        "proof_packet_ref": { "$ref": "#/$defs/repo_ref" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "snapshot_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}

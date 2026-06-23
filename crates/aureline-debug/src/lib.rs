@@ -55,6 +55,21 @@
 //! exact semantic mapping; and notebook and replay views keep stable cell and frame
 //! identity.
 //!
+//! It also exposes [`m5_frame_variable_snapshots`] — the typed, frozen
+//! [`FrameMapping`](m5_frame_variable_snapshots::FrameMapping) and
+//! [`ValueSnapshot`](m5_frame_variable_snapshots::ValueSnapshot) records that
+//! materialize the frame-mapping and variable/watch-snapshot families. The canonical
+//! [`FrameVariableSnapshotSet`](m5_frame_variable_snapshots::FrameVariableSnapshotSet)
+//! carries one mapping-fidelity vocabulary (exact, approximate, symbol-only, unmapped)
+//! and one value-disclosure vocabulary (live, captured, stale, unavailable, redacted),
+//! so a frame stack never flattens its frames into one generic location link and a
+//! variable, watch, notebook explorer, or replay inspector always says whether a value
+//! is a live read, a captured snapshot, stale, unavailable, or redacted: a precise
+//! source link renders only for an exact mapping backed by an exact-build match,
+//! current-frame identity is preserved per thread, a source-map mapping always discloses,
+//! a lost mapping degrades to an explicit unmapped frame, async/runtime boundaries stay
+//! visible, and a captured or stale value never implies live authority.
+//!
 //! The reviewer-facing contract is at
 //! [`/docs/m4/qualify-chronology-capture-and-replay-support-classes.md`](../../../docs/m4/qualify-chronology-capture-and-replay-support-classes.md).
 //! The cross-tool boundary schema is at
@@ -68,6 +83,7 @@ pub mod canonical_test_discovery_session_and_watch_truth;
 pub mod m5_breakpoint_specs;
 pub mod m5_debug_contracts;
 pub mod m5_debug_session_descriptors;
+pub mod m5_frame_variable_snapshots;
 pub mod qualify_chronology_capture_and_replay_support_classes;
 pub mod symbolication;
 
@@ -104,6 +120,20 @@ pub use m5_debug_session_descriptors::{
     M5_DEBUG_SESSION_DESCRIPTORS_FREEZE_GATE_REF, M5_DEBUG_SESSION_DESCRIPTORS_RECORD_KIND,
     M5_DEBUG_SESSION_DESCRIPTORS_SCHEMA_REF, M5_DEBUG_SESSION_DESCRIPTORS_SCHEMA_VERSION,
     M5_DEBUG_SESSION_DESCRIPTORS_SET_ID,
+};
+
+pub use m5_frame_variable_snapshots::{
+    m5_frame_variable_snapshot_lines, m5_frame_variable_snapshot_set, BuildArtifactIdentity,
+    BuildMatchClass, FrameContinuityClass, FrameMapping, FrameMappingFidelity, FrameMappingPill,
+    FrameMappingProvenance, FrameSourceLocation, FrameVariableSnapshotSet,
+    FrameVariableSnapshotSetValidationError, SnapshotCaptureContext, SnapshotDisclosurePill,
+    SnapshotEntryKind, SnapshotInvariant, TruncationReason, TypeShapeSummary, ValueDisclosure,
+    ValueRedactionClass, ValueShapeClass, ValueSnapshot, ValueTruncation, VariableFreshnessState,
+    VariableScopeClass, VariableUnavailableReason, M5_FRAME_VARIABLE_SNAPSHOTS_ARTIFACT_REF,
+    M5_FRAME_VARIABLE_SNAPSHOTS_AS_OF, M5_FRAME_VARIABLE_SNAPSHOTS_DOC_REF,
+    M5_FRAME_VARIABLE_SNAPSHOTS_FIXTURE_REF, M5_FRAME_VARIABLE_SNAPSHOTS_FREEZE_GATE_REF,
+    M5_FRAME_VARIABLE_SNAPSHOTS_RECORD_KIND, M5_FRAME_VARIABLE_SNAPSHOTS_SCHEMA_REF,
+    M5_FRAME_VARIABLE_SNAPSHOTS_SCHEMA_VERSION, M5_FRAME_VARIABLE_SNAPSHOTS_SET_ID,
 };
 
 pub use symbolication::{
