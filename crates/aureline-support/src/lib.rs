@@ -423,6 +423,7 @@ pub mod m5_maintenance_windows;
 pub mod m5_mutation_lineage;
 pub mod m5_offboarding_continuity;
 pub mod m5_operator_boards;
+pub mod m5_operator_qualification;
 pub mod m5_operator_surfaces;
 pub mod m5_pin_retention;
 pub mod m5_precedence_inspector;
