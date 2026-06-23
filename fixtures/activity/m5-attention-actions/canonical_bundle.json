@@ -1,0 +1,1929 @@
+{
+  "record_kind": "m5_attention_actions_bundle",
+  "m5_attention_actions_schema_version": 1,
+  "schema_ref": "schemas/activity/m5-attention-actions.schema.json",
+  "bundle_id": "m5-attention-actions:bundle:0001",
+  "as_of": "2026-06-23T00:00:00Z",
+  "matrix_ref": "fixtures/activity/m5-attention-routing/canonical_matrix.json",
+  "matrix_id": "m5-attention-routing:matrix:0001",
+  "freeze_gate_ref": "crates/aureline-activity/tests/m5_attention_actions.rs",
+  "summary": "Distinct dismiss, snooze, acknowledge, mute, and resolve semantics for Aureline's durable attention objects: each action carries its own retention, badge, resume, and audit meaning rather than collapsing into one generic close. Every outcome keeps the underlying record, preserves exact reopen continuity through the same authoritative target and stable action target, defers with a resume condition only for snooze and mute, records suppression separately from audit history, propagates the same resulting state across the activity center, badge, OS notification, companions, and operator dashboard, and never replays a side effect. A security advisory can only be acknowledged or resolved, never silenced.",
+  "action_definitions": [
+    {
+      "action": "dismiss",
+      "action_id": "attention_action.dismiss",
+      "label": "Dismiss",
+      "summary": "Clear the item from the active badge while keeping the durable record; the underlying event is neither read-acknowledged nor resolved, and the object stays reopenable.",
+      "resulting_state": "dismissed",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_keep_record",
+      "clears_badge": true,
+      "keeps_underlying_record": true,
+      "requires_resume_condition": false,
+      "resume_condition_kind": "none",
+      "effect_scope": "this_item",
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "reopenable_after": true,
+      "reversible": true,
+      "replays_side_effects": false,
+      "support_export_note": "Dismissed from the active badge; the durable record and its reopen route are unchanged, and no side effect was replayed.",
+      "boundary_note": "Dismiss clears the badge only; it never erases the durable record or reissues the original action."
+    },
+    {
+      "action": "snooze",
+      "action_id": "attention_action.snooze",
+      "label": "Snooze",
+      "summary": "Defer the item with a resume condition; it leaves the active badge now and returns automatically when the condition fires, with the durable record untouched.",
+      "resulting_state": "snoozed",
+      "retention_class": "suppression_state_separate",
+      "badge_effect": "clear_until_resume",
+      "clears_badge": true,
+      "keeps_underlying_record": true,
+      "requires_resume_condition": true,
+      "resume_condition_kind": "timer_or_predicate",
+      "effect_scope": "this_item",
+      "creates_separate_suppression_state": true,
+      "audit_append_only": true,
+      "reopenable_after": true,
+      "reversible": true,
+      "replays_side_effects": false,
+      "support_export_note": "Snoozed until its resume condition; the deferral is recorded separately from audit history, the durable record and reopen route are unchanged, and no side effect was replayed.",
+      "boundary_note": "Snooze always names a resume condition and stores the deferral separately from audit history; it never drops the durable record."
+    },
+    {
+      "action": "acknowledge",
+      "action_id": "attention_action.acknowledge",
+      "label": "Acknowledge",
+      "summary": "Mark the item read and clear the badge; the underlying work stays open and durable until it resolves, and the object stays reopenable.",
+      "resulting_state": "acknowledged",
+      "retention_class": "durable_until_resolved",
+      "badge_effect": "clear_mark_read",
+      "clears_badge": true,
+      "keeps_underlying_record": true,
+      "requires_resume_condition": false,
+      "resume_condition_kind": "none",
+      "effect_scope": "this_item",
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "reopenable_after": true,
+      "reversible": true,
+      "replays_side_effects": false,
+      "support_export_note": "Acknowledged (marked read); the underlying item remains open and durable, the reopen route is unchanged, and no side effect was replayed.",
+      "boundary_note": "Acknowledge marks read without resolving; the underlying work stays open and durable."
+    },
+    {
+      "action": "mute",
+      "action_id": "attention_action.mute",
+      "label": "Mute",
+      "summary": "Suppress this source from the badge and out-of-window fanout until it is unmuted; existing and future events stay durable but do not raise the badge.",
+      "resulting_state": "suppressed",
+      "retention_class": "suppression_state_separate",
+      "badge_effect": "clear_and_suppress_source",
+      "clears_badge": true,
+      "keeps_underlying_record": true,
+      "requires_resume_condition": true,
+      "resume_condition_kind": "until_unmuted",
+      "effect_scope": "this_source",
+      "creates_separate_suppression_state": true,
+      "audit_append_only": true,
+      "reopenable_after": true,
+      "reversible": true,
+      "replays_side_effects": false,
+      "support_export_note": "Muted at source until unmuted; the suppression is recorded separately from audit history, durable records still accrue and stay reopenable, and no side effect was replayed.",
+      "boundary_note": "Mute suppresses the source separately from audit history; muted events still accrue durably and a security advisory can never be muted."
+    },
+    {
+      "action": "resolve",
+      "action_id": "attention_action.resolve",
+      "label": "Resolve",
+      "summary": "Close the item because its underlying object changed or the user marked it done; it leaves the badge and is retained as resolved history, still reopenable.",
+      "resulting_state": "resolved",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_on_resolve",
+      "clears_badge": true,
+      "keeps_underlying_record": true,
+      "requires_resume_condition": false,
+      "resume_condition_kind": "none",
+      "effect_scope": "this_item",
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "reopenable_after": true,
+      "reversible": true,
+      "replays_side_effects": false,
+      "support_export_note": "Resolved on the underlying change; the resolved record is retained in history and stays reopenable, and no side effect was replayed.",
+      "boundary_note": "Resolve closes on the underlying change and retains the resolved record; it is reopenable and never replays a side effect."
+    }
+  ],
+  "items": [
+    {
+      "item_id": "attention_item:task.run_failed:0001",
+      "label": "Task run failed",
+      "object_class": "activity_object",
+      "source_subsystem": "task_runner",
+      "scope": "session",
+      "privacy_class": "workspace_sensitive",
+      "prior_state": "failed",
+      "reopen_target": "activity_job_row",
+      "reopen_anchor_ref": "aureline://object/task.run_failed/0001",
+      "action_target_id": "action_target:task.run_failed",
+      "badge_count_before": 4,
+      "badge_contribution": 1,
+      "fanout_surfaces": [
+        "in_app_activity_center",
+        "dock_taskbar_badge",
+        "os_native_notification",
+        "mobile_companion"
+      ],
+      "supported_actions": [
+        "dismiss",
+        "snooze",
+        "acknowledge",
+        "resolve"
+      ],
+      "created_at": "2026-06-23T00:00:00Z"
+    },
+    {
+      "item_id": "attention_item:ai.awaiting_approval:0001",
+      "label": "AI change awaiting approval",
+      "object_class": "notification_envelope",
+      "source_subsystem": "ai",
+      "scope": "session",
+      "privacy_class": "workspace_sensitive",
+      "prior_state": "shown",
+      "reopen_target": "review_request",
+      "reopen_anchor_ref": "aureline://object/ai.awaiting_approval/0001",
+      "action_target_id": "action_target:ai.awaiting_approval",
+      "badge_count_before": 5,
+      "badge_contribution": 1,
+      "fanout_surfaces": [
+        "in_app_activity_center",
+        "dock_taskbar_badge",
+        "os_native_notification",
+        "browser_companion",
+        "mobile_companion"
+      ],
+      "supported_actions": [
+        "snooze",
+        "acknowledge",
+        "mute",
+        "resolve"
+      ],
+      "created_at": "2026-06-23T00:00:00Z"
+    },
+    {
+      "item_id": "attention_item:collab.review_requested:0001",
+      "label": "Collaboration review requested",
+      "object_class": "notification_envelope",
+      "source_subsystem": "collaboration",
+      "scope": "collaboration",
+      "privacy_class": "workspace_sensitive",
+      "prior_state": "shown",
+      "reopen_target": "review_request",
+      "reopen_anchor_ref": "aureline://object/collab.review_requested/0001",
+      "action_target_id": "action_target:collab.review_requested",
+      "badge_count_before": 6,
+      "badge_contribution": 1,
+      "fanout_surfaces": [
+        "in_app_activity_center",
+        "dock_taskbar_badge",
+        "os_native_notification",
+        "browser_companion",
+        "mobile_companion"
+      ],
+      "supported_actions": [
+        "dismiss",
+        "snooze",
+        "acknowledge",
+        "mute",
+        "resolve"
+      ],
+      "created_at": "2026-06-23T00:00:00Z"
+    },
+    {
+      "item_id": "attention_item:incident.thread_opened:0001",
+      "label": "Incident thread opened",
+      "object_class": "notification_envelope",
+      "source_subsystem": "incident",
+      "scope": "workspace",
+      "privacy_class": "security_critical",
+      "prior_state": "shown",
+      "reopen_target": "incident_thread",
+      "reopen_anchor_ref": "aureline://object/incident.thread_opened/0001",
+      "action_target_id": "action_target:incident.thread_opened",
+      "badge_count_before": 3,
+      "badge_contribution": 1,
+      "fanout_surfaces": [
+        "in_app_activity_center",
+        "dock_taskbar_badge",
+        "os_native_notification",
+        "mobile_companion",
+        "operator_dashboard"
+      ],
+      "supported_actions": [
+        "snooze",
+        "acknowledge",
+        "resolve"
+      ],
+      "created_at": "2026-06-23T00:00:00Z"
+    },
+    {
+      "item_id": "attention_item:managed.policy_changed:0001",
+      "label": "Managed policy changed",
+      "object_class": "routing_context",
+      "source_subsystem": "managed_policy",
+      "scope": "tenant_org",
+      "privacy_class": "managed_sensitive",
+      "prior_state": "shown",
+      "reopen_target": "policy_diff",
+      "reopen_anchor_ref": "aureline://object/managed.policy_changed/0001",
+      "action_target_id": "action_target:managed.policy_changed",
+      "badge_count_before": 2,
+      "badge_contribution": 1,
+      "fanout_surfaces": [
+        "in_app_activity_center",
+        "dock_taskbar_badge",
+        "operator_dashboard"
+      ],
+      "supported_actions": [
+        "acknowledge",
+        "resolve"
+      ],
+      "created_at": "2026-06-23T00:00:00Z"
+    },
+    {
+      "item_id": "attention_item:security.credential_revoked:0001",
+      "label": "Security credential revoked",
+      "object_class": "notification_envelope",
+      "source_subsystem": "security",
+      "scope": "app_global",
+      "privacy_class": "security_critical",
+      "prior_state": "shown",
+      "reopen_target": "audit_event",
+      "reopen_anchor_ref": "aureline://object/security.credential_revoked/0001",
+      "action_target_id": "action_target:security.credential_revoked",
+      "badge_count_before": 4,
+      "badge_contribution": 1,
+      "fanout_surfaces": [
+        "in_app_activity_center",
+        "dock_taskbar_badge",
+        "os_native_notification",
+        "mobile_companion",
+        "operator_dashboard"
+      ],
+      "supported_actions": [
+        "acknowledge",
+        "resolve"
+      ],
+      "created_at": "2026-06-23T00:00:00Z"
+    },
+    {
+      "item_id": "attention_item:shell.command_result:0001",
+      "label": "Shell command result",
+      "object_class": "notification_envelope",
+      "source_subsystem": "shell",
+      "scope": "window",
+      "privacy_class": "summary_safe",
+      "prior_state": "shown",
+      "reopen_target": "route_object",
+      "reopen_anchor_ref": "aureline://object/shell.command_result/0001",
+      "action_target_id": "action_target:shell.command_result",
+      "badge_count_before": 1,
+      "badge_contribution": 1,
+      "fanout_surfaces": [
+        "in_app_activity_center",
+        "dock_taskbar_badge"
+      ],
+      "supported_actions": [
+        "dismiss",
+        "acknowledge"
+      ],
+      "created_at": "2026-06-23T00:00:00Z"
+    },
+    {
+      "item_id": "attention_item:support.export_ready:0001",
+      "label": "Support export ready",
+      "object_class": "notification_envelope",
+      "source_subsystem": "support",
+      "scope": "app_global",
+      "privacy_class": "summary_safe",
+      "prior_state": "completed",
+      "reopen_target": "evidence_packet",
+      "reopen_anchor_ref": "aureline://object/support.export_ready/0001",
+      "action_target_id": "action_target:support.export_ready",
+      "badge_count_before": 3,
+      "badge_contribution": 1,
+      "fanout_surfaces": [
+        "in_app_activity_center",
+        "dock_taskbar_badge",
+        "os_native_notification"
+      ],
+      "supported_actions": [
+        "dismiss",
+        "snooze",
+        "acknowledge",
+        "resolve"
+      ],
+      "created_at": "2026-06-23T00:00:00Z"
+    }
+  ],
+  "outcomes": [
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:task.run_failed:0001:dismiss",
+      "item_id": "attention_item:task.run_failed:0001",
+      "action": "dismiss",
+      "prior_state": "failed",
+      "resulting_state": "dismissed",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_keep_record",
+      "badge_count_before": 4,
+      "badge_count_after": 3,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "activity_job_row",
+      "reopen_anchor_ref": "aureline://object/task.run_failed/0001",
+      "action_target_id": "action_target:task.run_failed",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Dismissed from the active badge; the durable record and its reopen route are unchanged, and no side effect was replayed.",
+      "reason": "Dismiss on 'Task run failed' transitions it failed → dismissed under durable_until_archived retention; the badge clears (4 → 3), the underlying record is kept, and the reopen route to the activity_job_row is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:task.run_failed:0001:snooze",
+      "item_id": "attention_item:task.run_failed:0001",
+      "action": "snooze",
+      "prior_state": "failed",
+      "resulting_state": "snoozed",
+      "retention_class": "suppression_state_separate",
+      "badge_effect": "clear_until_resume",
+      "badge_count_before": 4,
+      "badge_count_after": 3,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": true,
+      "audit_append_only": true,
+      "resume_condition": "Returns to the active badge automatically when the snooze timer expires or its named predicate fires.",
+      "reopen_target": "activity_job_row",
+      "reopen_anchor_ref": "aureline://object/task.run_failed/0001",
+      "action_target_id": "action_target:task.run_failed",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Snoozed until its resume condition; the deferral is recorded separately from audit history, the durable record and reopen route are unchanged, and no side effect was replayed.",
+      "reason": "Snooze on 'Task run failed' transitions it failed → snoozed under suppression_state_separate retention; the badge clears (4 → 3), the underlying record is kept, and the reopen route to the activity_job_row is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:task.run_failed:0001:acknowledge",
+      "item_id": "attention_item:task.run_failed:0001",
+      "action": "acknowledge",
+      "prior_state": "failed",
+      "resulting_state": "acknowledged",
+      "retention_class": "durable_until_resolved",
+      "badge_effect": "clear_mark_read",
+      "badge_count_before": 4,
+      "badge_count_after": 3,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "activity_job_row",
+      "reopen_anchor_ref": "aureline://object/task.run_failed/0001",
+      "action_target_id": "action_target:task.run_failed",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Acknowledged (marked read); the underlying item remains open and durable, the reopen route is unchanged, and no side effect was replayed.",
+      "reason": "Acknowledge on 'Task run failed' transitions it failed → acknowledged under durable_until_resolved retention; the badge clears (4 → 3), the underlying record is kept, and the reopen route to the activity_job_row is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:task.run_failed:0001:resolve",
+      "item_id": "attention_item:task.run_failed:0001",
+      "action": "resolve",
+      "prior_state": "failed",
+      "resulting_state": "resolved",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_on_resolve",
+      "badge_count_before": 4,
+      "badge_count_after": 3,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "activity_job_row",
+      "reopen_anchor_ref": "aureline://object/task.run_failed/0001",
+      "action_target_id": "action_target:task.run_failed",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:task.run_failed",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Resolved on the underlying change; the resolved record is retained in history and stays reopenable, and no side effect was replayed.",
+      "reason": "Resolve on 'Task run failed' transitions it failed → resolved under durable_until_archived retention; the badge clears (4 → 3), the underlying record is kept, and the reopen route to the activity_job_row is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:ai.awaiting_approval:0001:snooze",
+      "item_id": "attention_item:ai.awaiting_approval:0001",
+      "action": "snooze",
+      "prior_state": "shown",
+      "resulting_state": "snoozed",
+      "retention_class": "suppression_state_separate",
+      "badge_effect": "clear_until_resume",
+      "badge_count_before": 5,
+      "badge_count_after": 4,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": true,
+      "audit_append_only": true,
+      "resume_condition": "Returns to the active badge automatically when the snooze timer expires or its named predicate fires.",
+      "reopen_target": "review_request",
+      "reopen_anchor_ref": "aureline://object/ai.awaiting_approval/0001",
+      "action_target_id": "action_target:ai.awaiting_approval",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "browser_companion",
+          "surface_id": "attention_channel.browser_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Snoozed until its resume condition; the deferral is recorded separately from audit history, the durable record and reopen route are unchanged, and no side effect was replayed.",
+      "reason": "Snooze on 'AI change awaiting approval' transitions it shown → snoozed under suppression_state_separate retention; the badge clears (5 → 4), the underlying record is kept, and the reopen route to the review_request is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:ai.awaiting_approval:0001:acknowledge",
+      "item_id": "attention_item:ai.awaiting_approval:0001",
+      "action": "acknowledge",
+      "prior_state": "shown",
+      "resulting_state": "acknowledged",
+      "retention_class": "durable_until_resolved",
+      "badge_effect": "clear_mark_read",
+      "badge_count_before": 5,
+      "badge_count_after": 4,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "review_request",
+      "reopen_anchor_ref": "aureline://object/ai.awaiting_approval/0001",
+      "action_target_id": "action_target:ai.awaiting_approval",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "browser_companion",
+          "surface_id": "attention_channel.browser_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Acknowledged (marked read); the underlying item remains open and durable, the reopen route is unchanged, and no side effect was replayed.",
+      "reason": "Acknowledge on 'AI change awaiting approval' transitions it shown → acknowledged under durable_until_resolved retention; the badge clears (5 → 4), the underlying record is kept, and the reopen route to the review_request is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:ai.awaiting_approval:0001:mute",
+      "item_id": "attention_item:ai.awaiting_approval:0001",
+      "action": "mute",
+      "prior_state": "shown",
+      "resulting_state": "suppressed",
+      "retention_class": "suppression_state_separate",
+      "badge_effect": "clear_and_suppress_source",
+      "badge_count_before": 5,
+      "badge_count_after": 4,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": true,
+      "audit_append_only": true,
+      "resume_condition": "Stays suppressed until the source is explicitly unmuted.",
+      "reopen_target": "review_request",
+      "reopen_anchor_ref": "aureline://object/ai.awaiting_approval/0001",
+      "action_target_id": "action_target:ai.awaiting_approval",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "browser_companion",
+          "surface_id": "attention_channel.browser_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Muted at source until unmuted; the suppression is recorded separately from audit history, durable records still accrue and stay reopenable, and no side effect was replayed.",
+      "reason": "Mute on 'AI change awaiting approval' transitions it shown → suppressed under suppression_state_separate retention; the badge clears (5 → 4), the underlying record is kept, and the reopen route to the review_request is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:ai.awaiting_approval:0001:resolve",
+      "item_id": "attention_item:ai.awaiting_approval:0001",
+      "action": "resolve",
+      "prior_state": "shown",
+      "resulting_state": "resolved",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_on_resolve",
+      "badge_count_before": 5,
+      "badge_count_after": 4,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "review_request",
+      "reopen_anchor_ref": "aureline://object/ai.awaiting_approval/0001",
+      "action_target_id": "action_target:ai.awaiting_approval",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "browser_companion",
+          "surface_id": "attention_channel.browser_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:ai.awaiting_approval",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Resolved on the underlying change; the resolved record is retained in history and stays reopenable, and no side effect was replayed.",
+      "reason": "Resolve on 'AI change awaiting approval' transitions it shown → resolved under durable_until_archived retention; the badge clears (5 → 4), the underlying record is kept, and the reopen route to the review_request is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:collab.review_requested:0001:dismiss",
+      "item_id": "attention_item:collab.review_requested:0001",
+      "action": "dismiss",
+      "prior_state": "shown",
+      "resulting_state": "dismissed",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_keep_record",
+      "badge_count_before": 6,
+      "badge_count_after": 5,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "review_request",
+      "reopen_anchor_ref": "aureline://object/collab.review_requested/0001",
+      "action_target_id": "action_target:collab.review_requested",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "browser_companion",
+          "surface_id": "attention_channel.browser_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Dismissed from the active badge; the durable record and its reopen route are unchanged, and no side effect was replayed.",
+      "reason": "Dismiss on 'Collaboration review requested' transitions it shown → dismissed under durable_until_archived retention; the badge clears (6 → 5), the underlying record is kept, and the reopen route to the review_request is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:collab.review_requested:0001:snooze",
+      "item_id": "attention_item:collab.review_requested:0001",
+      "action": "snooze",
+      "prior_state": "shown",
+      "resulting_state": "snoozed",
+      "retention_class": "suppression_state_separate",
+      "badge_effect": "clear_until_resume",
+      "badge_count_before": 6,
+      "badge_count_after": 5,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": true,
+      "audit_append_only": true,
+      "resume_condition": "Returns to the active badge automatically when the snooze timer expires or its named predicate fires.",
+      "reopen_target": "review_request",
+      "reopen_anchor_ref": "aureline://object/collab.review_requested/0001",
+      "action_target_id": "action_target:collab.review_requested",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "browser_companion",
+          "surface_id": "attention_channel.browser_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Snoozed until its resume condition; the deferral is recorded separately from audit history, the durable record and reopen route are unchanged, and no side effect was replayed.",
+      "reason": "Snooze on 'Collaboration review requested' transitions it shown → snoozed under suppression_state_separate retention; the badge clears (6 → 5), the underlying record is kept, and the reopen route to the review_request is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:collab.review_requested:0001:acknowledge",
+      "item_id": "attention_item:collab.review_requested:0001",
+      "action": "acknowledge",
+      "prior_state": "shown",
+      "resulting_state": "acknowledged",
+      "retention_class": "durable_until_resolved",
+      "badge_effect": "clear_mark_read",
+      "badge_count_before": 6,
+      "badge_count_after": 5,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "review_request",
+      "reopen_anchor_ref": "aureline://object/collab.review_requested/0001",
+      "action_target_id": "action_target:collab.review_requested",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "browser_companion",
+          "surface_id": "attention_channel.browser_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Acknowledged (marked read); the underlying item remains open and durable, the reopen route is unchanged, and no side effect was replayed.",
+      "reason": "Acknowledge on 'Collaboration review requested' transitions it shown → acknowledged under durable_until_resolved retention; the badge clears (6 → 5), the underlying record is kept, and the reopen route to the review_request is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:collab.review_requested:0001:mute",
+      "item_id": "attention_item:collab.review_requested:0001",
+      "action": "mute",
+      "prior_state": "shown",
+      "resulting_state": "suppressed",
+      "retention_class": "suppression_state_separate",
+      "badge_effect": "clear_and_suppress_source",
+      "badge_count_before": 6,
+      "badge_count_after": 5,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": true,
+      "audit_append_only": true,
+      "resume_condition": "Stays suppressed until the source is explicitly unmuted.",
+      "reopen_target": "review_request",
+      "reopen_anchor_ref": "aureline://object/collab.review_requested/0001",
+      "action_target_id": "action_target:collab.review_requested",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "browser_companion",
+          "surface_id": "attention_channel.browser_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Muted at source until unmuted; the suppression is recorded separately from audit history, durable records still accrue and stay reopenable, and no side effect was replayed.",
+      "reason": "Mute on 'Collaboration review requested' transitions it shown → suppressed under suppression_state_separate retention; the badge clears (6 → 5), the underlying record is kept, and the reopen route to the review_request is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:collab.review_requested:0001:resolve",
+      "item_id": "attention_item:collab.review_requested:0001",
+      "action": "resolve",
+      "prior_state": "shown",
+      "resulting_state": "resolved",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_on_resolve",
+      "badge_count_before": 6,
+      "badge_count_after": 5,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "review_request",
+      "reopen_anchor_ref": "aureline://object/collab.review_requested/0001",
+      "action_target_id": "action_target:collab.review_requested",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "browser_companion",
+          "surface_id": "attention_channel.browser_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:collab.review_requested",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Resolved on the underlying change; the resolved record is retained in history and stays reopenable, and no side effect was replayed.",
+      "reason": "Resolve on 'Collaboration review requested' transitions it shown → resolved under durable_until_archived retention; the badge clears (6 → 5), the underlying record is kept, and the reopen route to the review_request is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:incident.thread_opened:0001:snooze",
+      "item_id": "attention_item:incident.thread_opened:0001",
+      "action": "snooze",
+      "prior_state": "shown",
+      "resulting_state": "snoozed",
+      "retention_class": "suppression_state_separate",
+      "badge_effect": "clear_until_resume",
+      "badge_count_before": 3,
+      "badge_count_after": 2,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": true,
+      "audit_append_only": true,
+      "resume_condition": "Returns to the active badge automatically when the snooze timer expires or its named predicate fires.",
+      "reopen_target": "incident_thread",
+      "reopen_anchor_ref": "aureline://object/incident.thread_opened/0001",
+      "action_target_id": "action_target:incident.thread_opened",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "operator_dashboard",
+          "surface_id": "attention_channel.operator_dashboard",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Snoozed until its resume condition; the deferral is recorded separately from audit history, the durable record and reopen route are unchanged, and no side effect was replayed.",
+      "reason": "Snooze on 'Incident thread opened' transitions it shown → snoozed under suppression_state_separate retention; the badge clears (3 → 2), the underlying record is kept, and the reopen route to the incident_thread is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:incident.thread_opened:0001:acknowledge",
+      "item_id": "attention_item:incident.thread_opened:0001",
+      "action": "acknowledge",
+      "prior_state": "shown",
+      "resulting_state": "acknowledged",
+      "retention_class": "durable_until_resolved",
+      "badge_effect": "clear_mark_read",
+      "badge_count_before": 3,
+      "badge_count_after": 2,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "incident_thread",
+      "reopen_anchor_ref": "aureline://object/incident.thread_opened/0001",
+      "action_target_id": "action_target:incident.thread_opened",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "operator_dashboard",
+          "surface_id": "attention_channel.operator_dashboard",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Acknowledged (marked read); the underlying item remains open and durable, the reopen route is unchanged, and no side effect was replayed.",
+      "reason": "Acknowledge on 'Incident thread opened' transitions it shown → acknowledged under durable_until_resolved retention; the badge clears (3 → 2), the underlying record is kept, and the reopen route to the incident_thread is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:incident.thread_opened:0001:resolve",
+      "item_id": "attention_item:incident.thread_opened:0001",
+      "action": "resolve",
+      "prior_state": "shown",
+      "resulting_state": "resolved",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_on_resolve",
+      "badge_count_before": 3,
+      "badge_count_after": 2,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "incident_thread",
+      "reopen_anchor_ref": "aureline://object/incident.thread_opened/0001",
+      "action_target_id": "action_target:incident.thread_opened",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "operator_dashboard",
+          "surface_id": "attention_channel.operator_dashboard",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:incident.thread_opened",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Resolved on the underlying change; the resolved record is retained in history and stays reopenable, and no side effect was replayed.",
+      "reason": "Resolve on 'Incident thread opened' transitions it shown → resolved under durable_until_archived retention; the badge clears (3 → 2), the underlying record is kept, and the reopen route to the incident_thread is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:managed.policy_changed:0001:acknowledge",
+      "item_id": "attention_item:managed.policy_changed:0001",
+      "action": "acknowledge",
+      "prior_state": "shown",
+      "resulting_state": "acknowledged",
+      "retention_class": "durable_until_resolved",
+      "badge_effect": "clear_mark_read",
+      "badge_count_before": 2,
+      "badge_count_after": 1,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "policy_diff",
+      "reopen_anchor_ref": "aureline://object/managed.policy_changed/0001",
+      "action_target_id": "action_target:managed.policy_changed",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:managed.policy_changed",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:managed.policy_changed",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "operator_dashboard",
+          "surface_id": "attention_channel.operator_dashboard",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:managed.policy_changed",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Acknowledged (marked read); the underlying item remains open and durable, the reopen route is unchanged, and no side effect was replayed.",
+      "reason": "Acknowledge on 'Managed policy changed' transitions it shown → acknowledged under durable_until_resolved retention; the badge clears (2 → 1), the underlying record is kept, and the reopen route to the policy_diff is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:managed.policy_changed:0001:resolve",
+      "item_id": "attention_item:managed.policy_changed:0001",
+      "action": "resolve",
+      "prior_state": "shown",
+      "resulting_state": "resolved",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_on_resolve",
+      "badge_count_before": 2,
+      "badge_count_after": 1,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "policy_diff",
+      "reopen_anchor_ref": "aureline://object/managed.policy_changed/0001",
+      "action_target_id": "action_target:managed.policy_changed",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:managed.policy_changed",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:managed.policy_changed",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "operator_dashboard",
+          "surface_id": "attention_channel.operator_dashboard",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:managed.policy_changed",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Resolved on the underlying change; the resolved record is retained in history and stays reopenable, and no side effect was replayed.",
+      "reason": "Resolve on 'Managed policy changed' transitions it shown → resolved under durable_until_archived retention; the badge clears (2 → 1), the underlying record is kept, and the reopen route to the policy_diff is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:security.credential_revoked:0001:acknowledge",
+      "item_id": "attention_item:security.credential_revoked:0001",
+      "action": "acknowledge",
+      "prior_state": "shown",
+      "resulting_state": "acknowledged",
+      "retention_class": "durable_until_resolved",
+      "badge_effect": "clear_mark_read",
+      "badge_count_before": 4,
+      "badge_count_after": 3,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "audit_event",
+      "reopen_anchor_ref": "aureline://object/security.credential_revoked/0001",
+      "action_target_id": "action_target:security.credential_revoked",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:security.credential_revoked",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:security.credential_revoked",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:security.credential_revoked",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:security.credential_revoked",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "operator_dashboard",
+          "surface_id": "attention_channel.operator_dashboard",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:security.credential_revoked",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Acknowledged (marked read); the underlying item remains open and durable, the reopen route is unchanged, and no side effect was replayed.",
+      "reason": "Acknowledge on 'Security credential revoked' transitions it shown → acknowledged under durable_until_resolved retention; the badge clears (4 → 3), the underlying record is kept, and the reopen route to the audit_event is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:security.credential_revoked:0001:resolve",
+      "item_id": "attention_item:security.credential_revoked:0001",
+      "action": "resolve",
+      "prior_state": "shown",
+      "resulting_state": "resolved",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_on_resolve",
+      "badge_count_before": 4,
+      "badge_count_after": 3,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "audit_event",
+      "reopen_anchor_ref": "aureline://object/security.credential_revoked/0001",
+      "action_target_id": "action_target:security.credential_revoked",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:security.credential_revoked",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:security.credential_revoked",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:security.credential_revoked",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        },
+        {
+          "surface": "mobile_companion",
+          "surface_id": "attention_channel.mobile_companion",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:security.credential_revoked",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        },
+        {
+          "surface": "operator_dashboard",
+          "surface_id": "attention_channel.operator_dashboard",
+          "propagation": "reflect_state_no_replay",
+          "reflects_action_target_id": "action_target:security.credential_revoked",
+          "replays_side_effect": false,
+          "note": "The companion or operator mirror reflects the new state from the same action target and never re-executes the action."
+        }
+      ],
+      "support_export_note": "Resolved on the underlying change; the resolved record is retained in history and stays reopenable, and no side effect was replayed.",
+      "reason": "Resolve on 'Security credential revoked' transitions it shown → resolved under durable_until_archived retention; the badge clears (4 → 3), the underlying record is kept, and the reopen route to the audit_event is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:shell.command_result:0001:dismiss",
+      "item_id": "attention_item:shell.command_result:0001",
+      "action": "dismiss",
+      "prior_state": "shown",
+      "resulting_state": "dismissed",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_keep_record",
+      "badge_count_before": 1,
+      "badge_count_after": 0,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "route_object",
+      "reopen_anchor_ref": "aureline://object/shell.command_result/0001",
+      "action_target_id": "action_target:shell.command_result",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:shell.command_result",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:shell.command_result",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        }
+      ],
+      "support_export_note": "Dismissed from the active badge; the durable record and its reopen route are unchanged, and no side effect was replayed.",
+      "reason": "Dismiss on 'Shell command result' transitions it shown → dismissed under durable_until_archived retention; the badge clears (1 → 0), the underlying record is kept, and the reopen route to the route_object is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:shell.command_result:0001:acknowledge",
+      "item_id": "attention_item:shell.command_result:0001",
+      "action": "acknowledge",
+      "prior_state": "shown",
+      "resulting_state": "acknowledged",
+      "retention_class": "durable_until_resolved",
+      "badge_effect": "clear_mark_read",
+      "badge_count_before": 1,
+      "badge_count_after": 0,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "route_object",
+      "reopen_anchor_ref": "aureline://object/shell.command_result/0001",
+      "action_target_id": "action_target:shell.command_result",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:shell.command_result",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:shell.command_result",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        }
+      ],
+      "support_export_note": "Acknowledged (marked read); the underlying item remains open and durable, the reopen route is unchanged, and no side effect was replayed.",
+      "reason": "Acknowledge on 'Shell command result' transitions it shown → acknowledged under durable_until_resolved retention; the badge clears (1 → 0), the underlying record is kept, and the reopen route to the route_object is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:support.export_ready:0001:dismiss",
+      "item_id": "attention_item:support.export_ready:0001",
+      "action": "dismiss",
+      "prior_state": "completed",
+      "resulting_state": "dismissed",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_keep_record",
+      "badge_count_before": 3,
+      "badge_count_after": 2,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "evidence_packet",
+      "reopen_anchor_ref": "aureline://object/support.export_ready/0001",
+      "action_target_id": "action_target:support.export_ready",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:support.export_ready",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:support.export_ready",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:support.export_ready",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        }
+      ],
+      "support_export_note": "Dismissed from the active badge; the durable record and its reopen route are unchanged, and no side effect was replayed.",
+      "reason": "Dismiss on 'Support export ready' transitions it completed → dismissed under durable_until_archived retention; the badge clears (3 → 2), the underlying record is kept, and the reopen route to the evidence_packet is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:support.export_ready:0001:snooze",
+      "item_id": "attention_item:support.export_ready:0001",
+      "action": "snooze",
+      "prior_state": "completed",
+      "resulting_state": "snoozed",
+      "retention_class": "suppression_state_separate",
+      "badge_effect": "clear_until_resume",
+      "badge_count_before": 3,
+      "badge_count_after": 2,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": true,
+      "audit_append_only": true,
+      "resume_condition": "Returns to the active badge automatically when the snooze timer expires or its named predicate fires.",
+      "reopen_target": "evidence_packet",
+      "reopen_anchor_ref": "aureline://object/support.export_ready/0001",
+      "action_target_id": "action_target:support.export_ready",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:support.export_ready",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:support.export_ready",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:support.export_ready",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        }
+      ],
+      "support_export_note": "Snoozed until its resume condition; the deferral is recorded separately from audit history, the durable record and reopen route are unchanged, and no side effect was replayed.",
+      "reason": "Snooze on 'Support export ready' transitions it completed → snoozed under suppression_state_separate retention; the badge clears (3 → 2), the underlying record is kept, and the reopen route to the evidence_packet is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:support.export_ready:0001:acknowledge",
+      "item_id": "attention_item:support.export_ready:0001",
+      "action": "acknowledge",
+      "prior_state": "completed",
+      "resulting_state": "acknowledged",
+      "retention_class": "durable_until_resolved",
+      "badge_effect": "clear_mark_read",
+      "badge_count_before": 3,
+      "badge_count_after": 2,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "evidence_packet",
+      "reopen_anchor_ref": "aureline://object/support.export_ready/0001",
+      "action_target_id": "action_target:support.export_ready",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:support.export_ready",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:support.export_ready",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:support.export_ready",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        }
+      ],
+      "support_export_note": "Acknowledged (marked read); the underlying item remains open and durable, the reopen route is unchanged, and no side effect was replayed.",
+      "reason": "Acknowledge on 'Support export ready' transitions it completed → acknowledged under durable_until_resolved retention; the badge clears (3 → 2), the underlying record is kept, and the reopen route to the evidence_packet is preserved without replaying a side effect."
+    },
+    {
+      "outcome_id": "m5-attention-actions:outcome:attention_item:support.export_ready:0001:resolve",
+      "item_id": "attention_item:support.export_ready:0001",
+      "action": "resolve",
+      "prior_state": "completed",
+      "resulting_state": "resolved",
+      "retention_class": "durable_until_archived",
+      "badge_effect": "clear_on_resolve",
+      "badge_count_before": 3,
+      "badge_count_after": 2,
+      "badge_delta": -1,
+      "keeps_underlying_record": true,
+      "creates_separate_suppression_state": false,
+      "audit_append_only": true,
+      "resume_condition": null,
+      "reopen_target": "evidence_packet",
+      "reopen_anchor_ref": "aureline://object/support.export_ready/0001",
+      "action_target_id": "action_target:support.export_ready",
+      "reopen_continuity_preserved": true,
+      "replays_side_effects": false,
+      "surface_propagation": [
+        {
+          "surface": "in_app_activity_center",
+          "surface_id": "attention_channel.in_app_activity_center",
+          "propagation": "apply_authoritative",
+          "reflects_action_target_id": "action_target:support.export_ready",
+          "replays_side_effect": false,
+          "note": "The in-app activity center applies the action to the durable record and transitions state without reissuing the original notification."
+        },
+        {
+          "surface": "dock_taskbar_badge",
+          "surface_id": "attention_channel.dock_taskbar_badge",
+          "propagation": "clear_count",
+          "reflects_action_target_id": "action_target:support.export_ready",
+          "replays_side_effect": false,
+          "note": "The dock/taskbar badge drops this item's contribution from the deduped count."
+        },
+        {
+          "surface": "os_native_notification",
+          "surface_id": "attention_channel.os_native_notification",
+          "propagation": "withdraw_no_replay",
+          "reflects_action_target_id": "action_target:support.export_ready",
+          "replays_side_effect": false,
+          "note": "The OS notification is withdrawn without replaying any side effect; reopening lands on the in-product record."
+        }
+      ],
+      "support_export_note": "Resolved on the underlying change; the resolved record is retained in history and stays reopenable, and no side effect was replayed.",
+      "reason": "Resolve on 'Support export ready' transitions it completed → resolved under durable_until_archived retention; the badge clears (3 → 2), the underlying record is kept, and the reopen route to the evidence_packet is preserved without replaying a side effect."
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "action.five_distinct_actions",
+      "statement": "All five actions — dismiss, snooze, acknowledge, mute, and resolve — are defined, each with a distinct resulting lifecycle state, so they are never collapsed into one generic close.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.badge_effects_distinct",
+      "statement": "Each action carries a distinct badge effect — clear-keep-record, clear-mark-read, clear-until-resume, clear-and-suppress-source, and clear-on-resolve — so dismiss, snooze, acknowledge, mute, and resolve never share one badge behavior.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.semantics_distinct",
+      "statement": "The (resulting state, badge effect, resume kind, effect scope) signature is unique per action, so each action's retention and badge meaning is distinct.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.keeps_underlying_record",
+      "statement": "Every action clears the badge but keeps the underlying durable record, so no action erases the authoritative object.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.exact_reopen_continuity",
+      "statement": "Every outcome reopens the same authoritative target through the same anchor and the same stable action target as its source item, so exact reopen continuity survives every action.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.no_side_effect_replay",
+      "statement": "No action and no surface propagation replays the original side effect; acting reopens or reflects the authoritative object rather than reissuing it.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.surface_parity",
+      "statement": "Every outcome propagates to the in-app activity center and the badge, the activity center applies the action authoritatively, and every surface reflects the same stable action target, so OS notification, in-app rows, companions, and operator surfaces share one action model rather than inventing local variants.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.suppression_separate_from_audit",
+      "statement": "Snooze and mute record their deferral separately from audit history, no other action does, and every action is audit-append-only and never overwrites history.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.resume_condition_present_iff_required",
+      "statement": "Snooze and mute carry a resume condition; dismiss, acknowledge, and resolve do not — a resume condition is present exactly when the action defers.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.badge_clears_never_negative",
+      "statement": "Every outcome's badge count after the action equals the count before minus the item's contribution, never below zero and never above the count before, so an action clears the badge and never inflates it.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.support_export_explains_without_replay",
+      "statement": "Every outcome carries a non-empty support-export note and replays no side effect, so a support export can explain what happened without reissuing it.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.security_not_silenceable",
+      "statement": "A security-advisory item is never dismissed, snoozed, or muted; it can only be acknowledged or resolved.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.all_actions_exercised",
+      "statement": "Every action appears in at least one outcome, and the corpus exercises more than one attention object family.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.outcomes_reproducible",
+      "statement": "Re-applying every outcome's action to its item yields an identical outcome, so an applied action is reproducible in support export and diagnostics.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.matrix_bound",
+      "statement": "Every action token, resulting state, retention class, and item reopen target is one the attention-routing matrix defines, and the action/retention-semantics object can show every resulting state, so the action semantics never drift from the frozen object model.",
+      "holds": true
+    },
+    {
+      "invariant_id": "action.support_export_safe",
+      "statement": "Every item reopen anchor and every outcome reopen anchor is a repo-relative object ref or opaque aureline:// handle, never a URL, host, credential, or absolute path.",
+      "holds": true
+    }
+  ],
+  "raw_payload_excluded": true
+}

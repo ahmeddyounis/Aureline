@@ -1,0 +1,364 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/activity/m5-attention-actions.schema.json",
+  "title": "Aureline M5 attention-actions bundle",
+  "description": "Boundary schema for the M5 attention-actions bundle: the working engine that applies the distinct dismiss, snooze, acknowledge, mute, and resolve actions to a durable attention object and computes what each one means. The bundle freezes the five action definitions (each with its own resulting lifecycle state, retention class, badge effect, resume kind, and effect scope, never collapsed into one generic close), a representative corpus of durable attention items (each carrying a stable identity, reopen route, badge contribution, fanout surfaces, and the actions it supports), and every applied outcome (one per item per supported action, with the badge delta, resume condition, per-surface propagation, and a support-export sentence). Every action keeps the underlying durable record, preserves exact reopen continuity through the same authoritative target and stable action target, defers with a resume condition only for snooze and mute, records suppression separately from audit history, propagates the same resulting state across the activity center, badge, OS notification, companions, and operator dashboard, and never replays a side effect; a security advisory can only be acknowledged or resolved. Every action token, resulting state, retention class, and reopen target binds back to the attention-routing matrix. No message bodies, credentials, raw provider payloads, hostnames, or absolute paths cross this boundary; the record carries opaque object refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_attention_actions_schema_version",
+    "schema_ref",
+    "bundle_id",
+    "as_of",
+    "matrix_ref",
+    "matrix_id",
+    "freeze_gate_ref",
+    "summary",
+    "action_definitions",
+    "items",
+    "outcomes",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_attention_actions_bundle" },
+    "m5_attention_actions_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/activity/m5-attention-actions.schema.json" },
+    "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "matrix_ref": { "$ref": "#/$defs/repo_ref" },
+    "matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "action_definitions": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/action_definition" }
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/attention_item" }
+    },
+    "outcomes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/attention_action_outcome" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/bundle_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "action": {
+      "enum": ["dismiss", "snooze", "acknowledge", "mute", "resolve"]
+    },
+    "lifecycle_state": {
+      "enum": [
+        "pending",
+        "routed",
+        "shown",
+        "acknowledged",
+        "snoozed",
+        "quiet_hours_deferred",
+        "suppressed",
+        "running",
+        "queued_waiting",
+        "partially_completed",
+        "failed",
+        "completed",
+        "resolved",
+        "dismissed",
+        "archived",
+        "fanout_stale",
+        "fanout_undelivered",
+        "unknown_requires_review"
+      ]
+    },
+    "retention_class": {
+      "enum": [
+        "durable_until_resolved",
+        "durable_until_archived",
+        "policy_expiry",
+        "ephemeral_toast",
+        "suppression_state_separate"
+      ]
+    },
+    "badge_effect": {
+      "enum": [
+        "clear_keep_record",
+        "clear_mark_read",
+        "clear_until_resume",
+        "clear_and_suppress_source",
+        "clear_on_resolve"
+      ]
+    },
+    "resume_condition_kind": {
+      "enum": ["none", "timer_or_predicate", "until_unmuted"]
+    },
+    "effect_scope": { "enum": ["this_item", "this_source"] },
+    "object_class": {
+      "enum": [
+        "notification_envelope",
+        "activity_object",
+        "badge_aggregate",
+        "fanout_receipt",
+        "routing_context",
+        "privacy_class",
+        "action_retention_semantics"
+      ]
+    },
+    "source_subsystem": {
+      "enum": [
+        "shell",
+        "notebook",
+        "task_runner",
+        "ai",
+        "collaboration",
+        "incident",
+        "operator",
+        "managed_policy",
+        "companion",
+        "security",
+        "sync",
+        "support"
+      ]
+    },
+    "scope": {
+      "enum": [
+        "app_global",
+        "window",
+        "workspace",
+        "session",
+        "collaboration",
+        "tenant_org"
+      ]
+    },
+    "privacy_class": {
+      "enum": [
+        "summary_safe",
+        "workspace_sensitive",
+        "security_critical",
+        "managed_sensitive"
+      ]
+    },
+    "reopen_target": {
+      "enum": [
+        "activity_job_row",
+        "evidence_packet",
+        "policy_diff",
+        "review_request",
+        "incident_thread",
+        "route_object",
+        "audit_event"
+      ]
+    },
+    "surface": {
+      "enum": [
+        "in_app_activity_center",
+        "os_native_notification",
+        "dock_taskbar_badge",
+        "browser_companion",
+        "mobile_companion",
+        "operator_dashboard"
+      ]
+    },
+    "surface_propagation_kind": {
+      "enum": [
+        "apply_authoritative",
+        "clear_count",
+        "withdraw_no_replay",
+        "reflect_state_no_replay"
+      ]
+    },
+    "action_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "action_id",
+        "label",
+        "summary",
+        "resulting_state",
+        "retention_class",
+        "badge_effect",
+        "clears_badge",
+        "keeps_underlying_record",
+        "requires_resume_condition",
+        "resume_condition_kind",
+        "effect_scope",
+        "creates_separate_suppression_state",
+        "audit_append_only",
+        "reopenable_after",
+        "reversible",
+        "replays_side_effects",
+        "support_export_note",
+        "boundary_note"
+      ],
+      "properties": {
+        "action": { "$ref": "#/$defs/action" },
+        "action_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "resulting_state": { "$ref": "#/$defs/lifecycle_state" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "badge_effect": { "$ref": "#/$defs/badge_effect" },
+        "clears_badge": { "const": true },
+        "keeps_underlying_record": { "const": true },
+        "requires_resume_condition": { "type": "boolean" },
+        "resume_condition_kind": { "$ref": "#/$defs/resume_condition_kind" },
+        "effect_scope": { "$ref": "#/$defs/effect_scope" },
+        "creates_separate_suppression_state": { "type": "boolean" },
+        "audit_append_only": { "const": true },
+        "reopenable_after": { "const": true },
+        "reversible": { "type": "boolean" },
+        "replays_side_effects": { "const": false },
+        "support_export_note": { "$ref": "#/$defs/non_empty_string" },
+        "boundary_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "attention_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "label",
+        "object_class",
+        "source_subsystem",
+        "scope",
+        "privacy_class",
+        "prior_state",
+        "reopen_target",
+        "reopen_anchor_ref",
+        "action_target_id",
+        "badge_count_before",
+        "badge_contribution",
+        "fanout_surfaces",
+        "supported_actions",
+        "created_at"
+      ],
+      "properties": {
+        "item_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "object_class": { "$ref": "#/$defs/object_class" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "prior_state": { "$ref": "#/$defs/lifecycle_state" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/repo_ref" },
+        "action_target_id": { "$ref": "#/$defs/non_empty_string" },
+        "badge_count_before": { "type": "integer", "minimum": 0 },
+        "badge_contribution": { "type": "integer", "minimum": 1 },
+        "fanout_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface" }
+        },
+        "supported_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action" }
+        },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "surface_action_propagation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_id",
+        "propagation",
+        "reflects_action_target_id",
+        "replays_side_effect",
+        "note"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "propagation": { "$ref": "#/$defs/surface_propagation_kind" },
+        "reflects_action_target_id": { "$ref": "#/$defs/non_empty_string" },
+        "replays_side_effect": { "const": false },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "attention_action_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome_id",
+        "item_id",
+        "action",
+        "prior_state",
+        "resulting_state",
+        "retention_class",
+        "badge_effect",
+        "badge_count_before",
+        "badge_count_after",
+        "badge_delta",
+        "keeps_underlying_record",
+        "creates_separate_suppression_state",
+        "audit_append_only",
+        "resume_condition",
+        "reopen_target",
+        "reopen_anchor_ref",
+        "action_target_id",
+        "reopen_continuity_preserved",
+        "replays_side_effects",
+        "surface_propagation",
+        "support_export_note",
+        "reason"
+      ],
+      "properties": {
+        "outcome_id": { "$ref": "#/$defs/non_empty_string" },
+        "item_id": { "$ref": "#/$defs/non_empty_string" },
+        "action": { "$ref": "#/$defs/action" },
+        "prior_state": { "$ref": "#/$defs/lifecycle_state" },
+        "resulting_state": { "$ref": "#/$defs/lifecycle_state" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "badge_effect": { "$ref": "#/$defs/badge_effect" },
+        "badge_count_before": { "type": "integer", "minimum": 0 },
+        "badge_count_after": { "type": "integer", "minimum": 0 },
+        "badge_delta": { "type": "integer", "maximum": 0 },
+        "keeps_underlying_record": { "const": true },
+        "creates_separate_suppression_state": { "type": "boolean" },
+        "audit_append_only": { "const": true },
+        "resume_condition": { "type": ["string", "null"], "minLength": 1 },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/repo_ref" },
+        "action_target_id": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_continuity_preserved": { "const": true },
+        "replays_side_effects": { "const": false },
+        "surface_propagation": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_action_propagation" }
+        },
+        "support_export_note": { "$ref": "#/$defs/non_empty_string" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "bundle_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "type": "boolean" }
+      }
+    }
+  }
+}
