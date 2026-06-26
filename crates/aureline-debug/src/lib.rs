@@ -109,6 +109,25 @@
 //! rather than flattening into one banner; and a frame-to-cell link renders exact only when
 //! its mapping is exact and supported.
 //!
+//! It also exposes [`m5_dump_mapping_restore`] — the typed, frozen
+//! [`DebugArtifactStrip`](m5_dump_mapping_restore::DebugArtifactStrip) and
+//! [`RestoredLayoutRecord`](m5_dump_mapping_restore::RestoredLayoutRecord) records that
+//! materialize the dump/core-file/source-map/symbol artifact-strip family and the
+//! restore-honesty family. The canonical
+//! [`DumpMappingRestoreSet`](m5_dump_mapping_restore::DumpMappingRestoreSet) pins one shared
+//! six-state mapping vocabulary
+//! ([`DebugMappingFidelity`](m5_dump_mapping_restore::DebugMappingFidelity): exact,
+//! approximate, symbol-only, unresolved, imported, mismatched-build) that widens the
+//! frame-mapping and symbolication fidelity vocabularies so frames, breakpoints, variables,
+//! and dump artifacts read one fidelity: a precise source link renders only for an exact
+//! mapping backed by an exact-build match, an imported or build-mismatched strip never
+//! renders it, core-file/crash-dump/open-replay/open-inspect-only entrypoints stay distinct
+//! from importing a symbol or source-map artifact, every strip carries current build/artifact
+//! identity, capture time, and a source class (workspace, local, provider, mirror, imported),
+//! and every restored layout says whether the prior process/session is gone, inspect-only,
+//! reconnect-required, or manually relaunchable — never implying live continuity, reacquired
+//! process authority, or exact-build mapping when that is no longer true.
+//!
 //! The reviewer-facing contract is at
 //! [`/docs/m4/qualify-chronology-capture-and-replay-support-classes.md`](../../../docs/m4/qualify-chronology-capture-and-replay-support-classes.md).
 //! The cross-tool boundary schema is at
@@ -123,6 +142,7 @@ pub mod m5_breakpoint_specs;
 pub mod m5_chronology_replay_parity;
 pub mod m5_debug_contracts;
 pub mod m5_debug_session_descriptors;
+pub mod m5_dump_mapping_restore;
 pub mod m5_evaluate_repl_sheets;
 pub mod m5_frame_variable_snapshots;
 pub mod qualify_chronology_capture_and_replay_support_classes;
@@ -190,6 +210,18 @@ pub use m5_frame_variable_snapshots::{
     M5_FRAME_VARIABLE_SNAPSHOTS_FIXTURE_REF, M5_FRAME_VARIABLE_SNAPSHOTS_FREEZE_GATE_REF,
     M5_FRAME_VARIABLE_SNAPSHOTS_RECORD_KIND, M5_FRAME_VARIABLE_SNAPSHOTS_SCHEMA_REF,
     M5_FRAME_VARIABLE_SNAPSHOTS_SCHEMA_VERSION, M5_FRAME_VARIABLE_SNAPSHOTS_SET_ID,
+};
+
+pub use m5_dump_mapping_restore::{
+    m5_dump_mapping_restore_lines, m5_dump_mapping_restore_set, ArtifactBuildMatch,
+    ArtifactSourceClass, DebugArtifactEntrypoint, DebugArtifactKind, DebugArtifactPill,
+    DebugArtifactStrip, DebugMappingFidelity, DumpMappingRestoreSet,
+    DumpMappingRestoreSetValidationError, DumpRestoreInvariant, RestorePill, RestorePosture,
+    RestoredLayoutRecord, M5_DUMP_MAPPING_RESTORE_ARTIFACT_REF, M5_DUMP_MAPPING_RESTORE_AS_OF,
+    M5_DUMP_MAPPING_RESTORE_DOC_REF, M5_DUMP_MAPPING_RESTORE_FIXTURE_REF,
+    M5_DUMP_MAPPING_RESTORE_FREEZE_GATE_REF, M5_DUMP_MAPPING_RESTORE_RECORD_KIND,
+    M5_DUMP_MAPPING_RESTORE_SCHEMA_REF, M5_DUMP_MAPPING_RESTORE_SCHEMA_VERSION,
+    M5_DUMP_MAPPING_RESTORE_SET_ID,
 };
 
 pub use m5_evaluate_repl_sheets::{
