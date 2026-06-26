@@ -22,6 +22,7 @@ pub mod evidence_model;
 pub mod freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retrieval_debug_contract;
 pub mod freeze_the_m5_docs_source_result_pack_version_match_citation_set_and_browser_handoff_matrix;
 pub mod freeze_the_m5_markdown_authoring_safe_preview_docs_maintenance_and_docs_evidence_handoff_matrix;
+pub mod implement_browser_provider_console_handoff_objects_with_destination_reason_privacy_consequence_and_return_anchor;
 pub mod implement_derived_explanation_citation_sets_binding_docs_ai_glossary_tours_and_support_exports;
 pub mod implement_docs_and_code_semantic_recall_with_query_session_ledger_ranking_reasons_and_provenance_export;
 pub mod implement_docs_authoring_suggestions_stale_link_or_stale_example_review_and_open_raw_or_open_source_escapes;
@@ -314,6 +315,21 @@ pub use freeze_the_m5_markdown_authoring_safe_preview_docs_maintenance_and_docs_
     M5_AUTHORING_MATRIX_MAINTENANCE_CONTRACT_REF, M5_AUTHORING_MATRIX_RECORD_KIND,
     M5_AUTHORING_MATRIX_SCHEMA_REF, M5_AUTHORING_MATRIX_SCHEMA_VERSION,
     M5_AUTHORING_MATRIX_SUGGESTION_CONTRACT_REF, M5_AUTHORING_MATRIX_SUMMARY_REF,
+};
+pub use implement_browser_provider_console_handoff_objects_with_destination_reason_privacy_consequence_and_return_anchor::{
+    current_stable_browser_handoff_export, current_stable_browser_handoff_packet,
+    seeded_stable_browser_handoff_input, BrowserHandoff, BrowserHandoffArtifactError,
+    BrowserHandoffPacket, BrowserHandoffPacketInput, BrowserHandoffPromotionState,
+    BrowserHandoffConsumerProjection, BrowserHandoffConsumerSurface, BrowserHandoffSupportExport,
+    BrowserHandoffValidationFinding, BrowserHandoffValidationKind,
+    BrowserHandoffValidationSeverity, HandoffDestinationClass, HandoffPolicyPosture,
+    HandoffSourceSurface, ReturnAnchor,
+    ReturnAnchorKind, SharedContext, BROWSER_HANDOFF_OBJECTS_ARTIFACT_REF,
+    BROWSER_HANDOFF_OBJECTS_DOC_REF, BROWSER_HANDOFF_OBJECTS_FIXTURE_DIR,
+    BROWSER_HANDOFF_OBJECTS_INTEGRATION_CONTRACT_REF, BROWSER_HANDOFF_OBJECTS_MATRIX_CONTRACT_REF,
+    BROWSER_HANDOFF_OBJECTS_RECORD_KIND, BROWSER_HANDOFF_OBJECTS_SCHEMA_REF,
+    BROWSER_HANDOFF_OBJECTS_SCHEMA_VERSION, BROWSER_HANDOFF_OBJECTS_SUMMARY_REF,
+    BROWSER_HANDOFF_OBJECTS_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use implement_derived_explanation_citation_sets_binding_docs_ai_glossary_tours_and_support_exports::{
     current_stable_derived_explanation_citation_export,
