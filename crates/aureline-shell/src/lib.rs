@@ -92,6 +92,7 @@ pub mod experiments_governance;
 pub mod explorer;
 pub mod extensions;
 pub mod first_run_onboarding;
+pub mod focus;
 pub mod forms_parameter_source_and_staged_apply;
 pub mod freeze_the_m5_accessibility_bridge_live_announcement_focus_return_and_non_visual_dynamic_surface_matrix;
 pub mod freeze_the_m5_content_design_controlled_vocabulary_content_ops_and_commercial_boundary_wording_matrix;

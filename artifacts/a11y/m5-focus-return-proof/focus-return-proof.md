@@ -1,0 +1,66 @@
+# M5 Focus-Return and Stable-Selection Contract
+
+- Packet: `m5-focus-selection:stable:0001`
+- Label: `M5 Focus-Return and Stable-Selection Contract`
+- Zones: 11 (11 stable, 11 keyboard-complete)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-26T00:00:00Z)
+
+## Focus zones
+
+- **focus-zone:modal-dialog** (`modal_dialog` / `transient_overlay`): `stable`, fidelity `full_accessible`, keyboard-complete
+  - Owner: Accessibility owner
+  - Focus return: primary returned_exact / fallback returned_nearest_safe_ancestor -> `surface:invoker.modal-dialog`
+  - Identity: `stable_key`, preserved across overlay_teardown
+  - Safe working context: status_detail (`status-detail:dialog-return`)
+- **focus-zone:sheet** (`sheet` / `transient_overlay`): `stable`, fidelity `full_accessible`, keyboard-complete
+  - Owner: Accessibility owner
+  - Focus return: primary returned_exact / fallback returned_nearest_safe_ancestor -> `surface:invoker.sheet`
+  - Identity: `stable_key`, preserved across overlay_teardown
+  - Safe working context: status_detail (`status-detail:sheet-return`)
+- **focus-zone:command-palette** (`command_palette` / `transient_overlay`): `stable`, fidelity `full_accessible`, keyboard-complete
+  - Owner: Accessibility owner
+  - Focus return: primary returned_exact / fallback returned_placeholder_announced -> `surface:invoker.command-palette`
+  - Identity: `stable_key`, preserved across overlay_teardown
+  - Safe working context: selection_summary (`selection-summary:palette`)
+- **focus-zone:popover** (`popover` / `transient_overlay`): `stable`, fidelity `full_accessible`, keyboard-complete
+  - Owner: Accessibility owner
+  - Focus return: primary returned_exact / fallback returned_nearest_safe_ancestor -> `surface:invoker.popover`
+  - Identity: `stable_key`, preserved across overlay_teardown
+  - Safe working context: status_detail (`status-detail:popover-return`)
+- **focus-zone:rename-field** (`rename_field` / `transient_overlay`): `stable`, fidelity `full_accessible`, keyboard-complete
+  - Owner: Accessibility owner
+  - Focus return: primary returned_exact / fallback returned_current_batch_or_detail_owner -> `surface:invoker.rename-field`
+  - Identity: `path_or_uri`, preserved across overlay_teardown
+  - Safe working context: selection_summary (`selection-summary:rename`)
+- **focus-zone:inspector-promotion** (`inspector_promotion` / `transient_overlay`): `stable`, fidelity `full_accessible`, keyboard-complete
+  - Owner: Accessibility owner
+  - Focus return: primary returned_exact / fallback returned_current_batch_or_detail_owner -> `surface:invoker.inspector-promotion`
+  - Identity: `stable_key`, preserved across overlay_teardown
+  - Safe working context: selection_summary (`selection-summary:inspector`)
+- **focus-zone:dense-collection** (`dense_collection` / `dense_collection`): `stable`, fidelity `full_accessible`, keyboard-complete
+  - Owner: Accessibility owner
+  - Focus return: primary returned_exact / fallback returned_nearest_safe_ancestor -> `surface:collection.focused-row`
+  - Identity: `path_or_uri`, preserved across virtualization, refresh, streaming_insert, filtering, sort_change
+  - Roving tabindex: single-tab-stop true, keys arrow_up_down, arrow_left_right, home_end, page_up_down, type_ahead
+  - Safe working context: selection_summary (`selection-summary:collection`)
+- **focus-zone:streamed-list** (`streamed_list` / `dense_collection`): `stable`, fidelity `full_accessible`, keyboard-complete
+  - Owner: Accessibility owner
+  - Focus return: primary returned_exact / fallback returned_current_batch_or_detail_owner -> `surface:streamed-list.focused-row`
+  - Identity: `content_hash`, preserved across virtualization, refresh, streaming_insert, filtering, sort_change
+  - Roving tabindex: single-tab-stop true, keys arrow_up_down, home_end, page_up_down
+  - Safe working context: activity_row (`activity-row:streamed-list`)
+- **focus-zone:shell-zone** (`shell_zone` / `shell_zone`): `stable`, fidelity `full_accessible`, keyboard-complete
+  - Owner: Accessibility owner
+  - Focus return: primary returned_exact / fallback returned_nearest_safe_ancestor -> `surface:shell.active-zone`
+  - Identity: `stable_key`, preserved across refresh, layout_adjustment
+  - Safe working context: status_detail (`status-detail:shell-zone`)
+- **focus-zone:multi-window-layout** (`multi_window_layout` / `multi_window_layout`): `stable`, fidelity `full_accessible`, keyboard-complete
+  - Owner: Accessibility owner
+  - Focus return: primary returned_exact / fallback returned_nearest_safe_ancestor -> `surface:multi-window.restored-focus`
+  - Identity: `stable_key`, preserved across multi_window_restore, layout_adjustment
+  - Safe working context: status_detail (`status-detail:multi-window`)
+- **focus-zone:follow-presentation** (`follow_presentation` / `follow_presentation`): `stable`, fidelity `full_accessible`, keyboard-complete
+  - Owner: Accessibility owner
+  - Focus return: primary returned_exact / fallback returned_placeholder_announced -> `surface:presentation.follow-anchor`
+  - Identity: `stable_key`, preserved across refresh, layout_adjustment
+  - Safe working context: status_detail (`status-detail:follow-presentation`)
