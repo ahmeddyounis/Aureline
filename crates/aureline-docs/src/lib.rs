@@ -11,6 +11,7 @@
 
 pub mod add_browser_lite_light_remote_edit_surfaces_with_narrow_scope_stale_state_honesty_and_no_hidden_authority_expa;
 pub mod add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_cited_evidence_and_confidence_labels;
+pub mod add_version_freshness_vocabulary_and_stale_example_broken_link_findings;
 pub mod authoring;
 pub mod certify_docs_browser_semantic_recall_and_codebase_understanding_rows_and_narrow_any_underqualified_surface;
 pub mod citations;
@@ -73,6 +74,22 @@ pub use add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_c
     UNDERSTANDING_CARDS_RECORD_KIND, UNDERSTANDING_CARDS_SCHEMA_REF,
     UNDERSTANDING_CARDS_SCHEMA_VERSION, UNDERSTANDING_CARDS_SUMMARY_REF,
     UNDERSTANDING_CARDS_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use add_version_freshness_vocabulary_and_stale_example_broken_link_findings::{
+    current_stable_docs_version_freshness_export, current_stable_docs_version_freshness_packet,
+    seeded_stable_docs_version_freshness_input, DocsVersionFreshnessArtifactError,
+    DocsVersionFreshnessCard, DocsVersionFreshnessConfidence,
+    DocsVersionFreshnessConsumerProjection, DocsVersionFreshnessConsumerSurface,
+    DocsVersionFreshnessDisclosure, DocsVersionFreshnessFinding, DocsVersionFreshnessFindingActions,
+    DocsVersionFreshnessFindingClass, DocsVersionFreshnessFindingSeverity,
+    DocsVersionFreshnessPacket, DocsVersionFreshnessPacketInput, DocsVersionFreshnessPromotionState,
+    DocsVersionFreshnessState, DocsVersionFreshnessSubjectKind, DocsVersionFreshnessSuppressionState,
+    DocsVersionFreshnessSupportExport, DocsVersionFreshnessValidationFinding,
+    DocsVersionFreshnessValidationKind, DocsVersionFreshnessValidationSeverity,
+    DOCS_VERSION_FRESHNESS_ARTIFACT_REF, DOCS_VERSION_FRESHNESS_DOC_REF,
+    DOCS_VERSION_FRESHNESS_FIXTURE_DIR, DOCS_VERSION_FRESHNESS_RECORD_KIND,
+    DOCS_VERSION_FRESHNESS_SCHEMA_REF, DOCS_VERSION_FRESHNESS_SCHEMA_VERSION,
+    DOCS_VERSION_FRESHNESS_SUMMARY_REF, DOCS_VERSION_FRESHNESS_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use authoring::evidence_handoff::{
     current_stable_docs_evidence_handoff_export,
