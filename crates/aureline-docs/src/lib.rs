@@ -10,6 +10,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-docs/0.0.0")]
 
 pub mod add_browser_lite_light_remote_edit_surfaces_with_narrow_scope_stale_state_honesty_and_no_hidden_authority_expa;
+pub mod add_docs_source_precedence_and_ranking_parity_across_search_hover_onboarding_and_ai_context;
 pub mod add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_cited_evidence_and_confidence_labels;
 pub mod add_version_freshness_vocabulary_and_stale_example_broken_link_findings;
 pub mod authoring;
@@ -58,6 +59,20 @@ pub use add_browser_lite_light_remote_edit_surfaces_with_narrow_scope_stale_stat
     LIGHT_REMOTE_EDIT_ARTIFACT_REF, LIGHT_REMOTE_EDIT_DOC_REF, LIGHT_REMOTE_EDIT_FIXTURE_DIR,
     LIGHT_REMOTE_EDIT_RECORD_KIND, LIGHT_REMOTE_EDIT_SCHEMA_REF, LIGHT_REMOTE_EDIT_SCHEMA_VERSION,
     LIGHT_REMOTE_EDIT_SUMMARY_REF, LIGHT_REMOTE_EDIT_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use add_docs_source_precedence_and_ranking_parity_across_search_hover_onboarding_and_ai_context::{
+    current_stable_docs_precedence_ranking_export, current_stable_docs_precedence_ranking_packet,
+    seeded_stable_docs_precedence_ranking_input, DocsPrecedenceRankingArtifactError,
+    DocsPrecedenceRankingFindingKind, DocsPrecedenceRankingFindingSeverity,
+    DocsPrecedenceRankingPacket, DocsPrecedenceRankingPacketInput,
+    DocsPrecedenceRankingPromotionState, DocsPrecedenceRankingSupportExport,
+    DocsPrecedenceRankingValidationFinding, DocsRankingSet, DocsSourceLane, PrecedenceReason,
+    RankExplanationProjection, RankExplanationSurface, RankSubjectKind, RankedDocsCandidate,
+    DOCS_PRECEDENCE_RANKING_ARTIFACT_REF, DOCS_PRECEDENCE_RANKING_DOC_REF,
+    DOCS_PRECEDENCE_RANKING_FIXTURE_DIR, DOCS_PRECEDENCE_RANKING_MATRIX_CONTRACT_REF,
+    DOCS_PRECEDENCE_RANKING_RECORD_KIND, DOCS_PRECEDENCE_RANKING_SCHEMA_REF,
+    DOCS_PRECEDENCE_RANKING_SCHEMA_VERSION, DOCS_PRECEDENCE_RANKING_SOURCE_RESULT_CONTRACT_REF,
+    DOCS_PRECEDENCE_RANKING_SUMMARY_REF, DOCS_PRECEDENCE_RANKING_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_cited_evidence_and_confidence_labels::{
     current_stable_codebase_understanding_cards_export,
