@@ -1,0 +1,66 @@
+# M5 Dynamic-Surface Assistive-Tech Diagnostics
+
+- Packet: `m5-at-diagnostics:stable:0001`
+- Label: `M5 Dynamic-Surface Assistive-Tech Diagnostics`
+- Surfaces: 8 (8 green, 0 narrowed, 0 blocked)
+- Release gate: pass (0 blocked surfaces)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-26T00:00:00Z)
+
+## Surfaces
+
+- **diagnostics:shell_region** (`shell_region`): `stable`, gate `pass`
+  - Owner: Accessibility owner
+  - Object identity: `shell:zone-root`
+  - Bridge: ui_automation / bridged_active (none, 0 missing nodes)
+  - Announcement budget: observed 2 / max 6 per 10s (within budget)
+  - Visual conformance: zoom `pass` / contrast `pass` / motion `pass`
+  - Degraded state: none
+- **diagnostics:editor_canvas** (`editor_canvas`): `stable`, gate `pass`
+  - Owner: Accessibility owner
+  - Object identity: `editor:active-buffer`
+  - Bridge: ns_accessibility / bridged_active (none, 0 missing nodes)
+  - Announcement budget: observed 2 / max 6 per 10s (within budget)
+  - Visual conformance: zoom `pass` / contrast `pass` / motion `pass`
+  - Degraded state: none
+- **diagnostics:terminal_canvas** (`terminal_canvas`): `stable`, gate `pass`
+  - Owner: Accessibility owner
+  - Object identity: `terminal:active-session`
+  - Bridge: at_spi / bridged_active (none, 0 missing nodes)
+  - Announcement budget: observed 2 / max 6 per 10s (within budget)
+  - Visual conformance: zoom `pass` / contrast `pass` / motion `pass`
+  - Degraded state: none
+- **diagnostics:dense_collection** (`dense_collection`): `stable`, gate `pass`
+  - Owner: Accessibility owner
+  - Object identity: `data-grid:active-view`
+  - Bridge: ui_automation / bridged_active (none, 0 missing nodes)
+  - Announcement budget: observed 2 / max 6 per 10s (within budget)
+  - Visual conformance: zoom `pass` / contrast `pass` / motion `pass`
+  - Degraded state: none
+- **diagnostics:notebook_cell** (`notebook_cell`): `stable`, gate `pass`
+  - Owner: Accessibility owner
+  - Object identity: `notebook:active-cell`
+  - Bridge: ns_accessibility / bridged_active (none, 0 missing nodes)
+  - Announcement budget: observed 2 / max 6 per 10s (within budget)
+  - Visual conformance: zoom `pass` / contrast `pass` / motion `pass`
+  - Degraded state: none
+- **diagnostics:data_cell** (`data_cell`): `stable`, gate `pass`
+  - Owner: Accessibility owner
+  - Object identity: `data:active-cell`
+  - Bridge: at_spi / bridged_active (none, 0 missing nodes)
+  - Announcement budget: observed 2 / max 6 per 10s (within budget)
+  - Visual conformance: zoom `pass` / contrast `pass` / motion `pass`
+  - Degraded state: none
+- **diagnostics:review_diff** (`review_diff`): `stable`, gate `pass`
+  - Owner: Accessibility owner
+  - Object identity: `review:active-diff`
+  - Bridge: ui_automation / bridged_active (none, 0 missing nodes)
+  - Announcement budget: observed 2 / max 6 per 10s (within budget)
+  - Visual conformance: zoom `pass` / contrast `pass` / motion `pass`
+  - Degraded state: none
+- **diagnostics:overlay_sheet** (`overlay_sheet`): `stable`, gate `pass`
+  - Owner: Accessibility owner
+  - Object identity: `overlay:active-sheet`
+  - Bridge: headless_inspector / bridged_active (none, 0 missing nodes)
+  - Announcement budget: observed 2 / max 6 per 10s (within budget)
+  - Visual conformance: zoom `pass` / contrast `pass` / motion `pass`
+  - Degraded state: none

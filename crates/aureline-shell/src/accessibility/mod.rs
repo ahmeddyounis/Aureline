@@ -38,6 +38,7 @@
 //! The protected fixture directory is
 //! [`fixtures/a11y/m5-surface-descriptors/`](../../../../fixtures/a11y/m5-surface-descriptors/).
 
+pub mod diagnostics;
 pub mod events;
 pub mod summaries;
 
