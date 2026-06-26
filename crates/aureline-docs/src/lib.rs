@@ -15,6 +15,7 @@ pub mod add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_c
 pub mod add_version_freshness_vocabulary_and_stale_example_broken_link_findings;
 pub mod authoring;
 pub mod certify_docs_browser_semantic_recall_and_codebase_understanding_rows_and_narrow_any_underqualified_surface;
+pub mod certify_docs_source_pack_version_citation_and_browser_handoff_truth_and_narrow_stale_claims;
 pub mod citations;
 pub mod docs_browser_truth_packet;
 pub mod docs_maintenance_and_stale_example_governance;
@@ -209,6 +210,18 @@ pub use certify_docs_browser_semantic_recall_and_codebase_understanding_rows_and
     CERTIFICATION_ARTIFACT_REF, CERTIFICATION_DOC_REF, CERTIFICATION_FIXTURE_DIR,
     CERTIFICATION_RECORD_KIND, CERTIFICATION_SCHEMA_REF, CERTIFICATION_SCHEMA_VERSION,
     CERTIFICATION_SUMMARY_REF,
+};
+pub use certify_docs_source_pack_version_citation_and_browser_handoff_truth_and_narrow_stale_claims::{
+    current_stable_docs_claim_certification_export, seeded_stable_docs_claim_certification_input,
+    CertifiedDocsProfile, DocsClaimCertificationArtifactError, DocsClaimCertificationPacket,
+    DocsClaimCertificationPacketInput, DocsClaimCertificationViolation,
+    DocsClaimCompatibilityReport, DocsClaimConsumerProjection, DocsClaimConsumerSurface,
+    DocsClaimDowngradeAction, DocsClaimDowngradeRule, DocsClaimDowngradeTrigger,
+    DocsClaimProofFreshness, DocsClaimQualificationClass, DocsClaimTrustReview, DocsClaimVerdict,
+    DocsEvidenceClass, DocsProfileQualificationRow, DOCS_CLAIM_CERTIFICATION_ARTIFACT_REF,
+    DOCS_CLAIM_CERTIFICATION_DOC_REF, DOCS_CLAIM_CERTIFICATION_FIXTURE_DIR,
+    DOCS_CLAIM_CERTIFICATION_RECORD_KIND, DOCS_CLAIM_CERTIFICATION_SCHEMA_REF,
+    DOCS_CLAIM_CERTIFICATION_SCHEMA_VERSION, DOCS_CLAIM_CERTIFICATION_SUMMARY_REF,
 };
 pub use citations::{
     CitationAnchorAlpha, CitationAnchorAlphaInput, CitationAnchorAvailability,
