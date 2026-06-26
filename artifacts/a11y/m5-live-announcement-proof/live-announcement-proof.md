@@ -1,0 +1,51 @@
+# M5 Live-Announcement Grammar
+
+- Packet: `m5-live-announcement-grammar:stable:0001`
+- Label: `M5 Live-Announcement Grammar`
+- Classes: 6 (6 stable)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-26T00:00:00Z)
+
+## Announcement classes
+
+- **announcement:mode-or-state-change** (`mode_or_state_change`): `stable`
+  - Owner: Accessibility owner
+  - Channel: polite
+  - Message id: `announcement.mode_or_state_change.entered`
+  - Template: `{surface_name} entered {mode_name} mode.`
+  - Coalescing: dedupe_same_meaning (max 4 / 5s, min interval 250ms)
+  - Durable fallback: status_detail (`status-detail:mode-strip`)
+- **announcement:blocker-raised** (`blocker_raised`): `stable`
+  - Owner: Accessibility owner
+  - Channel: assertive
+  - Message id: `announcement.blocker_raised.disclosed`
+  - Template: `{severity_label}: {state_name} blocks {surface_name}.`
+  - Coalescing: dedupe_same_meaning (max 3 / 10s, min interval 0ms)
+  - Durable fallback: banner_detail (`banner-detail:blocker`)
+- **announcement:progress-milestone** (`progress_milestone`): `stable`
+  - Owner: Accessibility owner
+  - Channel: polite
+  - Message id: `announcement.progress_milestone.reached`
+  - Template: `{surface_name}: {state_name} at {count}.`
+  - Coalescing: start_and_terminal_only (max 3 / 30s, min interval 2000ms)
+  - Durable fallback: run_header (`run-header:active-run`)
+- **announcement:selection-or-context-change** (`selection_or_context_change`): `stable`
+  - Owner: Accessibility owner
+  - Channel: polite
+  - Message id: `announcement.selection_or_context_change.updated`
+  - Template: `{count} selected in {surface_name}.`
+  - Coalescing: last_meaning_wins_with_count (max 5 / 5s, min interval 200ms)
+  - Durable fallback: selection_summary (`selection-summary:active`)
+- **announcement:success-with-recovery** (`success_with_recovery`): `stable`
+  - Owner: Accessibility owner
+  - Channel: polite
+  - Message id: `announcement.success_with_recovery.completed`
+  - Template: `{state_name} succeeded; {recovery_label}.`
+  - Coalescing: dedupe_same_meaning (max 2 / 10s, min interval 500ms)
+  - Durable fallback: activity_row (`activity-row:recovery`)
+- **announcement:degraded-or-stale-truth** (`degraded_or_stale_truth`): `stable`
+  - Owner: Accessibility owner
+  - Channel: polite
+  - Message id: `announcement.degraded_or_stale_truth.disclosed`
+  - Template: `{surface_name} is {freshness_label}.`
+  - Coalescing: dedupe_same_meaning (max 2 / 60s, min interval 5000ms)
+  - Durable fallback: notification_center_entry (`notification-center:stale-truth`)
