@@ -1,0 +1,424 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/ship-docs-pack-manager-rows-and-manifest-parity-with-import-export-continuity.schema.json",
+  "title": "Aureline docs-pack manager rows and manifest parity with import/export continuity",
+  "description": "Export-safe support export that wraps the docs-pack manager packet. The packet materializes one manager row/card per managed docs pack — each embedding the canonical docs-pack manifest (pack id, signer, source channel, version range, refresh state, mirror source, pin state, schema version) — and adds the manager layer: a lifecycle flow (local_only, mirrored, managed, air_gapped), the pin/unpin/refresh/remove/change-mirror-source/set-offline-availability/export actions with attributable enablement, pack size/document count, last successful refresh, and an import/export continuity block. Per-profile projections prove every claimed M5 manager surface (docs-browser manager, help-pane manager, onboarding manager, settings docs-packs manager, air-gapped console, support export) reuses the same manager truth. Every row keeps signer/channel/mirror source, refresh state, pin/offline posture, and version range visible; an unavailable payload or signature state is disclosed rather than hidden; mirror/offline/air-gapped rows never degrade into opaque cache or browser-only fallback wording; and import/export retains docs-pack identity and lifecycle state. Raw document bodies, raw URLs, raw provider payloads, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "export_id",
+    "export_packet_id_ref",
+    "exported_at",
+    "raw_private_material_excluded",
+    "ambient_authority_excluded",
+    "export_packet"
+  ],
+  "properties": {
+    "record_kind": { "const": "docs_pack_manager_support_export" },
+    "schema_version": { "const": 1 },
+    "export_id": { "$ref": "#/$defs/non_empty_string" },
+    "export_packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+    "exported_at": { "$ref": "#/$defs/non_empty_string" },
+    "raw_private_material_excluded": { "const": true },
+    "ambient_authority_excluded": { "const": true },
+    "export_packet": { "$ref": "#/$defs/manager_packet" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "project_docs",
+        "generated_reference",
+        "mirrored_official_docs",
+        "curated_knowledge_pack",
+        "support_runbook",
+        "extension_docs_pack"
+      ]
+    },
+    "signer_class": {
+      "type": "string",
+      "enum": [
+        "first_party_project",
+        "permitted_publisher",
+        "official_upstream_mirror",
+        "operator_curated",
+        "support_pipeline"
+      ]
+    },
+    "signature_status": {
+      "type": "string",
+      "enum": [
+        "signed_and_verified",
+        "signed_but_unverified",
+        "signature_missing",
+        "signature_revoked"
+      ]
+    },
+    "source_channel": {
+      "type": "string",
+      "enum": ["stable", "beta", "nightly", "enterprise"]
+    },
+    "refresh_state": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified",
+        "refresh_pending"
+      ]
+    },
+    "mirror_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "continuous",
+        "predecessor_missing",
+        "signing_chain_broken"
+      ]
+    },
+    "pin_state": {
+      "type": "string",
+      "enum": ["pinned", "unpinned", "pinned_offline", "pinned_compat_window"]
+    },
+    "local_availability": {
+      "type": "string",
+      "enum": [
+        "available_local",
+        "mirror_offline_pinned",
+        "not_installed",
+        "unavailable_disclosed",
+        "quarantined"
+      ]
+    },
+    "publishable_state": {
+      "type": "string",
+      "enum": ["publishable", "draft", "blocked", "withdrawn", "quarantined"]
+    },
+    "lifecycle_flow": {
+      "type": "string",
+      "enum": ["local_only", "mirrored", "managed", "air_gapped"]
+    },
+    "manager_profile": {
+      "type": "string",
+      "enum": [
+        "docs_browser_manager",
+        "help_pane_manager",
+        "onboarding_manager",
+        "settings_docs_packs_manager",
+        "air_gapped_console",
+        "support_export"
+      ]
+    },
+    "manager_action": {
+      "type": "string",
+      "enum": [
+        "pin",
+        "unpin",
+        "refresh",
+        "remove",
+        "change_mirror_source",
+        "set_offline_availability",
+        "export_pack"
+      ]
+    },
+    "action_availability": {
+      "type": "string",
+      "enum": [
+        "available",
+        "requires_confirmation",
+        "disabled_by_policy",
+        "disabled_unavailable",
+        "not_applicable"
+      ]
+    },
+    "import_origin": {
+      "type": "string",
+      "enum": [
+        "freshly_installed",
+        "imported_bundle",
+        "mirrored_sync",
+        "air_gapped_sideload",
+        "operator_managed"
+      ]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": ["info", "warning", "blocker"]
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "wrong_record_kind",
+        "wrong_schema_version",
+        "missing_packet_identity",
+        "missing_source_contracts",
+        "missing_manager_rows",
+        "manager_row_incomplete",
+        "manager_row_hides_manifest_truth",
+        "unavailable_payload_hidden",
+        "mirror_offline_degraded",
+        "required_manager_action_missing",
+        "manager_action_reason_missing",
+        "import_export_continuity_lost",
+        "lifecycle_flow_origin_mismatch",
+        "required_lifecycle_flow_coverage_missing",
+        "missing_profile_projection",
+        "profile_projection_drift",
+        "raw_boundary_material_present",
+        "promotion_state_mismatch"
+      ]
+    },
+    "signing_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signature_status", "signer_class", "signing_authority_ref"],
+      "properties": {
+        "signature_status": { "$ref": "#/$defs/signature_status" },
+        "signer_class": { "$ref": "#/$defs/signer_class" },
+        "signing_authority_ref": { "$ref": "#/$defs/non_empty_string" },
+        "signing_chain_digest": { "type": "string" }
+      }
+    },
+    "version_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_inclusive_ref", "max_inclusive_ref"],
+      "properties": {
+        "min_inclusive_ref": { "$ref": "#/$defs/non_empty_string" },
+        "max_inclusive_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "mirror_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mirror_state"],
+      "properties": {
+        "mirror_state": { "$ref": "#/$defs/mirror_state" },
+        "mirror_of_pack_id": { "type": "string" },
+        "upstream_revision_ref": { "type": "string" },
+        "predecessor_revision_ref": { "type": "string" },
+        "air_gapped_origin_label": { "type": "string" },
+        "offline_expiration_at": { "type": "string" }
+      }
+    },
+    "docs_pack_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pack_id",
+        "pack_revision_ref",
+        "display_label",
+        "source_class",
+        "source_channel",
+        "signing",
+        "version_range",
+        "refresh_state",
+        "mirror_lineage",
+        "pin_state",
+        "local_availability",
+        "publishable_state",
+        "publishable_blocking_reasons",
+        "manifest_schema_version",
+        "raw_boundary_material_excluded"
+      ],
+      "properties": {
+        "pack_id": { "$ref": "#/$defs/non_empty_string" },
+        "pack_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_channel": { "$ref": "#/$defs/source_channel" },
+        "signing": { "$ref": "#/$defs/signing_block" },
+        "version_range": { "$ref": "#/$defs/version_range" },
+        "refresh_state": { "$ref": "#/$defs/refresh_state" },
+        "last_refresh_at": { "type": "string" },
+        "mirror_lineage": { "$ref": "#/$defs/mirror_lineage" },
+        "pin_state": { "$ref": "#/$defs/pin_state" },
+        "local_availability": { "$ref": "#/$defs/local_availability" },
+        "publishable_state": { "$ref": "#/$defs/publishable_state" },
+        "publishable_blocking_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "manifest_schema_version": { "type": "integer", "minimum": 1 },
+        "disclosure_note": { "type": "string" },
+        "raw_boundary_material_excluded": { "type": "boolean" }
+      }
+    },
+    "action_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "availability"],
+      "properties": {
+        "action": { "$ref": "#/$defs/manager_action" },
+        "availability": { "$ref": "#/$defs/action_availability" },
+        "disabled_reason": { "type": "string" }
+      }
+    },
+    "import_export_continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "continuity_id",
+        "import_origin",
+        "continuity_token",
+        "preserves_identity_on_export",
+        "preserves_lifecycle_state_on_export"
+      ],
+      "properties": {
+        "continuity_id": { "$ref": "#/$defs/non_empty_string" },
+        "import_origin": { "$ref": "#/$defs/import_origin" },
+        "import_bundle_ref": { "type": "string" },
+        "imported_at": { "type": "string" },
+        "export_bundle_ref": { "type": "string" },
+        "continuity_token": { "$ref": "#/$defs/non_empty_string" },
+        "preserves_identity_on_export": { "type": "boolean" },
+        "preserves_lifecycle_state_on_export": { "type": "boolean" }
+      }
+    },
+    "manager_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "manifest",
+        "lifecycle_flow",
+        "actions",
+        "import_export_continuity",
+        "shows_signer",
+        "shows_channel",
+        "shows_mirror_source",
+        "shows_version_range",
+        "shows_refresh_state",
+        "shows_pin_offline_posture",
+        "signature_state_visible",
+        "unavailable_payload_disclosed",
+        "degraded_to_opaque_cache",
+        "browser_only_fallback_wording",
+        "raw_boundary_material_excluded"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "manifest": { "$ref": "#/$defs/docs_pack_manifest" },
+        "lifecycle_flow": { "$ref": "#/$defs/lifecycle_flow" },
+        "pack_size_bytes": { "type": "integer", "minimum": 0 },
+        "document_count": { "type": "integer", "minimum": 0 },
+        "last_successful_refresh_at": { "type": "string" },
+        "last_refresh_attempt_at": { "type": "string" },
+        "actions": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/action_state" }
+        },
+        "import_export_continuity": { "$ref": "#/$defs/import_export_continuity" },
+        "shows_signer": { "type": "boolean" },
+        "shows_channel": { "type": "boolean" },
+        "shows_mirror_source": { "type": "boolean" },
+        "shows_version_range": { "type": "boolean" },
+        "shows_refresh_state": { "type": "boolean" },
+        "shows_pin_offline_posture": { "type": "boolean" },
+        "signature_state_visible": { "type": "boolean" },
+        "unavailable_payload_disclosed": { "type": "boolean" },
+        "degraded_to_opaque_cache": { "type": "boolean" },
+        "browser_only_fallback_wording": { "type": "boolean" },
+        "disclosure_note": { "type": "string" },
+        "raw_boundary_material_excluded": { "type": "boolean" }
+      }
+    },
+    "profile_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "projection_ref",
+        "packet_id_ref",
+        "rendered_at",
+        "preserves_row_identity",
+        "shows_signer_channel_mirror",
+        "shows_pin_offline_refresh",
+        "shows_version_range",
+        "preserves_import_export_continuity",
+        "preserves_lifecycle_state",
+        "supports_json_export",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded"
+      ],
+      "properties": {
+        "profile": { "$ref": "#/$defs/manager_profile" },
+        "projection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rendered_at": { "$ref": "#/$defs/non_empty_string" },
+        "preserves_row_identity": { "type": "boolean" },
+        "shows_signer_channel_mirror": { "type": "boolean" },
+        "shows_pin_offline_refresh": { "type": "boolean" },
+        "shows_version_range": { "type": "boolean" },
+        "preserves_import_export_continuity": { "type": "boolean" },
+        "preserves_lifecycle_state": { "type": "boolean" },
+        "supports_json_export": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" },
+        "ambient_authority_excluded": { "type": "boolean" }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "manager_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "surface_label",
+        "generated_at",
+        "rows",
+        "profile_projections",
+        "source_contract_refs",
+        "redaction_class_token",
+        "promotion_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "docs_pack_manager_packet" },
+        "schema_version": { "const": 1 },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_label": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "rows": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/manager_row" }
+        },
+        "profile_projections": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/profile_projection" }
+        },
+        "source_contract_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_finding" }
+        }
+      }
+    }
+  }
+}

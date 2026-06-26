@@ -31,6 +31,7 @@ pub mod m5_docs_authoring_certification;
 pub mod maintenance;
 pub mod pack;
 pub mod semantic_recall_boundary_truth_packet;
+pub mod ship_docs_pack_manager_rows_and_manifest_parity_with_import_export_continuity;
 pub mod ship_docs_search_symbol_linked_reference_cards_and_code_anchor_preserving_deep_links;
 pub mod ship_retrieval_debug_surfaces_for_docs_recall_and_ai_context_with_exact_or_imported_or_heuristic_labeling;
 pub mod ship_saved_query_privacy_controls_local_versus_shared_retention_and_support_export_safe_search_history;
@@ -442,6 +443,18 @@ pub use semantic_recall_boundary_truth_packet::{
     SEMANTIC_RECALL_BOUNDARY_TRUTH_PACKET_RECORD_KIND, SEMANTIC_RECALL_BOUNDARY_TRUTH_SCHEMA_REF,
     SEMANTIC_RECALL_BOUNDARY_TRUTH_SCHEMA_VERSION,
     SEMANTIC_RECALL_BOUNDARY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use ship_docs_pack_manager_rows_and_manifest_parity_with_import_export_continuity::{
+    current_stable_docs_pack_manager_export, current_stable_docs_pack_manager_packet,
+    seeded_stable_docs_pack_manager_input, DocsPackImportExportContinuity, DocsPackImportOrigin,
+    DocsPackLifecycleFlow, DocsPackManagerAction, DocsPackManagerActionAvailability,
+    DocsPackManagerActionState, DocsPackManagerArtifactError, DocsPackManagerFindingKind,
+    DocsPackManagerFindingSeverity, DocsPackManagerPacket, DocsPackManagerPacketInput,
+    DocsPackManagerProfile, DocsPackManagerProfileProjection, DocsPackManagerPromotionState,
+    DocsPackManagerRow, DocsPackManagerSupportExport, DocsPackManagerValidationFinding,
+    DOCS_PACK_MANAGER_ARTIFACT_REF, DOCS_PACK_MANAGER_DOC_REF, DOCS_PACK_MANAGER_FIXTURE_DIR,
+    DOCS_PACK_MANAGER_RECORD_KIND, DOCS_PACK_MANAGER_SCHEMA_REF, DOCS_PACK_MANAGER_SCHEMA_VERSION,
+    DOCS_PACK_MANAGER_SUMMARY_REF, DOCS_PACK_MANAGER_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use ship_docs_search_symbol_linked_reference_cards_and_code_anchor_preserving_deep_links::{
     current_stable_docs_search_link_export, packet_to_input as docs_search_link_packet_to_input,
