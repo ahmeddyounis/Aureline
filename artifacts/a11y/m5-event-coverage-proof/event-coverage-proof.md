@@ -1,0 +1,53 @@
+# M5 Event-Class Non-Visual Coverage
+
+- Packet: `m5-event-coverage:stable:0001`
+- Label: `M5 Event-Class Non-Visual Coverage`
+- Families: 7 (7 stable), 23 events
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-26T00:00:00Z)
+
+## Event families
+
+- **event-family:diagnostics** (`diagnostics`): `stable`, fidelity `full_accessible`
+  - Owner: Accessibility owner
+  - Producers: editor, notebook
+  - `event:diagnostics.published` -> mode_or_state_change / polite (not_applicable); identity `event.diagnostics.published`; fallback activity_row (`activity-row:problems`)
+  - `event:diagnostics.cleared` -> mode_or_state_change / polite (not_applicable); identity `event.diagnostics.cleared`; fallback status_detail (`status-detail:problems`)
+  - `event:diagnostics.blocking-error` -> blocker_raised / assertive (blocked); identity `event.diagnostics.blocking_error`; fallback banner_detail (`banner-detail:blocking-error`)
+- **event-family:completion-and-session** (`completion_and_session`): `stable`, fidelity `full_accessible`
+  - Owner: Accessibility owner
+  - Producers: editor
+  - `event:completion.list-opened` -> selection_or_context_change / polite (not_applicable); identity `event.completion.list_opened`; fallback selection_summary (`selection-summary:completion`)
+  - `event:snippet.session-entered` -> mode_or_state_change / polite (not_applicable); identity `event.snippet.session_entered`; fallback status_detail (`status-detail:snippet-session`)
+  - `event:assist.unavailable` -> degraded_or_stale_truth / polite (unavailable); identity `event.assist.unavailable`; fallback notification_center_entry (`notification-center:assist`)
+- **event-family:run-debug-test** (`run_debug_test`): `stable`, fidelity `full_accessible`
+  - Owner: Accessibility owner
+  - Producers: debug, notebook
+  - `event:run.started` -> progress_milestone / polite (not_applicable); identity `event.run.started`; fallback run_header (`run-header:active-run`)
+  - `event:run.completed` -> mode_or_state_change / polite (not_applicable); identity `event.run.completed`; fallback run_header (`run-header:result`)
+  - `event:debug.paused` -> mode_or_state_change / polite (not_applicable); identity `event.debug.paused`; fallback status_detail (`status-detail:debug-paused`)
+  - `event:run.blocked` -> blocker_raised / assertive (blocked); identity `event.run.blocked`; fallback banner_detail (`banner-detail:run-blocked`)
+- **event-family:terminal-boundary** (`terminal_boundary`): `stable`, fidelity `full_accessible`
+  - Owner: Accessibility owner
+  - Producers: terminal
+  - `event:terminal.command-started` -> mode_or_state_change / polite (not_applicable); identity `event.terminal.command_started`; fallback status_detail (`status-detail:terminal-command`)
+  - `event:terminal.command-exited` -> mode_or_state_change / polite (not_applicable); identity `event.terminal.command_exited`; fallback activity_row (`activity-row:terminal-history`)
+  - `event:terminal.boundary-unavailable` -> degraded_or_stale_truth / polite (unavailable); identity `event.terminal.boundary_unavailable`; fallback notification_center_entry (`notification-center:terminal-boundary`)
+- **event-family:collaboration-control** (`collaboration_control`): `stable`, fidelity `full_accessible`
+  - Owner: Accessibility owner
+  - Producers: collab
+  - `event:collab.role-changed` -> mode_or_state_change / polite (not_applicable); identity `event.collab.role_changed`; fallback status_detail (`status-detail:collab-role`)
+  - `event:collab.recording-changed` -> mode_or_state_change / polite (not_applicable); identity `event.collab.recording_changed`; fallback banner_detail (`banner-detail:collab-recording`)
+  - `event:collab.control-restricted` -> degraded_or_stale_truth / polite (policy_restricted); identity `event.collab.control_restricted`; fallback banner_detail (`banner-detail:collab-restricted`)
+- **event-family:ai-patch-review** (`ai_patch_review`): `stable`, fidelity `full_accessible`
+  - Owner: Accessibility owner
+  - Producers: ai, review
+  - `event:ai.generation-started` -> progress_milestone / polite (not_applicable); identity `event.ai.generation_started`; fallback activity_row (`activity-row:ai-generation`)
+  - `event:ai.patch-proposed` -> mode_or_state_change / polite (not_applicable); identity `event.ai.patch_proposed`; fallback patch_review_header (`patch-review-header:ai-patch`)
+  - `event:review.milestone-reached` -> progress_milestone / polite (not_applicable); identity `event.review.milestone_reached`; fallback patch_review_header (`patch-review-header:review`)
+  - `event:ai.generation-blocked` -> blocker_raised / assertive (blocked); identity `event.ai.generation_blocked`; fallback banner_detail (`banner-detail:ai-blocked`)
+- **event-family:stale-degraded-truth** (`stale_degraded_truth`): `stable`, fidelity `full_accessible`
+  - Owner: Accessibility owner
+  - Producers: shell
+  - `event:truth.went-stale` -> degraded_or_stale_truth / polite (stale); identity `event.truth.went_stale`; fallback notification_center_entry (`notification-center:stale-truth`)
+  - `event:truth.bridge-degraded` -> degraded_or_stale_truth / polite (degraded); identity `event.truth.bridge_degraded`; fallback notification_center_entry (`notification-center:bridge-degraded`)
+  - `event:truth.refreshed` -> success_with_recovery / polite (not_applicable); identity `event.truth.refreshed`; fallback activity_row (`activity-row:truth-refreshed`)
