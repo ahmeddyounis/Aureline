@@ -20,7 +20,14 @@
 //!   stable ids, source/command/version/build refs, translation-safe placeholder
 //!   notes, machine-code/human-label heading pairing, and locale fallback posture,
 //!   so non-runtime wording carries the same context as runtime surfaces.
+//! - [`boundary_wording`] — governed hosted/managed/premium/self-hosted/local-only/
+//!   BYOK/trial wording with declared identity/network/data/export/rollback
+//!   implications, disclosed local/open alternatives, machine-anchored support
+//!   metadata, and a cross-surface copy-parity lint that blocks boundary drift across
+//!   settings, onboarding, marketplace, help/About, release notes, and account/upgrade
+//!   prompts.
 
 pub mod ai_copy_guardrails;
+pub mod boundary_wording;
 pub mod content_ops_metadata;
 pub mod error_patterns;
