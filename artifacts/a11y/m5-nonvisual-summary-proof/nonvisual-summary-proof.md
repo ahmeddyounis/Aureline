@@ -1,0 +1,80 @@
+# M5 Non-Visual Custom-Surface Summaries
+
+- Packet: `m5-nonvisual-summary:stable:0001`
+- Label: `M5 Non-Visual Custom-Surface Summaries`
+- Surfaces: 9 (9 stable), 26 drill-down routes
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-26T00:00:00Z)
+
+## Surface summaries
+
+- **summary:custom-editor** (`custom_editor`): `stable`, fidelity `full_accessible`, state `authoritative`
+  - Owner: Accessibility owner
+  - Object identity: `editor:active-buffer`
+  - Structure (`summary.editor.structure`, `text_document`): lines, regions
+  - Text alternative: `not_applicable` (provided: false)
+  - drill-down `drilldown:editor.enumerate-structure` -> enumerate_structure (`summary.editor.enumerate_structure`) lands on `editor:regions`
+  - drill-down `drilldown:editor.open-line-detail` -> open_item_detail (`summary.editor.open_line_detail`) lands on `editor:cursor-line`
+  - drill-down `drilldown:editor.jump-diagnostic` -> jump_to_region (`summary.editor.jump_diagnostic`) lands on `editor:diagnostic-region`
+- **summary:terminal-canvas** (`terminal_canvas`): `stable`, fidelity `full_accessible`, state `buffered`
+  - Owner: Accessibility owner
+  - Object identity: `terminal:active-session`
+  - Structure (`summary.terminal.structure`, `live_log_region`): command_blocks, scrollback_lines
+  - Text alternative: `not_applicable` (provided: false)
+  - drill-down `drilldown:terminal.enumerate-blocks` -> enumerate_structure (`summary.terminal.enumerate_blocks`) lands on `terminal:command-blocks`
+  - drill-down `drilldown:terminal.jump-last-output` -> jump_to_region (`summary.terminal.jump_last_output`) lands on `terminal:last-output`
+  - drill-down `drilldown:terminal.open-exit-detail` -> open_item_detail (`summary.terminal.open_exit_detail`) lands on `terminal:exit-detail`
+- **summary:data-grid** (`data_grid`): `stable`, fidelity `full_accessible`, state `cached`
+  - Owner: Accessibility owner
+  - Object identity: `data-grid:active-view`
+  - Structure (`summary.data_grid.structure`, `data_grid_cell`): columns, rows
+  - Text alternative: `not_applicable` (provided: false)
+  - drill-down `drilldown:data-grid.enumerate-structure` -> enumerate_structure (`summary.data_grid.enumerate_structure`) lands on `data-grid:structure`
+  - drill-down `drilldown:data-grid.open-cell-detail` -> open_item_detail (`summary.data_grid.open_cell_detail`) lands on `data-grid:cell`
+  - drill-down `drilldown:data-grid.describe-column` -> describe_series (`summary.data_grid.describe_column`) lands on `data-grid:column`
+- **summary:tree-outline** (`tree_outline`): `stable`, fidelity `full_accessible`, state `cached`
+  - Owner: Accessibility owner
+  - Object identity: `tree:active-outline`
+  - Structure (`summary.tree.structure`, `structure_group`): top_level_nodes, max_depth
+  - Text alternative: `not_applicable` (provided: false)
+  - drill-down `drilldown:tree.enumerate-structure` -> enumerate_structure (`summary.tree.enumerate_structure`) lands on `tree:structure`
+  - drill-down `drilldown:tree.open-node-detail` -> open_item_detail (`summary.tree.open_node_detail`) lands on `tree:node`
+- **summary:log-stream** (`log_stream`): `stable`, fidelity `full_accessible`, state `buffered`
+  - Owner: Accessibility owner
+  - Object identity: `log:active-stream`
+  - Structure (`summary.log.structure`, `live_log_region`): entries, error_count
+  - Text alternative: `not_applicable` (provided: false)
+  - drill-down `drilldown:log.enumerate-severity` -> enumerate_structure (`summary.log.enumerate_severity`) lands on `log:severity-summary`
+  - drill-down `drilldown:log.jump-error-block` -> jump_to_region (`summary.log.jump_error_block`) lands on `log:error-block`
+- **summary:trace-timeline** (`trace_timeline`): `stable`, fidelity `full_accessible`, state `sampled`
+  - Owner: Accessibility owner
+  - Object identity: `trace:active-timeline`
+  - Structure (`summary.trace.structure`, `structure_group`): spans, critical_path_length
+  - Text alternative: `chart_description` (provided: true)
+  - drill-down `drilldown:trace.enumerate-structure` -> enumerate_structure (`summary.trace.enumerate_structure`) lands on `trace:structure`
+  - drill-down `drilldown:trace.describe-critical-path` -> describe_series (`summary.trace.describe_critical_path`) lands on `trace:critical-path`
+  - drill-down `drilldown:trace.read-alt-text` -> read_text_alternative (`summary.trace.read_alt_text`) lands on `trace:alt-text`
+- **summary:chart** (`chart`): `stable`, fidelity `full_accessible`, state `approximate`
+  - Owner: Accessibility owner
+  - Object identity: `chart:active-chart`
+  - Structure (`summary.chart.structure`, `structure_group`): series, data_points
+  - Text alternative: `chart_description` (provided: true)
+  - drill-down `drilldown:chart.enumerate-structure` -> enumerate_structure (`summary.chart.enumerate_structure`) lands on `chart:structure`
+  - drill-down `drilldown:chart.describe-series` -> describe_series (`summary.chart.describe_series`) lands on `chart:series`
+  - drill-down `drilldown:chart.read-alt-text` -> read_text_alternative (`summary.chart.read_alt_text`) lands on `chart:alt-text`
+  - drill-down `drilldown:chart.open-metadata` -> open_metadata_view (`summary.chart.open_metadata`) lands on `chart:metadata`
+- **summary:review-diff** (`review_diff`): `stable`, fidelity `full_accessible`, state `generated`
+  - Owner: Accessibility owner
+  - Object identity: `review:active-diff`
+  - Structure (`summary.review.structure`, `structure_group`): changed_files, hunks
+  - Text alternative: `diff_summary` (provided: true)
+  - drill-down `drilldown:review.enumerate-structure` -> enumerate_structure (`summary.review.enumerate_structure`) lands on `review:structure`
+  - drill-down `drilldown:review.open-hunk-detail` -> open_item_detail (`summary.review.open_hunk_detail`) lands on `review:hunk`
+  - drill-down `drilldown:review.jump-conflict` -> jump_to_region (`summary.review.jump_conflict`) lands on `review:conflict`
+- **summary:artifact-viewer** (`artifact_viewer`): `stable`, fidelity `full_accessible`, state `preview`
+  - Owner: Accessibility owner
+  - Object identity: `artifact:active-artifact`
+  - Structure (`summary.artifact.structure`, `structure_group`): layers, dimensions_label
+  - Text alternative: `image_alt_text` (provided: true)
+  - drill-down `drilldown:artifact.read-alt-text` -> read_text_alternative (`summary.artifact.read_alt_text`) lands on `artifact:alt-text`
+  - drill-down `drilldown:artifact.open-metadata` -> open_metadata_view (`summary.artifact.open_metadata`) lands on `artifact:metadata`
+  - drill-down `drilldown:artifact.enumerate-layers` -> enumerate_structure (`summary.artifact.enumerate_layers`) lands on `artifact:structure`

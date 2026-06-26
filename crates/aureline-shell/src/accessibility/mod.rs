@@ -39,6 +39,7 @@
 //! [`fixtures/a11y/m5-surface-descriptors/`](../../../../fixtures/a11y/m5-surface-descriptors/).
 
 pub mod events;
+pub mod summaries;
 
 mod seed;
 #[cfg(test)]
