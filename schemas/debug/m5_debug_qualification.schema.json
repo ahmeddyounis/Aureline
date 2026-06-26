@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/debug/m5_debug_qualification.schema.json",
+  "title": "Aureline M5 debug qualification set",
+  "description": "Boundary schema for the typed M5 debugger qualification rows, claim publications, and downgrade rules that certify every claimed debugger-facing surface against the shared debug object model and its evidence corpus, and that narrow the published claim automatically when debugger evidence is stale, partial, or failing. Each qualification row binds the debugger object families it claims (debug_session, attach_target, breakpoint_spec, frame_mapping, variable_watch_snapshot, evaluate_request_result, console_emission, chronology_capability, replay_session, notebook_debug_parity) to the proof packets that keep it current, carries the disclosed support/mapping/parity/replay truth and evidence freshness, computes one qualification status (certified, retest_pending, stale, partial, failing, policy_blocked), and derives the maturity the product is allowed to publish (stable, preview, inspect_only, retest_pending, withdrawn) — stable only when certified with a supported, exact-mapping backend. Claim publications for the claim board, About/help/service-health, support exports, and release packets republish the narrowest maturity across the rows they cover, and downgrade rules name why each claim narrowed. No source bodies, value bodies, raw paths, provider payloads, URLs, hostnames, or credentials cross this boundary; the record carries opaque object refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "m5_debug_qualification_schema_version",
+    "schema_ref",
+    "set_id",
+    "as_of",
+    "freeze_gate_ref",
+    "summary",
+    "source_schema_refs",
+    "producer_refs",
+    "consumer_surfaces",
+    "qualification_rows",
+    "claim_publications",
+    "downgrade_rules",
+    "invariants",
+    "raw_payload_excluded"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_debug_qualification_set" },
+    "m5_debug_qualification_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/debug/m5_debug_qualification.schema.json" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "freeze_gate_ref": { "$ref": "#/$defs/repo_ref" },
+    "summary": { "$ref": "#/$defs/non_empty_string" },
+    "source_schema_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repo_ref" }
+    },
+    "producer_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repo_ref" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_class" }
+    },
+    "qualification_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/qualification_row" }
+    },
+    "claim_publications": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/claim_publication" }
+    },
+    "downgrade_rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/downgrade_rule" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/qualification_invariant" }
+    },
+    "raw_payload_excluded": { "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "repo_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A repo-relative object ref or opaque aureline:// handle. Never a URL, host, credential, or absolute path.",
+      "pattern": "^(schemas/|crates/|artifacts/|fixtures/|docs/|aureline://)"
+    },
+    "row_category": {
+      "type": "string",
+      "enum": ["core_runtime", "notebook", "profiler_replay", "incident_support"]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "aging", "stale", "missing"]
+    },
+    "qualification_status": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "retest_pending",
+        "stale",
+        "partial",
+        "failing",
+        "policy_blocked"
+      ]
+    },
+    "claim_maturity": {
+      "type": "string",
+      "enum": ["stable", "preview", "inspect_only", "retest_pending", "withdrawn"]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "evidence_aging",
+        "evidence_stale",
+        "evidence_partial",
+        "evidence_missing",
+        "support_class_degraded",
+        "mapping_fidelity_degraded",
+        "notebook_parity_lost",
+        "replay_evidence_lost",
+        "policy_blocked"
+      ]
+    },
+    "publication_channel": {
+      "type": "string",
+      "enum": [
+        "claim_board",
+        "about_help_service_health",
+        "support_export",
+        "release_packet"
+      ]
+    },
+    "object_class": {
+      "type": "string",
+      "enum": [
+        "debug_session",
+        "attach_target",
+        "breakpoint_spec",
+        "frame_mapping",
+        "variable_watch_snapshot",
+        "evaluate_request_result",
+        "console_emission",
+        "chronology_capability",
+        "replay_session",
+        "notebook_debug_parity"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": ["supported", "limited", "unavailable", "policy_blocked"]
+    },
+    "mapping_fidelity": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "approximate",
+        "symbol_only",
+        "unresolved",
+        "imported",
+        "mismatched_build"
+      ]
+    },
+    "notebook_parity": {
+      "type": "string",
+      "enum": ["mirrored", "divergent", "unsupported", "not_applicable"]
+    },
+    "consumer_class": {
+      "type": "string",
+      "enum": [
+        "core_debugger",
+        "notebook_debug",
+        "profiler",
+        "incident_review",
+        "support_export",
+        "ai_context",
+        "review_workspace",
+        "cli_headless",
+        "docs_help"
+      ]
+    },
+    "qualification_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "title",
+        "m5_row_ref",
+        "category",
+        "claimed_object_classes",
+        "claimed_maturity",
+        "evidence_freshness",
+        "evidence_complete",
+        "support_class",
+        "mapping_fidelity",
+        "notebook_parity",
+        "replay_support",
+        "policy_blocked",
+        "freshness_slo_days",
+        "last_certified_at",
+        "status",
+        "published_maturity",
+        "narrowed",
+        "narrowing_reason",
+        "evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "m5_row_ref": { "$ref": "#/$defs/non_empty_string" },
+        "category": { "$ref": "#/$defs/row_category" },
+        "claimed_object_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/object_class" }
+        },
+        "claimed_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "evidence_complete": { "type": "boolean" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "mapping_fidelity": { "$ref": "#/$defs/mapping_fidelity" },
+        "notebook_parity": { "$ref": "#/$defs/notebook_parity" },
+        "replay_support": { "$ref": "#/$defs/support_class" },
+        "policy_blocked": { "type": "boolean" },
+        "freshness_slo_days": { "type": "integer", "minimum": 1 },
+        "last_certified_at": { "$ref": "#/$defs/non_empty_string" },
+        "status": { "$ref": "#/$defs/qualification_status" },
+        "published_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "narrowed": { "type": "boolean" },
+        "narrowing_reason": { "type": "string" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_ref" }
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "claim_publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publication_id",
+        "title",
+        "channel",
+        "row_refs",
+        "claimed_maturity",
+        "published_maturity",
+        "narrowed",
+        "narrowing_reason",
+        "shows_status",
+        "shows_evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "publication_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "channel": { "$ref": "#/$defs/publication_channel" },
+        "row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "claimed_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "published_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "narrowed": { "type": "boolean" },
+        "narrowing_reason": { "type": "string" },
+        "shows_status": { "const": true },
+        "shows_evidence_refs": { "const": true },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "downgrade_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "title",
+        "trigger",
+        "resulting_maturity",
+        "affected_row_refs",
+        "active",
+        "shows_rule",
+        "summary"
+      ],
+      "properties": {
+        "rule_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "trigger": { "$ref": "#/$defs/downgrade_trigger" },
+        "resulting_maturity": { "$ref": "#/$defs/claim_maturity" },
+        "affected_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "active": { "type": "boolean" },
+        "shows_rule": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "qualification_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "statement", "holds"],
+      "properties": {
+        "invariant_id": { "$ref": "#/$defs/non_empty_string" },
+        "statement": { "$ref": "#/$defs/non_empty_string" },
+        "holds": { "const": true }
+      }
+    }
+  }
+}

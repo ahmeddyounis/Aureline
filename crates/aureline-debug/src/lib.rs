@@ -128,6 +128,25 @@
 //! reconnect-required, or manually relaunchable — never implying live continuity, reacquired
 //! process authority, or exact-build mapping when that is no longer true.
 //!
+//! It also exposes [`m5_debug_qualification`] — the typed, frozen
+//! [`DebugQualificationRow`](m5_debug_qualification::DebugQualificationRow),
+//! [`DebugClaimPublication`](m5_debug_qualification::DebugClaimPublication), and
+//! [`DebugDowngradeRule`](m5_debug_qualification::DebugDowngradeRule) records that certify
+//! every claimed M5 debugger-facing row against the shared debug object model and its
+//! evidence corpus. The canonical
+//! [`DebugQualificationSet`](m5_debug_qualification::DebugQualificationSet) binds each row to
+//! the [`DebugObjectClass`](m5_debug_contracts::DebugObjectClass) families it claims and the
+//! proof packets that keep it current, computes one
+//! [`DebugQualificationStatus`](m5_debug_qualification::DebugQualificationStatus) from
+//! evidence freshness and completeness, and derives the
+//! [`DebugClaimMaturity`](m5_debug_qualification::DebugClaimMaturity) the product is allowed
+//! to publish — stable only when certified with a supported, exact-mapping backend. Claim
+//! publications for the claim board, About/help/service-health, support exports, and release
+//! packets republish the narrowest maturity across the rows they cover, and downgrade rules
+//! name why each claim narrowed, so debugger maturity language narrows automatically when
+//! evidence is stale, partial, or failing instead of leaving old green prose in product and
+//! docs.
+//!
 //! The reviewer-facing contract is at
 //! [`/docs/m4/qualify-chronology-capture-and-replay-support-classes.md`](../../../docs/m4/qualify-chronology-capture-and-replay-support-classes.md).
 //! The cross-tool boundary schema is at
@@ -141,6 +160,7 @@ pub mod canonical_test_discovery_session_and_watch_truth;
 pub mod m5_breakpoint_specs;
 pub mod m5_chronology_replay_parity;
 pub mod m5_debug_contracts;
+pub mod m5_debug_qualification;
 pub mod m5_debug_session_descriptors;
 pub mod m5_dump_mapping_restore;
 pub mod m5_evaluate_repl_sheets;
@@ -222,6 +242,18 @@ pub use m5_dump_mapping_restore::{
     M5_DUMP_MAPPING_RESTORE_FREEZE_GATE_REF, M5_DUMP_MAPPING_RESTORE_RECORD_KIND,
     M5_DUMP_MAPPING_RESTORE_SCHEMA_REF, M5_DUMP_MAPPING_RESTORE_SCHEMA_VERSION,
     M5_DUMP_MAPPING_RESTORE_SET_ID,
+};
+
+pub use m5_debug_qualification::{
+    m5_debug_qualification_lines, m5_debug_qualification_set, ClaimPublicationChannel,
+    DebugClaimMaturity, DebugClaimPublication, DebugDowngradeRule, DebugQualificationInvariant,
+    DebugQualificationRow, DebugQualificationSet, DebugQualificationSetValidationError,
+    DebugQualificationStatus, DebugRowCategory, DowngradeTrigger, EvidenceFreshness,
+    M5_DEBUG_QUALIFICATION_ARTIFACT_REF, M5_DEBUG_QUALIFICATION_AS_OF,
+    M5_DEBUG_QUALIFICATION_DOC_REF, M5_DEBUG_QUALIFICATION_FIXTURE_REF,
+    M5_DEBUG_QUALIFICATION_FREEZE_GATE_REF, M5_DEBUG_QUALIFICATION_RECORD_KIND,
+    M5_DEBUG_QUALIFICATION_SCHEMA_REF, M5_DEBUG_QUALIFICATION_SCHEMA_VERSION,
+    M5_DEBUG_QUALIFICATION_SET_ID,
 };
 
 pub use m5_evaluate_repl_sheets::{
