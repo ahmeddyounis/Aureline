@@ -19,6 +19,7 @@ pub mod docs_maintenance_and_stale_example_governance;
 pub mod docs_pack_truth_packet;
 pub mod evidence_model;
 pub mod freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retrieval_debug_contract;
+pub mod freeze_the_m5_docs_source_result_pack_version_match_citation_set_and_browser_handoff_matrix;
 pub mod freeze_the_m5_markdown_authoring_safe_preview_docs_maintenance_and_docs_evidence_handoff_matrix;
 pub mod implement_docs_and_code_semantic_recall_with_query_session_ledger_ranking_reasons_and_provenance_export;
 pub mod implement_docs_authoring_suggestions_stale_link_or_stale_example_review_and_open_raw_or_open_source_escapes;
@@ -258,6 +259,26 @@ pub use freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retr
     M5_DOCS_RECALL_MATRIX_RECORD_KIND, M5_DOCS_RECALL_MATRIX_RETRIEVAL_DEBUG_CONTRACT_REF,
     M5_DOCS_RECALL_MATRIX_SCHEMA_REF, M5_DOCS_RECALL_MATRIX_SCHEMA_VERSION,
     M5_DOCS_RECALL_MATRIX_SUMMARY_REF,
+};
+pub use freeze_the_m5_docs_source_result_pack_version_match_citation_set_and_browser_handoff_matrix::{
+    current_stable_m5_docs_contracts_matrix_export, DocsContractBrowserHandoffPrivacyConsequence,
+    DocsContractBrowserHandoffReason, DocsContractFreshnessState, DocsContractLocaleMatch,
+    DocsContractMirrorOfflinePosture, DocsContractSourceClass, DocsContractTrustClass,
+    DocsContractVersionMatchState, M5DocsContractStateVocabulary,
+    M5DocsContractsConsumerProjection, M5DocsContractsConsumerSurface,
+    M5DocsContractsDowngradeTrigger, M5DocsContractsEvidenceRequirement,
+    M5DocsContractsMatrixArtifactError, M5DocsContractsMatrixPacket,
+    M5DocsContractsMatrixPacketInput, M5DocsContractsMatrixViolation,
+    M5DocsContractsProofFreshness, M5DocsContractsQualificationClass,
+    M5DocsContractsReleasePosture, M5DocsContractsRollbackPosture, M5DocsContractsTrustReview,
+    M5DocsContractsVocabularySet, M5DocsObjectKind, M5DocsObjectRow,
+    M5_DOCS_CONTRACTS_BROWSER_HANDOFF_CONTRACT_REF, M5_DOCS_CONTRACTS_DERIVED_EXPLANATION_CONTRACT_REF,
+    M5_DOCS_CONTRACTS_DOCS_BROWSER_CONTRACT_REF, M5_DOCS_CONTRACTS_MATRIX_ARTIFACT_REF,
+    M5_DOCS_CONTRACTS_MATRIX_DOC_REF, M5_DOCS_CONTRACTS_MATRIX_FIXTURE_DIR,
+    M5_DOCS_CONTRACTS_MATRIX_RECORD_KIND, M5_DOCS_CONTRACTS_MATRIX_SCHEMA_REF,
+    M5_DOCS_CONTRACTS_MATRIX_SCHEMA_VERSION, M5_DOCS_CONTRACTS_MATRIX_SUMMARY_REF,
+    M5_DOCS_CONTRACTS_PACK_MANIFEST_CONTRACT_REF,
+    M5_DOCS_CONTRACTS_SOURCE_RESULT_PACK_CONTRACT_REF,
 };
 pub use freeze_the_m5_markdown_authoring_safe_preview_docs_maintenance_and_docs_evidence_handoff_matrix::{
     current_stable_m5_markdown_authoring_matrix_export, M5AuthoringConsumerSurface,
