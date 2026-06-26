@@ -35,6 +35,7 @@ pub mod ship_docs_search_symbol_linked_reference_cards_and_code_anchor_preservin
 pub mod ship_retrieval_debug_surfaces_for_docs_recall_and_ai_context_with_exact_or_imported_or_heuristic_labeling;
 pub mod ship_saved_query_privacy_controls_local_versus_shared_retention_and_support_export_safe_search_history;
 pub mod stable_docs_contract;
+pub mod stable_docs_source_and_result_object_reuse_across_consumer_surfaces;
 
 pub use add_browser_lite_light_remote_edit_surfaces_with_narrow_scope_stale_state_honesty_and_no_hidden_authority_expa::{
     current_stable_light_remote_edit_export,
@@ -506,4 +507,16 @@ pub use stable_docs_contract::{
     STABLE_DOCS_CONTRACT_DOC_REF, STABLE_DOCS_CONTRACT_FIXTURE_DIR,
     STABLE_DOCS_CONTRACT_RECORD_KIND, STABLE_DOCS_CONTRACT_SCHEMA_REF,
     STABLE_DOCS_CONTRACT_SCHEMA_VERSION, STABLE_DOCS_CONTRACT_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use stable_docs_source_and_result_object_reuse_across_consumer_surfaces::{
+    current_stable_docs_source_result_reuse_export,
+    current_stable_docs_source_result_reuse_packet, seeded_stable_docs_source_result_reuse_input,
+    DocsObjectConsumerSurface, DocsObjectFindingKind, DocsObjectFindingSeverity,
+    DocsObjectPromotionState, DocsObjectReuseArtifactError, DocsObjectReusePacket,
+    DocsObjectReusePacketInput, DocsObjectReuseSupportExport, DocsObjectSurfaceProjection,
+    DocsObjectTrustClass, DocsObjectValidationFinding, DocsResult, DocsSnippetMeta,
+    DocsSourceDescriptor, DOCS_SOURCE_RESULT_REUSE_ARTIFACT_REF, DOCS_SOURCE_RESULT_REUSE_DOC_REF,
+    DOCS_SOURCE_RESULT_REUSE_FIXTURE_DIR, DOCS_SOURCE_RESULT_REUSE_RECORD_KIND,
+    DOCS_SOURCE_RESULT_REUSE_SCHEMA_REF, DOCS_SOURCE_RESULT_REUSE_SCHEMA_VERSION,
+    DOCS_SOURCE_RESULT_REUSE_SUMMARY_REF, DOCS_SOURCE_RESULT_REUSE_SUPPORT_EXPORT_RECORD_KIND,
 };
