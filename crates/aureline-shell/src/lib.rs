@@ -33,6 +33,7 @@
 
 pub mod a11y;
 pub mod about;
+pub mod accessibility;
 pub mod activity_center;
 pub mod activity_timeline;
 pub mod add_drag_and_drop_verb_disclosure_insertion_indicators_cross_window_detach_and_long_transf;

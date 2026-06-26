@@ -1,0 +1,57 @@
+# M5 Accessibility-Surface Descriptors and Bridge Mappings
+
+- Packet: `m5-accessibility-surface-descriptors:stable:0001`
+- Label: `M5 Accessibility-Surface Descriptors and Bridge Mappings`
+- Descriptors: 8 (8 stable)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-26T00:00:00Z)
+
+## Surfaces
+
+- **surface:shell.zone-frame** (`shell_region`): `stable`
+  - Owner: Accessibility owner
+  - Primary role: landmark_region
+  - Bridge: ui_automation / bridged_active (none)
+  - Reduced motion: crossfade_replaced_with_instant / high zoom: reflows_to_single_column
+  - Async focus return: returned_exact
+- **surface:editor.content-canvas** (`editor_canvas`): `stable`
+  - Owner: Accessibility owner
+  - Primary role: text_document
+  - Bridge: ui_automation / bridged_active (none)
+  - Reduced motion: animation_disabled_state_preserved / high zoom: scrolls_without_clipping
+  - Async focus return: returned_exact
+- **surface:terminal.log-canvas** (`terminal_canvas`): `stable`
+  - Owner: Accessibility owner
+  - Primary role: live_log_region
+  - Bridge: ui_automation / bridged_active (none)
+  - Reduced motion: motion_independent_already / high zoom: scrolls_without_clipping
+  - Async focus return: returned_current_batch_or_detail_owner
+- **surface:data.dense-collection** (`dense_collection`): `stable`
+  - Owner: Accessibility owner
+  - Primary role: data_grid_cell
+  - Bridge: ui_automation / bridged_active (none)
+  - Reduced motion: motion_independent_already / high zoom: scrolls_without_clipping
+  - Async focus return: returned_nearest_safe_ancestor
+- **surface:notebook.cell** (`notebook_cell`): `stable`
+  - Owner: Accessibility owner
+  - Primary role: notebook_cell
+  - Bridge: ui_automation / bridged_active (none)
+  - Reduced motion: no_animation / high zoom: reflows_to_single_column
+  - Async focus return: returned_current_batch_or_detail_owner
+- **surface:data.cell** (`data_cell`): `stable`
+  - Owner: Accessibility owner
+  - Primary role: data_grid_cell
+  - Bridge: ui_automation / bridged_active (none)
+  - Reduced motion: motion_independent_already / high zoom: content_scales_with_container
+  - Async focus return: returned_nearest_safe_ancestor
+- **surface:review.diff-hunk** (`review_diff`): `stable`
+  - Owner: Accessibility owner
+  - Primary role: structure_group
+  - Bridge: ui_automation / bridged_active (none)
+  - Reduced motion: motion_independent_already / high zoom: reflows_to_single_column
+  - Async focus return: returned_exact
+- **surface:shell.overlay-sheet** (`overlay_sheet`): `stable`
+  - Owner: Accessibility owner
+  - Primary role: structure_group
+  - Bridge: ui_automation / bridged_active (none)
+  - Reduced motion: crossfade_replaced_with_instant / high zoom: content_scales_with_container
+  - Async focus return: returned_placeholder_announced
