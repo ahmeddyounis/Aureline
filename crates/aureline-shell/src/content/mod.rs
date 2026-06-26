@@ -15,6 +15,12 @@
 //!   availability) plus a forbidden high-trust phrase register and lint that rejects
 //!   overclaiming copy across prompt composer, patch review, notebook help,
 //!   docs/help, and provider/account surfaces.
+//! - [`content_ops_metadata`] — provenance metadata for docs/help snippets,
+//!   export/report headings, screenshot/demo captions, and translator notes:
+//!   stable ids, source/command/version/build refs, translation-safe placeholder
+//!   notes, machine-code/human-label heading pairing, and locale fallback posture,
+//!   so non-runtime wording carries the same context as runtime surfaces.
 
 pub mod ai_copy_guardrails;
+pub mod content_ops_metadata;
 pub mod error_patterns;
