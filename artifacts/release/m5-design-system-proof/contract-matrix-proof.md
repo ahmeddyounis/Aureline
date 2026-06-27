@@ -1,0 +1,91 @@
+# M5 Design-System Contract Matrix
+
+- Matrix: `m5-design-system-contract:stable:0001`
+- Label: `M5 Design-System Contract Matrix`
+- Governed objects: 11 (1 foundation, 4 component, 1 layout, 1 state, 1 fixture, 3 proof)
+- Surfaces: 4 (4 green, 0 yellow, 0 red)
+- Release gate: pass (0 blocked, 0 auto-narrowed, 4 conformant)
+- Active waivers: 0
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-26T00:00:00Z)
+
+## Governed contract objects
+
+- **design-system:foundation:tokens** (`Canonical token foundations`, foundation): owner Design system owner, first consumer `shell`, proof `current`
+  - Canonical artifact: `fixtures/ui/m5-component-gallery/foundations.json`
+  - Proof lane: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Release packet: `evidence:m5-design-system-release-packet`
+- **design-system:layout:shell-reference** (`Shell reference layout`, reference_layout): owner Design system owner, first consumer `shell`, proof `current`
+  - Canonical artifact: `fixtures/ui/m5-component-gallery/reference-layout.json`
+  - Proof lane: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Release packet: `evidence:m5-design-system-release-packet`
+- **design-system:state:canonical-states** (`Canonical state-semantic families`, state_semantic_family): owner Design system owner, first consumer `shell`, proof `current`
+  - Canonical artifact: `schemas/design-system/m5-design-system-contract-matrix.schema.json`
+  - Proof lane: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Release packet: `evidence:m5-design-system-release-packet`
+- **design-system:fixture:component-gallery** (`Component gallery demo fixtures`, demo_fixture): owner Design QA owner, first consumer `qa`, proof `current`
+  - Canonical artifact: `fixtures/ui/m5-component-gallery/`
+  - Proof lane: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Release packet: `evidence:m5-design-system-release-packet`
+- **design-system:proof:token-conformance** (`Token-conformance proof packet`, proof_packet): owner Design QA owner, first consumer `release_center`, proof `current`
+  - Canonical artifact: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Proof lane: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Release packet: `evidence:m5-design-system-release-packet`
+- **design-system:proof:component-screenshot-diff** (`Component screenshot-diff proof packet`, proof_packet): owner Design QA owner, first consumer `release_center`, proof `current`
+  - Canonical artifact: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Proof lane: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Release packet: `evidence:m5-design-system-release-packet`
+- **design-system:proof:appearance-session** (`Appearance-session proof packet`, proof_packet): owner Design QA owner, first consumer `release_center`, proof `current`
+  - Canonical artifact: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Proof lane: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Release packet: `evidence:m5-design-system-release-packet`
+- **design-system:component:shell_chrome** (`Shell chrome component contract`, component_contract): owner Component owner, first consumer `shell`, proof `current`
+  - Canonical artifact: `fixtures/ui/m5-component-gallery/component-contract-shell_chrome.json`
+  - Proof lane: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Release packet: `evidence:m5-design-system-release-packet`
+- **design-system:component:command_palette** (`Command palette component contract`, component_contract): owner Component owner, first consumer `shell`, proof `current`
+  - Canonical artifact: `fixtures/ui/m5-component-gallery/component-contract-command_palette.json`
+  - Proof lane: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Release packet: `evidence:m5-design-system-release-packet`
+- **design-system:component:trust_prompt** (`Trust prompt component contract`, component_contract): owner Component owner, first consumer `shell`, proof `current`
+  - Canonical artifact: `fixtures/ui/m5-component-gallery/component-contract-trust_prompt.json`
+  - Proof lane: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Release packet: `evidence:m5-design-system-release-packet`
+- **design-system:component:notification_envelope** (`Notification envelope component contract`, component_contract): owner Component owner, first consumer `shell`, proof `current`
+  - Canonical artifact: `fixtures/ui/m5-component-gallery/component-contract-notification_envelope.json`
+  - Proof lane: `artifacts/release/m5-design-system-proof/support_export.json`
+  - Release packet: `evidence:m5-design-system-release-packet`
+
+## Claimed surfaces
+
+- **design-system-surface:shell_chrome** (`shell_chrome`): `conformant` (green), claim `stable` → `stable`, gate `certified_promote`
+  - Owner: Component owner
+  - requires `design-system:foundation:tokens` (foundation)
+  - requires `design-system:component:shell_chrome` (component_contract)
+  - requires `design-system:layout:shell-reference` (reference_layout)
+  - requires `design-system:state:canonical-states` (state_semantic_family)
+  - requires `design-system:fixture:component-gallery` (demo_fixture)
+  - requires `design-system:proof:token-conformance` (proof_packet)
+- **design-system-surface:command_palette** (`command_palette`): `conformant` (green), claim `stable` → `stable`, gate `certified_promote`
+  - Owner: Component owner
+  - requires `design-system:foundation:tokens` (foundation)
+  - requires `design-system:component:command_palette` (component_contract)
+  - requires `design-system:layout:shell-reference` (reference_layout)
+  - requires `design-system:state:canonical-states` (state_semantic_family)
+  - requires `design-system:fixture:component-gallery` (demo_fixture)
+  - requires `design-system:proof:token-conformance` (proof_packet)
+- **design-system-surface:trust_prompt** (`trust_prompt`): `conformant` (green), claim `stable` → `stable`, gate `certified_promote`
+  - Owner: Component owner
+  - requires `design-system:foundation:tokens` (foundation)
+  - requires `design-system:component:trust_prompt` (component_contract)
+  - requires `design-system:layout:shell-reference` (reference_layout)
+  - requires `design-system:state:canonical-states` (state_semantic_family)
+  - requires `design-system:fixture:component-gallery` (demo_fixture)
+  - requires `design-system:proof:token-conformance` (proof_packet)
+- **design-system-surface:notification_envelope** (`notification_envelope`): `conformant` (green), claim `stable` → `stable`, gate `certified_promote`
+  - Owner: Component owner
+  - requires `design-system:foundation:tokens` (foundation)
+  - requires `design-system:component:notification_envelope` (component_contract)
+  - requires `design-system:layout:shell-reference` (reference_layout)
+  - requires `design-system:state:canonical-states` (state_semantic_family)
+  - requires `design-system:fixture:component-gallery` (demo_fixture)
+  - requires `design-system:proof:token-conformance` (proof_packet)

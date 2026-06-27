@@ -10,6 +10,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 pub mod appearance_session;
+pub mod m5_design_system_contract;
 
 use aureline_ui::components::ComponentStateClass;
 use aureline_ui::density::DensityClass;
@@ -24,6 +25,19 @@ pub use appearance_session::{
     LiveFollowPolicySummary, LiveOsAppearanceChangeSummary, ProtectedCueContractRow,
     ThemeImportMappingContractSummary, ThemePackageContractSummary, TokenOverlayContractSummary,
     APPEARANCE_SESSION_BETA_RECORD_KIND, APPEARANCE_SESSION_BETA_SHARED_CONTRACT_REF,
+};
+
+pub use m5_design_system_contract::{
+    current_stable_m5_design_system_contract_matrix, current_stable_m5_design_system_dashboard,
+    seeded_m5_component_contract_gallery, seeded_m5_design_system_contract_matrix,
+    seeded_m5_design_system_contract_matrix_missing_object,
+    seeded_m5_design_system_contract_matrix_stale_proof_retest_pending,
+    seeded_m5_design_system_contract_matrix_waived_narrowed, seeded_m5_foundations_artifact,
+    seeded_m5_reference_layout_artifact, M5ComponentContractArtifact, M5ContractObjectKind,
+    M5CoverageGateDecision, M5CoverageStatus, M5DesignSystemContractMatrix,
+    M5DesignSystemContractObject, M5DesignSystemDashboard, M5FoundationsArtifact,
+    M5ReferenceLayoutArtifact, M5SurfaceContractCoverage, M5_DESIGN_SYSTEM_CONTRACT_MATRIX_ID,
+    M5_DESIGN_SYSTEM_CONTRACT_MATRIX_RECORD_KIND,
 };
 
 /// Schema version emitted by all beta design-system contract records.
