@@ -71,6 +71,23 @@
 //! audit exports can reconstruct a runbook's full lineage without screenshots or tribal
 //! memory.
 //!
+//! Runbooks routinely cross out of Aureline's governed plane into provider consoles
+//! and browser surfaces. The [`m5_runbook_handoffs`] module freezes that pivot as a
+//! first-class, attributable transition rather than a hidden escape: every
+//! [handoff packet](m5_runbook_governance::ControlPlaneHandoffPacket) names its
+//! [destination class](m5_runbook_governance::HandoffDestinationClass), the
+//! [reason](m5_runbook_governance::HandoffReasonClass) for the pivot, the object
+//! identity it crosses to, a [return anchor](m5_runbook_governance::ReturnAnchor)
+//! that keeps the initiating target and evidence identity intact, and any narrowed
+//! far-side authority. Each destination carries a
+//! [reference-plane state](m5_runbook_governance::ReferencePlaneState) so a browser
+//! reference doc stays read-only and can never present itself as executable
+//! in-product control, while a provider console is named as the true (external)
+//! control plane that Aureline explicitly hands off to. The handoff register
+//! projects every governed pivot — including the live ones embedded in execution
+//! records — and a reference-plane catalog, exposed identically across the incident
+//! workspace, operator history, support exports, and docs/help.
+//!
 //! The records this crate produces are inspectable, serde-serializable truth
 //! packets that carry no credential bodies or raw provider/console payloads.
 
@@ -78,5 +95,6 @@
 
 pub mod m5_runbook_executions;
 pub mod m5_runbook_governance;
+pub mod m5_runbook_handoffs;
 pub mod m5_runbook_sources;
 pub mod m5_runbook_steps;

@@ -872,23 +872,341 @@ impl DeviationNote {
     }
 }
 
-/// One governed console/browser control-plane handoff packet.
+/// What kind of destination a console/browser pivot lands on. The boundary class
+/// says *which plane* is crossed; the destination class says *what the far side is*,
+/// which is what determines whether it can ever be in-product control.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffDestinationClass {
+    /// An external vendor/provider console; the true control plane lives there.
+    VendorConsole,
+    /// Browser-only reference documentation; read-only, never a control plane.
+    BrowserReferenceDoc,
+    /// A hosted browser application surface that is itself the control plane.
+    BrowserAppSurface,
+    /// An external authentication authority (IdP / SSO challenge).
+    ExternalAuthAuthority,
+}
+
+impl HandoffDestinationClass {
+    /// Every destination class, in declaration order.
+    pub const ALL: [Self; 4] = [
+        Self::VendorConsole,
+        Self::BrowserReferenceDoc,
+        Self::BrowserAppSurface,
+        Self::ExternalAuthAuthority,
+    ];
+
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::VendorConsole => "vendor_console",
+            Self::BrowserReferenceDoc => "browser_reference_doc",
+            Self::BrowserAppSurface => "browser_app_surface",
+            Self::ExternalAuthAuthority => "external_auth_authority",
+        }
+    }
+
+    /// The control-plane boundary class this destination is reached across.
+    pub const fn boundary_class(self) -> ControlPlaneBoundaryClass {
+        match self {
+            Self::VendorConsole => ControlPlaneBoundaryClass::VendorConsoleHandoff,
+            Self::BrowserReferenceDoc | Self::BrowserAppSurface => {
+                ControlPlaneBoundaryClass::BrowserHandoff
+            }
+            Self::ExternalAuthAuthority => ControlPlaneBoundaryClass::AuthBoundaryCross,
+        }
+    }
+
+    /// The reference-plane state this destination class is allowed to declare. A
+    /// browser reference doc can only ever be reference-only; the others are the
+    /// true control plane and so require an explicit handoff.
+    pub const fn reference_plane_state(self) -> ReferencePlaneState {
+        match self {
+            Self::BrowserReferenceDoc => ReferencePlaneState::ReferenceOnly,
+            Self::VendorConsole | Self::BrowserAppSurface | Self::ExternalAuthAuthority => {
+                ReferencePlaneState::HandoffRequired
+            }
+        }
+    }
+}
+
+/// Why a console/browser pivot happens. The reason is recorded so a pivot is an
+/// explicit, attributable product transition rather than an unexplained escape.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffReasonClass {
+    /// The action itself can only be performed in the external control plane.
+    ExecuteOutOfPlaneAction,
+    /// Read browser-only reference documentation; no action is taken there.
+    ConsultReferenceDocumentation,
+    /// Inspect state that only the external surface exposes; no action is taken.
+    InspectVendorState,
+    /// Satisfy an external authentication challenge before returning.
+    CompleteAuthChallenge,
+    /// Retrieve an evidence/export artifact the external surface owns.
+    RetrieveExportArtifact,
+}
+
+impl HandoffReasonClass {
+    /// Every reason class, in declaration order.
+    pub const ALL: [Self; 5] = [
+        Self::ExecuteOutOfPlaneAction,
+        Self::ConsultReferenceDocumentation,
+        Self::InspectVendorState,
+        Self::CompleteAuthChallenge,
+        Self::RetrieveExportArtifact,
+    ];
+
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ExecuteOutOfPlaneAction => "execute_out_of_plane_action",
+            Self::ConsultReferenceDocumentation => "consult_reference_documentation",
+            Self::InspectVendorState => "inspect_vendor_state",
+            Self::CompleteAuthChallenge => "complete_auth_challenge",
+            Self::RetrieveExportArtifact => "retrieve_export_artifact",
+        }
+    }
+
+    /// True when the reason claims that control is *exercised* on the far side
+    /// (executing an action or completing an auth challenge), as opposed to a
+    /// read-only consultation. A reference-only destination must never claim this.
+    pub const fn exercises_far_side_control(self) -> bool {
+        matches!(
+            self,
+            Self::ExecuteOutOfPlaneAction | Self::CompleteAuthChallenge
+        )
+    }
+}
+
+/// Where a runbook destination sits relative to Aureline's governed plane. This is
+/// the state that stops a browser reference doc from masquerading as in-product
+/// control: a [`ReferenceOnly`](Self::ReferenceOnly) destination is read-only, while a
+/// [`HandoffRequired`](Self::HandoffRequired) destination is the true (external)
+/// control plane that Aureline must explicitly, attributably pivot to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReferencePlaneState {
+    /// The control plane is inside Aureline's governed plane (no handoff).
+    GovernedInApp,
+    /// The true control plane is external; Aureline hands off explicitly and the
+    /// pivot remains attributable, with a return anchor back to the runbook.
+    HandoffRequired,
+    /// The destination is read-only reference; it can never present itself as
+    /// executable in-product control.
+    ReferenceOnly,
+}
+
+impl ReferencePlaneState {
+    /// Every reference-plane state, in declaration order.
+    pub const ALL: [Self; 3] = [
+        Self::GovernedInApp,
+        Self::HandoffRequired,
+        Self::ReferenceOnly,
+    ];
+
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::GovernedInApp => "governed_in_app",
+            Self::HandoffRequired => "handoff_required",
+            Self::ReferenceOnly => "reference_only",
+        }
+    }
+
+    /// True when the destination is the true control plane on the far side of an
+    /// explicit handoff (rather than read-only reference or in-app).
+    pub const fn is_handoff_required(self) -> bool {
+        matches!(self, Self::HandoffRequired)
+    }
+
+    /// True when the destination is read-only reference and so must never present
+    /// itself as executable in-product control.
+    pub const fn is_reference_only(self) -> bool {
+        matches!(self, Self::ReferenceOnly)
+    }
+}
+
+/// The class of Aureline object a [`ReturnAnchor`] points back to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReturnAnchorObjectClass {
+    /// Return to the initiating runbook execution record.
+    RunbookExecution,
+    /// Return to the initiating runbook step.
+    RunbookStep,
+    /// Return to the initiating incident workspace.
+    IncidentWorkspace,
+}
+
+impl ReturnAnchorObjectClass {
+    /// Every return-anchor object class, in declaration order.
+    pub const ALL: [Self; 3] = [
+        Self::RunbookExecution,
+        Self::RunbookStep,
+        Self::IncidentWorkspace,
+    ];
+
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RunbookExecution => "runbook_execution",
+            Self::RunbookStep => "runbook_step",
+            Self::IncidentWorkspace => "incident_workspace",
+        }
+    }
+}
+
+/// The continuity anchor a handoff carries so a console/browser pivot never loses
+/// the initiating Aureline context. It names the object to return to, and the
+/// target and evidence identity preserved across the pivot, so the operator can
+/// come back to the runbook/incident with target and evidence linkage intact.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReturnAnchor {
+    /// The class of Aureline object the pivot returns to.
+    pub initiating_object_class: ReturnAnchorObjectClass,
+    /// Opaque, redaction-safe ref to the Aureline object the pivot returns to.
+    pub initiating_object_ref: String,
+    /// The target identity preserved across the pivot. Mirrors the initiating
+    /// step's target selector so the operator returns to the same target.
+    pub target_continuity_ref: String,
+    /// The evidence identity preserved across the pivot. References the initiating
+    /// step's evidence so returning does not lose the evidence thread.
+    pub evidence_continuity_ref: String,
+    /// Stable message id for the "return to Aureline" affordance; prefixed
+    /// [`M5_RUNBOOK_MESSAGE_ID_PREFIX`].
+    pub return_message_id: String,
+}
+
+impl ReturnAnchor {
+    /// True when the anchor carries a complete, prefixed return path.
+    pub fn is_complete(&self) -> bool {
+        !self.initiating_object_ref.trim().is_empty()
+            && !self.target_continuity_ref.trim().is_empty()
+            && !self.evidence_continuity_ref.trim().is_empty()
+            && self
+                .return_message_id
+                .starts_with(M5_RUNBOOK_MESSAGE_ID_PREFIX)
+    }
+
+    /// True when the anchor preserves the initiating step's target identity.
+    pub fn preserves_target(&self, step_target_ref: &str) -> bool {
+        !step_target_ref.trim().is_empty() && self.target_continuity_ref == step_target_ref
+    }
+
+    /// True when the anchor preserves the initiating step's evidence identity:
+    /// the continuity ref must be one of the evidence outputs the step produced.
+    pub fn preserves_evidence(&self, step_evidence_refs: &[String]) -> bool {
+        step_evidence_refs
+            .iter()
+            .any(|e| e == &self.evidence_continuity_ref)
+    }
+}
+
+/// One governed console/browser control-plane handoff packet: a first-class,
+/// attributable product transition out of Aureline's governed plane.
+///
+/// A pivot to a provider console or browser surface is never a hidden escape from
+/// Aureline truth. The packet names its [destination class](HandoffDestinationClass),
+/// the [reason](HandoffReasonClass) for the pivot, the object identity it crosses to,
+/// its [reference-plane state](ReferencePlaneState) (so a read-only reference doc can
+/// never claim executable in-product control), a [return anchor](ReturnAnchor) that
+/// keeps the initiating target and evidence identity intact, and any narrowed
+/// authority that applies on the far side.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ControlPlaneHandoffPacket {
     /// Stable handoff id.
     pub handoff_id: String,
     /// The control-plane boundary the handoff crosses.
     pub boundary_class: ControlPlaneBoundaryClass,
+    /// What kind of destination the pivot lands on.
+    pub destination_class: HandoffDestinationClass,
+    /// Why the pivot happens.
+    pub reason_class: HandoffReasonClass,
+    /// Whether the destination is the true (external) control plane, read-only
+    /// reference, or in-app. A reference-only destination can never present itself
+    /// as executable in-product control.
+    pub reference_plane_state: ReferencePlaneState,
     /// Opaque, redaction-safe ref to the handoff target (console id / browser route).
     pub target_ref: String,
+    /// Opaque, redaction-safe ref to the destination object identity crossed to.
+    pub destination_object_ref: String,
     /// Opaque ref attributing the handoff to a session/actor.
     pub attribution_ref: String,
+    /// The continuity anchor back to the initiating Aureline object.
+    pub return_anchor: ReturnAnchor,
+    /// Optional message id naming any authority narrowed on the far side (for
+    /// example, read-only console access). `None` when no narrowing applies;
+    /// prefixed [`M5_RUNBOOK_MESSAGE_ID_PREFIX`] when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub narrowed_authority_message_id: Option<String>,
     /// Whether control returns to Aureline's governed plane after the pivot.
     pub returns_to_governed_plane: bool,
     /// Always false: a handoff never mints a hidden privileged mutate channel.
     pub creates_hidden_mutate_channel: bool,
     /// Stable message id; prefixed [`M5_RUNBOOK_MESSAGE_ID_PREFIX`].
     pub detail_message_id: String,
+}
+
+impl ControlPlaneHandoffPacket {
+    /// Validates the handoff packet's self-contained invariants: a pivot leaves the
+    /// governed plane, its destination/reason/reference-plane state are mutually
+    /// consistent, a reference-only destination never claims far-side control, the
+    /// return anchor is complete, and no hidden privileged mutate channel is minted.
+    pub fn validate(&self) -> Vec<M5RunbookGovernanceViolation> {
+        let mut out = Vec::new();
+        if self.handoff_id.trim().is_empty()
+            || self.target_ref.trim().is_empty()
+            || self.destination_object_ref.trim().is_empty()
+            || self.attribution_ref.trim().is_empty()
+        {
+            out.push(M5RunbookGovernanceViolation::MissingIdentity);
+        }
+        if self.attribution_ref.trim().is_empty() {
+            out.push(M5RunbookGovernanceViolation::UnattributableHandoff);
+        }
+        // A handoff packet only exists for a pivot that leaves the governed plane.
+        if !self.boundary_class.leaves_governed_plane() {
+            out.push(M5RunbookGovernanceViolation::HandoffDestinationMismatch);
+        }
+        // The destination class fixes both the boundary it is reached across and the
+        // reference-plane state it is allowed to declare.
+        if self.destination_class.boundary_class() != self.boundary_class
+            || self.destination_class.reference_plane_state() != self.reference_plane_state
+        {
+            out.push(M5RunbookGovernanceViolation::HandoffDestinationMismatch);
+        }
+        // A read-only reference destination can never claim that control is
+        // exercised on the far side — that is exactly the masquerade we forbid.
+        if self.reference_plane_state.is_reference_only()
+            && self.reason_class.exercises_far_side_control()
+        {
+            out.push(M5RunbookGovernanceViolation::ReferenceOnlyHandoffClaimsControl);
+        }
+        // A handoff never mints a hidden privileged mutate channel.
+        if self.creates_hidden_mutate_channel {
+            out.push(M5RunbookGovernanceViolation::HiddenMutateChannel);
+        }
+        // The return anchor must keep the initiating context reachable.
+        if !self.return_anchor.is_complete() {
+            out.push(M5RunbookGovernanceViolation::HandoffMissingReturnAnchor);
+        }
+        if !self
+            .detail_message_id
+            .starts_with(M5_RUNBOOK_MESSAGE_ID_PREFIX)
+        {
+            out.push(M5RunbookGovernanceViolation::UnprefixedMessageId);
+        }
+        if self
+            .narrowed_authority_message_id
+            .as_deref()
+            .is_some_and(|m| !m.starts_with(M5_RUNBOOK_MESSAGE_ID_PREFIX))
+        {
+            out.push(M5RunbookGovernanceViolation::UnprefixedMessageId);
+        }
+        out
+    }
 }
 
 /// The stable cross-family ids that keep an archived runbook execution joinable to the
@@ -1301,17 +1619,20 @@ impl RunbookExecutionRecord {
             let leaves = result.step.control_plane_boundary.leaves_governed_plane();
             match &result.handoff {
                 Some(handoff) => {
-                    if handoff.creates_hidden_mutate_channel {
-                        out.push(M5RunbookGovernanceViolation::HiddenMutateChannel);
+                    out.extend(handoff.validate());
+                    // The handoff's boundary must match the step's declared boundary.
+                    if handoff.boundary_class != result.step.control_plane_boundary {
+                        out.push(M5RunbookGovernanceViolation::HandoffDestinationMismatch);
                     }
-                    if handoff.attribution_ref.trim().is_empty() {
-                        out.push(M5RunbookGovernanceViolation::UnattributableHandoff);
-                    }
-                    if !handoff
-                        .detail_message_id
-                        .starts_with(M5_RUNBOOK_MESSAGE_ID_PREFIX)
+                    // The return anchor must preserve the initiating step's target and
+                    // evidence identity, so the operator can return without losing
+                    // incident/runbook context.
+                    if !handoff.return_anchor.preserves_target(&result.target_ref)
+                        || !handoff
+                            .return_anchor
+                            .preserves_evidence(&result.evidence_refs)
                     {
-                        out.push(M5RunbookGovernanceViolation::UnprefixedMessageId);
+                        out.push(M5RunbookGovernanceViolation::ReturnAnchorBreaksContinuity);
                     }
                 }
                 None if leaves => {
@@ -2210,6 +2531,14 @@ pub enum M5RunbookGovernanceViolation {
     HiddenMutateChannel,
     /// A handoff that leaves the governed plane is unattributable.
     UnattributableHandoff,
+    /// A handoff's destination class, boundary, or reference-plane state disagree.
+    HandoffDestinationMismatch,
+    /// A reference-only handoff destination claims executable far-side control.
+    ReferenceOnlyHandoffClaimsControl,
+    /// A handoff carries no usable return anchor back to its initiating object.
+    HandoffMissingReturnAnchor,
+    /// A handoff's return anchor does not preserve the step's target/evidence identity.
+    ReturnAnchorBreaksContinuity,
     /// A recorded deviation is unattributable.
     UnattributableDeviation,
     /// A deviation note is missing its id, affected steps, recorded time, or summary.
@@ -2262,6 +2591,10 @@ impl M5RunbookGovernanceViolation {
             Self::StepBoundaryMismatch => "step_boundary_mismatch",
             Self::HiddenMutateChannel => "hidden_mutate_channel",
             Self::UnattributableHandoff => "unattributable_handoff",
+            Self::HandoffDestinationMismatch => "handoff_destination_mismatch",
+            Self::ReferenceOnlyHandoffClaimsControl => "reference_only_handoff_claims_control",
+            Self::HandoffMissingReturnAnchor => "handoff_missing_return_anchor",
+            Self::ReturnAnchorBreaksContinuity => "return_anchor_breaks_continuity",
             Self::UnattributableDeviation => "unattributable_deviation",
             Self::DeviationNoteIncomplete => "deviation_note_incomplete",
             Self::ArchivalRecordIncomplete => "archival_record_incomplete",

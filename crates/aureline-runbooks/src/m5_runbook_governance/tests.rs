@@ -331,6 +331,75 @@ fn console_handoff_stays_attributable_and_returns_to_plane() {
     assert!(!handoff.attribution_ref.is_empty());
     assert!(handoff.returns_to_governed_plane);
     assert!(!handoff.creates_hidden_mutate_channel);
+    // The pivot is a first-class transition: it names a destination, a reason, a
+    // reference-plane state, and a return anchor that preserves target + evidence.
+    assert_eq!(
+        handoff.destination_class,
+        HandoffDestinationClass::VendorConsole
+    );
+    assert_eq!(
+        handoff.reason_class,
+        HandoffReasonClass::ExecuteOutOfPlaneAction
+    );
+    assert!(handoff.reference_plane_state.is_handoff_required());
+    assert!(handoff.return_anchor.is_complete());
+    assert!(handoff
+        .return_anchor
+        .preserves_target(&handoff_step.target_ref));
+    assert!(handoff
+        .return_anchor
+        .preserves_evidence(&handoff_step.evidence_refs));
+    assert!(handoff.validate().is_empty(), "{:?}", handoff.validate());
+}
+
+#[test]
+fn a_reference_only_destination_cannot_claim_far_side_control() {
+    let mut handoff = super::seed::vendor_console_handoff().executed_steps[1]
+        .handoff
+        .clone()
+        .expect("handoff packet exists");
+    // A browser reference doc is reference-only and may only be consulted.
+    handoff.destination_class = HandoffDestinationClass::BrowserReferenceDoc;
+    handoff.boundary_class = ControlPlaneBoundaryClass::BrowserHandoff;
+    handoff.reference_plane_state = ReferencePlaneState::ReferenceOnly;
+    // Claiming it executes far-side control is the masquerade we forbid.
+    handoff.reason_class = HandoffReasonClass::ExecuteOutOfPlaneAction;
+    assert!(handoff
+        .validate()
+        .contains(&M5RunbookGovernanceViolation::ReferenceOnlyHandoffClaimsControl));
+    // Consulting it is honest and valid.
+    handoff.reason_class = HandoffReasonClass::ConsultReferenceDocumentation;
+    assert!(!handoff
+        .validate()
+        .contains(&M5RunbookGovernanceViolation::ReferenceOnlyHandoffClaimsControl));
+}
+
+#[test]
+fn a_destination_class_inconsistent_with_its_boundary_is_rejected() {
+    let mut handoff = super::seed::vendor_console_handoff().executed_steps[1]
+        .handoff
+        .clone()
+        .expect("handoff packet exists");
+    // A vendor console reached over a browser boundary is a contradiction.
+    handoff.boundary_class = ControlPlaneBoundaryClass::BrowserHandoff;
+    assert!(handoff
+        .validate()
+        .contains(&M5RunbookGovernanceViolation::HandoffDestinationMismatch));
+}
+
+#[test]
+fn a_handoff_that_drops_the_return_anchor_breaks_continuity() {
+    let mut record = super::seed::vendor_console_handoff();
+    let handoff = record.executed_steps[1]
+        .handoff
+        .as_mut()
+        .expect("handoff packet exists");
+    // Losing the target identity means the operator cannot return with context.
+    handoff.return_anchor.target_continuity_ref = "target:unrelated".to_owned();
+    record.recompute();
+    assert!(record
+        .validate()
+        .contains(&M5RunbookGovernanceViolation::ReturnAnchorBreaksContinuity));
 }
 
 #[test]

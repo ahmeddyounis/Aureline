@@ -531,12 +531,44 @@ fn joins(
     }
 }
 
-fn handoff(handoff_id: &str, boundary: ControlPlaneBoundaryClass) -> ControlPlaneHandoffPacket {
+/// Builds a first-class console/browser handoff packet, deriving its boundary and
+/// reference-plane state from the destination class and anchoring its return path to
+/// the initiating execution's target and evidence identity.
+#[allow(clippy::too_many_arguments)]
+fn handoff(
+    handoff_id: &str,
+    destination_class: HandoffDestinationClass,
+    reason_class: HandoffReasonClass,
+    initiating_object_ref: &str,
+    step_target_ref: &str,
+    evidence_continuity_ref: &str,
+    narrowed_authority: Option<&str>,
+) -> ControlPlaneHandoffPacket {
     ControlPlaneHandoffPacket {
         handoff_id: handoff_id.to_owned(),
-        boundary_class: boundary,
+        boundary_class: destination_class.boundary_class(),
+        destination_class,
+        reason_class,
+        reference_plane_state: destination_class.reference_plane_state(),
         target_ref: format!("console-ref:{handoff_id}"),
+        destination_object_ref: format!("console-object:{handoff_id}"),
         attribution_ref: format!("session-ref:{handoff_id}"),
+        return_anchor: ReturnAnchor {
+            initiating_object_class: ReturnAnchorObjectClass::RunbookExecution,
+            initiating_object_ref: initiating_object_ref.to_owned(),
+            target_continuity_ref: step_target_ref.to_owned(),
+            evidence_continuity_ref: evidence_continuity_ref.to_owned(),
+            return_message_id: format!(
+                "{}handoff.{}.return",
+                M5_RUNBOOK_MESSAGE_ID_PREFIX, handoff_id
+            ),
+        },
+        narrowed_authority_message_id: narrowed_authority.map(|m| {
+            format!(
+                "{}handoff.{}.narrowed.{m}",
+                M5_RUNBOOK_MESSAGE_ID_PREFIX, handoff_id
+            )
+        }),
         returns_to_governed_plane: true,
         creates_hidden_mutate_channel: false,
         detail_message_id: format!("{}handoff.{}", M5_RUNBOOK_MESSAGE_ID_PREFIX, handoff_id),
@@ -808,7 +840,12 @@ pub fn vendor_console_handoff() -> RunbookExecutionRecord {
             clean_deviation("vendor.console"),
             Some(handoff(
                 "vendor-scale",
-                ControlPlaneBoundaryClass::VendorConsoleHandoff,
+                HandoffDestinationClass::VendorConsole,
+                HandoffReasonClass::ExecuteOutOfPlaneAction,
+                "vendor-console-handoff",
+                "target:vendor-console/scaling-group",
+                "evidence:vendor:handoff",
+                Some("read_write_scaling_only"),
             )),
             vec!["evidence:vendor:handoff".to_owned()],
             actor,
