@@ -32,6 +32,21 @@
 //! promotes them, and a stale source narrows back to reference-only, so a
 //! reference cannot masquerade as a first-party executable runbook.
 //!
+//! Once a runbook's authority is established, every executable step is itself a
+//! durable object. The [`m5_runbook_steps`] module publishes the executable step
+//! library: each step declares a stable id, a step class, the
+//! [target-selector scope](m5_runbook_steps::TargetSelectorScope) it reaches, the
+//! approval it requires, whether it stays
+//! [view-only, in-product executable, or handoff-only](m5_runbook_steps::StepExecutionMode),
+//! the control-plane boundary it sits on, and the evidence it must produce. Each
+//! step [binds](m5_runbook_steps::CommandEnvelopeBinding) the shared
+//! command/action-envelope and approval systems instead of a runbook-local bypass,
+//! so preview, approval, and audit behavior are
+//! [derived mechanically](m5_runbook_steps::StepGovernanceProjection) from the
+//! object and stay identical across the desktop UI, companion follow views, and
+//! support exports. A step that would mint a hidden privileged mutate channel is
+//! rejected.
+//!
 //! The records this crate produces are inspectable, serde-serializable truth
 //! packets that carry no credential bodies or raw provider/console payloads.
 
@@ -39,3 +54,4 @@
 
 pub mod m5_runbook_governance;
 pub mod m5_runbook_sources;
+pub mod m5_runbook_steps;

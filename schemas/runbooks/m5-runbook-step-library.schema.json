@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runbooks/m5-runbook-step-library.schema.json",
+  "title": "Aureline M5 runbook executable step library",
+  "description": "A governed library of executable runbook steps. Every step is a stable, typed object declaring its step class, the target-selector scope it reaches, the approval it requires, whether it stays view-only / in-product executable / handoff-only, the control-plane boundary it sits on, how it binds the shared command/action-envelope and approval systems, and the evidence outputs it must produce. The library carries one mechanically-derived preview/approval/audit projection per step so the desktop UI, companion follow views, and support exports read the same governance truth. A step that would mint a hidden privileged mutate channel — mutating with no approval, a companion outside read-only/self-approve scope, a runbook-local bypass, or an unbound executable — is invalid. The packet carries metadata and refs only: no credential bodies or raw provider/console payloads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "library_id",
+    "report_label",
+    "evaluated_at",
+    "steps",
+    "projections",
+    "surface_exposure",
+    "vocabulary",
+    "conformance",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_runbook_step_library" },
+    "schema_version": { "const": 1 },
+    "library_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_label": { "$ref": "#/$defs/non_empty_string" },
+    "evaluated_at": { "$ref": "#/$defs/non_empty_string" },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/executable_step" }
+    },
+    "projections": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/step_projection" }
+    },
+    "surface_exposure": { "$ref": "#/$defs/surface_exposure" },
+    "vocabulary": { "$ref": "#/$defs/vocabulary" },
+    "conformance": { "$ref": "#/$defs/conformance" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "message_id": { "type": "string", "pattern": "^runbooks_steps\\." },
+    "step_class": {
+      "enum": [
+        "inspect",
+        "diagnose",
+        "mitigate",
+        "rollback",
+        "console_handoff",
+        "approval",
+        "annotate"
+      ]
+    },
+    "approval_scope": {
+      "enum": [
+        "no_approval_read_only",
+        "scoped_self_approve",
+        "requires_human_approval",
+        "requires_privileged_approval",
+        "prohibited_hidden_mutate"
+      ]
+    },
+    "execution_mode": {
+      "enum": ["view_only", "in_product_executable", "handoff_only"]
+    },
+    "target_selector_breadth": {
+      "enum": [
+        "no_target",
+        "single_target",
+        "scoped_set",
+        "environment_wide",
+        "external_target"
+      ]
+    },
+    "control_plane_boundary": {
+      "enum": [
+        "in_app_governed",
+        "browser_handoff",
+        "vendor_console_handoff",
+        "auth_boundary_cross"
+      ]
+    },
+    "preview_disposition": {
+      "enum": ["read_only_preview", "diff_then_confirm", "handoff_preview"]
+    },
+    "surface": {
+      "enum": ["desktop_ui", "companion_follow", "support_export"]
+    },
+    "target_selector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selector_ref", "breadth", "crosses_environment"],
+      "properties": {
+        "selector_ref": { "$ref": "#/$defs/non_empty_string" },
+        "breadth": { "$ref": "#/$defs/target_selector_breadth" },
+        "crosses_environment": { "type": "boolean" }
+      }
+    },
+    "command_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_envelope_ref",
+        "approval_authority_ref",
+        "binds_shared_envelope",
+        "uses_runbook_local_bypass"
+      ],
+      "properties": {
+        "action_envelope_ref": { "type": "string" },
+        "approval_authority_ref": { "type": "string" },
+        "binds_shared_envelope": { "type": "boolean" },
+        "uses_runbook_local_bypass": { "const": false }
+      }
+    },
+    "executable_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "step_id",
+        "step_label",
+        "step_class",
+        "target_selector",
+        "approval_scope",
+        "execution_mode",
+        "control_plane_boundary",
+        "command_binding",
+        "mutating",
+        "expected_evidence_outputs",
+        "companion_permitted",
+        "detail_message_id"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_runbook_executable_step" },
+        "schema_version": { "const": 1 },
+        "step_id": { "$ref": "#/$defs/non_empty_string" },
+        "step_label": { "$ref": "#/$defs/non_empty_string" },
+        "step_class": { "$ref": "#/$defs/step_class" },
+        "target_selector": { "$ref": "#/$defs/target_selector" },
+        "approval_scope": { "$ref": "#/$defs/approval_scope" },
+        "execution_mode": { "$ref": "#/$defs/execution_mode" },
+        "control_plane_boundary": { "$ref": "#/$defs/control_plane_boundary" },
+        "command_binding": { "$ref": "#/$defs/command_binding" },
+        "mutating": { "type": "boolean" },
+        "expected_evidence_outputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "companion_permitted": { "type": "boolean" },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "step_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "step_class",
+        "execution_mode",
+        "target_selector_breadth",
+        "preview_disposition",
+        "preview_shows_target",
+        "requires_approval",
+        "requires_explicit_human_approval",
+        "approval_scope",
+        "approval_routes_through_shared_system",
+        "audit_expects_evidence",
+        "expected_evidence_outputs",
+        "companion_may_execute",
+        "companion_may_request",
+        "creates_hidden_mutate_channel",
+        "detail_message_id"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/non_empty_string" },
+        "step_class": { "$ref": "#/$defs/step_class" },
+        "execution_mode": { "$ref": "#/$defs/execution_mode" },
+        "target_selector_breadth": { "$ref": "#/$defs/target_selector_breadth" },
+        "preview_disposition": { "$ref": "#/$defs/preview_disposition" },
+        "preview_shows_target": { "type": "boolean" },
+        "requires_approval": { "type": "boolean" },
+        "requires_explicit_human_approval": { "type": "boolean" },
+        "approval_scope": { "$ref": "#/$defs/approval_scope" },
+        "approval_routes_through_shared_system": { "type": "boolean" },
+        "audit_expects_evidence": { "type": "boolean" },
+        "expected_evidence_outputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "companion_may_execute": { "type": "boolean" },
+        "companion_may_request": { "type": "boolean" },
+        "creates_hidden_mutate_channel": { "const": false },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "surface_exposure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "desktop_ui_exposes_steps",
+        "companion_follow_exposes_steps",
+        "support_export_exposes_steps"
+      ],
+      "properties": {
+        "desktop_ui_exposes_steps": { "const": true },
+        "companion_follow_exposes_steps": { "const": true },
+        "support_export_exposes_steps": { "const": true }
+      }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_classes",
+        "approval_scopes",
+        "execution_modes",
+        "target_selector_breadths",
+        "control_plane_boundaries",
+        "preview_dispositions",
+        "surfaces"
+      ],
+      "properties": {
+        "step_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/step_class" }
+        },
+        "approval_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/approval_scope" }
+        },
+        "execution_modes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/execution_mode" }
+        },
+        "target_selector_breadths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/target_selector_breadth" }
+        },
+        "control_plane_boundaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/control_plane_boundary" }
+        },
+        "preview_dispositions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/preview_disposition" }
+        },
+        "surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface" }
+        }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_step_is_typed_stable_and_exportable",
+        "preview_approval_audit_derivable_from_step_object",
+        "metadata_consistent_across_desktop_companion_and_export",
+        "no_step_mints_hidden_privileged_mutate_channel",
+        "every_executable_step_binds_shared_command_envelope",
+        "companion_steps_stay_within_read_only_or_self_approve_scope",
+        "handoff_steps_declared_handoff_only_and_leave_governed_plane",
+        "generated_from_checked_in_steps"
+      ],
+      "properties": {
+        "every_step_is_typed_stable_and_exportable": { "const": true },
+        "preview_approval_audit_derivable_from_step_object": { "const": true },
+        "metadata_consistent_across_desktop_companion_and_export": { "const": true },
+        "no_step_mints_hidden_privileged_mutate_channel": { "const": true },
+        "every_executable_step_binds_shared_command_envelope": { "const": true },
+        "companion_steps_stay_within_read_only_or_self_approve_scope": { "const": true },
+        "handoff_steps_declared_handoff_only_and_leave_governed_plane": { "const": true },
+        "generated_from_checked_in_steps": { "const": true }
+      }
+    }
+  }
+}
