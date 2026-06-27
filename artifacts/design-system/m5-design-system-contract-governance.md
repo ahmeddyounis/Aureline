@@ -54,6 +54,30 @@ auto-narrows below Stable.
 | `design-system-surface:trust_prompt` | `trust_prompt` | conformant | `stable` &rarr; `stable` | `certified_promote` | `design-system:foundation:tokens`, `design-system:component:trust_prompt`, `design-system:layout:shell-reference`, `design-system:state:canonical-states`, `design-system:fixture:component-gallery`, `design-system:proof:token-conformance` |
 | `design-system-surface:notification_envelope` | `notification_envelope` | conformant | `stable` &rarr; `stable` | `certified_promote` | `design-system:foundation:tokens`, `design-system:component:notification_envelope`, `design-system:layout:shell-reference`, `design-system:state:canonical-states`, `design-system:fixture:component-gallery`, `design-system:proof:token-conformance` |
 
+## Foundation package (the `foundation` object's content)
+
+The `design-system:foundation:tokens` object's content is the versioned,
+machine-readable **foundation package** — the actual semantic tokens, density /
+motion / contrast rows, and controlled component-state family the design system
+ships, so density, reduced-motion, power-saving, and high-contrast rows cannot
+drift by surface family. The package, its diff fixture, and its release-packet
+proof are minted by the same seed builder and asserted by inline tests.
+
+| Artifact | Path |
+| -------- | ---- |
+| Schema | `schemas/design-system/m5-foundation-package.schema.json` |
+| Doc | `docs/design-system/m5-foundation-package.md` |
+| Canonical package (v1.0.0) | `fixtures/ui/m5-foundation-package/foundation-package.json` |
+| Next package (v1.1.0) | `fixtures/ui/m5-foundation-package/foundation-package-next.json` |
+| Version diff | `fixtures/ui/m5-foundation-package/foundation-package-diff.json` |
+| Release packet | `artifacts/release/m5-design-system-proof/foundation-package-release.json` |
+
+The package versions each family independently, represents the controlled states
+(`empty`, `loading`, `pending`, `degraded`, `blocked`, `error`, `completed`) as a
+shared family rather than pane-local enums, and keeps unsupported or deprecated
+entries inspectable and explicitly downgraded — export, import, diff, and the
+release packet all preserve the downgrade target rather than silently dropping it.
+
 ## Proof and drift control
 
 The matrix support export is the proof lane that blocks drift: the seed builder
@@ -61,5 +85,7 @@ is the single producer of the support export, the dashboard, the Markdown proof,
 the component-gallery demo fixtures, and the drill fixtures, and the inline tests
 assert the checked-in artifacts match the seed. A claimed M5 surface that lacks a
 mapped contract object or current design-system proof fails Stable promotion
-through the release gate.
+through the release gate. The foundation package above is governed the same way:
+its checked-in fixtures, diff, and release packet are minted from the seed builder
+and asserted by inline tests.
 

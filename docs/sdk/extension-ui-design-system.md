@@ -37,10 +37,33 @@ is stale is gated exactly like a first-party surface: a missing mapping blocks
 Stable promotion; stale proof auto-narrows the claim. See the
 [contract matrix doc][matrix] for the full gate.
 
+## Consuming the versioned foundation package
+
+The `foundation` object's content is the versioned
+[**foundation package**][package-doc]: one family per governed foundation kind
+(color, spacing, typography, icon, density, motion, contrast, and
+component-state), each with its own version. An extension renders from the
+package's published `value_token` references and never hard-codes raw values.
+
+- The density, reduced-motion, power-saving, and high-contrast rows resolve from
+  the package's `density`, `motion`, and `contrast` families, so your surface
+  reads the same rows as the shell.
+- Every entry carries a `support_state`. A `deprecated` or `unsupported` entry
+  stays published with a `downgrade` to its replacement — resolve the downgrade
+  target rather than the retired token, and never assume a missing token was
+  dropped.
+- When the package version bumps, the [diff packet][package-diff] names every
+  added, removed, changed, and downgraded entry, so you can see exactly what
+  changed before you adopt the new version.
+
+Canonical artifact: [`foundation-package.json`][package].
+
 ## Where the truth lives
 
 - Contract matrix doc: [`docs/design-system/m5-design-system-contract-matrix.md`][matrix]
+- Foundation package doc: [`docs/design-system/m5-foundation-package.md`][package-doc]
 - Foundations schema: [`schemas/design-system/m5-foundations.schema.json`][foundations-schema]
+- Foundation-package schema: [`schemas/design-system/m5-foundation-package.schema.json`][package-schema]
 - Reference-layout schema: [`schemas/design-system/m5-reference-layout.schema.json`][layout-schema]
 - Component gallery: [`fixtures/ui/m5-component-gallery/`][gallery]
 
@@ -51,3 +74,7 @@ Stable promotion; stale proof auto-narrows the claim. See the
 [gallery]: ../../fixtures/ui/m5-component-gallery/
 [foundations-schema]: ../../schemas/design-system/m5-foundations.schema.json
 [layout-schema]: ../../schemas/design-system/m5-reference-layout.schema.json
+[package-doc]: ../design-system/m5-foundation-package.md
+[package-schema]: ../../schemas/design-system/m5-foundation-package.schema.json
+[package]: ../../fixtures/ui/m5-foundation-package/foundation-package.json
+[package-diff]: ../../fixtures/ui/m5-foundation-package/foundation-package-diff.json

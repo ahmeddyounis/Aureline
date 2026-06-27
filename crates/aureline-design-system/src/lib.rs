@@ -11,6 +11,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub mod appearance_session;
 pub mod m5_design_system_contract;
+pub mod m5_foundation_package;
 
 use aureline_ui::components::ComponentStateClass;
 use aureline_ui::density::DensityClass;
