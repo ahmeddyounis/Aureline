@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runbooks/m5-runbook-execution.schema.json",
+  "title": "Aureline M5 runbook execution record",
+  "description": "A governed runbook execution record: the source descriptor whose authority the execution ran under, the typed steps that ran with their outcomes, the deviation lineage (every departure from declared guidance, attributable), any console/browser control-plane handoff packets, and the archival/export object for the retained history. The record asserts that every step, deviation, and handoff is attributable and that no step or handoff minted a hidden privileged mutate channel. It carries metadata and refs only — no raw provider/console payloads or credential bodies.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "execution_id",
+    "execution_label",
+    "source",
+    "operator_role",
+    "companion_driven",
+    "executed_steps",
+    "deviation_lineage",
+    "archival_export",
+    "attributable",
+    "no_hidden_mutate_channel",
+    "redaction_class",
+    "detail_message_id"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_runbook_execution_record" },
+    "schema_version": { "const": 1 },
+    "execution_id": { "$ref": "#/$defs/non_empty_string" },
+    "execution_label": { "$ref": "#/$defs/non_empty_string" },
+    "source": { "$ref": "#/$defs/source_descriptor" },
+    "operator_role": { "$ref": "#/$defs/non_empty_string" },
+    "companion_driven": { "type": "boolean" },
+    "executed_steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/executed_step_result" }
+    },
+    "deviation_lineage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/deviation_note" }
+    },
+    "archival_export": { "$ref": "#/$defs/archival_export" },
+    "attributable": { "type": "boolean" },
+    "no_hidden_mutate_channel": { "type": "boolean" },
+    "redaction_class": { "$ref": "#/$defs/non_empty_string" },
+    "detail_message_id": { "$ref": "#/$defs/message_id" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "message_id": { "type": "string", "pattern": "^runbooks_governance\\." },
+    "source_class": {
+      "enum": [
+        "vendored_first_party",
+        "organization_authored",
+        "imported_vendor_console",
+        "companion_drafted",
+        "archived_execution"
+      ]
+    },
+    "step_class": {
+      "enum": [
+        "inspect",
+        "diagnose",
+        "mitigate",
+        "rollback",
+        "console_handoff",
+        "approval",
+        "annotate"
+      ]
+    },
+    "approval_scope": {
+      "enum": [
+        "no_approval_read_only",
+        "scoped_self_approve",
+        "requires_human_approval",
+        "requires_privileged_approval",
+        "prohibited_hidden_mutate"
+      ]
+    },
+    "control_plane_boundary": {
+      "enum": [
+        "in_app_governed",
+        "browser_handoff",
+        "vendor_console_handoff",
+        "auth_boundary_cross"
+      ]
+    },
+    "deviation_class": {
+      "enum": [
+        "no_deviation",
+        "parameter_adjusted",
+        "step_skipped",
+        "step_added_ad_hoc",
+        "aborted_mid_step",
+        "console_pivot_unplanned"
+      ]
+    },
+    "step_outcome": {
+      "enum": [
+        "completed",
+        "skipped",
+        "handed_off",
+        "awaiting_approval",
+        "aborted_requires_review"
+      ]
+    },
+    "source_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "source_id",
+        "source_label",
+        "source_class",
+        "authority_ref",
+        "owner_role",
+        "default_approval_scope",
+        "companion_may_request",
+        "exportable",
+        "redaction_class",
+        "detail_message_id"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_runbook_source_descriptor" },
+        "schema_version": { "const": 1 },
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_label": { "$ref": "#/$defs/non_empty_string" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "authority_ref": { "$ref": "#/$defs/non_empty_string" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "default_approval_scope": { "$ref": "#/$defs/approval_scope" },
+        "companion_may_request": { "type": "boolean" },
+        "exportable": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "step_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "step_id",
+        "step_label",
+        "step_class",
+        "approval_scope",
+        "control_plane_boundary",
+        "mutating",
+        "expected_evidence_outputs",
+        "companion_permitted",
+        "detail_message_id"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_runbook_step_descriptor" },
+        "schema_version": { "const": 1 },
+        "step_id": { "$ref": "#/$defs/non_empty_string" },
+        "step_label": { "$ref": "#/$defs/non_empty_string" },
+        "step_class": { "$ref": "#/$defs/step_class" },
+        "approval_scope": { "$ref": "#/$defs/approval_scope" },
+        "control_plane_boundary": { "$ref": "#/$defs/control_plane_boundary" },
+        "mutating": { "type": "boolean" },
+        "expected_evidence_outputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "companion_permitted": { "type": "boolean" },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "deviation_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deviation_id",
+        "deviation_class",
+        "from_step_id",
+        "rationale_message_id",
+        "approver_role",
+        "attributable"
+      ],
+      "properties": {
+        "deviation_id": { "$ref": "#/$defs/non_empty_string" },
+        "deviation_class": { "$ref": "#/$defs/deviation_class" },
+        "from_step_id": { "$ref": "#/$defs/non_empty_string" },
+        "rationale_message_id": { "$ref": "#/$defs/message_id" },
+        "approver_role": { "type": "string" },
+        "attributable": { "type": "boolean" }
+      }
+    },
+    "control_plane_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_id",
+        "boundary_class",
+        "target_ref",
+        "attribution_ref",
+        "returns_to_governed_plane",
+        "creates_hidden_mutate_channel",
+        "detail_message_id"
+      ],
+      "properties": {
+        "handoff_id": { "$ref": "#/$defs/non_empty_string" },
+        "boundary_class": { "$ref": "#/$defs/control_plane_boundary" },
+        "target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "attribution_ref": { "$ref": "#/$defs/non_empty_string" },
+        "returns_to_governed_plane": { "type": "boolean" },
+        "creates_hidden_mutate_channel": { "const": false },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "archival_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "archival_id",
+        "archived",
+        "export_safe",
+        "retention_class",
+        "support_pack_item_id",
+        "raw_content_exported"
+      ],
+      "properties": {
+        "archival_id": { "$ref": "#/$defs/non_empty_string" },
+        "archived": { "type": "boolean" },
+        "export_safe": { "type": "boolean" },
+        "retention_class": { "$ref": "#/$defs/non_empty_string" },
+        "support_pack_item_id": { "$ref": "#/$defs/non_empty_string" },
+        "raw_content_exported": { "const": false }
+      }
+    },
+    "executed_step_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step", "outcome", "deviation", "evidence_refs"],
+      "properties": {
+        "step": { "$ref": "#/$defs/step_descriptor" },
+        "outcome": { "$ref": "#/$defs/step_outcome" },
+        "deviation": { "$ref": "#/$defs/deviation_note" },
+        "handoff": { "$ref": "#/$defs/control_plane_handoff" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    }
+  }
+}
