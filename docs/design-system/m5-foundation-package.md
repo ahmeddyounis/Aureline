@@ -14,6 +14,10 @@ surface family.
 - Release packet: [`artifacts/release/m5-design-system-proof/foundation-package-release.json`](../../artifacts/release/m5-design-system-proof/foundation-package-release.json)
 - Producer: `cargo run -p aureline-design-system --bin aureline_design_system_m5_foundation_package`
 
+The [component-manifest package](m5-component-manifest.md) declares its token
+dependencies as references into this package, so the component contracts and the
+foundations read from one shared source.
+
 ## Shape
 
 A package carries a `package_id`, a semver `package_version`, and one family per

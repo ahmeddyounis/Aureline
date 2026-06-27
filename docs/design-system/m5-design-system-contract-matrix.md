@@ -94,6 +94,8 @@ the [design-system extension guidance][ext-ds] and
 - Governance matrix: `artifacts/design-system/m5-design-system-contract-governance.md`
 - Component gallery demo fixtures: `fixtures/ui/m5-component-gallery/`
 - Drill fixtures: `fixtures/ui/m5-design-system-contract-matrix/`
+- Foundation package: [`m5-foundation-package.md`](m5-foundation-package.md)
+- Launch-critical component manifests: [`m5-component-manifest.md`](m5-component-manifest.md)
 
 ## How to regenerate
 

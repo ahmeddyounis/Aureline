@@ -26,6 +26,33 @@ The shape is governed by
 [`m5-component-contract.schema.json`][component-schema]; the gallery fixtures are
 checked-in instances you can render against in tests.
 
+## Launch-critical component families: the manifest package
+
+The reused M5 component families — placeholder cards, state blocks, review
+sheets, job rows, boundary bars, form controls, and dense collection primitives —
+ship a richer, versioned **component-manifest package** governed by
+[`m5-component-manifest.schema.json`][manifest-schema]. Each manifest is the
+single, cite-able contract for one family and adds, on top of the fields above:
+
+- **mandatory vs. optional states** — the manifest splits the canonical state set
+  into the states a component MUST render and those it MAY render, so you do not
+  have to guess which states are required.
+- **labels and commands** — governed label message ids and the commands the
+  component offers (each with its key chord).
+- **versioned lifecycle and ownership** — an owner role, a lifecycle state, and a
+  monotonic manifest version, so your extension can pin the contract revision it
+  was built against.
+- **extension consumption rules** — explicit rules per family that you must honor
+  to reuse or extend the component.
+
+Build your extension's component against the manifest for its family rather than
+copying shell behavior into a separate doc: read the manifest's anatomy, render
+its mandatory states, reuse its label and token references, and honor its
+consumption rules. The per-family fixtures
+(`fixtures/ui/m5-component-gallery/component-manifest-<kind>.json`) are
+checked-in instances you can render against in tests. See the
+[component-manifest doc][manifest-doc] for the full shape.
+
 ## Declaring a component
 
 To extend a launch-critical component, declare a component-contract artifact that
@@ -40,10 +67,14 @@ auto-narrows the claim.
 
 - Contract matrix doc: [`docs/design-system/m5-design-system-contract-matrix.md`][matrix]
 - Component-contract schema: [`schemas/design-system/m5-component-contract.schema.json`][component-schema]
+- Component-manifest schema: [`schemas/design-system/m5-component-manifest.schema.json`][manifest-schema]
+- Component-manifest doc: [`docs/design-system/m5-component-manifest.md`][manifest-doc]
 - Component gallery: [`fixtures/ui/m5-component-gallery/`][gallery]
 - Foundations guidance: [`extension-ui-design-system.md`][foundations-guidance]
 
 [matrix]: ../design-system/m5-design-system-contract-matrix.md
 [component-schema]: ../../schemas/design-system/m5-component-contract.schema.json
+[manifest-schema]: ../../schemas/design-system/m5-component-manifest.schema.json
+[manifest-doc]: ../design-system/m5-component-manifest.md
 [gallery]: ../../fixtures/ui/m5-component-gallery/
 [foundations-guidance]: extension-ui-design-system.md

@@ -10,6 +10,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 pub mod appearance_session;
+pub mod m5_component_manifest;
 pub mod m5_design_system_contract;
 pub mod m5_foundation_package;
 
