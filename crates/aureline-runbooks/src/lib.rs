@@ -105,11 +105,28 @@
 //! register projects this narrowing identically across the companion app, the desktop
 //! handoff target, and support exports.
 //!
+//! Finally, every claim that rests on these lanes is itself qualified. The
+//! [`m5_runbook_certification`] module is the capstone that binds the six lane proofs
+//! — governance, sources, steps, executions, handoffs, and companion — to the product
+//! rows that claim runbook-backed behavior. Each
+//! [proof lane](m5_runbook_certification::RunbookProofLane) declares the
+//! [certification facet](m5_runbook_certification::CertificationFacet) it covers
+//! (source truth, step lineage, boundary honesty, or export proof), its schema, its
+//! register, its release proof, and a freshness state; each
+//! [claimed incident/operator row](m5_runbook_certification::IncidentOperatorRow) binds
+//! the lanes it depends on, and the certification *derives* each row's gaps, gate, and
+//! effective claim. A stale lane proof deterministically auto-narrows the rows that
+//! bind it below Stable, and a missing or unmapped lane proof blocks them — so an aged
+//! proof never leaves a claim standing as implied stable behavior. Help/About, the
+//! shiproom, support exports, and the incident/operator surfaces all read this one
+//! qualification rather than a private spreadsheet.
+//!
 //! The records this crate produces are inspectable, serde-serializable truth
 //! packets that carry no credential bodies or raw provider/console payloads.
 
 #![doc(html_root_url = "https://docs.rs/aureline-runbooks/0.0.0")]
 
+pub mod m5_runbook_certification;
 pub mod m5_runbook_companion;
 pub mod m5_runbook_executions;
 pub mod m5_runbook_governance;

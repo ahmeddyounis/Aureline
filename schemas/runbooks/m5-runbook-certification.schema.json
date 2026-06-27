@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runbooks/m5-runbook-certification.schema.json",
+  "title": "Aureline M5 runbook certification packet",
+  "description": "The certification capstone that binds the six runbook proof lanes — governance, sources, steps, executions, handoffs, and companion — to the product rows that claim runbook-backed behavior. Each proof lane declares the certification facet it covers (source truth, step lineage, boundary honesty, or export proof), its source-of-truth schema, its published register, its release proof artifact, and a proof-freshness state. Each claimed incident/operator row binds the proof lanes it depends on, and the certification derives each row's coverage gaps, gate decision, and effective claim: a stale lane proof deterministically auto-narrows the rows that bind it below Stable, and a missing or unmapped lane proof blocks them, so an aged proof never leaves a claim standing as implied stable behavior. Help/About, the shiproom, support exports, and the incident/operator surfaces all consume this one qualification. The packet carries metadata and refs only: no credential bodies or raw provider/console payloads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "report_label",
+    "evaluated_at",
+    "proof_lanes",
+    "rows",
+    "summary",
+    "disclosure",
+    "release_gate",
+    "vocabulary",
+    "conformance",
+    "source_proof_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_runbook_certification" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_label": { "$ref": "#/$defs/non_empty_string" },
+    "evaluated_at": { "$ref": "#/$defs/non_empty_string" },
+    "proof_lanes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/proof_lane_contract" }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/incident_operator_row" }
+    },
+    "summary": { "$ref": "#/$defs/summary" },
+    "disclosure": { "$ref": "#/$defs/disclosure" },
+    "release_gate": { "$ref": "#/$defs/release_gate" },
+    "vocabulary": { "$ref": "#/$defs/vocabulary" },
+    "conformance": { "$ref": "#/$defs/conformance" },
+    "source_proof_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "certification_message_id": {
+      "type": "string",
+      "pattern": "^runbooks_certification\\."
+    },
+    "proof_lane": {
+      "enum": ["governance", "sources", "steps", "executions", "handoffs", "companion"]
+    },
+    "certification_facet": {
+      "enum": ["source_truth", "step_lineage", "boundary_honesty", "export_proof"]
+    },
+    "qualification_surface": {
+      "enum": ["help_about", "shiproom", "support_export", "incident_operator"]
+    },
+    "consumer": {
+      "enum": [
+        "incident_workspace",
+        "operator_dashboard",
+        "docs_help",
+        "companion",
+        "support_bundle",
+        "release_center"
+      ]
+    },
+    "proof_freshness": {
+      "enum": ["current", "stale", "missing"]
+    },
+    "surface_status": {
+      "enum": ["mapped", "provisional", "unmapped"]
+    },
+    "signal": {
+      "enum": ["green", "yellow", "red"]
+    },
+    "gate_decision": {
+      "enum": ["governed", "narrowed", "blocked"]
+    },
+    "gap_kind": {
+      "enum": ["object_mapping_missing", "proof_stale", "proof_missing"]
+    },
+    "claim_class": {
+      "enum": ["stable", "beta", "preview", "held", "unavailable"]
+    },
+    "proof_lane_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "lane_label",
+        "facet",
+        "owner_role",
+        "register_id",
+        "schema_ref",
+        "register_ref",
+        "proof_ref",
+        "proof_freshness",
+        "detail_message_id"
+      ],
+      "properties": {
+        "lane": { "$ref": "#/$defs/proof_lane" },
+        "lane_label": { "$ref": "#/$defs/non_empty_string" },
+        "facet": { "$ref": "#/$defs/certification_facet" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "register_id": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "register_ref": { "$ref": "#/$defs/non_empty_string" },
+        "proof_ref": { "$ref": "#/$defs/non_empty_string" },
+        "proof_freshness": { "$ref": "#/$defs/proof_freshness" },
+        "detail_message_id": { "$ref": "#/$defs/certification_message_id" }
+      }
+    },
+    "certification_gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row_id", "lane", "gap_kind", "cause_message_id"],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "lane": { "$ref": "#/$defs/proof_lane" },
+        "gap_kind": { "$ref": "#/$defs/gap_kind" },
+        "cause_message_id": { "$ref": "#/$defs/certification_message_id" }
+      }
+    },
+    "incident_operator_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "row_label",
+        "consumer",
+        "owner_role",
+        "claimed_class",
+        "bound_lanes",
+        "covered_facets",
+        "effective_class",
+        "status",
+        "signal",
+        "gate_decision",
+        "gaps",
+        "status_message_id",
+        "gate_message_id"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "row_label": { "$ref": "#/$defs/non_empty_string" },
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "claimed_class": { "$ref": "#/$defs/claim_class" },
+        "bound_lanes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/proof_lane" }
+        },
+        "covered_facets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/certification_facet" }
+        },
+        "effective_class": { "$ref": "#/$defs/claim_class" },
+        "status": { "$ref": "#/$defs/surface_status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "gate_decision": { "$ref": "#/$defs/gate_decision" },
+        "gaps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/certification_gap" }
+        },
+        "status_message_id": { "$ref": "#/$defs/certification_message_id" },
+        "gate_message_id": { "$ref": "#/$defs/certification_message_id" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_lanes",
+        "total_rows",
+        "certified_row_count",
+        "narrowed_row_count",
+        "blocked_row_count",
+        "current_lane_count",
+        "stale_lane_count",
+        "missing_lane_count",
+        "blocks_stable_promotion"
+      ],
+      "properties": {
+        "total_lanes": { "type": "integer", "minimum": 0 },
+        "total_rows": { "type": "integer", "minimum": 0 },
+        "certified_row_count": { "type": "integer", "minimum": 0 },
+        "narrowed_row_count": { "type": "integer", "minimum": 0 },
+        "blocked_row_count": { "type": "integer", "minimum": 0 },
+        "current_lane_count": { "type": "integer", "minimum": 0 },
+        "stale_lane_count": { "type": "integer", "minimum": 0 },
+        "missing_lane_count": { "type": "integer", "minimum": 0 },
+        "blocks_stable_promotion": { "type": "boolean" }
+      }
+    },
+    "disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "help_about_exposes_qualification",
+        "shiproom_exposes_qualification",
+        "support_export_exposes_qualification",
+        "incident_operator_surfaces_consume_qualification"
+      ],
+      "properties": {
+        "help_about_exposes_qualification": { "const": true },
+        "shiproom_exposes_qualification": { "const": true },
+        "support_export_exposes_qualification": { "const": true },
+        "incident_operator_surfaces_consume_qualification": { "const": true }
+      }
+    },
+    "release_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocks_stable_promotion",
+        "blocked_row_ids",
+        "narrowed_row_ids",
+        "certified_row_ids",
+        "gate_message_id"
+      ],
+      "properties": {
+        "blocks_stable_promotion": { "type": "boolean" },
+        "blocked_row_ids": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "narrowed_row_ids": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "certified_row_ids": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "gate_message_id": { "$ref": "#/$defs/certification_message_id" }
+      }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_lanes",
+        "certification_facets",
+        "qualification_surfaces",
+        "consumers",
+        "proof_freshness_states",
+        "surface_statuses",
+        "signals",
+        "gate_decisions",
+        "gap_kinds",
+        "claim_classes"
+      ],
+      "properties": {
+        "proof_lanes": { "type": "array", "items": { "$ref": "#/$defs/proof_lane" } },
+        "certification_facets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/certification_facet" }
+        },
+        "qualification_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/qualification_surface" }
+        },
+        "consumers": { "type": "array", "items": { "$ref": "#/$defs/consumer" } },
+        "proof_freshness_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/proof_freshness" }
+        },
+        "surface_statuses": { "type": "array", "items": { "$ref": "#/$defs/surface_status" } },
+        "signals": { "type": "array", "items": { "$ref": "#/$defs/signal" } },
+        "gate_decisions": { "type": "array", "items": { "$ref": "#/$defs/gate_decision" } },
+        "gap_kinds": { "type": "array", "items": { "$ref": "#/$defs/gap_kind" } },
+        "claim_classes": { "type": "array", "items": { "$ref": "#/$defs/claim_class" } }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_facet_covered_by_a_proof_lane",
+        "every_row_binds_at_least_one_proof_lane",
+        "every_row_maps_to_contracts_or_narrows",
+        "stale_proof_narrows_deterministically",
+        "missing_proof_blocks_stable_promotion",
+        "exact_gaps_named_per_row",
+        "surfaces_consume_one_qualification",
+        "generated_from_checked_in_lane_proofs",
+        "export_carries_no_raw_boundary_material"
+      ],
+      "properties": {
+        "every_facet_covered_by_a_proof_lane": { "const": true },
+        "every_row_binds_at_least_one_proof_lane": { "const": true },
+        "every_row_maps_to_contracts_or_narrows": { "const": true },
+        "stale_proof_narrows_deterministically": { "const": true },
+        "missing_proof_blocks_stable_promotion": { "const": true },
+        "exact_gaps_named_per_row": { "const": true },
+        "surfaces_consume_one_qualification": { "const": true },
+        "generated_from_checked_in_lane_proofs": { "const": true },
+        "export_carries_no_raw_boundary_material": { "const": true }
+      }
+    }
+  }
+}
