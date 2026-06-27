@@ -1,0 +1,83 @@
+# M5 Dynamic-Surface Assistive-Tech Certification
+
+- Packet: `m5-at-certification:stable:0001`
+- Label: `M5 Dynamic-Surface Assistive-Tech Certification`
+- Surfaces: 8 (8 green, 0 yellow, 0 red)
+- Release gate: pass (0 blocked, 0 auto-narrowed, 8 certified)
+- Active waivers: 0
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-26T00:00:00Z)
+
+## Surfaces
+
+- **certification:shell_region** (`shell_region`): `certified` (green), claim `stable` → `stable`, gate `certified_promote`
+  - Owner: Accessibility owner
+  - Object identity: `shell:zone-root`
+  - bridge_health `artifacts/a11y/m5-bridge-descriptor-proof/support_export.json`: proof `current`, conformance `pass`
+  - announcement_coverage `artifacts/a11y/m5-live-announcement-proof/support_export.json`: proof `current`, conformance `pass`
+  - focus_return `artifacts/a11y/m5-focus-return-proof/support_export.json`: proof `current`, conformance `pass`
+  - non_visual_summaries `artifacts/a11y/m5-nonvisual-summary-proof/support_export.json`: proof `current`, conformance `pass`
+  - visual_adaptation_parity `artifacts/a11y/m5-dynamic-a11y-diagnostics/support_export.json`: proof `current`, conformance `pass`
+  - stale_proof_downgrade `artifacts/a11y/m5-event-coverage-proof/support_export.json`: proof `current`, conformance `pass`
+- **certification:editor_canvas** (`editor_canvas`): `certified` (green), claim `stable` → `stable`, gate `certified_promote`
+  - Owner: Accessibility owner
+  - Object identity: `editor:active-buffer`
+  - bridge_health `artifacts/a11y/m5-bridge-descriptor-proof/support_export.json`: proof `current`, conformance `pass`
+  - announcement_coverage `artifacts/a11y/m5-live-announcement-proof/support_export.json`: proof `current`, conformance `pass`
+  - focus_return `artifacts/a11y/m5-focus-return-proof/support_export.json`: proof `current`, conformance `pass`
+  - non_visual_summaries `artifacts/a11y/m5-nonvisual-summary-proof/support_export.json`: proof `current`, conformance `pass`
+  - visual_adaptation_parity `artifacts/a11y/m5-dynamic-a11y-diagnostics/support_export.json`: proof `current`, conformance `pass`
+  - stale_proof_downgrade `artifacts/a11y/m5-event-coverage-proof/support_export.json`: proof `current`, conformance `pass`
+- **certification:terminal_canvas** (`terminal_canvas`): `certified` (green), claim `stable` → `stable`, gate `certified_promote`
+  - Owner: Accessibility owner
+  - Object identity: `terminal:active-session`
+  - bridge_health `artifacts/a11y/m5-bridge-descriptor-proof/support_export.json`: proof `current`, conformance `pass`
+  - announcement_coverage `artifacts/a11y/m5-live-announcement-proof/support_export.json`: proof `current`, conformance `pass`
+  - focus_return `artifacts/a11y/m5-focus-return-proof/support_export.json`: proof `current`, conformance `pass`
+  - non_visual_summaries `artifacts/a11y/m5-nonvisual-summary-proof/support_export.json`: proof `current`, conformance `pass`
+  - visual_adaptation_parity `artifacts/a11y/m5-dynamic-a11y-diagnostics/support_export.json`: proof `current`, conformance `pass`
+  - stale_proof_downgrade `artifacts/a11y/m5-event-coverage-proof/support_export.json`: proof `current`, conformance `pass`
+- **certification:dense_collection** (`dense_collection`): `certified` (green), claim `stable` → `stable`, gate `certified_promote`
+  - Owner: Accessibility owner
+  - Object identity: `data-grid:active-view`
+  - bridge_health `artifacts/a11y/m5-bridge-descriptor-proof/support_export.json`: proof `current`, conformance `pass`
+  - announcement_coverage `artifacts/a11y/m5-live-announcement-proof/support_export.json`: proof `current`, conformance `pass`
+  - focus_return `artifacts/a11y/m5-focus-return-proof/support_export.json`: proof `current`, conformance `pass`
+  - non_visual_summaries `artifacts/a11y/m5-nonvisual-summary-proof/support_export.json`: proof `current`, conformance `pass`
+  - visual_adaptation_parity `artifacts/a11y/m5-dynamic-a11y-diagnostics/support_export.json`: proof `current`, conformance `pass`
+  - stale_proof_downgrade `artifacts/a11y/m5-event-coverage-proof/support_export.json`: proof `current`, conformance `pass`
+- **certification:notebook_cell** (`notebook_cell`): `certified` (green), claim `stable` → `stable`, gate `certified_promote`
+  - Owner: Accessibility owner
+  - Object identity: `notebook:active-cell`
+  - bridge_health `artifacts/a11y/m5-bridge-descriptor-proof/support_export.json`: proof `current`, conformance `pass`
+  - announcement_coverage `artifacts/a11y/m5-live-announcement-proof/support_export.json`: proof `current`, conformance `pass`
+  - focus_return `artifacts/a11y/m5-focus-return-proof/support_export.json`: proof `current`, conformance `pass`
+  - non_visual_summaries `artifacts/a11y/m5-nonvisual-summary-proof/support_export.json`: proof `current`, conformance `pass`
+  - visual_adaptation_parity `artifacts/a11y/m5-dynamic-a11y-diagnostics/support_export.json`: proof `current`, conformance `pass`
+  - stale_proof_downgrade `artifacts/a11y/m5-event-coverage-proof/support_export.json`: proof `current`, conformance `pass`
+- **certification:data_cell** (`data_cell`): `certified` (green), claim `stable` → `stable`, gate `certified_promote`
+  - Owner: Accessibility owner
+  - Object identity: `data:active-cell`
+  - bridge_health `artifacts/a11y/m5-bridge-descriptor-proof/support_export.json`: proof `current`, conformance `pass`
+  - announcement_coverage `artifacts/a11y/m5-live-announcement-proof/support_export.json`: proof `current`, conformance `pass`
+  - focus_return `artifacts/a11y/m5-focus-return-proof/support_export.json`: proof `current`, conformance `pass`
+  - non_visual_summaries `artifacts/a11y/m5-nonvisual-summary-proof/support_export.json`: proof `current`, conformance `pass`
+  - visual_adaptation_parity `artifacts/a11y/m5-dynamic-a11y-diagnostics/support_export.json`: proof `current`, conformance `pass`
+  - stale_proof_downgrade `artifacts/a11y/m5-event-coverage-proof/support_export.json`: proof `current`, conformance `pass`
+- **certification:review_diff** (`review_diff`): `certified` (green), claim `stable` → `stable`, gate `certified_promote`
+  - Owner: Accessibility owner
+  - Object identity: `review:active-diff`
+  - bridge_health `artifacts/a11y/m5-bridge-descriptor-proof/support_export.json`: proof `current`, conformance `pass`
+  - announcement_coverage `artifacts/a11y/m5-live-announcement-proof/support_export.json`: proof `current`, conformance `pass`
+  - focus_return `artifacts/a11y/m5-focus-return-proof/support_export.json`: proof `current`, conformance `pass`
+  - non_visual_summaries `artifacts/a11y/m5-nonvisual-summary-proof/support_export.json`: proof `current`, conformance `pass`
+  - visual_adaptation_parity `artifacts/a11y/m5-dynamic-a11y-diagnostics/support_export.json`: proof `current`, conformance `pass`
+  - stale_proof_downgrade `artifacts/a11y/m5-event-coverage-proof/support_export.json`: proof `current`, conformance `pass`
+- **certification:overlay_sheet** (`overlay_sheet`): `certified` (green), claim `stable` → `stable`, gate `certified_promote`
+  - Owner: Accessibility owner
+  - Object identity: `overlay:active-sheet`
+  - bridge_health `artifacts/a11y/m5-bridge-descriptor-proof/support_export.json`: proof `current`, conformance `pass`
+  - announcement_coverage `artifacts/a11y/m5-live-announcement-proof/support_export.json`: proof `current`, conformance `pass`
+  - focus_return `artifacts/a11y/m5-focus-return-proof/support_export.json`: proof `current`, conformance `pass`
+  - non_visual_summaries `artifacts/a11y/m5-nonvisual-summary-proof/support_export.json`: proof `current`, conformance `pass`
+  - visual_adaptation_parity `artifacts/a11y/m5-dynamic-a11y-diagnostics/support_export.json`: proof `current`, conformance `pass`
+  - stale_proof_downgrade `artifacts/a11y/m5-event-coverage-proof/support_export.json`: proof `current`, conformance `pass`
