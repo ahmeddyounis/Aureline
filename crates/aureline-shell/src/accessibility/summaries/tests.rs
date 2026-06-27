@@ -93,8 +93,11 @@ fn visual_surfaces_provide_text_alternatives_and_text_native_do_not() {
 #[test]
 fn every_provisional_presentation_state_is_exercised() {
     let packet = seeded_m5_nonvisual_summary_catalog();
-    let present: std::collections::BTreeSet<_> =
-        packet.summaries.iter().map(|s| s.presentation_state).collect();
+    let present: std::collections::BTreeSet<_> = packet
+        .summaries
+        .iter()
+        .map(|s| s.presentation_state)
+        .collect();
     for state in M5SummaryPresentationState::ALL {
         if state.is_provisional() {
             assert!(
@@ -436,7 +439,10 @@ fn narrowed_variants_validate_and_keep_surfaces_visible() {
         .iter()
         .find(|s| s.surface_kind == M5SummarySurfaceKind::Chart)
         .expect("chart summary present");
-    assert_eq!(chart.qualification, M5DynamicSurfaceA11yQualificationClass::Beta);
+    assert_eq!(
+        chart.qualification,
+        M5DynamicSurfaceA11yQualificationClass::Beta
+    );
     // The narrowed chart still keeps its text alternative and drill-downs.
     assert!(chart.text_alternative.provided);
     assert!(chart.drilldowns.len() >= M5_SUMMARY_MIN_DRILLDOWNS);

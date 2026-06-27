@@ -56,7 +56,8 @@ mod seed;
 mod tests;
 
 pub use seed::{
-    seeded_m5_focus_selection_contract, seeded_m5_focus_selection_contract_bridge_unavailable_narrowed,
+    seeded_m5_focus_selection_contract,
+    seeded_m5_focus_selection_contract_bridge_unavailable_narrowed,
     seeded_m5_focus_selection_contract_proof_stale_narrowed, M5_FOCUS_SELECTION_CONTRACT_PACKET_ID,
 };
 
@@ -510,8 +511,12 @@ impl M5FocusZoneContract {
 
     /// True when the zone preserves identity across every async class its model needs.
     fn preserves_required_async_classes(&self) -> bool {
-        let present: BTreeSet<M5AsyncUpdateClass> =
-            self.stable_identity.preserved_across.iter().copied().collect();
+        let present: BTreeSet<M5AsyncUpdateClass> = self
+            .stable_identity
+            .preserved_across
+            .iter()
+            .copied()
+            .collect();
         self.interaction_model
             .required_async_classes()
             .iter()
@@ -524,7 +529,9 @@ impl M5FocusZoneContract {
             Some(rule) => {
                 rule.single_tab_stop
                     && rule.multi_selection_narrowing_announced
-                    && rule.navigation_keys.contains(&M5CollectionNavKey::ArrowUpDown)
+                    && rule
+                        .navigation_keys
+                        .contains(&M5CollectionNavKey::ArrowUpDown)
                     && rule.navigation_keys.contains(&M5CollectionNavKey::HomeEnd)
             }
             None => false,
@@ -1088,10 +1095,7 @@ fn validate_zones(
     }
 }
 
-fn validate_zone(
-    zone: &M5FocusZoneContract,
-    violations: &mut Vec<M5FocusSelectionViolation>,
-) {
+fn validate_zone(zone: &M5FocusZoneContract, violations: &mut Vec<M5FocusSelectionViolation>) {
     if zone.zone_id.trim().is_empty()
         || zone.label.trim().is_empty()
         || zone.owner_role.trim().is_empty()
@@ -1198,7 +1202,9 @@ fn validate_roving_tabindex(
                 violations.push(M5FocusSelectionViolation::RovingTabindexNotSingleTabStop);
             }
             // Predictable navigation requires at least arrow and home/end movement.
-            if !rule.navigation_keys.contains(&M5CollectionNavKey::ArrowUpDown)
+            if !rule
+                .navigation_keys
+                .contains(&M5CollectionNavKey::ArrowUpDown)
                 || !rule.navigation_keys.contains(&M5CollectionNavKey::HomeEnd)
             {
                 violations.push(M5FocusSelectionViolation::RovingTabindexMissingNavigationKeys);

@@ -745,7 +745,10 @@ impl M5NonVisualSummaryCatalogPacket {
                 summary.presentation_state.as_str()
             ));
             out.push_str(&format!("  - Owner: {}\n", summary.owner_role));
-            out.push_str(&format!("  - Object identity: `{}`\n", summary.object_identity_ref));
+            out.push_str(&format!(
+                "  - Object identity: `{}`\n",
+                summary.object_identity_ref
+            ));
             out.push_str(&format!(
                 "  - Structure (`{}`, `{}`): {}\n",
                 summary.structure.structure_message_id,
@@ -790,7 +793,10 @@ impl fmt::Display for M5NonVisualSummaryArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SupportExport(error) => {
-                write!(formatter, "m5 non-visual summary export parse failed: {error}")
+                write!(
+                    formatter,
+                    "m5 non-visual summary export parse failed: {error}"
+                )
             }
             Self::Validation(violations) => {
                 let tokens = violations
@@ -1094,7 +1100,11 @@ fn validate_text_alternative(
         if !ok {
             violations.push(M5NonVisualSummaryViolation::TextAlternativeInconsistent);
         }
-        if alt.provided && !alt.alt_text_message_id.starts_with(M5_SUMMARY_MESSAGE_ID_PREFIX) {
+        if alt.provided
+            && !alt
+                .alt_text_message_id
+                .starts_with(M5_SUMMARY_MESSAGE_ID_PREFIX)
+        {
             violations.push(M5NonVisualSummaryViolation::MessageIdPrefixMissing);
         }
     } else {
@@ -1117,8 +1127,11 @@ fn validate_presentation_state_coverage(
     packet: &M5NonVisualSummaryCatalogPacket,
     violations: &mut Vec<M5NonVisualSummaryViolation>,
 ) {
-    let present: BTreeSet<M5SummaryPresentationState> =
-        packet.summaries.iter().map(|s| s.presentation_state).collect();
+    let present: BTreeSet<M5SummaryPresentationState> = packet
+        .summaries
+        .iter()
+        .map(|s| s.presentation_state)
+        .collect();
     for state in M5SummaryPresentationState::ALL {
         if state.is_provisional() && !present.contains(&state) {
             violations.push(M5NonVisualSummaryViolation::PresentationStateNotExercised);

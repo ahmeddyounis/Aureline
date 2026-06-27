@@ -328,7 +328,10 @@ pub struct M5DynamicEventMapping {
 impl M5DynamicEventMapping {
     /// The live-region channel this event speaks on, derived from its grammar class.
     pub fn channel(&self) -> A11yAnnouncementPoliteness {
-        if self.announcement_event_class.required_channel_is_assertive() {
+        if self
+            .announcement_event_class
+            .required_channel_is_assertive()
+        {
             A11yAnnouncementPoliteness::Assertive
         } else {
             A11yAnnouncementPoliteness::Polite
@@ -890,10 +893,7 @@ fn validate_families(
     }
 }
 
-fn validate_event(
-    event: &M5DynamicEventMapping,
-    violations: &mut Vec<M5EventCoverageViolation>,
-) {
+fn validate_event(event: &M5DynamicEventMapping, violations: &mut Vec<M5EventCoverageViolation>) {
     if event.event_id.trim().is_empty()
         || event.label.trim().is_empty()
         || event.identity_message_id.trim().is_empty()

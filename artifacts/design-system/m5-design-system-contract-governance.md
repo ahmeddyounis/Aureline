@@ -140,6 +140,36 @@ and names the blocked surfaces on `block`. The report, the drift / waived /
 expired drills, the outcome proof, and the release packet are minted by the same
 seed builder and asserted by inline tests.
 
+## Surface qualification (the integrating gate)
+
+The matrix above governs *which* design-system objects exist; the
+**surface-qualification packet** is the layer that qualifies each claimed M5
+workspace surface against all four lanes at once — the foundation package, the
+component manifests, the reference layouts, and the evidence pack — and derives a
+green/yellow/red verdict from them. A surface whose bound contract artifact is
+missing is **disqualified** and blocked from Stable promotion; a surface whose
+evidence proof is stale or whose token/state conformance fails is **provisional**
+and auto-narrows below Stable before promotion (floored at Beta). A blocking gap
+can be accepted under a disclosed, time-bounded waiver scoped to one gap subject,
+which ships the surface narrowed to the waived claim while its true status stays
+red. Help/About, the release center, shiproom, support exports, and the
+stable-claim matrix consume the same packet and dashboard.
+
+| Artifact | Path |
+| -------- | ---- |
+| Packet schema | `schemas/design-system/m5-surface-qualification.schema.json` |
+| Dashboard schema | `schemas/design-system/m5-surface-qualification-dashboard.schema.json` |
+| Doc | `docs/design-system/m5-surface-qualification.md` |
+| Support export | `artifacts/release/m5-design-system-proof/surface-qualification.json` |
+| Published dashboard | `artifacts/design-system/m5-surface-qualification-dashboard.json` |
+| Markdown proof | `artifacts/release/m5-design-system-proof/surface-qualification-proof.md` |
+| Stale / token-drift / missing-manifest / waiver drills | `fixtures/ui/m5-surface-qualification/*.json` |
+
+Every verdict is derived from the same checked-in lane packets, so the
+qualification can never outrun the contract behind it. The support export, the
+dashboard, the Markdown proof, and the four drill fixtures are minted by the same
+seed builder and asserted by inline tests.
+
 ## Proof and drift control
 
 The matrix support export is the proof lane that blocks drift: the seed builder

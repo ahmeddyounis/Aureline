@@ -154,7 +154,11 @@ fn families() -> Vec<M5EventFamilyCoverage> {
                     fallback(Surface::BannerDetail, "banner-detail:blocking-error"),
                 ),
             ],
-            vec![Consumer::Editor, Consumer::Notebook, Consumer::SupportExport],
+            vec![
+                Consumer::Editor,
+                Consumer::Notebook,
+                Consumer::SupportExport,
+            ],
         ),
         // Completion / snippet / editor-assist session changes.
         family(
@@ -182,7 +186,10 @@ fn families() -> Vec<M5EventFamilyCoverage> {
                     "Editor assist unavailable",
                     Reason::Unavailable,
                     "event.assist.unavailable",
-                    fallback(Surface::NotificationCenterEntry, "notification-center:assist"),
+                    fallback(
+                        Surface::NotificationCenterEntry,
+                        "notification-center:assist",
+                    ),
                 ),
             ],
             vec![Consumer::Editor, Consumer::SupportExport],

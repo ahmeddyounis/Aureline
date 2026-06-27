@@ -60,10 +60,18 @@ fn dense_collections_carry_roving_tabindex_and_others_do_not() {
             zone.zone_id
         );
         if let Some(roving) = &zone.roving_tabindex {
-            assert!(roving.single_tab_stop, "zone {} not single-tab-stop", zone.zone_id);
             assert!(
-                roving.navigation_keys.contains(&M5CollectionNavKey::ArrowUpDown)
-                    && roving.navigation_keys.contains(&M5CollectionNavKey::HomeEnd),
+                roving.single_tab_stop,
+                "zone {} not single-tab-stop",
+                zone.zone_id
+            );
+            assert!(
+                roving
+                    .navigation_keys
+                    .contains(&M5CollectionNavKey::ArrowUpDown)
+                    && roving
+                        .navigation_keys
+                        .contains(&M5CollectionNavKey::HomeEnd),
                 "zone {} missing predictable navigation keys",
                 zone.zone_id
             );
@@ -80,8 +88,12 @@ fn dense_collections_carry_roving_tabindex_and_others_do_not() {
 fn every_zone_preserves_its_required_async_classes() {
     let packet = seeded_m5_focus_selection_contract();
     for zone in &packet.zones {
-        let present: std::collections::BTreeSet<_> =
-            zone.stable_identity.preserved_across.iter().copied().collect();
+        let present: std::collections::BTreeSet<_> = zone
+            .stable_identity
+            .preserved_across
+            .iter()
+            .copied()
+            .collect();
         for required in zone.interaction_model.required_async_classes() {
             assert!(
                 present.contains(required),

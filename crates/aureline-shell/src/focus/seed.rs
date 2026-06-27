@@ -201,7 +201,11 @@ fn zones() -> Vec<M5FocusZoneContract> {
             Id::PathOrUri,
             None,
             fallback(Surface::SelectionSummary, "selection-summary:rename"),
-            vec![Consumer::Editor, Consumer::DataGrid, Consumer::SupportExport],
+            vec![
+                Consumer::Editor,
+                Consumer::DataGrid,
+                Consumer::SupportExport,
+            ],
         ),
         zone(
             "focus-zone:inspector-promotion",
@@ -241,7 +245,11 @@ fn zones() -> Vec<M5FocusZoneContract> {
                 Key::TypeAhead,
             ])),
             fallback(Surface::SelectionSummary, "selection-summary:collection"),
-            vec![Consumer::DataGrid, Consumer::Review, Consumer::SupportExport],
+            vec![
+                Consumer::DataGrid,
+                Consumer::Review,
+                Consumer::SupportExport,
+            ],
         ),
         zone(
             "focus-zone:streamed-list",
@@ -255,9 +263,17 @@ fn zones() -> Vec<M5FocusZoneContract> {
                 false,
             ),
             Id::ContentHash,
-            Some(roving(vec![Key::ArrowUpDown, Key::HomeEnd, Key::PageUpDown])),
+            Some(roving(vec![
+                Key::ArrowUpDown,
+                Key::HomeEnd,
+                Key::PageUpDown,
+            ])),
             fallback(Surface::ActivityRow, "activity-row:streamed-list"),
-            vec![Consumer::Terminal, Consumer::AiSurfaces, Consumer::SupportExport],
+            vec![
+                Consumer::Terminal,
+                Consumer::AiSurfaces,
+                Consumer::SupportExport,
+            ],
         ),
         // Persistent shell zone: focus restored across layout adjustment and refresh.
         zone(

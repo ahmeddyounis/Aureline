@@ -42,9 +42,9 @@ mod seed;
 mod tests;
 
 pub use seed::{
-    seeded_m5_dynamic_surface_a11y_matrix, seeded_m5_dynamic_surface_a11y_matrix_bridge_unavailable,
-    seeded_m5_dynamic_surface_a11y_matrix_dense_summary_narrowed,
-    M5_DYNAMIC_A11Y_MATRIX_PACKET_ID,
+    seeded_m5_dynamic_surface_a11y_matrix,
+    seeded_m5_dynamic_surface_a11y_matrix_bridge_unavailable,
+    seeded_m5_dynamic_surface_a11y_matrix_dense_summary_narrowed, M5_DYNAMIC_A11Y_MATRIX_PACKET_ID,
 };
 
 use std::collections::BTreeSet;
@@ -61,7 +61,8 @@ pub const M5_DYNAMIC_A11Y_MATRIX_RECORD_KIND: &str =
 pub const M5_DYNAMIC_A11Y_MATRIX_SCHEMA_VERSION: u32 = 1;
 
 /// Repo-relative path of the boundary schema.
-pub const M5_DYNAMIC_A11Y_MATRIX_SCHEMA_REF: &str = "schemas/a11y/m5-dynamic-surface-a11y.schema.json";
+pub const M5_DYNAMIC_A11Y_MATRIX_SCHEMA_REF: &str =
+    "schemas/a11y/m5-dynamic-surface-a11y.schema.json";
 
 /// Repo-relative path of the M5 dynamic-surface accessibility contract doc.
 pub const M5_DYNAMIC_A11Y_MATRIX_DOC_REF: &str = "docs/a11y/m5-dynamic-surface-a11y.md";
@@ -84,8 +85,7 @@ pub const M5_DYNAMIC_A11Y_COLLECTION_CONTRACT_REF: &str =
     "docs/accessibility/collection_announcement_contract.md";
 
 /// Repo-relative path of the frozen shell accessibility-bridge groundwork.
-pub const M5_DYNAMIC_A11Y_SHELL_BRIDGE_CONTRACT_REF: &str =
-    "docs/accessibility/m1_shell_bridge.md";
+pub const M5_DYNAMIC_A11Y_SHELL_BRIDGE_CONTRACT_REF: &str = "docs/accessibility/m1_shell_bridge.md";
 
 /// Repo-relative path of the frozen operational-surface parity contract.
 pub const M5_DYNAMIC_A11Y_OPERATIONAL_PARITY_CONTRACT_REF: &str =
@@ -1091,7 +1091,10 @@ impl M5DynamicSurfaceA11yMatrixPacket {
                     .collect::<Vec<_>>()
                     .join(", ")
             ));
-            out.push_str(&format!("  - Rollback: {}\n", row.rollback_posture.as_str()));
+            out.push_str(&format!(
+                "  - Rollback: {}\n",
+                row.rollback_posture.as_str()
+            ));
         }
         out
     }
@@ -1288,12 +1291,10 @@ fn validate_object_rows(
             let declared = row.declares(vocab);
             let has_tokens = row.vocab_tokens_present(vocab);
             if declared && !has_tokens {
-                violations
-                    .push(M5DynamicSurfaceA11yMatrixViolation::DeclaredVocabularyHasNoTokens);
+                violations.push(M5DynamicSurfaceA11yMatrixViolation::DeclaredVocabularyHasNoTokens);
             }
             if !declared && has_tokens {
-                violations
-                    .push(M5DynamicSurfaceA11yMatrixViolation::UndeclaredVocabularyHasTokens);
+                violations.push(M5DynamicSurfaceA11yMatrixViolation::UndeclaredVocabularyHasTokens);
             }
         }
 

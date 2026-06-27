@@ -249,7 +249,10 @@ fn narrowed_variants_validate_and_keep_objects_visible() {
         .iter()
         .find(|r| r.object_kind == M5DynamicSurfaceA11yObjectKind::BridgeDiagnosticsPacket)
         .expect("bridge-diagnostics row present");
-    assert_eq!(row.qualification, M5DynamicSurfaceA11yQualificationClass::Held);
+    assert_eq!(
+        row.qualification,
+        M5DynamicSurfaceA11yQualificationClass::Held
+    );
 
     let narrowed = seeded_m5_dynamic_surface_a11y_matrix_dense_summary_narrowed();
     let row = narrowed

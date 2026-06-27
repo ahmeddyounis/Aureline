@@ -17,6 +17,7 @@ pub mod m5_foundation_package;
 pub mod m5_host_primitive;
 pub mod m5_reference_layout;
 pub mod m5_style_drift_lint;
+pub mod m5_surface_qualification;
 
 use aureline_ui::components::ComponentStateClass;
 use aureline_ui::density::DensityClass;
@@ -78,6 +79,21 @@ pub use m5_style_drift_lint::{
     M5_STYLE_DRIFT_LINT_OUTCOME_RECORD_KIND, M5_STYLE_DRIFT_LINT_RELEASE_RECORD_KIND,
     M5_STYLE_DRIFT_LINT_REPORT_ID, M5_STYLE_DRIFT_LINT_REPORT_RECORD_KIND,
     M5_STYLE_DRIFT_LINT_REPORT_VERSION, M5_STYLE_DRIFT_LINT_SCHEMA_VERSION,
+};
+
+pub use m5_surface_qualification::{
+    current_stable_m5_surface_qualification_dashboard,
+    current_stable_m5_surface_qualification_packet, seeded_m5_surface_qualification_packet,
+    seeded_m5_surface_qualification_packet_missing_manifest_blocked,
+    seeded_m5_surface_qualification_packet_stale_narrowed,
+    seeded_m5_surface_qualification_packet_token_drift_narrowed,
+    seeded_m5_surface_qualification_packet_waived_narrowed, M5LaneBinding, M5LaneConformance,
+    M5QualificationArtifactError, M5QualificationConsumer, M5QualificationGap,
+    M5QualificationGapKind, M5QualificationGate, M5QualificationLane, M5QualificationReleaseGate,
+    M5QualificationSignal, M5QualificationStatus, M5QualificationViolation, M5QualificationWaiver,
+    M5SurfaceQualification, M5SurfaceQualificationDashboard, M5SurfaceQualificationPacket,
+    M5_SURFACE_QUALIFICATION_PACKET_ID, M5_SURFACE_QUALIFICATION_RECORD_KIND,
+    M5_SURFACE_QUALIFICATION_SCHEMA_VERSION,
 };
 
 /// Schema version emitted by all beta design-system contract records.

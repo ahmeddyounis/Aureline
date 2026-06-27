@@ -29,14 +29,19 @@ struct A11yTokenVecs {
 
 impl A11yTokenVecs {
     fn merge(&mut self, other: A11yTokenVecs) {
-        self.announcement_politeness.extend(other.announcement_politeness);
-        self.coalescing_strategies.extend(other.coalescing_strategies);
-        self.fallback_durabilities.extend(other.fallback_durabilities);
-        self.non_visual_fidelities.extend(other.non_visual_fidelities);
+        self.announcement_politeness
+            .extend(other.announcement_politeness);
+        self.coalescing_strategies
+            .extend(other.coalescing_strategies);
+        self.fallback_durabilities
+            .extend(other.fallback_durabilities);
+        self.non_visual_fidelities
+            .extend(other.non_visual_fidelities);
         self.bridge_states.extend(other.bridge_states);
         self.focus_return_dispositions
             .extend(other.focus_return_dispositions);
-        self.semantic_role_classes.extend(other.semantic_role_classes);
+        self.semantic_role_classes
+            .extend(other.semantic_role_classes);
     }
 }
 

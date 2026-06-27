@@ -23,7 +23,8 @@
 //! ```
 
 use aureline_shell::focus::{
-    seeded_m5_focus_selection_contract, seeded_m5_focus_selection_contract_bridge_unavailable_narrowed,
+    seeded_m5_focus_selection_contract,
+    seeded_m5_focus_selection_contract_bridge_unavailable_narrowed,
     seeded_m5_focus_selection_contract_proof_stale_narrowed, M5FocusSelectionContractPacket,
 };
 

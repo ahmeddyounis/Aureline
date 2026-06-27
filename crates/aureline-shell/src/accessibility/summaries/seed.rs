@@ -361,7 +361,10 @@ fn summaries() -> Vec<M5SurfaceSummary> {
                 A11ySemanticRoleClass::StructureGroup,
                 vec![
                     dimension("spans", "summary.trace.dim.spans"),
-                    dimension("critical_path_length", "summary.trace.dim.critical_path_length"),
+                    dimension(
+                        "critical_path_length",
+                        "summary.trace.dim.critical_path_length",
+                    ),
                 ],
             ),
             vec![
@@ -390,7 +393,11 @@ fn summaries() -> Vec<M5SurfaceSummary> {
             text_alternative(
                 Alt::ChartDescription,
                 "summary.trace.alt_text",
-                &["span_count", "critical_path_label_id", "total_duration_label_id"],
+                &[
+                    "span_count",
+                    "critical_path_label_id",
+                    "total_duration_label_id",
+                ],
             ),
             fallback(Surface::StatusDetail, "status-detail:trace-summary"),
             vec![Consumer::Shell, Consumer::SupportExport],
@@ -498,7 +505,10 @@ fn summaries() -> Vec<M5SurfaceSummary> {
                 "summary.review.alt_text",
                 &["added_lines", "removed_lines", "changed_file_label_id"],
             ),
-            fallback(Surface::PatchReviewHeader, "patch-review-header:review-summary"),
+            fallback(
+                Surface::PatchReviewHeader,
+                "patch-review-header:review-summary",
+            ),
             vec![Consumer::Review, Consumer::SupportExport],
         ),
         // Image / design / rich artifact viewer: preview render; visual decision.
@@ -543,7 +553,12 @@ fn summaries() -> Vec<M5SurfaceSummary> {
             text_alternative(
                 Alt::ImageAltText,
                 "summary.artifact.alt_text",
-                &["width_label_id", "height_label_id", "format_label_id", "layer_count"],
+                &[
+                    "width_label_id",
+                    "height_label_id",
+                    "format_label_id",
+                    "layer_count",
+                ],
             ),
             fallback(Surface::BannerDetail, "banner-detail:artifact-summary"),
             vec![Consumer::Review, Consumer::SupportExport],
