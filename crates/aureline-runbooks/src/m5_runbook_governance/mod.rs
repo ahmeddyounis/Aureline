@@ -889,14 +889,37 @@ impl StepOutcomeClass {
     }
 }
 
-/// One executed step inside an execution record: the step that ran, its outcome,
-/// the deviation lineage entry, and any control-plane handoff.
+/// One executed step inside an execution record: the step that ran, who ran it,
+/// the target it acted on, the preview-hash and approval reuse that gated it, its
+/// outcome, the deviation lineage entry, and any control-plane handoff.
+///
+/// A runbook row reuses Aureline's *standard* mutation-review machinery rather than
+/// a runbook-specific path: a mutating step carries the shared command/action-envelope
+/// [`preview_hash`](Self::preview_hash) and the shared
+/// [`approval_ref`](Self::approval_ref); an observe / verify / communicate step
+/// (`inspect`, `diagnose`, `annotate`) records attributable execution and evidence
+/// without any fake mutation semantics — no preview hash, and no approval ref unless
+/// its scope actually requires one.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecutedStepResult {
     /// The governed step descriptor that ran.
     pub step: RunbookStepDescriptor,
+    /// Opaque, redaction-safe ref to the actor (operator role or companion session)
+    /// accountable for running this row. Required for attribution.
+    pub actor_ref: String,
+    /// Opaque, redaction-safe selector ref the row acted on or inspected. Empty when
+    /// the step has no concrete target (e.g. an annotation or an approval gate).
+    pub target_ref: String,
     /// Outcome of the step.
     pub outcome: StepOutcomeClass,
+    /// Shared command/action-envelope preview hash reused by this row. `Some` only for
+    /// a mutating in-plane step — the same preview object any governed mutation
+    /// produces; `None` for observe / verify / communicate steps (no fake mutation).
+    pub preview_hash: Option<String>,
+    /// Shared approval-authority ref reused by this row. `Some` only when the step's
+    /// scope requires an approval gate; `None` for read-only steps. The runbook reuses
+    /// the standard approval system rather than a runbook-local path.
+    pub approval_ref: Option<String>,
     /// Deviation lineage entry for the step (`no_deviation` when clean).
     pub deviation: DeviationNote,
     /// Control-plane handoff packet when the step pivoted out of the governed plane.
@@ -904,6 +927,114 @@ pub struct ExecutedStepResult {
     pub handoff: Option<ControlPlaneHandoffPacket>,
     /// Evidence refs the step produced.
     pub evidence_refs: Vec<String>,
+}
+
+impl ExecutedStepResult {
+    /// Builds an executed-step row, deriving the preview-hash and approval-ref reuse
+    /// *mechanically* from the step so a runbook row reuses the shared
+    /// command/action-envelope preview and approval systems rather than a
+    /// runbook-local path. A mutating step gets a shared preview hash; any
+    /// approval-bearing step gets a shared approval ref; observe / verify /
+    /// communicate steps get neither and so carry no fake mutation semantics.
+    pub fn new(
+        step: RunbookStepDescriptor,
+        outcome: StepOutcomeClass,
+        deviation: DeviationNote,
+        handoff: Option<ControlPlaneHandoffPacket>,
+        evidence_refs: Vec<String>,
+        actor_ref: impl Into<String>,
+        target_ref: impl Into<String>,
+    ) -> Self {
+        let preview_hash = derive_preview_hash(&step);
+        let approval_ref = derive_approval_ref(&step);
+        Self {
+            step,
+            actor_ref: actor_ref.into(),
+            target_ref: target_ref.into(),
+            outcome,
+            preview_hash,
+            approval_ref,
+            deviation,
+            handoff,
+            evidence_refs,
+        }
+    }
+
+    /// True when this row reuses a non-empty shared command/action-envelope preview.
+    pub fn reuses_shared_preview(&self) -> bool {
+        self.preview_hash
+            .as_deref()
+            .map(|p| !p.trim().is_empty())
+            .unwrap_or(false)
+    }
+
+    /// True when this row reuses a non-empty shared approval authority.
+    pub fn reuses_shared_approval(&self) -> bool {
+        self.approval_ref
+            .as_deref()
+            .map(|p| !p.trim().is_empty())
+            .unwrap_or(false)
+    }
+
+    /// True when the step's scope requires an approval gate of any kind.
+    pub fn requires_approval(&self) -> bool {
+        !matches!(
+            self.step.approval_scope,
+            RunbookApprovalScope::NoApprovalReadOnly
+        )
+    }
+
+    /// Validates the row-level attribution and preview/approval reuse invariants.
+    pub fn validate_reuse(&self) -> Vec<M5RunbookGovernanceViolation> {
+        let mut out = Vec::new();
+        if self.actor_ref.trim().is_empty() {
+            out.push(M5RunbookGovernanceViolation::MissingActorAttribution);
+        }
+        // A mutating step must reuse the shared command-envelope preview; a
+        // non-mutating step must not carry one (observe / verify / communicate steps
+        // have no fake mutation semantics).
+        if self.step.mutating {
+            if !self.reuses_shared_preview() {
+                out.push(M5RunbookGovernanceViolation::MutatingStepMissingPreviewReuse);
+            }
+        } else if self.preview_hash.is_some() {
+            out.push(M5RunbookGovernanceViolation::NonMutatingStepCarriesPreview);
+        }
+        // An approval-bearing step must reuse the shared approval authority; a
+        // read-only step must not carry one.
+        if self.requires_approval() {
+            if !self.reuses_shared_approval() {
+                out.push(M5RunbookGovernanceViolation::ApprovalReuseMissing);
+            }
+        } else if self.approval_ref.is_some() {
+            out.push(M5RunbookGovernanceViolation::SpuriousApprovalReuse);
+        }
+        out
+    }
+}
+
+/// Derives the shared command/action-envelope preview hash a row reuses: a mutating
+/// in-plane step reuses the preview object any governed mutation produces; a
+/// non-mutating step produces none.
+fn derive_preview_hash(step: &RunbookStepDescriptor) -> Option<String> {
+    if step.mutating {
+        Some(format!("envelope-preview:{}", step.step_id))
+    } else {
+        None
+    }
+}
+
+/// Derives the shared approval-authority ref a row reuses: any step whose scope is
+/// not read-only routes its gate through the shared approval system.
+fn derive_approval_ref(step: &RunbookStepDescriptor) -> Option<String> {
+    if matches!(
+        step.approval_scope,
+        RunbookApprovalScope::NoApprovalReadOnly
+    ) {
+        None
+    } else {
+        Some(format!("approval-authority:{}", step.step_id))
+    }
 }
 
 /// One governed runbook execution record: an operator scenario demonstrating the
@@ -952,7 +1083,8 @@ impl RunbookExecutionRecord {
             .map(|s| s.deviation.clone())
             .collect();
         self.attributable = self.executed_steps.iter().all(|s| {
-            (!s.deviation.deviation_class.is_deviation() || s.deviation.attributable)
+            !s.actor_ref.trim().is_empty()
+                && (!s.deviation.deviation_class.is_deviation() || s.deviation.attributable)
                 && s.handoff
                     .as_ref()
                     .map(|h| !h.attribution_ref.trim().is_empty())
@@ -965,7 +1097,11 @@ impl RunbookExecutionRecord {
                 .as_ref()
                 .map(|h| !h.creates_hidden_mutate_channel)
                 .unwrap_or(true);
-            step_ok && handoff_ok
+            // A mutating runbook row must reuse the shared preview and approval rather
+            // than a runbook-local mutate path.
+            let mutate_reuse_ok =
+                !s.step.mutating || (s.reuses_shared_preview() && s.reuses_shared_approval());
+            step_ok && handoff_ok && mutate_reuse_ok
         });
     }
 
@@ -997,6 +1133,7 @@ impl RunbookExecutionRecord {
 
         for result in &self.executed_steps {
             out.extend(result.step.validate());
+            out.extend(result.validate_reuse());
             // A step that leaves the governed plane must carry an attributable handoff.
             let leaves = result.step.control_plane_boundary.leaves_governed_plane();
             match &result.handoff {
@@ -1922,6 +2059,16 @@ pub enum M5RunbookGovernanceViolation {
     ExecutionRollupDrift,
     /// A companion drove a step outside its declared scope.
     CompanionScopeOverreach,
+    /// An executed-step row names no actor and is therefore unattributable.
+    MissingActorAttribution,
+    /// A mutating row does not reuse the shared command-envelope preview.
+    MutatingStepMissingPreviewReuse,
+    /// A non-mutating row carries a preview hash (fake mutation semantics).
+    NonMutatingStepCarriesPreview,
+    /// An approval-bearing row does not reuse the shared approval authority.
+    ApprovalReuseMissing,
+    /// A read-only row carries an approval ref it does not need.
+    SpuriousApprovalReuse,
     /// The export contains raw boundary material.
     RawBoundaryMaterialInExport,
 }
@@ -1956,6 +2103,11 @@ impl M5RunbookGovernanceViolation {
             Self::ExecutionHasNoSteps => "execution_has_no_steps",
             Self::ExecutionRollupDrift => "execution_rollup_drift",
             Self::CompanionScopeOverreach => "companion_scope_overreach",
+            Self::MissingActorAttribution => "missing_actor_attribution",
+            Self::MutatingStepMissingPreviewReuse => "mutating_step_missing_preview_reuse",
+            Self::NonMutatingStepCarriesPreview => "non_mutating_step_carries_preview",
+            Self::ApprovalReuseMissing => "approval_reuse_missing",
+            Self::SpuriousApprovalReuse => "spurious_approval_reuse",
             Self::RawBoundaryMaterialInExport => "raw_boundary_material_in_export",
         }
     }

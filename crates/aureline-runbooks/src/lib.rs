@@ -47,11 +47,25 @@
 //! support exports. A step that would mint a hidden privileged mutate channel is
 //! rejected.
 //!
+//! Once a runbook's steps are governed, every *execution* is itself a durable,
+//! attributable object. The [`m5_runbook_executions`] module publishes the execution
+//! history: each execution record carries one
+//! [executed-step row](m5_runbook_governance::ExecutedStepResult) per step it ran —
+//! the actor accountable for it, the target it acted on, its outcome, the deviation
+//! lineage, any console/browser handoff, the evidence outputs, and the **preview-hash
+//! and approval reuse** that gated any mutating step. A mutating row reuses the same
+//! shared command/action-envelope preview and approval authority any other governed
+//! mutation uses, while observe / verify / communicate rows record attributable
+//! execution and evidence with no fake mutation semantics. The history is exposed
+//! identically on operator history, support exports, and incident packets, so a
+//! runbook execution is never a privileged exception path.
+//!
 //! The records this crate produces are inspectable, serde-serializable truth
 //! packets that carry no credential bodies or raw provider/console payloads.
 
 #![doc(html_root_url = "https://docs.rs/aureline-runbooks/0.0.0")]
 
+pub mod m5_runbook_executions;
 pub mod m5_runbook_governance;
 pub mod m5_runbook_sources;
 pub mod m5_runbook_steps;

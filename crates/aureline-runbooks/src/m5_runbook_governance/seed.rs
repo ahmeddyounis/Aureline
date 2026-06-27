@@ -553,9 +553,11 @@ pub fn seeded_operator_scenario_records() -> Vec<RunbookExecutionRecord> {
 
 /// A clean, governed execution: inspect, diagnose, then a human-approved mitigation, all in-plane.
 pub fn restart_pipeline_governed() -> RunbookExecutionRecord {
+    let actor = "incident_operations_owner";
+    let target = "target:pipeline/worker-3";
     let steps = vec![
-        ExecutedStepResult {
-            step: step(
+        ExecutedStepResult::new(
+            step(
                 "restart.inspect",
                 "Inspect pipeline state",
                 RunbookStepClass::Inspect,
@@ -564,13 +566,15 @@ pub fn restart_pipeline_governed() -> RunbookExecutionRecord {
                 &["pipeline_state_snapshot"],
                 true,
             ),
-            outcome: StepOutcomeClass::Completed,
-            deviation: clean_deviation("restart.inspect"),
-            handoff: None,
-            evidence_refs: vec!["evidence:restart:state".to_owned()],
-        },
-        ExecutedStepResult {
-            step: step(
+            StepOutcomeClass::Completed,
+            clean_deviation("restart.inspect"),
+            None,
+            vec!["evidence:restart:state".to_owned()],
+            actor,
+            target,
+        ),
+        ExecutedStepResult::new(
+            step(
                 "restart.diagnose",
                 "Diagnose stalled worker",
                 RunbookStepClass::Diagnose,
@@ -579,13 +583,15 @@ pub fn restart_pipeline_governed() -> RunbookExecutionRecord {
                 &["diagnosis_summary"],
                 true,
             ),
-            outcome: StepOutcomeClass::Completed,
-            deviation: clean_deviation("restart.diagnose"),
-            handoff: None,
-            evidence_refs: vec!["evidence:restart:diagnosis".to_owned()],
-        },
-        ExecutedStepResult {
-            step: step(
+            StepOutcomeClass::Completed,
+            clean_deviation("restart.diagnose"),
+            None,
+            vec!["evidence:restart:diagnosis".to_owned()],
+            actor,
+            target,
+        ),
+        ExecutedStepResult::new(
+            step(
                 "restart.mitigate",
                 "Restart stalled worker",
                 RunbookStepClass::Mitigate,
@@ -594,11 +600,13 @@ pub fn restart_pipeline_governed() -> RunbookExecutionRecord {
                 &["mitigation_receipt"],
                 false,
             ),
-            outcome: StepOutcomeClass::Completed,
-            deviation: clean_deviation("restart.mitigate"),
-            handoff: None,
-            evidence_refs: vec!["evidence:restart:mitigation".to_owned()],
-        },
+            StepOutcomeClass::Completed,
+            clean_deviation("restart.mitigate"),
+            None,
+            vec!["evidence:restart:mitigation".to_owned()],
+            actor,
+            target,
+        ),
     ];
     execution_record(
         "restart-pipeline-governed",
@@ -621,9 +629,10 @@ pub fn restart_pipeline_governed() -> RunbookExecutionRecord {
 /// A failover execution with deviation lineage: a declared step is skipped and an ad-hoc rollback is
 /// added under privileged approval.
 pub fn failover_deviation_lineage() -> RunbookExecutionRecord {
+    let target = "target:db/primary";
     let steps = vec![
-        ExecutedStepResult {
-            step: step(
+        ExecutedStepResult::new(
+            step(
                 "failover.inspect",
                 "Inspect primary health",
                 RunbookStepClass::Inspect,
@@ -632,13 +641,15 @@ pub fn failover_deviation_lineage() -> RunbookExecutionRecord {
                 &["primary_health_snapshot"],
                 true,
             ),
-            outcome: StepOutcomeClass::Completed,
-            deviation: clean_deviation("failover.inspect"),
-            handoff: None,
-            evidence_refs: vec!["evidence:failover:health".to_owned()],
-        },
-        ExecutedStepResult {
-            step: step(
+            StepOutcomeClass::Completed,
+            clean_deviation("failover.inspect"),
+            None,
+            vec!["evidence:failover:health".to_owned()],
+            "incident_operations_owner",
+            target,
+        ),
+        ExecutedStepResult::new(
+            step(
                 "failover.drain",
                 "Drain primary connections",
                 RunbookStepClass::Mitigate,
@@ -647,18 +658,20 @@ pub fn failover_deviation_lineage() -> RunbookExecutionRecord {
                 &["drain_receipt"],
                 false,
             ),
-            outcome: StepOutcomeClass::Skipped,
-            deviation: deviation(
+            StepOutcomeClass::Skipped,
+            deviation(
                 "deviation:failover:drain-skipped",
                 DeviationClass::StepSkipped,
                 "failover.drain",
                 "incident_operations_owner",
             ),
-            handoff: None,
-            evidence_refs: Vec::new(),
-        },
-        ExecutedStepResult {
-            step: step(
+            None,
+            Vec::new(),
+            "incident_operations_owner",
+            target,
+        ),
+        ExecutedStepResult::new(
+            step(
                 "failover.rollback",
                 "Ad-hoc rollback to last good snapshot",
                 RunbookStepClass::Rollback,
@@ -667,16 +680,18 @@ pub fn failover_deviation_lineage() -> RunbookExecutionRecord {
                 &["rollback_receipt"],
                 false,
             ),
-            outcome: StepOutcomeClass::Completed,
-            deviation: deviation(
+            StepOutcomeClass::Completed,
+            deviation(
                 "deviation:failover:rollback-adhoc",
                 DeviationClass::StepAddedAdHoc,
                 "failover.rollback",
                 "privileged_operations_owner",
             ),
-            handoff: None,
-            evidence_refs: vec!["evidence:failover:rollback".to_owned()],
-        },
+            None,
+            vec!["evidence:failover:rollback".to_owned()],
+            "privileged_operations_owner",
+            target,
+        ),
     ];
     execution_record(
         "failover-deviation-lineage",
@@ -699,9 +714,10 @@ pub fn failover_deviation_lineage() -> RunbookExecutionRecord {
 /// An execution that pivots to an external vendor console under an attributable handoff that returns
 /// to the governed plane.
 pub fn vendor_console_handoff() -> RunbookExecutionRecord {
+    let actor = "operator_console_owner";
     let steps = vec![
-        ExecutedStepResult {
-            step: step(
+        ExecutedStepResult::new(
+            step(
                 "vendor.inspect",
                 "Inspect vendor-side status",
                 RunbookStepClass::Inspect,
@@ -710,13 +726,15 @@ pub fn vendor_console_handoff() -> RunbookExecutionRecord {
                 &["vendor_status_summary"],
                 true,
             ),
-            outcome: StepOutcomeClass::Completed,
-            deviation: clean_deviation("vendor.inspect"),
-            handoff: None,
-            evidence_refs: vec!["evidence:vendor:status".to_owned()],
-        },
-        ExecutedStepResult {
-            step: step(
+            StepOutcomeClass::Completed,
+            clean_deviation("vendor.inspect"),
+            None,
+            vec!["evidence:vendor:status".to_owned()],
+            actor,
+            "target:vendor/status",
+        ),
+        ExecutedStepResult::new(
+            step(
                 "vendor.console",
                 "Hand off to vendor console for scaling action",
                 RunbookStepClass::ConsoleHandoff,
@@ -725,14 +743,16 @@ pub fn vendor_console_handoff() -> RunbookExecutionRecord {
                 &["handoff_record"],
                 false,
             ),
-            outcome: StepOutcomeClass::HandedOff,
-            deviation: clean_deviation("vendor.console"),
-            handoff: Some(handoff(
+            StepOutcomeClass::HandedOff,
+            clean_deviation("vendor.console"),
+            Some(handoff(
                 "vendor-scale",
                 ControlPlaneBoundaryClass::VendorConsoleHandoff,
             )),
-            evidence_refs: vec!["evidence:vendor:handoff".to_owned()],
-        },
+            vec!["evidence:vendor:handoff".to_owned()],
+            actor,
+            "target:vendor-console/scaling-group",
+        ),
     ];
     execution_record(
         "vendor-console-handoff",
@@ -755,9 +775,10 @@ pub fn vendor_console_handoff() -> RunbookExecutionRecord {
 /// A companion-driven execution that stays within declared read-only/annotate scope and never mints
 /// a privileged mutate channel.
 pub fn companion_within_scope() -> RunbookExecutionRecord {
+    let actor = "companion_assist_session";
     let steps = vec![
-        ExecutedStepResult {
-            step: step(
+        ExecutedStepResult::new(
+            step(
                 "companion.inspect",
                 "Companion inspects recent errors",
                 RunbookStepClass::Inspect,
@@ -766,13 +787,15 @@ pub fn companion_within_scope() -> RunbookExecutionRecord {
                 &["error_window_summary"],
                 true,
             ),
-            outcome: StepOutcomeClass::Completed,
-            deviation: clean_deviation("companion.inspect"),
-            handoff: None,
-            evidence_refs: vec!["evidence:companion:errors".to_owned()],
-        },
-        ExecutedStepResult {
-            step: step(
+            StepOutcomeClass::Completed,
+            clean_deviation("companion.inspect"),
+            None,
+            vec!["evidence:companion:errors".to_owned()],
+            actor,
+            "target:pipeline/error-window",
+        ),
+        ExecutedStepResult::new(
+            step(
                 "companion.diagnose",
                 "Companion proposes a diagnosis",
                 RunbookStepClass::Diagnose,
@@ -781,13 +804,15 @@ pub fn companion_within_scope() -> RunbookExecutionRecord {
                 &["proposed_diagnosis"],
                 true,
             ),
-            outcome: StepOutcomeClass::Completed,
-            deviation: clean_deviation("companion.diagnose"),
-            handoff: None,
-            evidence_refs: vec!["evidence:companion:diagnosis".to_owned()],
-        },
-        ExecutedStepResult {
-            step: step(
+            StepOutcomeClass::Completed,
+            clean_deviation("companion.diagnose"),
+            None,
+            vec!["evidence:companion:diagnosis".to_owned()],
+            actor,
+            "target:pipeline/error-window",
+        ),
+        ExecutedStepResult::new(
+            step(
                 "companion.request",
                 "Companion records a request for human-approved mitigation",
                 RunbookStepClass::Annotate,
@@ -796,11 +821,13 @@ pub fn companion_within_scope() -> RunbookExecutionRecord {
                 &["mitigation_request_note"],
                 true,
             ),
-            outcome: StepOutcomeClass::AwaitingApproval,
-            deviation: clean_deviation("companion.request"),
-            handoff: None,
-            evidence_refs: vec!["evidence:companion:request".to_owned()],
-        },
+            StepOutcomeClass::AwaitingApproval,
+            clean_deviation("companion.request"),
+            None,
+            vec!["evidence:companion:request".to_owned()],
+            actor,
+            "",
+        ),
     ];
     execution_record(
         "companion-within-scope",
