@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub mod appearance_session;
 pub mod m5_component_manifest;
 pub mod m5_design_system_contract;
+pub mod m5_evidence_pack;
 pub mod m5_foundation_package;
 pub mod m5_host_primitive;
 pub mod m5_reference_layout;
@@ -54,6 +55,16 @@ pub use m5_host_primitive::{
     M5_HOST_PRIMITIVE_LIBRARY_ID, M5_HOST_PRIMITIVE_LIBRARY_RECORD_KIND,
     M5_HOST_PRIMITIVE_LIBRARY_VERSION, M5_HOST_PRIMITIVE_RELEASE_RECORD_KIND,
     M5_HOST_PRIMITIVE_SCHEMA_VERSION,
+};
+
+pub use m5_evidence_pack::{
+    current_stable_m5_evidence_pack, evidence_freshness, seeded_m5_evidence_pack,
+    seeded_m5_evidence_pack_stale_narrowed, M5AppearanceVariantEvidence, M5ComponentEvidence,
+    M5EvidenceClaimGate, M5EvidenceComponentSummary, M5EvidenceFreshness, M5EvidencePack,
+    M5EvidencePackArtifactError, M5EvidencePackReleasePacket, M5EvidencePackViolation,
+    M5EvidenceVariantKind, M5GalleryScene, M5_EVIDENCE_PACK_ID, M5_EVIDENCE_PACK_RECORD_KIND,
+    M5_EVIDENCE_PACK_RELEASE_RECORD_KIND, M5_EVIDENCE_PACK_SCHEMA_VERSION,
+    M5_EVIDENCE_PACK_VERSION,
 };
 
 pub use m5_style_drift_lint::{

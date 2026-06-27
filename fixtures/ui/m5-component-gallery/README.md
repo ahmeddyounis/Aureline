@@ -92,6 +92,40 @@ cargo run -q -p aureline-design-system --bin aureline_design_system_m5_host_prim
 [primitive-schema]: ../../../schemas/design-system/m5-host-primitive.schema.json
 [primitive-doc]: ../../../docs/design-system/m5-host-primitive.md
 
+## Visual / accessibility evidence pack
+
+Alongside the contracts, this directory holds the versioned **evidence pack** —
+the reproducible component gallery a shell-quality gate reads instead of a folder
+of hand-captured screenshots. For each launch-critical family it renders one
+gallery scene per controlled state from the host-primitive library, and captures
+each scene under every appearance variant in the *same* pack: normal dark and
+light themes, both high-contrast variants, the reduced-motion posture, and two
+zoom levels. Each captured variant carries a deterministic `baseline_digest` (the
+visual-diff baseline), and each component attaches its owning identity and a
+computed freshness so stale evidence auto-narrows that component's claim.
+
+- `evidence-pack.json` — the full pack, validated against
+  [`m5-evidence-pack.schema.json`][evidence-schema].
+- `evidence-<kind>.json` — one component's evidence per family, extracted from the
+  pack so consumers have a stable file per family.
+
+These are minted from the seed builder by
+`aureline_design_system_m5_evidence_pack`, and the inline tests assert the
+checked-in fixtures match the seed, validate, are rendered from the host-primitive
+render plans, and take their owning identity from the component manifests, so any
+drift fails `cargo test -p aureline-design-system m5_evidence_pack`. See the
+[evidence-pack doc][evidence-doc] for the full shape.
+
+```sh
+cargo run -q -p aureline-design-system --bin aureline_design_system_m5_evidence_pack -- pack
+cargo run -q -p aureline-design-system --bin aureline_design_system_m5_evidence_pack -- component placeholder_card
+cargo run -q -p aureline-design-system --bin aureline_design_system_m5_evidence_pack -- release-packet
+cargo run -q -p aureline-design-system --bin aureline_design_system_m5_evidence_pack -- reevaluate 2026-09-14
+```
+
+[evidence-schema]: ../../../schemas/design-system/m5-evidence-pack.schema.json
+[evidence-doc]: ../../../docs/design-system/m5-evidence-pack.md
+
 ## How to regenerate
 
 ```sh
