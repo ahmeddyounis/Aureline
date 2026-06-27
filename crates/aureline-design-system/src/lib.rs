@@ -14,6 +14,7 @@ pub mod m5_component_manifest;
 pub mod m5_design_system_contract;
 pub mod m5_foundation_package;
 pub mod m5_reference_layout;
+pub mod m5_style_drift_lint;
 
 use aureline_ui::components::ComponentStateClass;
 use aureline_ui::density::DensityClass;
@@ -41,6 +42,19 @@ pub use m5_design_system_contract::{
     M5DesignSystemContractObject, M5DesignSystemDashboard, M5FoundationsArtifact,
     M5ReferenceLayoutArtifact, M5SurfaceContractCoverage, M5_DESIGN_SYSTEM_CONTRACT_MATRIX_ID,
     M5_DESIGN_SYSTEM_CONTRACT_MATRIX_RECORD_KIND,
+};
+
+pub use m5_style_drift_lint::{
+    current_stable_m5_style_drift_lint_report, seeded_m5_style_drift_lint_report,
+    seeded_m5_style_drift_lint_report_drift, seeded_m5_style_drift_lint_report_expired_waiver,
+    seeded_m5_style_drift_lint_report_waived, token_value_is_managed, token_value_is_raw_literal,
+    M5LocalStyleFork, M5ProtectedStateBinding, M5ProtectedSurfaceClass, M5ProtectedSurfaceLint,
+    M5StyleDriftFinding, M5StyleDriftLintArtifactError, M5StyleDriftLintOutcome,
+    M5StyleDriftLintReleasePacket, M5StyleDriftLintReport, M5StyleDriftLintViolation,
+    M5StyleDriftWaiver, M5StylePropertyClass, M5SurfaceGate, M5TokenUsage,
+    M5_STYLE_DRIFT_LINT_OUTCOME_RECORD_KIND, M5_STYLE_DRIFT_LINT_RELEASE_RECORD_KIND,
+    M5_STYLE_DRIFT_LINT_REPORT_ID, M5_STYLE_DRIFT_LINT_REPORT_RECORD_KIND,
+    M5_STYLE_DRIFT_LINT_REPORT_VERSION, M5_STYLE_DRIFT_LINT_SCHEMA_VERSION,
 };
 
 /// Schema version emitted by all beta design-system contract records.

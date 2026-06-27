@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/design-system/m5-style-drift-lint.schema.json",
+  "title": "Aureline M5 design-system style-drift-lint report",
+  "description": "Checked-in lint report for the trust-bearing M5 shell surfaces (trust prompt, onboarding flow, notification / activity center, and embedded-surface boundary). Each surface declares the foundation tokens it consumes, the local style forks it carries (none on a conformant surface), the protected-state semantic bindings it renders, and its waivers. The lint pass over this report flags unmanaged token values, forbidden local style forks, missing state-semantic bindings, and state-semantic audit failures (a protected state that is unlabeled, color-only, spinner-only, or hover-only), and blocks Stable promotion when a protected surface carries unwaived drift. A finding is suppressed only by an explicit waiver that is time-bounded (it carries an expiry and stops suppressing once evaluated_at reaches it) and tied to a design-system proof packet. The records are metadata-only: they carry semantic token references and message ids, never raw color values, credential bodies, or provider payloads — the one exception being a drift drill's raw token_ref, which the lint exists to reject.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "report_id",
+    "report_version",
+    "owner_role",
+    "evaluated_at",
+    "surfaces",
+    "proof_lane_ref",
+    "release_packet_ref",
+    "source_contract_refs",
+    "redaction_class_token",
+    "summary_message_id",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_design_system_style_drift_lint_report" },
+    "schema_version": { "const": 1 },
+    "report_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_version": { "$ref": "#/$defs/semver" },
+    "owner_role": { "$ref": "#/$defs/non_empty_string" },
+    "evaluated_at": { "type": "string", "format": "date-time" },
+    "surfaces": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/surface" }
+    },
+    "proof_lane_ref": { "$ref": "#/$defs/non_empty_string" },
+    "release_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+    "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "summary_message_id": { "$ref": "#/$defs/message_id" },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "semver": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "message_id": { "type": "string", "pattern": "^design_system_style_drift\\." },
+    "surface_class": {
+      "enum": [
+        "trust_prompt",
+        "onboarding_flow",
+        "notification_activity",
+        "embedded_boundary"
+      ]
+    },
+    "style_property": {
+      "enum": [
+        "color",
+        "background",
+        "border",
+        "spacing",
+        "typography",
+        "icon",
+        "motion",
+        "elevation",
+        "radius"
+      ]
+    },
+    "state_class": {
+      "enum": [
+        "empty",
+        "loading",
+        "pending",
+        "degraded",
+        "blocked",
+        "error",
+        "completed"
+      ]
+    },
+    "non_color_cue": {
+      "enum": [
+        "label_text",
+        "icon",
+        "border",
+        "shape",
+        "progress_indicator",
+        "lock_or_shield_glyph",
+        "check_or_selection_marker"
+      ]
+    },
+    "suppressible_check_id": {
+      "enum": [
+        "style_drift.unmanaged_token_value",
+        "style_drift.forbidden_local_style_fork",
+        "style_drift.missing_state_semantic_binding",
+        "state_semantic.unlabeled_state",
+        "state_semantic.color_only_state_meaning",
+        "state_semantic.spinner_only_state",
+        "state_semantic.hover_only_critical_action"
+      ]
+    },
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "surface_id",
+        "display_name",
+        "owner_role",
+        "shell_surface_ref",
+        "token_usages",
+        "local_style_forks",
+        "state_bindings",
+        "waivers"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "display_name": { "$ref": "#/$defs/non_empty_string" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "shell_surface_ref": { "$ref": "#/$defs/non_empty_string" },
+        "token_usages": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/token_usage" }
+        },
+        "local_style_forks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/local_style_fork" }
+        },
+        "state_bindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/state_binding" }
+        },
+        "waivers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/waiver" }
+        }
+      }
+    },
+    "token_usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["usage_id", "role", "property", "token_ref"],
+      "properties": {
+        "usage_id": { "$ref": "#/$defs/non_empty_string" },
+        "role": { "$ref": "#/$defs/non_empty_string" },
+        "property": { "$ref": "#/$defs/style_property" },
+        "token_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "local_style_fork": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fork_id", "description", "property", "replaces_token_ref"],
+      "properties": {
+        "fork_id": { "$ref": "#/$defs/non_empty_string" },
+        "description": { "$ref": "#/$defs/non_empty_string" },
+        "property": { "$ref": "#/$defs/style_property" },
+        "replaces_token_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "state_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_class",
+        "label_message_id",
+        "screen_reader_label",
+        "non_color_cues",
+        "spinner_only",
+        "hover_only_critical_action",
+        "state_family_ref"
+      ],
+      "properties": {
+        "state_class": { "$ref": "#/$defs/state_class" },
+        "label_message_id": { "type": "string" },
+        "screen_reader_label": { "type": "string" },
+        "non_color_cues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_color_cue" }
+        },
+        "spinner_only": { "type": "boolean" },
+        "hover_only_critical_action": { "type": "boolean" },
+        "state_family_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "waiver_id",
+        "waived_check_id",
+        "reason_message_id",
+        "expires_at",
+        "proof_packet_ref"
+      ],
+      "properties": {
+        "waiver_id": { "$ref": "#/$defs/non_empty_string" },
+        "waived_check_id": { "$ref": "#/$defs/suppressible_check_id" },
+        "waived_state_class": { "$ref": "#/$defs/state_class" },
+        "waived_subject_id": { "$ref": "#/$defs/non_empty_string" },
+        "reason_message_id": { "$ref": "#/$defs/message_id" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "proof_packet_ref": {
+          "type": "string",
+          "pattern": "^artifacts/release/m5-design-system-proof/"
+        }
+      }
+    }
+  }
+}

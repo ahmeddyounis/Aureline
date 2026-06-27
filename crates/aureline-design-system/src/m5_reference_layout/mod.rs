@@ -683,11 +683,8 @@ impl M5ReferenceLayoutPackage {
     /// resolved to the exact slot ids the zones occupy, so a feature test names slots rather than
     /// zones.
     pub fn conformance_packet(&self) -> M5ShellSlotConformancePacket {
-        let workspace_conformance: Vec<M5WorkspaceSlotConformance> = self
-            .layouts
-            .iter()
-            .map(workspace_conformance)
-            .collect();
+        let workspace_conformance: Vec<M5WorkspaceSlotConformance> =
+            self.layouts.iter().map(workspace_conformance).collect();
 
         let total_slot_expectations: u32 = workspace_conformance
             .iter()

@@ -107,6 +107,39 @@ of a blank pane. The package, its per-workspace fixtures, the release packet, an
 the conformance packet are minted by the same seed builder and asserted by inline
 tests.
 
+## Style-drift lint and state-semantic audit (the conformance gate)
+
+The residual launch risk the matrix above does not by itself close is
+surface-local styling and state drift on the most trust-bearing shell flows. The
+**style-drift lint** closes it: a checked-in report that declares, per protected
+surface, the foundation tokens it consumes, the local style forks it carries, and
+the protected-state semantic bindings it renders, plus a lint pass that blocks
+Stable promotion when a surface forks the design system, uses an unmanaged token
+value, or lets a `loading` / `pending` / `degraded` / `blocked` state go
+unlabeled, color-only, spinner-only, or hover-only. The lane covers the trust
+prompt, the onboarding flow, the notification / activity center, and the
+embedded-surface boundary.
+
+| Artifact | Path |
+| -------- | ---- |
+| Schema | `schemas/design-system/m5-style-drift-lint.schema.json` |
+| Doc | `docs/design-system/m5-style-drift-lint.md` |
+| Canonical report (v1.0.0) | `fixtures/ui/m5-style-drift-lint/lint-report.json` |
+| Drift / waived / expired drills | `fixtures/ui/m5-style-drift-lint/lint-report-*.json` |
+| Lint-outcome proof | `artifacts/release/m5-design-system-proof/style-drift-lint-outcome.json` |
+| Release packet | `artifacts/release/m5-design-system-proof/style-drift-lint-release.json` |
+
+A finding is suppressed only by a waiver that is **explicit** (it names one
+suppressible check id), **time-bounded** (it carries an `expires_at` and stops
+suppressing once the report's `evaluated_at` reaches it), and **tied to a
+design-system proof packet** (its `proof_packet_ref` lives under this proof
+directory). An expired or proof-less waiver does not suppress its finding, so the
+surface still blocks. The gate decision (`pass`, `pass_with_disclosed_gap`,
+`warn`, `block`) is the CI signal: the producer's `lint` subcommand exits non-zero
+and names the blocked surfaces on `block`. The report, the drift / waived /
+expired drills, the outcome proof, and the release packet are minted by the same
+seed builder and asserted by inline tests.
+
 ## Proof and drift control
 
 The matrix support export is the proof lane that blocks drift: the seed builder
