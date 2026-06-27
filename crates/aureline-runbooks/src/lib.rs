@@ -88,11 +88,29 @@
 //! records — and a reference-plane catalog, exposed identically across the incident
 //! workspace, operator history, support exports, and docs/help.
 //!
+//! Authority must hold all the way out to the smallest client. The
+//! [`m5_runbook_companion`] module narrows the governed step model to the
+//! **companion client scope**: a browser/mobile companion may
+//! [follow, acknowledge, and comment](m5_runbook_companion::CompanionActionClass)
+//! within a step's declared scope, may
+//! [act in scope](m5_runbook_companion::CompanionScopeDisposition::ActInScope) on a
+//! step it is permitted to run — reusing the *same* shared approval-authority and
+//! action-envelope refs the desktop path uses, so a companion approval creates the
+//! same durable audit/approval objects — but may never become a hidden privileged
+//! mutate channel. Any step whose approval or mutation the companion may not grant
+//! has its privileged mutate channel
+//! [explicitly blocked](m5_runbook_companion::CompanionRunbookSurface::privileged_mutate_blocked_on_companion)
+//! and [degrades to a clear desktop handoff](m5_runbook_companion::CompanionActionClass::HandoffToDesktop),
+//! never a silent failure or a misleading claim of parity. The one companion
+//! register projects this narrowing identically across the companion app, the desktop
+//! handoff target, and support exports.
+//!
 //! The records this crate produces are inspectable, serde-serializable truth
 //! packets that carry no credential bodies or raw provider/console payloads.
 
 #![doc(html_root_url = "https://docs.rs/aureline-runbooks/0.0.0")]
 
+pub mod m5_runbook_companion;
 pub mod m5_runbook_executions;
 pub mod m5_runbook_governance;
 pub mod m5_runbook_handoffs;
