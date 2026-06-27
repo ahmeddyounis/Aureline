@@ -60,6 +60,17 @@
 //! identically on operator history, support exports, and incident packets, so a
 //! runbook execution is never a privileged exception path.
 //!
+//! Lineage outlives the live session. Each row's
+//! [deviation note](m5_runbook_governance::DeviationNote) is a durable, inspectable
+//! record — its reason class, affected steps, actor, time, and export-safe summary — so a
+//! departure never disappears into generic completion copy. After closure, each
+//! execution's [archival lineage](m5_runbook_executions::RunbookArchivalLineageProjection)
+//! keeps the archived record joinable to the other Aureline evidence families —
+//! incidents, rollouts, reviews, and support bundles — through stable ids, and exposes
+//! that lineage from metadata alone, never by retaining raw payloads, so support and
+//! audit exports can reconstruct a runbook's full lineage without screenshots or tribal
+//! memory.
+//!
 //! The records this crate produces are inspectable, serde-serializable truth
 //! packets that carry no credential bodies or raw provider/console payloads.
 

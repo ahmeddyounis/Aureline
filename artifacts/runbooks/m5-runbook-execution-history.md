@@ -23,3 +23,14 @@
 | `companion-within-scope` | `companion.inspect` | `inspect` | `companion_assist_session` | `target:pipeline/error-window` | `completed` | `no_approval_read_only` | — | 1 |
 | `companion-within-scope` | `companion.diagnose` | `diagnose` | `companion_assist_session` | `target:pipeline/error-window` | `completed` | `no_approval_read_only` | — | 1 |
 | `companion-within-scope` | `companion.request` | `annotate` | `companion_assist_session` | `—` | `awaiting_approval` | `no_approval_read_only` | — | 1 |
+
+## Archived lineage (joinable after closure)
+
+| Execution | Archived | Joins | Deviations | Support pack |
+|-----------|----------|-------|------------|--------------|
+| `restart-pipeline-governed` | `2026-07-06T00:00:00Z` | incident, support_bundle | 0 | `support.item.runbook.execution.restart-pipeline-governed` |
+| `failover-deviation-lineage` | `2026-07-06T00:00:00Z` | incident, rollout, review, support_bundle | 2 | `support.item.runbook.execution.failover-deviation-lineage` |
+| `vendor-console-handoff` | `2026-07-06T00:00:00Z` | incident, support_bundle | 0 | `support.item.runbook.execution.vendor-console-handoff` |
+| `companion-within-scope` | `2026-07-06T00:00:00Z` | review, support_bundle | 0 | `support.item.runbook.execution.companion-within-scope` |
+
+Archived lineage is reconstructable from metadata alone — no raw payload retained.

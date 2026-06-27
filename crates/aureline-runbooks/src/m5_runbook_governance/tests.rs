@@ -233,6 +233,88 @@ fn deviation_lineage_is_recorded_and_attributable() {
 }
 
 #[test]
+fn deviation_notes_are_durable_and_inspectable() {
+    // A deviation carries its own id, affected steps, actor, time, and summary, so it is a
+    // standalone inspectable record rather than generic completion copy.
+    let record = super::seed::failover_deviation_lineage();
+    for note in &record.deviation_lineage {
+        assert!(note.validate().is_empty(), "{:?}", note.validate());
+        assert!(!note.deviation_id.is_empty());
+        assert!(!note.actor_ref.is_empty());
+        assert!(!note.recorded_at.is_empty());
+        assert!(note.affected_step_ids.contains(&note.from_step_id));
+        assert!(note
+            .summary_message_id
+            .starts_with(M5_RUNBOOK_MESSAGE_ID_PREFIX));
+    }
+    // The ad-hoc rollback deviation names more than one affected step.
+    let adhoc = record
+        .deviation_lineage
+        .iter()
+        .find(|n| n.deviation_class == DeviationClass::StepAddedAdHoc)
+        .expect("ad-hoc deviation present");
+    assert!(adhoc.affected_step_ids.len() >= 2);
+}
+
+#[test]
+fn a_recorded_deviation_without_actor_is_unattributable() {
+    let mut note = super::seed::failover_deviation_lineage().deviation_lineage[0].clone();
+    note.actor_ref = String::new();
+    assert!(note
+        .validate()
+        .contains(&M5RunbookGovernanceViolation::UnattributableDeviation));
+}
+
+#[test]
+fn an_incomplete_deviation_note_is_rejected() {
+    let mut note = super::seed::failover_deviation_lineage().deviation_lineage[0].clone();
+    note.affected_step_ids.clear();
+    assert!(note
+        .validate()
+        .contains(&M5RunbookGovernanceViolation::DeviationNoteIncomplete));
+}
+
+#[test]
+fn archived_execution_stays_joinable_after_session() {
+    // Every operator scenario archives an export-safe record joinable to other evidence
+    // families through stable ids, with no raw payload retained.
+    for record in seeded_operator_scenario_records() {
+        let archive = &record.archival_export;
+        assert!(archive.validate().is_empty(), "{:?}", archive.validate());
+        assert!(archive.archived);
+        assert!(!archive.archived_at.is_empty());
+        assert!(archive.lineage_recoverable_from_metadata_only);
+        assert!(!archive.raw_content_exported);
+        assert!(
+            archive.lineage_joins.has_any_join(),
+            "{} has no joins",
+            record.execution_id
+        );
+    }
+    // The failover scenario joins all four evidence families.
+    let failover = super::seed::failover_deviation_lineage();
+    assert_eq!(
+        failover.archival_export.lineage_joins.joined_families(),
+        vec!["incident", "rollout", "review", "support_bundle"]
+    );
+}
+
+#[test]
+fn an_archival_object_retaining_raw_content_is_rejected() {
+    let mut archive = super::seed::restart_pipeline_governed().archival_export;
+    archive.raw_content_exported = true;
+    assert!(archive
+        .validate()
+        .contains(&M5RunbookGovernanceViolation::RawBoundaryMaterialInExport));
+
+    let mut archive = super::seed::restart_pipeline_governed().archival_export;
+    archive.archived_at = String::new();
+    assert!(archive
+        .validate()
+        .contains(&M5RunbookGovernanceViolation::ArchivalRecordIncomplete));
+}
+
+#[test]
 fn console_handoff_stays_attributable_and_returns_to_plane() {
     let record = super::seed::vendor_console_handoff();
     assert!(record.validate().is_empty(), "{:?}", record.validate());

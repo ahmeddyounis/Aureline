@@ -28,6 +28,12 @@ const MISSING_DRILL_OBJECT: RunbookObjectClass = RunbookObjectClass::ArchivalExp
 
 const REDACTION_CLASS: &str = "metadata_safe_default";
 
+/// Timestamp at which the operator-scenario deviations were recorded.
+const SEED_DEVIATION_AT: &str = "2026-07-05T22:14:00Z";
+
+/// Timestamp at which the operator-scenario executions were archived after closure.
+const SEED_ARCHIVED_AT: &str = "2026-07-06T00:00:00Z";
+
 /// Builds the canonical object contracts with every proof current.
 fn canonical_object_contracts() -> Vec<RunbookObjectContract> {
     fn contract(
@@ -462,11 +468,18 @@ fn clean_deviation(step_id: &str) -> DeviationNote {
         deviation_id: format!("deviation:{step_id}:clean"),
         deviation_class: DeviationClass::NoDeviation,
         from_step_id: step_id.to_owned(),
+        affected_step_ids: vec![step_id.to_owned()],
+        actor_ref: String::new(),
+        approver_role: String::new(),
+        recorded_at: SEED_DEVIATION_AT.to_owned(),
         rationale_message_id: format!(
             "{}deviation.{}.clean",
             M5_RUNBOOK_MESSAGE_ID_PREFIX, step_id
         ),
-        approver_role: String::new(),
+        summary_message_id: format!(
+            "{}deviation.{}.clean.summary",
+            M5_RUNBOOK_MESSAGE_ID_PREFIX, step_id
+        ),
         attributable: true,
     }
 }
@@ -475,18 +488,46 @@ fn deviation(
     deviation_id: &str,
     class: DeviationClass,
     from_step: &str,
+    affected: &[&str],
+    actor: &str,
     approver: &str,
 ) -> DeviationNote {
+    let mut affected_step_ids: Vec<String> = affected.iter().map(|s| (*s).to_owned()).collect();
+    if !affected_step_ids.iter().any(|s| s == from_step) {
+        affected_step_ids.insert(0, from_step.to_owned());
+    }
     DeviationNote {
         deviation_id: deviation_id.to_owned(),
         deviation_class: class,
         from_step_id: from_step.to_owned(),
+        affected_step_ids,
+        actor_ref: actor.to_owned(),
+        approver_role: approver.to_owned(),
+        recorded_at: SEED_DEVIATION_AT.to_owned(),
         rationale_message_id: format!(
             "{}deviation.{}.rationale",
             M5_RUNBOOK_MESSAGE_ID_PREFIX, deviation_id
         ),
-        approver_role: approver.to_owned(),
+        summary_message_id: format!(
+            "{}deviation.{}.summary",
+            M5_RUNBOOK_MESSAGE_ID_PREFIX, deviation_id
+        ),
         attributable: true,
+    }
+}
+
+/// Builds an archival lineage join block from optional cross-family ids.
+fn joins(
+    incident: Option<&str>,
+    rollout: Option<&str>,
+    review: Option<&str>,
+    support_bundle: Option<&str>,
+) -> ArchivalLineageJoins {
+    ArchivalLineageJoins {
+        incident_ref: incident.map(str::to_owned),
+        rollout_ref: rollout.map(str::to_owned),
+        review_ref: review.map(str::to_owned),
+        support_bundle_ref: support_bundle.map(str::to_owned),
     }
 }
 
@@ -502,13 +543,16 @@ fn handoff(handoff_id: &str, boundary: ControlPlaneBoundaryClass) -> ControlPlan
     }
 }
 
-fn archival(execution_id: &str) -> ArchivalExportObject {
+fn archival(execution_id: &str, lineage_joins: ArchivalLineageJoins) -> ArchivalExportObject {
     ArchivalExportObject {
         archival_id: format!("archive:{execution_id}"),
         archived: true,
+        archived_at: SEED_ARCHIVED_AT.to_owned(),
         export_safe: true,
         retention_class: "operator_history_default".to_owned(),
         support_pack_item_id: format!("support.item.runbook.execution.{execution_id}"),
+        lineage_joins,
+        lineage_recoverable_from_metadata_only: true,
         raw_content_exported: false,
     }
 }
@@ -520,6 +564,7 @@ fn execution_record(
     operator: &str,
     companion_driven: bool,
     steps: Vec<ExecutedStepResult>,
+    lineage_joins: ArchivalLineageJoins,
 ) -> RunbookExecutionRecord {
     let mut record = RunbookExecutionRecord {
         record_kind: M5_RUNBOOK_EXECUTION_RECORD_KIND.to_owned(),
@@ -531,7 +576,7 @@ fn execution_record(
         companion_driven,
         executed_steps: steps,
         deviation_lineage: Vec::new(),
-        archival_export: archival(execution_id),
+        archival_export: archival(execution_id, lineage_joins),
         attributable: true,
         no_hidden_mutate_channel: true,
         redaction_class: REDACTION_CLASS.to_owned(),
@@ -623,6 +668,12 @@ pub fn restart_pipeline_governed() -> RunbookExecutionRecord {
         "incident_operations_owner",
         false,
         steps,
+        joins(
+            Some("incident:pipeline-stall:0007"),
+            None,
+            None,
+            Some("support-bundle:restart-pipeline-governed"),
+        ),
     )
 }
 
@@ -663,6 +714,8 @@ pub fn failover_deviation_lineage() -> RunbookExecutionRecord {
                 "deviation:failover:drain-skipped",
                 DeviationClass::StepSkipped,
                 "failover.drain",
+                &["failover.drain"],
+                "incident_operations_owner",
                 "incident_operations_owner",
             ),
             None,
@@ -685,6 +738,8 @@ pub fn failover_deviation_lineage() -> RunbookExecutionRecord {
                 "deviation:failover:rollback-adhoc",
                 DeviationClass::StepAddedAdHoc,
                 "failover.rollback",
+                &["failover.rollback", "failover.drain"],
+                "privileged_operations_owner",
                 "privileged_operations_owner",
             ),
             None,
@@ -708,6 +763,12 @@ pub fn failover_deviation_lineage() -> RunbookExecutionRecord {
         "incident_operations_owner",
         false,
         steps,
+        joins(
+            Some("incident:db-failover:0011"),
+            Some("rollout:db-primary-failover:0003"),
+            Some("review:postmortem:db-failover:0011"),
+            Some("support-bundle:failover-deviation-lineage"),
+        ),
     )
 }
 
@@ -769,6 +830,12 @@ pub fn vendor_console_handoff() -> RunbookExecutionRecord {
         "operator_console_owner",
         false,
         steps,
+        joins(
+            Some("incident:vendor-scale:0014"),
+            None,
+            None,
+            Some("support-bundle:vendor-console-handoff"),
+        ),
     )
 }
 
@@ -844,5 +911,11 @@ pub fn companion_within_scope() -> RunbookExecutionRecord {
         "companion_owner",
         true,
         steps,
+        joins(
+            None,
+            None,
+            Some("review:companion-assist:0021"),
+            Some("support-bundle:companion-within-scope"),
+        ),
     )
 }

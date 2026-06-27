@@ -135,6 +135,62 @@ fn deviation_lineage_surfaces_in_rows() {
 }
 
 #[test]
+fn archival_lineage_is_joinable_and_durable() {
+    let history = canonical();
+    assert_eq!(history.archival_lineage.len(), history.executions.len());
+    for lineage in &history.archival_lineage {
+        assert!(lineage.archived);
+        assert!(!lineage.archived_at.is_empty());
+        assert!(lineage.lineage_recoverable_from_metadata_only);
+        assert!(!lineage.support_pack_item_id.is_empty());
+        assert!(!lineage.joined_families.is_empty());
+    }
+    // The failover lineage keeps its durable deviation notes and joins all four families.
+    let failover = history
+        .lineage("failover-deviation-lineage")
+        .expect("lineage present");
+    assert_eq!(
+        failover.joined_families,
+        vec!["incident", "rollout", "review", "support_bundle"]
+    );
+    assert_eq!(failover.deviations.len(), 2);
+    for deviation in &failover.deviations {
+        assert!(!deviation.deviation_id.is_empty());
+        assert!(!deviation.actor_ref.is_empty());
+        assert!(!deviation.recorded_at.is_empty());
+        assert!(deviation.attributable);
+    }
+}
+
+#[test]
+fn archival_lineage_is_identical_across_surfaces() {
+    let history = canonical();
+    let operator = history.lineage_for_surface(RunbookExecutionSurface::OperatorHistory);
+    let support = history.lineage_for_surface(RunbookExecutionSurface::SupportExport);
+    let incident = history.lineage_for_surface(RunbookExecutionSurface::IncidentPacket);
+    assert_eq!(operator, support);
+    assert_eq!(operator, incident);
+    assert_eq!(operator, history.archival_lineage);
+}
+
+#[test]
+fn archival_lineage_drift_is_caught() {
+    let mut history = canonical();
+    history.archival_lineage[0].archived_at = "tampered".to_owned();
+    assert!(history
+        .validate()
+        .contains(&M5RunbookExecutionViolation::ArchivalLineageDrift));
+}
+
+#[test]
+fn markdown_summary_reconstructs_archived_lineage() {
+    let summary = canonical().render_markdown_summary();
+    assert!(summary.contains("Archived lineage (joinable after closure)"));
+    assert!(summary.contains("no raw payload retained"));
+    assert!(summary.contains("support.item.runbook.execution.failover-deviation-lineage"));
+}
+
+#[test]
 fn projection_recomputes_from_the_records() {
     let history = canonical();
     let desktop = history.projections_for_surface(RunbookExecutionSurface::OperatorHistory);

@@ -84,6 +84,45 @@ behavior:
 So a history row can always explain **what** ran, **why** (its deviation lineage),
 **under which approval**, and **with which evidence outputs**.
 
+## Deviations are durable, inspectable records
+
+A departure from a declared runbook step is never folded into generic completion copy.
+Every executed-step row carries a **deviation note** (`no_deviation` when the step ran as
+declared), and each note is a standalone, export-safe record:
+
+- a stable **deviation id** and its **reason class** (`parameter_adjusted`,
+  `step_skipped`, `step_added_ad_hoc`, `aborted_mid_step`, `console_pivot_unplanned`);
+- the **step(s) it affected** (`affected_step_ids`) — always the originating step, plus
+  any downstream steps an ad-hoc addition or abort touched;
+- the **actor** who recorded it (`actor_ref`) and the **approver** accountable for it;
+- the **time** it was recorded (`recorded_at`); and
+- an export-safe **summary** and **rationale** message id.
+
+A recorded deviation must name its actor and be attributable, or it is rejected. The
+record therefore survives in support and audit exports after the live operator session
+ends — a reviewer can always see *what* deviated, *which steps* it touched, *who*
+recorded it, and *when*.
+
+## Archived lineage stays joinable after closure
+
+When an incident or change closes, the live execution record is archived. The history
+carries one **archival lineage** record per execution that keeps the archived execution
+joinable to the other Aureline evidence families through stable ids:
+
+- `incident_ref`, `rollout_ref`, `review_ref`, and `support_bundle_ref` — the cross-family
+  joins, with `joined_families` listing which are present;
+- the `archived_at` closure time, the `retention_class`, and the `support_pack_item_id`
+  used in redacted exports;
+- the durable **deviation summaries** retained for the execution; and
+- `lineage_recoverable_from_metadata_only`, which is always true.
+
+Crucially, the lineage is reconstructable **from metadata alone** — Aureline never
+retains raw provider/console payloads to keep an execution joinable. Support and audit
+exports can therefore reconstruct a runbook's full lineage (which incident it ran under,
+which rollout it accompanied, which review covered it, what deviated, and what evidence it
+produced) without screenshots or tribal memory, even when policy or redaction classes
+forbid raw payload retention.
+
 ## The same history everywhere
 
 The history is exposed on **operator history**, **support exports**, and **incident

@@ -799,20 +799,77 @@ impl RunbookStepDescriptor {
 }
 
 /// One governed deviation note recording a departure from declared guidance.
+///
+/// A deviation is a **durable, inspectable** record: it carries its own stable id, the
+/// reason class, the step ids it affected, the actor who recorded it, the time it was
+/// recorded, and an export-safe summary message id — so a departure from a runbook step
+/// never disappears into generic completion copy, and it survives in support and audit
+/// exports after the live operator session ends.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeviationNote {
     /// Stable deviation id.
     pub deviation_id: String,
-    /// Deviation lineage class.
+    /// Deviation lineage class (the reason class for the departure).
     pub deviation_class: DeviationClass,
     /// The declared step id the deviation departs from (or the ad-hoc step's id).
     pub from_step_id: String,
-    /// Stable message id naming the rationale; prefixed [`M5_RUNBOOK_MESSAGE_ID_PREFIX`].
-    pub rationale_message_id: String,
+    /// The step ids this deviation affected, in order. Always includes
+    /// [`from_step_id`](Self::from_step_id); a skipped step affects only itself, while an
+    /// ad-hoc addition, abort, or unplanned pivot may affect downstream steps too.
+    pub affected_step_ids: Vec<String>,
+    /// Opaque, redaction-safe ref to the actor who recorded the deviation. Required for a
+    /// recorded deviation; empty for a clean (`no_deviation`) note.
+    pub actor_ref: String,
     /// Role accountable for approving the deviation.
     pub approver_role: String,
+    /// RFC 3339 timestamp the deviation was recorded. Durable so the record survives after
+    /// the live operator session ends.
+    pub recorded_at: String,
+    /// Stable message id naming the rationale; prefixed [`M5_RUNBOOK_MESSAGE_ID_PREFIX`].
+    pub rationale_message_id: String,
+    /// Stable message id for the export-safe one-line deviation summary; prefixed
+    /// [`M5_RUNBOOK_MESSAGE_ID_PREFIX`].
+    pub summary_message_id: String,
     /// Always true for a recorded deviation: the departure is attributable.
     pub attributable: bool,
+}
+
+impl DeviationNote {
+    /// True when this note records an actual departure from declared guidance.
+    pub fn is_deviation(&self) -> bool {
+        self.deviation_class.is_deviation()
+    }
+
+    /// Validates a deviation note's invariants. A recorded deviation must name the actor
+    /// who recorded it, the steps it affected, and an export-safe summary, and must be
+    /// attributable; a clean note still carries its affected step, summary, and time so
+    /// the record is uniformly inspectable.
+    pub fn validate(&self) -> Vec<M5RunbookGovernanceViolation> {
+        let mut out = Vec::new();
+        if self.deviation_id.trim().is_empty()
+            || self.from_step_id.trim().is_empty()
+            || self.recorded_at.trim().is_empty()
+            || self.affected_step_ids.is_empty()
+            || self.affected_step_ids.iter().any(|s| s.trim().is_empty())
+            || !self.affected_step_ids.contains(&self.from_step_id)
+        {
+            out.push(M5RunbookGovernanceViolation::DeviationNoteIncomplete);
+        }
+        if !self
+            .rationale_message_id
+            .starts_with(M5_RUNBOOK_MESSAGE_ID_PREFIX)
+            || !self
+                .summary_message_id
+                .starts_with(M5_RUNBOOK_MESSAGE_ID_PREFIX)
+        {
+            out.push(M5RunbookGovernanceViolation::UnprefixedMessageId);
+        }
+        // A recorded deviation must be attributable and name the actor who recorded it.
+        if self.is_deviation() && (!self.attributable || self.actor_ref.trim().is_empty()) {
+            out.push(M5RunbookGovernanceViolation::UnattributableDeviation);
+        }
+        out
+    }
 }
 
 /// One governed console/browser control-plane handoff packet.
@@ -834,21 +891,127 @@ pub struct ControlPlaneHandoffPacket {
     pub detail_message_id: String,
 }
 
+/// The stable cross-family ids that keep an archived runbook execution joinable to the
+/// other Aureline evidence families after the live operator session ends. Each ref is an
+/// opaque, redaction-safe id; `None` means the execution had no such relation. The four
+/// slots are always present so a reader can see exactly which families an archived
+/// execution can be reconstructed against.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArchivalLineageJoins {
+    /// Stable incident id this execution is joinable to, when it ran during an incident.
+    pub incident_ref: Option<String>,
+    /// Stable rollout/change id this execution is joinable to, when it ran during a rollout.
+    pub rollout_ref: Option<String>,
+    /// Stable review id this execution is joinable to, when a review covers it.
+    pub review_ref: Option<String>,
+    /// Stable support-bundle id this execution is joinable to in a support export.
+    pub support_bundle_ref: Option<String>,
+}
+
+impl ArchivalLineageJoins {
+    /// No cross-family joins.
+    pub const fn none() -> Self {
+        Self {
+            incident_ref: None,
+            rollout_ref: None,
+            review_ref: None,
+            support_bundle_ref: None,
+        }
+    }
+
+    /// The joined evidence-family tokens present, in a stable order.
+    pub fn joined_families(&self) -> Vec<String> {
+        let mut families = Vec::new();
+        if self.incident_ref.is_some() {
+            families.push("incident".to_owned());
+        }
+        if self.rollout_ref.is_some() {
+            families.push("rollout".to_owned());
+        }
+        if self.review_ref.is_some() {
+            families.push("review".to_owned());
+        }
+        if self.support_bundle_ref.is_some() {
+            families.push("support_bundle".to_owned());
+        }
+        families
+    }
+
+    /// True when at least one cross-family join is present.
+    pub fn has_any_join(&self) -> bool {
+        self.incident_ref.is_some()
+            || self.rollout_ref.is_some()
+            || self.review_ref.is_some()
+            || self.support_bundle_ref.is_some()
+    }
+
+    /// True when every present join ref is a non-empty opaque id.
+    fn refs_non_empty(&self) -> bool {
+        [
+            &self.incident_ref,
+            &self.rollout_ref,
+            &self.review_ref,
+            &self.support_bundle_ref,
+        ]
+        .into_iter()
+        .flatten()
+        .all(|r| !r.trim().is_empty())
+    }
+}
+
 /// One governed archival/export object for retained execution history.
+///
+/// After an incident or change closes, the live execution record is archived. The
+/// archived object keeps the execution **joinable** to the other Aureline evidence
+/// families through stable [lineage joins](ArchivalLineageJoins), and exposes that
+/// lineage from metadata alone — never by retaining raw provider/console payloads.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArchivalExportObject {
     /// Stable archival id.
     pub archival_id: String,
     /// Whether the execution history is archived.
     pub archived: bool,
+    /// RFC 3339 timestamp the live operator session closed and the record was archived.
+    /// Durable so the lineage survives after the session ends.
+    pub archived_at: String,
     /// Whether the archived record is export-safe.
     pub export_safe: bool,
     /// Retention class governing the archived record.
     pub retention_class: String,
     /// Support-pack item id used in redacted exports.
     pub support_pack_item_id: String,
+    /// Stable cross-family joins kept durable after closure, so the archived execution
+    /// stays joinable to incidents, rollouts, reviews, and support bundles.
+    pub lineage_joins: ArchivalLineageJoins,
+    /// Whether the archived lineage can be reconstructed from this metadata alone, with no
+    /// raw payload retained. Always true: lineage never depends on raw payload retention.
+    pub lineage_recoverable_from_metadata_only: bool,
     /// Always false: archival exports carry metadata, not raw content.
     pub raw_content_exported: bool,
+}
+
+impl ArchivalExportObject {
+    /// Validates the archival/export object's invariants: it is archived with a recorded
+    /// closure time, keeps a support-pack item id, and exposes lineage from metadata
+    /// without retaining raw payloads.
+    pub fn validate(&self) -> Vec<M5RunbookGovernanceViolation> {
+        let mut out = Vec::new();
+        if self.archival_id.trim().is_empty()
+            || self.retention_class.trim().is_empty()
+            || self.support_pack_item_id.trim().is_empty()
+            || (self.archived && self.archived_at.trim().is_empty())
+            || !self.lineage_joins.refs_non_empty()
+        {
+            out.push(M5RunbookGovernanceViolation::ArchivalRecordIncomplete);
+        }
+        if !self.lineage_recoverable_from_metadata_only {
+            out.push(M5RunbookGovernanceViolation::ArchivalRecordIncomplete);
+        }
+        if self.raw_content_exported {
+            out.push(M5RunbookGovernanceViolation::RawBoundaryMaterialInExport);
+        }
+        out
+    }
 }
 
 /// Outcome of one executed step.
@@ -1156,10 +1319,8 @@ impl RunbookExecutionRecord {
                 }
                 None => {}
             }
-            // A recorded deviation must be attributable.
-            if result.deviation.deviation_class.is_deviation() && !result.deviation.attributable {
-                out.push(M5RunbookGovernanceViolation::UnattributableDeviation);
-            }
+            // Every deviation note — clean or not — is a durable, inspectable record.
+            out.extend(result.deviation.validate());
             // A companion may only drive steps it is permitted for.
             if self.companion_driven
                 && !result.step.companion_permitted
@@ -1179,9 +1340,7 @@ impl RunbookExecutionRecord {
             out.push(M5RunbookGovernanceViolation::ExecutionRollupDrift);
         }
 
-        if self.archival_export.raw_content_exported {
-            out.push(M5RunbookGovernanceViolation::RawBoundaryMaterialInExport);
-        }
+        out.extend(self.archival_export.validate());
 
         if json_contains_forbidden_boundary_material(
             &serde_json::to_value(self).expect("execution record serializes"),
@@ -2053,6 +2212,10 @@ pub enum M5RunbookGovernanceViolation {
     UnattributableHandoff,
     /// A recorded deviation is unattributable.
     UnattributableDeviation,
+    /// A deviation note is missing its id, affected steps, recorded time, or summary.
+    DeviationNoteIncomplete,
+    /// An archival/export object is missing its closure time, joins, or metadata-only lineage.
+    ArchivalRecordIncomplete,
     /// An execution record declares no steps.
     ExecutionHasNoSteps,
     /// An execution record's rollups drifted from a fresh recompute.
@@ -2100,6 +2263,8 @@ impl M5RunbookGovernanceViolation {
             Self::HiddenMutateChannel => "hidden_mutate_channel",
             Self::UnattributableHandoff => "unattributable_handoff",
             Self::UnattributableDeviation => "unattributable_deviation",
+            Self::DeviationNoteIncomplete => "deviation_note_incomplete",
+            Self::ArchivalRecordIncomplete => "archival_record_incomplete",
             Self::ExecutionHasNoSteps => "execution_has_no_steps",
             Self::ExecutionRollupDrift => "execution_rollup_drift",
             Self::CompanionScopeOverreach => "companion_scope_overreach",

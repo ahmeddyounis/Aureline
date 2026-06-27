@@ -25,12 +25,23 @@
 //! routing, and the same audit expectation, so a row reads identically wherever it is
 //! shown.
 //!
+//! Lineage survives after the live session ends. Each row's
+//! [deviation note](crate::m5_runbook_governance::DeviationNote) is a durable,
+//! inspectable record — its reason class, affected steps, actor, time, and export-safe
+//! summary — so a departure never disappears into generic completion copy. After closure,
+//! each execution's [`RunbookArchivalLineageProjection`] keeps the archived record
+//! joinable to the other Aureline evidence families (incidents, rollouts, reviews, and
+//! support bundles) through stable ids, and exposes that lineage *from metadata alone* —
+//! never by retaining raw payloads — so support and audit exports can reconstruct a
+//! runbook's full lineage without screenshots or tribal memory.
+//!
 //! The [`M5RunbookExecutionHistory`] is the one inspectable, serde-serializable truth
 //! packet the consuming surfaces read. It is exposed on operator history, support
 //! exports, and incident packets using *one vocabulary*, so an execution row's class,
-//! actor, target, approval, preview reuse, and evidence stay consistent wherever the
-//! history is rendered or exported. The packet carries metadata and refs only — no
-//! credential bodies or raw provider/console payloads.
+//! actor, target, approval, preview reuse, deviation lineage, archival joins, and
+//! evidence stay consistent wherever the history is rendered or exported. The packet
+//! carries metadata and refs only — no credential bodies or raw provider/console
+//! payloads.
 //!
 //! - History schema:
 //!   [`schemas/runbooks/m5-runbook-execution-history.schema.json`](../../../../../schemas/runbooks/m5-runbook-execution-history.schema.json)
@@ -51,8 +62,8 @@ pub use seed::{
 use serde::{Deserialize, Serialize};
 
 use crate::m5_runbook_governance::{
-    ControlPlaneBoundaryClass, DeviationClass, ExecutedStepResult, RunbookApprovalScope,
-    RunbookExecutionRecord, RunbookStepClass, StepOutcomeClass,
+    ControlPlaneBoundaryClass, DeviationClass, DeviationNote, ExecutedStepResult,
+    RunbookApprovalScope, RunbookExecutionRecord, RunbookStepClass, StepOutcomeClass,
 };
 
 /// Record-kind tag carried by [`M5RunbookExecutionHistory`].
@@ -265,6 +276,120 @@ impl RunbookExecutionRowProjection {
     }
 }
 
+/// One export-safe, durable deviation record surfaced in the archival lineage. A
+/// departure from a runbook step becomes an inspectable row — its reason class, the
+/// steps it affected, the actor who recorded it, the time, and its export-safe summary —
+/// rather than disappearing into generic completion copy.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RunbookDeviationSummary {
+    /// Stable deviation id.
+    pub deviation_id: String,
+    /// Deviation reason-class token.
+    pub deviation_class: String,
+    /// The declared step id the deviation departs from.
+    pub from_step_id: String,
+    /// The step ids the deviation affected, in order.
+    pub affected_step_ids: Vec<String>,
+    /// Opaque, redaction-safe ref to the actor who recorded the deviation.
+    pub actor_ref: String,
+    /// Role accountable for approving the deviation.
+    pub approver_role: String,
+    /// RFC 3339 timestamp the deviation was recorded.
+    pub recorded_at: String,
+    /// Stable message id for the export-safe one-line summary.
+    pub summary_message_id: String,
+    /// Stable message id naming the rationale.
+    pub rationale_message_id: String,
+    /// Whether the deviation is attributable.
+    pub attributable: bool,
+}
+
+impl RunbookDeviationSummary {
+    /// Projects one durable deviation note into its export-safe summary.
+    pub fn derive(note: &DeviationNote) -> Self {
+        Self {
+            deviation_id: note.deviation_id.clone(),
+            deviation_class: note.deviation_class.as_str().to_owned(),
+            from_step_id: note.from_step_id.clone(),
+            affected_step_ids: note.affected_step_ids.clone(),
+            actor_ref: note.actor_ref.clone(),
+            approver_role: note.approver_role.clone(),
+            recorded_at: note.recorded_at.clone(),
+            summary_message_id: note.summary_message_id.clone(),
+            rationale_message_id: note.rationale_message_id.clone(),
+            attributable: note.attributable,
+        }
+    }
+}
+
+/// The archived lineage of one execution: after the live session closes, this is the
+/// joinable, export-safe record that keeps the execution reconstructable against the
+/// other Aureline evidence families (incidents, rollouts, reviews, support bundles) and
+/// preserves its durable deviation notes — without retaining any raw payload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RunbookArchivalLineageProjection {
+    /// The execution this lineage belongs to.
+    pub execution_id: String,
+    /// Reviewer-facing execution label.
+    pub execution_label: String,
+    /// Stable archival id.
+    pub archival_id: String,
+    /// Whether the execution is archived.
+    pub archived: bool,
+    /// RFC 3339 timestamp the record was archived after closure.
+    pub archived_at: String,
+    /// Retention class governing the archived record.
+    pub retention_class: String,
+    /// Support-pack item id used in redacted exports.
+    pub support_pack_item_id: String,
+    /// The joined evidence-family tokens present, in a stable order.
+    pub joined_families: Vec<String>,
+    /// Stable incident id this execution is joinable to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub incident_ref: Option<String>,
+    /// Stable rollout/change id this execution is joinable to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rollout_ref: Option<String>,
+    /// Stable review id this execution is joinable to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub review_ref: Option<String>,
+    /// Stable support-bundle id this execution is joinable to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub support_bundle_ref: Option<String>,
+    /// The durable deviation records retained in this execution's lineage, in order.
+    pub deviations: Vec<RunbookDeviationSummary>,
+    /// Whether the lineage is reconstructable from metadata alone, with no raw payload.
+    pub lineage_recoverable_from_metadata_only: bool,
+}
+
+impl RunbookArchivalLineageProjection {
+    /// Projects one execution record's archival/export object and deviation lineage into
+    /// its joinable, export-safe lineage record.
+    pub fn derive(execution: &RunbookExecutionRecord) -> Self {
+        let archive = &execution.archival_export;
+        Self {
+            execution_id: execution.execution_id.clone(),
+            execution_label: execution.execution_label.clone(),
+            archival_id: archive.archival_id.clone(),
+            archived: archive.archived,
+            archived_at: archive.archived_at.clone(),
+            retention_class: archive.retention_class.clone(),
+            support_pack_item_id: archive.support_pack_item_id.clone(),
+            joined_families: archive.lineage_joins.joined_families(),
+            incident_ref: archive.lineage_joins.incident_ref.clone(),
+            rollout_ref: archive.lineage_joins.rollout_ref.clone(),
+            review_ref: archive.lineage_joins.review_ref.clone(),
+            support_bundle_ref: archive.lineage_joins.support_bundle_ref.clone(),
+            deviations: execution
+                .deviation_lineage
+                .iter()
+                .map(RunbookDeviationSummary::derive)
+                .collect(),
+            lineage_recoverable_from_metadata_only: archive.lineage_recoverable_from_metadata_only,
+        }
+    }
+}
+
 /// Which surfaces expose the execution history. Every flag must hold so a row's
 /// metadata stays consistent wherever it is rendered or exported.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -370,6 +495,14 @@ pub struct RunbookExecutionConformance {
     pub history_export_safe_across_step_classes: bool,
     /// Operator history, support exports, and incident packets read one vocabulary.
     pub one_vocabulary_across_operator_history_support_and_incident: bool,
+    /// Every recorded deviation is a durable, inspectable record (id, affected steps,
+    /// actor, time, and export-safe summary), not generic completion copy.
+    pub deviations_durable_and_inspectable: bool,
+    /// Every archived execution stays joinable to the other Aureline evidence families
+    /// after the live operator session ends.
+    pub archived_history_joinable_after_session: bool,
+    /// Archived lineage is reconstructable from metadata alone, with no raw payload.
+    pub lineage_reconstructable_from_metadata_only: bool,
     /// The history is generated from the same checked-in execution records.
     pub generated_from_checked_in_executions: bool,
 }
@@ -383,6 +516,9 @@ impl RunbookExecutionConformance {
             && self.no_row_mints_hidden_privileged_mutate_channel
             && self.history_export_safe_across_step_classes
             && self.one_vocabulary_across_operator_history_support_and_incident
+            && self.deviations_durable_and_inspectable
+            && self.archived_history_joinable_after_session
+            && self.lineage_reconstructable_from_metadata_only
             && self.generated_from_checked_in_executions
     }
 }
@@ -423,6 +559,8 @@ pub struct M5RunbookExecutionHistory {
     pub executions: Vec<RunbookExecutionRecord>,
     /// One reuse projection per row, in execution and step order.
     pub row_projections: Vec<RunbookExecutionRowProjection>,
+    /// One joinable, export-safe archival lineage record per execution, in order.
+    pub archival_lineage: Vec<RunbookArchivalLineageProjection>,
     /// Which surfaces expose the history.
     pub surface_exposure: RunbookExecutionSurfaceExposure,
     /// Controlled-vocabulary set.
@@ -440,6 +578,7 @@ impl M5RunbookExecutionHistory {
     /// conformance review from the execution records.
     pub fn new(input: M5RunbookExecutionHistoryInput) -> Self {
         let row_projections = derive_row_projections(&input.executions);
+        let archival_lineage = derive_archival_lineage(&input.executions);
         let conformance = derive_conformance(&input.executions);
         Self {
             record_kind: M5_RUNBOOK_EXECUTION_HISTORY_RECORD_KIND.to_owned(),
@@ -449,6 +588,7 @@ impl M5RunbookExecutionHistory {
             evaluated_at: input.evaluated_at,
             executions: input.executions,
             row_projections,
+            archival_lineage,
             surface_exposure: RunbookExecutionSurfaceExposure::all_surfaces(),
             vocabulary: RunbookExecutionVocabulary::canonical(),
             conformance,
@@ -471,6 +611,24 @@ impl M5RunbookExecutionHistory {
         _surface: RunbookExecutionSurface,
     ) -> Vec<RunbookExecutionRowProjection> {
         derive_row_projections(&self.executions)
+    }
+
+    /// The archival lineage a given surface renders. Every surface reads the same lineage
+    /// truth, so an archived execution stays joinable to its incident, rollout, review,
+    /// and support-bundle ids — and keeps its durable deviation notes — wherever the
+    /// history is rendered or exported, after the live operator session ends.
+    pub fn lineage_for_surface(
+        &self,
+        _surface: RunbookExecutionSurface,
+    ) -> Vec<RunbookArchivalLineageProjection> {
+        derive_archival_lineage(&self.executions)
+    }
+
+    /// The archival lineage for one execution, if present.
+    pub fn lineage(&self, execution_id: &str) -> Option<&RunbookArchivalLineageProjection> {
+        self.archival_lineage
+            .iter()
+            .find(|l| l.execution_id == execution_id)
     }
 
     /// Validates the history's invariants.
@@ -508,6 +666,11 @@ impl M5RunbookExecutionHistory {
         // The projections must recompute exactly from the records.
         if derive_row_projections(&self.executions) != self.row_projections {
             out.push(M5RunbookExecutionViolation::ProjectionDrift);
+        }
+
+        // The archival lineage must recompute exactly from the records.
+        if derive_archival_lineage(&self.executions) != self.archival_lineage {
+            out.push(M5RunbookExecutionViolation::ArchivalLineageDrift);
         }
 
         if !self.surface_exposure.all_expose() {
@@ -584,6 +747,28 @@ impl M5RunbookExecutionHistory {
                 row.evidence_refs.len(),
             ));
         }
+
+        out.push_str("\n## Archived lineage (joinable after closure)\n\n");
+        out.push_str("| Execution | Archived | Joins | Deviations | Support pack |\n");
+        out.push_str("|-----------|----------|-------|------------|--------------|\n");
+        for lineage in &self.archival_lineage {
+            let families = if lineage.joined_families.is_empty() {
+                "—".to_owned()
+            } else {
+                lineage.joined_families.join(", ")
+            };
+            out.push_str(&format!(
+                "| `{}` | `{}` | {} | {} | `{}` |\n",
+                lineage.execution_id,
+                lineage.archived_at,
+                families,
+                lineage.deviations.len(),
+                lineage.support_pack_item_id,
+            ));
+        }
+        out.push_str(
+            "\nArchived lineage is reconstructable from metadata alone — no raw payload retained.\n",
+        );
         out
     }
 }
@@ -600,6 +785,16 @@ fn derive_row_projections(
                 RunbookExecutionRowProjection::derive(&execution.execution_id, result)
             })
         })
+        .collect()
+}
+
+/// Derives one joinable archival lineage record per execution, in order.
+fn derive_archival_lineage(
+    executions: &[RunbookExecutionRecord],
+) -> Vec<RunbookArchivalLineageProjection> {
+    executions
+        .iter()
+        .map(RunbookArchivalLineageProjection::derive)
         .collect()
 }
 
@@ -641,6 +836,29 @@ fn derive_conformance(executions: &[RunbookExecutionRecord]) -> RunbookExecution
     // identical truth; recomputing twice must agree.
     let one_vocabulary = derive_row_projections(executions) == derive_row_projections(executions);
 
+    // Every recorded deviation across the records is a durable, inspectable note.
+    let deviations_durable = executions
+        .iter()
+        .flat_map(|e| e.deviation_lineage.iter())
+        .all(|d| d.is_deviation() && d.validate().is_empty());
+
+    // Every archived execution keeps a closure time, a support-pack item, and at least one
+    // cross-family join, so the history stays joinable after the session ends.
+    let archived_joinable = !executions.is_empty()
+        && executions.iter().all(|e| {
+            let a = &e.archival_export;
+            a.archived
+                && !a.archived_at.trim().is_empty()
+                && !a.support_pack_item_id.trim().is_empty()
+                && a.lineage_joins.has_any_join()
+        });
+
+    // Lineage is reconstructable from metadata alone, with no raw payload retention.
+    let lineage_from_metadata = executions.iter().all(|e| {
+        e.archival_export.lineage_recoverable_from_metadata_only
+            && !e.archival_export.raw_content_exported
+    });
+
     let generated = !executions.is_empty();
 
     RunbookExecutionConformance {
@@ -650,6 +868,9 @@ fn derive_conformance(executions: &[RunbookExecutionRecord]) -> RunbookExecution
         no_row_mints_hidden_privileged_mutate_channel: no_hidden,
         history_export_safe_across_step_classes: export_safe,
         one_vocabulary_across_operator_history_support_and_incident: one_vocabulary,
+        deviations_durable_and_inspectable: deviations_durable,
+        archived_history_joinable_after_session: archived_joinable,
+        lineage_reconstructable_from_metadata_only: lineage_from_metadata,
         generated_from_checked_in_executions: generated,
     }
 }
@@ -672,6 +893,8 @@ pub enum M5RunbookExecutionViolation {
     ExecutionRecordInvalid,
     /// The stored row projections drifted from a fresh recompute.
     ProjectionDrift,
+    /// The stored archival lineage drifted from a fresh recompute.
+    ArchivalLineageDrift,
     /// A surface does not expose the history.
     SurfaceExposureIncomplete,
     /// The controlled-vocabulary set does not match the canonical tokens.
@@ -693,6 +916,7 @@ impl M5RunbookExecutionViolation {
             Self::DuplicateExecutionId => "duplicate_execution_id",
             Self::ExecutionRecordInvalid => "execution_record_invalid",
             Self::ProjectionDrift => "projection_drift",
+            Self::ArchivalLineageDrift => "archival_lineage_drift",
             Self::SurfaceExposureIncomplete => "surface_exposure_incomplete",
             Self::VocabularyMismatch => "vocabulary_mismatch",
             Self::ConformanceReviewFailed => "conformance_review_failed",
