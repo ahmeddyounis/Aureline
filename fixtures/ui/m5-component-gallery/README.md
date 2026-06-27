@@ -56,6 +56,42 @@ cargo run -q -p aureline-design-system --bin aureline_design_system_m5_component
 [manifest-schema]: ../../../schemas/design-system/m5-component-manifest.schema.json
 [manifest-doc]: ../../../docs/design-system/m5-component-manifest.md
 
+## Host-rendered primitives for the launch-critical M5 families
+
+Alongside the manifests, this directory holds the versioned **host-primitive
+library** — the single host-rendered implementation each launch-critical family
+renders through, so the same state, boundary, and review patterns render
+equivalently across M5 surfaces instead of as parallel variants. Each primitive
+inherits its component manifest's binding (component id, accessibility role,
+keyboard chords, foundation token references, and mandatory states) and adds a
+render plan per controlled state, the appearance behavior it preserves (density,
+motion, contrast, focus, keyboard), and the M5 family surfaces that route through
+it — each with a conformance posture, so embedded or extension consumers either
+inherit the primitive or declare a reduced posture behind an explicit partial
+badge.
+
+- `host-primitive-library.json` — the full library, validated against
+  [`m5-host-primitive.schema.json`][primitive-schema].
+- `host-primitive-<kind>.json` — one primitive per family, each a single
+  primitive extracted from the library so consumers have a stable file per family.
+
+These are minted from the seed builder by
+`aureline_design_system_m5_host_primitive`, and the inline tests assert the
+checked-in fixtures match the seed, validate, align with the component manifests,
+and reference only foundation tokens the foundation package publishes, so any
+drift fails `cargo test -p aureline-design-system m5_host_primitive`. See the
+[host-primitive doc][primitive-doc] for the full shape.
+
+```sh
+cargo run -q -p aureline-design-system --bin aureline_design_system_m5_host_primitive -- library
+cargo run -q -p aureline-design-system --bin aureline_design_system_m5_host_primitive -- primitive placeholder_card
+cargo run -q -p aureline-design-system --bin aureline_design_system_m5_host_primitive -- release-packet
+cargo run -q -p aureline-design-system --bin aureline_design_system_m5_host_primitive -- audit
+```
+
+[primitive-schema]: ../../../schemas/design-system/m5-host-primitive.schema.json
+[primitive-doc]: ../../../docs/design-system/m5-host-primitive.md
+
 ## How to regenerate
 
 ```sh

@@ -13,6 +13,7 @@ pub mod appearance_session;
 pub mod m5_component_manifest;
 pub mod m5_design_system_contract;
 pub mod m5_foundation_package;
+pub mod m5_host_primitive;
 pub mod m5_reference_layout;
 pub mod m5_style_drift_lint;
 
@@ -42,6 +43,17 @@ pub use m5_design_system_contract::{
     M5DesignSystemContractObject, M5DesignSystemDashboard, M5FoundationsArtifact,
     M5ReferenceLayoutArtifact, M5SurfaceContractCoverage, M5_DESIGN_SYSTEM_CONTRACT_MATRIX_ID,
     M5_DESIGN_SYSTEM_CONTRACT_MATRIX_RECORD_KIND,
+};
+
+pub use m5_host_primitive::{
+    audit_primitive_manifest_alignment, current_stable_m5_host_primitive_library,
+    seeded_m5_host_primitive_library, M5AppearanceBinding, M5ConformancePosture, M5ConsumerClass,
+    M5HostPrimitive, M5HostPrimitiveArtifactError, M5HostPrimitiveLibrary,
+    M5HostPrimitiveReleasePacket, M5HostPrimitiveSummary, M5HostPrimitiveViolation,
+    M5PrimitiveAlignmentFinding, M5PrimitiveConsumer, M5StateRenderPlan,
+    M5_HOST_PRIMITIVE_LIBRARY_ID, M5_HOST_PRIMITIVE_LIBRARY_RECORD_KIND,
+    M5_HOST_PRIMITIVE_LIBRARY_VERSION, M5_HOST_PRIMITIVE_RELEASE_RECORD_KIND,
+    M5_HOST_PRIMITIVE_SCHEMA_VERSION,
 };
 
 pub use m5_style_drift_lint::{
