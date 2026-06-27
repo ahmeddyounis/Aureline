@@ -78,6 +78,35 @@ shared family rather than pane-local enums, and keeps unsupported or deprecated
 entries inspectable and explicitly downgraded — export, import, diff, and the
 release packet all preserve the downgrade target rather than silently dropping it.
 
+## Reference-layout package (the `reference_layout` object's content)
+
+The `design-system:layout:shell-reference` object's content is extended by the
+versioned, machine-readable **reference-layout package** — one descriptor per
+dominant M5 workspace (notebooks, data grids, the profiler, pipelines, docs,
+preview, incident, and companion surfaces) naming how the workspace occupies the
+governed shell zones, collapses responsively, degrades when a dependency is
+missing, and reopens or resets. The descriptors use the same zone, slot,
+fallback-placement, and placeholder-class tokens shell code consumes, and a
+shell-slot conformance packet projects the slot-keyed layout truth feature
+implementations test against.
+
+| Artifact | Path |
+| -------- | ---- |
+| Schema | `schemas/design-system/m5-reference-layout-package.schema.json` |
+| Doc | `docs/design-system/m5-reference-layout-package.md` |
+| Canonical package (v1.0.0) | `fixtures/ui/m5-reference-layout/reference-layout-package.json` |
+| Per-workspace fixtures | `fixtures/ui/m5-reference-layout/workspace-*.json` |
+| Release packet | `artifacts/release/m5-design-system-proof/reference-layout-release.json` |
+| Shell-slot conformance packet | `artifacts/release/m5-design-system-proof/reference-layout-conformance.json` |
+
+Each workspace claims and marks `required` the `main_workspace` work surface and
+the `status_bar`; the persistent zones never collapse; every zone declares the
+placeholder it shows before content resolves; and every missing-dependency rule
+names the placeholder class and governed message the affected zone shows instead
+of a blank pane. The package, its per-workspace fixtures, the release packet, and
+the conformance packet are minted by the same seed builder and asserted by inline
+tests.
+
 ## Proof and drift control
 
 The matrix support export is the proof lane that blocks drift: the seed builder

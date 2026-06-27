@@ -13,6 +13,7 @@ pub mod appearance_session;
 pub mod m5_component_manifest;
 pub mod m5_design_system_contract;
 pub mod m5_foundation_package;
+pub mod m5_reference_layout;
 
 use aureline_ui::components::ComponentStateClass;
 use aureline_ui::density::DensityClass;
