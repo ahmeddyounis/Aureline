@@ -21,9 +21,21 @@
 //! companions, and support bundles consume this one inventory rather than local
 //! prose or screenshots.
 //!
+//! Runbook authority depends first on *where* a runbook came from. The
+//! [`m5_runbook_sources`] module publishes the source register: every runbook
+//! source declares its provenance class (repo-local, mirrored docs-pack,
+//! managed-catalog, or browser-reference), its version, a signer/provenance
+//! block, a freshness window, its owning scope, and its export rights, and the
+//! register *derives* an effective authority posture — authoritative, mirrored,
+//! managed, or reference-only — that every consuming surface renders identically.
+//! Browser-only vendor docs stay reference-only unless another governed source
+//! promotes them, and a stale source narrows back to reference-only, so a
+//! reference cannot masquerade as a first-party executable runbook.
+//!
 //! The records this crate produces are inspectable, serde-serializable truth
 //! packets that carry no credential bodies or raw provider/console payloads.
 
 #![doc(html_root_url = "https://docs.rs/aureline-runbooks/0.0.0")]
 
 pub mod m5_runbook_governance;
+pub mod m5_runbook_sources;

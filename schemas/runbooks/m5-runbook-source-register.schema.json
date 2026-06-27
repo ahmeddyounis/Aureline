@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runbooks/m5-runbook-source-register.schema.json",
+  "title": "Aureline M5 runbook source register",
+  "description": "The governed inventory of runbook source descriptors. Each source declares where the runbook came from (its provenance class: repo-local, mirrored docs-pack, managed-catalog, or browser-reference), its version, a signer/provenance block, a freshness window, its owning scope, the authority posture its class defaults to, and its export rights. The register derives each source's effective authority posture and a surface-independent badge: a browser reference stays reference-only unless a governed promotion raises it, and a stale or expired source narrows back to reference-only, so a reference can never present as a first-party executable runbook. Every consuming surface — the docs browser, the incident workspace, operator dashboards, and support exports — renders the same badge. The register carries no credential bodies or raw vendor payloads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "register_id",
+    "report_label",
+    "evaluated_at",
+    "sources",
+    "badges",
+    "surface_exposure",
+    "vocabulary",
+    "conformance",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_runbook_source_register" },
+    "schema_version": { "const": 1 },
+    "register_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_label": { "$ref": "#/$defs/non_empty_string" },
+    "evaluated_at": { "$ref": "#/$defs/non_empty_string" },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/governed_runbook_source" }
+    },
+    "badges": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/source_badge" }
+    },
+    "surface_exposure": { "$ref": "#/$defs/surface_exposure" },
+    "vocabulary": { "$ref": "#/$defs/vocabulary" },
+    "conformance": { "$ref": "#/$defs/conformance" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "message_id": { "type": "string", "pattern": "^runbooks_sources\\." },
+    "provenance_class": {
+      "enum": [
+        "repo_local",
+        "mirrored_docs_pack",
+        "managed_catalog",
+        "browser_reference"
+      ]
+    },
+    "authority_posture": {
+      "enum": ["authoritative", "mirrored", "managed", "reference_only"]
+    },
+    "provenance_kind": {
+      "enum": [
+        "signed_first_party",
+        "mirror_digest",
+        "catalog_manifest",
+        "browser_capture"
+      ]
+    },
+    "freshness_state": {
+      "enum": ["fresh", "aging", "stale", "expired"]
+    },
+    "surface": {
+      "enum": [
+        "docs_browser",
+        "incident_workspace",
+        "operator_dashboard",
+        "support_export"
+      ]
+    },
+    "signer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signer_ref",
+        "provenance_kind",
+        "signature_verified",
+        "attested_version"
+      ],
+      "properties": {
+        "signer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "provenance_kind": { "$ref": "#/$defs/provenance_kind" },
+        "signature_verified": { "type": "boolean" },
+        "attested_version": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "freshness_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fresh_within_days",
+        "stale_after_days",
+        "days_since_verification",
+        "provenance_verified"
+      ],
+      "properties": {
+        "fresh_within_days": { "type": "integer", "minimum": 1 },
+        "stale_after_days": { "type": "integer", "minimum": 1 },
+        "days_since_verification": { "type": "integer", "minimum": 0 },
+        "provenance_verified": { "type": "boolean" }
+      }
+    },
+    "export_rights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exportable",
+        "redaction_class",
+        "include_signer_in_export",
+        "raw_body_exportable"
+      ],
+      "properties": {
+        "exportable": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" },
+        "include_signer_in_export": { "type": "boolean" },
+        "raw_body_exportable": { "const": false }
+      }
+    },
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promotion_id",
+        "promoted_by_source_id",
+        "promotes_to",
+        "approver_role",
+        "rationale_message_id"
+      ],
+      "properties": {
+        "promotion_id": { "$ref": "#/$defs/non_empty_string" },
+        "promoted_by_source_id": { "$ref": "#/$defs/non_empty_string" },
+        "promotes_to": { "enum": ["authoritative", "managed"] },
+        "approver_role": { "$ref": "#/$defs/non_empty_string" },
+        "rationale_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "governed_runbook_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "source_id",
+        "source_label",
+        "provenance_class",
+        "version_ref",
+        "signer",
+        "freshness",
+        "owning_scope",
+        "owner_role",
+        "declared_authority_posture",
+        "effective_authority_posture",
+        "export_rights",
+        "detail_message_id"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_governed_runbook_source" },
+        "schema_version": { "const": 1 },
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_label": { "$ref": "#/$defs/non_empty_string" },
+        "provenance_class": { "$ref": "#/$defs/provenance_class" },
+        "version_ref": { "$ref": "#/$defs/non_empty_string" },
+        "signer": { "$ref": "#/$defs/signer" },
+        "freshness": { "$ref": "#/$defs/freshness_window" },
+        "owning_scope": { "$ref": "#/$defs/non_empty_string" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "declared_authority_posture": { "$ref": "#/$defs/authority_posture" },
+        "effective_authority_posture": { "$ref": "#/$defs/authority_posture" },
+        "promotion": { "$ref": "#/$defs/promotion" },
+        "export_rights": { "$ref": "#/$defs/export_rights" },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "source_badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "source_label",
+        "provenance_class",
+        "authority_posture",
+        "authority_posture_label",
+        "freshness_state",
+        "signer_summary",
+        "version_ref",
+        "executable",
+        "reference_only",
+        "promoted",
+        "detail_message_id"
+      ],
+      "properties": {
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_label": { "$ref": "#/$defs/non_empty_string" },
+        "provenance_class": { "$ref": "#/$defs/provenance_class" },
+        "authority_posture": { "$ref": "#/$defs/authority_posture" },
+        "authority_posture_label": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "signer_summary": { "$ref": "#/$defs/non_empty_string" },
+        "version_ref": { "$ref": "#/$defs/non_empty_string" },
+        "executable": { "type": "boolean" },
+        "reference_only": { "type": "boolean" },
+        "promoted": { "type": "boolean" },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "surface_exposure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "docs_browser_exposes_sources",
+        "incident_workspace_exposes_sources",
+        "operator_dashboard_exposes_sources",
+        "support_export_exposes_sources"
+      ],
+      "properties": {
+        "docs_browser_exposes_sources": { "const": true },
+        "incident_workspace_exposes_sources": { "const": true },
+        "operator_dashboard_exposes_sources": { "const": true },
+        "support_export_exposes_sources": { "const": true }
+      }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provenance_classes",
+        "authority_postures",
+        "provenance_kinds",
+        "freshness_states",
+        "surfaces"
+      ],
+      "properties": {
+        "provenance_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/provenance_class" }
+        },
+        "authority_postures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/authority_posture" }
+        },
+        "provenance_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/provenance_kind" }
+        },
+        "freshness_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/freshness_state" }
+        },
+        "surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface" }
+        }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_source_declares_class_version_signer_freshness_scope_and_export",
+        "posture_distinguishes_authoritative_mirrored_managed_reference_only",
+        "browser_reference_is_reference_only_unless_governed_promotion",
+        "freshness_signer_and_posture_visible_on_every_surface",
+        "reference_only_cannot_masquerade_as_first_party_executable",
+        "stale_or_expired_sources_auto_narrow_to_reference_only",
+        "export_carries_no_raw_boundary_material",
+        "generated_from_checked_in_sources"
+      ],
+      "properties": {
+        "every_source_declares_class_version_signer_freshness_scope_and_export": { "const": true },
+        "posture_distinguishes_authoritative_mirrored_managed_reference_only": { "const": true },
+        "browser_reference_is_reference_only_unless_governed_promotion": { "const": true },
+        "freshness_signer_and_posture_visible_on_every_surface": { "const": true },
+        "reference_only_cannot_masquerade_as_first_party_executable": { "const": true },
+        "stale_or_expired_sources_auto_narrow_to_reference_only": { "const": true },
+        "export_carries_no_raw_boundary_material": { "const": true },
+        "generated_from_checked_in_sources": { "const": true }
+      }
+    }
+  }
+}
