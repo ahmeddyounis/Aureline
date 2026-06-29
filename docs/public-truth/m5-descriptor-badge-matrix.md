@@ -41,6 +41,15 @@ hand-authored copy. The weaker provenance origins — `mirror`, `offline_bundle`
 `side_loaded`, and `not_provided` — are first-class tokens: a weaker or absent origin can
 never disappear into omission.
 
+The badge families' user-facing labels and explanation-drawer bodies — `Official`,
+`Mirrored`, `Side-loaded`, `Signature verified`, `Attestation available`, `Not provided`,
+`Partial`, `Certified`, `Supported`, `Limited`, `Experimental`, `Retest pending`,
+`Evidence stale`, and the rest — resolve through the shared
+[badge vocabulary](m5-badge-vocabulary.md), which is where the
+`explanation_drawer_message_id` each descriptor carries is rendered. The badge vocabulary is
+the one place those drawers are written, so every consumer surface reads the same expansion
+text and export-safe ids.
+
 ## Downgrade rules
 
 The frozen downgrade rules name how a non-authoritative descriptor value narrows or blocks
