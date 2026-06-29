@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/m5-migration-task-row.schema.json",
+  "title": "Aureline M5 migration-assistant task row",
+  "description": "One typed migration-assistant task row inside an M5 compatibility-forecast sheet. It is the actionable step that clears a qualified subject's forecast compatibility drift, carrying the subject it addresses, the migration class, the accountable owner, the affected artifact-class / profile / line scope, how much Aureline can auto-fix, the due-before boundary, the skip / waive policy (and whether suppressing it needs a recorded rationale), the rollback guidance, and the pre-emptive actions Aureline already offers (pin, postpone, side-by-side, validator, repair). The row's gate is the addressed drift gate capped by the forecast confidence, so a task addressing a breaking drift on a speculative or out-of-window subject is flagged for review rather than raised as a hard failure. The row carries metadata, refs, and message ids only: no credential bodies or raw provider payloads.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "nullable_string": { "type": ["string", "null"] },
+    "message_id": { "type": "string", "pattern": "^release_compat_forecast\\." },
+    "nullable_message_id": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/message_id" }]
+    },
+    "subject": {
+      "enum": [
+        "certified_archetype",
+        "extension_sdk_range",
+        "extension_manifest_range",
+        "remote_agent_skew",
+        "public_export_reader",
+        "public_schema_reader"
+      ]
+    },
+    "line": { "enum": ["stable", "beta", "preview", "lts"] },
+    "artifact_class": {
+      "enum": [
+        "core_runtime",
+        "extension_packs",
+        "schema_contracts",
+        "workspace_state",
+        "configuration",
+        "language_runtimes",
+        "docs_help_content"
+      ]
+    },
+    "profile": { "enum": ["managed", "self_hosted"] },
+    "drift_class": {
+      "enum": [
+        "no_drift",
+        "compatible_within_window",
+        "deprecation_scheduled",
+        "migration_required",
+        "breaking_drift"
+      ]
+    },
+    "confidence": {
+      "enum": [
+        "qualified",
+        "likely",
+        "estimated",
+        "unknown",
+        "outside_claimed_window",
+        "not_applicable"
+      ]
+    },
+    "task_class": {
+      "enum": [
+        "no_action_required",
+        "archetype_revalidation",
+        "extension_sdk_range_bump",
+        "extension_manifest_update",
+        "remote_helper_upgrade",
+        "export_reader_migration",
+        "schema_reader_migration"
+      ]
+    },
+    "auto_fix": {
+      "enum": [
+        "not_applicable",
+        "auto_fix_available",
+        "assisted_fix",
+        "manual_only",
+        "admin_required"
+      ]
+    },
+    "due_boundary": {
+      "enum": [
+        "not_required",
+        "before_apply",
+        "before_restart",
+        "before_rollout_widening",
+        "before_next_stable_line",
+        "before_end_of_support"
+      ]
+    },
+    "skip_policy": {
+      "enum": [
+        "auto_resolved",
+        "optional_recommended",
+        "skippable_with_rationale",
+        "not_skippable"
+      ]
+    },
+    "rollback_guidance": {
+      "enum": [
+        "not_applicable",
+        "rollback_supported",
+        "pin_current_version",
+        "side_by_side_fallback",
+        "reinstall_only",
+        "no_rollback"
+      ]
+    },
+    "action": {
+      "enum": ["pin", "postpone", "side_by_side", "validator", "repair"]
+    },
+    "review_readiness": {
+      "enum": ["clear_to_widen", "review_before_widening", "hold_before_widening"]
+    },
+    "gate": { "enum": ["governed", "narrowed", "blocked"] },
+    "signal": { "enum": ["green", "yellow", "red"] },
+    "ref_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "waiver": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["waived", "rationale", "waived_by_role", "waiver_message_id"],
+          "properties": {
+            "waived": { "type": "boolean" },
+            "rationale": { "$ref": "#/$defs/nullable_string" },
+            "waived_by_role": { "$ref": "#/$defs/nullable_string" },
+            "waiver_message_id": { "$ref": "#/$defs/message_id" }
+          }
+        }
+      ]
+    }
+  },
+  "required": [
+    "task_id",
+    "subject",
+    "subject_label",
+    "task_class",
+    "owner_role",
+    "addresses_drift",
+    "confidence",
+    "speculative",
+    "affected_artifact_classes",
+    "affected_profiles",
+    "affected_lines",
+    "auto_fix",
+    "due_before",
+    "skip_policy",
+    "requires_recorded_rationale",
+    "rollback_guidance",
+    "available_actions",
+    "waiver",
+    "evidence_refs",
+    "gate",
+    "readiness",
+    "signal",
+    "summary_message_id",
+    "detail_message_id"
+  ],
+  "properties": {
+    "task_id": { "$ref": "#/$defs/non_empty_string" },
+    "subject": { "$ref": "#/$defs/subject" },
+    "subject_label": { "$ref": "#/$defs/non_empty_string" },
+    "task_class": { "$ref": "#/$defs/task_class" },
+    "owner_role": { "$ref": "#/$defs/non_empty_string" },
+    "addresses_drift": { "$ref": "#/$defs/drift_class" },
+    "confidence": { "$ref": "#/$defs/confidence" },
+    "speculative": { "type": "boolean" },
+    "affected_artifact_classes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/artifact_class" }
+    },
+    "affected_profiles": { "type": "array", "items": { "$ref": "#/$defs/profile" } },
+    "affected_lines": { "type": "array", "items": { "$ref": "#/$defs/line" } },
+    "auto_fix": { "$ref": "#/$defs/auto_fix" },
+    "due_before": { "$ref": "#/$defs/due_boundary" },
+    "skip_policy": { "$ref": "#/$defs/skip_policy" },
+    "requires_recorded_rationale": { "type": "boolean" },
+    "rollback_guidance": { "$ref": "#/$defs/rollback_guidance" },
+    "available_actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+    "waiver": { "$ref": "#/$defs/waiver" },
+    "evidence_refs": { "$ref": "#/$defs/ref_array" },
+    "gate": { "$ref": "#/$defs/gate" },
+    "readiness": { "$ref": "#/$defs/review_readiness" },
+    "signal": { "$ref": "#/$defs/signal" },
+    "summary_message_id": { "$ref": "#/$defs/message_id" },
+    "detail_message_id": { "$ref": "#/$defs/message_id" }
+  }
+}

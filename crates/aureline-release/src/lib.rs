@@ -418,6 +418,7 @@ pub mod m5_badge_vocabulary;
 pub mod m5_change_impact_card;
 pub mod m5_claim_narrowing;
 pub mod m5_client_scope_card;
+pub mod m5_compatibility_forecast;
 pub mod m5_descriptor_badge;
 pub mod m5_descriptor_certification;
 pub mod m5_descriptor_join;
