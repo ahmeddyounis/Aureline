@@ -1,0 +1,583 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/m5-support-window-card.schema.json",
+  "title": "Aureline M5 support-window cards",
+  "description": "The typed support-lifecycle cards Help/About, docs/help, the update center, the compatibility report, support export, the admin console, and the release center inspect to decide whether to upgrade, pin, postpone, file a bug, or roll a channel out broadly, without digging through release prose or website copy. One channel card per channel carries channel identity, the support window and its state, the overlap window with the prior version, the deprecation horizon and removal target, the pin-or-postpone path, and known compatibility caveats. One compatibility-subject card per subject (workspace/profile files, extension SDKs, extension manifests, remote helpers, public schemas) carries its end-of-support posture and compatibility window. A card's gate is the worse of its support-window and end-of-support (or compatibility-window) postures, so a card never advertises a wider support commitment than its weakest promise; a card under lifecycle pressure must carry replacement, overlap, and recovery guidance rather than a bare warning. The bound consumers derive their readiness and gaps from those cards, so all of them present the same support-window data. The packet carries metadata, refs, and message ids only: no credential bodies or raw provider payloads, so it is exportable and reviewable outside the app and stays honest under stale, mirrored, or no-live-data conditions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "report_label",
+    "evaluated_at",
+    "data_state",
+    "channels",
+    "channel_tokens",
+    "subjects",
+    "subject_tokens",
+    "consumers",
+    "consumer_tokens",
+    "disclosure",
+    "summary",
+    "coverage",
+    "release_gate",
+    "vocabulary",
+    "conformance",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "nullable_string": { "type": ["string", "null"] },
+    "message_id": { "type": "string", "pattern": "^release_support_window\\." },
+    "nullable_message_id": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/message_id" }]
+    },
+    "channel": { "enum": ["stable", "beta", "preview", "nightly", "lts"] },
+    "nullable_channel": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/channel" }]
+    },
+    "support_window_state": {
+      "enum": [
+        "full_support",
+        "maintenance_support",
+        "security_support",
+        "grace_window",
+        "out_of_support"
+      ]
+    },
+    "end_of_support_state": {
+      "enum": ["supported", "sunset_announced", "deprecated", "retired", "removed"]
+    },
+    "compatibility_window_posture": {
+      "enum": ["within_window", "nearing_ceiling", "outside_window"]
+    },
+    "pin_postpone_choice": {
+      "enum": [
+        "not_applicable",
+        "stay_on_channel",
+        "pin_current_version",
+        "postpone_upgrade",
+        "move_to_successor_channel",
+        "side_by_side_during_overlap",
+        "upgrade_required"
+      ]
+    },
+    "compatibility_subject": {
+      "enum": [
+        "workspace_profile_files",
+        "extension_sdk",
+        "extension_manifest",
+        "remote_helper",
+        "public_schema"
+      ]
+    },
+    "artifact_class": {
+      "enum": [
+        "core_runtime",
+        "extension_packs",
+        "schema_contracts",
+        "workspace_state",
+        "configuration",
+        "language_runtimes",
+        "docs_help_content"
+      ]
+    },
+    "profile": { "enum": ["managed", "self_hosted"] },
+    "consumer": {
+      "enum": [
+        "help_about",
+        "docs_help",
+        "update_center",
+        "compatibility_report",
+        "support_export",
+        "admin_console",
+        "release_center"
+      ]
+    },
+    "gap_kind": {
+      "enum": [
+        "migration_recommended",
+        "action_required_before_upgrade",
+        "channel_not_published",
+        "subject_not_published"
+      ]
+    },
+    "target_kind": { "enum": ["channel", "subject"] },
+    "gate": { "enum": ["governed", "narrowed", "blocked"] },
+    "status": { "enum": ["mapped", "provisional", "unmapped"] },
+    "signal": { "enum": ["green", "yellow", "red"] },
+    "readiness": { "enum": ["supported", "plan_migration", "action_required"] },
+    "stale_data_behavior": {
+      "enum": [
+        "live_verified",
+        "mirrored_labelled",
+        "offline_cached",
+        "stale_banner_shown",
+        "local_only_no_live_data"
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "token_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "support_window_dates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["full_support_until", "end_of_support_on"],
+      "properties": {
+        "full_support_until": { "$ref": "#/$defs/nullable_string" },
+        "end_of_support_on": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "overlap_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["has_overlap", "predecessor_version", "overlap_until", "overlap_message_id"],
+      "properties": {
+        "has_overlap": { "type": "boolean" },
+        "predecessor_version": { "$ref": "#/$defs/nullable_string" },
+        "overlap_until": { "$ref": "#/$defs/nullable_string" },
+        "overlap_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "deprecation_horizon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "successor_channel",
+        "deprecation_on",
+        "removal_target_version",
+        "removal_on",
+        "replacement_message_id"
+      ],
+      "properties": {
+        "successor_channel": { "$ref": "#/$defs/nullable_channel" },
+        "deprecation_on": { "$ref": "#/$defs/nullable_string" },
+        "removal_target_version": { "$ref": "#/$defs/nullable_string" },
+        "removal_on": { "$ref": "#/$defs/nullable_string" },
+        "replacement_message_id": { "$ref": "#/$defs/nullable_message_id" }
+      }
+    },
+    "pin_postpone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["choice", "guidance_refs", "recovery_message_id"],
+      "properties": {
+        "choice": { "$ref": "#/$defs/pin_postpone_choice" },
+        "guidance_refs": { "$ref": "#/$defs/ref_array" },
+        "recovery_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "compatibility_caveat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caveat_message_id", "affected_artifact_class", "refs"],
+      "properties": {
+        "caveat_message_id": { "$ref": "#/$defs/message_id" },
+        "affected_artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "compatibility_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["floor_version", "current_version", "ceiling_version", "posture"],
+      "properties": {
+        "floor_version": { "$ref": "#/$defs/nullable_string" },
+        "current_version": { "$ref": "#/$defs/nullable_string" },
+        "ceiling_version": { "$ref": "#/$defs/nullable_string" },
+        "posture": { "$ref": "#/$defs/compatibility_window_posture" }
+      }
+    },
+    "recovery_guidance_guard": {
+      "comment": "Guardrail: a card under lifecycle pressure (narrowed / blocked) must carry replacement, overlap, and recovery guidance instead of a bare warning.",
+      "if": {
+        "properties": { "gate": { "enum": ["narrowed", "blocked"] } },
+        "required": ["gate"]
+      },
+      "then": {
+        "properties": { "carries_recovery_guidance": { "const": true } }
+      }
+    },
+    "channel_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "channel_label",
+        "channel_description",
+        "owner_role",
+        "support_window_state",
+        "support_window_state_label",
+        "end_of_support_state",
+        "end_of_support_state_label",
+        "support_window",
+        "overlap_window",
+        "deprecation_horizon",
+        "pin_postpone",
+        "compatibility_caveats",
+        "profiles",
+        "evidence_refs",
+        "carries_recovery_guidance",
+        "gate",
+        "readiness",
+        "status",
+        "signal",
+        "requires_migration_action",
+        "summary_message_id",
+        "detail_message_id"
+      ],
+      "properties": {
+        "channel": { "$ref": "#/$defs/channel" },
+        "channel_label": { "$ref": "#/$defs/non_empty_string" },
+        "channel_description": { "$ref": "#/$defs/non_empty_string" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "support_window_state": { "$ref": "#/$defs/support_window_state" },
+        "support_window_state_label": { "$ref": "#/$defs/non_empty_string" },
+        "end_of_support_state": { "$ref": "#/$defs/end_of_support_state" },
+        "end_of_support_state_label": { "$ref": "#/$defs/non_empty_string" },
+        "support_window": { "$ref": "#/$defs/support_window_dates" },
+        "overlap_window": { "$ref": "#/$defs/overlap_window" },
+        "deprecation_horizon": { "$ref": "#/$defs/deprecation_horizon" },
+        "pin_postpone": { "$ref": "#/$defs/pin_postpone" },
+        "compatibility_caveats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/compatibility_caveat" }
+        },
+        "profiles": { "type": "array", "items": { "$ref": "#/$defs/profile" } },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "carries_recovery_guidance": { "type": "boolean" },
+        "gate": { "$ref": "#/$defs/gate" },
+        "readiness": { "$ref": "#/$defs/readiness" },
+        "status": { "$ref": "#/$defs/status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "requires_migration_action": { "type": "boolean" },
+        "summary_message_id": { "$ref": "#/$defs/message_id" },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      },
+      "allOf": [{ "$ref": "#/$defs/recovery_guidance_guard" }]
+    },
+    "subject_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject",
+        "subject_label",
+        "primary_artifact_class",
+        "owner_role",
+        "end_of_support_state",
+        "end_of_support_state_label",
+        "compatibility_window",
+        "successor_message_id",
+        "pin_postpone",
+        "compatibility_caveats",
+        "profiles",
+        "evidence_refs",
+        "carries_recovery_guidance",
+        "gate",
+        "readiness",
+        "status",
+        "signal",
+        "requires_migration_action",
+        "summary_message_id",
+        "detail_message_id"
+      ],
+      "properties": {
+        "subject": { "$ref": "#/$defs/compatibility_subject" },
+        "subject_label": { "$ref": "#/$defs/non_empty_string" },
+        "primary_artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "end_of_support_state": { "$ref": "#/$defs/end_of_support_state" },
+        "end_of_support_state_label": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_window": { "$ref": "#/$defs/compatibility_window" },
+        "successor_message_id": { "$ref": "#/$defs/nullable_message_id" },
+        "pin_postpone": { "$ref": "#/$defs/pin_postpone" },
+        "compatibility_caveats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/compatibility_caveat" }
+        },
+        "profiles": { "type": "array", "items": { "$ref": "#/$defs/profile" } },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "carries_recovery_guidance": { "type": "boolean" },
+        "gate": { "$ref": "#/$defs/gate" },
+        "readiness": { "$ref": "#/$defs/readiness" },
+        "status": { "$ref": "#/$defs/status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "requires_migration_action": { "type": "boolean" },
+        "summary_message_id": { "$ref": "#/$defs/message_id" },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      },
+      "allOf": [{ "$ref": "#/$defs/recovery_guidance_guard" }]
+    },
+    "support_gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumer", "target_kind", "target_token", "gap_kind", "cause_message_id"],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_token": { "$ref": "#/$defs/non_empty_string" },
+        "gap_kind": { "$ref": "#/$defs/gap_kind" },
+        "cause_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "consumer_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer",
+        "consumer_label",
+        "owner_role",
+        "read_channels",
+        "read_subjects",
+        "profiles",
+        "readiness",
+        "status",
+        "signal",
+        "gate_decision",
+        "requires_migration_action",
+        "gaps",
+        "status_message_id",
+        "decision_message_id"
+      ],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "consumer_label": { "$ref": "#/$defs/non_empty_string" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "read_channels": { "type": "array", "items": { "$ref": "#/$defs/channel" } },
+        "read_subjects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/compatibility_subject" }
+        },
+        "profiles": { "type": "array", "items": { "$ref": "#/$defs/profile" } },
+        "readiness": { "$ref": "#/$defs/readiness" },
+        "status": { "$ref": "#/$defs/status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "gate_decision": { "$ref": "#/$defs/gate" },
+        "requires_migration_action": { "type": "boolean" },
+        "gaps": { "type": "array", "items": { "$ref": "#/$defs/support_gap" } },
+        "status_message_id": { "$ref": "#/$defs/message_id" },
+        "decision_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    }
+  },
+  "properties": {
+    "record_kind": { "const": "m5_support_window_card_set" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_label": { "$ref": "#/$defs/non_empty_string" },
+    "evaluated_at": { "$ref": "#/$defs/non_empty_string" },
+    "data_state": { "$ref": "#/$defs/stale_data_behavior" },
+    "channels": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/channel_card" }
+    },
+    "channel_tokens": { "type": "array", "items": { "$ref": "#/$defs/channel" } },
+    "subjects": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/subject_card" }
+    },
+    "subject_tokens": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/compatibility_subject" }
+    },
+    "consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_row" }
+    },
+    "consumer_tokens": { "type": "array", "items": { "$ref": "#/$defs/consumer" } },
+    "disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "help_about_reads_packet",
+        "docs_help_reads_packet",
+        "update_center_reads_packet",
+        "compatibility_report_reads_packet",
+        "support_export_reads_packet",
+        "admin_console_reads_packet",
+        "release_center_reads_packet"
+      ],
+      "properties": {
+        "help_about_reads_packet": { "const": true },
+        "docs_help_reads_packet": { "const": true },
+        "update_center_reads_packet": { "const": true },
+        "compatibility_report_reads_packet": { "const": true },
+        "support_export_reads_packet": { "const": true },
+        "admin_console_reads_packet": { "const": true },
+        "release_center_reads_packet": { "const": true }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_channels",
+        "supported_channels",
+        "plan_migration_channels",
+        "action_required_channels",
+        "total_subjects",
+        "supported_subjects",
+        "plan_migration_subjects",
+        "action_required_subjects",
+        "deprecated_or_eos_cards",
+        "total_consumers",
+        "supported_consumers",
+        "plan_migration_consumers",
+        "action_required_consumers",
+        "requires_migration_action"
+      ],
+      "properties": {
+        "total_channels": { "type": "integer", "minimum": 0 },
+        "supported_channels": { "type": "integer", "minimum": 0 },
+        "plan_migration_channels": { "type": "integer", "minimum": 0 },
+        "action_required_channels": { "type": "integer", "minimum": 0 },
+        "total_subjects": { "type": "integer", "minimum": 0 },
+        "supported_subjects": { "type": "integer", "minimum": 0 },
+        "plan_migration_subjects": { "type": "integer", "minimum": 0 },
+        "action_required_subjects": { "type": "integer", "minimum": 0 },
+        "deprecated_or_eos_cards": { "type": "integer", "minimum": 0 },
+        "total_consumers": { "type": "integer", "minimum": 0 },
+        "supported_consumers": { "type": "integer", "minimum": 0 },
+        "plan_migration_consumers": { "type": "integer", "minimum": 0 },
+        "action_required_consumers": { "type": "integer", "minimum": 0 },
+        "requires_migration_action": { "type": "boolean" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fully_supported_cards",
+        "narrowing_cards",
+        "blocking_cards",
+        "has_lifecycle_pressure",
+        "data_state",
+        "live_data"
+      ],
+      "properties": {
+        "fully_supported_cards": { "type": "integer", "minimum": 0 },
+        "narrowing_cards": { "type": "integer", "minimum": 0 },
+        "blocking_cards": { "type": "integer", "minimum": 0 },
+        "has_lifecycle_pressure": { "type": "boolean" },
+        "data_state": { "$ref": "#/$defs/stale_data_behavior" },
+        "live_data": { "type": "boolean" }
+      }
+    },
+    "release_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requires_migration_action",
+        "action_required_consumers",
+        "plan_migration_consumers",
+        "supported_consumers",
+        "affected_channels",
+        "affected_subjects",
+        "gate_message_id"
+      ],
+      "properties": {
+        "requires_migration_action": { "type": "boolean" },
+        "action_required_consumers": { "$ref": "#/$defs/token_array" },
+        "plan_migration_consumers": { "$ref": "#/$defs/token_array" },
+        "supported_consumers": { "$ref": "#/$defs/token_array" },
+        "affected_channels": { "$ref": "#/$defs/token_array" },
+        "affected_subjects": { "$ref": "#/$defs/token_array" },
+        "gate_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channels",
+        "support_window_states",
+        "end_of_support_states",
+        "compatibility_window_postures",
+        "pin_postpone_choices",
+        "compatibility_subjects",
+        "artifact_classes",
+        "profiles",
+        "consumers",
+        "gap_kinds",
+        "target_kinds",
+        "gate_decisions",
+        "readiness",
+        "stale_data_behaviors"
+      ],
+      "properties": {
+        "channels": { "$ref": "#/$defs/token_array" },
+        "support_window_states": { "$ref": "#/$defs/token_array" },
+        "end_of_support_states": { "$ref": "#/$defs/token_array" },
+        "compatibility_window_postures": { "$ref": "#/$defs/token_array" },
+        "pin_postpone_choices": { "$ref": "#/$defs/token_array" },
+        "compatibility_subjects": { "$ref": "#/$defs/token_array" },
+        "artifact_classes": { "$ref": "#/$defs/token_array" },
+        "profiles": { "$ref": "#/$defs/token_array" },
+        "consumers": { "$ref": "#/$defs/token_array" },
+        "gap_kinds": { "$ref": "#/$defs/token_array" },
+        "target_kinds": { "$ref": "#/$defs/token_array" },
+        "gate_decisions": { "$ref": "#/$defs/token_array" },
+        "readiness": { "$ref": "#/$defs/token_array" },
+        "stale_data_behaviors": { "$ref": "#/$defs/token_array" }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_channel_carded",
+        "every_subject_carded",
+        "channel_identity_disclosed",
+        "support_window_disclosed",
+        "overlap_window_disclosed",
+        "deprecation_horizon_disclosed",
+        "removal_target_disclosed",
+        "pin_or_postpone_path_disclosed",
+        "compatibility_caveats_disclosed",
+        "deprecated_states_carry_replacement_overlap_recovery",
+        "eos_and_compatibility_posture_shown_for_subjects",
+        "help_update_compatibility_share_one_packet",
+        "support_commitments_not_broadened",
+        "consumer_verdict_derived_from_cards",
+        "data_state_labelled_local_safe",
+        "controlled_enums_frozen",
+        "exportable_outside_app",
+        "export_carries_no_raw_material"
+      ],
+      "properties": {
+        "every_channel_carded": { "const": true },
+        "every_subject_carded": { "const": true },
+        "channel_identity_disclosed": { "const": true },
+        "support_window_disclosed": { "const": true },
+        "overlap_window_disclosed": { "const": true },
+        "deprecation_horizon_disclosed": { "const": true },
+        "removal_target_disclosed": { "const": true },
+        "pin_or_postpone_path_disclosed": { "const": true },
+        "compatibility_caveats_disclosed": { "const": true },
+        "deprecated_states_carry_replacement_overlap_recovery": { "const": true },
+        "eos_and_compatibility_posture_shown_for_subjects": { "const": true },
+        "help_update_compatibility_share_one_packet": { "const": true },
+        "support_commitments_not_broadened": { "const": true },
+        "consumer_verdict_derived_from_cards": { "const": true },
+        "data_state_labelled_local_safe": { "const": true },
+        "controlled_enums_frozen": { "const": true },
+        "exportable_outside_app": { "const": true },
+        "export_carries_no_raw_material": { "const": true }
+      }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  }
+}

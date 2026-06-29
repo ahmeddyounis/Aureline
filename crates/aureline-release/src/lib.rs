@@ -425,6 +425,7 @@ pub mod m5_descriptor_join;
 pub mod m5_descriptor_object;
 pub mod m5_omission_guard;
 pub mod m5_release_note_evidence;
+pub mod m5_support_window_card;
 pub mod m5_truth_surface_evidence_ingestion;
 pub mod m5_update_lifecycle;
 pub mod m5_update_summary;
