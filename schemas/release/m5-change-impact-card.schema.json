@@ -1,0 +1,510 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/m5-change-impact-card.schema.json",
+  "title": "Aureline M5 change-impact cards",
+  "description": "The typed per-dimension change-impact cards the update center, migration assistant, release center, team-lead review, admin console, and support export inspect before restart to forecast what a staged M5 update will do to the workspace, profile, schema, caches, extensions, remote helpers, toolchain, certified archetypes, and user-facing behavior. Each forecast dimension gets its own card carrying a risk class (that deliberately distinguishes low-risk cache churn from a destructive or habit-breaking behavior change), a forecast confidence that labels unknown inputs and partial coverage honestly, the affected artifact-class and profile scope, a manual follow-up task, and a rollback or pin choice. A card's gate is the risk gate capped by its confidence, so a speculative high-risk forecast is flagged for review rather than raised as a hard failure. The bound consumers derive their review readiness and gaps from those cards, so all of them read this one packet rather than cloning risk fields locally. The packet carries metadata, refs, and message ids only: no credential bodies or raw provider payloads, so it is exportable and reviewable outside the app without forcing an immediate restart.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "report_label",
+    "evaluated_at",
+    "target",
+    "cards",
+    "dimensions",
+    "consumers",
+    "consumer_tokens",
+    "disclosure",
+    "summary",
+    "coverage",
+    "release_gate",
+    "vocabulary",
+    "conformance",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "nullable_string": { "type": ["string", "null"] },
+    "message_id": { "type": "string", "pattern": "^release_change_impact\\." },
+    "nullable_message_id": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/message_id" }]
+    },
+    "dimension": {
+      "enum": [
+        "workspace_migration",
+        "profile_migration",
+        "schema_migration",
+        "cache_migration",
+        "extension_compatibility",
+        "remote_helper_skew",
+        "toolchain_floor",
+        "toolchain_ceiling",
+        "certified_archetype",
+        "behavior_change"
+      ]
+    },
+    "artifact_class": {
+      "enum": [
+        "core_runtime",
+        "extension_packs",
+        "schema_contracts",
+        "workspace_state",
+        "configuration",
+        "language_runtimes",
+        "docs_help_content"
+      ]
+    },
+    "risk_class": {
+      "enum": [
+        "no_impact",
+        "low_risk_cache_churn",
+        "compatible_with_warning",
+        "migration_required",
+        "habit_breaking_behavior_change",
+        "destructive_change"
+      ]
+    },
+    "confidence": {
+      "enum": ["confirmed", "likely", "estimated", "unknown", "not_applicable"]
+    },
+    "review_readiness": {
+      "enum": ["clear_to_apply", "review_recommended", "hold_for_resolution"]
+    },
+    "follow_up_task_class": {
+      "enum": [
+        "no_task_required",
+        "review_before_restart",
+        "backup_before_apply",
+        "migration_scan_required",
+        "extension_range_update",
+        "remote_helper_upgrade",
+        "toolchain_install",
+        "cache_rebuild",
+        "policy_acknowledgement",
+        "admin_approval_required"
+      ]
+    },
+    "task_timing": {
+      "enum": [
+        "not_required",
+        "before_apply",
+        "before_restart",
+        "after_restart",
+        "before_next_update",
+        "manual_review_only"
+      ]
+    },
+    "task_automation": {
+      "enum": [
+        "not_applicable",
+        "automatic",
+        "assistant_available",
+        "manual_steps_required",
+        "admin_action_required"
+      ]
+    },
+    "rollback_choice": {
+      "enum": [
+        "not_applicable",
+        "rollback_supported",
+        "pin_current_version",
+        "side_by_side_fallback",
+        "reinstall_only",
+        "no_rollback"
+      ]
+    },
+    "profile": { "enum": ["managed", "self_hosted"] },
+    "channel": { "enum": ["stable", "beta", "preview", "nightly", "lts"] },
+    "consumer": {
+      "enum": [
+        "update_center",
+        "migration_assistant",
+        "release_center",
+        "team_lead_review",
+        "admin_console",
+        "support_export"
+      ]
+    },
+    "gap_kind": {
+      "enum": [
+        "review_recommended",
+        "forecast_input_unknown",
+        "resolve_before_restart",
+        "dimension_not_forecast"
+      ]
+    },
+    "gate": { "enum": ["governed", "narrowed", "blocked"] },
+    "status": { "enum": ["mapped", "provisional", "unmapped"] },
+    "signal": { "enum": ["green", "yellow", "red"] },
+    "forecast_basis": {
+      "enum": [
+        "release_evidence_only",
+        "release_and_local_scan",
+        "local_scan_only",
+        "mirror_import_preflight",
+        "support_reconstruction"
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "token_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "follow_up": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_class", "timing", "automation", "task_refs", "task_message_id"],
+      "properties": {
+        "task_class": { "$ref": "#/$defs/follow_up_task_class" },
+        "timing": { "$ref": "#/$defs/task_timing" },
+        "automation": { "$ref": "#/$defs/task_automation" },
+        "task_refs": { "$ref": "#/$defs/ref_array" },
+        "task_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimension",
+        "dimension_label",
+        "primary_artifact_class",
+        "owner_role",
+        "risk_class",
+        "confidence",
+        "speculative",
+        "affected_artifact_classes",
+        "affected_profiles",
+        "from_version",
+        "to_version",
+        "follow_up",
+        "rollback_choice",
+        "evidence_refs",
+        "unknown_input_message_id",
+        "gate",
+        "review_readiness",
+        "status",
+        "signal",
+        "requires_pre_restart_acknowledgement",
+        "summary_message_id",
+        "detail_message_id"
+      ],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/dimension" },
+        "dimension_label": { "$ref": "#/$defs/non_empty_string" },
+        "primary_artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "risk_class": { "$ref": "#/$defs/risk_class" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "speculative": { "type": "boolean" },
+        "affected_artifact_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/artifact_class" }
+        },
+        "affected_profiles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/profile" }
+        },
+        "from_version": { "$ref": "#/$defs/nullable_string" },
+        "to_version": { "$ref": "#/$defs/nullable_string" },
+        "follow_up": { "$ref": "#/$defs/follow_up" },
+        "rollback_choice": { "$ref": "#/$defs/rollback_choice" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "unknown_input_message_id": { "$ref": "#/$defs/nullable_message_id" },
+        "gate": { "$ref": "#/$defs/gate" },
+        "review_readiness": { "$ref": "#/$defs/review_readiness" },
+        "status": { "$ref": "#/$defs/status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "requires_pre_restart_acknowledgement": { "type": "boolean" },
+        "summary_message_id": { "$ref": "#/$defs/message_id" },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      },
+      "allOf": [
+        {
+          "comment": "Guardrail: a speculative forecast (estimated / unknown inputs) is never a hard failure.",
+          "if": {
+            "properties": { "speculative": { "const": true } },
+            "required": ["speculative"]
+          },
+          "then": {
+            "properties": { "gate": { "not": { "const": "blocked" } } }
+          }
+        }
+      ]
+    },
+    "gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumer", "dimension", "artifact_class", "gap_kind", "cause_message_id"],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "dimension": { "$ref": "#/$defs/dimension" },
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "gap_kind": { "$ref": "#/$defs/gap_kind" },
+        "cause_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "consumer_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer",
+        "consumer_label",
+        "owner_role",
+        "read_dimensions",
+        "disclosed_artifact_classes",
+        "profiles",
+        "review_readiness",
+        "status",
+        "signal",
+        "gate_decision",
+        "requires_pre_restart_acknowledgement",
+        "gaps",
+        "status_message_id",
+        "decision_message_id"
+      ],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "consumer_label": { "$ref": "#/$defs/non_empty_string" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "read_dimensions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dimension" }
+        },
+        "disclosed_artifact_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_class" }
+        },
+        "profiles": { "type": "array", "items": { "$ref": "#/$defs/profile" } },
+        "review_readiness": { "$ref": "#/$defs/review_readiness" },
+        "status": { "$ref": "#/$defs/status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "gate_decision": { "$ref": "#/$defs/gate" },
+        "requires_pre_restart_acknowledgement": { "type": "boolean" },
+        "gaps": { "type": "array", "items": { "$ref": "#/$defs/gap" } },
+        "status_message_id": { "$ref": "#/$defs/message_id" },
+        "decision_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    }
+  },
+  "properties": {
+    "record_kind": { "const": "m5_change_impact_card_set" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_label": { "$ref": "#/$defs/non_empty_string" },
+    "evaluated_at": { "$ref": "#/$defs/non_empty_string" },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "profiles",
+        "current_version",
+        "target_version",
+        "forecast_basis"
+      ],
+      "properties": {
+        "channel": { "$ref": "#/$defs/channel" },
+        "profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/profile" }
+        },
+        "current_version": { "$ref": "#/$defs/non_empty_string" },
+        "target_version": { "$ref": "#/$defs/non_empty_string" },
+        "forecast_basis": { "$ref": "#/$defs/forecast_basis" }
+      }
+    },
+    "cards": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": { "$ref": "#/$defs/card" }
+    },
+    "dimensions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dimension" }
+    },
+    "consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_row" }
+    },
+    "consumer_tokens": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer" }
+    },
+    "disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "update_center_consumes_cards",
+        "migration_assistant_consumes_cards",
+        "release_center_consumes_cards",
+        "team_lead_review_consumes_cards",
+        "admin_console_consumes_cards",
+        "support_export_consumes_cards"
+      ],
+      "properties": {
+        "update_center_consumes_cards": { "const": true },
+        "migration_assistant_consumes_cards": { "const": true },
+        "release_center_consumes_cards": { "const": true },
+        "team_lead_review_consumes_cards": { "const": true },
+        "admin_console_consumes_cards": { "const": true },
+        "support_export_consumes_cards": { "const": true }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_cards",
+        "clear_cards",
+        "review_cards",
+        "hold_cards",
+        "low_risk_cache_churn_cards",
+        "destructive_or_habit_breaking_cards",
+        "speculative_cards",
+        "total_consumers",
+        "clear_consumers",
+        "review_consumers",
+        "hold_consumers",
+        "requires_pre_restart_acknowledgement"
+      ],
+      "properties": {
+        "total_cards": { "type": "integer", "minimum": 0 },
+        "clear_cards": { "type": "integer", "minimum": 0 },
+        "review_cards": { "type": "integer", "minimum": 0 },
+        "hold_cards": { "type": "integer", "minimum": 0 },
+        "low_risk_cache_churn_cards": { "type": "integer", "minimum": 0 },
+        "destructive_or_habit_breaking_cards": { "type": "integer", "minimum": 0 },
+        "speculative_cards": { "type": "integer", "minimum": 0 },
+        "total_consumers": { "type": "integer", "minimum": 0 },
+        "clear_consumers": { "type": "integer", "minimum": 0 },
+        "review_consumers": { "type": "integer", "minimum": 0 },
+        "hold_consumers": { "type": "integer", "minimum": 0 },
+        "requires_pre_restart_acknowledgement": { "type": "boolean" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fully_forecast_cards",
+        "estimated_cards",
+        "unknown_input_cards",
+        "not_applicable_cards",
+        "has_partial_coverage"
+      ],
+      "properties": {
+        "fully_forecast_cards": { "type": "integer", "minimum": 0 },
+        "estimated_cards": { "type": "integer", "minimum": 0 },
+        "unknown_input_cards": { "type": "integer", "minimum": 0 },
+        "not_applicable_cards": { "type": "integer", "minimum": 0 },
+        "has_partial_coverage": { "type": "boolean" }
+      }
+    },
+    "release_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requires_pre_restart_acknowledgement",
+        "hold_consumers",
+        "review_consumers",
+        "clear_consumers",
+        "affected_dimensions",
+        "gate_message_id"
+      ],
+      "properties": {
+        "requires_pre_restart_acknowledgement": { "type": "boolean" },
+        "hold_consumers": { "$ref": "#/$defs/token_array" },
+        "review_consumers": { "$ref": "#/$defs/token_array" },
+        "clear_consumers": { "$ref": "#/$defs/token_array" },
+        "affected_dimensions": { "$ref": "#/$defs/token_array" },
+        "gate_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimensions",
+        "artifact_classes",
+        "risk_classes",
+        "confidence_levels",
+        "review_readiness",
+        "follow_up_task_classes",
+        "task_timings",
+        "task_automations",
+        "rollback_choices",
+        "profiles",
+        "consumers",
+        "gap_kinds",
+        "gate_decisions",
+        "forecast_bases"
+      ],
+      "properties": {
+        "dimensions": { "$ref": "#/$defs/token_array" },
+        "artifact_classes": { "$ref": "#/$defs/token_array" },
+        "risk_classes": { "$ref": "#/$defs/token_array" },
+        "confidence_levels": { "$ref": "#/$defs/token_array" },
+        "review_readiness": { "$ref": "#/$defs/token_array" },
+        "follow_up_task_classes": { "$ref": "#/$defs/token_array" },
+        "task_timings": { "$ref": "#/$defs/token_array" },
+        "task_automations": { "$ref": "#/$defs/token_array" },
+        "rollback_choices": { "$ref": "#/$defs/token_array" },
+        "profiles": { "$ref": "#/$defs/token_array" },
+        "consumers": { "$ref": "#/$defs/token_array" },
+        "gap_kinds": { "$ref": "#/$defs/token_array" },
+        "gate_decisions": { "$ref": "#/$defs/token_array" },
+        "forecast_bases": { "$ref": "#/$defs/token_array" }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_dimension_forecast",
+        "risk_class_disclosed_per_card",
+        "low_risk_distinguished_from_destructive",
+        "forecast_confidence_labelled",
+        "unknown_inputs_labelled_not_failed",
+        "follow_up_tasks_disclosed",
+        "rollback_or_pin_choice_disclosed",
+        "affected_scope_disclosed",
+        "visible_before_restart",
+        "exportable_outside_app",
+        "consumers_read_one_card_set",
+        "consumer_verdict_derived_from_cards",
+        "controlled_enums_frozen",
+        "export_carries_no_raw_material"
+      ],
+      "properties": {
+        "every_dimension_forecast": { "const": true },
+        "risk_class_disclosed_per_card": { "const": true },
+        "low_risk_distinguished_from_destructive": { "const": true },
+        "forecast_confidence_labelled": { "const": true },
+        "unknown_inputs_labelled_not_failed": { "const": true },
+        "follow_up_tasks_disclosed": { "const": true },
+        "rollback_or_pin_choice_disclosed": { "const": true },
+        "affected_scope_disclosed": { "const": true },
+        "visible_before_restart": { "const": true },
+        "exportable_outside_app": { "const": true },
+        "consumers_read_one_card_set": { "const": true },
+        "consumer_verdict_derived_from_cards": { "const": true },
+        "controlled_enums_frozen": { "const": true },
+        "export_carries_no_raw_material": { "const": true }
+      }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  }
+}
