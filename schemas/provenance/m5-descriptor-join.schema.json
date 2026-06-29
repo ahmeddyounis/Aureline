@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/provenance/m5-descriptor-join.schema.json",
+  "title": "Aureline M5 descriptor-join registry",
+  "description": "Copy-safe joins of a descriptor object (from m5-descriptor-object.schema.json) into the carrier shapes the support, admin, and reporting paths emit — an export packet, a support bundle, an admin report, and a copy-safe summary. Each join re-states the descriptor identity and the typed artifact binding as first-class fields, embeds the descriptor object so the full provenance/freshness/qualification/client-scope truth is reconstructable without ad hoc translation, derives the current claim state from the shared claim-narrowing runtime, and carries the inspectable downgrade reasons and supporting-evidence references (refs only). Every carrier preserves the same descriptor identity, artifact binding, and downgrade-reason count, so copy/export never flattens the truth, and a stale or narrowed descriptor can never read fully supported on any carrier. The packet carries metadata and refs only: no credential bodies or raw provider payloads.",
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "join_message_id": {
+      "type": "string",
+      "pattern": "^public_truth_descriptor\\."
+    },
+    "carrier": {
+      "enum": ["export_packet", "support_bundle", "admin_report", "copy_safe_summary"]
+    },
+    "channel": {
+      "enum": ["desktop_ui", "cli_headless", "offline_mirror"]
+    },
+    "claim_state": {
+      "enum": [
+        "fully_supported",
+        "limited",
+        "retest_pending",
+        "evidence_stale",
+        "unsupported_client",
+        "unsupported"
+      ]
+    },
+    "facet": {
+      "enum": [
+        "source_class",
+        "signature_state",
+        "freshness_state",
+        "freshness_evidence",
+        "support_class",
+        "qualification_evidence",
+        "client_kind",
+        "authority_class",
+        "handoff_requirement"
+      ]
+    },
+    "downgrade_effect": { "enum": ["narrow", "block"] },
+    "support_class": {
+      "enum": ["stable", "beta", "preview", "experimental", "deprecated", "unavailable"]
+    },
+    "evidence_ref_kind": {
+      "enum": ["artifact_schema", "artifact_digest", "descriptor_schema", "proof_packet"]
+    },
+    "consumer": {
+      "enum": [
+        "release_center",
+        "help_about",
+        "marketplace",
+        "docs_help",
+        "certification",
+        "evaluation_packs",
+        "support_export",
+        "companion_handoff"
+      ]
+    },
+    "artifact_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "artifact_family",
+        "artifact_kind",
+        "schema_ref",
+        "content_digest_ref"
+      ],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_family": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_kind": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "content_digest_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "descriptor_object": {
+      "$ref": "https://aureline.dev/schemas/provenance/m5-descriptor-object.schema.json#/$defs/descriptor_object"
+    },
+    "join_downgrade_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "facet",
+        "token",
+        "effect",
+        "implied_state",
+        "effective_floor",
+        "reason_message_id",
+        "caveat_message_id"
+      ],
+      "properties": {
+        "facet": { "$ref": "#/$defs/facet" },
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "effect": { "$ref": "#/$defs/downgrade_effect" },
+        "implied_state": { "$ref": "#/$defs/claim_state" },
+        "effective_floor": { "$ref": "#/$defs/support_class" },
+        "reason_message_id": { "$ref": "#/$defs/join_message_id" },
+        "caveat_message_id": { "$ref": "#/$defs/join_message_id" }
+      }
+    },
+    "join_evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_kind", "ref_value"],
+      "properties": {
+        "ref_kind": { "$ref": "#/$defs/evidence_ref_kind" },
+        "ref_value": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "join_carrier_rendering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "carrier",
+        "carrier_label",
+        "descriptor_id",
+        "artifact_ref",
+        "claim_state",
+        "effective_qualification",
+        "downgrade_reason_count",
+        "preserves_identity",
+        "preserves_binding",
+        "preserves_downgrade_reasons",
+        "render_message_id"
+      ],
+      "properties": {
+        "carrier": { "$ref": "#/$defs/carrier" },
+        "carrier_label": { "$ref": "#/$defs/non_empty_string" },
+        "descriptor_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_ref": { "$ref": "#/$defs/artifact_binding" },
+        "claim_state": { "$ref": "#/$defs/claim_state" },
+        "effective_qualification": { "$ref": "#/$defs/support_class" },
+        "downgrade_reason_count": { "type": "integer", "minimum": 0 },
+        "preserves_identity": { "const": true },
+        "preserves_binding": { "const": true },
+        "preserves_downgrade_reasons": { "const": true },
+        "render_message_id": { "$ref": "#/$defs/join_message_id" }
+      }
+    },
+    "descriptor_join": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "join_id",
+        "join_label",
+        "descriptor_id",
+        "descriptor_label",
+        "artifact_ref",
+        "descriptor",
+        "claimed_support_class",
+        "effective_qualification",
+        "claim_state",
+        "downgrade_reasons",
+        "evidence_refs",
+        "carriers",
+        "copy_safe_summary",
+        "explanation_drawer_message_id"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_descriptor_join" },
+        "join_id": { "$ref": "#/$defs/non_empty_string" },
+        "join_label": { "$ref": "#/$defs/non_empty_string" },
+        "descriptor_id": { "$ref": "#/$defs/non_empty_string" },
+        "descriptor_label": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_ref": { "$ref": "#/$defs/artifact_binding" },
+        "descriptor": { "$ref": "#/$defs/descriptor_object" },
+        "claimed_support_class": { "$ref": "#/$defs/support_class" },
+        "effective_qualification": { "$ref": "#/$defs/support_class" },
+        "claim_state": { "$ref": "#/$defs/claim_state" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/join_downgrade_reason" }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/join_evidence_ref" }
+        },
+        "carriers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/join_carrier_rendering" }
+        },
+        "copy_safe_summary": { "$ref": "#/$defs/non_empty_string" },
+        "explanation_drawer_message_id": { "$ref": "#/$defs/join_message_id" }
+      }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "carriers",
+        "channels",
+        "claim_states",
+        "facets",
+        "downgrade_effects",
+        "qualification_classes",
+        "evidence_ref_kinds",
+        "consumers"
+      ],
+      "properties": {
+        "carriers": { "type": "array", "items": { "$ref": "#/$defs/carrier" } },
+        "channels": { "type": "array", "items": { "$ref": "#/$defs/channel" } },
+        "claim_states": { "type": "array", "items": { "$ref": "#/$defs/claim_state" } },
+        "facets": { "type": "array", "items": { "$ref": "#/$defs/facet" } },
+        "downgrade_effects": { "type": "array", "items": { "$ref": "#/$defs/downgrade_effect" } },
+        "qualification_classes": { "type": "array", "items": { "$ref": "#/$defs/support_class" } },
+        "evidence_ref_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_ref_kind" }
+        },
+        "consumers": { "type": "array", "items": { "$ref": "#/$defs/consumer" } }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "joins_validate",
+        "identity_survives_carriers",
+        "binding_survives_carriers",
+        "downgrade_reasons_attributable",
+        "truth_reconstructable_without_translation",
+        "claim_state_matches_narrowing_runtime",
+        "evidence_refs_are_refs_only",
+        "weaker_origins_never_omitted",
+        "channels_produce_identical_output",
+        "controlled_enums_frozen",
+        "shared_across_consumers",
+        "export_carries_no_raw_material"
+      ],
+      "properties": {
+        "joins_validate": { "const": true },
+        "identity_survives_carriers": { "const": true },
+        "binding_survives_carriers": { "const": true },
+        "downgrade_reasons_attributable": { "const": true },
+        "truth_reconstructable_without_translation": { "const": true },
+        "claim_state_matches_narrowing_runtime": { "const": true },
+        "evidence_refs_are_refs_only": { "const": true },
+        "weaker_origins_never_omitted": { "const": true },
+        "channels_produce_identical_output": { "const": true },
+        "controlled_enums_frozen": { "const": true },
+        "shared_across_consumers": { "const": true },
+        "export_carries_no_raw_material": { "const": true }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_joins",
+        "fully_supported_joins",
+        "narrowed_joins",
+        "blocked_joins",
+        "total_carrier_renderings",
+        "total_downgrade_reasons"
+      ],
+      "properties": {
+        "total_joins": { "type": "integer", "minimum": 0 },
+        "fully_supported_joins": { "type": "integer", "minimum": 0 },
+        "narrowed_joins": { "type": "integer", "minimum": 0 },
+        "blocked_joins": { "type": "integer", "minimum": 0 },
+        "total_carrier_renderings": { "type": "integer", "minimum": 0 },
+        "total_downgrade_reasons": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "registry_id",
+    "report_label",
+    "joins",
+    "vocabulary",
+    "consumers",
+    "conformance",
+    "summary",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_descriptor_join_registry" },
+    "schema_version": { "const": 1 },
+    "registry_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_label": { "$ref": "#/$defs/non_empty_string" },
+    "joins": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/descriptor_join" }
+    },
+    "vocabulary": { "$ref": "#/$defs/vocabulary" },
+    "consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "conformance": { "$ref": "#/$defs/conformance" },
+    "summary": { "$ref": "#/$defs/summary" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  }
+}
