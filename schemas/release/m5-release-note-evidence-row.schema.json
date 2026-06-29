@@ -1,0 +1,505 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/m5-release-note-evidence-row.schema.json",
+  "title": "Aureline M5 release-note evidence rows",
+  "description": "The typed release-note evidence set the update center, what's-new panel, Help center, docs/Help, release center, and support export consume under one vocabulary and one schema. Each row separates marketing prose from a controlled change class (breaking, behavioral, security, policy, compatibility, docs-only, admin-action-required, deprecated, migration-required), the affected artifact-class / profile / channel scope, support sensitivity, and direct action links — evidence packets, security advisories, migration docs, certification deltas, rollback controls, and setting / import surfaces. A behavior-changing or security-sensitive note is evidence-backed rather than prose alone; a breaking or migration-relevant note links directly to a setting / import / rollback surface; a security note links to an advisory. Every what's-new card is dismissible and reopenable from the update center or Help and never blocks typing, save, restore, or recovery-critical workflows. The bound consumers derive their readiness and gaps from the rows, so all of them read this one packet. The packet carries metadata, refs, and routable message ids only — no credential bodies, raw provider payloads, or free-form prose — so the same set renders byte-identically across the app, docs/Help, and exported summaries.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "report_label",
+    "evaluated_at",
+    "target",
+    "notes",
+    "note_ids",
+    "consumers",
+    "consumer_tokens",
+    "disclosure",
+    "summary",
+    "coverage",
+    "action_gate",
+    "vocabulary",
+    "conformance",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "nullable_string": { "type": ["string", "null"] },
+    "message_id": { "type": "string", "pattern": "^release_note_evidence\\." },
+    "change_class": {
+      "enum": [
+        "docs_only",
+        "compatibility",
+        "behavioral",
+        "policy",
+        "deprecated",
+        "migration_required",
+        "admin_action_required",
+        "security",
+        "breaking"
+      ]
+    },
+    "nullable_change_class": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/change_class" }]
+    },
+    "evidence_link_kind": {
+      "enum": [
+        "evidence_packet",
+        "security_advisory",
+        "migration_doc",
+        "certification_delta",
+        "rollback_control",
+        "setting_surface",
+        "import_surface",
+        "docs_page"
+      ]
+    },
+    "note_readiness": {
+      "enum": ["informational", "action_recommended", "action_required"]
+    },
+    "dismiss_state": { "enum": ["active", "dismissed"] },
+    "reopen_surface": { "enum": ["update_center", "help_center"] },
+    "artifact_class": {
+      "enum": [
+        "core_runtime",
+        "extension_packs",
+        "schema_contracts",
+        "workspace_state",
+        "configuration",
+        "language_runtimes",
+        "docs_help_content"
+      ]
+    },
+    "profile": { "enum": ["managed", "self_hosted"] },
+    "channel": { "enum": ["stable", "beta", "preview", "nightly", "lts"] },
+    "consumer": {
+      "enum": [
+        "update_center",
+        "whats_new_panel",
+        "help_center",
+        "docs_help",
+        "release_center",
+        "support_export"
+      ]
+    },
+    "gap_kind": {
+      "enum": ["action_recommended", "action_required", "note_not_published"]
+    },
+    "gate": { "enum": ["governed", "narrowed", "blocked"] },
+    "status": { "enum": ["mapped", "provisional", "unmapped"] },
+    "signal": { "enum": ["green", "yellow", "red"] },
+    "ref_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "token_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "evidence_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "direct_action", "substantive_evidence", "target_ref", "link_message_id"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/evidence_link_kind" },
+        "direct_action": { "type": "boolean" },
+        "substantive_evidence": { "type": "boolean" },
+        "target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "link_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "whats_new_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dismissible",
+        "reopenable",
+        "blocks_typing",
+        "blocks_save",
+        "blocks_restore",
+        "blocks_recovery",
+        "dismiss_state",
+        "reopen_surfaces",
+        "card_message_id",
+        "reopen_message_id"
+      ],
+      "properties": {
+        "dismissible": { "const": true },
+        "reopenable": { "const": true },
+        "blocks_typing": { "const": false },
+        "blocks_save": { "const": false },
+        "blocks_restore": { "const": false },
+        "blocks_recovery": { "const": false },
+        "dismiss_state": { "$ref": "#/$defs/dismiss_state" },
+        "reopen_surfaces": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/reopen_surface" },
+          "allOf": [
+            { "contains": { "const": "update_center" } },
+            { "contains": { "const": "help_center" } }
+          ]
+        },
+        "card_message_id": { "$ref": "#/$defs/message_id" },
+        "reopen_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_id",
+        "headline_message_id",
+        "change_class",
+        "change_class_label",
+        "owner_role",
+        "channels",
+        "support_sensitive",
+        "affected_artifact_classes",
+        "affected_profiles",
+        "from_version",
+        "to_version",
+        "evidence_links",
+        "whats_new_card",
+        "has_substantive_evidence",
+        "has_direct_action_link",
+        "requires_user_action",
+        "gate",
+        "note_readiness",
+        "status",
+        "signal",
+        "detail_message_id"
+      ],
+      "properties": {
+        "note_id": { "$ref": "#/$defs/non_empty_string" },
+        "headline_message_id": { "$ref": "#/$defs/message_id" },
+        "change_class": { "$ref": "#/$defs/change_class" },
+        "change_class_label": { "$ref": "#/$defs/non_empty_string" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "channels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/channel" }
+        },
+        "support_sensitive": { "type": "boolean" },
+        "affected_artifact_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/artifact_class" }
+        },
+        "affected_profiles": { "type": "array", "items": { "$ref": "#/$defs/profile" } },
+        "from_version": { "$ref": "#/$defs/nullable_string" },
+        "to_version": { "$ref": "#/$defs/nullable_string" },
+        "evidence_links": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_link" }
+        },
+        "whats_new_card": { "$ref": "#/$defs/whats_new_card" },
+        "has_substantive_evidence": { "type": "boolean" },
+        "has_direct_action_link": { "type": "boolean" },
+        "requires_user_action": { "type": "boolean" },
+        "gate": { "$ref": "#/$defs/gate" },
+        "note_readiness": { "$ref": "#/$defs/note_readiness" },
+        "status": { "$ref": "#/$defs/status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      },
+      "allOf": [
+        {
+          "comment": "Guardrail: a behavior-changing or security-sensitive note (any class except docs-only) is evidence-backed, not prose alone.",
+          "if": {
+            "properties": { "change_class": { "not": { "const": "docs_only" } } },
+            "required": ["change_class"]
+          },
+          "then": {
+            "properties": { "has_substantive_evidence": { "const": true } }
+          }
+        },
+        {
+          "comment": "Guardrail: a breaking, migration-required, or admin-action-required note links directly to a setting / import / rollback surface.",
+          "if": {
+            "properties": {
+              "change_class": {
+                "enum": ["breaking", "migration_required", "admin_action_required"]
+              }
+            },
+            "required": ["change_class"]
+          },
+          "then": {
+            "properties": { "has_direct_action_link": { "const": true } }
+          }
+        }
+      ]
+    },
+    "note_gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumer", "note_id", "change_class", "gap_kind", "cause_message_id"],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "note_id": { "$ref": "#/$defs/non_empty_string" },
+        "change_class": { "$ref": "#/$defs/nullable_change_class" },
+        "gap_kind": { "$ref": "#/$defs/gap_kind" },
+        "cause_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "consumer_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer",
+        "consumer_label",
+        "owner_role",
+        "read_note_ids",
+        "disclosed_change_classes",
+        "disclosed_artifact_classes",
+        "channels",
+        "note_readiness",
+        "status",
+        "signal",
+        "gate_decision",
+        "requires_user_action",
+        "gaps",
+        "status_message_id",
+        "decision_message_id"
+      ],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "consumer_label": { "$ref": "#/$defs/non_empty_string" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "read_note_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "disclosed_change_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/change_class" }
+        },
+        "disclosed_artifact_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_class" }
+        },
+        "channels": { "type": "array", "items": { "$ref": "#/$defs/channel" } },
+        "note_readiness": { "$ref": "#/$defs/note_readiness" },
+        "status": { "$ref": "#/$defs/status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "gate_decision": { "$ref": "#/$defs/gate" },
+        "requires_user_action": { "type": "boolean" },
+        "gaps": { "type": "array", "items": { "$ref": "#/$defs/note_gap" } },
+        "status_message_id": { "$ref": "#/$defs/message_id" },
+        "decision_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    }
+  },
+  "properties": {
+    "record_kind": { "const": "m5_release_note_evidence_set" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_label": { "$ref": "#/$defs/non_empty_string" },
+    "evaluated_at": { "$ref": "#/$defs/non_empty_string" },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channels", "profiles", "current_version", "target_version"],
+      "properties": {
+        "channels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/channel" }
+        },
+        "profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/profile" }
+        },
+        "current_version": { "$ref": "#/$defs/non_empty_string" },
+        "target_version": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/note" }
+    },
+    "note_ids": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_row" }
+    },
+    "consumer_tokens": { "type": "array", "items": { "$ref": "#/$defs/consumer" } },
+    "disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "update_center_consumes_notes",
+        "whats_new_panel_consumes_notes",
+        "help_center_consumes_notes",
+        "docs_help_consumes_notes",
+        "release_center_consumes_notes",
+        "support_export_consumes_notes"
+      ],
+      "properties": {
+        "update_center_consumes_notes": { "const": true },
+        "whats_new_panel_consumes_notes": { "const": true },
+        "help_center_consumes_notes": { "const": true },
+        "docs_help_consumes_notes": { "const": true },
+        "release_center_consumes_notes": { "const": true },
+        "support_export_consumes_notes": { "const": true }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_notes",
+        "informational_notes",
+        "action_recommended_notes",
+        "action_required_notes",
+        "security_notes",
+        "breaking_notes",
+        "migration_notes",
+        "deprecated_notes",
+        "docs_only_notes",
+        "evidence_backed_notes",
+        "direct_action_linked_notes",
+        "dismissed_notes",
+        "reopenable_notes",
+        "total_consumers",
+        "informational_consumers",
+        "action_recommended_consumers",
+        "action_required_consumers",
+        "requires_user_action"
+      ],
+      "properties": {
+        "total_notes": { "type": "integer", "minimum": 0 },
+        "informational_notes": { "type": "integer", "minimum": 0 },
+        "action_recommended_notes": { "type": "integer", "minimum": 0 },
+        "action_required_notes": { "type": "integer", "minimum": 0 },
+        "security_notes": { "type": "integer", "minimum": 0 },
+        "breaking_notes": { "type": "integer", "minimum": 0 },
+        "migration_notes": { "type": "integer", "minimum": 0 },
+        "deprecated_notes": { "type": "integer", "minimum": 0 },
+        "docs_only_notes": { "type": "integer", "minimum": 0 },
+        "evidence_backed_notes": { "type": "integer", "minimum": 0 },
+        "direct_action_linked_notes": { "type": "integer", "minimum": 0 },
+        "dismissed_notes": { "type": "integer", "minimum": 0 },
+        "reopenable_notes": { "type": "integer", "minimum": 0 },
+        "total_consumers": { "type": "integer", "minimum": 0 },
+        "informational_consumers": { "type": "integer", "minimum": 0 },
+        "action_recommended_consumers": { "type": "integer", "minimum": 0 },
+        "action_required_consumers": { "type": "integer", "minimum": 0 },
+        "requires_user_action": { "type": "boolean" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notes_with_substantive_evidence",
+        "notes_with_direct_action_link",
+        "notes_requiring_direct_action_link",
+        "notes_requiring_substantive_evidence",
+        "all_required_links_present",
+        "all_cards_reopenable",
+        "all_cards_non_blocking"
+      ],
+      "properties": {
+        "notes_with_substantive_evidence": { "type": "integer", "minimum": 0 },
+        "notes_with_direct_action_link": { "type": "integer", "minimum": 0 },
+        "notes_requiring_direct_action_link": { "type": "integer", "minimum": 0 },
+        "notes_requiring_substantive_evidence": { "type": "integer", "minimum": 0 },
+        "all_required_links_present": { "type": "boolean" },
+        "all_cards_reopenable": { "const": true },
+        "all_cards_non_blocking": { "const": true }
+      }
+    },
+    "action_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requires_user_action",
+        "action_required_consumers",
+        "action_recommended_consumers",
+        "informational_consumers",
+        "action_required_notes",
+        "gate_message_id"
+      ],
+      "properties": {
+        "requires_user_action": { "type": "boolean" },
+        "action_required_consumers": { "$ref": "#/$defs/token_array" },
+        "action_recommended_consumers": { "$ref": "#/$defs/token_array" },
+        "informational_consumers": { "$ref": "#/$defs/token_array" },
+        "action_required_notes": { "$ref": "#/$defs/token_array" },
+        "gate_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_classes",
+        "evidence_link_kinds",
+        "note_readiness",
+        "dismiss_states",
+        "reopen_surfaces",
+        "artifact_classes",
+        "profiles",
+        "channels",
+        "consumers",
+        "gap_kinds",
+        "gate_decisions"
+      ],
+      "properties": {
+        "change_classes": { "$ref": "#/$defs/token_array" },
+        "evidence_link_kinds": { "$ref": "#/$defs/token_array" },
+        "note_readiness": { "$ref": "#/$defs/token_array" },
+        "dismiss_states": { "$ref": "#/$defs/token_array" },
+        "reopen_surfaces": { "$ref": "#/$defs/token_array" },
+        "artifact_classes": { "$ref": "#/$defs/token_array" },
+        "profiles": { "$ref": "#/$defs/token_array" },
+        "channels": { "$ref": "#/$defs/token_array" },
+        "consumers": { "$ref": "#/$defs/token_array" },
+        "gap_kinds": { "$ref": "#/$defs/token_array" },
+        "gate_decisions": { "$ref": "#/$defs/token_array" }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_note_carries_change_class",
+        "change_classes_use_one_vocabulary",
+        "behavior_or_security_notes_evidence_backed",
+        "breaking_or_migration_notes_link_directly",
+        "security_notes_link_to_advisory",
+        "whats_new_cards_dismissible_and_reopenable",
+        "whats_new_cards_never_block_workflows",
+        "reopenable_from_update_center_and_help",
+        "one_schema_across_app_docs_and_exports",
+        "consumers_read_one_note_set",
+        "consumer_verdict_derived_from_notes",
+        "controlled_enums_frozen",
+        "export_carries_no_raw_material",
+        "marketing_separated_from_evidence"
+      ],
+      "properties": {
+        "every_note_carries_change_class": { "const": true },
+        "change_classes_use_one_vocabulary": { "const": true },
+        "behavior_or_security_notes_evidence_backed": { "const": true },
+        "breaking_or_migration_notes_link_directly": { "const": true },
+        "security_notes_link_to_advisory": { "const": true },
+        "whats_new_cards_dismissible_and_reopenable": { "const": true },
+        "whats_new_cards_never_block_workflows": { "const": true },
+        "reopenable_from_update_center_and_help": { "const": true },
+        "one_schema_across_app_docs_and_exports": { "const": true },
+        "consumers_read_one_note_set": { "const": true },
+        "consumer_verdict_derived_from_notes": { "const": true },
+        "controlled_enums_frozen": { "const": true },
+        "export_carries_no_raw_material": { "const": true },
+        "marketing_separated_from_evidence": { "const": true }
+      }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  }
+}
