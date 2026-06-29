@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/provenance/m5-descriptor-object.schema.json",
+  "title": "Aureline M5 public-truth descriptor object and registry",
+  "description": "The artifact-bound public-truth descriptor object a claimed M5 artifact carries, and the registry that publishes a set of them. Each object composes four sub-descriptors over frozen controlled enums — source class and signature/attestation state; freshness state and evidence completeness; support class and its evidence completeness; client kind, authority class, and handoff requirement — so a nearby surface can never invent a quasi-equivalent state. Missing or partial evidence survives as explicit state (not_provided, partial, evidence_stale, retest_pending, limited) rather than omission, and every weaker value produces a named narrowing from which the effective qualification is derived: weaker-but-present evidence auto-narrows to beta, while absent provenance, an invalid signature, or absent/expired evidence blocks stable. The descriptor id and structured artifact binding are preserved across export/import. The packet carries metadata and refs only: no credential bodies or raw provider payloads.",
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "descriptor_message_id": {
+      "type": "string",
+      "pattern": "^public_truth_descriptor\\."
+    },
+    "facet": {
+      "enum": [
+        "source_class",
+        "signature_state",
+        "freshness_state",
+        "freshness_evidence",
+        "support_class",
+        "qualification_evidence",
+        "client_kind",
+        "authority_class",
+        "handoff_requirement"
+      ]
+    },
+    "source_class": {
+      "enum": [
+        "first_party_signed",
+        "vendor",
+        "community",
+        "mirror",
+        "offline_bundle",
+        "side_loaded",
+        "not_provided"
+      ]
+    },
+    "signature_state": {
+      "enum": [
+        "signed_attested",
+        "signed_unverified",
+        "attestation_only",
+        "unsigned",
+        "signature_invalid",
+        "not_provided"
+      ]
+    },
+    "freshness_state": {
+      "enum": ["current", "stale", "expired", "missing"]
+    },
+    "evidence_state": {
+      "enum": [
+        "complete",
+        "limited",
+        "partial",
+        "retest_pending",
+        "evidence_stale",
+        "not_provided"
+      ]
+    },
+    "support_class": {
+      "enum": ["stable", "beta", "preview", "experimental", "deprecated", "unavailable"]
+    },
+    "client_kind": {
+      "enum": [
+        "desktop_full",
+        "companion_scoped",
+        "mobile_companion",
+        "embedded_panel",
+        "browser_reference",
+        "handoff_only"
+      ]
+    },
+    "authority_class": {
+      "enum": [
+        "full_authority",
+        "scoped_authority",
+        "reference_only",
+        "handoff_only",
+        "not_provided"
+      ]
+    },
+    "handoff_requirement": {
+      "enum": [
+        "not_required",
+        "desktop_handoff_required",
+        "console_handoff_required",
+        "not_provided"
+      ]
+    },
+    "downgrade_effect": { "enum": ["narrow", "block"] },
+    "artifact_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "artifact_family",
+        "artifact_kind",
+        "schema_ref",
+        "content_digest_ref"
+      ],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_family": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_kind": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "content_digest_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "provenance_sub_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "signature_state"],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "signature_state": { "$ref": "#/$defs/signature_state" }
+      }
+    },
+    "freshness_sub_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshness_state", "evidence_state"],
+      "properties": {
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "evidence_state": { "$ref": "#/$defs/evidence_state" }
+      }
+    },
+    "qualification_sub_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["support_class", "evidence_state"],
+      "properties": {
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "evidence_state": { "$ref": "#/$defs/evidence_state" }
+      }
+    },
+    "client_scope_sub_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["client_kind", "authority_class", "handoff_requirement"],
+      "properties": {
+        "client_kind": { "$ref": "#/$defs/client_kind" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "handoff_requirement": { "$ref": "#/$defs/handoff_requirement" }
+      }
+    },
+    "narrowing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facet", "token", "effect", "effective_floor", "reason_message_id"],
+      "properties": {
+        "facet": { "$ref": "#/$defs/facet" },
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "effect": { "$ref": "#/$defs/downgrade_effect" },
+        "effective_floor": { "$ref": "#/$defs/support_class" },
+        "reason_message_id": { "$ref": "#/$defs/descriptor_message_id" }
+      }
+    },
+    "descriptor_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "descriptor_id",
+        "descriptor_label",
+        "artifact_ref",
+        "provenance",
+        "freshness",
+        "qualification",
+        "client_scope",
+        "effective_qualification",
+        "narrowings",
+        "explanation_drawer_message_id",
+        "redaction_class_token",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_public_truth_descriptor_object" },
+        "schema_version": { "const": 1 },
+        "descriptor_id": { "$ref": "#/$defs/non_empty_string" },
+        "descriptor_label": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_ref": { "$ref": "#/$defs/artifact_binding" },
+        "provenance": { "$ref": "#/$defs/provenance_sub_descriptor" },
+        "freshness": { "$ref": "#/$defs/freshness_sub_descriptor" },
+        "qualification": { "$ref": "#/$defs/qualification_sub_descriptor" },
+        "client_scope": { "$ref": "#/$defs/client_scope_sub_descriptor" },
+        "effective_qualification": { "$ref": "#/$defs/support_class" },
+        "narrowings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing" }
+        },
+        "explanation_drawer_message_id": { "$ref": "#/$defs/descriptor_message_id" },
+        "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+        "minted_at": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "facets",
+        "source_classes",
+        "signature_states",
+        "freshness_states",
+        "evidence_states",
+        "support_classes",
+        "client_kinds",
+        "authority_classes",
+        "handoff_requirements",
+        "downgrade_effects"
+      ],
+      "properties": {
+        "facets": { "type": "array", "items": { "$ref": "#/$defs/facet" } },
+        "source_classes": { "type": "array", "items": { "$ref": "#/$defs/source_class" } },
+        "signature_states": { "type": "array", "items": { "$ref": "#/$defs/signature_state" } },
+        "freshness_states": { "type": "array", "items": { "$ref": "#/$defs/freshness_state" } },
+        "evidence_states": { "type": "array", "items": { "$ref": "#/$defs/evidence_state" } },
+        "support_classes": { "type": "array", "items": { "$ref": "#/$defs/support_class" } },
+        "client_kinds": { "type": "array", "items": { "$ref": "#/$defs/client_kind" } },
+        "authority_classes": { "type": "array", "items": { "$ref": "#/$defs/authority_class" } },
+        "handoff_requirements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/handoff_requirement" }
+        },
+        "downgrade_effects": { "type": "array", "items": { "$ref": "#/$defs/downgrade_effect" } }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objects_validate",
+        "controlled_enums_frozen",
+        "weaker_evidence_survives_as_state",
+        "missing_evidence_blocks_stable",
+        "not_provided_is_first_class",
+        "effective_qualification_derived",
+        "identity_and_binding_preserved",
+        "shared_across_consumers",
+        "export_carries_no_raw_material"
+      ],
+      "properties": {
+        "objects_validate": { "const": true },
+        "controlled_enums_frozen": { "const": true },
+        "weaker_evidence_survives_as_state": { "const": true },
+        "missing_evidence_blocks_stable": { "const": true },
+        "not_provided_is_first_class": { "const": true },
+        "effective_qualification_derived": { "const": true },
+        "identity_and_binding_preserved": { "const": true },
+        "shared_across_consumers": { "const": true },
+        "export_carries_no_raw_material": { "const": true }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "registry_id",
+    "report_label",
+    "objects",
+    "vocabulary",
+    "consumers",
+    "conformance",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_public_truth_descriptor_registry" },
+    "schema_version": { "const": 1 },
+    "registry_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_label": { "$ref": "#/$defs/non_empty_string" },
+    "objects": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/descriptor_object" }
+    },
+    "vocabulary": { "$ref": "#/$defs/vocabulary" },
+    "consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "conformance": { "$ref": "#/$defs/conformance" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  }
+}
