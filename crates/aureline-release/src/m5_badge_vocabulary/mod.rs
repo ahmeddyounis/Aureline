@@ -47,7 +47,9 @@ use crate::m5_descriptor_badge::{
     BadgeFamily, DescriptorFamily, DescriptorSignal, FreshnessState, ProvenanceClass,
     M5_DESCRIPTOR_BADGE_MESSAGE_ID_PREFIX,
 };
-use crate::m5_descriptor_object::{AuthorityClass, EvidenceState, HandoffRequirement, SignatureState};
+use crate::m5_descriptor_object::{
+    AuthorityClass, EvidenceState, HandoffRequirement, SignatureState,
+};
 
 /// Record-kind tag carried by [`M5BadgeVocabulary`].
 pub const M5_BADGE_VOCABULARY_RECORD_KIND: &str = "m5_badge_vocabulary";
@@ -56,7 +58,8 @@ pub const M5_BADGE_VOCABULARY_RECORD_KIND: &str = "m5_badge_vocabulary";
 pub const M5_BADGE_VOCABULARY_SCHEMA_VERSION: u32 = 1;
 
 /// Repo-relative path of the badge-vocabulary packet schema.
-pub const M5_BADGE_VOCABULARY_SCHEMA_REF: &str = "schemas/provenance/m5-badge-vocabulary.schema.json";
+pub const M5_BADGE_VOCABULARY_SCHEMA_REF: &str =
+    "schemas/provenance/m5-badge-vocabulary.schema.json";
 
 /// Repo-relative path of the published badge-vocabulary inventory.
 pub const M5_BADGE_VOCABULARY_REF: &str = "artifacts/public-truth/m5-badge-vocabulary.json";
@@ -304,11 +307,7 @@ impl BadgeCopy {
     }
 
     /// The strongest value of a dimension — renders with [`BadgeTone::Authoritative`].
-    const fn top(
-        label: &'static str,
-        summary: &'static str,
-        drawer: &'static str,
-    ) -> Self {
+    const fn top(label: &'static str, summary: &'static str, drawer: &'static str) -> Self {
         Self {
             label,
             summary,
@@ -373,7 +372,11 @@ impl BadgeVocabularyEntry {
             tone,
             signal: tone.signal(),
             claim_effect: copy.effect,
-            message_id: format!("{M5_BADGE_MESSAGE_ID_PREFIX}{}.{}", dimension.as_str(), value_token),
+            message_id: format!(
+                "{M5_BADGE_MESSAGE_ID_PREFIX}{}.{}",
+                dimension.as_str(),
+                value_token
+            ),
         }
     }
 
@@ -551,13 +554,34 @@ impl BadgeVocabularyTokens {
     /// Builds the canonical token set from the typed `ALL` arrays.
     pub fn canonical() -> Self {
         Self {
-            badge_families: BadgeFamily::ALL.iter().map(|f| f.as_str().to_owned()).collect(),
-            dimensions: BadgeDimension::ALL.iter().map(|d| d.as_str().to_owned()).collect(),
-            tones: BadgeTone::ALL.iter().map(|t| t.as_str().to_owned()).collect(),
-            signals: DescriptorSignal::ALL.iter().map(|s| s.as_str().to_owned()).collect(),
-            claim_effects: BadgeClaimEffect::ALL.iter().map(|e| e.as_str().to_owned()).collect(),
-            support_classes: SupportClass::ALL.iter().map(|s| s.as_str().to_owned()).collect(),
-            required_terms: REQUIRED_USER_FACING_TERMS.iter().map(|t| (*t).to_owned()).collect(),
+            badge_families: BadgeFamily::ALL
+                .iter()
+                .map(|f| f.as_str().to_owned())
+                .collect(),
+            dimensions: BadgeDimension::ALL
+                .iter()
+                .map(|d| d.as_str().to_owned())
+                .collect(),
+            tones: BadgeTone::ALL
+                .iter()
+                .map(|t| t.as_str().to_owned())
+                .collect(),
+            signals: DescriptorSignal::ALL
+                .iter()
+                .map(|s| s.as_str().to_owned())
+                .collect(),
+            claim_effects: BadgeClaimEffect::ALL
+                .iter()
+                .map(|e| e.as_str().to_owned())
+                .collect(),
+            support_classes: SupportClass::ALL
+                .iter()
+                .map(|s| s.as_str().to_owned())
+                .collect(),
+            required_terms: REQUIRED_USER_FACING_TERMS
+                .iter()
+                .map(|t| (*t).to_owned())
+                .collect(),
         }
     }
 
@@ -649,7 +673,12 @@ pub struct M5BadgeVocabulary {
 impl M5BadgeVocabulary {
     /// Builds the canonical badge vocabulary, deriving every family, entry, summary, and
     /// conformance flag from the controlled enums.
-    pub fn canonical(packet_id: &str, report_label: &str, evaluated_at: &str, minted_at: &str) -> Self {
+    pub fn canonical(
+        packet_id: &str,
+        report_label: &str,
+        evaluated_at: &str,
+        minted_at: &str,
+    ) -> Self {
         let families = canonical_families();
         let required_term_coverage = derive_required_term_coverage(&families);
         let summary = derive_summary(&families, &required_term_coverage);
@@ -674,7 +703,10 @@ impl M5BadgeVocabulary {
 
     /// Every member badge across all families, in family then dimension order.
     pub fn all_entries(&self) -> Vec<&BadgeVocabularyEntry> {
-        self.families.iter().flat_map(|g| g.entries.iter()).collect()
+        self.families
+            .iter()
+            .flat_map(|g| g.entries.iter())
+            .collect()
     }
 
     /// Finds the badge family group for a family.
@@ -684,7 +716,9 @@ impl M5BadgeVocabulary {
 
     /// Finds a member badge by export-safe badge id.
     pub fn badge(&self, badge_id: &str) -> Option<&BadgeVocabularyEntry> {
-        self.all_entries().into_iter().find(|e| e.badge_id == badge_id)
+        self.all_entries()
+            .into_iter()
+            .find(|e| e.badge_id == badge_id)
     }
 
     /// Finds the badge that renders a user-facing term.
@@ -1253,10 +1287,12 @@ fn derive_summary(
     families: &[BadgeFamilyGroup],
     coverage: &[RequiredTermCoverage],
 ) -> BadgeVocabularySummary {
-    let entries: Vec<&BadgeVocabularyEntry> = families.iter().flat_map(|g| g.entries.iter()).collect();
+    let entries: Vec<&BadgeVocabularyEntry> =
+        families.iter().flat_map(|g| g.entries.iter()).collect();
     let tone_count = |tone: BadgeTone| entries.iter().filter(|e| e.tone == tone).count() as u32;
-    let effect_count =
-        |effect: BadgeClaimEffect| entries.iter().filter(|e| e.claim_effect == effect).count() as u32;
+    let effect_count = |effect: BadgeClaimEffect| {
+        entries.iter().filter(|e| e.claim_effect == effect).count() as u32
+    };
     let dimensions: std::collections::BTreeSet<BadgeDimension> =
         entries.iter().map(|e| e.dimension).collect();
     BadgeVocabularySummary {
@@ -1278,16 +1314,19 @@ fn derive_conformance(
     families: &[BadgeFamilyGroup],
     coverage: &[RequiredTermCoverage],
 ) -> BadgeVocabularyConformance {
-    let entries: Vec<&BadgeVocabularyEntry> = families.iter().flat_map(|g| g.entries.iter()).collect();
+    let entries: Vec<&BadgeVocabularyEntry> =
+        families.iter().flat_map(|g| g.entries.iter()).collect();
 
-    let every_family_has_badges = BadgeFamily::ALL
-        .iter()
-        .all(|f| families.iter().any(|g| g.badge_family == *f && !g.entries.is_empty()));
-
-    let every_dimension_maps = BadgeDimension::ALL.iter().all(|d| {
+    let every_family_has_badges = BadgeFamily::ALL.iter().all(|f| {
         families
             .iter()
-            .any(|g| g.badge_family == d.badge_family() && g.entries.iter().any(|e| e.dimension == *d))
+            .any(|g| g.badge_family == *f && !g.entries.is_empty())
+    });
+
+    let every_dimension_maps = BadgeDimension::ALL.iter().all(|d| {
+        families.iter().any(|g| {
+            g.badge_family == d.badge_family() && g.entries.iter().any(|e| e.dimension == *d)
+        })
     });
 
     // Every entry's value token must belong to its dimension's controlled enum.
@@ -1304,7 +1343,9 @@ fn derive_conformance(
     // A caution badge must narrow; a blocking badge must block. Authoritative/informational
     // badges keep the claim.
     let weaker_carry_effect = entries.iter().all(|e| match e.tone {
-        BadgeTone::Authoritative | BadgeTone::Informational => e.claim_effect == BadgeClaimEffect::None,
+        BadgeTone::Authoritative | BadgeTone::Informational => {
+            e.claim_effect == BadgeClaimEffect::None
+        }
         BadgeTone::Caution => e.claim_effect == BadgeClaimEffect::Narrows,
         BadgeTone::Blocking => e.claim_effect == BadgeClaimEffect::Blocks,
     });
@@ -1430,7 +1471,9 @@ fn json_contains_forbidden_material(value: &serde_json::Value) -> bool {
     match value {
         serde_json::Value::Object(map) => map.iter().any(|(key, child)| {
             let lower = key.to_ascii_lowercase();
-            FORBIDDEN_KEY_SUBSTRINGS.iter().any(|needle| lower.contains(needle))
+            FORBIDDEN_KEY_SUBSTRINGS
+                .iter()
+                .any(|needle| lower.contains(needle))
                 || json_contains_forbidden_material(child)
         }),
         serde_json::Value::Array(items) => items.iter().any(json_contains_forbidden_material),

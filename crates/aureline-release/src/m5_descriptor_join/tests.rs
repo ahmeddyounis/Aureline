@@ -11,7 +11,10 @@ fn canonical_registry_validates() {
     let registry = registry();
     assert!(registry.validate().is_empty(), "{:?}", registry.validate());
     assert_eq!(registry.registry_id, M5_DESCRIPTOR_JOIN_REGISTRY_ID);
-    assert_eq!(registry.record_kind, M5_DESCRIPTOR_JOIN_REGISTRY_RECORD_KIND);
+    assert_eq!(
+        registry.record_kind,
+        M5_DESCRIPTOR_JOIN_REGISTRY_RECORD_KIND
+    );
     assert_eq!(registry.joins.len(), 6);
     assert!(registry.conformance.all_hold());
     assert!(registry.vocabulary.matches_canonical());
@@ -127,7 +130,10 @@ fn blocking_condition_holds_unsupported_across_carriers() {
     let join = seeded_unsupported_join();
     assert!(join.is_blocked());
     assert_eq!(join.claim_state, NarrowedClaimState::Unsupported);
-    assert_eq!(join.effective_qualification, QualificationClass::Unavailable);
+    assert_eq!(
+        join.effective_qualification,
+        QualificationClass::Unavailable
+    );
     for carrier in &join.carriers {
         assert_eq!(carrier.claim_state, NarrowedClaimState::Unsupported);
         assert_eq!(
@@ -164,11 +170,7 @@ fn evidence_refs_are_refs_only() {
 fn claim_state_matches_shared_narrowing_runtime() {
     use crate::m5_claim_narrowing::ClaimNarrowingCase;
     for join in registry().joins {
-        let case = ClaimNarrowingCase::from_descriptor(
-            "check",
-            "check",
-            join.descriptor.clone(),
-        );
+        let case = ClaimNarrowingCase::from_descriptor("check", "check", join.descriptor.clone());
         assert_eq!(join.claim_state, case.canonical_claim_state);
         assert_eq!(
             join.downgrade_reasons.len(),
@@ -197,7 +199,12 @@ fn controlled_vocabulary_is_frozen() {
     assert_eq!(vocab.carriers.len(), JoinCarrier::ALL.len());
     assert_eq!(vocab.channels.len(), JoinChannel::ALL.len());
     assert_eq!(vocab.evidence_ref_kinds.len(), EvidenceRefKind::ALL.len());
-    for needle in ["export_packet", "support_bundle", "admin_report", "copy_safe_summary"] {
+    for needle in [
+        "export_packet",
+        "support_bundle",
+        "admin_report",
+        "copy_safe_summary",
+    ] {
         assert!(vocab.carriers.contains(&needle.to_owned()));
     }
     for needle in ["desktop_ui", "cli_headless", "offline_mirror"] {
@@ -291,5 +298,8 @@ fn summary_counts_match() {
     assert_eq!(s.fully_supported_joins, 1);
     assert_eq!(s.blocked_joins, 1);
     assert_eq!(s.narrowed_joins, 4);
-    assert_eq!(s.total_carrier_renderings, 6 * JoinCarrier::ALL.len() as u32);
+    assert_eq!(
+        s.total_carrier_renderings,
+        6 * JoinCarrier::ALL.len() as u32
+    );
 }

@@ -45,7 +45,10 @@ fn every_dimension_renders_its_controlled_enum() {
         assert!(count > 0, "dimension {} has no badges", dimension.as_str());
     }
     // The four descriptor families are all rendered.
-    assert_eq!(packet.summary.total_dimensions, BadgeDimension::ALL.len() as u32);
+    assert_eq!(
+        packet.summary.total_dimensions,
+        BadgeDimension::ALL.len() as u32
+    );
 }
 
 #[test]
@@ -57,7 +60,11 @@ fn every_required_user_facing_term_renders_exactly_one_badge() {
             .into_iter()
             .filter(|e| e.label == term)
             .collect();
-        assert_eq!(matches.len(), 1, "term `{term}` must render exactly one badge");
+        assert_eq!(
+            matches.len(),
+            1,
+            "term `{term}` must render exactly one badge"
+        );
         assert!(packet.required_term_coverage.iter().any(|c| c.term == term));
     }
     assert_eq!(
@@ -132,7 +139,8 @@ fn exactly_one_authoritative_badge_per_dimension() {
             .filter(|e| e.dimension == dimension && e.tone == BadgeTone::Authoritative)
             .count();
         assert_eq!(
-            authoritative, 1,
+            authoritative,
+            1,
             "dimension {} must have exactly one authoritative badge",
             dimension.as_str()
         );
@@ -177,7 +185,9 @@ fn lookup_helpers_resolve_badges() {
     let by_id = packet.badge(&official.badge_id).expect("by id");
     assert_eq!(by_id, official);
 
-    let stale = packet.badge_for_term("Evidence stale").expect("evidence stale");
+    let stale = packet
+        .badge_for_term("Evidence stale")
+        .expect("evidence stale");
     assert_eq!(stale.claim_effect, BadgeClaimEffect::Narrows);
     assert_eq!(stale.badge_family, BadgeFamily::FreshnessBadge);
 }

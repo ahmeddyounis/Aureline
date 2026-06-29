@@ -417,7 +417,9 @@ pub mod implement_support_bundle_schema_expansion_feature_family_export_packets_
 pub mod m5_badge_vocabulary;
 pub mod m5_claim_narrowing;
 pub mod m5_descriptor_badge;
+pub mod m5_descriptor_join;
 pub mod m5_descriptor_object;
+pub mod m5_omission_guard;
 pub mod m5_truth_surface_evidence_ingestion;
 pub mod maintenance_control_packet;
 pub mod mixed_version_compatibility_and_skew_governance;

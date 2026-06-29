@@ -331,7 +331,9 @@ impl DescriptorJoin {
             evidence_refs,
             carriers,
             copy_safe_summary,
-            explanation_drawer_message_id: format!("{M5_DESCRIPTOR_BADGE_MESSAGE_ID_PREFIX}join.drawer"),
+            explanation_drawer_message_id: format!(
+                "{M5_DESCRIPTOR_BADGE_MESSAGE_ID_PREFIX}join.drawer"
+            ),
             descriptor,
         }
     }
@@ -450,7 +452,8 @@ impl DescriptorJoin {
             out.push(M5DescriptorJoinViolation::CarrierSetMismatch);
         }
         for carrier in &self.carriers {
-            if carrier.descriptor_id != self.descriptor_id || carrier.artifact_ref != self.artifact_ref
+            if carrier.descriptor_id != self.descriptor_id
+                || carrier.artifact_ref != self.artifact_ref
             {
                 out.push(M5DescriptorJoinViolation::CarrierDropsBinding);
             }
@@ -476,7 +479,10 @@ impl DescriptorJoin {
             out.push(M5DescriptorJoinViolation::UnprefixedMessageId);
         }
         if self.evidence_refs.is_empty()
-            || self.evidence_refs.iter().any(|r| r.ref_value.trim().is_empty())
+            || self
+                .evidence_refs
+                .iter()
+                .any(|r| r.ref_value.trim().is_empty())
         {
             out.push(M5DescriptorJoinViolation::EvidenceRefDrift);
         }
@@ -603,9 +609,10 @@ fn derive_copy_safe_summary(
 fn message_ids_prefixed(join: &DescriptorJoin) -> bool {
     let prefixed = |s: &str| s.starts_with(M5_DESCRIPTOR_BADGE_MESSAGE_ID_PREFIX);
     prefixed(&join.explanation_drawer_message_id)
-        && join.downgrade_reasons.iter().all(|r| {
-            prefixed(&r.reason_message_id) && prefixed(&r.caveat_message_id)
-        })
+        && join
+            .downgrade_reasons
+            .iter()
+            .all(|r| prefixed(&r.reason_message_id) && prefixed(&r.caveat_message_id))
         && join.carriers.iter().all(|c| prefixed(&c.render_message_id))
 }
 
@@ -634,13 +641,22 @@ impl DescriptorJoinVocabulary {
     /// Builds the canonical vocabulary set from the typed `ALL` arrays.
     pub fn canonical() -> Self {
         Self {
-            carriers: JoinCarrier::ALL.iter().map(|c| c.as_str().to_owned()).collect(),
-            channels: JoinChannel::ALL.iter().map(|c| c.as_str().to_owned()).collect(),
+            carriers: JoinCarrier::ALL
+                .iter()
+                .map(|c| c.as_str().to_owned())
+                .collect(),
+            channels: JoinChannel::ALL
+                .iter()
+                .map(|c| c.as_str().to_owned())
+                .collect(),
             claim_states: NarrowedClaimState::ALL
                 .iter()
                 .map(|c| c.as_str().to_owned())
                 .collect(),
-            facets: DescriptorFacet::ALL.iter().map(|c| c.as_str().to_owned()).collect(),
+            facets: DescriptorFacet::ALL
+                .iter()
+                .map(|c| c.as_str().to_owned())
+                .collect(),
             downgrade_effects: DowngradeEffect::ALL
                 .iter()
                 .map(|c| c.as_str().to_owned())
@@ -852,7 +868,10 @@ impl M5DescriptorJoinRegistry {
                 join.join_id,
                 join.claim_state.as_str()
             ));
-            out.push_str(&format!("Copy-safe summary: `{}`\n\n", join.copy_safe_summary));
+            out.push_str(&format!(
+                "Copy-safe summary: `{}`\n\n",
+                join.copy_safe_summary
+            ));
             out.push_str("| Carrier | Identity | Binding | Reasons | Reasons kept |\n");
             out.push_str("|---------|----------|---------|---------|--------------|\n");
             for carrier in &join.carriers {
@@ -925,7 +944,8 @@ impl M5DescriptorJoinRegistry {
         if self.consumers != expected_consumers {
             out.push(M5DescriptorJoinViolation::ConsumerSetMismatch);
         }
-        if self.conformance != derive_registry_conformance(&self.joins) || !self.conformance.all_hold()
+        if self.conformance != derive_registry_conformance(&self.joins)
+            || !self.conformance.all_hold()
         {
             out.push(M5DescriptorJoinViolation::ConformanceReviewFailed);
         }
@@ -968,7 +988,9 @@ fn derive_registry_conformance(joins: &[DescriptorJoin]) -> DescriptorJoinConfor
     // full reason count.
     let reasons_attributable = joins.iter().all(|j| {
         j.downgrade_reasons.len() == j.descriptor.narrowings.len()
-            && j.downgrade_reasons.iter().all(|r| !r.token.trim().is_empty())
+            && j.downgrade_reasons
+                .iter()
+                .all(|r| !r.token.trim().is_empty())
             && j.carriers.iter().all(|c| {
                 c.preserves_downgrade_reasons
                     && c.downgrade_reason_count == j.downgrade_reasons.len() as u32
@@ -990,7 +1012,9 @@ fn derive_registry_conformance(joins: &[DescriptorJoin]) -> DescriptorJoinConfor
 
     let evidence_refs_only = joins.iter().all(|j| {
         !j.evidence_refs.is_empty()
-            && j.evidence_refs.iter().all(|r| !r.ref_value.trim().is_empty())
+            && j.evidence_refs
+                .iter()
+                .all(|r| !r.ref_value.trim().is_empty())
     });
 
     // A weaker source origin must still surface as a reason; at least one join exercises one so the
