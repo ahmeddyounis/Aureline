@@ -1,0 +1,442 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/m5-update-center-summary.schema.json",
+  "title": "Aureline M5 update / support-lifecycle governance matrix",
+  "description": "The one governed baseline every claimed M5 update-center, change-impact, release-note evidence, migration, service-health, support-window, compatibility-window, and end-of-support surface qualifies against. It freezes the canonical lifecycle state families (update, readiness, migration, support-window, end-of-support) and binds every token to a shared gate posture and qualification floor; declares the governed facets with their proof paths, owners, disclosed artifact classes, claimed channel scope, deployment profiles, and stale-data behavior; and binds every claimed consumer (release center, update center, Help/About, docs/help, diagnostics, support exports, shiproom, companion handoff) to the facets it reads. The matrix derives, per consumer, the exact coverage gaps, a gate decision, and an effective qualification: a stale facet proof or a narrowing lifecycle state narrows the consumers that read it; an expired/missing/ungoverned proof or a blocking lifecycle state blocks them from Stable promotion, with the gap named rather than implied. The packet is the one inspectable, serde-serializable truth release, support, docs, diagnostics, and export surfaces consume; it carries metadata and refs only: no credential bodies or raw provider payloads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "report_label",
+    "evaluated_at",
+    "state_families",
+    "facets",
+    "consumers",
+    "consumer_tokens",
+    "disclosure",
+    "summary",
+    "release_gate",
+    "vocabulary",
+    "conformance",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "message_id": {
+      "type": "string",
+      "pattern": "^release_update_lifecycle\\."
+    },
+    "dimension": {
+      "enum": ["change_disclosure", "migration_continuity", "support_lifecycle"]
+    },
+    "facet_token": {
+      "enum": [
+        "update_availability",
+        "change_impact",
+        "release_note_evidence",
+        "migration_assistant",
+        "service_health",
+        "support_window",
+        "compatibility_window",
+        "end_of_support"
+      ]
+    },
+    "state_family": {
+      "enum": ["update", "readiness", "migration", "support_window", "end_of_support"]
+    },
+    "artifact_class": {
+      "enum": [
+        "core_runtime",
+        "extension_packs",
+        "schema_contracts",
+        "workspace_state",
+        "configuration",
+        "language_runtimes",
+        "docs_help_content"
+      ]
+    },
+    "channel": {
+      "enum": ["stable", "beta", "preview", "nightly", "lts"]
+    },
+    "profile": {
+      "enum": ["managed", "self_hosted"]
+    },
+    "stale_data_behavior": {
+      "enum": [
+        "live_verified",
+        "mirrored_labelled",
+        "offline_cached",
+        "stale_banner_shown",
+        "local_only_no_live_data"
+      ]
+    },
+    "consumer_token": {
+      "enum": [
+        "release_center",
+        "update_center",
+        "help_about",
+        "docs_help",
+        "diagnostics",
+        "support_export",
+        "shiproom",
+        "companion_handoff"
+      ]
+    },
+    "gap_kind": {
+      "enum": [
+        "facet_ungoverned",
+        "proof_stale",
+        "proof_expired",
+        "proof_missing",
+        "lifecycle_state_narrowed",
+        "lifecycle_state_blocked"
+      ]
+    },
+    "gate_decision": { "enum": ["governed", "narrowed", "blocked"] },
+    "consumer_status": { "enum": ["mapped", "provisional", "unmapped"] },
+    "signal": { "enum": ["green", "yellow", "red"] },
+    "freshness_state": { "enum": ["current", "stale", "expired", "missing"] },
+    "qualification_class": {
+      "enum": ["stable", "beta", "preview", "experimental", "deprecated", "unavailable"]
+    },
+    "state_token_def": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "label", "gate_posture", "effective_floor", "message_id"],
+      "properties": {
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "gate_posture": { "$ref": "#/$defs/gate_decision" },
+        "effective_floor": { "$ref": "#/$defs/qualification_class" },
+        "message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "state_family_def": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "family_label", "states"],
+      "properties": {
+        "family": { "$ref": "#/$defs/state_family" },
+        "family_label": { "$ref": "#/$defs/non_empty_string" },
+        "states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/state_token_def" }
+        }
+      }
+    },
+    "facet_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "facet",
+        "facet_label",
+        "dimension",
+        "state_family",
+        "current_state_token",
+        "current_state_label",
+        "state_gate",
+        "state_floor",
+        "artifact_classes",
+        "channel_scope",
+        "profiles",
+        "stale_data_behavior",
+        "owner_role",
+        "proof_ref",
+        "proof_freshness",
+        "status",
+        "signal",
+        "detail_message_id"
+      ],
+      "properties": {
+        "facet": { "$ref": "#/$defs/facet_token" },
+        "facet_label": { "$ref": "#/$defs/non_empty_string" },
+        "dimension": { "$ref": "#/$defs/dimension" },
+        "state_family": { "$ref": "#/$defs/state_family" },
+        "current_state_token": { "$ref": "#/$defs/non_empty_string" },
+        "current_state_label": { "$ref": "#/$defs/non_empty_string" },
+        "state_gate": { "$ref": "#/$defs/gate_decision" },
+        "state_floor": { "$ref": "#/$defs/qualification_class" },
+        "artifact_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/artifact_class" }
+        },
+        "channel_scope": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/channel" }
+        },
+        "profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/profile" }
+        },
+        "stale_data_behavior": { "$ref": "#/$defs/stale_data_behavior" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "proof_ref": { "$ref": "#/$defs/non_empty_string" },
+        "proof_freshness": { "$ref": "#/$defs/freshness_state" },
+        "status": { "$ref": "#/$defs/consumer_status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "coverage_gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumer", "facet", "dimension", "gap_kind", "cause_message_id"],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer_token" },
+        "facet": { "$ref": "#/$defs/facet_token" },
+        "dimension": { "$ref": "#/$defs/dimension" },
+        "gap_kind": { "$ref": "#/$defs/gap_kind" },
+        "cause_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "consumer_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer",
+        "consumer_label",
+        "owner_role",
+        "claimed_qualification",
+        "read_facets",
+        "covered_dimensions",
+        "disclosed_artifact_classes",
+        "channel_scope",
+        "profiles",
+        "proof_refs",
+        "effective_qualification",
+        "status",
+        "signal",
+        "gate_decision",
+        "gaps",
+        "status_message_id",
+        "gate_message_id"
+      ],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer_token" },
+        "consumer_label": { "$ref": "#/$defs/non_empty_string" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "claimed_qualification": { "$ref": "#/$defs/qualification_class" },
+        "read_facets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/facet_token" }
+        },
+        "covered_dimensions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dimension" }
+        },
+        "disclosed_artifact_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/artifact_class" }
+        },
+        "channel_scope": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/channel" }
+        },
+        "profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/profile" }
+        },
+        "proof_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "effective_qualification": { "$ref": "#/$defs/qualification_class" },
+        "status": { "$ref": "#/$defs/consumer_status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "gate_decision": { "$ref": "#/$defs/gate_decision" },
+        "gaps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/coverage_gap" }
+        },
+        "status_message_id": { "$ref": "#/$defs/message_id" },
+        "gate_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "token_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    }
+  },
+  "properties": {
+    "record_kind": { "const": "m5_update_lifecycle_governance" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_label": { "$ref": "#/$defs/non_empty_string" },
+    "evaluated_at": { "$ref": "#/$defs/non_empty_string" },
+    "state_families": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/state_family_def" }
+    },
+    "facets": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/facet_row" }
+    },
+    "consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_row" }
+    },
+    "consumer_tokens": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_token" }
+    },
+    "disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_center_consumes_matrix",
+        "update_center_consumes_matrix",
+        "help_about_consumes_matrix",
+        "docs_help_consumes_matrix",
+        "diagnostics_consume_matrix",
+        "support_export_consumes_matrix",
+        "shiproom_consumes_matrix",
+        "companion_handoff_consumes_matrix"
+      ],
+      "properties": {
+        "release_center_consumes_matrix": { "const": true },
+        "update_center_consumes_matrix": { "const": true },
+        "help_about_consumes_matrix": { "const": true },
+        "docs_help_consumes_matrix": { "const": true },
+        "diagnostics_consume_matrix": { "const": true },
+        "support_export_consumes_matrix": { "const": true },
+        "shiproom_consumes_matrix": { "const": true },
+        "companion_handoff_consumes_matrix": { "const": true }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_facets",
+        "current_facets",
+        "stale_facets",
+        "expired_facets",
+        "missing_facets",
+        "total_state_families",
+        "total_consumers",
+        "certified_consumer_count",
+        "narrowed_consumer_count",
+        "blocked_consumer_count",
+        "blocks_stable_promotion"
+      ],
+      "properties": {
+        "total_facets": { "type": "integer", "minimum": 0 },
+        "current_facets": { "type": "integer", "minimum": 0 },
+        "stale_facets": { "type": "integer", "minimum": 0 },
+        "expired_facets": { "type": "integer", "minimum": 0 },
+        "missing_facets": { "type": "integer", "minimum": 0 },
+        "total_state_families": { "type": "integer", "minimum": 0 },
+        "total_consumers": { "type": "integer", "minimum": 0 },
+        "certified_consumer_count": { "type": "integer", "minimum": 0 },
+        "narrowed_consumer_count": { "type": "integer", "minimum": 0 },
+        "blocked_consumer_count": { "type": "integer", "minimum": 0 },
+        "blocks_stable_promotion": { "type": "boolean" }
+      }
+    },
+    "release_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocks_stable_promotion",
+        "blocked_consumers",
+        "narrowed_consumers",
+        "certified_consumers",
+        "drifted_dimensions",
+        "gate_message_id"
+      ],
+      "properties": {
+        "blocks_stable_promotion": { "type": "boolean" },
+        "blocked_consumers": { "$ref": "#/$defs/token_array" },
+        "narrowed_consumers": { "$ref": "#/$defs/token_array" },
+        "certified_consumers": { "$ref": "#/$defs/token_array" },
+        "drifted_dimensions": { "$ref": "#/$defs/token_array" },
+        "gate_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimensions",
+        "facets",
+        "state_families",
+        "artifact_classes",
+        "channels",
+        "profiles",
+        "stale_data_behaviors",
+        "consumers",
+        "gap_kinds",
+        "gate_decisions",
+        "freshness_states",
+        "qualification_classes"
+      ],
+      "properties": {
+        "dimensions": { "$ref": "#/$defs/token_array" },
+        "facets": { "$ref": "#/$defs/token_array" },
+        "state_families": { "$ref": "#/$defs/token_array" },
+        "artifact_classes": { "$ref": "#/$defs/token_array" },
+        "channels": { "$ref": "#/$defs/token_array" },
+        "profiles": { "$ref": "#/$defs/token_array" },
+        "stale_data_behaviors": { "$ref": "#/$defs/token_array" },
+        "consumers": { "$ref": "#/$defs/token_array" },
+        "gap_kinds": { "$ref": "#/$defs/token_array" },
+        "gate_decisions": { "$ref": "#/$defs/token_array" },
+        "freshness_states": { "$ref": "#/$defs/token_array" },
+        "qualification_classes": { "$ref": "#/$defs/token_array" }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_facet_governed_with_proof",
+        "every_dimension_covered",
+        "every_state_family_referenced",
+        "every_consumer_maps_to_facets_and_proof",
+        "every_consumer_reads_at_least_one_facet",
+        "stale_proof_narrows_deterministically",
+        "missing_proof_blocks_stable_promotion",
+        "exact_gaps_named_per_consumer",
+        "state_vocabulary_bound_to_gate",
+        "surfaces_consume_one_matrix",
+        "generated_from_checked_in_proofs",
+        "controlled_enums_frozen",
+        "export_carries_no_raw_material"
+      ],
+      "properties": {
+        "every_facet_governed_with_proof": { "const": true },
+        "every_dimension_covered": { "const": true },
+        "every_state_family_referenced": { "const": true },
+        "every_consumer_maps_to_facets_and_proof": { "const": true },
+        "every_consumer_reads_at_least_one_facet": { "const": true },
+        "stale_proof_narrows_deterministically": { "const": true },
+        "missing_proof_blocks_stable_promotion": { "const": true },
+        "exact_gaps_named_per_consumer": { "const": true },
+        "state_vocabulary_bound_to_gate": { "const": true },
+        "surfaces_consume_one_matrix": { "const": true },
+        "generated_from_checked_in_proofs": { "const": true },
+        "controlled_enums_frozen": { "const": true },
+        "export_carries_no_raw_material": { "const": true }
+      }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  }
+}

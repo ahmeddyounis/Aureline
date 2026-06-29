@@ -423,6 +423,7 @@ pub mod m5_descriptor_join;
 pub mod m5_descriptor_object;
 pub mod m5_omission_guard;
 pub mod m5_truth_surface_evidence_ingestion;
+pub mod m5_update_lifecycle;
 pub mod maintenance_control_packet;
 pub mod mixed_version_compatibility_and_skew_governance;
 pub mod notebook_and_data_rich_surface_qualification;
