@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/provenance/m5-claim-narrowing.schema.json",
+  "title": "Aureline M5 claim-narrowing registry",
+  "description": "Automatic stale-evidence and degraded-claim narrowing across every public-truth consumer. Each case takes an underlying evidence condition (a descriptor object from m5-descriptor-object.schema.json) and projects the one controlled degraded-claim state it implies — fully_supported, limited, retest_pending, evidence_stale, unsupported_client, unsupported — onto every consumer surface (release/help, marketplace, docs/help, certification, evaluation packs, support exports, companion handoffs). Because every projection is derived from one descriptor through one function, the surfaces converge on the same state, so a stale or narrowed supporting descriptor cannot leave any surface fully supported by accident. Every narrowing carries an inspectable reason (facet, value token, implied state) and a paired restoration step naming what would restore the claim, so the downgrade is never a silent relabel. The packet carries metadata and refs only: no credential bodies or raw provider payloads.",
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "claim_message_id": {
+      "type": "string",
+      "pattern": "^public_truth_descriptor\\."
+    },
+    "claim_state": {
+      "enum": [
+        "fully_supported",
+        "limited",
+        "retest_pending",
+        "evidence_stale",
+        "unsupported_client",
+        "unsupported"
+      ]
+    },
+    "restoration_action": {
+      "enum": [
+        "refresh_evidence",
+        "complete_evidence",
+        "provide_provenance",
+        "use_desktop_client"
+      ]
+    },
+    "facet": {
+      "enum": [
+        "source_class",
+        "signature_state",
+        "freshness_state",
+        "freshness_evidence",
+        "support_class",
+        "qualification_evidence",
+        "client_kind",
+        "authority_class",
+        "handoff_requirement"
+      ]
+    },
+    "downgrade_effect": { "enum": ["narrow", "block"] },
+    "support_class": {
+      "enum": ["stable", "beta", "preview", "experimental", "deprecated", "unavailable"]
+    },
+    "consumer": {
+      "enum": [
+        "release_center",
+        "help_about",
+        "marketplace",
+        "docs_help",
+        "certification",
+        "evaluation_packs",
+        "support_export",
+        "companion_handoff"
+      ]
+    },
+    "descriptor_object": {
+      "$ref": "https://aureline.dev/schemas/provenance/m5-descriptor-object.schema.json#/$defs/descriptor_object"
+    },
+    "claim_narrowing_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facet", "token", "effect", "implied_state", "reason_message_id"],
+      "properties": {
+        "facet": { "$ref": "#/$defs/facet" },
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "effect": { "$ref": "#/$defs/downgrade_effect" },
+        "implied_state": { "$ref": "#/$defs/claim_state" },
+        "reason_message_id": { "$ref": "#/$defs/claim_message_id" }
+      }
+    },
+    "restoration_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facet", "addressed_token", "action", "restore_message_id"],
+      "properties": {
+        "facet": { "$ref": "#/$defs/facet" },
+        "addressed_token": { "$ref": "#/$defs/non_empty_string" },
+        "action": { "$ref": "#/$defs/restoration_action" },
+        "restore_message_id": { "$ref": "#/$defs/claim_message_id" }
+      }
+    },
+    "consumer_claim_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer",
+        "consumer_label",
+        "surface_claim_field",
+        "claim_state",
+        "effective_qualification",
+        "converges_with_canonical",
+        "status_message_id"
+      ],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "consumer_label": { "$ref": "#/$defs/non_empty_string" },
+        "surface_claim_field": { "$ref": "#/$defs/non_empty_string" },
+        "claim_state": { "$ref": "#/$defs/claim_state" },
+        "effective_qualification": { "$ref": "#/$defs/support_class" },
+        "converges_with_canonical": { "type": "boolean" },
+        "status_message_id": { "$ref": "#/$defs/claim_message_id" }
+      }
+    },
+    "claim_narrowing_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "case_id",
+        "case_label",
+        "condition_descriptor_id",
+        "descriptor",
+        "canonical_claim_state",
+        "canonical_effective_qualification",
+        "reasons",
+        "restoration",
+        "consumer_projections",
+        "explanation_drawer_message_id"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_claim_narrowing_case" },
+        "case_id": { "$ref": "#/$defs/non_empty_string" },
+        "case_label": { "$ref": "#/$defs/non_empty_string" },
+        "condition_descriptor_id": { "$ref": "#/$defs/non_empty_string" },
+        "descriptor": { "$ref": "#/$defs/descriptor_object" },
+        "canonical_claim_state": { "$ref": "#/$defs/claim_state" },
+        "canonical_effective_qualification": { "$ref": "#/$defs/support_class" },
+        "reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/claim_narrowing_reason" }
+        },
+        "restoration": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restoration_step" }
+        },
+        "consumer_projections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_claim_projection" }
+        },
+        "explanation_drawer_message_id": { "$ref": "#/$defs/claim_message_id" }
+      }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_states",
+        "restoration_actions",
+        "facets",
+        "downgrade_effects",
+        "qualification_classes",
+        "consumers"
+      ],
+      "properties": {
+        "claim_states": { "type": "array", "items": { "$ref": "#/$defs/claim_state" } },
+        "restoration_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restoration_action" }
+        },
+        "facets": { "type": "array", "items": { "$ref": "#/$defs/facet" } },
+        "downgrade_effects": { "type": "array", "items": { "$ref": "#/$defs/downgrade_effect" } },
+        "qualification_classes": { "type": "array", "items": { "$ref": "#/$defs/support_class" } },
+        "consumers": { "type": "array", "items": { "$ref": "#/$defs/consumer" } }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cases_validate",
+        "narrowed_never_reads_supported",
+        "consumers_converge_on_same_state",
+        "reasons_and_restoration_named",
+        "blocking_condition_holds_unsupported",
+        "weaker_origins_never_omitted",
+        "controlled_enums_frozen",
+        "shared_across_consumers",
+        "export_carries_no_raw_material"
+      ],
+      "properties": {
+        "cases_validate": { "const": true },
+        "narrowed_never_reads_supported": { "const": true },
+        "consumers_converge_on_same_state": { "const": true },
+        "reasons_and_restoration_named": { "const": true },
+        "blocking_condition_holds_unsupported": { "const": true },
+        "weaker_origins_never_omitted": { "const": true },
+        "controlled_enums_frozen": { "const": true },
+        "shared_across_consumers": { "const": true },
+        "export_carries_no_raw_material": { "const": true }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_cases",
+        "fully_supported_cases",
+        "narrowed_cases",
+        "blocked_cases",
+        "total_projections",
+        "converged_projections"
+      ],
+      "properties": {
+        "total_cases": { "type": "integer", "minimum": 0 },
+        "fully_supported_cases": { "type": "integer", "minimum": 0 },
+        "narrowed_cases": { "type": "integer", "minimum": 0 },
+        "blocked_cases": { "type": "integer", "minimum": 0 },
+        "total_projections": { "type": "integer", "minimum": 0 },
+        "converged_projections": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "registry_id",
+    "report_label",
+    "cases",
+    "vocabulary",
+    "consumers",
+    "conformance",
+    "summary",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_claim_narrowing_registry" },
+    "schema_version": { "const": 1 },
+    "registry_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_label": { "$ref": "#/$defs/non_empty_string" },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/claim_narrowing_case" }
+    },
+    "vocabulary": { "$ref": "#/$defs/vocabulary" },
+    "consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "conformance": { "$ref": "#/$defs/conformance" },
+    "summary": { "$ref": "#/$defs/summary" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  }
+}
