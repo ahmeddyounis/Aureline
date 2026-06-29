@@ -414,6 +414,7 @@ pub mod implement_qualification_matrix_and_claim_scope_export_packets_for_suppor
 pub mod implement_release_candidate_objects_blocker_evidence_freshness_rows_and_scoped_artifact_bundle_cards_for_every_new_m5_family;
 pub mod implement_rollback_revocation_records_blast_radius_minimizing_node_set_targeting_mirror_offline_parity_and_emergency_disable_advisory_routing_across_m5_artifact_graphs;
 pub mod implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces;
+pub mod m5_assurance_route_governance;
 pub mod m5_badge_vocabulary;
 pub mod m5_change_impact_card;
 pub mod m5_claim_narrowing;
@@ -429,6 +430,7 @@ pub mod m5_service_health_communication;
 pub mod m5_support_window_card;
 pub mod m5_truth_surface_evidence_ingestion;
 pub mod m5_update_lifecycle;
+pub mod m5_update_lifecycle_certification;
 pub mod m5_update_summary;
 pub mod maintenance_control_packet;
 pub mod mixed_version_compatibility_and_skew_governance;

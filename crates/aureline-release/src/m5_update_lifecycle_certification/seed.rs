@@ -81,8 +81,8 @@ pub fn seeded_m5_update_lifecycle_certification() -> M5UpdateLifecycleCertificat
 /// change-impact facet scopes to narrows on the update-communication dimension while the channels it
 /// does not scope to (LTS) stay certified — proving narrowing is per claim, not behind a generic
 /// stable label.
-pub fn seeded_m5_update_lifecycle_certification_stale_proof_narrowed() -> M5UpdateLifecycleCertification
-{
+pub fn seeded_m5_update_lifecycle_certification_stale_proof_narrowed(
+) -> M5UpdateLifecycleCertification {
     assemble(
         "m5-update-lifecycle-certification:drill-stale:0001",
         "M5 update / support-lifecycle certification — stale-proof drill",
@@ -93,8 +93,8 @@ pub fn seeded_m5_update_lifecycle_certification_stale_proof_narrowed() -> M5Upda
 /// Drill: the governance matrix's service-health proof is missing, so every claimed channel /
 /// profile blocks on the stale-data-behavior dimension and the consumers that surface it block from
 /// Stable promotion.
-pub fn seeded_m5_update_lifecycle_certification_missing_proof_blocked() -> M5UpdateLifecycleCertification
-{
+pub fn seeded_m5_update_lifecycle_certification_missing_proof_blocked(
+) -> M5UpdateLifecycleCertification {
     assemble(
         "m5-update-lifecycle-certification:drill-missing:0001",
         "M5 update / support-lifecycle certification — missing-proof drill",

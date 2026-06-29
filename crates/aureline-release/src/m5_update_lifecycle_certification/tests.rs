@@ -13,7 +13,10 @@ const EXPECTED_CLAIMS: usize = ChannelScope::ALL.len() * DeploymentProfile::ALL.
 fn canonical_packet_validates() {
     let packet = packet();
     assert!(packet.validate().is_empty(), "{:?}", packet.validate());
-    assert_eq!(packet.packet_id, M5_UPDATE_LIFECYCLE_CERTIFICATION_PACKET_ID);
+    assert_eq!(
+        packet.packet_id,
+        M5_UPDATE_LIFECYCLE_CERTIFICATION_PACKET_ID
+    );
     assert_eq!(
         packet.record_kind,
         M5_UPDATE_LIFECYCLE_CERTIFICATION_RECORD_KIND
@@ -64,7 +67,11 @@ fn canonical_certifies_every_claim_and_consumer() {
         assert!(claim.cells.iter().all(|c| c.gap_kind.is_none()));
     }
     for c in &packet.consumers {
-        assert!(c.is_certified(), "consumer `{}` not certified", c.consumer.as_str());
+        assert!(
+            c.is_certified(),
+            "consumer `{}` not certified",
+            c.consumer.as_str()
+        );
         assert!(c.narrowed_claim_refs.is_empty());
         assert!(c.blocked_claim_refs.is_empty());
     }
@@ -86,11 +93,15 @@ fn dimensions_not_applicable_are_labeled_not_gaps() {
     let preview = packet
         .claim(ChannelScope::Preview, DeploymentProfile::Managed)
         .unwrap();
-    let migration = preview.cell(CertificationDimension::MigrationGuidance).unwrap();
+    let migration = preview
+        .cell(CertificationDimension::MigrationGuidance)
+        .unwrap();
     assert_eq!(migration.outcome, CertificationOutcome::NotApplicable);
     assert!(migration.gap_kind.is_none());
     assert!(!migration.is_applicable());
-    let windows = preview.cell(CertificationDimension::LifecycleWindows).unwrap();
+    let windows = preview
+        .cell(CertificationDimension::LifecycleWindows)
+        .unwrap();
     assert_eq!(windows.outcome, CertificationOutcome::NotApplicable);
     // Update communication and stale-data behavior DO apply to preview.
     assert!(preview
@@ -117,7 +128,10 @@ fn stale_change_impact_proof_narrows_claims_per_channel() {
     for claim in &packet.claims {
         match claim.channel {
             // Change-impact backs update communication and scopes to these channels.
-            ChannelScope::Stable | ChannelScope::Beta | ChannelScope::Preview | ChannelScope::Nightly => {
+            ChannelScope::Stable
+            | ChannelScope::Beta
+            | ChannelScope::Preview
+            | ChannelScope::Nightly => {
                 assert!(
                     claim.is_narrowed(),
                     "claim `{}` did not narrow under a stale change-impact proof",
@@ -138,10 +152,7 @@ fn stale_change_impact_proof_narrows_claims_per_channel() {
                     "LTS claim `{}` narrowed but the stale facet does not scope to it",
                     claim.claim_ref
                 );
-                assert_eq!(
-                    claim.effective_qualification,
-                    QualificationClass::Stable
-                );
+                assert_eq!(claim.effective_qualification, QualificationClass::Stable);
             }
         }
     }
@@ -149,10 +160,11 @@ fn stale_change_impact_proof_narrows_claims_per_channel() {
     assert_eq!(packet.summary.certified_claims, 2);
     assert_eq!(packet.summary.blocked_claims, 0);
     assert!(!packet.blocks_stable_promotion());
-    assert!(packet
-        .release_gate
-        .drifted_dimensions
-        .contains(&CertificationDimension::UpdateCommunication.as_str().to_owned()));
+    assert!(packet.release_gate.drifted_dimensions.contains(
+        &CertificationDimension::UpdateCommunication
+            .as_str()
+            .to_owned()
+    ));
 }
 
 #[test]
@@ -162,8 +174,15 @@ fn missing_service_health_proof_blocks_every_claim() {
     assert!(packet.validate().is_empty(), "{:?}", packet.validate());
 
     for claim in &packet.claims {
-        assert!(claim.is_blocked(), "claim `{}` not blocked", claim.claim_ref);
-        assert_eq!(claim.effective_qualification, QualificationClass::Unavailable);
+        assert!(
+            claim.is_blocked(),
+            "claim `{}` not blocked",
+            claim.claim_ref
+        );
+        assert_eq!(
+            claim.effective_qualification,
+            QualificationClass::Unavailable
+        );
         let cell = claim
             .cell(CertificationDimension::StaleDataBehavior)
             .unwrap();
@@ -179,7 +198,11 @@ fn missing_service_health_proof_blocks_every_claim() {
         if c.read_dimensions
             .contains(&CertificationDimension::StaleDataBehavior)
         {
-            assert!(c.is_blocked(), "consumer `{}` did not block", c.consumer.as_str());
+            assert!(
+                c.is_blocked(),
+                "consumer `{}` did not block",
+                c.consumer.as_str()
+            );
         } else {
             assert!(
                 c.is_certified(),
@@ -189,8 +212,7 @@ fn missing_service_health_proof_blocks_every_claim() {
         }
     }
     assert_eq!(
-        packet.summary.certified_consumers,
-        1,
+        packet.summary.certified_consumers, 1,
         "only docs/help stays certified"
     );
     assert_eq!(packet.summary.blocked_consumers, 5);
@@ -325,8 +347,7 @@ fn tampered_consumer_verdict_is_rejected() {
     packet.consumers[idx].gate = DescriptorGate::Governed;
     packet.consumers[idx].status = ConsumerStatus::Mapped;
     let violations = packet.validate();
-    assert!(violations
-        .contains(&M5UpdateLifecycleCertificationViolation::ConsumerVerdictDrift));
+    assert!(violations.contains(&M5UpdateLifecycleCertificationViolation::ConsumerVerdictDrift));
 }
 
 #[test]

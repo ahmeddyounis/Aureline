@@ -93,7 +93,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn parse_variant(token: &str) -> Result<M5UpdateLifecycleCertification, Box<dyn std::error::Error>> {
+fn parse_variant(
+    token: &str,
+) -> Result<M5UpdateLifecycleCertification, Box<dyn std::error::Error>> {
     match token {
         "all-certified" | "" => Ok(seeded_m5_update_lifecycle_certification()),
         "stale-narrowed" => Ok(seeded_m5_update_lifecycle_certification_stale_proof_narrowed()),

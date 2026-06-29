@@ -64,8 +64,8 @@ use crate::m5_descriptor_badge::{
     ConsumerStatus, DescriptorGate, DescriptorSignal, FreshnessState, QualificationClass,
 };
 use crate::m5_update_lifecycle::{
-    ChannelScope, DeploymentProfile, LifecycleFacet, LifecycleFacetRow, M5UpdateLifecycleGovernance,
-    StaleDataBehavior,
+    ChannelScope, DeploymentProfile, LifecycleFacet, LifecycleFacetRow,
+    M5UpdateLifecycleGovernance, StaleDataBehavior,
 };
 
 /// Record-kind tag carried by [`M5UpdateLifecycleCertification`].
@@ -443,7 +443,10 @@ impl CertificationCell {
         let mut facet_kinds: Vec<LifecycleFacet> = backing.iter().map(|r| r.facet).collect();
         facet_kinds.sort_by_key(|f| facet_rank(*f));
         facet_kinds.dedup();
-        let proof_refs: Vec<String> = facet_kinds.iter().map(|f| f.proof_ref().to_owned()).collect();
+        let proof_refs: Vec<String> = facet_kinds
+            .iter()
+            .map(|f| f.proof_ref().to_owned())
+            .collect();
 
         Self {
             dimension,
@@ -830,7 +833,10 @@ impl CertificationConsumerRow {
     }
 
     /// Re-derives the consumer's posture from the claims and reports drift.
-    fn validate(&self, claims: &[ChannelProfileClaim]) -> Vec<M5UpdateLifecycleCertificationViolation> {
+    fn validate(
+        &self,
+        claims: &[ChannelProfileClaim],
+    ) -> Vec<M5UpdateLifecycleCertificationViolation> {
         let recomputed = Self::derive(self.consumer, claims);
         let mut out = Vec::new();
         if self.owner_role != self.consumer.owner_role()
@@ -1042,8 +1048,7 @@ impl CertificationConformance {
             every_claim_mapped_to_proof,
             stale_proof_narrows_deterministically: true,
             narrowing_is_per_claim: true,
-            surfaces_consume_one_certification: consumers.len()
-                == CertificationConsumer::ALL.len()
+            surfaces_consume_one_certification: consumers.len() == CertificationConsumer::ALL.len()
                 && !governance_ref.is_empty(),
             generated_from_governance_matrix: !governance_ref.is_empty(),
             controlled_enums_frozen: true,
@@ -1158,8 +1163,11 @@ impl M5UpdateLifecycleCertification {
             .collect();
         let summary = CertificationSummary::derive(&claims, &consumers);
         let release_gate = CertificationReleaseGate::derive(&claims);
-        let conformance =
-            CertificationConformance::derive(&claims, &consumers, M5_UPDATE_LIFECYCLE_CERTIFICATION_REF);
+        let conformance = CertificationConformance::derive(
+            &claims,
+            &consumers,
+            M5_UPDATE_LIFECYCLE_CERTIFICATION_REF,
+        );
         Self {
             record_kind: M5_UPDATE_LIFECYCLE_CERTIFICATION_RECORD_KIND.to_owned(),
             schema_version: M5_UPDATE_LIFECYCLE_CERTIFICATION_SCHEMA_VERSION,
@@ -1595,7 +1603,12 @@ fn json_contains_forbidden_material(packet: &M5UpdateLifecycleCertification) -> 
     let json = serde_json::to_string(packet)
         .unwrap_or_default()
         .to_ascii_lowercase();
-    ["bearer_token", "authorization:", "private_key", "secret_key"]
-        .iter()
-        .any(|needle| json.contains(needle))
+    [
+        "bearer_token",
+        "authorization:",
+        "private_key",
+        "secret_key",
+    ]
+    .iter()
+    .any(|needle| json.contains(needle))
 }
