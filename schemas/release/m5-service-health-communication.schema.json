@@ -1,0 +1,537 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/m5-service-health-communication.schema.json",
+  "title": "Aureline M5 service-health communication",
+  "description": "The typed service-health and stale-or-mirrored release-data packet the service-health panel, Help/About, docs/help, support export, the admin console, and the release center inspect to tell which boundary is in trouble, how trustworthy the data on screen is, what admin notes apply, and what still works locally. One tier card per boundary (local machine, remote target, enterprise control plane, optional vendor-hosted service) carries the tier's health state, the release-data state of the data shown for it (live, mirrored, cached, stale, policy-limited, local-only, or unavailable), the source-age truth behind that data, and the local-safe continuation statement. One admin-note card per propagated note kind (channel, mirror, deployment change) carries the same release-data vocabulary and an export-safe evidence path. A card's gate is the worse of its health and release-data postures, so a card never makes downgraded data look live; a card under trouble must carry a continuation and recovery path rather than a bare banner. The local machine is the only boundary whose trouble can mark local editing unsafe, so a remote, control-plane, or vendor outage never implies local editing or recovery is unsafe. The bound consumers derive their readiness and gaps from the cards and each carries the local-continuation truth, so admin notes and service-health messages stay consistent across UI, docs/help, and support exports. The packet carries metadata, refs, source-age labels, and message ids only: no credential bodies or raw provider payloads, so it is exportable and reviewable outside the app and stays honest under stale, mirrored, policy-limited, or no-live-data conditions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "report_label",
+    "evaluated_at",
+    "data_state",
+    "tiers",
+    "tier_tokens",
+    "notes",
+    "note_tokens",
+    "boundaries",
+    "consumers",
+    "consumer_tokens",
+    "disclosure",
+    "summary",
+    "coverage",
+    "continuity",
+    "vocabulary",
+    "conformance",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "nullable_string": { "type": ["string", "null"] },
+    "message_id": { "type": "string", "pattern": "^release_service_health\\." },
+    "tier": {
+      "enum": [
+        "local_machine",
+        "remote_target",
+        "enterprise_control_plane",
+        "vendor_hosted_service"
+      ]
+    },
+    "health_state": {
+      "enum": ["operational", "degraded", "maintenance", "unknown", "outage"]
+    },
+    "release_data_state": {
+      "enum": [
+        "live_verified",
+        "mirrored",
+        "offline_cached",
+        "stale",
+        "policy_limited",
+        "local_only_safe",
+        "unavailable"
+      ]
+    },
+    "admin_note_kind": {
+      "enum": ["channel_change", "mirror_change", "deployment_change"]
+    },
+    "recovery_action": {
+      "enum": [
+        "not_applicable",
+        "continue_locally",
+        "use_mirror_copy",
+        "retry_when_reachable",
+        "reconnect_target",
+        "contact_admin",
+        "wait_for_maintenance"
+      ]
+    },
+    "channel": { "enum": ["stable", "beta", "preview", "nightly", "lts"] },
+    "nullable_channel": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/channel" }]
+    },
+    "profile": { "enum": ["managed", "self_hosted"] },
+    "consumer": {
+      "enum": [
+        "service_health_panel",
+        "help_about",
+        "docs_help",
+        "support_export",
+        "admin_console",
+        "release_center"
+      ]
+    },
+    "gap_kind": {
+      "enum": [
+        "data_downgraded",
+        "no_live_data_from_tier",
+        "tier_not_carded",
+        "admin_note_not_propagated"
+      ]
+    },
+    "target_kind": { "enum": ["tier", "admin_note"] },
+    "gate": { "enum": ["governed", "narrowed", "blocked"] },
+    "status": { "enum": ["mapped", "provisional", "unmapped"] },
+    "signal": { "enum": ["green", "yellow", "red"] },
+    "readiness": {
+      "enum": ["live_trusted", "showing_downgraded", "no_live_data"]
+    },
+    "stale_data_behavior": {
+      "enum": [
+        "live_verified",
+        "mirrored_labelled",
+        "offline_cached",
+        "stale_banner_shown",
+        "local_only_no_live_data"
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "token_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "source_age": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observed_at", "as_of", "age_label"],
+      "properties": {
+        "observed_at": { "$ref": "#/$defs/nullable_string" },
+        "as_of": { "$ref": "#/$defs/nullable_string" },
+        "age_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "recovery_guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "guidance_refs", "recovery_message_id"],
+      "properties": {
+        "action": { "$ref": "#/$defs/recovery_action" },
+        "guidance_refs": { "$ref": "#/$defs/ref_array" },
+        "recovery_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "continuation_statement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["local_safe", "what_works_locally_message_id", "recovery"],
+      "properties": {
+        "local_safe": { "type": "boolean" },
+        "what_works_locally_message_id": { "$ref": "#/$defs/message_id" },
+        "recovery": { "$ref": "#/$defs/recovery_guidance" }
+      }
+    },
+    "continuation_guard": {
+      "comment": "Guardrail: a card under trouble (narrowed / blocked) must carry continuation and recovery guidance instead of a bare banner.",
+      "if": {
+        "properties": { "gate": { "enum": ["narrowed", "blocked"] } },
+        "required": ["gate"]
+      },
+      "then": {
+        "properties": { "carries_recovery_guidance": { "const": true } }
+      }
+    },
+    "tier_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tier",
+        "tier_label",
+        "tier_description",
+        "owner_role",
+        "affects_local_editing",
+        "is_optional",
+        "health_state",
+        "health_state_label",
+        "release_data_state",
+        "release_data_state_label",
+        "source_age",
+        "continuation",
+        "profiles",
+        "evidence_refs",
+        "carries_recovery_guidance",
+        "local_editing_safe",
+        "gate",
+        "readiness",
+        "status",
+        "signal",
+        "no_live_data",
+        "summary_message_id",
+        "detail_message_id"
+      ],
+      "properties": {
+        "tier": { "$ref": "#/$defs/tier" },
+        "tier_label": { "$ref": "#/$defs/non_empty_string" },
+        "tier_description": { "$ref": "#/$defs/non_empty_string" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "affects_local_editing": { "type": "boolean" },
+        "is_optional": { "type": "boolean" },
+        "health_state": { "$ref": "#/$defs/health_state" },
+        "health_state_label": { "$ref": "#/$defs/non_empty_string" },
+        "release_data_state": { "$ref": "#/$defs/release_data_state" },
+        "release_data_state_label": { "$ref": "#/$defs/non_empty_string" },
+        "source_age": { "$ref": "#/$defs/source_age" },
+        "continuation": { "$ref": "#/$defs/continuation_statement" },
+        "profiles": { "type": "array", "items": { "$ref": "#/$defs/profile" } },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "carries_recovery_guidance": { "type": "boolean" },
+        "local_editing_safe": { "type": "boolean" },
+        "gate": { "$ref": "#/$defs/gate" },
+        "readiness": { "$ref": "#/$defs/readiness" },
+        "status": { "$ref": "#/$defs/status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "no_live_data": { "type": "boolean" },
+        "summary_message_id": { "$ref": "#/$defs/message_id" },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      },
+      "allOf": [{ "$ref": "#/$defs/continuation_guard" }]
+    },
+    "note_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "kind_label",
+        "owner_role",
+        "affected_tier",
+        "affected_channel",
+        "release_data_state",
+        "release_data_state_label",
+        "effective_from",
+        "source_age",
+        "acknowledged",
+        "continuation",
+        "evidence_refs",
+        "carries_recovery_guidance",
+        "gate",
+        "readiness",
+        "status",
+        "signal",
+        "note_message_id",
+        "detail_message_id"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/admin_note_kind" },
+        "kind_label": { "$ref": "#/$defs/non_empty_string" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "affected_tier": { "$ref": "#/$defs/tier" },
+        "affected_channel": { "$ref": "#/$defs/nullable_channel" },
+        "release_data_state": { "$ref": "#/$defs/release_data_state" },
+        "release_data_state_label": { "$ref": "#/$defs/non_empty_string" },
+        "effective_from": { "$ref": "#/$defs/nullable_string" },
+        "source_age": { "$ref": "#/$defs/source_age" },
+        "acknowledged": { "type": "boolean" },
+        "continuation": { "$ref": "#/$defs/continuation_statement" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "carries_recovery_guidance": { "type": "boolean" },
+        "gate": { "$ref": "#/$defs/gate" },
+        "readiness": { "$ref": "#/$defs/readiness" },
+        "status": { "$ref": "#/$defs/status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "note_message_id": { "$ref": "#/$defs/message_id" },
+        "detail_message_id": { "$ref": "#/$defs/message_id" }
+      },
+      "allOf": [{ "$ref": "#/$defs/continuation_guard" }]
+    },
+    "boundary_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tier",
+        "tier_label",
+        "health_state",
+        "release_data_state",
+        "local_editing_safe",
+        "is_optional",
+        "signal",
+        "status_message_id"
+      ],
+      "properties": {
+        "tier": { "$ref": "#/$defs/tier" },
+        "tier_label": { "$ref": "#/$defs/non_empty_string" },
+        "health_state": { "$ref": "#/$defs/health_state" },
+        "release_data_state": { "$ref": "#/$defs/release_data_state" },
+        "local_editing_safe": { "type": "boolean" },
+        "is_optional": { "type": "boolean" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "status_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "health_gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumer", "target_kind", "target_token", "gap_kind", "cause_message_id"],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_token": { "$ref": "#/$defs/non_empty_string" },
+        "gap_kind": { "$ref": "#/$defs/gap_kind" },
+        "cause_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "consumer_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer",
+        "consumer_label",
+        "owner_role",
+        "read_tiers",
+        "read_notes",
+        "profiles",
+        "readiness",
+        "status",
+        "signal",
+        "gate_decision",
+        "local_continuation_safe",
+        "gaps",
+        "status_message_id",
+        "decision_message_id"
+      ],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "consumer_label": { "$ref": "#/$defs/non_empty_string" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "read_tiers": { "type": "array", "items": { "$ref": "#/$defs/tier" } },
+        "read_notes": { "type": "array", "items": { "$ref": "#/$defs/admin_note_kind" } },
+        "profiles": { "type": "array", "items": { "$ref": "#/$defs/profile" } },
+        "readiness": { "$ref": "#/$defs/readiness" },
+        "status": { "$ref": "#/$defs/status" },
+        "signal": { "$ref": "#/$defs/signal" },
+        "gate_decision": { "$ref": "#/$defs/gate" },
+        "local_continuation_safe": { "type": "boolean" },
+        "gaps": { "type": "array", "items": { "$ref": "#/$defs/health_gap" } },
+        "status_message_id": { "$ref": "#/$defs/message_id" },
+        "decision_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    }
+  },
+  "properties": {
+    "record_kind": { "const": "m5_service_health_communication" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_label": { "$ref": "#/$defs/non_empty_string" },
+    "evaluated_at": { "$ref": "#/$defs/non_empty_string" },
+    "data_state": { "$ref": "#/$defs/stale_data_behavior" },
+    "tiers": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/tier_card" }
+    },
+    "tier_tokens": { "type": "array", "items": { "$ref": "#/$defs/tier" } },
+    "notes": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/note_card" }
+    },
+    "note_tokens": { "type": "array", "items": { "$ref": "#/$defs/admin_note_kind" } },
+    "boundaries": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/boundary_status" }
+    },
+    "consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_row" }
+    },
+    "consumer_tokens": { "type": "array", "items": { "$ref": "#/$defs/consumer" } },
+    "disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_health_panel_reads_packet",
+        "help_about_reads_packet",
+        "docs_help_reads_packet",
+        "support_export_reads_packet",
+        "admin_console_reads_packet",
+        "release_center_reads_packet"
+      ],
+      "properties": {
+        "service_health_panel_reads_packet": { "const": true },
+        "help_about_reads_packet": { "const": true },
+        "docs_help_reads_packet": { "const": true },
+        "support_export_reads_packet": { "const": true },
+        "admin_console_reads_packet": { "const": true },
+        "release_center_reads_packet": { "const": true }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_tiers",
+        "live_tiers",
+        "downgraded_tiers",
+        "no_live_data_tiers",
+        "total_notes",
+        "downgrading_notes",
+        "unacknowledged_notes",
+        "total_consumers",
+        "live_trusted_consumers",
+        "showing_downgraded_consumers",
+        "no_live_data_consumers",
+        "local_editing_safe"
+      ],
+      "properties": {
+        "total_tiers": { "type": "integer", "minimum": 0 },
+        "live_tiers": { "type": "integer", "minimum": 0 },
+        "downgraded_tiers": { "type": "integer", "minimum": 0 },
+        "no_live_data_tiers": { "type": "integer", "minimum": 0 },
+        "total_notes": { "type": "integer", "minimum": 0 },
+        "downgrading_notes": { "type": "integer", "minimum": 0 },
+        "unacknowledged_notes": { "type": "integer", "minimum": 0 },
+        "total_consumers": { "type": "integer", "minimum": 0 },
+        "live_trusted_consumers": { "type": "integer", "minimum": 0 },
+        "showing_downgraded_consumers": { "type": "integer", "minimum": 0 },
+        "no_live_data_consumers": { "type": "integer", "minimum": 0 },
+        "local_editing_safe": { "type": "boolean" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "live_data_cards",
+        "downgraded_data_cards",
+        "no_live_data_cards",
+        "has_data_downgrade",
+        "local_editing_safe",
+        "data_state",
+        "live_data"
+      ],
+      "properties": {
+        "live_data_cards": { "type": "integer", "minimum": 0 },
+        "downgraded_data_cards": { "type": "integer", "minimum": 0 },
+        "no_live_data_cards": { "type": "integer", "minimum": 0 },
+        "has_data_downgrade": { "type": "boolean" },
+        "local_editing_safe": { "type": "boolean" },
+        "data_state": { "$ref": "#/$defs/stale_data_behavior" },
+        "live_data": { "type": "boolean" }
+      }
+    },
+    "continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_editing_safe",
+        "live_tiers",
+        "degraded_tiers",
+        "outage_tiers",
+        "affected_boundaries",
+        "unacknowledged_notes",
+        "continuity_message_id"
+      ],
+      "properties": {
+        "local_editing_safe": { "type": "boolean" },
+        "live_tiers": { "$ref": "#/$defs/token_array" },
+        "degraded_tiers": { "$ref": "#/$defs/token_array" },
+        "outage_tiers": { "$ref": "#/$defs/token_array" },
+        "affected_boundaries": { "$ref": "#/$defs/token_array" },
+        "unacknowledged_notes": { "$ref": "#/$defs/token_array" },
+        "continuity_message_id": { "$ref": "#/$defs/message_id" }
+      }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tiers",
+        "health_states",
+        "release_data_states",
+        "admin_note_kinds",
+        "recovery_actions",
+        "channels",
+        "profiles",
+        "consumers",
+        "gap_kinds",
+        "target_kinds",
+        "gate_decisions",
+        "readiness",
+        "stale_data_behaviors"
+      ],
+      "properties": {
+        "tiers": { "$ref": "#/$defs/token_array" },
+        "health_states": { "$ref": "#/$defs/token_array" },
+        "release_data_states": { "$ref": "#/$defs/token_array" },
+        "admin_note_kinds": { "$ref": "#/$defs/token_array" },
+        "recovery_actions": { "$ref": "#/$defs/token_array" },
+        "channels": { "$ref": "#/$defs/token_array" },
+        "profiles": { "$ref": "#/$defs/token_array" },
+        "consumers": { "$ref": "#/$defs/token_array" },
+        "gap_kinds": { "$ref": "#/$defs/token_array" },
+        "target_kinds": { "$ref": "#/$defs/token_array" },
+        "gate_decisions": { "$ref": "#/$defs/token_array" },
+        "readiness": { "$ref": "#/$defs/token_array" },
+        "stale_data_behaviors": { "$ref": "#/$defs/token_array" }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_tier_carded",
+        "every_admin_note_carded",
+        "boundaries_distinguishable",
+        "data_states_labelled_distinctly",
+        "stale_data_downgraded_with_source_age",
+        "admin_notes_propagated_one_vocabulary",
+        "local_continuity_explicit",
+        "trouble_cards_carry_continuation_recovery",
+        "freshness_not_overstated",
+        "messages_consistent_across_surfaces",
+        "consumer_verdict_derived_from_cards",
+        "scoped_to_release_update_support_continuity",
+        "controlled_enums_frozen",
+        "exportable_outside_app",
+        "export_carries_no_raw_material"
+      ],
+      "properties": {
+        "every_tier_carded": { "const": true },
+        "every_admin_note_carded": { "const": true },
+        "boundaries_distinguishable": { "const": true },
+        "data_states_labelled_distinctly": { "const": true },
+        "stale_data_downgraded_with_source_age": { "const": true },
+        "admin_notes_propagated_one_vocabulary": { "const": true },
+        "local_continuity_explicit": { "const": true },
+        "trouble_cards_carry_continuation_recovery": { "const": true },
+        "freshness_not_overstated": { "const": true },
+        "messages_consistent_across_surfaces": { "const": true },
+        "consumer_verdict_derived_from_cards": { "const": true },
+        "scoped_to_release_update_support_continuity": { "const": true },
+        "controlled_enums_frozen": { "const": true },
+        "exportable_outside_app": { "const": true },
+        "export_carries_no_raw_material": { "const": true }
+      }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  }
+}
