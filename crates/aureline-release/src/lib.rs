@@ -425,6 +425,7 @@ pub mod m5_descriptor_badge;
 pub mod m5_descriptor_certification;
 pub mod m5_descriptor_join;
 pub mod m5_descriptor_object;
+pub mod m5_governance_dashboard;
 pub mod m5_omission_guard;
 pub mod m5_release_note_evidence;
 pub mod m5_service_health_communication;
