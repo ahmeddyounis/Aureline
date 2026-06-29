@@ -416,6 +416,7 @@ pub mod implement_rollback_revocation_records_blast_radius_minimizing_node_set_t
 pub mod implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces;
 pub mod m5_badge_vocabulary;
 pub mod m5_claim_narrowing;
+pub mod m5_client_scope_card;
 pub mod m5_descriptor_badge;
 pub mod m5_descriptor_join;
 pub mod m5_descriptor_object;

@@ -1,0 +1,358 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/provenance/m5-client-scope-card.schema.json",
+  "title": "Aureline M5 client-scope card registry",
+  "description": "Client-scope cards and deep-link / handoff disclosures that keep a narrowed client from implying desktop parity. Each card is built for one of the four surface classes (desktop, browser companion, headless, unsupported) from one client-scope descriptor (client kind, authority class, handoff requirement). It derives the authority capabilities the scope grants, the blocked actions the desktop holds that this scope lacks (each with a reason and a recovery handoff), the parity caveats (one per weaker client-scope facet), and the controlled claim state read from the shared claim-narrowing runtime, then projects them onto every disclosure surface (discovery, deep link, handoff, companion). Only the desktop surface may carry full authority; a deep link or a handoff summary can never claim broader authority than the current client holds, a narrowed card always carries at least one parity caveat and one blocked action, and companion / browser / headless consumers can never imply desktop parity by omission. The packet carries metadata and refs only: no credential bodies or raw provider payloads.",
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "client_scope_message_id": {
+      "type": "string",
+      "pattern": "^public_truth_descriptor\\."
+    },
+    "surface_class": {
+      "enum": ["desktop", "browser_companion", "headless", "unsupported"]
+    },
+    "client_kind": {
+      "enum": [
+        "desktop_full",
+        "companion_scoped",
+        "mobile_companion",
+        "embedded_panel",
+        "browser_reference",
+        "handoff_only"
+      ]
+    },
+    "authority_class": {
+      "enum": [
+        "full_authority",
+        "scoped_authority",
+        "reference_only",
+        "handoff_only",
+        "not_provided"
+      ]
+    },
+    "handoff_requirement": {
+      "enum": [
+        "not_required",
+        "desktop_handoff_required",
+        "console_handoff_required",
+        "not_provided"
+      ]
+    },
+    "capability": {
+      "enum": ["observe", "mutate_in_place", "approve", "administer"]
+    },
+    "disclosure_surface": {
+      "enum": ["discovery", "deep_link", "handoff", "companion"]
+    },
+    "facet": {
+      "enum": ["client_kind", "authority_class", "handoff_requirement"]
+    },
+    "claim_state": {
+      "enum": [
+        "fully_supported",
+        "limited",
+        "retest_pending",
+        "evidence_stale",
+        "unsupported_client",
+        "unsupported"
+      ]
+    },
+    "consumer": {
+      "enum": [
+        "release_center",
+        "help_about",
+        "marketplace",
+        "docs_help",
+        "certification",
+        "evaluation_packs",
+        "support_export",
+        "companion_handoff"
+      ]
+    },
+    "client_scope_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["client_kind", "authority_class", "handoff_requirement"],
+      "properties": {
+        "client_kind": { "$ref": "#/$defs/client_kind" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "handoff_requirement": { "$ref": "#/$defs/handoff_requirement" }
+      }
+    },
+    "blocked_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability",
+        "capability_label",
+        "reason_message_id",
+        "recovery",
+        "recovery_message_id"
+      ],
+      "properties": {
+        "capability": { "$ref": "#/$defs/capability" },
+        "capability_label": { "$ref": "#/$defs/non_empty_string" },
+        "reason_message_id": { "$ref": "#/$defs/client_scope_message_id" },
+        "recovery": { "$ref": "#/$defs/handoff_requirement" },
+        "recovery_message_id": { "$ref": "#/$defs/client_scope_message_id" }
+      }
+    },
+    "parity_caveat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facet", "token", "caveat_message_id"],
+      "properties": {
+        "facet": { "$ref": "#/$defs/facet" },
+        "token": { "$ref": "#/$defs/non_empty_string" },
+        "caveat_message_id": { "$ref": "#/$defs/client_scope_message_id" }
+      }
+    },
+    "disclosure_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_label",
+        "surface_class",
+        "authority_class",
+        "handoff_requirement",
+        "claims_full_authority",
+        "blocked_action_count",
+        "parity_caveat_count",
+        "preserves_blocked_actions",
+        "preserves_parity_caveats",
+        "implies_no_broader_authority",
+        "requires_handoff_disclosure",
+        "disclosure_message_id"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/disclosure_surface" },
+        "surface_label": { "$ref": "#/$defs/non_empty_string" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "handoff_requirement": { "$ref": "#/$defs/handoff_requirement" },
+        "claims_full_authority": { "type": "boolean" },
+        "blocked_action_count": { "type": "integer", "minimum": 0 },
+        "parity_caveat_count": { "type": "integer", "minimum": 0 },
+        "preserves_blocked_actions": { "const": true },
+        "preserves_parity_caveats": { "const": true },
+        "implies_no_broader_authority": { "const": true },
+        "requires_handoff_disclosure": { "type": "boolean" },
+        "disclosure_message_id": { "$ref": "#/$defs/client_scope_message_id" }
+      }
+    },
+    "guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_and_authority_stated",
+        "blocked_actions_attributable",
+        "parity_caveats_present_when_narrowed",
+        "all_disclosures_projected",
+        "no_disclosure_implies_broader_authority",
+        "deep_link_and_handoff_preserve_truth",
+        "handoff_disclosed_when_required",
+        "claim_state_matches_narrowing_runtime",
+        "only_desktop_carries_full_authority"
+      ],
+      "properties": {
+        "scope_and_authority_stated": { "const": true },
+        "blocked_actions_attributable": { "const": true },
+        "parity_caveats_present_when_narrowed": { "const": true },
+        "all_disclosures_projected": { "const": true },
+        "no_disclosure_implies_broader_authority": { "const": true },
+        "deep_link_and_handoff_preserve_truth": { "const": true },
+        "handoff_disclosed_when_required": { "const": true },
+        "claim_state_matches_narrowing_runtime": { "const": true },
+        "only_desktop_carries_full_authority": { "const": true }
+      }
+    },
+    "client_scope_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "card_id",
+        "card_label",
+        "surface_class",
+        "surface_class_label",
+        "client_scope",
+        "client_kind",
+        "authority_class",
+        "handoff_requirement",
+        "claims_full_authority",
+        "granted_capabilities",
+        "blocked_actions",
+        "parity_caveats",
+        "claim_state",
+        "disclosures",
+        "copy_safe_summary",
+        "guard",
+        "scope_message_id",
+        "authority_message_id",
+        "explanation_drawer_message_id"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_client_scope_card" },
+        "card_id": { "$ref": "#/$defs/non_empty_string" },
+        "card_label": { "$ref": "#/$defs/non_empty_string" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "surface_class_label": { "$ref": "#/$defs/non_empty_string" },
+        "client_scope": { "$ref": "#/$defs/client_scope_descriptor" },
+        "client_kind": { "$ref": "#/$defs/client_kind" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "handoff_requirement": { "$ref": "#/$defs/handoff_requirement" },
+        "claims_full_authority": { "type": "boolean" },
+        "granted_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability" }
+        },
+        "blocked_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_action" }
+        },
+        "parity_caveats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/parity_caveat" }
+        },
+        "claim_state": { "$ref": "#/$defs/claim_state" },
+        "disclosures": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/disclosure_projection" }
+        },
+        "copy_safe_summary": { "$ref": "#/$defs/non_empty_string" },
+        "guard": { "$ref": "#/$defs/guard" },
+        "scope_message_id": { "$ref": "#/$defs/client_scope_message_id" },
+        "authority_message_id": { "$ref": "#/$defs/client_scope_message_id" },
+        "explanation_drawer_message_id": { "$ref": "#/$defs/client_scope_message_id" }
+      }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_classes",
+        "client_kinds",
+        "authority_classes",
+        "handoff_requirements",
+        "capabilities",
+        "disclosure_surfaces",
+        "facets",
+        "claim_states",
+        "consumers"
+      ],
+      "properties": {
+        "surface_classes": { "type": "array", "items": { "$ref": "#/$defs/surface_class" } },
+        "client_kinds": { "type": "array", "items": { "$ref": "#/$defs/client_kind" } },
+        "authority_classes": { "type": "array", "items": { "$ref": "#/$defs/authority_class" } },
+        "handoff_requirements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/handoff_requirement" }
+        },
+        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capability" } },
+        "disclosure_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/disclosure_surface" }
+        },
+        "facets": { "type": "array", "items": { "$ref": "#/$defs/facet" } },
+        "claim_states": { "type": "array", "items": { "$ref": "#/$defs/claim_state" } },
+        "consumers": { "type": "array", "items": { "$ref": "#/$defs/consumer" } }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cards_validate",
+        "all_surface_classes_covered",
+        "authority_derived_from_descriptor",
+        "blocked_actions_attributable",
+        "parity_caveats_present_when_narrowed",
+        "scope_stated_before_failure",
+        "all_disclosures_projected",
+        "deep_link_and_handoff_preserve_truth",
+        "narrowed_never_implies_desktop_parity",
+        "claim_state_matches_narrowing_runtime",
+        "only_desktop_carries_full_authority",
+        "controlled_enums_frozen",
+        "shared_across_consumers",
+        "export_carries_no_raw_material"
+      ],
+      "properties": {
+        "cards_validate": { "const": true },
+        "all_surface_classes_covered": { "const": true },
+        "authority_derived_from_descriptor": { "const": true },
+        "blocked_actions_attributable": { "const": true },
+        "parity_caveats_present_when_narrowed": { "const": true },
+        "scope_stated_before_failure": { "const": true },
+        "all_disclosures_projected": { "const": true },
+        "deep_link_and_handoff_preserve_truth": { "const": true },
+        "narrowed_never_implies_desktop_parity": { "const": true },
+        "claim_state_matches_narrowing_runtime": { "const": true },
+        "only_desktop_carries_full_authority": { "const": true },
+        "controlled_enums_frozen": { "const": true },
+        "shared_across_consumers": { "const": true },
+        "export_carries_no_raw_material": { "const": true }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_cards",
+        "full_authority_cards",
+        "narrowed_cards",
+        "total_disclosure_projections",
+        "total_blocked_actions",
+        "total_parity_caveats"
+      ],
+      "properties": {
+        "total_cards": { "type": "integer", "minimum": 0 },
+        "full_authority_cards": { "type": "integer", "minimum": 0 },
+        "narrowed_cards": { "type": "integer", "minimum": 0 },
+        "total_disclosure_projections": { "type": "integer", "minimum": 0 },
+        "total_blocked_actions": { "type": "integer", "minimum": 0 },
+        "total_parity_caveats": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "registry_id",
+    "report_label",
+    "cards",
+    "vocabulary",
+    "consumers",
+    "conformance",
+    "summary",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_client_scope_card_registry" },
+    "schema_version": { "const": 1 },
+    "registry_id": { "$ref": "#/$defs/non_empty_string" },
+    "report_label": { "$ref": "#/$defs/non_empty_string" },
+    "cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/client_scope_card" }
+    },
+    "vocabulary": { "$ref": "#/$defs/vocabulary" },
+    "consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "conformance": { "$ref": "#/$defs/conformance" },
+    "summary": { "$ref": "#/$defs/summary" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  }
+}
