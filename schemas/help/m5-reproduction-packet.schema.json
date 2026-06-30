@@ -1,0 +1,358 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/m5-reproduction-packet.schema.json",
+  "title": "Aureline M5 reproduction-packet set",
+  "description": "Export-safe packet bundling one reproduction packet per originating surface — docs pane, trust warning, update screen, workflow bundle, and other. Each packet a user previews before a report leaves the machine: it pins the exact object anchor of the locus of concern, a redaction preview with one row per captured sensitive field (local path, username, hostname, token, extension inventory, deployment profile, linked diagnostic) naming the action Aureline proposes and the one the user picked, the redaction-safe diagnostics/artifacts carried by opaque ref, the redaction posture and data-exit boundary, and one of three distinct flows (save_local, copy_summary, submit_later). Tokens are always removed entirely; raw secrets, screenshots, hidden approvals, and unmanaged capture are always excluded; packet creation never auto-submits. A save_local packet never leaves the product and stays reusable offline, and anything that leaves must be previewed and confirmed first. Raw URLs, raw email addresses, raw local paths, raw usernames, raw hostnames, tokens, and raw secret material never cross this boundary; the records carry opaque refs and bounded reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_set_id",
+    "packet_set_label",
+    "packets",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at",
+    "contract_doc_ref"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "record_kind": { "const": "m5_reproduction_packet_set" },
+    "packet_set_id": { "$ref": "#/$defs/non_empty_string" },
+    "packet_set_label": { "$ref": "#/$defs/non_empty_string" },
+    "packets": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/reproduction_packet" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/opaque_ref" },
+    "contract_doc_ref": {
+      "const": "docs/help/m5_reproduction_packets_contract.md"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\s]+$",
+      "not": { "pattern": "://|@" },
+      "description": "Opaque, stable identifier safe for live surfaces and exports. Raw URLs, raw absolute paths, raw email addresses, and raw secret material MUST NOT appear."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "originating_surface": {
+      "type": "string",
+      "enum": [
+        "docs_pane",
+        "trust_warning",
+        "update_screen",
+        "workflow_bundle",
+        "other_surface"
+      ]
+    },
+    "redactable_field_class": {
+      "type": "string",
+      "enum": [
+        "local_path",
+        "username",
+        "hostname",
+        "token",
+        "extension_inventory",
+        "deployment_profile",
+        "linked_diagnostic"
+      ]
+    },
+    "redaction_action_class": {
+      "type": "string",
+      "enum": [
+        "removed_entirely",
+        "redacted_placeholder",
+        "generalized_class",
+        "included_as_object_ref"
+      ]
+    },
+    "redaction_posture_class": {
+      "type": "string",
+      "enum": [
+        "fully_redacted_public_safe",
+        "redacted_support_scoped",
+        "security_channel_only",
+        "metadata_refs_only"
+      ]
+    },
+    "data_exit_boundary": {
+      "type": "string",
+      "enum": [
+        "no_payload_leaves_product",
+        "metadata_safe_object_refs",
+        "proposal_refs_only",
+        "redacted_support_packet",
+        "security_payloads_only",
+        "external_public_browse",
+        "vendor_or_third_party_outbound"
+      ]
+    },
+    "packet_flow_class": {
+      "type": "string",
+      "enum": ["save_local", "copy_summary", "submit_later"]
+    },
+    "included_context_class": {
+      "type": "string",
+      "enum": [
+        "build_identity",
+        "environment_capsule",
+        "redacted_log_tail",
+        "sanitized_config_snapshot",
+        "repro_steps_text",
+        "anchor_object_ref",
+        "performance_trace"
+      ]
+    },
+    "object_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor_ref", "object_ref", "anchor_label"],
+      "properties": {
+        "anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "object_ref": { "$ref": "#/$defs/opaque_ref" },
+        "anchor_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "redaction_preview_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_class",
+        "default_action",
+        "chosen_action",
+        "mandatory_redaction",
+        "redacted_preview_label",
+        "field_summary"
+      ],
+      "properties": {
+        "field_class": { "$ref": "#/$defs/redactable_field_class" },
+        "default_action": { "$ref": "#/$defs/redaction_action_class" },
+        "chosen_action": { "$ref": "#/$defs/redaction_action_class" },
+        "mandatory_redaction": { "type": "boolean" },
+        "redacted_preview_label": { "$ref": "#/$defs/non_empty_string" },
+        "field_summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "description": "Tokens and secrets are always removed entirely and flagged mandatory.",
+          "if": {
+            "properties": { "field_class": { "const": "token" } },
+            "required": ["field_class"]
+          },
+          "then": {
+            "properties": {
+              "default_action": { "const": "removed_entirely" },
+              "chosen_action": { "const": "removed_entirely" },
+              "mandatory_redaction": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "Identifiers are never kept raw.",
+          "if": {
+            "properties": {
+              "field_class": { "enum": ["local_path", "username", "hostname"] }
+            },
+            "required": ["field_class"]
+          },
+          "then": {
+            "properties": {
+              "default_action": {
+                "enum": [
+                  "redacted_placeholder",
+                  "generalized_class",
+                  "included_as_object_ref",
+                  "removed_entirely"
+                ]
+              },
+              "chosen_action": {
+                "enum": [
+                  "redacted_placeholder",
+                  "generalized_class",
+                  "included_as_object_ref",
+                  "removed_entirely"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "The deployment profile is a class label only, or removed.",
+          "if": {
+            "properties": { "field_class": { "const": "deployment_profile" } },
+            "required": ["field_class"]
+          },
+          "then": {
+            "properties": {
+              "default_action": { "enum": ["generalized_class", "removed_entirely"] },
+              "chosen_action": { "enum": ["generalized_class", "removed_entirely"] }
+            }
+          }
+        },
+        {
+          "description": "The extension inventory is a ref or generalized count, never a raw list.",
+          "if": {
+            "properties": { "field_class": { "const": "extension_inventory" } },
+            "required": ["field_class"]
+          },
+          "then": {
+            "properties": {
+              "default_action": {
+                "enum": ["included_as_object_ref", "generalized_class", "removed_entirely"]
+              },
+              "chosen_action": {
+                "enum": ["included_as_object_ref", "generalized_class", "removed_entirely"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Linked diagnostics/artifacts are opaque object refs, or removed.",
+          "if": {
+            "properties": { "field_class": { "const": "linked_diagnostic" } },
+            "required": ["field_class"]
+          },
+          "then": {
+            "properties": {
+              "default_action": { "enum": ["included_as_object_ref", "removed_entirely"] },
+              "chosen_action": { "enum": ["included_as_object_ref", "removed_entirely"] }
+            }
+          }
+        }
+      ]
+    },
+    "included_context_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["context_class", "context_ref", "redaction_applied", "item_summary"],
+      "properties": {
+        "context_class": { "$ref": "#/$defs/included_context_class" },
+        "context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "redaction_applied": { "type": "boolean", "const": true },
+        "item_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "reproduction_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reproduction_packet_schema_version",
+        "record_kind",
+        "packet_id",
+        "originating_surface",
+        "object_anchor",
+        "flow",
+        "redaction_posture",
+        "data_exit_boundary",
+        "redaction_preview",
+        "included_context",
+        "preview_confirmed_before_share",
+        "offline_reusable",
+        "auto_submit_on_create_allowed",
+        "raw_secrets_excluded",
+        "raw_screenshots_excluded",
+        "hidden_approvals_excluded",
+        "unmanaged_capture_excluded",
+        "headline_label",
+        "packet_summary",
+        "contract_doc_ref",
+        "notes"
+      ],
+      "properties": {
+        "reproduction_packet_schema_version": { "const": 1 },
+        "record_kind": { "const": "reproduction_packet_record" },
+        "packet_id": {
+          "type": "string",
+          "pattern": "^reproduction_packet:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "originating_surface": { "$ref": "#/$defs/originating_surface" },
+        "object_anchor": { "$ref": "#/$defs/object_anchor" },
+        "flow": { "$ref": "#/$defs/packet_flow_class" },
+        "redaction_posture": { "$ref": "#/$defs/redaction_posture_class" },
+        "data_exit_boundary": { "$ref": "#/$defs/data_exit_boundary" },
+        "redaction_preview": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/redaction_preview_row" }
+        },
+        "included_context": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/included_context_item" }
+        },
+        "preview_confirmed_before_share": { "type": "boolean" },
+        "offline_reusable": { "type": "boolean" },
+        "auto_submit_on_create_allowed": { "type": "boolean", "const": false },
+        "raw_secrets_excluded": { "type": "boolean", "const": true },
+        "raw_screenshots_excluded": { "type": "boolean", "const": true },
+        "hidden_approvals_excluded": { "type": "boolean", "const": true },
+        "unmanaged_capture_excluded": { "type": "boolean", "const": true },
+        "headline_label": { "$ref": "#/$defs/non_empty_string" },
+        "packet_summary": { "$ref": "#/$defs/non_empty_string" },
+        "contract_doc_ref": {
+          "const": "docs/help/m5_reproduction_packets_contract.md"
+        },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "A save_local packet never leaves the product and stays reusable offline.",
+          "if": {
+            "properties": { "flow": { "const": "save_local" } },
+            "required": ["flow"]
+          },
+          "then": {
+            "properties": {
+              "data_exit_boundary": { "const": "no_payload_leaves_product" },
+              "offline_reusable": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "Anything that leaves the product must be previewed and confirmed first.",
+          "if": {
+            "anyOf": [
+              {
+                "properties": { "flow": { "enum": ["copy_summary", "submit_later"] } },
+                "required": ["flow"]
+              },
+              {
+                "not": {
+                  "properties": {
+                    "data_exit_boundary": { "const": "no_payload_leaves_product" }
+                  },
+                  "required": ["data_exit_boundary"]
+                }
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "preview_confirmed_before_share": { "const": true }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
