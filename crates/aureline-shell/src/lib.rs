@@ -128,6 +128,7 @@ pub mod m5_action_label_scope_parity;
 pub mod m5_activity_objects;
 pub mod m5_appearance_parity;
 pub mod m5_command_registry;
+pub mod m5_community_handoff_targets;
 pub mod m5_component_registry;
 pub mod m5_depth_imports;
 pub mod m5_desktop_conformance;
