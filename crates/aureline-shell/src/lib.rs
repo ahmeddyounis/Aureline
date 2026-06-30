@@ -134,6 +134,7 @@ pub mod m5_depth_imports;
 pub mod m5_desktop_conformance;
 pub mod m5_embedded_boundaries;
 pub mod m5_entry_routes;
+pub mod m5_handoff_continuity;
 pub mod m5_inclusive_depth;
 pub mod m5_mutation_history_inspector;
 pub mod m5_native_desktop;

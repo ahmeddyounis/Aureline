@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/m5-handoff-draft-state.schema.json",
+  "title": "Aureline M5 handoff-continuity draft-state set",
+  "description": "Export-safe set bundling one persisted handoff draft state per failure scenario — browser blocked, no network / offline, policy denied, handoff launch failed, and unsupported profile. Each draft preserves the user's work when a public/community/support handoff is delayed or fails: the drafted text (by opaque ref with a character count, never raw), the chosen attachments (by opaque ref, redaction applied), the redaction choices (one row per captured sensitive field naming the proposed default action and the action the user picked), the intended destination trust class (official public, official authenticated, community, private/security, local only) and its visibility boundary, and the explicit continuity state. While captured offline, awaiting retry, staged for later, or exported locally, nothing has left the product (current_data_exit_boundary is always no_payload_leaves_product) and the draft stays reusable offline. A non-cleared draft always offers the full set of continuity actions (retry, export_packet, open_target_later, switch_target_class, clear_draft) so a failure never dead-ends. The intended trust class is preserved on retry and export and a failed route is never silently redirected to a more-reachable public target. A persisted draft is always visible to the user with a clear-draft action so nothing persists invisibly beyond the declared retention scope. Raw URLs, raw email addresses, raw local paths, raw usernames, raw hostnames, tokens, and raw secret material never cross this boundary; the records carry opaque refs and bounded reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "scenario_set_id",
+    "scenario_set_label",
+    "drafts",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at",
+    "contract_doc_ref"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "record_kind": { "const": "m5_handoff_continuity_scenario_set" },
+    "scenario_set_id": { "$ref": "#/$defs/non_empty_string" },
+    "scenario_set_label": { "$ref": "#/$defs/non_empty_string" },
+    "drafts": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/handoff_draft_state" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/opaque_ref" },
+    "contract_doc_ref": {
+      "const": "docs/help/m5_handoff_continuity_contract.md"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\s]+$",
+      "not": { "pattern": "://|@" },
+      "description": "Opaque, stable identifier safe for live surfaces and exports. Raw URLs, raw absolute paths, raw email addresses, and raw secret material MUST NOT appear."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "handoff_failure_class": {
+      "type": "string",
+      "enum": [
+        "browser_blocked",
+        "no_network_offline",
+        "policy_denied",
+        "handoff_launch_failed",
+        "unsupported_profile"
+      ]
+    },
+    "destination_trust_class": {
+      "type": "string",
+      "enum": [
+        "official_public",
+        "official_authenticated",
+        "community",
+        "private_security",
+        "local_only"
+      ]
+    },
+    "visibility_boundary_class": {
+      "type": "string",
+      "enum": [
+        "world_readable_public",
+        "official_account_visible",
+        "community_visible",
+        "private_security_channel",
+        "local_never_leaves"
+      ]
+    },
+    "draft_continuity_state": {
+      "type": "string",
+      "enum": [
+        "captured_offline",
+        "awaiting_retry",
+        "staged_for_later",
+        "exported_locally",
+        "cleared"
+      ]
+    },
+    "continuity_action_class": {
+      "type": "string",
+      "enum": [
+        "retry",
+        "export_packet",
+        "open_target_later",
+        "switch_target_class",
+        "clear_draft"
+      ]
+    },
+    "retention_scope_class": {
+      "type": "string",
+      "enum": [
+        "session_only",
+        "until_user_clears",
+        "profile_scoped_window",
+        "declared_retention_window"
+      ]
+    },
+    "redactable_field_class": {
+      "type": "string",
+      "enum": [
+        "local_path",
+        "username",
+        "hostname",
+        "token",
+        "extension_inventory",
+        "deployment_profile",
+        "linked_diagnostic"
+      ]
+    },
+    "redaction_action_class": {
+      "type": "string",
+      "enum": [
+        "removed_entirely",
+        "redacted_placeholder",
+        "generalized_class",
+        "included_as_object_ref"
+      ]
+    },
+    "redaction_posture_class": {
+      "type": "string",
+      "enum": [
+        "fully_redacted_public_safe",
+        "redacted_support_scoped",
+        "security_channel_only",
+        "metadata_refs_only"
+      ]
+    },
+    "data_exit_boundary": {
+      "type": "string",
+      "enum": [
+        "no_payload_leaves_product",
+        "metadata_safe_object_refs",
+        "proposal_refs_only",
+        "redacted_support_packet",
+        "security_payloads_only",
+        "external_public_browse",
+        "vendor_or_third_party_outbound"
+      ]
+    },
+    "attachment_class": {
+      "type": "string",
+      "enum": [
+        "log_excerpt",
+        "redacted_screenshot",
+        "config_snapshot",
+        "diagnostic_bundle",
+        "repro_steps_note",
+        "other_artifact"
+      ]
+    },
+    "object_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor_ref", "object_ref", "anchor_label"],
+      "properties": {
+        "anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "object_ref": { "$ref": "#/$defs/opaque_ref" },
+        "anchor_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "draft_text_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text_ref", "character_count", "redaction_applied", "text_summary"],
+      "properties": {
+        "text_ref": { "$ref": "#/$defs/opaque_ref" },
+        "character_count": { "type": "integer", "minimum": 1 },
+        "redaction_applied": { "type": "boolean", "const": true },
+        "text_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "draft_attachment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attachment_class",
+        "attachment_ref",
+        "redaction_applied",
+        "selected_by_user",
+        "attachment_summary"
+      ],
+      "properties": {
+        "attachment_class": { "$ref": "#/$defs/attachment_class" },
+        "attachment_ref": { "$ref": "#/$defs/opaque_ref" },
+        "redaction_applied": { "type": "boolean", "const": true },
+        "selected_by_user": { "type": "boolean", "const": true },
+        "attachment_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "redaction_choice_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_class",
+        "default_action",
+        "chosen_action",
+        "mandatory_redaction",
+        "choice_summary"
+      ],
+      "properties": {
+        "field_class": { "$ref": "#/$defs/redactable_field_class" },
+        "default_action": { "$ref": "#/$defs/redaction_action_class" },
+        "chosen_action": { "$ref": "#/$defs/redaction_action_class" },
+        "mandatory_redaction": { "type": "boolean" },
+        "choice_summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "description": "Tokens and secrets are always removed entirely and flagged mandatory.",
+          "if": {
+            "properties": { "field_class": { "const": "token" } },
+            "required": ["field_class"]
+          },
+          "then": {
+            "properties": {
+              "default_action": { "const": "removed_entirely" },
+              "chosen_action": { "const": "removed_entirely" },
+              "mandatory_redaction": { "const": true }
+            }
+          }
+        }
+      ]
+    },
+    "handoff_draft_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_draft_state_schema_version",
+        "record_kind",
+        "draft_id",
+        "failure_class",
+        "continuity_state",
+        "intended_trust_class",
+        "visibility_boundary",
+        "current_data_exit_boundary",
+        "intended_data_exit_boundary",
+        "redaction_posture",
+        "object_anchor",
+        "drafted_text",
+        "attachments",
+        "redaction_state",
+        "available_actions",
+        "retention_scope",
+        "draft_reusable_offline",
+        "persisted_state_visible_to_user",
+        "offline_capture_first_class",
+        "preserves_target_class_on_retry",
+        "preserves_visibility_boundary_on_export",
+        "target_switch_requires_explicit_user_action",
+        "auto_redirect_to_reachable_target_allowed",
+        "headline_label",
+        "draft_summary",
+        "contract_doc_ref",
+        "notes"
+      ],
+      "properties": {
+        "handoff_draft_state_schema_version": { "const": 1 },
+        "record_kind": { "const": "handoff_draft_state_record" },
+        "draft_id": {
+          "type": "string",
+          "pattern": "^handoff_draft:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "failure_class": { "$ref": "#/$defs/handoff_failure_class" },
+        "continuity_state": { "$ref": "#/$defs/draft_continuity_state" },
+        "intended_trust_class": { "$ref": "#/$defs/destination_trust_class" },
+        "visibility_boundary": { "$ref": "#/$defs/visibility_boundary_class" },
+        "current_data_exit_boundary": { "const": "no_payload_leaves_product" },
+        "intended_data_exit_boundary": { "$ref": "#/$defs/data_exit_boundary" },
+        "redaction_posture": { "$ref": "#/$defs/redaction_posture_class" },
+        "object_anchor": { "$ref": "#/$defs/object_anchor" },
+        "drafted_text": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/draft_text_snapshot" }
+          ]
+        },
+        "attachments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/draft_attachment" }
+        },
+        "redaction_state": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_choice_row" }
+        },
+        "available_actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/continuity_action_class" }
+        },
+        "retention_scope": { "$ref": "#/$defs/retention_scope_class" },
+        "draft_reusable_offline": { "type": "boolean" },
+        "persisted_state_visible_to_user": { "type": "boolean", "const": true },
+        "offline_capture_first_class": { "type": "boolean", "const": true },
+        "preserves_target_class_on_retry": { "type": "boolean", "const": true },
+        "preserves_visibility_boundary_on_export": { "type": "boolean", "const": true },
+        "target_switch_requires_explicit_user_action": { "type": "boolean" },
+        "auto_redirect_to_reachable_target_allowed": { "type": "boolean", "const": false },
+        "headline_label": { "$ref": "#/$defs/non_empty_string" },
+        "draft_summary": { "$ref": "#/$defs/non_empty_string" },
+        "contract_doc_ref": {
+          "const": "docs/help/m5_handoff_continuity_contract.md"
+        },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "A cleared draft discards the user's work: no actions, no text, no attachments, no redaction rows, and it is no longer reusable offline.",
+          "if": {
+            "properties": { "continuity_state": { "const": "cleared" } },
+            "required": ["continuity_state"]
+          },
+          "then": {
+            "properties": {
+              "available_actions": { "maxItems": 0 },
+              "drafted_text": { "type": "null" },
+              "attachments": { "maxItems": 0 },
+              "redaction_state": { "maxItems": 0 },
+              "draft_reusable_offline": { "const": false }
+            }
+          },
+          "else": {
+            "description": "A live draft preserves the user's work and offers the full set of continuity actions so a failure never dead-ends.",
+            "properties": {
+              "available_actions": { "minItems": 5 },
+              "drafted_text": { "$ref": "#/$defs/draft_text_snapshot" },
+              "redaction_state": { "minItems": 1 },
+              "draft_reusable_offline": { "const": true }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
