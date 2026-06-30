@@ -32,6 +32,13 @@ verify signatures.
 - [`/schemas/workspace/generated_artifact_lineage.schema.json`](../../schemas/workspace/generated_artifact_lineage.schema.json)
   - generated-artifact lineage record cited by generated export
   disclosures.
+- [`/docs/help/m5_post_install_disclosure_panels_contract.md`](../help/m5_post_install_disclosure_panels_contract.md)
+  - in-product M5 help-lane producer
+  (`aureline_shell::m5_post_install_disclosure`) that projects this record into
+  post-install disclosure panels for the desktop-build/installer,
+  extension/framework-pack, mirrored/offline, and generated/export families. It
+  emits metadata-only records; it still does not author notice text or verify
+  signatures.
 
 ## Normative Sources Projected Here
 
