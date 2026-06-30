@@ -363,6 +363,20 @@
 //! matrix and claim manifest, while an export-layer failure (stale or missing export evidence, an expired
 //! window or waiver, a missing sign-off, or over-claiming copy) on a row whose public claim is still at or
 //! above the cutline holds promotion directly from the register.
+//! The assurance-consumer-parity module is the convergence layer over the assurance center, the
+//! assurance-claim reducer, the governance/fitness dashboard, the capability-boundary inspector, and
+//! the event-provenance inspector: it ingests those five truth packets, normalizes every claim,
+//! control-proof, governance, ownership, decision-right, boundary, route, approval, and event item
+//! into one fact grammar (a gate, an effective qualification, an owner, a freshness reading, and the
+//! evidence refs behind it), and projects each fact onto the About/help, procurement-export,
+//! evaluation-packet, support-export, and shiproom/public-truth surfaces so they all read the same
+//! fact at the same gate. Each fact's per-consumer projection reads the fact's own gate and every
+//! consumer view reads every fact, so a fact narrowed or blocked in one surface can never read
+//! stronger in another and any source narrowing carries through to every consumer at once. The packet
+//! is metadata-only — it binds to each source by id and registry ref rather than embedding raw bodies
+//! and reduces every fact to repo-relative evidence refs — so a refs-only export preserves
+//! owner/freshness/route lineage without leaking raw material, and shiproom and release tooling can
+//! fail promotion directly from the converged model.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -416,6 +430,7 @@ pub mod implement_rollback_revocation_records_blast_radius_minimizing_node_set_t
 pub mod implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces;
 pub mod m5_assurance_center;
 pub mod m5_assurance_claim_reducer;
+pub mod m5_assurance_consumer_parity;
 pub mod m5_assurance_route_governance;
 pub mod m5_badge_vocabulary;
 pub mod m5_boundary_inspector;
