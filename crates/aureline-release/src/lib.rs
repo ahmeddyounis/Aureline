@@ -417,6 +417,7 @@ pub mod implement_support_bundle_schema_expansion_feature_family_export_packets_
 pub mod m5_assurance_center;
 pub mod m5_assurance_route_governance;
 pub mod m5_badge_vocabulary;
+pub mod m5_boundary_inspector;
 pub mod m5_change_impact_card;
 pub mod m5_claim_narrowing;
 pub mod m5_client_scope_card;
