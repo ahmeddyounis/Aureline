@@ -415,6 +415,7 @@ pub mod implement_release_candidate_objects_blocker_evidence_freshness_rows_and_
 pub mod implement_rollback_revocation_records_blast_radius_minimizing_node_set_targeting_mirror_offline_parity_and_emergency_disable_advisory_routing_across_m5_artifact_graphs;
 pub mod implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces;
 pub mod m5_assurance_center;
+pub mod m5_assurance_claim_reducer;
 pub mod m5_assurance_route_governance;
 pub mod m5_badge_vocabulary;
 pub mod m5_boundary_inspector;
@@ -426,6 +427,7 @@ pub mod m5_descriptor_badge;
 pub mod m5_descriptor_certification;
 pub mod m5_descriptor_join;
 pub mod m5_descriptor_object;
+pub mod m5_event_provenance;
 pub mod m5_governance_dashboard;
 pub mod m5_omission_guard;
 pub mod m5_release_note_evidence;
