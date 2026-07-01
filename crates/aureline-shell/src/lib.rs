@@ -133,6 +133,7 @@ pub mod m5_auth_boundaries;
 pub mod m5_command_registry;
 pub mod m5_community_handoff_targets;
 pub mod m5_component_registry;
+pub mod m5_critical_journey_checkpoints;
 pub mod m5_depth_imports;
 pub mod m5_desktop_conformance;
 pub mod m5_desktop_profile_certification;
