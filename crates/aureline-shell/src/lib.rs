@@ -134,6 +134,7 @@ pub mod m5_community_handoff_targets;
 pub mod m5_component_registry;
 pub mod m5_depth_imports;
 pub mod m5_desktop_conformance;
+pub mod m5_desktop_profile_certification;
 pub mod m5_device_permissions;
 pub mod m5_embedded_boundaries;
 pub mod m5_entry_routes;
