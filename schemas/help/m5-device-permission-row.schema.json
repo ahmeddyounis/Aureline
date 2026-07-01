@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/m5-device-permission-row.schema.json",
+  "title": "Aureline M5 device-permission set",
+  "description": "Export-safe set making device and capture state an explicit, reversible product surface. It bundles one device-permission row per device class (microphone, camera, screen capture, system audio, clipboard) naming the permission state, the controlling actor, the processing-locality cue, the retention mode, the data-exit boundary, and the reversible actions (always including open-system-settings, and revoke-in-app while granted); the seven mic-state pills (idle, listening, muted, processing, needs-confirmation, unavailable, policy-blocked) each with a transcript-correction strip; and the capture/export reviews naming included capture classes, retention, redaction state, and delete/export availability. Capture is never always-on by default; local processing is never claimed when a provider is in the path; and high-impact spoken commands ride the same preview/confirmation gate with transcript correction required before commit. Raw URLs, raw email addresses, raw local paths, raw usernames, raw hostnames, tokens, and raw secret material never cross this boundary; the records carry opaque refs, controlled-vocabulary tokens, and bounded reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "set_id",
+    "set_label",
+    "permission_rows",
+    "mic_pills",
+    "capture_reviews",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at",
+    "contract_doc_ref"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "record_kind": { "const": "m5_device_permission_set" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "set_label": { "$ref": "#/$defs/non_empty_string" },
+    "permission_rows": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/device_permission_row" }
+    },
+    "mic_pills": {
+      "type": "array",
+      "minItems": 7,
+      "items": { "$ref": "https://aureline.dev/schemas/help/m5-mic-state-pill.schema.json" }
+    },
+    "capture_reviews": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/capture_export_review" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/opaque_ref" },
+    "contract_doc_ref": { "const": "docs/help/m5_device_permissions_contract.md" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\s]+$",
+      "not": { "pattern": "://|@" },
+      "description": "Opaque, stable identifier safe for live surfaces and exports. Raw URLs, raw absolute paths, raw email addresses, and raw secret material MUST NOT appear."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "device_class": {
+      "type": "string",
+      "enum": [
+        "microphone",
+        "camera",
+        "screen_capture",
+        "system_audio_capture",
+        "clipboard"
+      ]
+    },
+    "permission_state": {
+      "type": "string",
+      "enum": [
+        "granted_in_use",
+        "granted_idle",
+        "denied",
+        "not_yet_requested",
+        "revoked_by_user",
+        "blocked_by_policy",
+        "unavailable_no_device"
+      ]
+    },
+    "permission_actor": {
+      "type": "string",
+      "enum": [
+        "user",
+        "operating_system",
+        "administrator_policy",
+        "connected_provider"
+      ]
+    },
+    "permission_action_class": {
+      "type": "string",
+      "enum": [
+        "revoke_in_app",
+        "open_system_settings",
+        "request_access",
+        "review_capture",
+        "mute_now"
+      ]
+    },
+    "processing_locality_cue": {
+      "type": "string",
+      "enum": ["local_on_device", "hosted_remote_disclosed", "processing_unavailable"]
+    },
+    "retention_mode": {
+      "type": "string",
+      "enum": [
+        "no_audio_retained_no_transcript_retained",
+        "ephemeral_audio_local_only_no_transcript_retained",
+        "transcript_retained_local_only",
+        "transcript_retained_redacted_in_support_bundle",
+        "transcript_retained_provider_per_contract",
+        "retention_blocked_by_policy",
+        "retention_unavailable_in_envelope"
+      ]
+    },
+    "data_exit_boundary": {
+      "type": "string",
+      "enum": [
+        "no_payload_leaves_product",
+        "metadata_safe_object_refs",
+        "proposal_refs_only",
+        "redacted_support_packet",
+        "security_payloads_only",
+        "external_public_browse",
+        "vendor_or_third_party_outbound"
+      ]
+    },
+    "capture_class": {
+      "type": "string",
+      "enum": [
+        "live_audio_stream",
+        "transcript",
+        "screenshot",
+        "screen_recording",
+        "clipboard_snapshot",
+        "device_inventory"
+      ]
+    },
+    "capture_redaction_state": {
+      "type": "string",
+      "enum": ["redacted_before_export", "raw_never_exported", "metadata_refs_only"]
+    },
+    "capture_review_action_class": {
+      "type": "string",
+      "enum": ["delete_now", "export_redacted_copy", "review_inline", "revoke_and_purge"]
+    },
+    "device_permission_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "device_permission_row_schema_version",
+        "record_kind",
+        "row_id",
+        "device_class",
+        "permission_state",
+        "controlling_actor",
+        "processing_locality",
+        "retention_mode",
+        "data_exit_boundary",
+        "capture_active",
+        "available_actions",
+        "device_label",
+        "storage_retention_note",
+        "actor_note",
+        "contract_doc_ref",
+        "notes"
+      ],
+      "properties": {
+        "device_permission_row_schema_version": { "const": 1 },
+        "record_kind": { "const": "device_permission_row" },
+        "row_id": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "pattern": "^device_permission_row:" }
+          ]
+        },
+        "device_class": { "$ref": "#/$defs/device_class" },
+        "permission_state": { "$ref": "#/$defs/permission_state" },
+        "controlling_actor": { "$ref": "#/$defs/permission_actor" },
+        "processing_locality": { "$ref": "#/$defs/processing_locality_cue" },
+        "retention_mode": { "$ref": "#/$defs/retention_mode" },
+        "data_exit_boundary": { "$ref": "#/$defs/data_exit_boundary" },
+        "capture_active": { "type": "boolean" },
+        "available_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/permission_action_class" },
+          "uniqueItems": true
+        },
+        "device_label": { "$ref": "#/$defs/non_empty_string" },
+        "storage_retention_note": { "$ref": "#/$defs/non_empty_string" },
+        "actor_note": { "$ref": "#/$defs/non_empty_string" },
+        "contract_doc_ref": { "const": "docs/help/m5_device_permissions_contract.md" },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" }
+      }
+    },
+    "capture_export_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_id",
+        "included_capture_classes",
+        "retention_mode",
+        "redaction_state",
+        "processing_locality",
+        "data_exit_boundary",
+        "delete_available",
+        "export_available",
+        "available_actions",
+        "review_label",
+        "review_summary"
+      ],
+      "properties": {
+        "review_id": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "pattern": "^capture_export_review:" }
+          ]
+        },
+        "included_capture_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/capture_class" },
+          "uniqueItems": true
+        },
+        "retention_mode": { "$ref": "#/$defs/retention_mode" },
+        "redaction_state": { "$ref": "#/$defs/capture_redaction_state" },
+        "processing_locality": { "$ref": "#/$defs/processing_locality_cue" },
+        "data_exit_boundary": { "$ref": "#/$defs/data_exit_boundary" },
+        "delete_available": { "type": "boolean" },
+        "export_available": { "type": "boolean" },
+        "available_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/capture_review_action_class" },
+          "uniqueItems": true
+        },
+        "review_label": { "$ref": "#/$defs/non_empty_string" },
+        "review_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

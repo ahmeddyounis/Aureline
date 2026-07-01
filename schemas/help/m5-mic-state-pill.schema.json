@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/m5-mic-state-pill.schema.json",
+  "title": "Aureline M5 mic-state pill",
+  "description": "Export-safe mic-state pill plus its transcript-correction strip. The pill pins one of seven states (idle, listening, muted, processing, needs-confirmation, unavailable, policy-blocked) with a processing-locality cue that never claims local processing when a provider is in the path, the transcript-correction posture, an optional confidence cue, the resolved command's capability scope, and whether a preview/confirmation is required before commit. A high-impact spoken command must sit in needs-confirmation with a required transcript-correction strip and a required preview before commit, so voice-triggered mutating actions ride the same gates as any other action. Records carry opaque refs, controlled-vocabulary tokens, and bounded reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pill_id",
+    "pill_state",
+    "processing_locality",
+    "correction_posture",
+    "confidence_cue",
+    "command_capability_scope",
+    "preview_required_before_commit",
+    "indicator_visible",
+    "unavailable_reason",
+    "pill_label",
+    "state_summary"
+  ],
+  "properties": {
+    "pill_id": {
+      "allOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "pattern": "^mic_state_pill:" }
+      ]
+    },
+    "pill_state": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "listening",
+        "muted",
+        "processing",
+        "needs_confirmation",
+        "unavailable",
+        "policy_blocked"
+      ]
+    },
+    "processing_locality": {
+      "type": "string",
+      "enum": ["local_on_device", "hosted_remote_disclosed", "processing_unavailable"]
+    },
+    "correction_posture": {
+      "type": "string",
+      "enum": [
+        "correction_required_before_commit",
+        "correction_optional_before_commit",
+        "correction_unavailable_capture_only",
+        "correction_blocked_by_envelope"
+      ]
+    },
+    "confidence_cue": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "enum": ["high", "medium", "low"] }
+      ]
+    },
+    "command_capability_scope": {
+      "type": "string",
+      "enum": [
+        "inert_metadata_only",
+        "reversible_local_read",
+        "reversible_local_mutation",
+        "recoverable_durable_mutation",
+        "destructive_bulk_mutation",
+        "irreversible_publish"
+      ]
+    },
+    "preview_required_before_commit": { "type": "boolean" },
+    "indicator_visible": { "type": "boolean" },
+    "unavailable_reason": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "enum": [
+            "offline_no_local_engine",
+            "provider_unavailable",
+            "no_microphone",
+            "noisy_environment",
+            "policy_locked_or_blocked",
+            "local_pack_unverified",
+            "trust_restricted"
+          ]
+        }
+      ]
+    },
+    "pill_label": { "$ref": "#/$defs/non_empty_string" },
+    "state_summary": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\s]+$",
+      "not": { "pattern": "://|@" },
+      "description": "Opaque, stable identifier safe for live surfaces and exports. Raw URLs, raw absolute paths, raw email addresses, and raw secret material MUST NOT appear."
+    }
+  }
+}
