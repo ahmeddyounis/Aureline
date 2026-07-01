@@ -159,6 +159,7 @@ pub mod m5_shell_zone_occupancy;
 pub mod m5_start_center_and_switcher;
 pub mod m5_subscription_inspector;
 pub mod m5_system_entry;
+pub mod m5_window_lifecycle_safety;
 pub mod macros;
 pub mod managed_boundary;
 pub mod managed_truth;
