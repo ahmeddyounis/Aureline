@@ -1,0 +1,241 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/m5-browser-handoff-card.schema.json",
+  "title": "Aureline M5 browser / device-code handoff card set",
+  "description": "Export-safe packet bundling one browser / device-code handoff card per governed handoff kind — system-browser sign-in, device-code authorization, provider content view, and vendor outbound link. Each card declares the provider/domain, the reason for the handoff, the data-exit boundary and a reviewable note, a fallback state if the handoff is blocked, a local-continuity note so nothing is dropped, the device-code and expiry disclosure where relevant, and a return anchor whose note states the return-path truth. A browser/device-code handoff always opens outside native chrome and never impersonates it, and provider-owned content is always labeled. Raw URLs, raw email addresses, raw local paths, raw usernames, raw hostnames, tokens, and raw secret material never cross this boundary; the records carry opaque refs and bounded reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "set_id",
+    "set_label",
+    "cards",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at",
+    "contract_doc_ref"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "record_kind": { "const": "m5_browser_handoff_card_set" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "set_label": { "$ref": "#/$defs/non_empty_string" },
+    "cards": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/browser_handoff_card" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/opaque_ref" },
+    "contract_doc_ref": { "const": "docs/help/m5_auth_boundaries_contract.md" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\s]+$",
+      "not": { "pattern": "://|@" },
+      "description": "Opaque, stable identifier safe for live surfaces and exports. Raw URLs, raw absolute paths, raw email addresses, and raw secret material MUST NOT appear."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+    },
+    "handoff_kind": {
+      "type": "string",
+      "enum": [
+        "system_browser_auth",
+        "device_code_auth",
+        "provider_content_view",
+        "vendor_outbound_link"
+      ]
+    },
+    "handoff_reason": {
+      "type": "string",
+      "enum": [
+        "authenticate_with_provider",
+        "authorize_device_code",
+        "view_provider_content",
+        "open_vendor_resource"
+      ]
+    },
+    "data_exit_boundary": {
+      "type": "string",
+      "enum": [
+        "no_payload_leaves_product",
+        "metadata_safe_object_refs",
+        "proposal_refs_only",
+        "redacted_support_packet",
+        "security_payloads_only",
+        "external_public_browse",
+        "vendor_or_third_party_outbound"
+      ]
+    },
+    "fallback_state": {
+      "type": "string",
+      "enum": [
+        "local_continuity_preserved",
+        "retry_handoff_in_app",
+        "manual_code_entry",
+        "copy_link_for_manual_open"
+      ]
+    },
+    "expiry_disclosure": {
+      "type": "string",
+      "enum": [
+        "expires_with_countdown",
+        "expires_at_disclosed_time",
+        "no_expiry_applicable"
+      ]
+    },
+    "device_code_disclosure": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code_presentation_ref",
+            "code_presentation_label",
+            "expiry_disclosure",
+            "expiry_note",
+            "code_shown_in_app_not_transmitted"
+          ],
+          "properties": {
+            "code_presentation_ref": { "$ref": "#/$defs/opaque_ref" },
+            "code_presentation_label": { "$ref": "#/$defs/non_empty_string" },
+            "expiry_disclosure": { "$ref": "#/$defs/expiry_disclosure" },
+            "expiry_note": { "$ref": "#/$defs/non_empty_string" },
+            "code_shown_in_app_not_transmitted": { "type": "boolean", "const": true }
+          }
+        }
+      ]
+    },
+    "local_continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["continuity_ref", "work_preserved_locally", "continuity_note"],
+      "properties": {
+        "continuity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "work_preserved_locally": { "type": "boolean", "const": true },
+        "continuity_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "return_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor_ref", "anchor_label", "return_path_truth_note"],
+      "properties": {
+        "anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "anchor_label": { "$ref": "#/$defs/non_empty_string" },
+        "return_path_truth_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "browser_handoff_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "browser_handoff_card_schema_version",
+        "record_kind",
+        "card_id",
+        "handoff_kind",
+        "handoff_reason",
+        "reason_note",
+        "provider_identity_ref",
+        "provider_label",
+        "provider_domain_label",
+        "data_exit_boundary",
+        "data_exit_note",
+        "device_code_disclosure",
+        "fallback_state",
+        "fallback_note",
+        "local_continuity",
+        "return_anchor",
+        "opens_outside_native_chrome",
+        "impersonates_native_chrome",
+        "presents_provider_owned_content_labeled",
+        "headline_label",
+        "card_summary",
+        "contract_doc_ref",
+        "notes"
+      ],
+      "properties": {
+        "browser_handoff_card_schema_version": { "const": 1 },
+        "record_kind": { "const": "browser_handoff_card_record" },
+        "card_id": {
+          "type": "string",
+          "pattern": "^browser_handoff_card:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "handoff_kind": { "$ref": "#/$defs/handoff_kind" },
+        "handoff_reason": { "$ref": "#/$defs/handoff_reason" },
+        "reason_note": { "$ref": "#/$defs/non_empty_string" },
+        "provider_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "provider_label": { "$ref": "#/$defs/non_empty_string" },
+        "provider_domain_label": { "$ref": "#/$defs/non_empty_string" },
+        "data_exit_boundary": { "$ref": "#/$defs/data_exit_boundary" },
+        "data_exit_note": { "$ref": "#/$defs/non_empty_string" },
+        "device_code_disclosure": { "$ref": "#/$defs/device_code_disclosure" },
+        "fallback_state": { "$ref": "#/$defs/fallback_state" },
+        "fallback_note": { "$ref": "#/$defs/non_empty_string" },
+        "local_continuity": { "$ref": "#/$defs/local_continuity" },
+        "return_anchor": { "$ref": "#/$defs/return_anchor" },
+        "opens_outside_native_chrome": { "type": "boolean", "const": true },
+        "impersonates_native_chrome": { "type": "boolean", "const": false },
+        "presents_provider_owned_content_labeled": { "type": "boolean", "const": true },
+        "headline_label": { "$ref": "#/$defs/non_empty_string" },
+        "card_summary": { "$ref": "#/$defs/non_empty_string" },
+        "contract_doc_ref": { "const": "docs/help/m5_auth_boundaries_contract.md" },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "The reason must be the one required by the handoff kind.",
+          "if": {
+            "properties": { "handoff_kind": { "const": "system_browser_auth" } },
+            "required": ["handoff_kind"]
+          },
+          "then": {
+            "properties": { "handoff_reason": { "const": "authenticate_with_provider" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "handoff_kind": { "const": "provider_content_view" } },
+            "required": ["handoff_kind"]
+          },
+          "then": { "properties": { "handoff_reason": { "const": "view_provider_content" } } }
+        },
+        {
+          "if": {
+            "properties": { "handoff_kind": { "const": "vendor_outbound_link" } },
+            "required": ["handoff_kind"]
+          },
+          "then": { "properties": { "handoff_reason": { "const": "open_vendor_resource" } } }
+        },
+        {
+          "description": "A device-code handoff must carry a device-code disclosure and authorize-device-code reason; every other kind must not carry a disclosure.",
+          "if": {
+            "properties": { "handoff_kind": { "const": "device_code_auth" } },
+            "required": ["handoff_kind"]
+          },
+          "then": {
+            "properties": {
+              "handoff_reason": { "const": "authorize_device_code" },
+              "device_code_disclosure": { "type": "object" }
+            }
+          },
+          "else": {
+            "properties": { "device_code_disclosure": { "type": "null" } }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/m5-webview-origin-bar.schema.json",
+  "title": "Aureline M5 webview origin bar set",
+  "description": "Export-safe packet bundling one webview origin bar per governed owner class — extension-owned, provider-owned, first-party embedded, and unknown/untrusted. Each bar discloses the extension/provider/origin that owns the embedded content, the permission state, an open-in-browser action, and the capability limits the surface has relative to native trusted chrome (always including not_native_trust_chrome). Every bar is labeled as embedded, never impersonates native chrome, and holds every native-only messaging flag (update verification, device-permission prompt, product-security messaging) at false so embedded content cannot impersonate native trust UI. An unknown/untrusted origin is disclosed as blocked with a non-elevated or denied permission state. Raw URLs, raw email addresses, raw local paths, raw usernames, raw hostnames, tokens, and raw secret material never cross this boundary; the records carry opaque refs and bounded reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "set_id",
+    "set_label",
+    "bars",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at",
+    "contract_doc_ref"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "record_kind": { "const": "m5_webview_origin_bar_set" },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "set_label": { "$ref": "#/$defs/non_empty_string" },
+    "bars": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/webview_origin_bar" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/opaque_ref" },
+    "contract_doc_ref": { "const": "docs/help/m5_auth_boundaries_contract.md" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\s]+$",
+      "not": { "pattern": "://|@" },
+      "description": "Opaque, stable identifier safe for live surfaces and exports. Raw URLs, raw absolute paths, raw email addresses, and raw secret material MUST NOT appear."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+    },
+    "owner_class": {
+      "type": "string",
+      "enum": [
+        "extension_owned",
+        "provider_owned",
+        "first_party_embedded",
+        "unknown_untrusted"
+      ]
+    },
+    "origin_disclosure": {
+      "type": "string",
+      "enum": [
+        "named_extension_origin",
+        "named_provider_origin",
+        "first_party_origin",
+        "undisclosed_origin_blocked"
+      ]
+    },
+    "permission_state": {
+      "type": "string",
+      "enum": [
+        "no_elevated_permissions",
+        "scoped_permissions_granted",
+        "permission_request_pending",
+        "permission_denied"
+      ]
+    },
+    "capability_limit_class": {
+      "type": "string",
+      "enum": [
+        "not_native_trust_chrome",
+        "cannot_verify_updates",
+        "cannot_grant_device_permission",
+        "cannot_display_product_security",
+        "cannot_enter_product_credentials"
+      ]
+    },
+    "capability_limit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limit_class", "limit_note"],
+      "properties": {
+        "limit_class": { "$ref": "#/$defs/capability_limit_class" },
+        "limit_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "open_in_browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_ref", "action_label", "available"],
+      "properties": {
+        "action_ref": { "$ref": "#/$defs/opaque_ref" },
+        "action_label": { "$ref": "#/$defs/non_empty_string" },
+        "available": { "type": "boolean" }
+      }
+    },
+    "webview_origin_bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "webview_origin_bar_schema_version",
+        "record_kind",
+        "bar_id",
+        "owner_class",
+        "owner_identity_ref",
+        "owner_label",
+        "origin_label",
+        "origin_disclosure",
+        "permission_state",
+        "open_in_browser",
+        "capability_limits",
+        "labeled_as_embedded",
+        "impersonates_native_chrome",
+        "may_show_update_verification",
+        "may_show_device_permission_prompt",
+        "may_show_product_security_messaging",
+        "headline_label",
+        "bar_summary",
+        "contract_doc_ref",
+        "notes"
+      ],
+      "properties": {
+        "webview_origin_bar_schema_version": { "const": 1 },
+        "record_kind": { "const": "webview_origin_bar_record" },
+        "bar_id": {
+          "type": "string",
+          "pattern": "^webview_origin_bar:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "owner_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "owner_label": { "$ref": "#/$defs/non_empty_string" },
+        "origin_label": { "$ref": "#/$defs/non_empty_string" },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "permission_state": { "$ref": "#/$defs/permission_state" },
+        "open_in_browser": { "$ref": "#/$defs/open_in_browser" },
+        "capability_limits": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/capability_limit" }
+        },
+        "labeled_as_embedded": { "type": "boolean", "const": true },
+        "impersonates_native_chrome": { "type": "boolean", "const": false },
+        "may_show_update_verification": { "type": "boolean", "const": false },
+        "may_show_device_permission_prompt": { "type": "boolean", "const": false },
+        "may_show_product_security_messaging": { "type": "boolean", "const": false },
+        "headline_label": { "$ref": "#/$defs/non_empty_string" },
+        "bar_summary": { "$ref": "#/$defs/non_empty_string" },
+        "contract_doc_ref": { "const": "docs/help/m5_auth_boundaries_contract.md" },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Origin disclosure must match the owner class.",
+          "if": {
+            "properties": { "owner_class": { "const": "extension_owned" } },
+            "required": ["owner_class"]
+          },
+          "then": {
+            "properties": { "origin_disclosure": { "const": "named_extension_origin" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "owner_class": { "const": "provider_owned" } },
+            "required": ["owner_class"]
+          },
+          "then": {
+            "properties": { "origin_disclosure": { "const": "named_provider_origin" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "owner_class": { "const": "first_party_embedded" } },
+            "required": ["owner_class"]
+          },
+          "then": { "properties": { "origin_disclosure": { "const": "first_party_origin" } } }
+        },
+        {
+          "description": "An unknown/untrusted origin is disclosed as blocked with a non-elevated or denied permission state.",
+          "if": {
+            "properties": { "owner_class": { "const": "unknown_untrusted" } },
+            "required": ["owner_class"]
+          },
+          "then": {
+            "properties": {
+              "origin_disclosure": { "const": "undisclosed_origin_blocked" },
+              "permission_state": {
+                "enum": ["no_elevated_permissions", "permission_denied"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Every bar must disclose the not-native-trust-chrome capability limit.",
+          "properties": {
+            "capability_limits": {
+              "contains": {
+                "properties": {
+                  "limit_class": { "const": "not_native_trust_chrome" }
+                },
+                "required": ["limit_class"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
