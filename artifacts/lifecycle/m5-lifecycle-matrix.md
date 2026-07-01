@@ -1,0 +1,170 @@
+# M5 Lifecycle-State and Critical-Journey Checkpoint Matrix
+
+- Packet: `m5-lifecycle-matrix:stable:0001`
+- Label: `M5 Lifecycle-State, Degraded-Vocabulary, and Critical-Journey Checkpoint Matrix`
+- Object families: 13 (7 stable)
+- Protected journeys: 13
+- Controlled states: ready, warming, partial, stale, rebuilding, restricted, policy_blocked, reconnecting, degraded, read_only_degraded, unavailable, rollback_available, deprecated, experimental, retest_pending
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-30T00:00:00Z)
+
+## Object families
+
+- **workspace**: `stable`
+  - Owner: Shell/workspace owner
+  - Scope: Workspace / window session that restores its identity, trust, and layout; its state machine reports readiness, restore progress, and degraded read-only fallback, and it always names a restore recovery affordance rather than a blank window
+  - Primary status surface: `status_bar_indicator`
+  - Status code field: `workspace_status_code`
+  - Last-failure reason field: `workspace_last_failure_reason`
+  - Recovery affordance: `restore_action`
+  - Admitted states: ready, warming, partial, stale, rebuilding, restricted, reconnecting, degraded, read_only_degraded, unavailable
+- **extension**: `stable`
+  - Owner: Extensions owner
+  - Scope: Installed extension / capability whose lifecycle spans warming, restricted, policy-blocked, deprecated, experimental, and retest-pending; it names a reinstall/re-enable recovery affordance and never hides a disabled capability
+  - Primary status surface: `object_header_badge`
+  - Status code field: `extension_status_code`
+  - Last-failure reason field: `extension_last_failure_reason`
+  - Recovery affordance: `reinstall_action`
+  - Admitted states: ready, warming, restricted, policy_blocked, degraded, unavailable, deprecated, experimental, retest_pending
+- **remote_session**: `stable`
+  - Owner: Remote owner
+  - Scope: Remote / tunnel session whose machine reports reconnecting, degraded, and read-only-degraded states with a named reconnect affordance, so a dropped connection is never an anonymous stall
+  - Primary status surface: `remote_presence_indicator`
+  - Status code field: `remote_session_status_code`
+  - Last-failure reason field: `remote_session_last_failure_reason`
+  - Recovery affordance: `reconnect_action`
+  - Admitted states: ready, warming, reconnecting, degraded, read_only_degraded, restricted, unavailable
+- **collaboration_session**: `beta`
+  - Owner: Collaboration owner
+  - Scope: Live collaboration session whose machine reports reconnecting, partial, and restricted states with a reconnect affordance; a lost co-editing link narrows the presence badge rather than silently dropping edits
+  - Primary status surface: `collaboration_presence_badge`
+  - Status code field: `collaboration_session_status_code`
+  - Last-failure reason field: `collaboration_session_last_failure_reason`
+  - Recovery affordance: `reconnect_action`
+  - Admitted states: ready, warming, reconnecting, partial, degraded, restricted, unavailable
+- **ai_action**: `beta`
+  - Owner: AI owner
+  - Scope: AI assistant action whose machine reports warming, partial, restricted, policy-blocked, and retest-pending states with a retry affordance; a blocked action narrows to a named reason rather than an anonymous spinner
+  - Primary status surface: `inline_action_status`
+  - Status code field: `ai_action_status_code`
+  - Last-failure reason field: `ai_action_last_failure_reason`
+  - Recovery affordance: `retry_action`
+  - Admitted states: ready, warming, partial, restricted, policy_blocked, degraded, unavailable, retest_pending, experimental
+- **update_rollback**: `stable`
+  - Owner: Update owner
+  - Scope: Update / rollback lifecycle whose machine reports warming, rebuilding, rollback-available, and deprecated states with a named update-now or rollback affordance, so a failed update always offers a safe return path
+  - Primary status surface: `update_center_row`
+  - Status code field: `update_rollback_status_code`
+  - Last-failure reason field: `update_rollback_last_failure_reason`
+  - Recovery affordance: `rollback_action`
+  - Admitted states: ready, warming, rebuilding, rollback_available, degraded, unavailable, deprecated
+- **notebook_runtime**: `stable`
+  - Owner: Notebook owner
+  - Scope: Notebook kernel runtime whose machine reports warming, partial, rebuilding, and read-only-degraded states with a rebuild affordance, so a crashed kernel narrows rather than losing the notebook
+  - Primary status surface: `panel_header_status`
+  - Status code field: `notebook_runtime_status_code`
+  - Last-failure reason field: `notebook_runtime_last_failure_reason`
+  - Recovery affordance: `rebuild_action`
+  - Admitted states: ready, warming, partial, rebuilding, degraded, read_only_degraded, unavailable, retest_pending
+- **request_api_run**: `stable`
+  - Owner: API client owner
+  - Scope: Request / API run whose machine reports warming, partial, restricted, and policy-blocked states with a retry affordance; a failed request names a controlled reason instead of a raw error body
+  - Primary status surface: `inline_action_status`
+  - Status code field: `request_api_run_status_code`
+  - Last-failure reason field: `request_api_run_last_failure_reason`
+  - Recovery affordance: `retry_action`
+  - Admitted states: ready, warming, partial, restricted, policy_blocked, degraded, unavailable
+- **preview_session**: `beta`
+  - Owner: Preview owner
+  - Scope: Preview / live-server session whose machine reports warming, rebuilding, and partial states with a rebuild affordance, so a broken build narrows the preview badge rather than blanking the panel
+  - Primary status surface: `panel_header_status`
+  - Status code field: `preview_session_status_code`
+  - Last-failure reason field: `preview_session_last_failure_reason`
+  - Recovery affordance: `rebuild_action`
+  - Admitted states: ready, warming, rebuilding, partial, degraded, unavailable, experimental
+- **pipeline_run**: `beta`
+  - Owner: Pipeline owner
+  - Scope: Pipeline / task run whose machine reports warming, partial, and rebuilding states with a retry affordance and named checkpoints, so a long run never shows an anonymous progress bar
+  - Primary status surface: `activity_center_row`
+  - Status code field: `pipeline_run_status_code`
+  - Last-failure reason field: `pipeline_run_last_failure_reason`
+  - Recovery affordance: `retry_action`
+  - Admitted states: ready, warming, partial, rebuilding, degraded, unavailable, retest_pending
+- **data_session**: `stable`
+  - Owner: Data owner
+  - Scope: Data / database session whose machine reports reconnecting, partial, stale, and read-only-degraded states with a reconnect affordance, so a dropped connection preserves a safe read path
+  - Primary status surface: `panel_header_status`
+  - Status code field: `data_session_status_code`
+  - Last-failure reason field: `data_session_last_failure_reason`
+  - Recovery affordance: `reconnect_action`
+  - Admitted states: ready, warming, reconnecting, partial, stale, degraded, read_only_degraded, restricted, unavailable
+- **profiler_capture**: `preview`
+  - Owner: Profiler owner
+  - Scope: Profiler / trace capture whose machine reports warming, partial, and experimental states with a retest affordance, so an interrupted capture narrows to a named reason rather than a silent failure
+  - Primary status surface: `activity_center_row`
+  - Status code field: `profiler_capture_status_code`
+  - Last-failure reason field: `profiler_capture_last_failure_reason`
+  - Recovery affordance: `retest_action`
+  - Admitted states: ready, warming, partial, degraded, unavailable, experimental, retest_pending
+- **companion_session**: `experimental`
+  - Owner: Companion owner
+  - Scope: Companion / paired device session whose machine reports warming, reconnecting, restricted, and experimental states with a reconnect affordance, so a paired device that drops narrows the companion badge rather than vanishing
+  - Primary status surface: `collaboration_presence_badge`
+  - Status code field: `companion_session_status_code`
+  - Last-failure reason field: `companion_session_last_failure_reason`
+  - Recovery affordance: `reconnect_action`
+  - Admitted states: ready, warming, reconnecting, restricted, degraded, unavailable, experimental
+
+## Protected journeys
+
+- **workspace_restore** (workspace)
+  - Owner: Shell/workspace owner
+  - Checkpoints: queued → authorizing → restoring → warming → verifying → ready
+  - Recovery affordance: `restore_action`
+- **remote_reconnect** (remote_session)
+  - Owner: Remote owner
+  - Checkpoints: queued → connecting → authorizing → verifying → ready
+  - Recovery affordance: `reconnect_action`
+- **extension_activation** (extension)
+  - Owner: Extensions owner
+  - Checkpoints: queued → authorizing → warming → verifying → ready
+  - Recovery affordance: `reinstall_action`
+- **collaboration_join** (collaboration_session)
+  - Owner: Collaboration owner
+  - Checkpoints: queued → connecting → authorizing → warming → ready
+  - Recovery affordance: `reconnect_action`
+- **ai_action_run** (ai_action)
+  - Owner: AI owner
+  - Checkpoints: queued → authorizing → preparing → verifying → ready
+  - Recovery affordance: `retry_action`
+- **update_rollback_journey** (update_rollback)
+  - Owner: Update owner
+  - Checkpoints: queued → preparing → building → verifying → finalizing → ready
+  - Recovery affordance: `rollback_action`
+- **notebook_execution** (notebook_runtime)
+  - Owner: Notebook owner
+  - Checkpoints: queued → warming → building → verifying → ready
+  - Recovery affordance: `rebuild_action`
+- **request_run** (request_api_run)
+  - Owner: API client owner
+  - Checkpoints: queued → authorizing → connecting → verifying → ready
+  - Recovery affordance: `retry_action`
+- **preview_build** (preview_session)
+  - Owner: Preview owner
+  - Checkpoints: queued → preparing → building → warming → ready
+  - Recovery affordance: `rebuild_action`
+- **pipeline_run_journey** (pipeline_run)
+  - Owner: Pipeline owner
+  - Checkpoints: queued → preparing → building → verifying → finalizing → ready
+  - Recovery affordance: `retry_action`
+- **data_session_connect** (data_session)
+  - Owner: Data owner
+  - Checkpoints: queued → connecting → authorizing → verifying → ready
+  - Recovery affordance: `reconnect_action`
+- **profiler_capture_journey** (profiler_capture)
+  - Owner: Profiler owner
+  - Checkpoints: queued → preparing → warming → finalizing → ready
+  - Recovery affordance: `retest_action`
+- **companion_attach** (companion_session)
+  - Owner: Companion owner
+  - Checkpoints: queued → connecting → authorizing → verifying → ready
+  - Recovery affordance: `reconnect_action`
