@@ -1,0 +1,99 @@
+# M5 Shell-Zone, Responsive-Class, and Multi-Window Continuity Matrix
+
+- Packet: `m5-shell-zone-matrix:stable:0001`
+- Label: `M5 Shell-Zone, Responsive-Class, and Multi-Window Continuity Matrix`
+- Families: 10 (7 stable)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-30T00:00:00Z)
+
+## Surface families
+
+- **notebook**: `stable`
+  - Owner: Notebook surface owner
+  - Scope: Notebook editor / cell surface docked in the main workspace; it may split side-by-side or tab with peer editors, detach to a secondary window carrying full workspace-global truth, and collapse to an in-slot placeholder that preserves the notebook identity and reopen path when a kernel or provider is missing
+  - Canonical slot: Main Workspace (`main_workspace`)
+  - Fallback slot: Main Workspace (`main_workspace`)
+  - Dependency-missing placeholder: `in_slot_identity_preserved`
+  - Windows: primary_workspace_window, secondary_detached_window
+  - Collapse ladder: docked → overflow → placeholder
+  - Rollback: collapse_preserves_task_identity
+- **data_grid**: `stable`
+  - Owner: Data surface owner
+  - Scope: Tabular data grid docked in the main workspace; it may split side-by-side or tab with peer surfaces, detach to a secondary window, and collapse to a placeholder that prompts to reconnect the remote or reauthorize the provider when the data source is unavailable
+  - Canonical slot: Main Workspace (`main_workspace`)
+  - Fallback slot: Main Workspace (`main_workspace`)
+  - Dependency-missing placeholder: `reconnect_remote_or_provider`
+  - Windows: primary_workspace_window, secondary_detached_window
+  - Collapse ladder: docked → overflow → placeholder
+  - Rollback: window_preserves_workspace_global_truth
+- **profiler**: `stable`
+  - Owner: Profiler surface owner
+  - Scope: Profiler / performance surface docked in the bottom panel; it tabs, sheets, or overflows under compact widths, may float as a utility window scoped to one capture, and collapses to a placeholder that prompts to reconnect the profiling provider when a capture session is lost
+  - Canonical slot: Bottom Panel (`bottom_panel`)
+  - Fallback slot: Transient Overlay (`transient_overlay`)
+  - Dependency-missing placeholder: `reconnect_remote_or_provider`
+  - Windows: primary_workspace_window, secondary_detached_window, floating_utility_window
+  - Collapse ladder: docked → sheet → overflow → placeholder
+  - Rollback: critical_state_stays_visible_or_overflowed
+- **pipeline**: `stable`
+  - Owner: Pipeline surface owner
+  - Scope: Pipeline / workflow graph docked in the main workspace; it may split side-by-side or tab with peer surfaces, drop to the bottom panel as a fallback slot under compact widths, and collapse to a placeholder that prompts to reconnect the run provider when live status is unavailable
+  - Canonical slot: Main Workspace (`main_workspace`)
+  - Fallback slot: Bottom Panel (`bottom_panel`)
+  - Dependency-missing placeholder: `reconnect_remote_or_provider`
+  - Windows: primary_workspace_window, secondary_detached_window
+  - Collapse ladder: docked → overflow → placeholder
+  - Rollback: attaches_only_to_declared_slot
+- **docs**: `stable`
+  - Owner: Docs surface owner
+  - Scope: Documentation reader docked in the main workspace; it may split side-by-side, tab, or sheet, float as a utility window for reference-while-working, and collapse to an in-slot placeholder that preserves the document anchor and reopen path when content is not yet loaded
+  - Canonical slot: Main Workspace (`main_workspace`)
+  - Fallback slot: Transient Overlay (`transient_overlay`)
+  - Dependency-missing placeholder: `in_slot_identity_preserved`
+  - Windows: primary_workspace_window, secondary_detached_window, floating_utility_window
+  - Collapse ladder: docked → sheet → overflow → placeholder
+  - Rollback: collapse_preserves_task_identity
+- **preview**: `stable`
+  - Owner: Preview surface owner
+  - Scope: Preview surface (render, diff, media) docked in the right inspector; it may split side-by-side, sheet, or overflow under compact widths, float as a utility window or companion overlay attached to its owning editor, and collapse to an in-slot placeholder preserving the previewed object identity
+  - Canonical slot: Right Inspector (`right_inspector`)
+  - Fallback slot: Transient Overlay (`transient_overlay`)
+  - Dependency-missing placeholder: `in_slot_identity_preserved`
+  - Windows: primary_workspace_window, floating_utility_window, companion_overlay_window
+  - Collapse ladder: docked → sheet → overflow → placeholder
+  - Rollback: routes_to_owning_window_object
+- **review**: `stable`
+  - Owner: Review surface owner
+  - Scope: Review / change-request surface docked in the main workspace; it may split side-by-side or tab with the diff it reviews, fall back to the right inspector under compact widths, detach to a secondary window, and route approval dialogs back to the owning window and object without focus theft
+  - Canonical slot: Main Workspace (`main_workspace`)
+  - Fallback slot: Right Inspector (`right_inspector`)
+  - Dependency-missing placeholder: `reconnect_remote_or_provider`
+  - Windows: primary_workspace_window, secondary_detached_window
+  - Collapse ladder: docked → overflow → placeholder
+  - Rollback: routes_to_owning_window_object
+- **incident**: `beta`
+  - Owner: Incident surface owner
+  - Scope: Incident / operations-response surface docked in the main workspace; it may split side-by-side or tab, fall back to the right inspector, detach to a secondary window for a war-room display, and route paging and approval actions back to the owning incident object without orphaning
+  - Canonical slot: Main Workspace (`main_workspace`)
+  - Fallback slot: Right Inspector (`right_inspector`)
+  - Dependency-missing placeholder: `reconnect_remote_or_provider`
+  - Windows: primary_workspace_window, secondary_detached_window
+  - Collapse ladder: docked → overflow → placeholder
+  - Rollback: routes_to_owning_window_object
+- **companion**: `beta`
+  - Owner: Companion surface owner
+  - Scope: Companion assistant surface that sheets or overflows against the right inspector, may run as a companion overlay window or floating utility attached to its owning window, and collapses to a placeholder that prompts to install or enable the companion when its dependency is absent — it never claims a solo top-level chrome
+  - Canonical slot: Right Inspector (`right_inspector`)
+  - Fallback slot: Transient Overlay (`transient_overlay`)
+  - Dependency-missing placeholder: `install_or_enable_dependency`
+  - Windows: primary_workspace_window, companion_overlay_window, floating_utility_window
+  - Collapse ladder: sheet → overflow → placeholder
+  - Rollback: attaches_only_to_declared_slot
+- **operator**: `beta`
+  - Owner: Operator surface owner
+  - Scope: Operator / control-plane surface docked in the bottom panel; it tabs, sheets, or overflows under compact widths, may detach to a secondary window or float as a utility scoped to one control, and collapses to a placeholder that prompts to reconnect the control-plane provider when it recenters after a display topology drift
+  - Canonical slot: Bottom Panel (`bottom_panel`)
+  - Fallback slot: Transient Overlay (`transient_overlay`)
+  - Dependency-missing placeholder: `recentered_on_topology_drift`
+  - Windows: primary_workspace_window, secondary_detached_window, floating_utility_window
+  - Collapse ladder: docked → sheet → overflow → placeholder
+  - Rollback: window_preserves_workspace_global_truth
