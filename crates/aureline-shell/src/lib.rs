@@ -144,6 +144,7 @@ pub mod m5_native_desktop_qualification;
 pub mod m5_notification_routes;
 pub mod m5_os_notifications_and_badges;
 pub mod m5_post_install_disclosure;
+pub mod m5_public_handoff_certification;
 pub mod m5_reactive_state_explainer;
 pub mod m5_recent_items_and_reopen;
 pub mod m5_reproduction_packets;
