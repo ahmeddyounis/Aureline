@@ -158,6 +158,7 @@ pub mod m5_public_handoff_certification;
 pub mod m5_reactive_state_explainer;
 pub mod m5_recent_items_and_reopen;
 pub mod m5_reproduction_packets;
+pub mod m5_resume_breadcrumbs;
 pub mod m5_responsive_collapse;
 pub mod m5_rollout_governance;
 pub mod m5_safety_critical_string_catalog;
