@@ -26,7 +26,11 @@ fn every_trust_class_is_carried() {
             .sheets
             .iter()
             .any(|s| s.local_safe_fallback.trust_class == trust);
-        assert!(primary || fallback, "trust class {} not carried", trust.as_str());
+        assert!(
+            primary || fallback,
+            "trust class {} not carried",
+            trust.as_str()
+        );
     }
 }
 
@@ -48,7 +52,10 @@ fn only_official_support_is_a_guaranteed_commitment() {
     for sheet in &set.sheets {
         let guaranteed = sheet.commitment_honesty.guaranteed_product_commitment;
         if sheet.route_class == CommunityHandoffRouteClass::OfficialSupport {
-            assert!(guaranteed, "official support must be a guaranteed commitment");
+            assert!(
+                guaranteed,
+                "official support must be a guaranteed commitment"
+            );
         } else {
             assert!(
                 !guaranteed,
@@ -145,8 +152,7 @@ fn private_route_without_disclosure_fails() {
 #[test]
 fn local_fallback_that_leaves_product_fails() {
     let mut set = seeded_m5_community_handoff_target_sheet_set();
-    set.sheets[0].local_safe_fallback.data_exit_boundary =
-        DataExitBoundary::MetadataSafeObjectRefs;
+    set.sheets[0].local_safe_fallback.data_exit_boundary = DataExitBoundary::MetadataSafeObjectRefs;
     assert!(matches!(
         set.validate(),
         Err(CommunityHandoffTargetError::LocalFallbackNotLocal { .. })
@@ -206,7 +212,11 @@ fn matrix_csv_has_a_row_per_route() {
     assert_eq!(lines.len(), 1 + CommunityHandoffRouteClass::ALL.len());
     assert!(lines[0].starts_with("route,trust_class,"));
     for route in CommunityHandoffRouteClass::ALL {
-        assert!(csv.contains(route.as_str()), "csv missing {}", route.as_str());
+        assert!(
+            csv.contains(route.as_str()),
+            "csv missing {}",
+            route.as_str()
+        );
     }
 }
 
@@ -270,5 +280,8 @@ fn checked_fixtures_match_seed_builders() {
         "/../../fixtures/help/community-handoff/community_support_not_a_commitment.json"
     )))
     .expect("no-commitment fixture parses");
-    assert_eq!(no_commitment, seeded_community_support_sheet_no_commitment());
+    assert_eq!(
+        no_commitment,
+        seeded_community_support_sheet_no_commitment()
+    );
 }

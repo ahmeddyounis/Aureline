@@ -74,7 +74,8 @@ pub const REPRODUCTION_PACKET_SCHEMA_VERSION: u32 = 1;
 pub const M5_REPRODUCTION_PACKET_SET_SCHEMA_VERSION: u32 = 1;
 
 /// Repo-relative path of the boundary schema this producer projects.
-pub const M5_REPRODUCTION_PACKET_SCHEMA_REF: &str = "schemas/help/m5-reproduction-packet.schema.json";
+pub const M5_REPRODUCTION_PACKET_SCHEMA_REF: &str =
+    "schemas/help/m5-reproduction-packet.schema.json";
 
 /// Repo-relative path of the contract doc all records point at.
 pub const M5_REPRODUCTION_PACKET_CONTRACT_DOC_REF: &str =
@@ -361,14 +362,20 @@ impl RedactionPostureClass {
                 D::NoPayloadLeavesProduct | D::MetadataSafeObjectRefs | D::ProposalRefsOnly
             ),
             Self::MetadataRefsOnly => {
-                matches!(data_exit, D::NoPayloadLeavesProduct | D::MetadataSafeObjectRefs)
+                matches!(
+                    data_exit,
+                    D::NoPayloadLeavesProduct | D::MetadataSafeObjectRefs
+                )
             }
             Self::RedactedSupportScoped => matches!(
                 data_exit,
                 D::NoPayloadLeavesProduct | D::MetadataSafeObjectRefs | D::RedactedSupportPacket
             ),
             Self::SecurityChannelOnly => {
-                matches!(data_exit, D::NoPayloadLeavesProduct | D::SecurityPayloadsOnly)
+                matches!(
+                    data_exit,
+                    D::NoPayloadLeavesProduct | D::SecurityPayloadsOnly
+                )
             }
         }
     }
@@ -428,7 +435,10 @@ impl PacketFlowClass {
             Self::SaveLocal => matches!(data_exit, D::NoPayloadLeavesProduct),
             // A copied summary carries only redaction-safe metadata.
             Self::CopySummary => {
-                matches!(data_exit, D::NoPayloadLeavesProduct | D::MetadataSafeObjectRefs)
+                matches!(
+                    data_exit,
+                    D::NoPayloadLeavesProduct | D::MetadataSafeObjectRefs
+                )
             }
             // A staged submission may later carry any redaction-safe boundary.
             Self::SubmitLater => matches!(
@@ -687,7 +697,10 @@ impl ReproductionPacket {
         for (field, value) in [
             ("headline_label", &self.headline_label),
             ("packet_summary", &self.packet_summary),
-            ("object_anchor.anchor_label", &self.object_anchor.anchor_label),
+            (
+                "object_anchor.anchor_label",
+                &self.object_anchor.anchor_label,
+            ),
         ] {
             if non_empty(value).is_none() {
                 return Err(ReproductionPacketError::EmptyRequiredField {
@@ -746,7 +759,10 @@ impl ReproductionPacket {
         }
 
         // Posture and flow each pin the data-exit boundary.
-        if !self.redaction_posture.allows_data_exit(self.data_exit_boundary) {
+        if !self
+            .redaction_posture
+            .allows_data_exit(self.data_exit_boundary)
+        {
             return Err(ReproductionPacketError::PostureDataExitMismatch {
                 packet_id: self.packet_id.clone(),
                 posture: self.redaction_posture,
@@ -786,10 +802,7 @@ impl ReproductionPacket {
     /// for every flow. Stable for the same input snapshot.
     pub fn render_copy_summary(&self) -> String {
         let mut out = String::new();
-        out.push_str(&format!(
-            "[{}] {}\n",
-            self.packet_id, self.headline_label
-        ));
+        out.push_str(&format!("[{}] {}\n", self.packet_id, self.headline_label));
         out.push_str(&format!(
             "    surface: {} | anchor: {} (object={})\n",
             self.originating_surface.as_str(),
@@ -889,7 +902,11 @@ impl M5ReproductionPacketSet {
 
         // Every originating surface is named exactly once.
         for surface in OriginatingSurfaceClass::ALL {
-            if !self.packets.iter().any(|p| p.originating_surface == surface) {
+            if !self
+                .packets
+                .iter()
+                .any(|p| p.originating_surface == surface)
+            {
                 return Err(ReproductionPacketError::SurfaceMissing { surface });
             }
         }
@@ -996,7 +1013,9 @@ impl M5ReproductionPacketSet {
             ));
         }
         out.push('\n');
-        out.push_str("Every packet previews each sensitive field before share, tokens are always removed, ");
+        out.push_str(
+            "Every packet previews each sensitive field before share, tokens are always removed, ",
+        );
         out.push_str("and packet creation never auto-submits — building a packet is separate from sending it.\n");
         out
     }
@@ -1259,8 +1278,8 @@ impl fmt::Display for ReproductionPacketError {
 impl Error for ReproductionPacketError {}
 
 /// Reads and validates the checked-in stable reproduction packet set.
-pub fn current_stable_m5_reproduction_packet_set(
-) -> Result<M5ReproductionPacketSet, Box<dyn Error>> {
+pub fn current_stable_m5_reproduction_packet_set() -> Result<M5ReproductionPacketSet, Box<dyn Error>>
+{
     let set: M5ReproductionPacketSet = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../artifacts/help/m5-reproduction-packet-proof/packet_set.json"

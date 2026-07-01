@@ -76,7 +76,10 @@ fn save_local_packets_never_leave_and_stay_offline() {
     let set = seeded_m5_reproduction_packet_set();
     for packet in &set.packets {
         if packet.flow == PacketFlowClass::SaveLocal {
-            assert_eq!(packet.data_exit_boundary, DataExitBoundary::NoPayloadLeavesProduct);
+            assert_eq!(
+                packet.data_exit_boundary,
+                DataExitBoundary::NoPayloadLeavesProduct
+            );
             assert!(packet.offline_reusable);
         }
     }
@@ -235,7 +238,11 @@ fn matrix_csv_has_a_row_per_packet() {
     assert_eq!(lines.len(), 1 + set.packets.len());
     assert!(lines[0].starts_with("packet,originating_surface,"));
     for packet in &set.packets {
-        assert!(csv.contains(&packet.packet_id), "csv missing {}", packet.packet_id);
+        assert!(
+            csv.contains(&packet.packet_id),
+            "csv missing {}",
+            packet.packet_id
+        );
     }
 }
 
@@ -292,7 +299,10 @@ fn narrowed_fixture_packets_validate() {
 fn save_local_offline_draft_stays_local_and_unconfirmed() {
     let packet = seeded_save_local_offline_draft_packet();
     assert_eq!(packet.flow, PacketFlowClass::SaveLocal);
-    assert_eq!(packet.data_exit_boundary, DataExitBoundary::NoPayloadLeavesProduct);
+    assert_eq!(
+        packet.data_exit_boundary,
+        DataExitBoundary::NoPayloadLeavesProduct
+    );
     assert!(packet.offline_reusable);
     assert!(!packet.preview_confirmed_before_share);
 }

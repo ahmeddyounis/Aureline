@@ -222,7 +222,10 @@ impl PermissionState {
 
     /// True when the user may still request (or re-request) access.
     pub const fn is_requestable(self) -> bool {
-        matches!(self, Self::NotYetRequested | Self::Denied | Self::RevokedByUser)
+        matches!(
+            self,
+            Self::NotYetRequested | Self::Denied | Self::RevokedByUser
+        )
     }
 }
 
@@ -501,7 +504,10 @@ impl CaptureRedactionState {
             Self::RawNeverExported => matches!(data_exit, D::NoPayloadLeavesProduct),
             // Metadata-only reviews carry refs, never payload bodies.
             Self::MetadataRefsOnly => {
-                matches!(data_exit, D::NoPayloadLeavesProduct | D::MetadataSafeObjectRefs)
+                matches!(
+                    data_exit,
+                    D::NoPayloadLeavesProduct | D::MetadataSafeObjectRefs
+                )
             }
             // A redacted capture may ride a redaction-safe support/metadata boundary.
             Self::RedactedBeforeExport => matches!(
@@ -559,7 +565,10 @@ impl CaptureReviewActionClass {
 /// True when a retention mode keeps a transcript with a provider per contract, so
 /// a row may not claim purely local processing.
 pub fn retention_is_provider_backed(retention: RetentionMode) -> bool {
-    matches!(retention, RetentionMode::TranscriptRetainedProviderPerContract)
+    matches!(
+        retention,
+        RetentionMode::TranscriptRetainedProviderPerContract
+    )
 }
 
 /// One device-permission row: a device class, its permission state, the actor
@@ -691,8 +700,7 @@ impl DevicePermissionRow {
                 row_id: self.row_id.clone(),
             });
         }
-        if self.permission_state.is_granted()
-            && !seen.contains(&PermissionActionClass::RevokeInApp)
+        if self.permission_state.is_granted() && !seen.contains(&PermissionActionClass::RevokeInApp)
         {
             return Err(DevicePermissionError::MissingRevokeAction {
                 row_id: self.row_id.clone(),
@@ -808,7 +816,8 @@ impl MicStatePill {
                     pill_id: self.pill_id.clone(),
                 });
             }
-            if self.correction_posture != TranscriptCorrectionPosture::CorrectionRequiredBeforeCommit
+            if self.correction_posture
+                != TranscriptCorrectionPosture::CorrectionRequiredBeforeCommit
             {
                 return Err(DevicePermissionError::HighImpactWithoutCorrection {
                     pill_id: self.pill_id.clone(),
@@ -948,7 +957,10 @@ impl CaptureExportReview {
         }
 
         // Redaction / data-exit consistency.
-        if !self.redaction_state.allows_data_exit(self.data_exit_boundary) {
+        if !self
+            .redaction_state
+            .allows_data_exit(self.data_exit_boundary)
+        {
             return Err(DevicePermissionError::RedactionDataExitMismatch {
                 review_id: self.review_id.clone(),
                 redaction: self.redaction_state,
@@ -1302,50 +1314,133 @@ fn json_contains_forbidden_material(value: &serde_json::Value) -> bool {
 /// Closed validation-error vocabulary for the device-permission contract.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DevicePermissionError {
-    WrongRowSchemaVersion { row_id: String, actual: u32 },
-    WrongRowRecordKind { row_id: String, actual: String },
-    MalformedRowId { row_id: String },
-    MalformedPillId { pill_id: String },
-    MalformedReviewId { review_id: String },
-    CaptureActiveWithoutGrant { row_id: String, state: PermissionState },
-    InUseButNotCapturing { row_id: String },
-    LocalProcessingClaimedWithProvider { record_id: String },
-    LocalProcessingLeaksPayload { record_id: String },
-    NoActions { row_id: String },
-    DuplicateAction { row_id: String, action: PermissionActionClass },
-    MissingSystemSettingsAction { row_id: String },
-    MissingRevokeAction { row_id: String },
-    MissingRequestAction { row_id: String },
-    CapturingWithoutIndicator { pill_id: String },
-    CapturingWithoutProcessing { pill_id: String },
-    OffWithoutReason { pill_id: String },
-    OffWithActiveProcessing { pill_id: String },
-    PolicyBlockedWrongReason { pill_id: String },
-    ReasonOnAvailablePill { pill_id: String },
-    HighImpactWithoutConfirmation { pill_id: String },
-    HighImpactWithoutCorrection { pill_id: String },
-    HighImpactWithoutPreview { pill_id: String },
-    ConfirmationWithoutGate { pill_id: String },
-    ConfidenceWithoutTranscript { pill_id: String },
-    EmptyCaptureClasses { review_id: String },
-    DuplicateCaptureClass { review_id: String, class: CaptureClass },
-    NoReviewActions { review_id: String },
-    DuplicateReviewAction { review_id: String, action: CaptureReviewActionClass },
-    ExportWithoutRedaction { review_id: String },
-    ExportWithoutExportAction { review_id: String },
-    DeleteWithoutDeleteAction { review_id: String },
+    WrongRowSchemaVersion {
+        row_id: String,
+        actual: u32,
+    },
+    WrongRowRecordKind {
+        row_id: String,
+        actual: String,
+    },
+    MalformedRowId {
+        row_id: String,
+    },
+    MalformedPillId {
+        pill_id: String,
+    },
+    MalformedReviewId {
+        review_id: String,
+    },
+    CaptureActiveWithoutGrant {
+        row_id: String,
+        state: PermissionState,
+    },
+    InUseButNotCapturing {
+        row_id: String,
+    },
+    LocalProcessingClaimedWithProvider {
+        record_id: String,
+    },
+    LocalProcessingLeaksPayload {
+        record_id: String,
+    },
+    NoActions {
+        row_id: String,
+    },
+    DuplicateAction {
+        row_id: String,
+        action: PermissionActionClass,
+    },
+    MissingSystemSettingsAction {
+        row_id: String,
+    },
+    MissingRevokeAction {
+        row_id: String,
+    },
+    MissingRequestAction {
+        row_id: String,
+    },
+    CapturingWithoutIndicator {
+        pill_id: String,
+    },
+    CapturingWithoutProcessing {
+        pill_id: String,
+    },
+    OffWithoutReason {
+        pill_id: String,
+    },
+    OffWithActiveProcessing {
+        pill_id: String,
+    },
+    PolicyBlockedWrongReason {
+        pill_id: String,
+    },
+    ReasonOnAvailablePill {
+        pill_id: String,
+    },
+    HighImpactWithoutConfirmation {
+        pill_id: String,
+    },
+    HighImpactWithoutCorrection {
+        pill_id: String,
+    },
+    HighImpactWithoutPreview {
+        pill_id: String,
+    },
+    ConfirmationWithoutGate {
+        pill_id: String,
+    },
+    ConfidenceWithoutTranscript {
+        pill_id: String,
+    },
+    EmptyCaptureClasses {
+        review_id: String,
+    },
+    DuplicateCaptureClass {
+        review_id: String,
+        class: CaptureClass,
+    },
+    NoReviewActions {
+        review_id: String,
+    },
+    DuplicateReviewAction {
+        review_id: String,
+        action: CaptureReviewActionClass,
+    },
+    ExportWithoutRedaction {
+        review_id: String,
+    },
+    ExportWithoutExportAction {
+        review_id: String,
+    },
+    DeleteWithoutDeleteAction {
+        review_id: String,
+    },
     RedactionDataExitMismatch {
         review_id: String,
         redaction: CaptureRedactionState,
         data_exit: DataExitBoundary,
     },
-    WrongSetSchemaVersion { actual: u32 },
-    WrongSetRecordKind { actual: String },
+    WrongSetSchemaVersion {
+        actual: u32,
+    },
+    WrongSetRecordKind {
+        actual: String,
+    },
     SetIdentityIncomplete,
-    DuplicateRecordId { record_id: String },
-    DeviceClassNotNamedOnce { device: DeviceClass, count: usize },
-    PillStateMissing { state: MicPillState },
-    CaptureClassUncovered { class: CaptureClass },
+    DuplicateRecordId {
+        record_id: String,
+    },
+    DeviceClassNotNamedOnce {
+        device: DeviceClass,
+        count: usize,
+    },
+    PillStateMissing {
+        state: MicPillState,
+    },
+    CaptureClassUncovered {
+        class: CaptureClass,
+    },
     CaptureAlwaysOn,
     LocalProcessingUnrepresented,
     ProviderProcessingUnrepresented,
@@ -1353,9 +1448,18 @@ pub enum DevicePermissionError {
     NoDeletableReview,
     MissingSourceContracts,
     RawMaterialInExport,
-    WrongContractDocRef { record_id: String, actual: String },
-    EmptyRequiredField { record_id: String, field: &'static str },
-    RawRefLeak { record_id: String, field: &'static str },
+    WrongContractDocRef {
+        record_id: String,
+        actual: String,
+    },
+    EmptyRequiredField {
+        record_id: String,
+        field: &'static str,
+    },
+    RawRefLeak {
+        record_id: String,
+        field: &'static str,
+    },
 }
 
 impl fmt::Display for DevicePermissionError {

@@ -70,9 +70,10 @@ mod seed;
 mod tests;
 
 pub use seed::{
-    seeded_m5_shell_occupancy_packet, seeded_m5_shell_occupancy_packet_notebook_undeclared_blocked,
-    seeded_m5_shell_occupancy_packet_review_route_conflict_blocked,
-    seeded_m5_shell_occupancy_packet_data_grid_placeholder_collapsed_blocked, SEED_BUILD_IDENTITY_REF,
+    seeded_m5_shell_occupancy_packet,
+    seeded_m5_shell_occupancy_packet_data_grid_placeholder_collapsed_blocked,
+    seeded_m5_shell_occupancy_packet_notebook_undeclared_blocked,
+    seeded_m5_shell_occupancy_packet_review_route_conflict_blocked, SEED_BUILD_IDENTITY_REF,
     SEED_RELEASE_CHANNEL_CLASS,
 };
 
@@ -83,7 +84,8 @@ pub const M5_SHELL_OCCUPANCY_SCHEMA_VERSION: u32 = 1;
 pub const M5_SHELL_OCCUPANCY_SHARED_CONTRACT_REF: &str = "shell:m5_shell_zone_occupancy:v1";
 
 /// Stable record kind for [`ShellOccupancyPacket`] payloads.
-pub const M5_SHELL_OCCUPANCY_PACKET_RECORD_KIND: &str = "shell_m5_shell_zone_occupancy_packet_record";
+pub const M5_SHELL_OCCUPANCY_PACKET_RECORD_KIND: &str =
+    "shell_m5_shell_zone_occupancy_packet_record";
 
 /// Stable record kind for [`ShellOccupancyDashboard`] payloads.
 pub const M5_SHELL_OCCUPANCY_DASHBOARD_RECORD_KIND: &str =
@@ -107,7 +109,8 @@ pub const M5_SHELL_OCCUPANCY_SOURCE_SCHEMA_REF: &str =
     "schemas/shell/m5-shell-zone-occupancy.schema.json";
 
 /// Published markdown report ref reviewers reopen the occupancy proof from.
-pub const M5_SHELL_OCCUPANCY_PUBLISHED_REPORT_REF: &str = "artifacts/shell/m5-shell-zone-occupancy.md";
+pub const M5_SHELL_OCCUPANCY_PUBLISHED_REPORT_REF: &str =
+    "artifacts/shell/m5-shell-zone-occupancy.md";
 
 /// Published occupancy-packet artifact ref.
 pub const M5_SHELL_OCCUPANCY_PUBLISHED_PACKET_REF: &str =
@@ -543,8 +546,9 @@ impl ShellOccupancyRow {
                 family: self.family,
                 trigger: M5ShellDowngradeTrigger::SlotUndeclared,
                 disclosed: false,
-                detail: "Surface attached outside any declared shell slot (a private chrome island)."
-                    .to_owned(),
+                detail:
+                    "Surface attached outside any declared shell slot (a private chrome island)."
+                        .to_owned(),
             }),
         }
         match self.occupant_availability {
@@ -559,14 +563,17 @@ impl ShellOccupancyRow {
                         .to_owned(),
                 });
             }
-            OccupantAvailabilityState::PolicyBlockedPlaceholder => causes.push(ShellOccupancyCause {
-                family: self.family,
-                trigger: M5ShellDowngradeTrigger::PolicyBlocked,
-                disclosed: true,
-                detail: "A policy block degrades the occupant to a disclosed in-slot placeholder \
+            OccupantAvailabilityState::PolicyBlockedPlaceholder => {
+                causes.push(ShellOccupancyCause {
+                    family: self.family,
+                    trigger: M5ShellDowngradeTrigger::PolicyBlocked,
+                    disclosed: true,
+                    detail:
+                        "A policy block degrades the occupant to a disclosed in-slot placeholder \
                          card that preserves spatial continuity."
-                    .to_owned(),
-            }),
+                            .to_owned(),
+                })
+            }
             OccupantAvailabilityState::PlaceholderCollapsedLayout => {
                 causes.push(ShellOccupancyCause {
                     family: self.family,
@@ -1043,7 +1050,10 @@ impl ShellOccupancyPacket {
         out.push_str("```\n\n");
 
         out.push_str(&format!("- Packet id: `{}`\n", self.packet_id));
-        out.push_str(&format!("- Source schema ref: `{}`\n", self.source_schema_ref));
+        out.push_str(&format!(
+            "- Source schema ref: `{}`\n",
+            self.source_schema_ref
+        ));
         out.push_str(&format!(
             "- Certifies matrix packet: `{}`\n",
             self.matrix_packet_ref
@@ -1054,8 +1064,14 @@ impl ShellOccupancyPacket {
             self.release_channel_class
         ));
         out.push_str(&format!("- Rows certified: {}\n", self.row_count));
-        out.push_str(&format!("- Green (fully occupied): {}\n", self.green_row_count));
-        out.push_str(&format!("- Yellow (auto-narrowed): {}\n", self.yellow_row_count));
+        out.push_str(&format!(
+            "- Green (fully occupied): {}\n",
+            self.green_row_count
+        ));
+        out.push_str(&format!(
+            "- Yellow (auto-narrowed): {}\n",
+            self.yellow_row_count
+        ));
         out.push_str(&format!("- Red (blocked): {}\n", self.red_row_count));
         out.push_str(&format!(
             "- All rows publishable: `{}`\n",
@@ -1067,7 +1083,11 @@ impl ShellOccupancyPacket {
         ));
         out.push_str(&format!(
             "- Status: **{}**\n",
-            if self.report_clean { "clean" } else { "blocked" }
+            if self.report_clean {
+                "clean"
+            } else {
+                "blocked"
+            }
         ));
         out.push_str(&format!("- Generated at: `{}`\n\n", self.generated_at));
 
@@ -1101,7 +1121,9 @@ impl ShellOccupancyPacket {
             .filter(|row| !matches!(row.derived_status, ShellOccupancyStatus::Green))
             .collect();
         if narrowed.is_empty() {
-            out.push_str("None — every governed family occupies a declared slot at full standing.\n\n");
+            out.push_str(
+                "None — every governed family occupies a declared slot at full standing.\n\n",
+            );
         } else {
             for row in narrowed {
                 out.push_str(&format!(
@@ -1598,8 +1620,11 @@ pub fn validate_m5_shell_occupancy_packet(
         errors.push(ShellOccupancyValidationError::MatrixPacketRefMissing);
     }
 
-    let present: BTreeSet<M5ShellSurfaceFamily> = packet.rows.iter().map(|row| row.family).collect();
-    let coverage_complete = REQUIRED_FAMILIES.iter().all(|family| present.contains(family));
+    let present: BTreeSet<M5ShellSurfaceFamily> =
+        packet.rows.iter().map(|row| row.family).collect();
+    let coverage_complete = REQUIRED_FAMILIES
+        .iter()
+        .all(|family| present.contains(family));
     if !coverage_complete || packet.rows.len() != REQUIRED_FAMILIES.len() {
         errors.push(ShellOccupancyValidationError::CoverageIncomplete);
     }

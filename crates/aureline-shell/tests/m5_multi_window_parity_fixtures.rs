@@ -1,29 +1,28 @@
-//! Protected fixture checks for the M5 responsive-collapse capstone.
+//! Protected fixture checks for the M5 multi-window truth-parity capstone.
 //!
 //! The integration test replays the JSON fixtures under
-//! `fixtures/ui/m5-responsive-collapse/` through the Rust types and asserts the
-//! contract invariants. The packet, dashboard, and support-export fixtures are also
-//! asserted bit-for-bit equal to the records minted by the seed, and the published
-//! markdown report under `artifacts/shell/m5-responsive-collapse.md`, the published
-//! packet under `artifacts/release/m5-responsive-collapse-proof/packet.json`, the
-//! published dashboard under
-//! `artifacts/release/m5-responsive-collapse-proof/dashboard.json`, and the published
-//! CSV under `artifacts/release/m5-responsive-collapse-proof/matrix.csv` are asserted
-//! bit-for-bit equal to the rendering, so the headless emitter remains the only
+//! `fixtures/ui/m5-multi-window-parity/` through the Rust types and asserts the contract
+//! invariants. The packet, dashboard, and support-export fixtures are also asserted
+//! bit-for-bit equal to the records minted by the seed, and the published markdown
+//! report under `artifacts/shell/m5-multi-window-parity.md`, the published packet under
+//! `artifacts/release/m5-multi-window-parity-proof/packet.json`, the published dashboard
+//! under `artifacts/release/m5-multi-window-parity-proof/dashboard.json`, and the
+//! published CSV under `artifacts/release/m5-multi-window-parity-proof/matrix.csv` are
+//! asserted bit-for-bit equal to the rendering, so the headless emitter remains the only
 //! mint-from-truth path.
 
 use std::path::{Path, PathBuf};
 
-use aureline_shell::m5_responsive_collapse::{
-    seeded_m5_responsive_collapse_packet, validate_m5_responsive_collapse_packet,
-    ResponsiveCollapseDashboard, ResponsiveCollapsePacket, ResponsiveCollapseStatus,
-    ResponsiveCollapseSupportExport, M5_RESPONSIVE_COLLAPSE_PACKET_RECORD_KIND,
-    M5_RESPONSIVE_COLLAPSE_PUBLISHED_REPORT_REF, M5_RESPONSIVE_COLLAPSE_SHARED_CONTRACT_REF,
+use aureline_shell::m5_multi_window_parity::{
+    seeded_m5_multi_window_parity_packet, validate_m5_multi_window_parity_packet,
+    MultiWindowParityDashboard, MultiWindowParityPacket, MultiWindowParityStatus,
+    MultiWindowParitySupportExport, M5_MULTI_WINDOW_PARITY_PACKET_RECORD_KIND,
+    M5_MULTI_WINDOW_PARITY_PUBLISHED_REPORT_REF, M5_MULTI_WINDOW_PARITY_SHARED_CONTRACT_REF,
     REQUIRED_FAMILIES,
 };
 
 fn fixtures_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/ui/m5-responsive-collapse")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/ui/m5-multi-window-parity")
 }
 
 fn repo_root() -> PathBuf {
@@ -40,30 +39,30 @@ fn load_json<T: serde::de::DeserializeOwned>(file: &str) -> T {
 
 #[test]
 fn fixture_packet_is_bit_for_bit_equal_to_seed() {
-    let on_disk: ResponsiveCollapsePacket = load_json("packet.json");
-    let seeded = seeded_m5_responsive_collapse_packet();
+    let on_disk: MultiWindowParityPacket = load_json("packet.json");
+    let seeded = seeded_m5_multi_window_parity_packet();
     assert_eq!(
         on_disk, seeded,
         "fixture packet diverged from seeded packet"
     );
     assert_eq!(
         seeded.record_kind,
-        M5_RESPONSIVE_COLLAPSE_PACKET_RECORD_KIND
+        M5_MULTI_WINDOW_PARITY_PACKET_RECORD_KIND
     );
     assert_eq!(
         seeded.shared_contract_ref,
-        M5_RESPONSIVE_COLLAPSE_SHARED_CONTRACT_REF
+        M5_MULTI_WINDOW_PARITY_SHARED_CONTRACT_REF
     );
     assert_eq!(
         seeded.published_report_ref,
-        M5_RESPONSIVE_COLLAPSE_PUBLISHED_REPORT_REF
+        M5_MULTI_WINDOW_PARITY_PUBLISHED_REPORT_REF
     );
 }
 
 #[test]
 fn fixture_packet_passes_validation_and_is_clean() {
-    let packet: ResponsiveCollapsePacket = load_json("packet.json");
-    validate_m5_responsive_collapse_packet(&packet).expect("fixture packet must validate");
+    let packet: MultiWindowParityPacket = load_json("packet.json");
+    validate_m5_multi_window_parity_packet(&packet).expect("fixture packet must validate");
     assert!(packet.report_clean);
     assert!(packet.blocking_findings.is_empty());
     assert_eq!(packet.red_row_count, 0);
@@ -72,7 +71,7 @@ fn fixture_packet_passes_validation_and_is_clean() {
 
 #[test]
 fn fixture_packet_covers_every_family() {
-    let packet: ResponsiveCollapsePacket = load_json("packet.json");
+    let packet: MultiWindowParityPacket = load_json("packet.json");
     assert_eq!(packet.rows.len(), REQUIRED_FAMILIES.len());
     for family in REQUIRED_FAMILIES {
         assert!(
@@ -85,7 +84,7 @@ fn fixture_packet_covers_every_family() {
 
 #[test]
 fn fixture_status_is_the_derived_auto_narrowed_value() {
-    let packet: ResponsiveCollapsePacket = load_json("packet.json");
+    let packet: MultiWindowParityPacket = load_json("packet.json");
     for row in &packet.rows {
         assert_eq!(
             row.derived_status,
@@ -93,8 +92,8 @@ fn fixture_status_is_the_derived_auto_narrowed_value() {
             "row {} declares a stale status",
             row.family.as_str()
         );
-        assert_eq!(row.collapse_causes, row.recompute_causes());
-        if !matches!(row.derived_status, ResponsiveCollapseStatus::Green) {
+        assert_eq!(row.parity_causes, row.recompute_causes());
+        if !matches!(row.derived_status, MultiWindowParityStatus::Green) {
             assert!(
                 !row.narrowing_reason
                     .as_deref()
@@ -109,22 +108,24 @@ fn fixture_status_is_the_derived_auto_narrowed_value() {
 }
 
 #[test]
-fn fixture_every_row_ladder_and_presentations_are_valid() {
-    let packet: ResponsiveCollapsePacket = load_json("packet.json");
+fn fixture_every_row_declares_truths_routing_and_plans() {
+    let packet: MultiWindowParityPacket = load_json("packet.json");
     for row in &packet.rows {
         assert!(
-            row.ladder_is_ordered() && row.ladder_terminates_in_placeholder(),
-            "row {} has an invalid collapse ladder",
+            row.declared_truths_complete() && row.routing_expectations_complete(),
+            "row {} does not declare the full truth/routing contract",
             row.family.as_str()
         );
         assert!(
-            row.presentations_cover_declared_classes(),
-            "row {} does not cover its declared classes",
+            row.plans_cover_declared_window_classes(),
+            "row {} does not cover its declared window classes",
             row.family.as_str()
         );
         assert!(
-            row.presentations_placements_declared() && row.presentations_monotonic(),
-            "row {} has an invalid presentation",
+            row.plans_preserve_all_truths()
+                && row.plans_layout_local()
+                && row.plans_route_to_owning(),
+            "row {} has an invalid per-window plan",
             row.family.as_str()
         );
     }
@@ -132,8 +133,8 @@ fn fixture_every_row_ladder_and_presentations_are_valid() {
 
 #[test]
 fn fixture_dashboard_matches_packet_projection() {
-    let packet: ResponsiveCollapsePacket = load_json("packet.json");
-    let on_disk: ResponsiveCollapseDashboard = load_json("dashboard.json");
+    let packet: MultiWindowParityPacket = load_json("packet.json");
+    let on_disk: MultiWindowParityDashboard = load_json("dashboard.json");
     assert_eq!(
         on_disk,
         packet.dashboard(),
@@ -143,9 +144,9 @@ fn fixture_dashboard_matches_packet_projection() {
 
 #[test]
 fn fixture_support_export_quotes_packet_and_waiver_refs() {
-    let packet: ResponsiveCollapsePacket = load_json("packet.json");
-    let export: ResponsiveCollapseSupportExport = load_json("support_export.json");
-    let expected = ResponsiveCollapseSupportExport::from_packet(
+    let packet: MultiWindowParityPacket = load_json("packet.json");
+    let export: MultiWindowParitySupportExport = load_json("support_export.json");
+    let expected = MultiWindowParitySupportExport::from_packet(
         export.support_export_id.clone(),
         packet.clone(),
     );
@@ -161,87 +162,87 @@ fn fixture_support_export_quotes_packet_and_waiver_refs() {
 fn fixture_compact_lines_match_seed() {
     let compact_path = fixtures_root().join("compact.txt");
     let on_disk = std::fs::read_to_string(&compact_path).expect("compact fixture must exist");
-    let seeded = seeded_m5_responsive_collapse_packet();
+    let seeded = seeded_m5_multi_window_parity_packet();
     let mut rendered = seeded.compact_lines().join("\n");
     rendered.push('\n');
     assert_eq!(
         on_disk, rendered,
         "fixture compact.txt diverged from seeded compact lines -- regenerate with \
-         `cargo run -q -p aureline-shell --bin aureline_shell_m5_responsive_collapse -- compact`",
+         `cargo run -q -p aureline-shell --bin aureline_shell_m5_multi_window_parity -- compact`",
     );
 }
 
 #[test]
 fn published_report_md_matches_seeded_rendering() {
-    let packet = seeded_m5_responsive_collapse_packet();
+    let packet = seeded_m5_multi_window_parity_packet();
     let rendered = packet.render_markdown();
     let on_disk =
-        std::fs::read_to_string(repo_root().join("artifacts/shell/m5-responsive-collapse.md"))
-            .expect("published m5-responsive-collapse.md must exist");
+        std::fs::read_to_string(repo_root().join("artifacts/shell/m5-multi-window-parity.md"))
+            .expect("published m5-multi-window-parity.md must exist");
     assert_eq!(
         on_disk, rendered,
         "published markdown diverged from seeded rendering -- regenerate with \
-         `cargo run -q -p aureline-shell --bin aureline_shell_m5_responsive_collapse -- markdown`",
+         `cargo run -q -p aureline-shell --bin aureline_shell_m5_multi_window_parity -- markdown`",
     );
 }
 
 #[test]
 fn published_packet_json_matches_seed() {
-    let packet = seeded_m5_responsive_collapse_packet();
+    let packet = seeded_m5_multi_window_parity_packet();
     let rendered = packet.export_safe_json();
     let on_disk = std::fs::read_to_string(
-        repo_root().join("artifacts/release/m5-responsive-collapse-proof/packet.json"),
+        repo_root().join("artifacts/release/m5-multi-window-parity-proof/packet.json"),
     )
     .expect("published packet.json must exist");
     assert_eq!(
         on_disk.trim_end(),
         rendered.trim_end(),
         "published packet diverged from seed -- regenerate with \
-         `cargo run -q -p aureline-shell --bin aureline_shell_m5_responsive_collapse -- packet`",
+         `cargo run -q -p aureline-shell --bin aureline_shell_m5_multi_window_parity -- packet`",
     );
 }
 
 #[test]
 fn published_dashboard_json_matches_seeded_projection() {
-    let packet = seeded_m5_responsive_collapse_packet();
+    let packet = seeded_m5_multi_window_parity_packet();
     let rendered = packet.dashboard().export_safe_json();
     let on_disk = std::fs::read_to_string(
-        repo_root().join("artifacts/release/m5-responsive-collapse-proof/dashboard.json"),
+        repo_root().join("artifacts/release/m5-multi-window-parity-proof/dashboard.json"),
     )
     .expect("published dashboard.json must exist");
     assert_eq!(
         on_disk.trim_end(),
         rendered.trim_end(),
         "published dashboard diverged from seeded projection -- regenerate with \
-         `cargo run -q -p aureline-shell --bin aureline_shell_m5_responsive_collapse -- dashboard`",
+         `cargo run -q -p aureline-shell --bin aureline_shell_m5_multi_window_parity -- dashboard`",
     );
 }
 
 #[test]
 fn published_csv_matches_seeded_rendering() {
-    let packet = seeded_m5_responsive_collapse_packet();
+    let packet = seeded_m5_multi_window_parity_packet();
     let rendered = packet.render_matrix_csv();
     let on_disk = std::fs::read_to_string(
-        repo_root().join("artifacts/release/m5-responsive-collapse-proof/matrix.csv"),
+        repo_root().join("artifacts/release/m5-multi-window-parity-proof/matrix.csv"),
     )
     .expect("published matrix.csv must exist");
     assert_eq!(
         on_disk, rendered,
         "published CSV diverged from seeded rendering -- regenerate with \
-         `cargo run -q -p aureline-shell --bin aureline_shell_m5_responsive_collapse -- csv`",
+         `cargo run -q -p aureline-shell --bin aureline_shell_m5_multi_window_parity -- csv`",
     );
 }
 
 #[test]
 fn published_doc_links_artifacts_and_quotes_families() {
     let body =
-        std::fs::read_to_string(repo_root().join("docs/shell/m5_responsive_collapse_contract.md"))
-            .expect("published responsive-collapse contract must exist");
-    assert!(body.contains("artifacts/shell/m5-responsive-collapse.md"));
-    assert!(body.contains("artifacts/release/m5-responsive-collapse-proof/packet.json"));
-    assert!(body.contains("artifacts/release/m5-responsive-collapse-proof/dashboard.json"));
-    assert!(body.contains("fixtures/ui/m5-responsive-collapse/packet.json"));
-    assert!(body.contains("schemas/shell/m5-responsive-collapse.schema.json"));
+        std::fs::read_to_string(repo_root().join("docs/shell/m5_multi_window_parity_contract.md"))
+            .expect("published multi-window-parity contract must exist");
+    assert!(body.contains("artifacts/shell/m5-multi-window-parity.md"));
+    assert!(body.contains("artifacts/release/m5-multi-window-parity-proof/packet.json"));
+    assert!(body.contains("artifacts/release/m5-multi-window-parity-proof/dashboard.json"));
+    assert!(body.contains("fixtures/ui/m5-multi-window-parity/packet.json"));
+    assert!(body.contains("schemas/shell/m5-multi-window-parity.schema.json"));
     for family in REQUIRED_FAMILIES {
         assert!(
             body.contains(family.as_str()),

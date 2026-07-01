@@ -8,11 +8,11 @@
 //! back to exactly these values.
 
 use super::{
-    BrowserHandoffCard, BrowserHandoffKind, CapabilityLimit, CapabilityLimitClass, DataExitBoundary,
-    DeviceCodeDisclosure, ExpiryDisclosureClass, FallbackStateClass, HandoffReasonClass,
-    LocalContinuity, M5BrowserHandoffCardSet, M5WebviewOriginBarSet, OpenInBrowserAction,
-    OriginDisclosureClass, ReturnAnchor, WebviewOriginBar, WebviewOwnerClass, WebviewPermissionState,
-    BROWSER_HANDOFF_CARD_RECORD_KIND, BROWSER_HANDOFF_CARD_SCHEMA_VERSION,
+    BrowserHandoffCard, BrowserHandoffKind, CapabilityLimit, CapabilityLimitClass,
+    DataExitBoundary, DeviceCodeDisclosure, ExpiryDisclosureClass, FallbackStateClass,
+    HandoffReasonClass, LocalContinuity, M5BrowserHandoffCardSet, M5WebviewOriginBarSet,
+    OpenInBrowserAction, OriginDisclosureClass, ReturnAnchor, WebviewOriginBar, WebviewOwnerClass,
+    WebviewPermissionState, BROWSER_HANDOFF_CARD_RECORD_KIND, BROWSER_HANDOFF_CARD_SCHEMA_VERSION,
     M5_AUTH_BOUNDARY_COMMUNITY_HANDOFF_REF, M5_AUTH_BOUNDARY_CONTRACT_DOC_REF,
     M5_AUTH_BOUNDARY_DEVICE_PERMISSION_REF, M5_BROWSER_HANDOFF_CARD_SCHEMA_REF,
     M5_BROWSER_HANDOFF_CARD_SET_RECORD_KIND, M5_BROWSER_HANDOFF_CARD_SET_SCHEMA_VERSION,
@@ -234,7 +234,8 @@ pub fn seeded_device_code_card_fixture() -> BrowserHandoffCard {
     let mut card = card_device_code_auth();
     card.card_id = "browser_handoff_card:device_code_auth.expiry_disclosed".to_owned();
     card.notes = Some(
-        "Device code and expiry are disclosed in-app; the code is never transmitted by Aureline.".to_owned(),
+        "Device code and expiry are disclosed in-app; the code is never transmitted by Aureline."
+            .to_owned(),
     );
     card
 }

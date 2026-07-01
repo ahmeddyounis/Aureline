@@ -40,7 +40,10 @@ fn load_json<T: serde::de::DeserializeOwned>(file: &str) -> T {
 fn fixture_packet_is_bit_for_bit_equal_to_seed() {
     let on_disk: ShellOccupancyPacket = load_json("packet.json");
     let seeded = seeded_m5_shell_occupancy_packet();
-    assert_eq!(on_disk, seeded, "fixture packet diverged from seeded packet");
+    assert_eq!(
+        on_disk, seeded,
+        "fixture packet diverged from seeded packet"
+    );
     assert_eq!(seeded.record_kind, M5_SHELL_OCCUPANCY_PACKET_RECORD_KIND);
     assert_eq!(
         seeded.shared_contract_ref,
@@ -121,7 +124,11 @@ fn fixture_every_row_occupies_a_registered_slot() {
 fn fixture_dashboard_matches_packet_projection() {
     let packet: ShellOccupancyPacket = load_json("packet.json");
     let on_disk: ShellOccupancyDashboard = load_json("dashboard.json");
-    assert_eq!(on_disk, packet.dashboard(), "dashboard diverged from projection");
+    assert_eq!(
+        on_disk,
+        packet.dashboard(),
+        "dashboard diverged from projection"
+    );
 }
 
 #[test]

@@ -90,7 +90,8 @@ pub const M5_HANDOFF_CERT_PACKET_RECORD_KIND: &str =
     "shell_m5_public_handoff_certification_packet_record";
 
 /// Stable record kind for [`HandoffTruthDashboard`] payloads.
-pub const M5_HANDOFF_CERT_DASHBOARD_RECORD_KIND: &str = "shell_m5_public_handoff_truth_dashboard_record";
+pub const M5_HANDOFF_CERT_DASHBOARD_RECORD_KIND: &str =
+    "shell_m5_public_handoff_truth_dashboard_record";
 
 /// Stable record kind for [`PublicHandoffCertificationSupportExport`] payloads.
 pub const M5_HANDOFF_CERT_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -366,8 +367,7 @@ impl HandoffCertificationRow {
             | M5HandoffObjectKind::EmbeddedAuthBoundary => {
                 M5HandoffDowngradeTrigger::NativeChromeImpersonation
             }
-            M5HandoffObjectKind::PostInstallNotice
-            | M5HandoffObjectKind::ProvenanceDisclosure => {
+            M5HandoffObjectKind::PostInstallNotice | M5HandoffObjectKind::ProvenanceDisclosure => {
                 M5HandoffDowngradeTrigger::ProvenanceUnverified
             }
             _ => M5HandoffDowngradeTrigger::RouteVisibilityUndeclared,
@@ -413,8 +413,10 @@ impl HandoffCertificationRow {
                 return true;
             }
             // A Stable claim on stale proof blocks unless a waiver discloses it.
-            if matches!(self.disclosure_freshness, HandoffNoticeFreshnessState::Stale)
-                && !self.has_active_waiver()
+            if matches!(
+                self.disclosure_freshness,
+                HandoffNoticeFreshnessState::Stale
+            ) && !self.has_active_waiver()
             {
                 return true;
             }
@@ -487,7 +489,8 @@ impl HandoffCertificationRow {
                 object_kind: self.object_kind,
                 trigger: M5HandoffDowngradeTrigger::ProofStale,
                 disclosed: self.has_active_waiver(),
-                detail: "Disclosure/notice proof has gone stale past its freshness floor.".to_owned(),
+                detail: "Disclosure/notice proof has gone stale past its freshness floor."
+                    .to_owned(),
             }),
             HandoffNoticeFreshnessState::Unverified => causes.push(HandoffStaleProofCause {
                 object_kind: self.object_kind,
@@ -540,7 +543,10 @@ impl HandoffCertificationRow {
     pub fn requires_waiver(&self) -> bool {
         matches!(self.boundary_honesty, BoundaryHonestyState::DisclosedGap)
             || (self.is_stable_qualified()
-                && matches!(self.disclosure_freshness, HandoffNoticeFreshnessState::Stale))
+                && matches!(
+                    self.disclosure_freshness,
+                    HandoffNoticeFreshnessState::Stale
+                ))
     }
 
     fn has_reason(&self) -> bool {
@@ -577,7 +583,10 @@ impl HandoffCertificationRow {
             });
         }
         if self.is_stable_qualified()
-            && matches!(self.disclosure_freshness, HandoffNoticeFreshnessState::Stale)
+            && matches!(
+                self.disclosure_freshness,
+                HandoffNoticeFreshnessState::Stale
+            )
             && !self.has_active_waiver()
         {
             findings.push(HandoffCertificationFinding::StaleProofWithoutWaiver {
@@ -912,7 +921,8 @@ impl PublicHandoffCertificationPacket {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self).expect("m5 public-handoff certification packet serializes")
+        serde_json::to_string_pretty(self)
+            .expect("m5 public-handoff certification packet serializes")
     }
 
     /// Renders the markdown report for the lane.
@@ -1066,7 +1076,9 @@ impl PublicHandoffCertificationPacket {
         out.push_str(
             "cargo run -q -p aureline-shell --bin aureline_shell_m5_public_handoff_certification -- validate\n",
         );
-        out.push_str("cargo test -p aureline-shell --test m5_public_handoff_certification_fixtures\n");
+        out.push_str(
+            "cargo test -p aureline-shell --test m5_public_handoff_certification_fixtures\n",
+        );
         out.push_str("```\n");
         out
     }

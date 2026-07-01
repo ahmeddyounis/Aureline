@@ -57,9 +57,8 @@ mod seed;
 mod tests;
 
 pub use seed::{
-    seeded_m5_community_handoff_target_sheet_set, seeded_community_support_sheet_no_commitment,
-    seeded_security_disclosure_sheet_unsupported_profile,
-    M5_COMMUNITY_HANDOFF_TARGET_SHEET_SET_ID,
+    seeded_community_support_sheet_no_commitment, seeded_m5_community_handoff_target_sheet_set,
+    seeded_security_disclosure_sheet_unsupported_profile, M5_COMMUNITY_HANDOFF_TARGET_SHEET_SET_ID,
 };
 
 use std::collections::BTreeSet;
@@ -71,7 +70,8 @@ use serde::{Deserialize, Serialize};
 pub use crate::public_truth::{BuildContextExport, BuildContextExportClass, DataExitBoundary};
 
 /// Stable record-kind tag carried by [`CommunityHandoffTargetSheet`].
-pub const COMMUNITY_HANDOFF_TARGET_SHEET_RECORD_KIND: &str = "community_handoff_target_sheet_record";
+pub const COMMUNITY_HANDOFF_TARGET_SHEET_RECORD_KIND: &str =
+    "community_handoff_target_sheet_record";
 
 /// Stable record-kind tag carried by [`M5CommunityHandoffTargetSheetSet`].
 pub const M5_COMMUNITY_HANDOFF_TARGET_SHEET_SET_RECORD_KIND: &str =
@@ -84,7 +84,8 @@ pub const COMMUNITY_HANDOFF_TARGET_SHEET_SCHEMA_VERSION: u32 = 1;
 pub const M5_COMMUNITY_HANDOFF_TARGET_SHEET_SET_SCHEMA_VERSION: u32 = 1;
 
 /// Repo-relative path of the boundary schema this producer projects.
-pub const M5_COMMUNITY_HANDOFF_TARGET_SCHEMA_REF: &str = "schemas/help/m5-handoff-target.schema.json";
+pub const M5_COMMUNITY_HANDOFF_TARGET_SCHEMA_REF: &str =
+    "schemas/help/m5-handoff-target.schema.json";
 
 /// Repo-relative path of the contract doc all records point at.
 pub const M5_COMMUNITY_HANDOFF_TARGET_CONTRACT_DOC_REF: &str =
@@ -347,7 +348,10 @@ impl AuthExpectationClass {
             }
             T::OfficialAuthenticated => matches!(self, Self::OfficialAccountRequired),
             T::PrivateSecurity => {
-                matches!(self, Self::SecurityChannelCredential | Self::NoAccountNeeded)
+                matches!(
+                    self,
+                    Self::SecurityChannelCredential | Self::NoAccountNeeded
+                )
             }
             T::LocalOnly => matches!(self, Self::LocalNoNetwork),
         }
@@ -400,10 +404,16 @@ impl CommitmentClass {
         match trust {
             T::OfficialAuthenticated => matches!(self, Self::OfficialSupportedCommitment),
             T::OfficialPublic => {
-                matches!(self, Self::NoCommitmentPublicForum | Self::BestEffortCommunity)
+                matches!(
+                    self,
+                    Self::NoCommitmentPublicForum | Self::BestEffortCommunity
+                )
             }
             T::Community => {
-                matches!(self, Self::BestEffortCommunity | Self::NoCommitmentPublicForum)
+                matches!(
+                    self,
+                    Self::BestEffortCommunity | Self::NoCommitmentPublicForum
+                )
             }
             T::PrivateSecurity => matches!(self, Self::SecurityHandledPrivately),
             T::LocalOnly => matches!(self, Self::LocalDraftNoDelivery),
@@ -642,9 +652,11 @@ impl CommunityHandoffTargetSheet {
         if self.commitment_honesty.guaranteed_product_commitment
             != self.commitment_honesty.commitment_class.is_guaranteed()
         {
-            return Err(CommunityHandoffTargetError::CommitmentMasqueradesAsGuarantee {
-                target_id: self.target_id.clone(),
-            });
+            return Err(
+                CommunityHandoffTargetError::CommitmentMasqueradesAsGuarantee {
+                    target_id: self.target_id.clone(),
+                },
+            );
         }
 
         // Object anchor and issue-template refs stay opaque when present.
@@ -695,9 +707,11 @@ impl CommunityHandoffTargetSheet {
                 );
             }
             if !export.raw_screenshots_excluded || !export.raw_secrets_excluded {
-                return Err(CommunityHandoffTargetError::BuildContextExportNotRedactionSafe {
-                    target_id: self.target_id.clone(),
-                });
+                return Err(
+                    CommunityHandoffTargetError::BuildContextExportNotRedactionSafe {
+                        target_id: self.target_id.clone(),
+                    },
+                );
             }
             if non_empty(&export.export_block_ref).is_none()
                 || non_empty(&export.export_summary).is_none()
@@ -991,7 +1005,9 @@ impl M5CommunityHandoffTargetSheetSet {
         let mut out = String::new();
         out.push_str("# M5 community-handoff target review\n\n");
         out.push_str(&format!("Sheet set: `{}`\n\n", self.sheet_set_id));
-        out.push_str("| Route | Trust class | Visibility | Auth | Data exit | Commitment | Guaranteed? |\n");
+        out.push_str(
+            "| Route | Trust class | Visibility | Auth | Data exit | Commitment | Guaranteed? |\n",
+        );
         out.push_str("| --- | --- | --- | --- | --- | --- | --- |\n");
         for sheet in &self.sheets {
             out.push_str(&format!(

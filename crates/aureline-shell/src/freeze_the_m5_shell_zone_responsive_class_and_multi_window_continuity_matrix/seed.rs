@@ -68,11 +68,11 @@ fn row(
 }
 
 fn surface_rows() -> Vec<M5ShellSurfaceRow> {
-    use M5ShellConsumerSurface as C;
-    use M5ShellDowngradeTrigger as D;
     use M5FallbackPlacement as F;
     use M5OccupantPersistence as O;
     use M5PlaceholderBehavior as P;
+    use M5ShellConsumerSurface as C;
+    use M5ShellDowngradeTrigger as D;
     use M5ShellZoneSlot as Z;
     use M5WindowClass as W;
 

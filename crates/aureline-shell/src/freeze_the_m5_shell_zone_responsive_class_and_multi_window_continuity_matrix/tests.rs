@@ -13,7 +13,11 @@ fn seeded_matrix_names_every_family() {
     let present: std::collections::BTreeSet<_> =
         packet.surface_rows.iter().map(|r| r.family).collect();
     for family in M5ShellSurfaceFamily::ALL {
-        assert!(present.contains(&family), "missing family {}", family.as_str());
+        assert!(
+            present.contains(&family),
+            "missing family {}",
+            family.as_str()
+        );
     }
     assert_eq!(packet.surface_rows.len(), M5ShellSurfaceFamily::ALL.len());
 }
@@ -237,9 +241,7 @@ fn continuity_review_incomplete_fails() {
 #[test]
 fn consumer_projection_incomplete_fails() {
     let mut packet = seeded_m5_shell_zone_matrix();
-    packet
-        .consumer_projection
-        .windowing_consumes_window_classes = false;
+    packet.consumer_projection.windowing_consumes_window_classes = false;
     assert!(packet
         .validate()
         .contains(&M5ShellZoneMatrixViolation::ConsumerProjectionIncomplete));

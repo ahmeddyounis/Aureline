@@ -287,8 +287,8 @@ pub fn seeded_m5_min_width_guards_packet() -> MinWidthGuardPacket {
 /// Builds a variant where the notebook editor can be forced below a usable minimum,
 /// proving an unusable narrow pane blocks promotion (red) rather than passing on
 /// behavior alone.
-pub fn seeded_m5_min_width_guards_packet_notebook_pane_below_minimum_blocked(
-) -> MinWidthGuardPacket {
+pub fn seeded_m5_min_width_guards_packet_notebook_pane_below_minimum_blocked() -> MinWidthGuardPacket
+{
     let rows = seeded_rows_with(M5ShellSurfaceFamily::Notebook, |spec| {
         spec.min_size_enforcement = MinSizeEnforcementState::PaneForcedBelowUsableMinimum;
         spec.min_useful_width_px = 180;

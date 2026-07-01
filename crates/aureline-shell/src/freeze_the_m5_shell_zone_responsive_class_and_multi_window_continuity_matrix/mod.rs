@@ -415,12 +415,7 @@ pub enum M5FallbackPlacement {
 
 impl M5FallbackPlacement {
     /// Every fallback placement, in declaration order.
-    pub const ALL: [Self; 4] = [
-        Self::Docked,
-        Self::Sheet,
-        Self::Overflow,
-        Self::Placeholder,
-    ];
+    pub const ALL: [Self; 4] = [Self::Docked, Self::Sheet, Self::Overflow, Self::Placeholder];
 
     /// Stable token recorded in the matrix.
     pub const fn as_str(self) -> &'static str {
@@ -1099,9 +1094,7 @@ impl M5ShellZoneMatrixPacket {
             .filter(|row| row.qualification.is_stable())
             .count();
         let mut out = String::new();
-        out.push_str(
-            "# M5 Shell-Zone, Responsive-Class, and Multi-Window Continuity Matrix\n\n",
-        );
+        out.push_str("# M5 Shell-Zone, Responsive-Class, and Multi-Window Continuity Matrix\n\n");
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
         out.push_str(&format!("- Label: `{}`\n", self.matrix_label));
         out.push_str(&format!(
@@ -1152,7 +1145,10 @@ impl M5ShellZoneMatrixPacket {
                     .collect::<Vec<_>>()
                     .join(" → ")
             ));
-            out.push_str(&format!("  - Rollback: {}\n", row.rollback_posture.as_str()));
+            out.push_str(&format!(
+                "  - Rollback: {}\n",
+                row.rollback_posture.as_str()
+            ));
         }
         out
     }
@@ -1171,7 +1167,10 @@ impl fmt::Display for M5ShellZoneMatrixArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SupportExport(error) => {
-                write!(formatter, "m5 shell-zone matrix export parse failed: {error}")
+                write!(
+                    formatter,
+                    "m5 shell-zone matrix export parse failed: {error}"
+                )
             }
             Self::Validation(violations) => {
                 let tokens = violations
@@ -1367,8 +1366,7 @@ fn validate_surface_rows(
         }
 
         if row.fallback_placements.last() != Some(&M5FallbackPlacement::Placeholder) {
-            violations
-                .push(M5ShellZoneMatrixViolation::FallbackLadderNotTerminatedByPlaceholder);
+            violations.push(M5ShellZoneMatrixViolation::FallbackLadderNotTerminatedByPlaceholder);
         }
         if !row
             .window_classes

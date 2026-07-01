@@ -18,11 +18,13 @@ use aureline_shell::m5_public_handoff_certification::{
     seeded_public_handoff_certification_packet, validate_public_handoff_certification_packet,
     HandoffCertStatus, HandoffTruthDashboard, PublicHandoffCertificationPacket,
     PublicHandoffCertificationSupportExport, M5_HANDOFF_CERT_PACKET_RECORD_KIND,
-    M5_HANDOFF_CERT_PUBLISHED_REPORT_REF, M5_HANDOFF_CERT_SHARED_CONTRACT_REF, REQUIRED_OBJECT_KINDS,
+    M5_HANDOFF_CERT_PUBLISHED_REPORT_REF, M5_HANDOFF_CERT_SHARED_CONTRACT_REF,
+    REQUIRED_OBJECT_KINDS,
 };
 
 fn fixtures_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/help/m5-public-handoff-certification")
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/help/m5-public-handoff-certification")
 }
 
 fn repo_root() -> PathBuf {
@@ -145,9 +147,10 @@ fn fixture_compact_lines_match_seed() {
 fn published_report_md_matches_seeded_rendering() {
     let packet = seeded_public_handoff_certification_packet();
     let rendered = packet.render_markdown();
-    let on_disk =
-        std::fs::read_to_string(repo_root().join("artifacts/help/m5-public-handoff-certification.md"))
-            .expect("published m5-public-handoff-certification.md must exist");
+    let on_disk = std::fs::read_to_string(
+        repo_root().join("artifacts/help/m5-public-handoff-certification.md"),
+    )
+    .expect("published m5-public-handoff-certification.md must exist");
     assert_eq!(
         on_disk, rendered,
         "published markdown diverged from seeded rendering -- regenerate with \

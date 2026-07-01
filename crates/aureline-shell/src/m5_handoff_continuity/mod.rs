@@ -602,7 +602,10 @@ impl HandoffDraftState {
         for (field, value) in [
             ("headline_label", &self.headline_label),
             ("draft_summary", &self.draft_summary),
-            ("object_anchor.anchor_label", &self.object_anchor.anchor_label),
+            (
+                "object_anchor.anchor_label",
+                &self.object_anchor.anchor_label,
+            ),
         ] {
             if non_empty(value).is_none() {
                 return Err(HandoffContinuityError::EmptyRequiredField {
@@ -655,7 +658,10 @@ impl HandoffDraftState {
 
         // Target-class truth: trust class pins the visibility boundary, the
         // intended data exit, and the redaction posture.
-        if !self.visibility_boundary.allowed_for_trust(self.intended_trust_class) {
+        if !self
+            .visibility_boundary
+            .allowed_for_trust(self.intended_trust_class)
+        {
             return Err(HandoffContinuityError::TrustVisibilityMismatch {
                 draft_id: self.draft_id.clone(),
                 trust: self.intended_trust_class,
@@ -924,10 +930,18 @@ impl M5HandoffContinuityScenarioSet {
         }
 
         // Official and community routes stay distinguishable.
-        if !self.drafts.iter().any(|d| d.intended_trust_class.is_official()) {
+        if !self
+            .drafts
+            .iter()
+            .any(|d| d.intended_trust_class.is_official())
+        {
             return Err(HandoffContinuityError::OfficialRouteMissing);
         }
-        if !self.drafts.iter().any(|d| d.intended_trust_class.is_community()) {
+        if !self
+            .drafts
+            .iter()
+            .any(|d| d.intended_trust_class.is_community())
+        {
             return Err(HandoffContinuityError::CommunityRouteMissing);
         }
 

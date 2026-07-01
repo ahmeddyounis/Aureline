@@ -109,7 +109,8 @@ pub const M5_AUTH_BOUNDARY_CONTRACT_DOC_REF: &str = "docs/help/m5_auth_boundarie
 
 /// Repo-relative path of the sibling community-handoff target contract this lane
 /// aligns its handoff vocabulary with.
-pub const M5_AUTH_BOUNDARY_COMMUNITY_HANDOFF_REF: &str = "schemas/help/m5-handoff-target.schema.json";
+pub const M5_AUTH_BOUNDARY_COMMUNITY_HANDOFF_REF: &str =
+    "schemas/help/m5-handoff-target.schema.json";
 
 /// Repo-relative path of the device-permission-row contract this lane keeps
 /// device-permission messaging out of embedded surfaces for.
@@ -183,16 +184,28 @@ impl BrowserHandoffKind {
         use DataExitBoundary as D;
         match self {
             Self::SystemBrowserAuth => {
-                matches!(data_exit, D::VendorOrThirdPartyOutbound | D::NoPayloadLeavesProduct)
+                matches!(
+                    data_exit,
+                    D::VendorOrThirdPartyOutbound | D::NoPayloadLeavesProduct
+                )
             }
             Self::DeviceCodeAuth => {
-                matches!(data_exit, D::NoPayloadLeavesProduct | D::VendorOrThirdPartyOutbound)
+                matches!(
+                    data_exit,
+                    D::NoPayloadLeavesProduct | D::VendorOrThirdPartyOutbound
+                )
             }
             Self::ProviderContentView => {
-                matches!(data_exit, D::ExternalPublicBrowse | D::VendorOrThirdPartyOutbound)
+                matches!(
+                    data_exit,
+                    D::ExternalPublicBrowse | D::VendorOrThirdPartyOutbound
+                )
             }
             Self::VendorOutboundLink => {
-                matches!(data_exit, D::ExternalPublicBrowse | D::VendorOrThirdPartyOutbound)
+                matches!(
+                    data_exit,
+                    D::ExternalPublicBrowse | D::VendorOrThirdPartyOutbound
+                )
             }
         }
     }
@@ -303,7 +316,10 @@ impl ExpiryDisclosureClass {
 
     /// True when the disclosure states a real expiry (required for device codes).
     pub const fn discloses_expiry(self) -> bool {
-        matches!(self, Self::ExpiresWithCountdown | Self::ExpiresAtDisclosedTime)
+        matches!(
+            self,
+            Self::ExpiresWithCountdown | Self::ExpiresAtDisclosedTime
+        )
     }
 }
 
@@ -469,7 +485,10 @@ impl BrowserHandoffCard {
         }
 
         // Device-code disclosure present iff the handoff is a device-code flow.
-        match (&self.device_code_disclosure, self.handoff_kind.requires_device_code_disclosure()) {
+        match (
+            &self.device_code_disclosure,
+            self.handoff_kind.requires_device_code_disclosure(),
+        ) {
             (Some(disclosure), true) => disclosure.validate(&self.card_id)?,
             (None, false) => {}
             (Some(_), false) => {
@@ -702,7 +721,11 @@ impl M5BrowserHandoffCardSet {
     }
 
     fn check_source_contracts(&self) -> Result<(), AuthBoundaryError> {
-        let refs: BTreeSet<&str> = self.source_contract_refs.iter().map(String::as_str).collect();
+        let refs: BTreeSet<&str> = self
+            .source_contract_refs
+            .iter()
+            .map(String::as_str)
+            .collect();
         for required in [
             M5_BROWSER_HANDOFF_CARD_SCHEMA_REF,
             M5_AUTH_BOUNDARY_CONTRACT_DOC_REF,
@@ -751,7 +774,9 @@ impl M5BrowserHandoffCardSet {
         let mut out = String::new();
         out.push_str("# M5 browser / device-code handoff cards\n\n");
         out.push_str(&format!("Card set: `{}`\n\n", self.set_id));
-        out.push_str("| Handoff kind | Reason | Data exit | Device code | Fallback | Return anchor |\n");
+        out.push_str(
+            "| Handoff kind | Reason | Data exit | Device code | Fallback | Return anchor |\n",
+        );
         out.push_str("| --- | --- | --- | --- | --- | --- |\n");
         for card in &self.cards {
             out.push_str(&format!(
@@ -765,7 +790,9 @@ impl M5BrowserHandoffCardSet {
             ));
         }
         out.push('\n');
-        out.push_str("Every card opens outside native chrome, never impersonates it, and preserves ");
+        out.push_str(
+            "Every card opens outside native chrome, never impersonates it, and preserves ",
+        );
         out.push_str("local continuity plus a truthful return anchor; device-code cards disclose the code and its expiry.\n");
         out
     }
@@ -1056,7 +1083,10 @@ impl WebviewOriginBar {
             ("origin_label", &self.origin_label),
             ("headline_label", &self.headline_label),
             ("bar_summary", &self.bar_summary),
-            ("open_in_browser.action_label", &self.open_in_browser.action_label),
+            (
+                "open_in_browser.action_label",
+                &self.open_in_browser.action_label,
+            ),
         ] {
             if non_empty(value).is_none() {
                 return Err(AuthBoundaryError::EmptyRequiredField {
@@ -1265,7 +1295,11 @@ impl M5WebviewOriginBarSet {
             }
         }
 
-        let refs: BTreeSet<&str> = self.source_contract_refs.iter().map(String::as_str).collect();
+        let refs: BTreeSet<&str> = self
+            .source_contract_refs
+            .iter()
+            .map(String::as_str)
+            .collect();
         for required in [
             M5_WEBVIEW_ORIGIN_BAR_SCHEMA_REF,
             M5_AUTH_BOUNDARY_CONTRACT_DOC_REF,
@@ -1333,8 +1367,12 @@ impl M5WebviewOriginBarSet {
             ));
         }
         out.push('\n');
-        out.push_str("Every bar is labeled embedded, never impersonates native chrome, holds every ");
-        out.push_str("native-only messaging flag false, and discloses that it is not native trust chrome.\n");
+        out.push_str(
+            "Every bar is labeled embedded, never impersonates native chrome, holds every ",
+        );
+        out.push_str(
+            "native-only messaging flag false, and discloses that it is not native trust chrome.\n",
+        );
         out
     }
 }

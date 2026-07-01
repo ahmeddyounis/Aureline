@@ -43,13 +43,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", packet.export_safe_json());
         }
         Some("governance") => {
-            print!("{}", seeded_m5_shell_zone_matrix().render_markdown_summary());
+            print!(
+                "{}",
+                seeded_m5_shell_zone_matrix().render_markdown_summary()
+            );
         }
         Some("csv") => {
             print!("{}", seeded_m5_shell_zone_matrix().render_matrix_csv());
         }
         Some("markdown") => {
-            print!("{}", seeded_m5_shell_zone_matrix().render_markdown_summary());
+            print!(
+                "{}",
+                seeded_m5_shell_zone_matrix().render_markdown_summary()
+            );
         }
         Some("fixture-profiler-remote-held") => {
             let packet = seeded_m5_shell_zone_matrix_profiler_remote_held();

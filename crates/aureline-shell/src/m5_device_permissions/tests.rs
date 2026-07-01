@@ -323,10 +323,18 @@ fn markdown_summary_lists_every_record() {
     let set = seeded_m5_device_permission_set();
     let summary = set.render_markdown_summary();
     for row in &set.permission_rows {
-        assert!(summary.contains(&row.row_id), "summary missing {}", row.row_id);
+        assert!(
+            summary.contains(&row.row_id),
+            "summary missing {}",
+            row.row_id
+        );
     }
     for pill in &set.mic_pills {
-        assert!(summary.contains(&pill.pill_id), "summary missing {}", pill.pill_id);
+        assert!(
+            summary.contains(&pill.pill_id),
+            "summary missing {}",
+            pill.pill_id
+        );
     }
     for review in &set.capture_reviews {
         assert!(

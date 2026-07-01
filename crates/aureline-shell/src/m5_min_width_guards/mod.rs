@@ -136,7 +136,8 @@ pub const M5_MIN_WIDTH_GUARDS_PUBLISHED_CSV_REF: &str =
     "artifacts/release/m5-min-width-guards-proof/matrix.csv";
 
 /// Published companion doc ref.
-pub const M5_MIN_WIDTH_GUARDS_PUBLISHED_DOC_REF: &str = "docs/shell/m5_min_width_guards_contract.md";
+pub const M5_MIN_WIDTH_GUARDS_PUBLISHED_DOC_REF: &str =
+    "docs/shell/m5_min_width_guards_contract.md";
 
 /// Repo-relative ref to the frozen shell-zone matrix schema.
 pub const M5_MIN_WIDTH_GUARDS_MATRIX_SCHEMA_REF: &str = matrix::M5_SHELL_ZONE_MATRIX_SCHEMA_REF;
@@ -650,7 +651,10 @@ impl MinWidthGuardRow {
         ) {
             return true;
         }
-        if matches!(self.compare_fallback, CompareFallbackState::SilentUnusableSplit) {
+        if matches!(
+            self.compare_fallback,
+            CompareFallbackState::SilentUnusableSplit
+        ) {
             return true;
         }
         if matches!(
@@ -714,9 +718,10 @@ impl MinWidthGuardRow {
                 family: self.family,
                 trigger: M5ShellDowngradeTrigger::PlaceholderLostIdentityOrReopen,
                 disclosed: false,
-                detail: "The declared safe-fallback set is not ordered widest-to-narrowest or does \
+                detail:
+                    "The declared safe-fallback set is not ordered widest-to-narrowest or does \
                          not terminate in a universally-available safe compare mode."
-                    .to_owned(),
+                        .to_owned(),
             });
         }
         if !self.primary_strategy_declared() {
@@ -735,18 +740,22 @@ impl MinWidthGuardRow {
                 family: self.family,
                 trigger: M5ShellDowngradeTrigger::UpstreamDependencyNarrowed,
                 disclosed: true,
-                detail: "Under compact width the editor discloses a reduced-but-still-usable minimum \
+                detail:
+                    "Under compact width the editor discloses a reduced-but-still-usable minimum \
                          useful size while staying above the absolute floor."
-                    .to_owned(),
+                        .to_owned(),
             }),
-            MinSizeEnforcementState::PaneForcedBelowUsableMinimum => causes.push(MinWidthGuardCause {
-                family: self.family,
-                trigger: M5ShellDowngradeTrigger::CriticalStateHiddenOnCollapse,
-                disclosed: false,
-                detail: "The editor or compare pane can be forced below a usable minimum size, \
+            MinSizeEnforcementState::PaneForcedBelowUsableMinimum => {
+                causes.push(MinWidthGuardCause {
+                    family: self.family,
+                    trigger: M5ShellDowngradeTrigger::CriticalStateHiddenOnCollapse,
+                    disclosed: false,
+                    detail:
+                        "The editor or compare pane can be forced below a usable minimum size, \
                          producing a silent unusable narrow pane."
-                    .to_owned(),
-            }),
+                            .to_owned(),
+                })
+            }
         }
         if self.min_size_below_floor() {
             causes.push(MinWidthGuardCause {
@@ -852,7 +861,10 @@ impl MinWidthGuardRow {
                 family: family.clone(),
             });
         }
-        if matches!(self.compare_fallback, CompareFallbackState::SilentUnusableSplit) {
+        if matches!(
+            self.compare_fallback,
+            CompareFallbackState::SilentUnusableSplit
+        ) {
             findings.push(MinWidthGuardFinding::SilentUnusableSplit {
                 family: family.clone(),
             });
@@ -1300,7 +1312,9 @@ impl MinWidthGuardPacket {
     /// Renders the markdown report for the lane.
     pub fn render_markdown(&self) -> String {
         let mut out = String::new();
-        out.push_str("# M5 min-width guards: editor minimum, compare fallback, no unusable narrow pane\n\n");
+        out.push_str(
+            "# M5 min-width guards: editor minimum, compare fallback, no unusable narrow pane\n\n",
+        );
         out.push_str(
             "Generated from the seeded packet in\n\
              [`crate::m5_min_width_guards`](../../crates/aureline-shell/src/m5_min_width_guards/mod.rs).\n\
@@ -1313,13 +1327,19 @@ impl MinWidthGuardPacket {
         out.push_str("```\n\n");
 
         out.push_str(&format!("- Packet id: `{}`\n", self.packet_id));
-        out.push_str(&format!("- Source schema ref: `{}`\n", self.source_schema_ref));
+        out.push_str(&format!(
+            "- Source schema ref: `{}`\n",
+            self.source_schema_ref
+        ));
         out.push_str(&format!(
             "- Certifies matrix packet: `{}`\n",
             self.matrix_packet_ref
         ));
         out.push_str(&format!("- Exact build: `{}`\n", self.build_identity_ref));
-        out.push_str(&format!("- Release channel: `{}`\n", self.release_channel_class));
+        out.push_str(&format!(
+            "- Release channel: `{}`\n",
+            self.release_channel_class
+        ));
         out.push_str(&format!(
             "- Absolute min useful size: `{}x{}` px\n",
             self.absolute_min_useful_width_px, self.absolute_min_useful_height_px
@@ -1329,8 +1349,14 @@ impl MinWidthGuardPacket {
             self.standard_min_useful_width_px, self.standard_min_useful_height_px
         ));
         out.push_str(&format!("- Rows certified: {}\n", self.row_count));
-        out.push_str(&format!("- Green (fully-guarded): {}\n", self.green_row_count));
-        out.push_str(&format!("- Yellow (auto-narrowed): {}\n", self.yellow_row_count));
+        out.push_str(&format!(
+            "- Green (fully-guarded): {}\n",
+            self.green_row_count
+        ));
+        out.push_str(&format!(
+            "- Yellow (auto-narrowed): {}\n",
+            self.yellow_row_count
+        ));
         out.push_str(&format!("- Red (blocked): {}\n", self.red_row_count));
         out.push_str(&format!(
             "- All rows publishable: `{}`\n",
@@ -1342,7 +1368,11 @@ impl MinWidthGuardPacket {
         ));
         out.push_str(&format!(
             "- Status: **{}**\n",
-            if self.report_clean { "clean" } else { "blocked" }
+            if self.report_clean {
+                "clean"
+            } else {
+                "blocked"
+            }
         ));
         out.push_str(&format!("- Generated at: `{}`\n\n", self.generated_at));
 
@@ -1619,10 +1649,7 @@ impl MinWidthGuardSupportExport {
     /// The packet id, the matrix packet ref, the exact-build ref, each family, and each
     /// active waiver id is quoted as a case id so a support reviewer — or the shell
     /// automation — can name the same family and waiver the runtime certified.
-    pub fn from_packet(
-        support_export_id: impl Into<String>,
-        packet: MinWidthGuardPacket,
-    ) -> Self {
+    pub fn from_packet(support_export_id: impl Into<String>, packet: MinWidthGuardPacket) -> Self {
         let mut case_ids = vec![
             packet.packet_id.clone(),
             packet.matrix_packet_ref.clone(),
@@ -1919,7 +1946,9 @@ pub fn validate_m5_min_width_guards_packet(
 
     let present: BTreeSet<M5ShellSurfaceFamily> =
         packet.rows.iter().map(|row| row.family).collect();
-    let coverage_complete = REQUIRED_FAMILIES.iter().all(|family| present.contains(family));
+    let coverage_complete = REQUIRED_FAMILIES
+        .iter()
+        .all(|family| present.contains(family));
     if !coverage_complete || packet.rows.len() != REQUIRED_FAMILIES.len() {
         errors.push(MinWidthGuardValidationError::CoverageIncomplete);
     }

@@ -43,7 +43,8 @@ mod seed;
 mod tests;
 
 pub use seed::{
-    seeded_m5_public_handoff_matrix, seeded_m5_public_handoff_matrix_provenance_unverified_narrowed,
+    seeded_m5_public_handoff_matrix,
+    seeded_m5_public_handoff_matrix_provenance_unverified_narrowed,
     seeded_m5_public_handoff_matrix_repro_redaction_held, M5_PUBLIC_HANDOFF_MATRIX_PACKET_ID,
 };
 
@@ -1108,7 +1109,10 @@ impl M5PublicHandoffMatrixPacket {
                     .collect::<Vec<_>>()
                     .join(", ")
             ));
-            out.push_str(&format!("  - Rollback: {}\n", row.rollback_posture.as_str()));
+            out.push_str(&format!(
+                "  - Rollback: {}\n",
+                row.rollback_posture.as_str()
+            ));
         }
         out
     }

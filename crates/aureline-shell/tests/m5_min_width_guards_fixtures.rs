@@ -40,7 +40,10 @@ fn load_json<T: serde::de::DeserializeOwned>(file: &str) -> T {
 fn fixture_packet_is_bit_for_bit_equal_to_seed() {
     let on_disk: MinWidthGuardPacket = load_json("packet.json");
     let seeded = seeded_m5_min_width_guards_packet();
-    assert_eq!(on_disk, seeded, "fixture packet diverged from seeded packet");
+    assert_eq!(
+        on_disk, seeded,
+        "fixture packet diverged from seeded packet"
+    );
     assert_eq!(seeded.record_kind, M5_MIN_WIDTH_GUARDS_PACKET_RECORD_KIND);
     assert_eq!(
         seeded.shared_contract_ref,
@@ -131,17 +134,19 @@ fn fixture_every_row_strategy_set_and_plans_are_valid() {
 fn fixture_dashboard_matches_packet_projection() {
     let packet: MinWidthGuardPacket = load_json("packet.json");
     let on_disk: MinWidthGuardDashboard = load_json("dashboard.json");
-    assert_eq!(on_disk, packet.dashboard(), "dashboard diverged from projection");
+    assert_eq!(
+        on_disk,
+        packet.dashboard(),
+        "dashboard diverged from projection"
+    );
 }
 
 #[test]
 fn fixture_support_export_quotes_packet_and_waiver_refs() {
     let packet: MinWidthGuardPacket = load_json("packet.json");
     let export: MinWidthGuardSupportExport = load_json("support_export.json");
-    let expected = MinWidthGuardSupportExport::from_packet(
-        export.support_export_id.clone(),
-        packet.clone(),
-    );
+    let expected =
+        MinWidthGuardSupportExport::from_packet(export.support_export_id.clone(), packet.clone());
     assert_eq!(export, expected);
     assert!(export.case_ids.contains(&packet.packet_id));
     assert!(export.case_ids.contains(&packet.matrix_packet_ref));

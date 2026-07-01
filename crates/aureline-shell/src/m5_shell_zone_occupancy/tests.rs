@@ -231,8 +231,10 @@ fn dashboard_projects_every_row_and_counts() {
 #[test]
 fn support_export_quotes_packet_matrix_and_waiver_refs() {
     let packet = seeded_m5_shell_occupancy_packet();
-    let export =
-        ShellOccupancySupportExport::from_packet(M5_SHELL_OCCUPANCY_SUPPORT_EXPORT_ID, packet.clone());
+    let export = ShellOccupancySupportExport::from_packet(
+        M5_SHELL_OCCUPANCY_SUPPORT_EXPORT_ID,
+        packet.clone(),
+    );
     assert!(export.case_ids.contains(&packet.packet_id));
     assert!(export.case_ids.contains(&packet.matrix_packet_ref));
     assert!(export.case_ids.contains(&packet.build_identity_ref));

@@ -29,7 +29,11 @@ fn only_device_code_card_carries_device_code_disclosure() {
         if card.handoff_kind == BrowserHandoffKind::DeviceCodeAuth {
             assert!(has, "device-code card must disclose a device code");
         } else {
-            assert!(!has, "kind {} must not carry a device code", card.handoff_kind.as_str());
+            assert!(
+                !has,
+                "kind {} must not carry a device code",
+                card.handoff_kind.as_str()
+            );
         }
     }
 }
@@ -53,7 +57,10 @@ fn device_code_card_discloses_expiry() {
         .iter()
         .find(|c| c.handoff_kind == BrowserHandoffKind::DeviceCodeAuth)
         .expect("device-code card present");
-    let disclosure = card.device_code_disclosure.as_ref().expect("disclosure present");
+    let disclosure = card
+        .device_code_disclosure
+        .as_ref()
+        .expect("disclosure present");
     assert!(disclosure.expiry_disclosure.discloses_expiry());
     assert!(disclosure.code_shown_in_app_not_transmitted);
 }
@@ -111,8 +118,11 @@ fn device_code_without_expiry_fails() {
         .iter()
         .position(|c| c.handoff_kind == BrowserHandoffKind::DeviceCodeAuth)
         .unwrap();
-    set.cards[idx].device_code_disclosure.as_mut().unwrap().expiry_disclosure =
-        ExpiryDisclosureClass::NoExpiryApplicable;
+    set.cards[idx]
+        .device_code_disclosure
+        .as_mut()
+        .unwrap()
+        .expiry_disclosure = ExpiryDisclosureClass::NoExpiryApplicable;
     assert!(matches!(
         set.validate(),
         Err(AuthBoundaryError::DeviceCodeMissingExpiry { .. })
@@ -177,7 +187,11 @@ fn card_matrix_csv_has_a_row_per_kind() {
 fn card_markdown_lists_every_kind() {
     let summary = seeded_m5_browser_handoff_card_set().render_markdown_summary();
     for kind in BrowserHandoffKind::ALL {
-        assert!(summary.contains(kind.label()), "summary missing {}", kind.label());
+        assert!(
+            summary.contains(kind.label()),
+            "summary missing {}",
+            kind.label()
+        );
     }
 }
 
@@ -323,7 +337,11 @@ fn bar_matrix_csv_has_a_row_per_owner() {
     assert_eq!(lines.len(), 1 + WebviewOwnerClass::ALL.len());
     assert!(lines[0].starts_with("owner_class,"));
     for owner in WebviewOwnerClass::ALL {
-        assert!(csv.contains(owner.as_str()), "csv missing {}", owner.as_str());
+        assert!(
+            csv.contains(owner.as_str()),
+            "csv missing {}",
+            owner.as_str()
+        );
     }
 }
 
@@ -349,7 +367,9 @@ fn exports_carry_no_forbidden_material() {
 #[test]
 fn narrowed_fixtures_validate() {
     assert!(seeded_device_code_card_fixture().validate().is_ok());
-    assert!(seeded_untrusted_webview_origin_bar_fixture().validate().is_ok());
+    assert!(seeded_untrusted_webview_origin_bar_fixture()
+        .validate()
+        .is_ok());
 }
 
 #[test]

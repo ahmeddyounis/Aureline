@@ -50,8 +50,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("support-export") => {
             let packet = seeded_m5_shell_occupancy_packet();
             assert_valid(&packet)?;
-            let export =
-                ShellOccupancySupportExport::from_packet(M5_SHELL_OCCUPANCY_SUPPORT_EXPORT_ID, packet);
+            let export = ShellOccupancySupportExport::from_packet(
+                M5_SHELL_OCCUPANCY_SUPPORT_EXPORT_ID,
+                packet,
+            );
             println!(
                 "{}",
                 serde_json::to_string_pretty(&export).expect("support export serializes")

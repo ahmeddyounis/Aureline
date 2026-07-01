@@ -126,7 +126,10 @@ fn collapse_spec(family: M5ShellSurfaceFamily) -> CollapseSpec {
 /// etc.), so optional detail always sheds before the primary surface is starved and
 /// the presentations stay monotonic across the three classes.
 fn class_presentations(ladder: &[M5FallbackPlacement]) -> Vec<ResponsiveClassPresentation> {
-    let full = ladder.first().copied().unwrap_or(M5FallbackPlacement::Docked);
+    let full = ladder
+        .first()
+        .copied()
+        .unwrap_or(M5FallbackPlacement::Docked);
     let compact = ladder.get(1).copied().unwrap_or(full);
     M5ResponsiveClass::ALL
         .iter()
@@ -285,8 +288,10 @@ pub fn seeded_m5_responsive_collapse_packet_companion_ladder_missing_placeholder
 ) -> ResponsiveCollapsePacket {
     let rows = seeded_rows_with(M5ShellSurfaceFamily::Companion, |spec| {
         // Drop the terminal placeholder rung so the ladder can dead-end.
-        spec.collapse_ladder_override =
-            Some(vec![M5FallbackPlacement::Sheet, M5FallbackPlacement::Overflow]);
+        spec.collapse_ladder_override = Some(vec![
+            M5FallbackPlacement::Sheet,
+            M5FallbackPlacement::Overflow,
+        ]);
         spec.narrowing_reason = Some(
             "The companion surface's collapse ladder was trimmed to sheet→overflow with no \
              identity-preserving placeholder terminal, so a lost dependency could dead-end the \

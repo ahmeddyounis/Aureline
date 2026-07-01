@@ -509,14 +509,19 @@ impl ResponsiveCollapseRow {
     /// placeholder — the guarantee that a surface never dead-ends when it can no
     /// longer dock.
     pub fn ladder_terminates_in_placeholder(&self) -> bool {
-        matches!(self.collapse_ladder.last(), Some(M5FallbackPlacement::Placeholder))
+        matches!(
+            self.collapse_ladder.last(),
+            Some(M5FallbackPlacement::Placeholder)
+        )
     }
 
     /// `true` when the collapse ladder is ordered from most-docked to
     /// most-collapsed (docked → sheet → overflow → placeholder), so optional detail
     /// always sheds before critical content.
     pub fn ladder_is_ordered(&self) -> bool {
-        self.collapse_ladder.windows(2).all(|pair| pair[0] < pair[1])
+        self.collapse_ladder
+            .windows(2)
+            .all(|pair| pair[0] < pair[1])
     }
 
     /// `true` when the per-class presentations cover exactly the declared responsive
@@ -576,7 +581,10 @@ impl ResponsiveCollapseRow {
         if !self.ladder_terminates_in_placeholder() || !self.ladder_is_ordered() {
             return true;
         }
-        if matches!(self.collapse_ladder_state, CollapseLadderState::LadderChangesIdentity) {
+        if matches!(
+            self.collapse_ladder_state,
+            CollapseLadderState::LadderChangesIdentity
+        ) {
             return true;
         }
         if matches!(
@@ -699,14 +707,17 @@ impl ResponsiveCollapseRow {
         }
         match self.critical_action_reach {
             CriticalActionReachState::AllCriticalAndActionsReachable => {}
-            CriticalActionReachState::DisclosedOverflowReach => causes.push(ResponsiveCollapseCause {
-                family: self.family,
-                trigger: M5ShellDowngradeTrigger::UpstreamDependencyNarrowed,
-                disclosed: true,
-                detail: "A low-frequency action moved to a disclosed keyboard-reachable overflow \
+            CriticalActionReachState::DisclosedOverflowReach => {
+                causes.push(ResponsiveCollapseCause {
+                    family: self.family,
+                    trigger: M5ShellDowngradeTrigger::UpstreamDependencyNarrowed,
+                    disclosed: true,
+                    detail:
+                        "A low-frequency action moved to a disclosed keyboard-reachable overflow \
                          or drawer before primary navigation was starved."
-                    .to_owned(),
-            }),
+                            .to_owned(),
+                })
+            }
             CriticalActionReachState::CriticalStateHidden => causes.push(ResponsiveCollapseCause {
                 family: self.family,
                 trigger: M5ShellDowngradeTrigger::CriticalStateHiddenOnCollapse,
@@ -728,14 +739,17 @@ impl ResponsiveCollapseRow {
         }
         match self.zoom_contrast_parity {
             ZoomContrastParityState::RoutesStableAtZoomAndContrast => {}
-            ZoomContrastParityState::DisclosedZoomNarrowing => causes.push(ResponsiveCollapseCause {
-                family: self.family,
-                trigger: M5ShellDowngradeTrigger::UpstreamDependencyNarrowed,
-                disclosed: true,
-                detail: "The 400% zoom / high-contrast layout discloses a narrowed presentation \
+            ZoomContrastParityState::DisclosedZoomNarrowing => {
+                causes.push(ResponsiveCollapseCause {
+                    family: self.family,
+                    trigger: M5ShellDowngradeTrigger::UpstreamDependencyNarrowed,
+                    disclosed: true,
+                    detail:
+                        "The 400% zoom / high-contrast layout discloses a narrowed presentation \
                          while exposing the same routes and task state."
-                    .to_owned(),
-            }),
+                            .to_owned(),
+                })
+            }
             ZoomContrastParityState::RouteSemanticsDivergeAtZoom => {
                 causes.push(ResponsiveCollapseCause {
                     family: self.family,
@@ -775,16 +789,21 @@ impl ResponsiveCollapseRow {
         let family = self.family.as_str().to_owned();
 
         if !self.ladder_terminates_in_placeholder() {
-            findings.push(ResponsiveCollapseFinding::LadderMissingPlaceholderTerminal {
-                family: family.clone(),
-            });
+            findings.push(
+                ResponsiveCollapseFinding::LadderMissingPlaceholderTerminal {
+                    family: family.clone(),
+                },
+            );
         }
         if !self.ladder_is_ordered() {
             findings.push(ResponsiveCollapseFinding::LadderNotOrdered {
                 family: family.clone(),
             });
         }
-        if matches!(self.collapse_ladder_state, CollapseLadderState::LadderChangesIdentity) {
+        if matches!(
+            self.collapse_ladder_state,
+            CollapseLadderState::LadderChangesIdentity
+        ) {
             findings.push(ResponsiveCollapseFinding::LadderChangesIdentity {
                 family: family.clone(),
             });
@@ -809,9 +828,11 @@ impl ResponsiveCollapseRow {
             self.critical_action_reach,
             CriticalActionReachState::EssentialActionHoverOnlyOrRouteBroken
         ) {
-            findings.push(ResponsiveCollapseFinding::EssentialActionHoverOnlyOrRouteBroken {
-                family: family.clone(),
-            });
+            findings.push(
+                ResponsiveCollapseFinding::EssentialActionHoverOnlyOrRouteBroken {
+                    family: family.clone(),
+                },
+            );
         }
         if matches!(
             self.zoom_contrast_parity,
@@ -822,9 +843,11 @@ impl ResponsiveCollapseRow {
             });
         }
         if !self.presentations_cover_declared_classes() {
-            findings.push(ResponsiveCollapseFinding::PresentationClassCoverageMismatch {
-                family: family.clone(),
-            });
+            findings.push(
+                ResponsiveCollapseFinding::PresentationClassCoverageMismatch {
+                    family: family.clone(),
+                },
+            );
         }
         if !self.presentations_placements_declared() {
             findings.push(ResponsiveCollapseFinding::PresentationPlacementUndeclared {
@@ -837,9 +860,11 @@ impl ResponsiveCollapseRow {
             });
         }
         if !self.presentations_stable() {
-            findings.push(ResponsiveCollapseFinding::PresentationIdentityOrActionLost {
-                family: family.clone(),
-            });
+            findings.push(
+                ResponsiveCollapseFinding::PresentationIdentityOrActionLost {
+                    family: family.clone(),
+                },
+            );
         }
 
         // A narrowed/blocked row must disclose why.
@@ -1023,7 +1048,9 @@ impl ResponsiveCollapseFinding {
                 "essential_action_hover_only_or_route_broken"
             }
             Self::RouteSemanticsDivergeAtZoom { .. } => "route_semantics_diverge_at_zoom",
-            Self::PresentationClassCoverageMismatch { .. } => "presentation_class_coverage_mismatch",
+            Self::PresentationClassCoverageMismatch { .. } => {
+                "presentation_class_coverage_mismatch"
+            }
             Self::PresentationPlacementUndeclared { .. } => "presentation_placement_undeclared",
             Self::PresentationLadderNonMonotonic { .. } => "presentation_ladder_non_monotonic",
             Self::PresentationIdentityOrActionLost { .. } => "presentation_identity_or_action_lost",
@@ -1257,7 +1284,10 @@ impl ResponsiveCollapsePacket {
         out.push_str("```\n\n");
 
         out.push_str(&format!("- Packet id: `{}`\n", self.packet_id));
-        out.push_str(&format!("- Source schema ref: `{}`\n", self.source_schema_ref));
+        out.push_str(&format!(
+            "- Source schema ref: `{}`\n",
+            self.source_schema_ref
+        ));
         out.push_str(&format!(
             "- Certifies matrix packet: `{}`\n",
             self.matrix_packet_ref
@@ -1268,8 +1298,14 @@ impl ResponsiveCollapsePacket {
             self.release_channel_class
         ));
         out.push_str(&format!("- Rows certified: {}\n", self.row_count));
-        out.push_str(&format!("- Green (identity-stable): {}\n", self.green_row_count));
-        out.push_str(&format!("- Yellow (auto-narrowed): {}\n", self.yellow_row_count));
+        out.push_str(&format!(
+            "- Green (identity-stable): {}\n",
+            self.green_row_count
+        ));
+        out.push_str(&format!(
+            "- Yellow (auto-narrowed): {}\n",
+            self.yellow_row_count
+        ));
         out.push_str(&format!("- Red (blocked): {}\n", self.red_row_count));
         out.push_str(&format!(
             "- All rows publishable: `{}`\n",
@@ -1281,7 +1317,11 @@ impl ResponsiveCollapsePacket {
         ));
         out.push_str(&format!(
             "- Status: **{}**\n",
-            if self.report_clean { "clean" } else { "blocked" }
+            if self.report_clean {
+                "clean"
+            } else {
+                "blocked"
+            }
         ));
         out.push_str(&format!("- Generated at: `{}`\n\n", self.generated_at));
 
@@ -1855,7 +1895,9 @@ pub fn validate_m5_responsive_collapse_packet(
 
     let present: BTreeSet<M5ShellSurfaceFamily> =
         packet.rows.iter().map(|row| row.family).collect();
-    let coverage_complete = REQUIRED_FAMILIES.iter().all(|family| present.contains(family));
+    let coverage_complete = REQUIRED_FAMILIES
+        .iter()
+        .all(|family| present.contains(family));
     if !coverage_complete || packet.rows.len() != REQUIRED_FAMILIES.len() {
         errors.push(ResponsiveCollapseValidationError::CoverageIncomplete);
     }

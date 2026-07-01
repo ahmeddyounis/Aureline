@@ -48,7 +48,9 @@ fn seeded_set_offers_every_continuity_action() {
     let set = seeded_m5_handoff_continuity_scenario_set();
     for action in ContinuityActionClass::ALL {
         assert!(
-            set.drafts.iter().any(|d| d.available_actions.contains(&action)),
+            set.drafts
+                .iter()
+                .any(|d| d.available_actions.contains(&action)),
             "action {} never offered",
             action.as_str()
         );
@@ -74,7 +76,11 @@ fn live_drafts_keep_work_and_offer_all_actions() {
         if draft.continuity_state.is_cleared() {
             continue;
         }
-        assert!(draft.drafted_text.is_some(), "{} lost its text", draft.draft_id);
+        assert!(
+            draft.drafted_text.is_some(),
+            "{} lost its text",
+            draft.draft_id
+        );
         assert!(!draft.redaction_state.is_empty());
         assert!(draft.draft_reusable_offline);
         for action in ContinuityActionClass::ALL {
@@ -307,7 +313,11 @@ fn matrix_csv_has_a_row_per_draft() {
     assert_eq!(lines.len(), 1 + set.drafts.len());
     assert!(lines[0].starts_with("draft,failure_class,"));
     for draft in &set.drafts {
-        assert!(csv.contains(&draft.draft_id), "csv missing {}", draft.draft_id);
+        assert!(
+            csv.contains(&draft.draft_id),
+            "csv missing {}",
+            draft.draft_id
+        );
     }
 }
 
@@ -363,8 +373,14 @@ fn narrowed_fixture_drafts_validate() {
 #[test]
 fn offline_security_draft_keeps_private_route() {
     let draft = seeded_offline_security_draft_state();
-    assert_eq!(draft.intended_trust_class, DestinationTrustClass::PrivateSecurity);
-    assert_eq!(draft.continuity_state, DraftContinuityState::CapturedOffline);
+    assert_eq!(
+        draft.intended_trust_class,
+        DestinationTrustClass::PrivateSecurity
+    );
+    assert_eq!(
+        draft.continuity_state,
+        DraftContinuityState::CapturedOffline
+    );
     assert_eq!(
         draft.current_data_exit_boundary,
         DataExitBoundary::NoPayloadLeavesProduct

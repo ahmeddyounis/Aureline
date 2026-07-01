@@ -110,7 +110,9 @@ fn stable_rows_are_backed_by_proof_packets() {
 #[test]
 fn hidden_impersonation_blocks_promotion() {
     let packet = seeded_public_handoff_certification_packet_embedded_impersonation_blocked();
-    let row = packet.row(M5HandoffObjectKind::EmbeddedAuthBoundary).unwrap();
+    let row = packet
+        .row(M5HandoffObjectKind::EmbeddedAuthBoundary)
+        .unwrap();
     assert_eq!(row.derived_status, HandoffCertStatus::Red);
     assert!(!packet.report_clean);
     assert!(!packet.all_rows_publishable);
@@ -134,10 +136,10 @@ fn unsafe_redaction_blocks_the_reproduction_packet() {
     let row = packet.row(M5HandoffObjectKind::ReproductionPacket).unwrap();
     assert_eq!(row.derived_status, HandoffCertStatus::Red);
     assert!(!packet.report_clean);
-    assert!(packet.blocking_findings.iter().any(|finding| matches!(
-        finding,
-        HandoffCertificationFinding::UnsafeRedaction { .. }
-    )));
+    assert!(packet
+        .blocking_findings
+        .iter()
+        .any(|finding| matches!(finding, HandoffCertificationFinding::UnsafeRedaction { .. })));
     assert!(row.stale_proof_causes.iter().any(|cause| matches!(
         cause.trigger,
         M5HandoffDowngradeTrigger::RedactionPreviewMissing
@@ -148,7 +150,9 @@ fn unsafe_redaction_blocks_the_reproduction_packet() {
 #[test]
 fn stale_proof_without_waiver_blocks_a_stable_row() {
     let packet = seeded_public_handoff_certification_packet_service_health_stale();
-    let row = packet.row(M5HandoffObjectKind::ServiceHealthNotice).unwrap();
+    let row = packet
+        .row(M5HandoffObjectKind::ServiceHealthNotice)
+        .unwrap();
     assert_eq!(row.derived_status, HandoffCertStatus::Red);
     assert!(!packet.report_clean);
     assert!(packet.blocking_findings.iter().any(|finding| matches!(

@@ -192,10 +192,10 @@ fn silent_unusable_split_blocks_the_preview() {
     let row = packet.row(M5ShellSurfaceFamily::Preview).unwrap();
     assert_eq!(row.derived_status, MinWidthGuardStatus::Red);
     assert!(!packet.report_clean);
-    assert!(packet.blocking_findings.iter().any(|finding| matches!(
-        finding,
-        MinWidthGuardFinding::SilentUnusableSplit { .. }
-    )));
+    assert!(packet
+        .blocking_findings
+        .iter()
+        .any(|finding| matches!(finding, MinWidthGuardFinding::SilentUnusableSplit { .. })));
     assert!(row.guard_causes.iter().any(|cause| matches!(
         cause.trigger,
         M5ShellDowngradeTrigger::CriticalStateHiddenOnCollapse
@@ -257,10 +257,9 @@ fn plan_landing_outside_the_declared_set_blocks() {
     assert!(!row.plans_strategies_declared());
     assert_eq!(row.recompute_status(), MinWidthGuardStatus::Red);
     let findings = row.compute_findings(&packet.generated_at);
-    assert!(findings.iter().any(|finding| matches!(
-        finding,
-        MinWidthGuardFinding::PlanStrategyUndeclared { .. }
-    )));
+    assert!(findings
+        .iter()
+        .any(|finding| matches!(finding, MinWidthGuardFinding::PlanStrategyUndeclared { .. })));
 }
 
 #[test]

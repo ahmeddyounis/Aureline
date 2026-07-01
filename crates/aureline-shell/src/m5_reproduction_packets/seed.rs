@@ -103,7 +103,11 @@ fn full_redaction_preview() -> Vec<RedactionPreviewRow> {
     ]
 }
 
-fn included_context(class: IncludedContextClass, ref_token: &str, summary: &str) -> IncludedContextItem {
+fn included_context(
+    class: IncludedContextClass,
+    ref_token: &str,
+    summary: &str,
+) -> IncludedContextItem {
     IncludedContextItem {
         context_class: class,
         context_ref: ref_token.to_owned(),

@@ -22,7 +22,11 @@ use super::{
 pub const M5_COMMUNITY_HANDOFF_TARGET_SHEET_SET_ID: &str =
     "m5_community_handoff_target_sheet_set:default";
 
-fn build_context_export(class: BuildContextExportClass, ref_token: &str, summary: &str) -> BuildContextExport {
+fn build_context_export(
+    class: BuildContextExportClass,
+    ref_token: &str,
+    summary: &str,
+) -> BuildContextExport {
     BuildContextExport {
         export_class: class,
         export_block_ref: ref_token.to_owned(),
@@ -404,7 +408,8 @@ pub fn seeded_community_support_sheet_no_commitment() -> CommunityHandoffTargetS
     sheet.target_id = "community_handoff_target:community_support.no_commitment".to_owned();
     sheet.commitment_honesty.honesty_note =
         "Community support is volunteer help and carries no guarantee of a response.".to_owned();
-    sheet.notes =
-        Some("Community link is labeled best-effort; it does not promise official support.".to_owned());
+    sheet.notes = Some(
+        "Community link is labeled best-effort; it does not promise official support.".to_owned(),
+    );
     sheet
 }

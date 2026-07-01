@@ -19,7 +19,8 @@ use super::{
 };
 
 /// Stable id of the canonical scenario set.
-pub const M5_HANDOFF_CONTINUITY_SCENARIO_SET_ID: &str = "m5_handoff_continuity_scenario_set:default";
+pub const M5_HANDOFF_CONTINUITY_SCENARIO_SET_ID: &str =
+    "m5_handoff_continuity_scenario_set:default";
 
 fn redaction_row(
     field_class: RedactableFieldClass,
@@ -251,7 +252,8 @@ fn draft_policy_denied_security() -> HandoffDraftState {
     {
         row.chosen_action = A::RemovedEntirely;
         row.choice_summary =
-            "The user tightened the hostname row to removed entirely; the choice is preserved.".to_owned();
+            "The user tightened the hostname row to removed entirely; the choice is preserved."
+                .to_owned();
     }
     live_draft(
         "handoff_draft:policy_denied_security",
