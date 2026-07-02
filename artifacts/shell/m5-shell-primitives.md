@@ -1,0 +1,71 @@
+# M5 Status-Bar, Transient-Inspect, Pane-Control, and Durable-Progress-Component Matrix
+
+- Packet: `m5-shell-primitives:stable:0001`
+- Label: `M5 status-bar, transient-inspect, pane-control, and durable-progress-component matrix`
+- Primitive families: 10 (10 stable)
+- Status-item classes: background_work, connection_target, deployment_profile, sync_freshness, problem_count, mode_indicator, notification_summary, capacity_meter
+- Source/freshness labels: live_canonical, cached_snapshot, stale_invalidated, provider_attributed, sampled_approximate, refresh_in_flight
+- Proof freshness SLO: 720 hours (last refresh: 2026-06-30T00:00:00Z)
+
+## Primitive families
+
+- **status_bar_item**: `stable`
+  - Owner: Shell/status-bar owner
+  - Scope: A single status-bar item projecting one ambient truth (background work, connection target, deployment profile, sync freshness, problem count, mode, notification summary, or capacity) with its source and freshness; it never reflows around a spinner or a vanity item and stays keyboard-reachable when it overflows
+  - Shell zone: `status_bar`
+  - Required labels: identity, state, keyboard_route, source_provider, freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **status_overflow_menu**: `stable`
+  - Owner: Shell/status-bar owner
+  - Scope: The status-bar overflow menu that holds displaced or lower-priority status items behind one keyboard-reachable route; a severe state promotes ahead of vanity items, and every held item keeps its identity, state, and reopen path
+  - Shell zone: `status_bar`
+  - Required labels: identity, state, keyboard_route, freshness, reopen_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **tooltip**: `stable`
+  - Owner: Shell/transient-inspect owner
+  - Scope: A plain tooltip that shows a short label or shortcut hint on hover or focus; it never carries critical state that is not also reachable without hover, and truncated content keeps a keyboard-reachable reopen path
+  - Shell zone: `transient_overlay`
+  - Required labels: identity, state, keyboard_route
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **hovercard**: `stable`
+  - Owner: Shell/transient-inspect owner
+  - Scope: A rich hovercard that shows attributed inspectable detail with a provenance strip naming the source, provider, and freshness of what it shows; a cached or stale value is labelled so it never reads as live canonical content
+  - Shell zone: `transient_overlay`
+  - Required labels: identity, state, keyboard_route, source_provider, freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **peek_panel**: `stable`
+  - Owner: Shell/transient-inspect owner
+  - Scope: An inline peek panel that previews a target's structure and can be pinned or promoted to a durable panel; pinning never drops its representation or provenance truth, and a stale preview is always labelled
+  - Shell zone: `transient_overlay`
+  - Required labels: identity, state, keyboard_route, source_provider, freshness, reopen_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **pinned_preview_promotion**: `stable`
+  - Owner: Shell/transient-inspect owner
+  - Scope: A pinned-preview promotion that turns a transient peek into a durable, docked, or detached panel; across every promotion and demotion the representation, provenance, and freshness truth is preserved and the reopen path is never lost
+  - Shell zone: `right_inspector`
+  - Required labels: identity, state, keyboard_route, source_provider, freshness, reopen_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **splitter_handle**: `stable`
+  - Owner: Shell/layout owner
+  - Scope: A splitter handle between resizable panes that is precise, keyboard-addressable, and serializable; it resets to a named default, clamps to a minimum width, and collapses to a rail while keeping a reopen path — never pointer-only
+  - Shell zone: `main_workspace`
+  - Required labels: identity, state, keyboard_route, reopen_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **pane_resize_preset**: `stable`
+  - Owner: Shell/layout owner
+  - Scope: A named pane-resize preset that serializes a layout ratio so a pane can snap to it, reset to it, or restore it across sessions and windows; the preset is keyboard-invokable and survives multi-window continuity
+  - Shell zone: `main_workspace`
+  - Required labels: identity, state, keyboard_route, reopen_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **progress_indicator**: `stable`
+  - Owner: Shell/activity owner
+  - Scope: An ambient progress indicator (determinate or indeterminate) that never leaves critical progress visible only through a transient spinner; it attributes grouped batches, keeps a reopen path into durable history, and labels sampled or in-flight values
+  - Shell zone: `status_bar`
+  - Required labels: identity, state, keyboard_route, source_provider, reopen_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **durable_job_row**: `stable`
+  - Owner: Shell/activity owner
+  - Scope: A durable job-row component in the activity / progress center that stays attributable and reopenable after the user looks away; succeeded, failed, and canceled rows keep their outcome and reason in history rather than vanishing with a spinner
+  - Shell zone: `bottom_panel`
+  - Required labels: identity, state, keyboard_route, source_provider, freshness, reopen_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
