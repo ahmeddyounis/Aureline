@@ -128,6 +128,7 @@ pub mod learning_mode;
 pub mod learning_tour_alpha;
 pub mod live_appearance_evidence;
 pub mod locale_pack_beta;
+pub mod m5_accessibility_parity;
 pub mod m5_action_label_scope_parity;
 pub mod m5_activity_objects;
 pub mod m5_ambient_instrumentation_stability;
