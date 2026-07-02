@@ -1,0 +1,81 @@
+# M5 Menu-Affordance, Keybinding-Resolver, and Command-Documentation Matrix
+
+- Packet: `m5-discoverability-affordances:stable:0001`
+- Label: `M5 menu-affordance, keybinding-resolver, and command-documentation matrix`
+- Surface families: 10 (9 stable)
+- Shortcut-source classes: platform_default, default_keymap, imported_keymap, extension_keybinding, workspace_keybinding, user_keybinding, leader_sequence
+- Why-unavailable reasons: no_active_selection, focus_required_elsewhere, preview_approval_required, policy_blocked, capability_missing, higher_scope_required, experimental_not_claimed, deprecated_use_replacement, upstream_dependency_unavailable
+- Proof freshness SLO: 720 hours (last refresh: 2026-06-30T00:00:00Z)
+
+## Surface families
+
+- **menu_item**: `stable`
+  - Owner: Shell/menu owner
+  - Scope: A single application- or menu-bar item that projects one canonical command; it shows the command's primary label, resolved shortcut source layer, lifecycle/deprecation truth, and a typed disabled reason instead of greying out silently
+  - Command id field: `command_id`
+  - Lifecycle / preview: `stable` / `no_preview_required`
+  - Required labels: command_id, source_layer, disabled_reason, lifecycle_or_deprecation, primary_label
+  - Why-unavailable: no_active_selection, focus_required_elsewhere, capability_missing, deprecated_use_replacement
+- **menu_group**: `stable`
+  - Owner: Shell/menu owner
+  - Scope: A named menu section or submenu that groups related canonical commands under one heading without inventing group-local labels or reordering authority; disabled members keep their typed reasons
+  - Command id field: `command_id`
+  - Lifecycle / preview: `stable` / `no_preview_required`
+  - Required labels: command_id, source_layer, disabled_reason, lifecycle_or_deprecation, primary_label
+  - Why-unavailable: no_active_selection, capability_missing, experimental_not_claimed
+- **context_menu**: `stable`
+  - Owner: Shell/context-menu owner
+  - Scope: A right-click / long-press context menu that projects the same canonical commands as the menu bar for the focused object, invalidates entries whose target moved or was removed, and never hides preview/approval requirements
+  - Command id field: `command_id`
+  - Lifecycle / preview: `stable` / `structured_diff_preview`
+  - Required labels: command_id, source_layer, disabled_reason, lifecycle_or_deprecation, primary_label, preview_or_approval
+  - Why-unavailable: no_active_selection, preview_approval_required, policy_blocked, higher_scope_required
+- **command_bar**: `stable`
+  - Owner: Shell/command-bar owner
+  - Scope: A contextual command / action bar that surfaces the highest-value canonical commands for the active surface with their resolved shortcuts and preview/approval posture, never widening authority beyond the descriptor
+  - Command id field: `command_id`
+  - Lifecycle / preview: `stable` / `structured_diff_preview`
+  - Required labels: command_id, source_layer, disabled_reason, lifecycle_or_deprecation, primary_label, preview_or_approval
+  - Why-unavailable: focus_required_elsewhere, preview_approval_required, capability_missing, higher_scope_required
+- **keybinding_resolver_layer**: `stable`
+  - Owner: Shell/keybinding owner
+  - Scope: The keybinding resolver inspector that names, for a chord, the winning source layer and every shadowed loser drawn from one shortcut-source set, with the resolved command id and its lifecycle truth
+  - Command id field: `command_id`
+  - Lifecycle / preview: `stable` / `no_preview_required`
+  - Required labels: command_id, source_layer, disabled_reason, lifecycle_or_deprecation, primary_label
+  - Why-unavailable: capability_missing, experimental_not_claimed, deprecated_use_replacement
+- **conflict_review_sheet**: `stable`
+  - Owner: Shell/keybinding owner
+  - Scope: The conflict review sheet a user opens when two bindings collide; it names each conflict with a controlled reason, names the winner and losers by source layer, and never leaves the resolved winner ambiguous
+  - Command id field: `command_id`
+  - Lifecycle / preview: `stable` / `no_preview_required`
+  - Required labels: command_id, source_layer, disabled_reason, lifecycle_or_deprecation, primary_label
+  - Why-unavailable: capability_missing, policy_blocked, deprecated_use_replacement
+- **import_bridge_row**: `stable`
+  - Owner: Shell/import owner
+  - Scope: One row in the keymap import bridge translating a foreign binding to a native canonical command; it reports a controlled translation state, flags collisions and unmapped keys, and rejects authority-widening bindings rather than adopting them silently
+  - Command id field: `command_id`
+  - Lifecycle / preview: `stable` / `policy_authoring_or_waiver_preview`
+  - Required labels: command_id, source_layer, disabled_reason, lifecycle_or_deprecation, primary_label, preview_or_approval
+  - Why-unavailable: capability_missing, higher_scope_required, deprecated_use_replacement
+- **disabled_command_explainer**: `stable`
+  - Owner: Shell/command owner
+  - Scope: The why-unavailable explainer shown when a command is greyed out; it names one controlled reason, keeps the command id and lifecycle truth visible, and points to the recovery or requirement rather than hiding the command
+  - Command id field: `command_id`
+  - Lifecycle / preview: `stable` / `structured_diff_preview`
+  - Required labels: command_id, source_layer, disabled_reason, lifecycle_or_deprecation, primary_label, preview_or_approval
+  - Why-unavailable: no_active_selection, focus_required_elsewhere, preview_approval_required, policy_blocked, capability_missing, higher_scope_required, experimental_not_claimed, deprecated_use_replacement, upstream_dependency_unavailable
+- **leader_sequence_help**: `beta`
+  - Owner: Shell/keybinding owner
+  - Scope: The leader / multi-key sequence help overlay that lists in-progress sequences and their next keys with the resolved command id and source layer; narrowed to Beta until sequence-prefix parity is proven across all claimed families
+  - Command id field: `command_id`
+  - Lifecycle / preview: `beta` / `no_preview_required`
+  - Required labels: command_id, source_layer, disabled_reason, lifecycle_or_deprecation, primary_label
+  - Why-unavailable: focus_required_elsewhere, capability_missing, experimental_not_claimed
+- **command_documentation_surface**: `stable`
+  - Owner: Docs/command-help owner
+  - Scope: The command-documentation / command-detail surface that renders the canonical descriptor's label, aliases, lifecycle/deprecation truth, preview/approval posture, and shortcut source layer so docs never invent a second naming system
+  - Command id field: `command_id`
+  - Lifecycle / preview: `stable` / `no_preview_required`
+  - Required labels: command_id, source_layer, disabled_reason, lifecycle_or_deprecation, primary_label, preview_or_approval
+  - Why-unavailable: capability_missing, experimental_not_claimed, deprecated_use_replacement, policy_blocked
