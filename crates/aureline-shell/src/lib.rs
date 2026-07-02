@@ -132,6 +132,7 @@ pub mod m5_activity_objects;
 pub mod m5_appearance_parity;
 pub mod m5_auth_boundaries;
 pub mod m5_command_documentation;
+pub mod m5_command_explainers;
 pub mod m5_command_registry;
 pub mod m5_command_surface_parity;
 pub mod m5_community_handoff_targets;
