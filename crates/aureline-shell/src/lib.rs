@@ -144,6 +144,7 @@ pub mod m5_embedded_boundaries;
 pub mod m5_entry_routes;
 pub mod m5_handoff_continuity;
 pub mod m5_inclusive_depth;
+pub mod m5_keybinding_resolver_inspectors;
 pub mod m5_lifecycle_object_certification;
 pub mod m5_lifecycle_release_proof;
 pub mod m5_lifecycle_telemetry_conformance;
