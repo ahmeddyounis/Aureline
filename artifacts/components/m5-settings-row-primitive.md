@@ -1,0 +1,57 @@
+# M5 Settings-Row Primitive: Effective Value, Source Pill, and Lock State
+
+- Packet: `m5-settings-row-primitive:stable:0001`
+- Label: `M5 settings-row primitive: effective value, source pill, lock state, view-diff, and source detail`
+- Config-bearing surfaces: 7 (7 stable)
+- Anatomy parts: label, plain_language_description, value_control, source_pill, reset_action, view_diff_affordance, source_detail_affordance, open_in_json_affordance
+- Settings-row states: effective_matches_configured, overridden_by_higher_source, inherited_from_default, locked_by_policy, pending_reload_to_apply, invalid_value_held, redacted_managed_value
+- Source pills: default_value, user_configured, workspace_configured, policy_managed, remote_profile, environment_override
+- Export fields: setting_key, effective_value_repr, configured_value_repr, winning_source_pill, row_state, lock_source_pill, shadow_chain
+- Proof freshness SLO: 720 hours (last refresh: 2026-06-30T00:00:00Z)
+
+## Config-bearing surfaces
+
+- **Admin / Enterprise**: `stable`
+  - Owner: Admin/enterprise settings owner
+  - Scope: The admin/enterprise settings surface renders the shared settings row: a policy-managed value shows its enforced value and lock source together, the user-configured value is retained and shown, and the effective-versus-configured difference is available via view-diff
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 1
+    - `admin.telemetry_sharing` → effective `disabled` via `policy_managed` (locked_by_policy)
+- **Workspace Trust**: `stable`
+  - Owner: Workspace-trust settings owner
+  - Scope: The workspace/project trust settings surface renders the shared settings row so the user-authored trust level reads as the effective value with a user-configured source pill, never confused with an inherited or enforced value
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 1
+    - `workspace.trust_level` → effective `trusted` via `user_configured` (effective_matches_configured)
+- **AI / Model**: `stable`
+  - Owner: AI/model settings owner
+  - Scope: The AI/model settings surface renders the shared settings row so a workspace override names its source, and a credential-managed value is redacted to a managed token rather than exposing material — never conflating a redacted managed value with a user value
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 2
+    - `ai.default_response_style` → effective `creative` via `workspace_configured` (overridden_by_higher_source)
+    - `ai.provider_credential_ref` → effective `redacted_managed_value` via `policy_managed` (redacted_managed_value)
+- **Network / Proxy**: `stable`
+  - Owner: Network/proxy settings owner
+  - Scope: The network/proxy settings surface renders the shared settings row so an environment override shows as the effective value with its source pill while the user-configured value is retained and the view-diff affordance discloses the difference
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 1
+    - `network.proxy_mode` → effective `manual` via `environment_override` (overridden_by_higher_source)
+- **Execution / Runtime**: `stable`
+  - Owner: Execution/runtime settings owner
+  - Scope: The execution/runtime settings surface renders the shared settings row so a staged change reads as pending-reload-to-apply rather than silently taking effect, keeping the effective value and the staged user value distinct
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 1
+    - `execution.max_parallel_jobs` → effective `eight` via `user_configured` (pending_reload_to_apply)
+- **Extension Settings**: `stable`
+  - Owner: Extension settings owner
+  - Scope: The extension settings surface renders the shared settings row so an unconfigured setting reads as inherited-from-default with a default-value source pill rather than presenting the default as a user choice
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 1
+    - `extension.autoupdate` → effective `enabled` via `default_value` (inherited_from_default)
+- **Update / Config Channel**: `stable`
+  - Owner: Update/config-channel settings owner
+  - Scope: The update/config-channel settings surface renders the shared settings row so an invalid value holds the prior effective value instead of applying, and a remote profile value shows its source pill — every state reconstructable from the shared export model
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 2
+    - `update.channel` → effective `stable` via `user_configured` (invalid_value_held)
+    - `update.check_frequency` → effective `weekly` via `remote_profile` (overridden_by_higher_source)
