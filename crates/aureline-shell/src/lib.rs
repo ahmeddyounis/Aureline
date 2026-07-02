@@ -144,6 +144,7 @@ pub mod m5_desktop_profile_certification;
 pub mod m5_device_permissions;
 pub mod m5_discoverability_access_parity;
 pub mod m5_discoverability_affordance_parity;
+pub mod m5_discoverability_release_proof;
 pub mod m5_embedded_boundaries;
 pub mod m5_entry_routes;
 pub mod m5_handoff_continuity;
