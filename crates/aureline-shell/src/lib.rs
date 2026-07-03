@@ -191,6 +191,7 @@ pub mod m5_subscription_inspector;
 pub mod m5_system_entry;
 pub mod m5_transient_inspect_certification;
 pub mod m5_trust_component_accessibility_parity;
+pub mod m5_trust_component_release_proof;
 pub mod m5_window_lifecycle_safety;
 pub mod macros;
 pub mod managed_boundary;
