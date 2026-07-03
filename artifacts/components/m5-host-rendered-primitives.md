@@ -1,0 +1,59 @@
+# M5 Host-Rendered Trust-Component Primitives and Token / State Wiring
+
+- Packet: `m5-host-rendered-primitive:stable:0001`
+- Label: `M5 host-rendered trust-component primitives: canonical settings-row, capability-sheet, event/history-row, timeline-group, and chronology-export-preview binding with shared token / state wiring`
+- Primitive families: 5 (5 stable)
+- Host surfaces: desktop_app, companion_surface, extension_host
+- Render modes: host_rendered_canonical, audited_wrapper, bespoke_local_variant
+- Token slots: source_pill, provenance_badge, severity_state_color, disclosure_affordance, focus_ring, state_label, density_metric
+- Contract parts (fixed): identity_label, typed_state, provenance_or_source_attribution, severity_semantics, disclosure_control, keyboard_route, audit_export_anchor
+- Restylable aspects: spacing_scale, corner_radius, accent_tint, typography_family, icon_set, elevation_shadow, motion_curve
+- Proof freshness SLO: 720 hours (last refresh: 2026-06-30T00:00:00Z)
+
+## Primitive families
+
+- **Settings Row**: `stable`
+  - Owner: Settings component owner
+  - Scope: The settings-row primitive host-renders effective-versus-configured truth with the source pill, lock state, and severity colour pinned; desktop and companion render it canonically and an extension host renders it through an audited wrapper
+  - Shell zone: `main_workspace`
+  - Bound families: settings_row
+  - Worked bindings: 3
+    - host_rendered_canonical on desktop_app: conformant
+    - host_rendered_canonical on companion_surface: conformant
+    - audited_wrapper on extension_host: conformant
+- **Capability Sheet**: `stable`
+  - Owner: Capability sheet owner
+  - Scope: The capability-sheet primitive host-renders consequence-grouped requests with severity, disclosure, and state labels pinned; desktop and companion render it canonically and an extension host renders it through an audited wrapper
+  - Shell zone: `transient_overlay`
+  - Bound families: capability_sheet
+  - Worked bindings: 3
+    - host_rendered_canonical on desktop_app: conformant
+    - host_rendered_canonical on companion_surface: conformant
+    - audited_wrapper on extension_host: conformant
+- **Event / History Row**: `stable`
+  - Owner: Chronology row owner
+  - Scope: The event/history-row primitive host-renders a stable verb, provenance badge, and reopenable detail with severity pinned; desktop and companion render it canonically and an extension host renders it through an audited wrapper
+  - Shell zone: `bottom_panel`
+  - Bound families: event_history_row
+  - Worked bindings: 3
+    - host_rendered_canonical on desktop_app: conformant
+    - host_rendered_canonical on companion_surface: conformant
+    - audited_wrapper on extension_host: conformant
+- **Timeline Group**: `stable`
+  - Owner: Chronology group owner
+  - Scope: The timeline-group primitive host-renders phase-grouped timeline groups and the narrative summary card with the provenance badge and severity pinned; desktop and companion render it canonically and an extension host renders it through an audited wrapper
+  - Shell zone: `bottom_panel`
+  - Bound families: timeline_group, narrative_summary_card
+  - Worked bindings: 3
+    - host_rendered_canonical on desktop_app: conformant
+    - host_rendered_canonical on companion_surface: conformant
+    - audited_wrapper on extension_host: conformant
+- **Chronology Export Preview**: `stable`
+  - Owner: Chronology export owner
+  - Scope: The chronology-export-preview primitive host-renders the selected range, included fields, redaction class, and format with the provenance badge and severity pinned; desktop and companion render it canonically and an extension host renders it through an audited wrapper
+  - Shell zone: `bottom_panel`
+  - Bound families: chronology_export_preview
+  - Worked bindings: 3
+    - host_rendered_canonical on desktop_app: conformant
+    - host_rendered_canonical on companion_surface: conformant
+    - audited_wrapper on extension_host: conformant
