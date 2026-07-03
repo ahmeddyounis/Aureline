@@ -115,6 +115,7 @@ pub mod host_boundary_cues;
 pub mod i18n;
 pub mod implement_clipboard_contracts_with_plain_text_default_copy_with_context_variants_sensitive;
 pub mod implement_multi_cursor_fold_state_breadcrumb_minimap_overview_ruler_and_degraded_orientati;
+pub mod implement_the_m5_capability_sheet_consequence_grouping_transitive_scope_and_reconsent_primitive;
 pub mod implement_the_m5_settings_row_effective_value_source_pill_and_lock_state_primitive;
 pub mod import;
 pub mod inspectors;
