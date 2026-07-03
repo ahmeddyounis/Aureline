@@ -2,12 +2,12 @@
 
 use aureline_profiler::{
     current_certification_qualification, current_chronology_qualification,
-    current_evidence_handoff_qualification, current_hotspot_workspace_qualification,
-    current_integrate_profile_trace_qualification, current_memory_analysis_qualification,
-    current_profile_compare_qualification, current_profile_hotpath_component_packet,
-    current_profile_launcher_qualification, current_regression_baseline_qualification,
-    current_replay_qualification, current_trace_heap_compare_component_packet,
-    current_trace_viewer_qualification,
+    current_component_fallback_packet, current_evidence_handoff_qualification,
+    current_hotspot_workspace_qualification, current_integrate_profile_trace_qualification,
+    current_memory_analysis_qualification, current_profile_compare_qualification,
+    current_profile_hotpath_component_packet, current_profile_launcher_qualification,
+    current_regression_baseline_qualification, current_replay_qualification,
+    current_trace_heap_compare_component_packet, current_trace_viewer_qualification,
 };
 
 // --- Certification packet (M05-055) ---
@@ -483,6 +483,145 @@ fn clock_sync_basis_degraded_behavior_is_correct() {
     assert!(ClockSyncBasis::ImportedClockDomain.is_degraded());
     assert!(ClockSyncBasis::PartialClockCorrelation.is_degraded());
     assert!(ClockSyncBasis::Unknown.is_degraded());
+}
+
+// --- Component accessibility fallback / export-safe summaries (M05-801) ---
+
+#[test]
+fn embedded_component_fallback_packet_parses() {
+    let packet = current_component_fallback_packet().expect("embedded packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert_eq!(packet.rows.len(), 10);
+}
+
+#[test]
+fn embedded_component_fallback_packet_has_no_violations() {
+    let packet = current_component_fallback_packet().expect("embedded packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_component_fallback_summary_matches_computed() {
+    let packet = current_component_fallback_packet().expect("embedded packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+    assert!(packet.summary.all_canvas_heavy_have_non_visual_fallback);
+    assert!(packet.summary.all_keyboard_and_screen_reader_reachable);
+    assert!(packet.summary.all_export_summaries_preserve_meaning);
+    assert!(packet.summary.all_narrowing_disclosed);
+    assert_eq!(packet.summary.red_count, 0);
+}
+
+#[test]
+fn component_fallback_covers_every_frozen_family() {
+    use aureline_profiler::M5ComponentFamily;
+
+    let packet = current_component_fallback_packet().expect("embedded packet must parse");
+    for family in M5ComponentFamily::ALL {
+        assert!(
+            packet.rows.iter().any(|row| row.component_family == family),
+            "family {family:?} must be certified"
+        );
+    }
+}
+
+#[test]
+fn canvas_heavy_families_bind_a_non_visual_fallback_path() {
+    let packet = current_component_fallback_packet().expect("embedded packet must parse");
+    for row in &packet.rows {
+        if row.component_family.is_canvas_heavy() {
+            // Canvas-heavy consumers render a canvas but also a non-visual path,
+            // so keyboard/assistive-tech users are never stranded.
+            assert!(
+                row.has_non_visual_fallback(),
+                "canvas-heavy family {:?} must offer a list/table/textual path",
+                row.component_family
+            );
+            assert!(row.keyboard_reach.never_traps());
+            assert!(row.screen_reader_reach.never_traps());
+            assert!(row.keyboard_and_at_reachable());
+        }
+    }
+}
+
+#[test]
+fn every_component_export_preserves_meaning_without_screenshot() {
+    let packet = current_component_fallback_packet().expect("embedded packet must parse");
+    for row in &packet.rows {
+        assert!(row.export_preserves_meaning());
+        assert!(!row.export_summary_ref.is_empty());
+        assert!(row.copy_export.screenshot_only_prohibited);
+    }
+}
+
+#[test]
+fn narrower_rendering_surfaces_disclose_reduced_interactivity() {
+    use aureline_profiler::M5RenderingSurface;
+
+    let packet = current_component_fallback_packet().expect("embedded packet must parse");
+    for row in &packet.rows {
+        assert!(row.narrowing_disclosed());
+        for surface in &row.rendering_surfaces {
+            if surface.is_narrowed() {
+                let disclosure = row
+                    .narrowing_disclosures
+                    .iter()
+                    .find(|d| d.rendering_surface == *surface)
+                    .unwrap_or_else(|| {
+                        panic!("narrowed surface {surface:?} must disclose reduced interactivity")
+                    });
+                assert!(disclosure.state.never_drops_silently());
+                assert!(
+                    !disclosure.preserved_labels.is_empty(),
+                    "narrowed surface {surface:?} must preserve labels"
+                );
+            }
+        }
+        // Every row still renders at desktop-full capability.
+        assert!(row
+            .rendering_surfaces
+            .contains(&M5RenderingSurface::DesktopFull));
+    }
+}
+
+#[test]
+fn component_fallback_status_reason_states_behave_correctly() {
+    use aureline_profiler::{
+        ExportSummaryState, NarrowingDisclosureState, NonVisualReachState, ZoomDensityState,
+    };
+
+    assert!(NonVisualReachState::ReachableAndLabeled.never_traps());
+    assert!(NonVisualReachState::DisclosedReducedButReachable.never_traps());
+    assert!(!NonVisualReachState::ViewOnlyTrap.never_traps());
+
+    assert!(ZoomDensityState::LegibleUnderZoomAndDensity.never_loses_truth());
+    assert!(ZoomDensityState::DisclosedReducedLegibility.never_loses_truth());
+    assert!(!ZoomDensityState::TruncatedOrLostOnZoomOrDensity.never_loses_truth());
+
+    assert!(ExportSummaryState::ReconstructableWithoutScreenshot.never_screenshot_only());
+    assert!(ExportSummaryState::DisclosedPartialCapture.never_screenshot_only());
+    assert!(!ExportSummaryState::AbsentNeedsScreenshot.never_screenshot_only());
+
+    assert!(NarrowingDisclosureState::ParityPreserved.never_drops_silently());
+    assert!(NarrowingDisclosureState::DisclosedNarrowed.never_drops_silently());
+    assert!(!NarrowingDisclosureState::SilentlyDropped.never_drops_silently());
+}
+
+#[test]
+fn component_fallback_status_flags_stranded_rows() {
+    use aureline_profiler::{ComponentFallbackStatus, NonVisualReachState};
+
+    let mut packet = current_component_fallback_packet().expect("embedded packet must parse");
+    // Trap the first row's keyboard path: it must become stranded (red) and the
+    // packet must reject it.
+    packet.rows[0].keyboard_reach = NonVisualReachState::ViewOnlyTrap;
+    assert_eq!(packet.rows[0].status(), ComponentFallbackStatus::Stranded);
+    let violations = packet.validate();
+    assert!(!violations.is_empty());
 }
 
 // --- Trace viewer packet (M05-047) ---

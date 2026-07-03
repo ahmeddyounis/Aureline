@@ -162,6 +162,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-profiler/0.0.0")]
 
 pub mod add_chronology_and_reverse_step_controls_history_partiality_cues_and_import_or_export_packets;
+pub mod add_component_fallback_parity_keyboard_and_screen_reader_navigation_and_export_safe_summaries;
 pub mod add_memory_analysis_views_snapshot_pairs_retained_or_allocation_diffs_and_leak_hint_confidence;
 pub mod build_the_regression_baseline_store_baseline_selection_ux_and_comparable_environment_guards;
 pub mod certify_profiler_trace_replay_and_imported_versus_live_truth_on_all_claimed_m5_rows;
@@ -326,4 +327,14 @@ pub use ship_trace_timeline_heap_allocation_and_profile_compare_components::{
     TraceHeapCompareComponentSummary, TraceHeapCompareComponentViolation, TraceTimeline,
     TRACE_HEAP_COMPARE_COMPONENT_PACKET_JSON, TRACE_HEAP_COMPARE_COMPONENT_PACKET_PATH,
     TRACE_HEAP_COMPARE_COMPONENT_RECORD_KIND, TRACE_HEAP_COMPARE_COMPONENT_SCHEMA_VERSION,
+};
+
+pub use add_component_fallback_parity_keyboard_and_screen_reader_navigation_and_export_safe_summaries::{
+    current_component_fallback_packet, ComponentFallbackPacket, ComponentFallbackRow,
+    ComponentFallbackStatus, ComponentFallbackSummary, ComponentFallbackViolation,
+    ExportSummaryState, M5AccessibilityConsumerSurface, M5ComponentFamily, M5FallbackModality,
+    M5RenderingSurface, NarrowingDisclosureState, NonVisualReachState,
+    RenderingNarrowingDisclosure, ZoomDensityState, COMPONENT_FALLBACK_PACKET_JSON,
+    COMPONENT_FALLBACK_PACKET_PATH, COMPONENT_FALLBACK_RECORD_KIND,
+    COMPONENT_FALLBACK_ROW_RECORD_KIND, COMPONENT_FALLBACK_SCHEMA_VERSION,
 };

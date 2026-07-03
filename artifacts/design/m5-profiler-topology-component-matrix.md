@@ -34,6 +34,9 @@ Certification bundle:
   `artifacts/graph/m5/m5-workset-topology-components.json`
 - Ownership/explainer consumer packet:
   `artifacts/graph/m5/m5-ownership-explainer-components.json`
+- Accessibility fallback / export-safe summary packet:
+  `artifacts/perf/m5/m5-component-accessibility-fallback-components.json`
+  (schema `schemas/ui/m5-component-accessibility-fallback.schema.json`)
 - Fixtures:
   `fixtures/ui/m5-profiler-topology-components/`
 
@@ -210,3 +213,6 @@ disclosure.
 | `workset_no_silent_widening` | Search, topology, onboarding, review, AI, explainer consumers | Block full-workspace claim. |
 | `citation_and_provenance_parity` | Topology, ownership, explainer consumers | Narrow to available evidence only. |
 | `copy_export_parity` | GUI, CLI/headless, support export, docs/help, release proof | Narrow the consumer claim. |
+| `accessibility_fallback_parity` | Every canvas-heavy family (flamegraph, icicle, heap/profile compare, trace timeline, topology map) plus ownership/explainer views on every claimed consumer | Bind a keyboard/screen-reader-reachable list/table/textual path with the same filter/sort/range semantics; a view-only chart/map that strands assistive tech blocks review. |
+| `export_safe_summary_parity` | GUI, companion, browser, handoff packet, CLI/headless, support export, release proof | Every component carries an export-safe summary object that reconstructs its meaning without a screenshot; screenshot-only export narrows the claim. |
+| `narrowed_surface_disclosure` | Companion, read-only browser, handoff packet, CLI/headless, support export | Narrower surfaces disclose reduced interactivity and keep the same labels/summary vocabulary; silently dropping state or actions blocks review. |

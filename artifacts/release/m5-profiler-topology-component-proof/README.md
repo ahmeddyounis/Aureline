@@ -32,5 +32,19 @@ Release and support proof for
   scope truth is incomplete, so an explanation never masquerades as uncited
   primary truth across topology, onboarding, AI, and review consumers.
 
+- `artifacts/perf/m5/m5-component-accessibility-fallback-components.json` is the
+  M05-801 accessibility hardening packet. It certifies, per component family, that
+  every canvas-heavy consumer (flamegraph, icicle, heap/profile compare, trace
+  timeline, topology map) binds its visual canvas to an equivalent
+  list/table/textual path with the same filter/sort/range semantics, that keyboard
+  traversal and screen-reader labeling never strand assistive-tech users in a
+  view-only chart, that zoom/high-density rendering stays legible or discloses its
+  reduction, that an export-safe summary object preserves the component meaning
+  without a screenshot, and that narrower rendering surfaces (companion app,
+  read-only browser, handoff packet, CLI/headless, support export) narrow
+  interactivity explicitly while keeping the same labels and summary vocabulary
+  rather than silently dropping state or actions. Its record schema is
+  `schemas/ui/m5-component-accessibility-fallback.schema.json`.
+
 This proof packet is the release/support companion for tasks M05-796,
-M05-797, M05-798, M05-799, and M05-800.
+M05-797, M05-798, M05-799, M05-800, and M05-801.
