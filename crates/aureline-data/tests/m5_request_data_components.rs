@@ -9,9 +9,17 @@ fn repo_root() -> PathBuf {
 }
 
 fn load_fixture(file_name: &str) -> Value {
-    let path = repo_root()
-        .join("fixtures/ui/m5-request-data-components")
-        .join(file_name);
+    load_repo_json(&format!(
+        "fixtures/ui/m5-request-data-components/{file_name}"
+    ))
+}
+
+fn load_schema(file_name: &str) -> Value {
+    load_repo_json(&format!("schemas/ui/{file_name}"))
+}
+
+fn load_repo_json(repo_relative_path: &str) -> Value {
+    let path = repo_root().join(repo_relative_path);
     let payload = std::fs::read_to_string(&path)
         .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()));
     serde_json::from_str(&payload)
@@ -39,10 +47,24 @@ fn array_field<'a>(value: &'a Value, field: &str) -> &'a Vec<Value> {
         .unwrap_or_else(|| panic!("missing array field {field}"))
 }
 
+fn object_field<'a>(value: &'a Value, field: &str) -> &'a serde_json::Map<String, Value> {
+    value
+        .get(field)
+        .and_then(Value::as_object)
+        .unwrap_or_else(|| panic!("missing object field {field}"))
+}
+
 fn contains_string(value: &Value, field: &str, expected: &str) -> bool {
     array_field(value, field)
         .iter()
         .any(|entry| entry.as_str() == Some(expected))
+}
+
+fn enum_contains(schema: &Value, pointer: &str, expected: &str) -> bool {
+    schema
+        .pointer(pointer)
+        .and_then(Value::as_array)
+        .is_some_and(|values| values.iter().any(|value| value.as_str() == Some(expected)))
 }
 
 #[test]
@@ -330,4 +352,181 @@ fn auth_sheet_exposes_scheme_lifetime_handoff_and_policy_without_secrets() {
         .and_then(Value::as_array)
         .expect("policy notes are present");
     assert!(policy_notes.len() >= 2);
+}
+
+#[test]
+fn connection_picker_row_exposes_location_access_policy_and_current_scope() {
+    let row = load_fixture("connection_picker_row.json");
+
+    assert_eq!(str_field(&row, "record_kind"), "m5_connection_picker_row");
+    assert_eq!(
+        str_field(&row, "service_identity_ref"),
+        "service:snowflake:prod-analytics"
+    );
+    assert_eq!(str_field(&row, "engine_family"), "snowflake");
+    assert_eq!(str_field(&row, "execution_origin"), "managed_workspace");
+    assert_eq!(str_field(&row, "target_location_class"), "managed");
+    assert_eq!(str_field(&row, "access_mode"), "read_only");
+    assert_eq!(str_field(&row, "capability_state"), "read_only");
+    assert_eq!(
+        str_field(&row, "current_database_ref"),
+        "database:snowflake:prod_analytics"
+    );
+    assert_eq!(
+        str_field(&row, "current_schema_ref"),
+        "schema:snowflake:prod_analytics:analytics"
+    );
+    assert_eq!(str_field(&row, "online_state"), "online");
+    assert_eq!(str_field(&row, "policy_state"), "read_only_enforced");
+    assert_eq!(str_field(&row, "auth_storage_mode"), "policy_injected");
+    assert!(bool_field(&row, "permission_limited"));
+
+    let export = object_field(&row, "copy_export");
+    for field in [
+        "service_identity_ref",
+        "target_location_class",
+        "access_mode",
+        "current_database_ref",
+        "current_schema_ref",
+        "online_state",
+        "policy_state",
+    ] {
+        assert!(
+            contains_string(&Value::Object(export.clone()), "export_fields", field),
+            "connection export must preserve {field}"
+        );
+    }
+}
+
+#[test]
+fn connection_schema_covers_local_tunnel_container_remote_and_managed_targets() {
+    let schema = load_schema("m5-connection-picker-row.schema.json");
+
+    for location in ["local", "tunneled", "container_local", "remote", "managed"] {
+        assert!(
+            enum_contains(
+                &schema,
+                "/$defs/target_location_class/enum",
+                location
+            ),
+            "target_location_class must include {location}"
+        );
+    }
+    for mode in ["read_only", "write_capable", "policy_blocked"] {
+        assert!(
+            enum_contains(&schema, "/$defs/access_mode/enum", mode),
+            "access_mode must include {mode}"
+        );
+    }
+    for state in ["online", "offline", "policy_blocked"] {
+        assert!(
+            enum_contains(&schema, "/$defs/online_state/enum", state),
+            "online_state must include {state}"
+        );
+    }
+}
+
+#[test]
+fn schema_object_rows_preserve_fresh_stale_permission_limited_and_offline_truth() {
+    let fixture = load_fixture("schema_object_rows.json");
+    let rows = array_field(&fixture, "rows");
+    assert!(rows.len() >= 5);
+
+    for state in ["fresh", "cached", "stale", "permission_limited", "offline"] {
+        assert!(
+            rows.iter()
+                .any(|row| row.get("freshness_state").and_then(Value::as_str) == Some(state)),
+            "schema object rows must include {state}"
+        );
+    }
+
+    for row in rows {
+        assert_eq!(str_field(row, "record_kind"), "m5_schema_object_row");
+        assert!(row.get("object_type").is_some());
+        assert!(row.get("object_name_ref").is_some());
+        assert!(
+            row.get("object_path_refs")
+                .and_then(Value::as_array)
+                .is_some_and(|path| !path.is_empty()),
+            "object path must be present"
+        );
+
+        let permissions = row
+            .get("permission_summary")
+            .expect("permission summary is present");
+        assert!(permissions.get("permission_state").is_some());
+        assert!(permissions.get("read_allowed").is_some());
+        assert!(permissions.get("write_allowed").is_some());
+        assert!(permissions.get("permission_limited").is_some());
+
+        let actions = row.get("actions").expect("actions are present");
+        assert!(actions.get("open_enabled").is_some());
+        assert!(actions.get("query_enabled").is_some());
+        assert!(actions.get("copy_identifier_enabled").is_some());
+        for action in ["open", "query", "copy_identifier"] {
+            assert!(
+                contains_string(actions, "action_labels", action),
+                "schema object row must expose {action}"
+            );
+        }
+
+        if str_field(row, "freshness_state") == "offline" {
+            assert_eq!(str_field(row, "online_state"), "offline");
+            assert!(!bool_field(actions, "query_enabled"));
+            assert!(actions.get("disabled_reason_ref").is_some());
+        }
+    }
+}
+
+#[test]
+fn sql_run_bar_preserves_selected_connection_transaction_and_actions() {
+    let bar = load_fixture("sql_run_bar.json");
+
+    assert_eq!(str_field(&bar, "record_kind"), "m5_sql_run_bar");
+    assert_eq!(str_field(&bar, "access_mode"), "read_only");
+    assert_eq!(str_field(&bar, "write_risk_state"), "read_only_no_write_risk");
+    assert_eq!(str_field(&bar, "autocommit_state"), "not_executable");
+    assert_eq!(str_field(&bar, "transaction_state"), "explain_only");
+    assert_eq!(
+        bar.get("selected_statement_count").and_then(Value::as_i64),
+        Some(1)
+    );
+
+    let selected_connection = bar
+        .get("selected_connection")
+        .expect("selected connection is present");
+    assert_eq!(
+        str_field(selected_connection, "connection_identity_ref"),
+        "connection:managed:snowflake:prod-analytics"
+    );
+    assert_eq!(
+        str_field(selected_connection, "service_identity_ref"),
+        "service:snowflake:prod-analytics"
+    );
+    assert_eq!(
+        str_field(selected_connection, "target_location_class"),
+        "managed"
+    );
+    assert_eq!(
+        str_field(selected_connection, "policy_state"),
+        "read_only_enforced"
+    );
+
+    let safety = bar
+        .get("statement_safety_summary")
+        .expect("statement safety summary is present");
+    assert_eq!(str_field(safety, "safety_class"), "read_only_query");
+    assert!(!bool_field(safety, "mutation_review_required"));
+    assert!(!bool_field(safety, "protected_target_step_up_required"));
+
+    let actions = bar.get("actions").expect("actions are present");
+    assert!(bool_field(actions, "run_enabled"));
+    assert!(!bool_field(actions, "cancel_enabled"));
+    assert!(bool_field(actions, "explain_enabled"));
+    for action in ["run", "cancel", "explain"] {
+        assert!(
+            contains_string(actions, "action_labels", action),
+            "SQL run bar must expose {action}"
+        );
+    }
 }

@@ -36,7 +36,8 @@ Certification bundle:
 | Request-history row | `artifacts/data/m5/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.json`, `schemas/ui/m5-request-history-row.schema.json` | Request history, browser-runtime history, managed history, compare view, CLI/headless request inspect, support export, release proof |
 | Contract/source badge | `artifacts/data/m5/implement-operation-collection-and-request-list-views-with-protocol-class-environment-retention-mode-and-contract-or-source-badges.json`, `artifacts/data/m5/ship-contract-freshness-banners-imported-snapshot-labels-and-refresh-diff-or-open-spec-flows.json`, `schemas/ui/m5-contract-source-badge.schema.json` | Full request editor, request history row, response tab set, handoff surfaces, compare surfaces, CLI/headless request inspect, support export, release proof |
 | Connection picker row | `artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json`, `schemas/ui/m5-connection-picker-row.schema.json` | Database connection browser, SQL editor target picker, query history, notebook/chart handoff, support export |
-| Schema tree | `artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json`, `schemas/ui/m5-connection-picker-row.schema.json` | Connection browser, SQL editor object picker, explain-plan pane, support export |
+| Schema object row | `artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json`, `schemas/ui/m5-schema-object-row.schema.json` | Connection browser, SQL editor object picker, explain-plan pane, support export |
+| SQL run bar | `artifacts/data/m5/add-the-statement-safety-classifier-write-mode-bar-and-protected-target-step-up-flows.json`, `artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json`, `schemas/ui/m5-sql-run-bar.schema.json` | SQL editor run bar, query session header, CLI/headless query inspect, support export |
 | Result grid | `artifacts/data/m5/ship-result-grid-virtualization-typed-copy-or-export-filter-and-sort-state-and-row-count-boundary-truth.json`, `schemas/ui/m5-result-grid.schema.json` | SQL result viewer, request data preview, notebook handoff, chart handoff, AI context handoff, support export, release proof |
 | Query-history row | `artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json`, `artifacts/data/m5/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.json`, `schemas/ui/m5-request-history-row.schema.json`, `schemas/ui/m5-result-grid.schema.json` | Request history, query history, exact rerun/current-context replay, support export |
 | Explain-plan pane | `artifacts/data/m5/implement-explain-plan-freshness-notes-engine-version-context-and-plan-comparison-flows.json`, `schemas/ui/m5-explain-plan-pane.schema.json` | SQL editor explain pane, plan comparison flow, query history detail, support export, release proof |
@@ -47,13 +48,22 @@ Certification bundle:
 | --- | --- |
 | `consumer_surface` | `desktop_request_workspace`, `desktop_database_tool`, `remote_workspace`, `container_workspace`, `managed_workspace`, `browser_runtime_panel`, `notebook_handoff`, `chart_handoff`, `ai_context_handoff`, `cli_headless`, `support_export`, `release_proof` |
 | `execution_origin` | `local_desktop`, `ssh_remote`, `container_workspace`, `managed_workspace`, `browser_runtime`, `imported_snapshot`, `cli_headless` |
+| `target_location_class` | `local`, `tunneled`, `container_local`, `remote`, `managed`, `browser_runtime`, `imported_snapshot`, `unknown` |
 | `auth_storage_mode` | `no_auth`, `secret_broker_handle`, `delegated_identity`, `policy_injected`, `browser_device_code`, `local_encrypted_store`, `managed_rotation`, `imported_no_live_auth`, `policy_blocked` |
 | `auth_scheme` | `no_auth`, `basic`, `bearer`, `api_key`, `oauth2_authorization_code`, `oauth2_client_credentials`, `oauth2_device_code`, `browser_session`, `mtls` |
 | `secret_source_class` | `none`, `workspace_variable`, `secret_broker`, `delegated_identity`, `policy_injected`, `browser_device_code`, `local_encrypted_store`, `managed_rotation`, `imported_no_live_auth`, `policy_blocked` |
 | `token_lifetime` | `no_expiry`, `short_lived`, `refreshable`, `expired`, `session_bound`, `unknown` |
 | `handoff_state` | `not_applicable`, `pending`, `awaiting_user_authorization`, `authorized`, `expired`, `denied`, `policy_blocked` |
 | `capability_state` | `read_only`, `write_capable`, `inspect_only`, `mutation_review_required`, `policy_blocked`, `unavailable` |
-| `freshness_state` | `live`, `current`, `warm_cached`, `cached`, `imported`, `stale`, `superseded`, `partial`, `expired`, `policy_limited`, `unknown` |
+| `access_mode` | `read_only`, `write_capable`, `inspect_only`, `mutation_review_required`, `policy_blocked`, `unavailable` |
+| `online_state` | `online`, `offline`, `reconnecting`, `policy_blocked`, `unknown` |
+| `policy_state` | `allowed`, `read_only_enforced`, `mutation_review_required`, `policy_limited`, `policy_blocked`, `unknown` |
+| `freshness_state` | `live`, `current`, `warm_cached`, `cached`, `imported`, `stale`, `superseded`, `partial`, `expired`, `policy_limited`, `offline`, `unknown` |
+| `schema_object_freshness_state` | `fresh`, `live`, `current`, `warm_cached`, `cached`, `imported`, `stale`, `superseded`, `partial`, `expired`, `permission_limited`, `policy_limited`, `offline`, `unknown` |
+| `permission_state` | `full_access`, `read_only`, `inspect_only`, `permission_limited`, `policy_hidden`, `offline_unknown`, `unknown` |
+| `write_risk_state` | `read_only_no_write_risk`, `write_capable_review_required`, `write_capable_autocommit_risk`, `policy_blocked`, `unavailable` |
+| `autocommit_state` | `autocommit_on`, `autocommit_off`, `not_executable`, `unknown` |
+| `transaction_state` | `none_open`, `explicit_transaction_open`, `savepoint_open`, `will_open_transaction`, `explain_only`, `not_executable`, `unknown_requires_review` |
 | `run_control_state` | `idle`, `ready`, `running`, `cancelling`, `blocked` |
 | `resolution_state` | `resolved`, `unresolved`, `shadowed`, `policy_hidden`, `secret_handle` |
 | `override_scope` | `not_overridable`, `request_only`, `workspace_profile`, `runtime_session`, `managed_policy_only` |
@@ -141,15 +151,31 @@ output, and support exports without label drift.
 ### Connection Picker Row
 
 Required truth: connection identity, target identity, engine, origin boundary,
-read-only/write-capable state, permission-limited state, auth storage mode,
-schema tree summary, freshness, last introspection time, and export posture.
-Rows representing imported snapshots or managed policy limits remain visible.
+service identity, execution origin, target location class, read-only/write-capable
+access mode, current database/schema, online state, policy state,
+permission-limited state, auth storage mode, schema tree summary, freshness,
+last introspection time, and export posture. Rows representing imported
+snapshots, tunnels, container-local services, remote services, or managed policy
+limits remain visible.
 
-### Schema Tree
+### Schema Object Row
 
-Required truth: tree identity, root node ref, source engine, depth/node limits,
-freshness, permission-limited nodes, write availability, and stale/imported
-labels. A stale or imported tree may not masquerade as live.
+Required truth: tree identity, object identity, object type/name/path,
+freshness, permission summary, online state, and open/query/copy-identifier
+action states. Fresh, stale, cached, permission-limited, and offline states
+remain first-class rows rather than collapsing into empty trees or generic
+errors. A stale, permission-limited, offline, or imported object may not
+masquerade as live.
+
+### SQL Run Bar
+
+Required truth: editor identity, selected connection, engine/service identity,
+execution origin, target location class, read-only/write-capable access mode,
+current database/schema, online and policy state, write-risk state,
+autocommit state, transaction state, selected-statement count,
+statement-safety summary, and run/cancel/explain actions. Write-risk
+vocabulary must match editor, history, explain, and row-mutation review
+surfaces.
 
 ### Result Grid
 
