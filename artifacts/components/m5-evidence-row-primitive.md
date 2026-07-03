@@ -1,0 +1,70 @@
+# M5 Evidence / Activity Row Primitive: Stable Verbs, Provenance, and Copy Parity
+
+- Packet: `m5-evidence-row-primitive:stable:0001`
+- Label: `M5 evidence / activity row primitive: stable verbs, provenance badges, disclosure-ready detail, and text / JSON / Markdown copy parity`
+- History lanes: 8 (8 stable)
+- Anatomy parts: timestamp, actor, action, object_or_scope, outcome, provenance_badge, detail_link
+- Stable verbs: created, updated, ran, approved, rejected, failed, recovered, exported
+- Provenance badges: human_initiated, ai_initiated, automation_initiated, remote_actor, system_initiated, replayed_from_history
+- Copy formats: text, json, markdown
+- Export fields: event_verb, provenance, timestamp, object_ref, actor_role, outcome_code, redaction_class
+- Proof freshness SLO: 720 hours (last refresh: 2026-06-30T00:00:00Z)
+
+## History lanes
+
+- **AI Evidence**: `stable`
+  - Owner: AI evidence owner
+  - Scope: The AI-evidence lane renders the shared row so an AI run reads as `ran` (AI-initiated, succeeded) with expandable detail into the run's evidence, and copies as text / JSON / Markdown without a screenshot
+  - Shell zone: `bottom_panel`
+  - Portable evidence: true
+  - Worked logs: 1
+    - 1 event(s), copyable as text / JSON / Markdown
+- **Task Events**: `stable`
+  - Owner: Task lifecycle owner
+  - Scope: The task-events lane renders the shared row so the task lifecycle reads with stable verbs — `created` then `updated` (human-initiated, succeeded) — instead of per-feature prose
+  - Shell zone: `bottom_panel`
+  - Portable evidence: true
+  - Worked logs: 1
+    - 2 event(s), copyable as text / JSON / Markdown
+- **Policy Changes**: `stable`
+  - Owner: Policy governance owner
+  - Scope: The policy-changes lane renders the shared row so an `approved` change and a `rejected` change (system-initiated, with reopenable detail) read with stable verbs and their provenance, never conflated with a user action
+  - Shell zone: `bottom_panel`
+  - Portable evidence: true
+  - Worked logs: 1
+    - 2 event(s), copyable as text / JSON / Markdown
+- **Provider Mutations**: `stable`
+  - Owner: Connected-provider registry owner
+  - Scope: The provider-mutations lane renders the shared row so a connected-provider route change reads as `updated` (remote-actor, succeeded) — provider-owned state is attributed, never shown as a local change
+  - Shell zone: `bottom_panel`
+  - Portable evidence: true
+  - Worked logs: 1
+    - 1 event(s), copyable as text / JSON / Markdown
+- **Remote Reconnects**: `stable`
+  - Owner: Remote-connector trust owner
+  - Scope: The remote-reconnects lane renders the shared row so a reconnection reads as `recovered` (remote-actor, succeeded); this lane does not yet claim portable copy, so no copy renderings are emitted while the row grammar stays identical
+  - Shell zone: `bottom_panel`
+  - Portable evidence: false
+  - Worked logs: 1
+    - 1 event(s)
+- **Update History**: `stable`
+  - Owner: Update channel owner
+  - Scope: The update-history lane renders the shared row so an update that `failed` and then `recovered` (automation-initiated) reads with stable verbs, the failing event keeps reopenable detail, and the history copies without a screenshot
+  - Shell zone: `bottom_panel`
+  - Portable evidence: true
+  - Worked logs: 1
+    - 2 event(s), copyable as text / JSON / Markdown
+- **Support Exports**: `stable`
+  - Owner: Support export owner
+  - Scope: The support-exports lane renders the shared row so a bundle export reads as `exported` (human-initiated, succeeded) with reopenable detail, so the support flow itself preserves what happened as copyable text / JSON / Markdown
+  - Shell zone: `bottom_panel`
+  - Portable evidence: true
+  - Worked logs: 1
+    - 1 event(s), copyable as text / JSON / Markdown
+- **Repair Flows**: `stable`
+  - Owner: Recovery / repair owner
+  - Scope: The repair-flows lane renders the shared row so a recovery that replays from durable history reads as `recovered` (replayed-from-history) and reverted the bad change, with reopenable detail and portable copy
+  - Shell zone: `bottom_panel`
+  - Portable evidence: true
+  - Worked logs: 1
+    - 1 event(s), copyable as text / JSON / Markdown
