@@ -63,8 +63,8 @@ use crate::freeze_the_m5_lifecycle_state_and_journey_checkpoint_matrix as matrix
 
 pub use matrix::{
     M5LastFailureReasonClass, M5LifecycleConsumerSurface, M5LifecycleDowngradeTrigger,
-    M5LifecycleObjectFamily, M5LifecycleQualificationClass, M5LifecycleState, M5PrimaryStatusSurface,
-    M5RecoveryAffordance,
+    M5LifecycleObjectFamily, M5LifecycleQualificationClass, M5LifecycleState,
+    M5PrimaryStatusSurface, M5RecoveryAffordance,
 };
 
 mod seed;
@@ -605,10 +605,11 @@ impl LifecycleObjectRow {
                     object_family: self.object_family,
                     trigger: M5LifecycleDowngradeTrigger::StatusSurfaceMissing,
                     disclosed: false,
-                    detail: "The object lost its single visible primary status surface or split its \
+                    detail:
+                        "The object lost its single visible primary status surface or split its \
                              state across competing surfaces, so users can no longer read one \
                              authoritative status."
-                        .to_owned(),
+                            .to_owned(),
                 });
             }
         }
@@ -654,10 +655,11 @@ impl LifecycleObjectRow {
                     object_family: self.object_family,
                     trigger: M5LifecycleDowngradeTrigger::LastFailureReasonMissing,
                     disclosed: false,
-                    detail: "The object dropped its controlled last-failure reason or reported raw \
+                    detail:
+                        "The object dropped its controlled last-failure reason or reported raw \
                              text instead of a controlled reason class, so support and diagnostics \
                              fall back to surface-specific heuristics."
-                        .to_owned(),
+                            .to_owned(),
                 });
             }
         }
@@ -668,10 +670,11 @@ impl LifecycleObjectRow {
                     object_family: self.object_family,
                     trigger: M5LifecycleDowngradeTrigger::UpstreamDependencyNarrowed,
                     disclosed: true,
-                    detail: "The object offers a disclosed reduced recovery affordance while still \
+                    detail:
+                        "The object offers a disclosed reduced recovery affordance while still \
                              naming a path forward, so recovery is narrowed and disclosed rather \
                              than absent."
-                        .to_owned(),
+                            .to_owned(),
                 });
             }
             RecoveryAffordanceBindingState::RecoveryAffordanceMissing => {
@@ -679,9 +682,10 @@ impl LifecycleObjectRow {
                     object_family: self.object_family,
                     trigger: M5LifecycleDowngradeTrigger::RecoveryAffordanceMissing,
                     disclosed: false,
-                    detail: "The object lost its named recovery affordance, leaving a degraded state \
+                    detail:
+                        "The object lost its named recovery affordance, leaving a degraded state \
                              with no named user action to take."
-                        .to_owned(),
+                            .to_owned(),
                 });
             }
         }
@@ -690,10 +694,11 @@ impl LifecycleObjectRow {
                 object_family: self.object_family,
                 trigger: M5LifecycleDowngradeTrigger::StateVocabularyDrift,
                 disclosed: false,
-                detail: "A headless or companion-adjacent execution of this object lost the shared \
+                detail:
+                    "A headless or companion-adjacent execution of this object lost the shared \
                          state-truth vocabulary, so the same object reports a different state \
                          language depending on how it runs."
-                    .to_owned(),
+                        .to_owned(),
             });
         }
         causes
@@ -1171,7 +1176,10 @@ impl LifecycleObjectPacket {
                 .collect::<Vec<_>>()
                 .join(", ")
         ));
-        out.push_str(&format!("- Object families certified: {}\n", self.row_count));
+        out.push_str(&format!(
+            "- Object families certified: {}\n",
+            self.row_count
+        ));
         out.push_str(&format!(
             "- Green (full binding): {}\n",
             self.green_row_count
@@ -1191,7 +1199,11 @@ impl LifecycleObjectPacket {
         ));
         out.push_str(&format!(
             "- Status: **{}**\n",
-            if self.report_clean { "clean" } else { "blocked" }
+            if self.report_clean {
+                "clean"
+            } else {
+                "blocked"
+            }
         ));
         out.push_str(&format!("- Generated at: `{}`\n\n", self.generated_at));
 

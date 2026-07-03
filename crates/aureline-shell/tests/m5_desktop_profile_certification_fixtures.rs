@@ -16,8 +16,8 @@ use std::path::{Path, PathBuf};
 
 use aureline_shell::m5_desktop_profile_certification::{
     seeded_m5_desktop_profile_certification_packet,
-    validate_m5_desktop_profile_certification_packet, DesktopProfileDashboard, DesktopProfilePacket,
-    DesktopProfileStatus, DesktopProfileSupportExport,
+    validate_m5_desktop_profile_certification_packet, DesktopProfileDashboard,
+    DesktopProfilePacket, DesktopProfileStatus, DesktopProfileSupportExport,
     M5_DESKTOP_PROFILE_CERTIFICATION_PACKET_RECORD_KIND,
     M5_DESKTOP_PROFILE_CERTIFICATION_PUBLISHED_REPORT_REF,
     M5_DESKTOP_PROFILE_CERTIFICATION_SHARED_CONTRACT_REF, REQUIRED_PROFILES,
@@ -43,7 +43,10 @@ fn load_json<T: serde::de::DeserializeOwned>(file: &str) -> T {
 fn fixture_packet_is_bit_for_bit_equal_to_seed() {
     let on_disk: DesktopProfilePacket = load_json("packet.json");
     let seeded = seeded_m5_desktop_profile_certification_packet();
-    assert_eq!(on_disk, seeded, "fixture packet diverged from seeded packet");
+    assert_eq!(
+        on_disk, seeded,
+        "fixture packet diverged from seeded packet"
+    );
     assert_eq!(
         seeded.record_kind,
         M5_DESKTOP_PROFILE_CERTIFICATION_PACKET_RECORD_KIND
@@ -61,7 +64,8 @@ fn fixture_packet_is_bit_for_bit_equal_to_seed() {
 #[test]
 fn fixture_packet_passes_validation_and_is_clean() {
     let packet: DesktopProfilePacket = load_json("packet.json");
-    validate_m5_desktop_profile_certification_packet(&packet).expect("fixture packet must validate");
+    validate_m5_desktop_profile_certification_packet(&packet)
+        .expect("fixture packet must validate");
     assert!(packet.report_clean);
     assert!(packet.blocking_findings.is_empty());
     assert_eq!(packet.red_row_count, 0);
@@ -122,7 +126,11 @@ fn fixture_every_row_evaluates_all_claimed_families() {
 fn fixture_dashboard_matches_packet_projection() {
     let packet: DesktopProfilePacket = load_json("packet.json");
     let on_disk: DesktopProfileDashboard = load_json("dashboard.json");
-    assert_eq!(on_disk, packet.dashboard(), "dashboard diverged from projection");
+    assert_eq!(
+        on_disk,
+        packet.dashboard(),
+        "dashboard diverged from projection"
+    );
 }
 
 #[test]
@@ -223,7 +231,9 @@ fn published_doc_links_artifacts_and_quotes_profiles() {
     .expect("published desktop-profile-certification contract must exist");
     assert!(body.contains("artifacts/shell/m5-desktop-profile-certification.md"));
     assert!(body.contains("artifacts/release/m5-desktop-profile-certification-proof/packet.json"));
-    assert!(body.contains("artifacts/release/m5-desktop-profile-certification-proof/dashboard.json"));
+    assert!(
+        body.contains("artifacts/release/m5-desktop-profile-certification-proof/dashboard.json")
+    );
     assert!(body.contains("fixtures/ui/m5-desktop-profile-certification/packet.json"));
     assert!(body.contains("schemas/shell/m5-desktop-profile-certification.schema.json"));
     for profile in REQUIRED_PROFILES {

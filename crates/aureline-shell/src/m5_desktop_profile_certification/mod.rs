@@ -642,10 +642,11 @@ impl DesktopProfileRow {
                     profile: self.profile,
                     trigger: M5ShellDowngradeTrigger::SlotUndeclared,
                     disclosed: false,
-                    detail: "A claimed surface attached outside any declared shell slot under this \
+                    detail:
+                        "A claimed surface attached outside any declared shell slot under this \
                              profile, inventing a private slot instead of using its declared \
                              canonical or fallback slot."
-                        .to_owned(),
+                            .to_owned(),
                 });
             }
         }
@@ -656,10 +657,11 @@ impl DesktopProfileRow {
                     profile: self.profile,
                     trigger: M5ShellDowngradeTrigger::UpstreamDependencyNarrowed,
                     disclosed: true,
-                    detail: "Responsive collapse takes a disclosed docked→sheet/overflow narrowing \
+                    detail:
+                        "Responsive collapse takes a disclosed docked→sheet/overflow narrowing \
                              under this profile while preserving the task identity and the reopen \
                              path, so the claim is narrowed and disclosed."
-                        .to_owned(),
+                            .to_owned(),
                 });
             }
             AdaptiveLayoutState::IdentityLostOrUnusablePane => {
@@ -692,10 +694,11 @@ impl DesktopProfileRow {
                     profile: self.profile,
                     trigger: M5ShellDowngradeTrigger::WorkspaceTruthDivergedAcrossWindows,
                     disclosed: false,
-                    detail: "A workspace-global trust, remote, profile, or recovery truth diverged \
+                    detail:
+                        "A workspace-global trust, remote, profile, or recovery truth diverged \
                              across windows under this profile instead of staying global while \
                              layout stayed local."
-                        .to_owned(),
+                            .to_owned(),
                 });
             }
         }
@@ -1121,7 +1124,8 @@ impl DesktopProfilePacket {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self).expect("m5 desktop-profile-certification packet serializes")
+        serde_json::to_string_pretty(self)
+            .expect("m5 desktop-profile-certification packet serializes")
     }
 
     /// Deterministic, machine-readable certification CSV: one row per profile naming its
@@ -1168,13 +1172,19 @@ impl DesktopProfilePacket {
         out.push_str("```\n\n");
 
         out.push_str(&format!("- Packet id: `{}`\n", self.packet_id));
-        out.push_str(&format!("- Source schema ref: `{}`\n", self.source_schema_ref));
+        out.push_str(&format!(
+            "- Source schema ref: `{}`\n",
+            self.source_schema_ref
+        ));
         out.push_str(&format!(
             "- Certifies matrix packet: `{}`\n",
             self.matrix_packet_ref
         ));
         out.push_str(&format!("- Exact build: `{}`\n", self.build_identity_ref));
-        out.push_str(&format!("- Release channel: `{}`\n", self.release_channel_class));
+        out.push_str(&format!(
+            "- Release channel: `{}`\n",
+            self.release_channel_class
+        ));
         out.push_str(&format!(
             "- Required truth dimensions: {}\n",
             self.required_truth_dimensions
@@ -1192,8 +1202,14 @@ impl DesktopProfilePacket {
                 .join(", ")
         ));
         out.push_str(&format!("- Rows certified: {}\n", self.row_count));
-        out.push_str(&format!("- Green (full continuity): {}\n", self.green_row_count));
-        out.push_str(&format!("- Yellow (auto-narrowed): {}\n", self.yellow_row_count));
+        out.push_str(&format!(
+            "- Green (full continuity): {}\n",
+            self.green_row_count
+        ));
+        out.push_str(&format!(
+            "- Yellow (auto-narrowed): {}\n",
+            self.yellow_row_count
+        ));
         out.push_str(&format!("- Red (blocked): {}\n", self.red_row_count));
         out.push_str(&format!(
             "- All rows publishable: `{}`\n",
@@ -1205,7 +1221,11 @@ impl DesktopProfilePacket {
         ));
         out.push_str(&format!(
             "- Status: **{}**\n",
-            if self.report_clean { "clean" } else { "blocked" }
+            if self.report_clean {
+                "clean"
+            } else {
+                "blocked"
+            }
         ));
         out.push_str(&format!("- Generated at: `{}`\n\n", self.generated_at));
 
@@ -1449,10 +1469,7 @@ impl DesktopProfileSupportExport {
     /// The packet id, the matrix packet ref, the exact-build ref, each profile, and each active
     /// waiver id is quoted as a case id so a support reviewer — or the shell automation — can
     /// name the same profile and waiver the runtime certified.
-    pub fn from_packet(
-        support_export_id: impl Into<String>,
-        packet: DesktopProfilePacket,
-    ) -> Self {
+    pub fn from_packet(support_export_id: impl Into<String>, packet: DesktopProfilePacket) -> Self {
         let mut case_ids = vec![
             packet.packet_id.clone(),
             packet.matrix_packet_ref.clone(),

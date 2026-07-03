@@ -191,7 +191,8 @@ pub const REQUIRED_TELEMETRY_SINKS: [M5LifecycleTelemetrySink; 4] = M5LifecycleT
 
 /// Every mandatory field each family row must keep conformant across UI and export, in canonical
 /// order.
-pub const REQUIRED_MANDATORY_FIELDS: [M5LifecycleMandatoryField; 3] = M5LifecycleMandatoryField::ALL;
+pub const REQUIRED_MANDATORY_FIELDS: [M5LifecycleMandatoryField; 3] =
+    M5LifecycleMandatoryField::ALL;
 
 /// One of the four telemetry sinks a family's stable lifecycle and checkpoint enums must be emitted
 /// into so M5 state truth survives logs, dashboards, and packets rather than living only in a live UI.
@@ -871,10 +872,11 @@ impl TelemetryConformanceRow {
                 object_family: self.object_family,
                 trigger: M5LifecycleDowngradeTrigger::StatusCodeUnexportable,
                 disclosed: false,
-                detail: "The object does not emit its stable enums into all four telemetry sinks — \
+                detail:
+                    "The object does not emit its stable enums into all four telemetry sinks — \
                          telemetry, structured logs, dashboards, and support exports — so its \
                          lifecycle state does not appear in every machine path."
-                    .to_owned(),
+                        .to_owned(),
             });
         }
         if !self.mandatory_fields_complete() {
@@ -893,11 +895,12 @@ impl TelemetryConformanceRow {
                 object_family: self.object_family,
                 trigger: M5LifecycleDowngradeTrigger::StateVocabularyDrift,
                 disclosed: false,
-                detail: "A headless or companion-adjacent execution of this object lost the shared \
+                detail:
+                    "A headless or companion-adjacent execution of this object lost the shared \
                          state-truth vocabulary for its telemetry emission, so the same object \
                          reports a different lifecycle and transition language depending on how it \
                          runs."
-                    .to_owned(),
+                        .to_owned(),
             });
         }
         causes
@@ -2131,10 +2134,12 @@ pub fn validate_m5_lifecycle_telemetry_conformance_packet(
         errors.push(TelemetryConformanceValidationError::BlockingFindingsStale);
     }
     for finding in &packet.blocking_findings {
-        errors.push(TelemetryConformanceValidationError::BlockingFindingPresent {
-            class: finding.class_token().to_owned(),
-            subject_ref: finding.subject_ref().to_owned(),
-        });
+        errors.push(
+            TelemetryConformanceValidationError::BlockingFindingPresent {
+                class: finding.class_token().to_owned(),
+                subject_ref: finding.subject_ref().to_owned(),
+            },
+        );
     }
 
     if packet.published_report_ref.trim().is_empty() {

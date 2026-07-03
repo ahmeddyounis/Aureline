@@ -206,10 +206,10 @@ fn os_notification_leak_blocks_the_review() {
         finding,
         RoutingContinuityFinding::OsNotificationLeaksOrBypassesReview { .. }
     )));
-    assert!(row.routing_causes.iter().any(|cause| matches!(
-        cause.trigger,
-        M5ShellDowngradeTrigger::PolicyBlocked
-    )));
+    assert!(row
+        .routing_causes
+        .iter()
+        .any(|cause| matches!(cause.trigger, M5ShellDowngradeTrigger::PolicyBlocked)));
     assert!(validate_m5_owning_window_routing_packet(&packet).is_err());
 }
 

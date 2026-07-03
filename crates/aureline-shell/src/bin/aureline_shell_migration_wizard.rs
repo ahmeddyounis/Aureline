@@ -13,13 +13,16 @@
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- compare-actions
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- undo-actions
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- stage-history
+//! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- header
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- support-export
+//! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- issue-template
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- validate
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- compact
 //! ```
 
 use aureline_shell::migration_wizard::{
-    seeded_migration_wizard_page, validate_migration_wizard_page, MigrationWizardSupportExport,
+    seeded_migration_wizard_page, validate_migration_wizard_page,
+    MigrationWizardIssueTemplateExport, MigrationWizardSupportExport,
 };
 
 fn main() {
@@ -55,12 +58,23 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("rollback-checkpoint") => {
             print_json(&page.rollback_checkpoint)?;
         }
+        Some("header") => {
+            print_json(&page.header)?;
+        }
         Some("support-export") => {
             let export = MigrationWizardSupportExport::from_page(
                 "support-export:migration-wizard:001",
                 page,
             );
             print_json(&export)?;
+        }
+        Some("issue-template") => {
+            let export = MigrationWizardSupportExport::from_page(
+                "support-export:migration-wizard:001",
+                page,
+            );
+            let issue = MigrationWizardIssueTemplateExport::from_support_export(&export);
+            print_json(&issue)?;
         }
         Some("validate") => match validate_migration_wizard_page(&page) {
             Ok(()) => {

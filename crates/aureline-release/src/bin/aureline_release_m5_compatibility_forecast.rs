@@ -95,10 +95,9 @@ fn parse_variant(token: &str) -> Result<CompatibilityForecastSheet, Box<dyn std:
         "review" => Ok(seeded_m5_compatibility_forecast_sheet_review()),
         "hold" => Ok(seeded_m5_compatibility_forecast_sheet_hold()),
         "out-of-window" => Ok(seeded_m5_compatibility_forecast_sheet_out_of_window()),
-        other => Err(format!(
-            "unknown variant: {other} (canonical|review|hold|out-of-window)"
-        )
-        .into()),
+        other => {
+            Err(format!("unknown variant: {other} (canonical|review|hold|out-of-window)").into())
+        }
     }
 }
 

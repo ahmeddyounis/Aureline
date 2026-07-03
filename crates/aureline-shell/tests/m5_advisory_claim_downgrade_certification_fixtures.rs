@@ -45,7 +45,10 @@ fn load_json<T: serde::de::DeserializeOwned>(file: &str) -> T {
 fn fixture_packet_is_bit_for_bit_equal_to_seed() {
     let on_disk: AdvisoryClaimPacket = load_json("packet.json");
     let seeded = seeded_m5_advisory_claim_downgrade_certification_packet();
-    assert_eq!(on_disk, seeded, "fixture packet diverged from seeded packet");
+    assert_eq!(
+        on_disk, seeded,
+        "fixture packet diverged from seeded packet"
+    );
     assert_eq!(
         seeded.record_kind,
         M5_ADVISORY_CLAIM_DOWNGRADE_PACKET_RECORD_KIND
@@ -207,12 +210,11 @@ fn published_packet_json_matches_seed() {
 fn published_dashboard_json_matches_seeded_projection() {
     let packet = seeded_m5_advisory_claim_downgrade_certification_packet();
     let rendered = packet.dashboard().export_safe_json();
-    let on_disk = std::fs::read_to_string(
-        repo_root().join(
+    let on_disk =
+        std::fs::read_to_string(repo_root().join(
             "artifacts/release/m5-advisory-claim-downgrade-certification-proof/dashboard.json",
-        ),
-    )
-    .expect("published dashboard.json must exist");
+        ))
+        .expect("published dashboard.json must exist");
     assert_eq!(
         on_disk.trim_end(),
         rendered.trim_end(),
@@ -249,8 +251,9 @@ fn published_doc_links_artifacts_and_quotes_profiles() {
     assert!(body.contains(
         "artifacts/release/m5-advisory-claim-downgrade-certification-proof/dashboard.json"
     ));
-    assert!(body
-        .contains("fixtures/security/m5-advisory-claim-downgrade-certification/packet.json"));
+    assert!(
+        body.contains("fixtures/security/m5-advisory-claim-downgrade-certification/packet.json")
+    );
     assert!(body.contains("schemas/security/m5-advisory-claim-downgrade-certification.schema.json"));
     for profile in REQUIRED_PROFILES {
         assert!(

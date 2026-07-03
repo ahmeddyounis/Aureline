@@ -961,8 +961,9 @@ fn source_contract_refs() -> Vec<String> {
 fn base_input() -> M5LifecycleMatrixPacketInput {
     M5LifecycleMatrixPacketInput {
         packet_id: M5_LIFECYCLE_MATRIX_PACKET_ID.to_owned(),
-        matrix_label: "M5 Lifecycle-State, Degraded-Vocabulary, and Critical-Journey Checkpoint Matrix"
-            .to_owned(),
+        matrix_label:
+            "M5 Lifecycle-State, Degraded-Vocabulary, and Critical-Journey Checkpoint Matrix"
+                .to_owned(),
         object_state_rows: object_rows(),
         journey_checkpoint_rows: journey_rows(),
         vocabulary_set: M5LifecycleVocabularySet::canonical(),

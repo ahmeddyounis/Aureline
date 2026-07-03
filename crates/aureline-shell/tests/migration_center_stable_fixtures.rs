@@ -425,6 +425,36 @@ fn top_level_refs_are_canonical_durable_objects() {
         let record = load_record(scenario.fixture_filename);
         for (label, value) in [
             ("migration_session_ref", &record.migration_session_ref),
+            (
+                "header.migration_session_ref",
+                &record.header.migration_session_ref,
+            ),
+            ("header.target_scope_ref", &record.header.target_scope_ref),
+            ("header.checkpoint_ref", &record.header.checkpoint_ref),
+            (
+                "header.restore_record_ref",
+                &record.header.restore_record_ref,
+            ),
+            (
+                "header.restore_action_ref",
+                &record.header.restore_action_ref,
+            ),
+            (
+                "header.compatibility_report_ref",
+                &record.header.compatibility_report_ref,
+            ),
+            (
+                "header.compatibility_report_action_ref",
+                &record.header.compatibility_report_action_ref,
+            ),
+            (
+                "header.support_export_ref",
+                &record.header.support_export_ref,
+            ),
+            (
+                "header.issue_template_ref",
+                &record.header.issue_template_ref,
+            ),
             ("diff.diff_preview_ref", &record.diff.diff_preview_ref),
             ("rollback.checkpoint_ref", &record.rollback.checkpoint_ref),
             (
@@ -465,5 +495,49 @@ fn top_level_refs_are_canonical_durable_objects() {
                 scenario.scenario_id
             );
         }
+    }
+}
+
+#[test]
+fn header_preserves_session_restore_and_compatibility_truth() {
+    for scenario in migration_flow_disclosure_corpus() {
+        let record = load_record(scenario.fixture_filename);
+        assert!(
+            record.header.answers_required_questions(),
+            "{} header incomplete",
+            scenario.scenario_id
+        );
+        assert_eq!(
+            record.header.migration_session_ref, record.migration_session_ref,
+            "{} header session drift",
+            scenario.scenario_id
+        );
+        assert_eq!(
+            record.header.checkpoint_ref, record.rollback.checkpoint_ref,
+            "{} header checkpoint drift",
+            scenario.scenario_id
+        );
+        assert_eq!(
+            record.header.restore_record_ref, record.rollback.restore_record_ref,
+            "{} header restore drift",
+            scenario.scenario_id
+        );
+        assert_eq!(
+            record.header.support_export_ref, record.support_export_ref,
+            "{} header support export drift",
+            scenario.scenario_id
+        );
+        assert!(
+            record.header.source_version_label.contains("version"),
+            "{} source version chip absent",
+            scenario.scenario_id
+        );
+        assert!(
+            record.header.partial_apply_context_visible
+                && record.header.downgrade_context_visible
+                && record.header.restore_context_visible,
+            "{} post-apply context not retained",
+            scenario.scenario_id
+        );
     }
 }

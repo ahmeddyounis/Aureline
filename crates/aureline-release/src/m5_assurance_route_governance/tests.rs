@@ -219,7 +219,10 @@ fn assurance_state_gap_blocks_when_facet_state_blocks() {
         AssuranceFacet::RouteHop,
         CanonicalState::RouteHop(RouteHopState::UnattributedRoute),
         FreshnessState::Current,
-        &[EvidenceClass::RouteTimeline, EvidenceClass::ProvenanceLedger],
+        &[
+            EvidenceClass::RouteTimeline,
+            EvidenceClass::ProvenanceLedger,
+        ],
         &[
             ClaimedPosture::Managed,
             ClaimedPosture::SelfHosted,
@@ -346,7 +349,8 @@ fn matrix_csv_enumerates_consumer_owner_and_proof() {
 
 #[test]
 fn governance_markdown_names_states_facets_and_consumers() {
-    let md = seeded_m5_assurance_route_governance_stale_proof_narrowed().render_governance_markdown();
+    let md =
+        seeded_m5_assurance_route_governance_stale_proof_narrowed().render_governance_markdown();
     assert!(md.contains("# M5 Assurance / Governance / Route-Provenance Governance Matrix"));
     assert!(md.contains("Canonical assurance state families"));
     assert!(md.contains("Governed facets"));

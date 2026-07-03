@@ -28,15 +28,15 @@ use crate::migration_wizard::{seeded_migration_wizard_page, MigrationWizardPage}
 use super::model::{
     required_recovery_actions, AccessibilityDisclosure, DiffDisclosure, EntryRouteRecord,
     GapTaxonomy, LayoutMode, LayoutModeDisclosure, MigrationClaimCeiling,
-    MigrationFlowDisclosureInput, MigrationFlowDisclosureRecord, MigrationRouteSurface,
-    RollbackDisclosure, StableClaimClass, SurfaceParity, UnsupportedGapDisclosure, UpstreamRefs,
+    MigrationFlowDisclosureInput, MigrationFlowDisclosureRecord, MigrationFlowHeader,
+    MigrationRouteSurface, RollbackDisclosure, StableClaimClass, SurfaceParity,
+    UnsupportedGapDisclosure, UpstreamRefs,
 };
 
 /// Snapshot timestamp pinned for every record in the corpus.
 pub const CORPUS_AS_OF: &str = "2026-05-25T12:00:00Z";
 
 const DIAGNOSTICS_EXPORT_REF: &str = "aureline://diagnostics/migration-flow-disclosure";
-const SUPPORT_EXPORT_REF: &str = "aureline://support-export/migration-flow-disclosure";
 const EVIDENCE_ARTIFACT_REF: &str = "aureline://artifact/ux-m4-migration-center-stable";
 const EVIDENCE_FIXTURE_REF: &str = "aureline://fixture/ux-m4-migration-center-stable";
 const NARRATIVE_REF: &str = "aureline://doc/ux-m4-migration-center-stable";
@@ -213,6 +213,31 @@ fn build_record(
             .then(|| format!("aureline://migration-compare/{ecosystem_token}")),
     };
     let rollback_live = rollback.is_live_for_flow();
+    let migration_session_ref = format!("aureline://migration-session/{ecosystem_token}");
+    let support_export_ref = format!("aureline://support-export/migration-flow-{ecosystem_token}");
+    let header = MigrationFlowHeader {
+        migration_session_ref: migration_session_ref.clone(),
+        source_tool_label: ecosystem_label.to_string(),
+        source_version_label: "version not read (migration corpus marker-only)".to_string(),
+        target_scope_ref: "aureline://profile/default".to_string(),
+        target_scope_label: "Default profile".to_string(),
+        writes_land_in: "profile:default".to_string(),
+        checkpoint_created_notice: format!(
+            "Checkpoint created before apply: aureline://rollback-checkpoint/{ecosystem_token}"
+        ),
+        checkpoint_ref: format!("aureline://rollback-checkpoint/{ecosystem_token}"),
+        restore_record_ref: format!("aureline://migration-restore-record/{ecosystem_token}"),
+        restore_action_ref: format!("aureline://migration-restore-action/{ecosystem_token}"),
+        compatibility_report_ref: format!("aureline://compatibility-report/{ecosystem_token}"),
+        compatibility_report_action_ref: format!(
+            "aureline://compatibility-report-action/{ecosystem_token}"
+        ),
+        support_export_ref: support_export_ref.clone(),
+        issue_template_ref: format!("aureline://issue-template/migration-flow-{ecosystem_token}"),
+        partial_apply_context_visible: true,
+        downgrade_context_visible: true,
+        restore_context_visible: true,
+    };
 
     // --- claim ceiling ---------------------------------------------------------
     let claim_ceiling = MigrationClaimCeiling {
@@ -327,8 +352,9 @@ fn build_record(
     let input = MigrationFlowDisclosureInput {
         record_id: meta.scenario_id.to_string(),
         as_of: CORPUS_AS_OF.to_string(),
-        migration_session_ref: format!("aureline://migration-session/{ecosystem_token}"),
+        migration_session_ref,
         source_ecosystem: ecosystem,
+        header,
         title,
         summary: summary_sentence,
         diff,
@@ -343,7 +369,7 @@ fn build_record(
         available_without_managed_services: true,
         upstream,
         diagnostics_export_ref: DIAGNOSTICS_EXPORT_REF.to_string(),
-        support_export_ref: SUPPORT_EXPORT_REF.to_string(),
+        support_export_ref,
         evidence_refs: vec![
             EVIDENCE_ARTIFACT_REF.to_string(),
             EVIDENCE_FIXTURE_REF.to_string(),

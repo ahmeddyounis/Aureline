@@ -111,7 +111,8 @@ const BOUNDARY_PROOF_REF: &str =
     "artifacts/release-proof/m5-assurance-route-governance/capability-boundary.json";
 
 /// Repo-relative proof ref backing the route-hop facet.
-const ROUTE_PROOF_REF: &str = "artifacts/release-proof/m5-assurance-route-governance/route-hop.json";
+const ROUTE_PROOF_REF: &str =
+    "artifacts/release-proof/m5-assurance-route-governance/route-hop.json";
 
 /// Repo-relative proof ref backing the approval-ticket facet.
 const APPROVAL_PROOF_REF: &str =
@@ -213,9 +214,9 @@ impl HighRiskAction {
     /// Who initiated the action.
     pub const fn actor(self) -> ActorClass {
         match self {
-            Self::LocalModelExecution
-            | Self::RemoteModelInference
-            | Self::WorkspaceDataExport => ActorClass::LocalUser,
+            Self::LocalModelExecution | Self::RemoteModelInference | Self::WorkspaceDataExport => {
+                ActorClass::LocalUser
+            }
             Self::ProviderCredentialRotation | Self::AdminPolicyPush => ActorClass::WorkspaceAdmin,
             Self::ControlPlaneSync | Self::OfflineModelAcquisition => ActorClass::AutomationAgent,
             Self::SupportBundleHandoff => ActorClass::SupportEngineer,
@@ -240,10 +241,16 @@ impl HighRiskAction {
     pub fn sensitive_data_classes(self) -> Vec<SensitiveDataClass> {
         let mut classes = match self {
             Self::LocalModelExecution => {
-                vec![SensitiveDataClass::SourceContent, SensitiveDataClass::PromptContext]
+                vec![
+                    SensitiveDataClass::SourceContent,
+                    SensitiveDataClass::PromptContext,
+                ]
             }
             Self::RemoteModelInference => {
-                vec![SensitiveDataClass::PromptContext, SensitiveDataClass::SourceContent]
+                vec![
+                    SensitiveDataClass::PromptContext,
+                    SensitiveDataClass::SourceContent,
+                ]
             }
             Self::ProviderCredentialRotation => vec![
                 SensitiveDataClass::CredentialReference,
@@ -280,9 +287,9 @@ impl HighRiskAction {
     pub const fn approving_authority(self) -> ApprovalAuthority {
         match self {
             Self::LocalModelExecution | Self::ControlPlaneSync => ApprovalAuthority::StandingPolicy,
-            Self::RemoteModelInference
-            | Self::WorkspaceDataExport
-            | Self::SupportBundleHandoff => ApprovalAuthority::UserConsent,
+            Self::RemoteModelInference | Self::WorkspaceDataExport | Self::SupportBundleHandoff => {
+                ApprovalAuthority::UserConsent
+            }
             Self::ProviderCredentialRotation => ApprovalAuthority::SecurityOfficer,
             Self::OfflineModelAcquisition => ApprovalAuthority::RuntimeBroker,
             Self::AdminPolicyPush => ApprovalAuthority::WorkspaceAdmin,
@@ -335,11 +342,17 @@ impl HighRiskAction {
             Self::ProviderCredentialRotation => {
                 "Rotate the named provider credential; no credential body exposed."
             }
-            Self::WorkspaceDataExport => "Export the selected files to the chosen destination once.",
+            Self::WorkspaceDataExport => {
+                "Export the selected files to the chosen destination once."
+            }
             Self::ControlPlaneSync => "Sync workspace metadata for the active deployment only.",
-            Self::OfflineModelAcquisition => "Acquire the requested model from the configured mirror.",
+            Self::OfflineModelAcquisition => {
+                "Acquire the requested model from the configured mirror."
+            }
             Self::AdminPolicyPush => "Publish the policy bundle to the active deployment.",
-            Self::SupportBundleHandoff => "Disclose the redacted diagnostic bundle to vendor support.",
+            Self::SupportBundleHandoff => {
+                "Disclose the redacted diagnostic bundle to vendor support."
+            }
         }
     }
 
@@ -353,7 +366,9 @@ impl HighRiskAction {
             }
             Self::WorkspaceDataExport => "governance-ticket://approval/workspace-data-export",
             Self::ControlPlaneSync => "governance-ticket://approval/control-plane-sync",
-            Self::OfflineModelAcquisition => "governance-ticket://approval/offline-model-acquisition",
+            Self::OfflineModelAcquisition => {
+                "governance-ticket://approval/offline-model-acquisition"
+            }
             Self::AdminPolicyPush => "governance-ticket://approval/admin-policy-push",
             Self::SupportBundleHandoff => "governance-ticket://approval/support-bundle-handoff",
         }
@@ -411,9 +426,7 @@ impl BoundaryClass {
     pub fn trust_boundaries(self) -> Vec<TrustBoundary> {
         match self {
             Self::LocalExecution => vec![TrustBoundary::LocalFirst],
-            Self::LocalToRemoteProvider
-            | Self::LocalToControlPlane
-            | Self::VendorHandoff => {
+            Self::LocalToRemoteProvider | Self::LocalToControlPlane | Self::VendorHandoff => {
                 vec![TrustBoundary::LocalFirst, TrustBoundary::ControlPlane]
             }
         }
@@ -1140,8 +1153,10 @@ impl BoundarySummaryCard {
         evidence_freshness: FreshnessState,
     ) -> Self {
         let boundary_class = action.boundary_class();
-        let effective_gate =
-            worse_gate(boundary_state.gate_posture(), freshness_gate(evidence_freshness));
+        let effective_gate = worse_gate(
+            boundary_state.gate_posture(),
+            freshness_gate(evidence_freshness),
+        );
         let status = gate_status(effective_gate);
         Self {
             action,
@@ -1185,8 +1200,10 @@ impl BoundarySummaryCard {
         if probe != *self {
             out.push(M5BoundaryInspectorViolation::BoundaryCardDrift);
         }
-        let expected_gate =
-            worse_gate(self.boundary_state.gate_posture(), freshness_gate(self.evidence_freshness));
+        let expected_gate = worse_gate(
+            self.boundary_state.gate_posture(),
+            freshness_gate(self.evidence_freshness),
+        );
         if self.effective_gate != expected_gate
             || self.effective_qualification != floor_for_gate(expected_gate)
             || self.status != gate_status(expected_gate)
@@ -1340,8 +1357,14 @@ impl RouteHopTimeline {
             freshness_gate(evidence_freshness),
         );
         let status = gate_status(effective_gate);
-        let origin_locality = hops.first().map(|h| h.locality).unwrap_or(HopLocality::LocalMachine);
-        let final_locality = hops.last().map(|h| h.locality).unwrap_or(HopLocality::LocalMachine);
+        let origin_locality = hops
+            .first()
+            .map(|h| h.locality)
+            .unwrap_or(HopLocality::LocalMachine);
+        let final_locality = hops
+            .last()
+            .map(|h| h.locality)
+            .unwrap_or(HopLocality::LocalMachine);
         let crosses_trust_boundary = hops.iter().any(|h| !h.is_local);
         let drift_marker_count = hops
             .iter()
@@ -1493,8 +1516,10 @@ impl ApprovalTicketInspector {
         expiry_standing: ExpiryStanding,
         expiry: &str,
     ) -> Self {
-        let effective_gate =
-            worse_gate(approval_state.gate_posture(), expiry_standing.gate_posture());
+        let effective_gate = worse_gate(
+            approval_state.gate_posture(),
+            expiry_standing.gate_posture(),
+        );
         let status = gate_status(effective_gate);
         Self {
             action,
@@ -1539,8 +1564,10 @@ impl ApprovalTicketInspector {
         if probe != *self {
             out.push(M5BoundaryInspectorViolation::ApprovalTicketDrift);
         }
-        let expected_gate =
-            worse_gate(self.approval_state.gate_posture(), self.expiry_standing.gate_posture());
+        let expected_gate = worse_gate(
+            self.approval_state.gate_posture(),
+            self.expiry_standing.gate_posture(),
+        );
         if self.effective_gate != expected_gate
             || self.effective_qualification != floor_for_gate(expected_gate)
             || self.status != gate_status(expected_gate)
@@ -1749,7 +1776,10 @@ impl ActionInspector {
         let expected_gaps: Vec<(InspectorFacet, InspectorGapKind)> = [
             (InspectorFacet::Boundary, self.boundary_card.effective_gate),
             (InspectorFacet::Route, self.route_timeline.effective_gate),
-            (InspectorFacet::Approval, self.approval_ticket.effective_gate),
+            (
+                InspectorFacet::Approval,
+                self.approval_ticket.effective_gate,
+            ),
         ]
         .into_iter()
         .filter_map(|(facet, gate)| gap_kind_for_gate(gate).map(|kind| (facet, kind)))
@@ -1880,7 +1910,8 @@ impl InspectorEvaluationPacket {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self).expect("m5 boundary inspector evaluation packet serializes")
+        serde_json::to_string_pretty(self)
+            .expect("m5 boundary inspector evaluation packet serializes")
     }
 
     /// True when every token the packet carries is a member of the canonical vocabulary, so the
@@ -1898,7 +1929,9 @@ impl InspectorEvaluationPacket {
                 && vocab
                     .boundary_states
                     .contains(&a.boundary_state.as_str().to_owned())
-                && vocab.route_states.contains(&a.route_state.as_str().to_owned())
+                && vocab
+                    .route_states
+                    .contains(&a.route_state.as_str().to_owned())
                 && vocab
                     .approval_states
                     .contains(&a.approval_state.as_str().to_owned())
@@ -2335,8 +2368,12 @@ impl M5BoundaryInspector {
         }
 
         out.push_str("\n## Boundary summary cards\n\n");
-        out.push_str("| Action | Boundary class | Actor | Target | Data classes | Authority | Summary |\n");
-        out.push_str("|--------|----------------|-------|--------|--------------|-----------|---------|\n");
+        out.push_str(
+            "| Action | Boundary class | Actor | Target | Data classes | Authority | Summary |\n",
+        );
+        out.push_str(
+            "|--------|----------------|-------|--------|--------------|-----------|---------|\n",
+        );
         for c in self.boundary_cards() {
             out.push_str(&format!(
                 "| `{}` | `{}` | `{}` | `{}` | {} | `{}` | {} |\n",
@@ -2380,8 +2417,12 @@ impl M5BoundaryInspector {
         }
 
         out.push_str("\n## Approval tickets\n\n");
-        out.push_str("| Action | Capability | Authority | Approval state | Expiry | Standing | Actions |\n");
-        out.push_str("|--------|------------|-----------|----------------|--------|----------|---------|\n");
+        out.push_str(
+            "| Action | Capability | Authority | Approval state | Expiry | Standing | Actions |\n",
+        );
+        out.push_str(
+            "|--------|------------|-----------|----------------|--------|----------|---------|\n",
+        );
         for a in self.approval_tickets() {
             out.push_str(&format!(
                 "| `{}` | `{}` | `{}` | `{}` | `{}` | `{}` | {} |\n",
@@ -2529,7 +2570,10 @@ impl BoundaryInspectorChannel {
 /// Derives the summary from the action inspectors.
 fn derive_summary(inspectors: &[ActionInspector]) -> BoundaryInspectorSummary {
     let gate_count = |gate: DescriptorGate| -> u32 {
-        inspectors.iter().filter(|i| i.effective_gate == gate).count() as u32
+        inspectors
+            .iter()
+            .filter(|i| i.effective_gate == gate)
+            .count() as u32
     };
     let blocked = gate_count(DescriptorGate::Blocked);
     BoundaryInspectorSummary {
@@ -2537,7 +2581,10 @@ fn derive_summary(inspectors: &[ActionInspector]) -> BoundaryInspectorSummary {
         governed_actions: gate_count(DescriptorGate::Governed),
         narrowed_actions: gate_count(DescriptorGate::Narrowed),
         blocked_actions: blocked,
-        crossing_actions: inspectors.iter().filter(|i| i.crosses_trust_boundary).count() as u32,
+        crossing_actions: inspectors
+            .iter()
+            .filter(|i| i.crosses_trust_boundary)
+            .count() as u32,
         drifted_routes: inspectors
             .iter()
             .filter(|i| i.route_timeline.drift_marker_count > 0)
@@ -2591,7 +2638,10 @@ fn derive_conformance(
 
     let worst_of_facets = inspectors.iter().all(|i| {
         let expected = worse_gate(
-            worse_gate(i.boundary_card.effective_gate, i.route_timeline.effective_gate),
+            worse_gate(
+                i.boundary_card.effective_gate,
+                i.route_timeline.effective_gate,
+            ),
             i.approval_ticket.effective_gate,
         );
         i.effective_gate == expected
@@ -2629,9 +2679,9 @@ fn derive_conformance(
         !matches!(i.approval_ticket.expiry_standing, ExpiryStanding::Expired) || i.is_blocked()
     });
 
-    let boundary_vocab = inspectors.iter().all(|i| {
-        CapabilityBoundaryState::ALL.contains(&i.boundary_card.boundary_state)
-    });
+    let boundary_vocab = inspectors
+        .iter()
+        .all(|i| CapabilityBoundaryState::ALL.contains(&i.boundary_card.boundary_state));
     let route_vocab = inspectors
         .iter()
         .all(|i| RouteHopState::ALL.contains(&i.route_timeline.route_state));

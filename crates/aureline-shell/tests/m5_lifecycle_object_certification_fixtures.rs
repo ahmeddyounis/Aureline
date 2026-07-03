@@ -43,7 +43,10 @@ fn load_json<T: serde::de::DeserializeOwned>(file: &str) -> T {
 fn fixture_packet_is_bit_for_bit_equal_to_seed() {
     let on_disk: LifecycleObjectPacket = load_json("packet.json");
     let seeded = seeded_m5_lifecycle_object_certification_packet();
-    assert_eq!(on_disk, seeded, "fixture packet diverged from seeded packet");
+    assert_eq!(
+        on_disk, seeded,
+        "fixture packet diverged from seeded packet"
+    );
     assert_eq!(
         seeded.record_kind,
         M5_LIFECYCLE_OBJECT_CERTIFICATION_PACKET_RECORD_KIND
@@ -139,10 +142,8 @@ fn fixture_dashboard_matches_packet_projection() {
 fn fixture_support_export_quotes_packet_and_waiver_refs() {
     let packet: LifecycleObjectPacket = load_json("packet.json");
     let export: LifecycleObjectSupportExport = load_json("support_export.json");
-    let expected = LifecycleObjectSupportExport::from_packet(
-        export.support_export_id.clone(),
-        packet.clone(),
-    );
+    let expected =
+        LifecycleObjectSupportExport::from_packet(export.support_export_id.clone(), packet.clone());
     assert_eq!(export, expected);
     assert!(export.case_ids.contains(&packet.packet_id));
     assert!(export.case_ids.contains(&packet.matrix_packet_ref));
@@ -185,8 +186,7 @@ fn published_packet_json_matches_seed() {
     let packet = seeded_m5_lifecycle_object_certification_packet();
     let rendered = packet.export_safe_json();
     let on_disk = std::fs::read_to_string(
-        repo_root()
-            .join("artifacts/release/m5-lifecycle-object-certification-proof/packet.json"),
+        repo_root().join("artifacts/release/m5-lifecycle-object-certification-proof/packet.json"),
     )
     .expect("published packet.json must exist");
     assert_eq!(
@@ -219,8 +219,7 @@ fn published_csv_matches_seeded_rendering() {
     let packet = seeded_m5_lifecycle_object_certification_packet();
     let rendered = packet.render_matrix_csv();
     let on_disk = std::fs::read_to_string(
-        repo_root()
-            .join("artifacts/release/m5-lifecycle-object-certification-proof/matrix.csv"),
+        repo_root().join("artifacts/release/m5-lifecycle-object-certification-proof/matrix.csv"),
     )
     .expect("published matrix.csv must exist");
     assert_eq!(
@@ -237,10 +236,10 @@ fn published_doc_links_artifacts_and_quotes_object_families() {
     )
     .expect("published lifecycle-object-certification contract must exist");
     assert!(body.contains("artifacts/lifecycle/m5-lifecycle-object-certification.md"));
-    assert!(body
-        .contains("artifacts/release/m5-lifecycle-object-certification-proof/packet.json"));
-    assert!(body
-        .contains("artifacts/release/m5-lifecycle-object-certification-proof/dashboard.json"));
+    assert!(body.contains("artifacts/release/m5-lifecycle-object-certification-proof/packet.json"));
+    assert!(
+        body.contains("artifacts/release/m5-lifecycle-object-certification-proof/dashboard.json")
+    );
     assert!(body.contains("fixtures/state/m5-lifecycle-object-certification/packet.json"));
     assert!(body.contains("schemas/lifecycle/m5-lifecycle-object-certification.schema.json"));
     for object_family in REQUIRED_OBJECT_FAMILIES {

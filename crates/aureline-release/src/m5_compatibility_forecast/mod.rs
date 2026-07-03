@@ -352,7 +352,9 @@ impl ForecastConfidence {
     pub const fn gate_cap(self) -> DescriptorGate {
         match self {
             Self::Qualified | Self::Likely => DescriptorGate::Blocked,
-            Self::Estimated | Self::Unknown | Self::OutsideClaimedWindow => DescriptorGate::Narrowed,
+            Self::Estimated | Self::Unknown | Self::OutsideClaimedWindow => {
+                DescriptorGate::Narrowed
+            }
             Self::NotApplicable => DescriptorGate::Governed,
         }
     }
@@ -570,7 +572,10 @@ impl SkipPolicy {
 
     /// True when the task may be waived at all.
     pub const fn is_waivable(self) -> bool {
-        matches!(self, Self::OptionalRecommended | Self::SkippableWithRationale)
+        matches!(
+            self,
+            Self::OptionalRecommended | Self::SkippableWithRationale
+        )
     }
 }
 
@@ -704,9 +709,9 @@ impl ForecastGapKind {
     /// The gate this gap forces.
     const fn gate(self) -> DescriptorGate {
         match self {
-            Self::ReviewBeforeWidening | Self::ForecastInputUnknown | Self::OutsideClaimedWindow => {
-                DescriptorGate::Narrowed
-            }
+            Self::ReviewBeforeWidening
+            | Self::ForecastInputUnknown
+            | Self::OutsideClaimedWindow => DescriptorGate::Narrowed,
             Self::ResolveBeforeWidening | Self::SubjectNotForecast => DescriptorGate::Blocked,
         }
     }
@@ -1370,7 +1375,10 @@ impl MigrationTaskRow {
             return Some(CompatibilityForecastViolation::IllegalWaiver);
         }
         if self.requires_recorded_rationale
-            && waiver.rationale.as_ref().is_none_or(|r| r.trim().is_empty())
+            && waiver
+                .rationale
+                .as_ref()
+                .is_none_or(|r| r.trim().is_empty())
         {
             return Some(CompatibilityForecastViolation::WaiverRationaleMissing);
         }
@@ -2099,7 +2107,10 @@ impl CompatibilityForecastSheet {
             }
             // Every narrowed / held subject must carry a migration task.
             if subject.requires_migration_task
-                && !self.migration_tasks.iter().any(|t| t.subject == subject.subject)
+                && !self
+                    .migration_tasks
+                    .iter()
+                    .any(|t| t.subject == subject.subject)
             {
                 violations.push(CompatibilityForecastViolation::MissingMigrationTask);
             }
@@ -2197,7 +2208,9 @@ impl CompatibilityForecastSheet {
             ));
         }
         out.push_str("## Compatibility forecasts\n\n");
-        out.push_str("| Subject | Claimed window | Worst readiness | Stable | Beta | Preview | LTS |\n");
+        out.push_str(
+            "| Subject | Claimed window | Worst readiness | Stable | Beta | Preview | LTS |\n",
+        );
         out.push_str("|---|---|---|---|---|---|---|\n");
         for s in &self.subjects {
             let drift = |line: CompatibilityLine| -> &str {
@@ -2312,10 +2325,7 @@ fn derive_counts(
         clear_subjects,
         review_subjects,
         hold_subjects,
-        out_of_window_subjects: subjects
-            .iter()
-            .filter(|s| !s.within_claimed_window)
-            .count() as u32,
+        out_of_window_subjects: subjects.iter().filter(|s| !s.within_claimed_window).count() as u32,
         speculative_subjects: subjects.iter().filter(|s| s.speculative).count() as u32,
         total_tasks: tasks.len() as u32,
         automatable_tasks: tasks.iter().filter(|t| t.auto_fix.is_automatable()).count() as u32,
@@ -2394,7 +2404,10 @@ fn derive_release_gate(consumers: &[ForecastConsumerRow]) -> ForecastReleaseGate
         review_consumers: collect(ForecastConsumerRow::is_review),
         clear_consumers: collect(ForecastConsumerRow::is_clear),
         affected_subjects: affected.iter().map(|s| s.as_str().to_owned()).collect(),
-        gate_message_id: format!("{}release_gate", M5_COMPATIBILITY_FORECAST_MESSAGE_ID_PREFIX),
+        gate_message_id: format!(
+            "{}release_gate",
+            M5_COMPATIBILITY_FORECAST_MESSAGE_ID_PREFIX
+        ),
     }
 }
 

@@ -140,10 +140,10 @@ fn private_slot_drift_blocks_the_compact_profile() {
         finding,
         DesktopProfileFinding::PrivateSlotDriftDetected { .. }
     )));
-    assert!(row.profile_causes.iter().any(|cause| matches!(
-        cause.trigger,
-        M5ShellDowngradeTrigger::SlotUndeclared
-    )));
+    assert!(row
+        .profile_causes
+        .iter()
+        .any(|cause| matches!(cause.trigger, M5ShellDowngradeTrigger::SlotUndeclared)));
     assert!(validate_m5_desktop_profile_certification_packet(&packet).is_err());
 }
 
@@ -186,7 +186,9 @@ fn truth_divergence_blocks_the_multi_monitor_profile() {
 fn lost_routing_blocks_the_dependency_restore_profile() {
     let packet =
         seeded_m5_desktop_profile_certification_packet_dependency_restore_routing_lost_blocked();
-    let row = packet.row(M5DesktopProfile::DependencyMissingRestore).unwrap();
+    let row = packet
+        .row(M5DesktopProfile::DependencyMissingRestore)
+        .unwrap();
     assert_eq!(row.derived_status, DesktopProfileStatus::Red);
     assert!(!packet.report_clean);
     assert!(packet.blocking_findings.iter().any(|finding| matches!(

@@ -143,7 +143,9 @@ fn object_missing_status_code_field_fails() {
 #[test]
 fn object_missing_last_failure_reason_fails() {
     let mut packet = seeded_m5_lifecycle_matrix();
-    packet.object_state_rows[0].last_failure_reason_classes.clear();
+    packet.object_state_rows[0]
+        .last_failure_reason_classes
+        .clear();
     assert!(packet
         .validate()
         .contains(&M5LifecycleMatrixViolation::LastFailureReasonMissing));
@@ -226,7 +228,9 @@ fn state_binding_review_incomplete_fails() {
 #[test]
 fn consumer_projection_incomplete_fails() {
     let mut packet = seeded_m5_lifecycle_matrix();
-    packet.consumer_projection.diagnostics_show_last_failure_reason = false;
+    packet
+        .consumer_projection
+        .diagnostics_show_last_failure_reason = false;
     assert!(packet
         .validate()
         .contains(&M5LifecycleMatrixViolation::ConsumerProjectionIncomplete));

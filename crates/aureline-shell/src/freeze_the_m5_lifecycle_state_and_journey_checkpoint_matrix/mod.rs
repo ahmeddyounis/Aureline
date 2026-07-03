@@ -44,8 +44,7 @@ mod tests;
 
 pub use seed::{
     seeded_m5_lifecycle_matrix, seeded_m5_lifecycle_matrix_notebook_runtime_retest_narrowed,
-    seeded_m5_lifecycle_matrix_remote_session_degraded_narrowed,
-    M5_LIFECYCLE_MATRIX_PACKET_ID,
+    seeded_m5_lifecycle_matrix_remote_session_degraded_narrowed, M5_LIFECYCLE_MATRIX_PACKET_ID,
 };
 
 use std::collections::BTreeSet;
@@ -489,7 +488,10 @@ impl M5JourneyCheckpoint {
 
     /// Whether this checkpoint is a valid terminal milestone.
     pub const fn is_terminal(self) -> bool {
-        matches!(self, Self::Ready | Self::PartialReady | Self::RecoverableFailure)
+        matches!(
+            self,
+            Self::Ready | Self::PartialReady | Self::RecoverableFailure
+        )
     }
 }
 
@@ -1177,7 +1179,10 @@ impl fmt::Display for M5LifecycleMatrixArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SupportExport(error) => {
-                write!(formatter, "m5 lifecycle matrix export parse failed: {error}")
+                write!(
+                    formatter,
+                    "m5 lifecycle matrix export parse failed: {error}"
+                )
             }
             Self::Validation(violations) => {
                 let tokens = violations

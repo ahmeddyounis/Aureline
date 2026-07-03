@@ -24,14 +24,29 @@ fn canonical_inspectors_are_all_governed() {
     for inspector in &packet.action_inspectors {
         assert!(inspector.is_governed(), "{}", inspector.action.as_str());
         assert_eq!(inspector.effective_gate, DescriptorGate::Governed);
-        assert_eq!(inspector.effective_qualification, QualificationClass::Stable);
+        assert_eq!(
+            inspector.effective_qualification,
+            QualificationClass::Stable
+        );
         assert!(inspector.gaps.is_empty());
-        assert_eq!(inspector.boundary_card.effective_gate, DescriptorGate::Governed);
-        assert_eq!(inspector.route_timeline.effective_gate, DescriptorGate::Governed);
-        assert_eq!(inspector.approval_ticket.effective_gate, DescriptorGate::Governed);
+        assert_eq!(
+            inspector.boundary_card.effective_gate,
+            DescriptorGate::Governed
+        );
+        assert_eq!(
+            inspector.route_timeline.effective_gate,
+            DescriptorGate::Governed
+        );
+        assert_eq!(
+            inspector.approval_ticket.effective_gate,
+            DescriptorGate::Governed
+        );
     }
     assert!(!packet.blocks_stable_promotion());
-    assert_eq!(packet.summary.governed_actions, HighRiskAction::ALL.len() as u32);
+    assert_eq!(
+        packet.summary.governed_actions,
+        HighRiskAction::ALL.len() as u32
+    );
 }
 
 #[test]
@@ -60,9 +75,11 @@ fn boundary_card_declares_class_actor_target_and_data() {
     // Acceptance: the boundary card declares boundary class, actor/source, target class, sensitive
     // data classes, approval source, and an export-safe summary.
     let packet = packet();
-    assert!(packet
-        .conformance
-        .boundary_card_declares_class_actor_target_and_data);
+    assert!(
+        packet
+            .conformance
+            .boundary_card_declares_class_actor_target_and_data
+    );
     for c in packet.boundary_cards() {
         assert_eq!(c.boundary_class, c.action.boundary_class());
         assert_eq!(c.actor, c.action.actor());
@@ -78,25 +95,34 @@ fn boundary_card_declares_class_actor_target_and_data() {
 fn local_action_does_not_cross_the_trust_boundary() {
     // A local-only action stays on the machine and reads local_only — proving where work ran.
     let packet = packet();
-    let local = packet.inspector(HighRiskAction::LocalModelExecution).unwrap();
+    let local = packet
+        .inspector(HighRiskAction::LocalModelExecution)
+        .unwrap();
     assert!(!local.crosses_trust_boundary);
     assert_eq!(local.route_timeline.route_state, RouteHopState::LocalOnly);
     assert!(!local.route_timeline.crosses_trust_boundary);
     assert!(local.route_timeline.hops.iter().all(|h| h.is_local));
 
     // A remote action crosses and is fully attributed.
-    let remote = packet.inspector(HighRiskAction::RemoteModelInference).unwrap();
+    let remote = packet
+        .inspector(HighRiskAction::RemoteModelInference)
+        .unwrap();
     assert!(remote.crosses_trust_boundary);
     assert!(remote.route_timeline.crosses_trust_boundary);
-    assert_eq!(remote.route_timeline.route_state, RouteHopState::AttributedRemote);
+    assert_eq!(
+        remote.route_timeline.route_state,
+        RouteHopState::AttributedRemote
+    );
 }
 
 #[test]
 fn route_timeline_is_ordered_with_locality_per_hop() {
     let packet = packet();
-    assert!(packet
-        .conformance
-        .route_timeline_ordered_with_locality_per_hop);
+    assert!(
+        packet
+            .conformance
+            .route_timeline_ordered_with_locality_per_hop
+    );
     for t in packet.route_timelines() {
         for (idx, hop) in t.hops.iter().enumerate() {
             assert_eq!(hop.index, idx as u32);
@@ -113,9 +139,11 @@ fn approval_ticket_binds_authority_scope_and_expiry() {
     // Acceptance: approval sheets explain who granted what and for how long using the runtime
     // authority vocabulary (ApprovalState).
     let packet = packet();
-    assert!(packet
-        .conformance
-        .approval_ticket_binds_authority_scope_and_expiry);
+    assert!(
+        packet
+            .conformance
+            .approval_ticket_binds_authority_scope_and_expiry
+    );
     for a in packet.approval_tickets() {
         assert_eq!(a.capability_class, a.action.capability_class());
         assert_eq!(a.approving_authority, a.action.approving_authority());
@@ -124,8 +152,12 @@ fn approval_ticket_binds_authority_scope_and_expiry() {
         assert!(ApprovalState::ALL.contains(&a.approval_state));
         assert_eq!(a.evidence_class, EvidenceClass::RuntimeApprovalRecord);
         // A governed ticket offers revoke + renew.
-        assert!(a.revoke_renew_actions.contains(&TicketAction::RevokeApproval));
-        assert!(a.revoke_renew_actions.contains(&TicketAction::RenewApproval));
+        assert!(a
+            .revoke_renew_actions
+            .contains(&TicketAction::RevokeApproval));
+        assert!(a
+            .revoke_renew_actions
+            .contains(&TicketAction::RenewApproval));
     }
 }
 
@@ -134,15 +166,24 @@ fn boundary_edge_narrows_exactly_one_action() {
     // Acceptance: a boundary at its edge narrows only that action; the rest stay governed.
     let packet = seeded_m5_boundary_inspector_boundary_narrowed();
     assert!(packet.validate().is_empty(), "{:?}", packet.validate());
-    let narrowed = packet.inspector(HighRiskAction::WorkspaceDataExport).unwrap();
-    assert_eq!(narrowed.boundary_card.boundary_state, CapabilityBoundaryState::AtBoundaryEdge);
-    assert_eq!(narrowed.boundary_card.effective_gate, DescriptorGate::Narrowed);
+    let narrowed = packet
+        .inspector(HighRiskAction::WorkspaceDataExport)
+        .unwrap();
+    assert_eq!(
+        narrowed.boundary_card.boundary_state,
+        CapabilityBoundaryState::AtBoundaryEdge
+    );
+    assert_eq!(
+        narrowed.boundary_card.effective_gate,
+        DescriptorGate::Narrowed
+    );
     assert!(narrowed.is_narrowed());
     assert_eq!(narrowed.effective_qualification, QualificationClass::Beta);
     assert!(narrowed
         .gaps
         .iter()
-        .any(|g| g.facet == InspectorFacet::Boundary && g.gap_kind == InspectorGapKind::FacetNarrowed));
+        .any(|g| g.facet == InspectorFacet::Boundary
+            && g.gap_kind == InspectorGapKind::FacetNarrowed));
     // Other actions stay governed; nothing blocks Stable.
     assert!(packet
         .inspector(HighRiskAction::RemoteModelInference)
@@ -158,7 +199,9 @@ fn route_drift_narrows_and_is_disclosed_on_the_timeline() {
     let packet = seeded_m5_boundary_inspector_route_drift_narrowed();
     assert!(packet.validate().is_empty(), "{:?}", packet.validate());
     assert!(packet.conformance.route_drift_narrows_deterministically);
-    let inspector = packet.inspector(HighRiskAction::RemoteModelInference).unwrap();
+    let inspector = packet
+        .inspector(HighRiskAction::RemoteModelInference)
+        .unwrap();
     let t = &inspector.route_timeline;
     assert_eq!(t.route_state, RouteHopState::MirroredRoute);
     assert_eq!(t.effective_gate, DescriptorGate::Narrowed);
@@ -177,15 +220,28 @@ fn unattributed_route_blocks_stable_promotion() {
     // Acceptance: an unattributed hop blocks the inspector and holds Stable promotion.
     let packet = seeded_m5_boundary_inspector_route_unattributed_blocked();
     assert!(packet.validate().is_empty(), "{:?}", packet.validate());
-    assert!(packet
-        .conformance
-        .unattributed_route_blocks_stable_promotion);
-    let inspector = packet.inspector(HighRiskAction::SupportBundleHandoff).unwrap();
-    assert_eq!(inspector.route_timeline.route_state, RouteHopState::UnattributedRoute);
-    assert_eq!(inspector.route_timeline.effective_gate, DescriptorGate::Blocked);
+    assert!(
+        packet
+            .conformance
+            .unattributed_route_blocks_stable_promotion
+    );
+    let inspector = packet
+        .inspector(HighRiskAction::SupportBundleHandoff)
+        .unwrap();
+    assert_eq!(
+        inspector.route_timeline.route_state,
+        RouteHopState::UnattributedRoute
+    );
+    assert_eq!(
+        inspector.route_timeline.effective_gate,
+        DescriptorGate::Blocked
+    );
     assert_eq!(inspector.route_timeline.signal, DescriptorSignal::Red);
     assert!(inspector.is_blocked());
-    assert_eq!(inspector.effective_qualification, QualificationClass::Unavailable);
+    assert_eq!(
+        inspector.effective_qualification,
+        QualificationClass::Unavailable
+    );
     assert!(packet.blocks_stable_promotion());
     assert_eq!(packet.summary.blocked_actions, 1);
 }
@@ -195,14 +251,16 @@ fn expired_approval_blocks_stable_promotion() {
     // Acceptance: an expired approval blocks the inspector; the ticket offers a reapproval path.
     let packet = seeded_m5_boundary_inspector_approval_expired_blocked();
     assert!(packet.validate().is_empty(), "{:?}", packet.validate());
-    assert!(packet
-        .conformance
-        .expired_approval_blocks_stable_promotion);
-    let inspector = packet.inspector(HighRiskAction::ProviderCredentialRotation).unwrap();
+    assert!(packet.conformance.expired_approval_blocks_stable_promotion);
+    let inspector = packet
+        .inspector(HighRiskAction::ProviderCredentialRotation)
+        .unwrap();
     let a = &inspector.approval_ticket;
     assert_eq!(a.expiry_standing, ExpiryStanding::Expired);
     assert_eq!(a.effective_gate, DescriptorGate::Blocked);
-    assert!(a.revoke_renew_actions.contains(&TicketAction::RequireReapproval));
+    assert!(a
+        .revoke_renew_actions
+        .contains(&TicketAction::RequireReapproval));
     assert!(inspector.is_blocked());
     assert!(packet.blocks_stable_promotion());
     assert_eq!(packet.summary.expired_approvals, 1);
@@ -251,7 +309,10 @@ fn evaluation_packet_reuses_the_ui_vocabulary() {
             let inspector = packet.inspector(entry.action).unwrap();
             assert_eq!(entry.boundary_state, inspector.boundary_card.boundary_state);
             assert_eq!(entry.route_state, inspector.route_timeline.route_state);
-            assert_eq!(entry.approval_state, inspector.approval_ticket.approval_state);
+            assert_eq!(
+                entry.approval_state,
+                inspector.approval_ticket.approval_state
+            );
             assert_eq!(entry.effective_gate, inspector.effective_gate);
             assert_eq!(entry.proof_refs.len(), 3);
         }
@@ -273,10 +334,18 @@ fn channels_produce_identical_output() {
 fn controlled_vocabulary_is_frozen() {
     let vocab = BoundaryInspectorVocabulary::canonical();
     assert_eq!(vocab.actions.len(), HighRiskAction::ALL.len());
-    assert_eq!(vocab.boundary_states.len(), CapabilityBoundaryState::ALL.len());
+    assert_eq!(
+        vocab.boundary_states.len(),
+        CapabilityBoundaryState::ALL.len()
+    );
     assert_eq!(vocab.route_states.len(), RouteHopState::ALL.len());
     assert_eq!(vocab.approval_states.len(), ApprovalState::ALL.len());
-    for needle in ["local_only", "attributed_remote", "mirrored_route", "unattributed_route"] {
+    for needle in [
+        "local_only",
+        "attributed_remote",
+        "mirrored_route",
+        "unattributed_route",
+    ] {
         assert!(vocab.route_states.contains(&needle.to_owned()));
     }
     for needle in ["pre_authorized", "approved", "approval_denied"] {

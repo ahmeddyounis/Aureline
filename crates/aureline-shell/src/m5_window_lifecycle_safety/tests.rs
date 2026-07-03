@@ -146,10 +146,10 @@ fn silent_close_orphan_blocks_the_notebook() {
     assert!(!packet.report_clean);
     assert!(!packet.all_rows_publishable);
     assert!(packet.red_row_count >= 1);
-    assert!(packet.blocking_findings.iter().any(|finding| matches!(
-        finding,
-        WindowLifecycleFinding::CloseSilentOrphan { .. }
-    )));
+    assert!(packet
+        .blocking_findings
+        .iter()
+        .any(|finding| matches!(finding, WindowLifecycleFinding::CloseSilentOrphan { .. })));
     assert!(row.lifecycle_causes.iter().any(|cause| matches!(
         cause.trigger,
         M5ShellDowngradeTrigger::OwningWindowRoutingLost

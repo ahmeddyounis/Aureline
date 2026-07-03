@@ -30,11 +30,17 @@ fn seeded_packet_has_one_green_and_two_yellow_rows() {
     assert_eq!(packet.red_row_count, 0);
 
     assert_eq!(
-        packet.row(M5AdvisoryClaimProfile::Managed).unwrap().derived_status,
+        packet
+            .row(M5AdvisoryClaimProfile::Managed)
+            .unwrap()
+            .derived_status,
         AdvisoryClaimStatus::Green,
         "managed should stay green"
     );
-    for profile in [M5AdvisoryClaimProfile::SelfHosted, M5AdvisoryClaimProfile::Offline] {
+    for profile in [
+        M5AdvisoryClaimProfile::SelfHosted,
+        M5AdvisoryClaimProfile::Offline,
+    ] {
         assert_eq!(
             packet.row(profile).unwrap().derived_status,
             AdvisoryClaimStatus::Yellow,
@@ -112,12 +118,18 @@ fn managed_self_hosted_and_offline_keep_distinct_downgrade_reasons() {
     let self_hosted = packet.row(M5AdvisoryClaimProfile::SelfHosted).unwrap();
     assert_eq!(
         self_hosted.claim_states,
-        vec![M5AdvisoryClaimState::MirrorLagged, M5AdvisoryClaimState::UnsignedUnverified]
+        vec![
+            M5AdvisoryClaimState::MirrorLagged,
+            M5AdvisoryClaimState::UnsignedUnverified
+        ]
     );
     let offline = packet.row(M5AdvisoryClaimProfile::Offline).unwrap();
     assert_eq!(
         offline.claim_states,
-        vec![M5AdvisoryClaimState::WarningOnly, M5AdvisoryClaimState::AwaitingUserAction]
+        vec![
+            M5AdvisoryClaimState::WarningOnly,
+            M5AdvisoryClaimState::AwaitingUserAction
+        ]
     );
     // The two narrowed profiles do not share a downgrade reason.
     assert!(self_hosted
@@ -139,10 +151,10 @@ fn every_cause_names_a_restore_action() {
     }
     // The self-hosted mirror-lag cause is restored by refreshing the mirror; the offline stale
     // notice by awaiting a refresh.
-    assert!(packet.claim_causes.iter().any(|cause| matches!(
-        cause.restore_action,
-        M5AdvisoryRestoreAction::RefreshMirror
-    )));
+    assert!(packet
+        .claim_causes
+        .iter()
+        .any(|cause| matches!(cause.restore_action, M5AdvisoryRestoreAction::RefreshMirror)));
     assert!(packet.claim_causes.iter().any(|cause| matches!(
         cause.restore_action,
         M5AdvisoryRestoreAction::AwaitNoticeRefresh
@@ -191,7 +203,9 @@ fn mirror_lag_blocks_the_self_hosted_profile() {
         seeded_m5_advisory_claim_downgrade_certification_packet_self_hosted_mirror_lag_blocked();
     let row = packet.row(M5AdvisoryClaimProfile::SelfHosted).unwrap();
     assert_eq!(row.derived_status, AdvisoryClaimStatus::Red);
-    assert!(row.claim_states.contains(&M5AdvisoryClaimState::ForcedDisable));
+    assert!(row
+        .claim_states
+        .contains(&M5AdvisoryClaimState::ForcedDisable));
     assert!(!packet.report_clean);
     assert!(!packet.all_rows_publishable);
     assert!(packet.blocking_findings.iter().any(|finding| matches!(
@@ -247,7 +261,9 @@ fn lost_continuity_forces_disable_on_the_managed_profile() {
         seeded_m5_advisory_claim_downgrade_certification_packet_managed_continuity_lost_blocked();
     let row = packet.row(M5AdvisoryClaimProfile::Managed).unwrap();
     assert_eq!(row.derived_status, AdvisoryClaimStatus::Red);
-    assert!(row.claim_states.contains(&M5AdvisoryClaimState::ForcedDisable));
+    assert!(row
+        .claim_states
+        .contains(&M5AdvisoryClaimState::ForcedDisable));
     assert!(!packet.report_clean);
     assert!(packet.blocking_findings.iter().any(|finding| matches!(
         finding,
@@ -317,9 +333,11 @@ fn dashboard_projects_every_row_badge_and_counts() {
     assert_eq!(offline.status, AdvisoryClaimStatus::Yellow);
     assert_eq!(offline.controlled_badge_token, "advisory_claim_narrowed");
     assert!(offline.has_active_waiver);
-    assert!(offline
-        .restore_actions
-        .contains(&M5AdvisoryRestoreAction::AcknowledgeOrAct.as_str().to_owned()));
+    assert!(offline.restore_actions.contains(
+        &M5AdvisoryRestoreAction::AcknowledgeOrAct
+            .as_str()
+            .to_owned()
+    ));
 
     let managed = dashboard
         .rows

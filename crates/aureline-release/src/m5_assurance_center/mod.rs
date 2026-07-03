@@ -1447,8 +1447,9 @@ impl EvaluationPacket {
                 && vocab
                     .claim_states
                     .contains(&c.active_state.as_str().to_owned())
-                && c.fallback_state
-                    .map_or(true, |s| vocab.claim_states.contains(&s.as_str().to_owned()))
+                && c.fallback_state.map_or(true, |s| {
+                    vocab.claim_states.contains(&s.as_str().to_owned())
+                })
         }) && self.controls.iter().all(|c| {
             vocab.controls.contains(&c.control.as_str().to_owned())
                 && vocab
@@ -2248,7 +2249,9 @@ fn derive_conformance(
             controls
                 .iter()
                 .find(|r| r.control == *id)
-                .map_or(true, |r| matches!(r.effective_gate, DescriptorGate::Blocked))
+                .map_or(true, |r| {
+                    matches!(r.effective_gate, DescriptorGate::Blocked)
+                })
         });
         !reads_narrowing || reads_blocking || c.is_narrowed()
     });
@@ -2258,7 +2261,9 @@ fn derive_conformance(
             controls
                 .iter()
                 .find(|r| r.control == *id)
-                .map_or(true, |r| matches!(r.effective_gate, DescriptorGate::Blocked))
+                .map_or(true, |r| {
+                    matches!(r.effective_gate, DescriptorGate::Blocked)
+                })
         });
         !reads_blocking || c.is_blocked()
     });

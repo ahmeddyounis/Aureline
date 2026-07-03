@@ -106,7 +106,10 @@ const FACET_DEFS: [(
     (
         AssuranceFacet::ServiceOwnership,
         CanonicalState::Governance(GovernanceState::Pass),
-        &[EvidenceClass::OwnershipRegister, EvidenceClass::PolicyBundle],
+        &[
+            EvidenceClass::OwnershipRegister,
+            EvidenceClass::PolicyBundle,
+        ],
         &[
             ClaimedPosture::Managed,
             ClaimedPosture::SelfHosted,
@@ -135,7 +138,10 @@ const FACET_DEFS: [(
     (
         AssuranceFacet::RouteHop,
         CanonicalState::RouteHop(RouteHopState::AttributedRemote),
-        &[EvidenceClass::RouteTimeline, EvidenceClass::ProvenanceLedger],
+        &[
+            EvidenceClass::RouteTimeline,
+            EvidenceClass::ProvenanceLedger,
+        ],
         &[
             ClaimedPosture::Managed,
             ClaimedPosture::SelfHosted,

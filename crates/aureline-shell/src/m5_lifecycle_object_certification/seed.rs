@@ -128,12 +128,13 @@ fn companion_surface_relocation_waiver() -> LifecycleObjectWaiver {
     LifecycleObjectWaiver {
         waiver_id: "waiver:companion-surface-relocation:0001".to_owned(),
         object_family: M5LifecycleObjectFamily::CompanionSession,
-        reason: "When a paired companion device drops, the companion presence badge is unavailable, \
+        reason:
+            "When a paired companion device drops, the companion presence badge is unavailable, \
                  so the session's lifecycle state is relocated to a disclosed, still-visible \
                  activity-center reconnect prompt in the primary window rather than vanishing; the \
                  relocation is disclosed, never silent, and the single-surface binding is restored \
                  when the device reconnects."
-            .to_owned(),
+                .to_owned(),
         owner_role: "Companion owner".to_owned(),
         expires_at: "2026-09-30T00:00:00Z".to_owned(),
     }
@@ -296,7 +297,8 @@ pub fn seeded_m5_lifecycle_object_certification_packet_companion_recovery_missin
     let rows = seeded_rows_with(M5LifecycleObjectFamily::CompanionSession, |spec| {
         spec.status_surface_binding = StatusSurfaceBindingState::BoundToOnePrimarySurface;
         spec.waiver = None;
-        spec.recovery_affordance_binding = RecoveryAffordanceBindingState::RecoveryAffordanceMissing;
+        spec.recovery_affordance_binding =
+            RecoveryAffordanceBindingState::RecoveryAffordanceMissing;
         spec.narrowing_reason = Some(
             "After a dropped pairing the companion session showed a degraded state with no named \
              reconnect affordance, leaving the user with no action to take, so the object blocks \

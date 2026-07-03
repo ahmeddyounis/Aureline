@@ -69,7 +69,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::freeze_the_m5_security_advisory_emergency_notice_affected_install_and_disclosure_link_matrix as matrix;
 
-pub use matrix::{M5AdvisoryComponentFamily, M5AdvisoryDowngradeTrigger, M5AdvisoryQualificationClass};
+pub use matrix::{
+    M5AdvisoryComponentFamily, M5AdvisoryDowngradeTrigger, M5AdvisoryQualificationClass,
+};
 
 mod seed;
 #[cfg(test)]
@@ -144,7 +146,8 @@ pub const M5_ADVISORY_CLAIM_DOWNGRADE_PUBLISHED_DOC_REF: &str =
     "docs/security/m5_advisory_claim_downgrade_certification_contract.md";
 
 /// Repo-relative ref to the frozen advisory-component matrix schema.
-pub const M5_ADVISORY_CLAIM_DOWNGRADE_MATRIX_SCHEMA_REF: &str = matrix::M5_ADVISORY_COMPONENTS_SCHEMA_REF;
+pub const M5_ADVISORY_CLAIM_DOWNGRADE_MATRIX_SCHEMA_REF: &str =
+    matrix::M5_ADVISORY_COMPONENTS_SCHEMA_REF;
 
 /// Advisory-card contract this proof mirrors for advisory-freshness truth.
 pub const M5_ADVISORY_CLAIM_DOWNGRADE_ADVISORY_CARD_CONTRACT_REF: &str =
@@ -515,7 +518,9 @@ impl DistributionSignatureState {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::FullySignedAndVerified => "fully_signed_and_verified",
-            Self::DisclosedPartialVerificationNarrowing => "disclosed_partial_verification_narrowing",
+            Self::DisclosedPartialVerificationNarrowing => {
+                "disclosed_partial_verification_narrowing"
+            }
             Self::UnsignedOrUnverifiedDistribution => "unsigned_or_unverified_distribution",
         }
     }
@@ -750,10 +755,16 @@ impl AdvisoryClaimRow {
     /// single generic "degraded" state.
     pub fn recompute_claim_states(&self) -> Vec<M5AdvisoryClaimState> {
         let mut states: BTreeSet<M5AdvisoryClaimState> = BTreeSet::new();
-        if !matches!(self.advisory_freshness, AdvisoryFreshnessState::FreshAdvisoryStateCertified) {
+        if !matches!(
+            self.advisory_freshness,
+            AdvisoryFreshnessState::FreshAdvisoryStateCertified
+        ) {
             states.insert(M5AdvisoryClaimState::WarningOnly);
         }
-        if !matches!(self.mirror_propagation, MirrorPropagationState::MirrorCurrentAndPropagated) {
+        if !matches!(
+            self.mirror_propagation,
+            MirrorPropagationState::MirrorCurrentAndPropagated
+        ) {
             states.insert(M5AdvisoryClaimState::MirrorLagged);
         }
         if !matches!(
@@ -787,10 +798,11 @@ impl AdvisoryClaimRow {
                     trigger: M5AdvisoryDowngradeTrigger::StaleNoticeStateSilent,
                     disclosed: true,
                     restore_action: M5AdvisoryRestoreAction::AwaitNoticeRefresh,
-                    detail: "The advisory notice state is stale under this profile, so the claim is \
+                    detail:
+                        "The advisory notice state is stale under this profile, so the claim is \
                              narrowed to a disclosed warning rather than left silently green until \
                              the next notice refresh lands."
-                        .to_owned(),
+                            .to_owned(),
                 });
             }
             AdvisoryFreshnessState::AdvisoryStateStaleAndOverclaimed => {
@@ -815,9 +827,10 @@ impl AdvisoryClaimRow {
                     trigger: M5AdvisoryDowngradeTrigger::MirrorLagUndisclosed,
                     disclosed: true,
                     restore_action: M5AdvisoryRestoreAction::RefreshMirror,
-                    detail: "The profile's advisory mirror lags upstream, so the claim is narrowed \
+                    detail:
+                        "The profile's advisory mirror lags upstream, so the claim is narrowed \
                              to a disclosed mirror-lagged state until the mirror is refreshed."
-                        .to_owned(),
+                            .to_owned(),
                 });
             }
             MirrorPropagationState::MirrorLaggedClaimOverclaimed => {
@@ -870,10 +883,11 @@ impl AdvisoryClaimRow {
                     trigger: M5AdvisoryDowngradeTrigger::LocalContinuityHidden,
                     disclosed: true,
                     restore_action: M5AdvisoryRestoreAction::AcknowledgeOrAct,
-                    detail: "The local-continuity proof is reduced pending a user action under this \
+                    detail:
+                        "The local-continuity proof is reduced pending a user action under this \
                              profile, so the claim is narrowed to a disclosed, waivered \
                              awaiting-user-action state while local work stays visibly safe."
-                        .to_owned(),
+                            .to_owned(),
                 });
             }
             LocalContinuityProofState::ContinuityProofMissingOrUnsafe => {
@@ -968,7 +982,9 @@ impl AdvisoryClaimRow {
         }
         // A narrowed/blocked row must keep at least one distinct claim state — never a generic
         // "degraded" collapse.
-        if !matches!(derived, AdvisoryClaimStatus::Green) && self.recompute_claim_states().is_empty() {
+        if !matches!(derived, AdvisoryClaimStatus::Green)
+            && self.recompute_claim_states().is_empty()
+        {
             findings.push(AdvisoryClaimFinding::NarrowedRowWithoutDistinctState {
                 profile: profile.clone(),
             });
@@ -1395,13 +1411,19 @@ impl AdvisoryClaimPacket {
         out.push_str("```\n\n");
 
         out.push_str(&format!("- Packet id: `{}`\n", self.packet_id));
-        out.push_str(&format!("- Source schema ref: `{}`\n", self.source_schema_ref));
+        out.push_str(&format!(
+            "- Source schema ref: `{}`\n",
+            self.source_schema_ref
+        ));
         out.push_str(&format!(
             "- Certifies matrix packet: `{}`\n",
             self.matrix_packet_ref
         ));
         out.push_str(&format!("- Exact build: `{}`\n", self.build_identity_ref));
-        out.push_str(&format!("- Release channel: `{}`\n", self.release_channel_class));
+        out.push_str(&format!(
+            "- Release channel: `{}`\n",
+            self.release_channel_class
+        ));
         out.push_str(&format!(
             "- Required dimensions: {}\n",
             self.required_dimensions
@@ -1435,8 +1457,14 @@ impl AdvisoryClaimPacket {
                 .join(", ")
         ));
         out.push_str(&format!("- Rows certified: {}\n", self.row_count));
-        out.push_str(&format!("- Green (full standing): {}\n", self.green_row_count));
-        out.push_str(&format!("- Yellow (auto-narrowed): {}\n", self.yellow_row_count));
+        out.push_str(&format!(
+            "- Green (full standing): {}\n",
+            self.green_row_count
+        ));
+        out.push_str(&format!(
+            "- Yellow (auto-narrowed): {}\n",
+            self.yellow_row_count
+        ));
         out.push_str(&format!("- Red (blocked): {}\n", self.red_row_count));
         out.push_str(&format!(
             "- All rows publishable: `{}`\n",
@@ -1448,7 +1476,11 @@ impl AdvisoryClaimPacket {
         ));
         out.push_str(&format!(
             "- Status: **{}**\n",
-            if self.report_clean { "clean" } else { "blocked" }
+            if self.report_clean {
+                "clean"
+            } else {
+                "blocked"
+            }
         ));
         out.push_str(&format!("- Generated at: `{}`\n\n", self.generated_at));
 
@@ -1830,8 +1862,10 @@ pub fn build_m5_advisory_claim_downgrade_certification_packet(
     };
 
     let covered_claim_states: Vec<String> = {
-        let observed: BTreeSet<M5AdvisoryClaimState> =
-            rows.iter().flat_map(|row| row.claim_states.clone()).collect();
+        let observed: BTreeSet<M5AdvisoryClaimState> = rows
+            .iter()
+            .flat_map(|row| row.claim_states.clone())
+            .collect();
         M5AdvisoryClaimState::ALL
             .into_iter()
             .filter(|state| observed.contains(state))
@@ -2092,8 +2126,11 @@ pub fn validate_m5_advisory_claim_downgrade_certification_packet(
         errors.push(AdvisoryClaimValidationError::RequiredClaimStatesStale);
     }
 
-    let present: BTreeSet<M5AdvisoryClaimProfile> = packet.rows.iter().map(|row| row.profile).collect();
-    let coverage_complete = REQUIRED_PROFILES.iter().all(|profile| present.contains(profile));
+    let present: BTreeSet<M5AdvisoryClaimProfile> =
+        packet.rows.iter().map(|row| row.profile).collect();
+    let coverage_complete = REQUIRED_PROFILES
+        .iter()
+        .all(|profile| present.contains(profile));
     if !coverage_complete || packet.rows.len() != REQUIRED_PROFILES.len() {
         errors.push(AdvisoryClaimValidationError::CoverageIncomplete);
     }

@@ -57,6 +57,13 @@ pub const MIGRATION_WIZARD_PAGE_RECORD_KIND: &str = "shell_migration_wizard_beta
 pub const MIGRATION_WIZARD_SUPPORT_EXPORT_RECORD_KIND: &str =
     "shell_migration_wizard_beta_support_export_record";
 
+/// Stable record kind for [`MigrationWizardIssueTemplateExport`] payloads.
+pub const MIGRATION_WIZARD_ISSUE_TEMPLATE_EXPORT_RECORD_KIND: &str =
+    "shell_migration_wizard_beta_issue_template_export_record";
+
+/// Stable record kind for [`MigrationSessionHeader`] payloads.
+pub const MIGRATION_WIZARD_HEADER_RECORD_KIND: &str = "shell_migration_wizard_beta_header_record";
+
 /// Stable record kind for [`WizardMappingReport`] payloads.
 pub const MIGRATION_WIZARD_MAPPING_REPORT_RECORD_KIND: &str =
     "shell_migration_wizard_beta_mapping_report_record";
@@ -199,6 +206,167 @@ pub struct WizardSourceTargetDescriptor {
     pub target_descriptor: String,
     /// Source ecosystem token recorded in the packet.
     pub source_ecosystem_id: String,
+}
+
+/// Version truth class shown on the source-tool chip.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceVersionTruthClass {
+    /// The importer read a concrete source version.
+    DetectedExact,
+    /// The source was recognized by markers, but the exact version was not read.
+    MarkerOnlyVersionUnknown,
+}
+
+impl SourceVersionTruthClass {
+    /// Returns the stable schema token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::DetectedExact => "detected_exact",
+            Self::MarkerOnlyVersionUnknown => "marker_only_version_unknown",
+        }
+    }
+}
+
+/// Source tool/version chip rendered in the migration header.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MigrationSourceToolChip {
+    /// Stable source-tool id.
+    pub source_tool_id: String,
+    /// Reviewer-facing source tool label.
+    pub source_tool_label: String,
+    /// Version chip text. When exact version is unavailable, this must say so.
+    pub source_version_label: String,
+    /// Truth class for the source version chip.
+    pub version_truth_class: SourceVersionTruthClass,
+    /// Redaction-safe evidence ref for the source version or marker.
+    pub version_evidence_ref: String,
+}
+
+/// Scope kind for the target side of a migration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MigrationTargetScopeKind {
+    /// Changes land in an Aureline profile.
+    Profile,
+    /// Changes land in an Aureline workspace.
+    Workspace,
+}
+
+impl MigrationTargetScopeKind {
+    /// Returns the stable schema token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Profile => "profile",
+            Self::Workspace => "workspace",
+        }
+    }
+}
+
+/// Target profile/workspace truth rendered in the migration header.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MigrationTargetScope {
+    /// Target scope kind.
+    pub scope_kind: MigrationTargetScopeKind,
+    /// Stable target ref selected by the user.
+    pub target_ref: String,
+    /// Reviewer-facing target label.
+    pub target_label: String,
+    /// Short sentence describing where writes land.
+    pub writes_land_in: String,
+}
+
+/// Checkpoint-created notice rendered in the migration header.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MigrationCheckpointNotice {
+    /// Rollback checkpoint ref minted before apply.
+    pub checkpoint_ref: String,
+    /// Restore record paired with the checkpoint.
+    pub restore_record_ref: String,
+    /// Whether the checkpoint was minted before apply.
+    pub created_before_apply: bool,
+    /// Timestamp captured when the checkpoint was created.
+    pub created_at: String,
+    /// User-facing notice text.
+    pub notice_label: String,
+}
+
+/// Header action used for restore and compatibility inspection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MigrationHeaderAction {
+    /// Stable action id.
+    pub action_id: String,
+    /// Reviewer-facing action label.
+    pub action_label: String,
+    /// Stable action token used by UI and CLI.
+    pub action_token: String,
+    /// Ref opened by the action.
+    pub target_ref: String,
+    /// Whether the action is currently enabled.
+    pub enabled: bool,
+}
+
+/// Header state consumed by UI, CLI, support export, and issue templates.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MigrationSessionHeader {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Schema version exported with the header.
+    pub schema_version: u32,
+    /// Shared contract ref consumed by UI, CLI, and support export.
+    pub shared_contract_ref: String,
+    /// Stable wizard session id used by UI and CLI.
+    pub wizard_session_id: String,
+    /// Stable migration session ref reused by support and issue-template exports.
+    pub migration_session_ref: String,
+    /// Source tool/version chips.
+    pub source_tool: MigrationSourceToolChip,
+    /// Target profile/workspace truth.
+    pub target_scope: MigrationTargetScope,
+    /// Checkpoint-created notice.
+    pub checkpoint_notice: MigrationCheckpointNotice,
+    /// Restore action kept visible after review/apply.
+    pub restore_action: MigrationHeaderAction,
+    /// Compatibility-report open action kept visible before apply.
+    pub compatibility_report_action: MigrationHeaderAction,
+    /// Whether partial-apply context is visible in the header.
+    pub partial_apply_context_visible: bool,
+    /// Whether downgrade/narrowing context is visible in the header.
+    pub downgrade_context_visible: bool,
+    /// Whether restore context is visible in the header.
+    pub restore_context_visible: bool,
+    /// Support export ref that quotes this header.
+    pub support_export_ref: String,
+    /// Issue-template ref that quotes this header.
+    pub issue_template_ref: String,
+}
+
+impl MigrationSessionHeader {
+    /// Returns true when the header answers source, target, checkpoint, restore,
+    /// and compatibility-inspector questions without relying on surrounding copy.
+    pub fn answers_required_questions(&self) -> bool {
+        !self.source_tool.source_tool_label.trim().is_empty()
+            && !self.source_tool.source_version_label.trim().is_empty()
+            && !self.target_scope.target_ref.trim().is_empty()
+            && !self.target_scope.writes_land_in.trim().is_empty()
+            && self.checkpoint_notice.created_before_apply
+            && !self.checkpoint_notice.checkpoint_ref.trim().is_empty()
+            && self.restore_action.enabled
+            && !self.restore_action.target_ref.trim().is_empty()
+            && self.compatibility_report_action.enabled
+            && !self
+                .compatibility_report_action
+                .target_ref
+                .trim()
+                .is_empty()
+    }
+
+    /// Returns true when review/apply aftermath still shows the required context.
+    pub fn aftermath_context_visible(&self) -> bool {
+        self.partial_apply_context_visible
+            && self.downgrade_context_visible
+            && self.restore_context_visible
+    }
 }
 
 /// One classified mapping row that survives after apply.
@@ -516,6 +684,8 @@ pub struct MigrationWizardPage {
     pub wizard_session_id: String,
     /// Migration session ref the wizard owns.
     pub migration_session_ref: String,
+    /// Header state rendered by UI, CLI, support export, and issue template.
+    pub header: MigrationSessionHeader,
     /// Current wizard stage.
     pub current_stage: WizardStage,
     /// Stage transitions, in order. The wizard MUST start at
@@ -556,11 +726,21 @@ impl MigrationWizardPage {
     pub fn compact_lines(&self) -> Vec<String> {
         let mut lines = Vec::new();
         lines.push(format!(
-            "wizard: stage={}, rows={}, gaps={}, checkpoint={}",
+            "wizard: session={}, migration_session={}, stage={}, rows={}, gaps={}, checkpoint={}",
+            self.wizard_session_id,
+            self.migration_session_ref,
             self.current_stage.display_label(),
             self.mapping_report.rows.len(),
             self.mapping_report.unsupported_gaps.len(),
             self.rollback_checkpoint.checkpoint_ref
+        ));
+        lines.push(format!(
+            "header: source={} version={} target={} restore={} compatibility={}",
+            self.header.source_tool.source_tool_label,
+            self.header.source_tool.source_version_label,
+            self.header.target_scope.writes_land_in,
+            self.header.restore_action.target_ref,
+            self.header.compatibility_report_action.target_ref
         ));
         lines.push(format!(
             "classifications: exact={}, translated={}, partial={}, shimmed={}, unsupported={}",
@@ -603,6 +783,12 @@ pub struct MigrationWizardSupportExport {
     pub shared_contract_ref: String,
     /// Stable support-export id.
     pub support_export_id: String,
+    /// Stable migration session ref reused by UI, CLI, support, and issues.
+    pub migration_session_ref: String,
+    /// Header quoted in full so screenshots are not needed.
+    pub header: MigrationSessionHeader,
+    /// Issue template ref generated from the same session.
+    pub issue_template_ref: String,
     /// Wizard page quoted in full.
     pub page: MigrationWizardPage,
     /// Stable wizard session id, mapping row ids, gap ids, and
@@ -614,9 +800,13 @@ impl MigrationWizardSupportExport {
     /// Builds the support-export wrapper for a wizard page.
     pub fn from_page(support_export_id: impl Into<String>, page: MigrationWizardPage) -> Self {
         let mut case_ids = Vec::new();
+        case_ids.push(page.migration_session_ref.clone());
         case_ids.push(page.wizard_session_id.clone());
+        case_ids.push(page.header.checkpoint_notice.checkpoint_ref.clone());
+        case_ids.push(page.header.restore_action.action_id.clone());
+        case_ids.push(page.header.compatibility_report_action.action_id.clone());
+        case_ids.push(page.header.issue_template_ref.clone());
         case_ids.push(page.mapping_report.mapping_report_id.clone());
-        case_ids.push(page.rollback_checkpoint.checkpoint_ref.clone());
         for row in &page.mapping_report.rows {
             case_ids.push(row.row_id.clone());
         }
@@ -634,8 +824,85 @@ impl MigrationWizardSupportExport {
             schema_version: MIGRATION_WIZARD_SCHEMA_VERSION,
             shared_contract_ref: MIGRATION_WIZARD_SHARED_CONTRACT_REF.to_owned(),
             support_export_id: support_export_id.into(),
+            migration_session_ref: page.migration_session_ref.clone(),
+            header: page.header.clone(),
+            issue_template_ref: page.header.issue_template_ref.clone(),
             page,
             case_ids,
+        }
+    }
+}
+
+/// Issue-template projection for migration support handoff.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MigrationWizardIssueTemplateExport {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Schema version exported with the record.
+    pub schema_version: u32,
+    /// Shared contract ref consumed by UI, CLI, and support export.
+    pub shared_contract_ref: String,
+    /// Stable issue-template ref.
+    pub issue_template_ref: String,
+    /// Stable migration session ref reused across surfaces.
+    pub migration_session_ref: String,
+    /// Stable wizard session id.
+    pub wizard_session_id: String,
+    /// Support export id that quotes the same session.
+    pub support_export_id: String,
+    /// Header quoted in full.
+    pub header: MigrationSessionHeader,
+    /// Redaction-safe body lines for the template.
+    pub body_lines: Vec<String>,
+    /// Stable ids copied from support export.
+    pub case_ids: Vec<String>,
+}
+
+impl MigrationWizardIssueTemplateExport {
+    /// Builds an issue-template projection from a support export.
+    pub fn from_support_export(export: &MigrationWizardSupportExport) -> Self {
+        let page = &export.page;
+        let header = export.header.clone();
+        let body_lines = vec![
+            format!("migration_session_ref: {}", export.migration_session_ref),
+            format!("wizard_session_id: {}", page.wizard_session_id),
+            format!(
+                "source: {} / {} ({})",
+                header.source_tool.source_tool_label,
+                header.source_tool.source_version_label,
+                header.source_tool.version_truth_class.as_str()
+            ),
+            format!("target: {}", header.target_scope.writes_land_in),
+            format!(
+                "checkpoint: {} restore_record: {} created_before_apply: {}",
+                header.checkpoint_notice.checkpoint_ref,
+                header.checkpoint_notice.restore_record_ref,
+                header.checkpoint_notice.created_before_apply
+            ),
+            format!(
+                "compatibility_report: {}",
+                header.compatibility_report_action.target_ref
+            ),
+            format!(
+                "classification_counts: exact={} translated={} partial={} shimmed={} unsupported={}",
+                page.mapping_report.classification_summary.exact,
+                page.mapping_report.classification_summary.translated,
+                page.mapping_report.classification_summary.partial,
+                page.mapping_report.classification_summary.shimmed,
+                page.mapping_report.classification_summary.unsupported
+            ),
+        ];
+        Self {
+            record_kind: MIGRATION_WIZARD_ISSUE_TEMPLATE_EXPORT_RECORD_KIND.to_owned(),
+            schema_version: MIGRATION_WIZARD_SCHEMA_VERSION,
+            shared_contract_ref: MIGRATION_WIZARD_SHARED_CONTRACT_REF.to_owned(),
+            issue_template_ref: header.issue_template_ref.clone(),
+            migration_session_ref: export.migration_session_ref.clone(),
+            wizard_session_id: page.wizard_session_id.clone(),
+            support_export_id: export.support_export_id.clone(),
+            header,
+            body_lines,
+            case_ids: export.case_ids.clone(),
         }
     }
 }
@@ -663,6 +930,10 @@ pub enum MigrationWizardValidationError {
     ReopenLinksIncomplete { surface: String },
     /// The diff preview ref is empty.
     DiffPreviewRefMissing,
+    /// Header state is incomplete.
+    HeaderIncomplete,
+    /// Header and page session identifiers drifted apart.
+    HeaderSessionMismatch,
 }
 
 /// Validates a wizard page against the M3 acceptance invariants.
@@ -676,6 +947,21 @@ pub fn validate_migration_wizard_page(
 
     if page.import_diff_preview_ref.trim().is_empty() {
         errors.push(MigrationWizardValidationError::DiffPreviewRefMissing);
+    }
+
+    if page.header.wizard_session_id != page.wizard_session_id
+        || page.header.migration_session_ref != page.migration_session_ref
+        || page.header.checkpoint_notice.checkpoint_ref != page.rollback_checkpoint.checkpoint_ref
+        || page.header.checkpoint_notice.restore_record_ref
+            != page.rollback_checkpoint.restore_record_ref
+    {
+        errors.push(MigrationWizardValidationError::HeaderSessionMismatch);
+    }
+
+    if !page.header.answers_required_questions()
+        || (page.current_stage.is_post_apply() && !page.header.aftermath_context_visible())
+    {
+        errors.push(MigrationWizardValidationError::HeaderIncomplete);
     }
 
     if !page.mapping_report.every_row_classified() {
@@ -927,6 +1213,7 @@ pub fn build_migration_wizard_page(
         "shell:migration-wizard:{}",
         stable_suffix(&packet.import_review_id)
     );
+    let header = build_session_header(packet, &wizard_session_id, target_stage, &mapping_report);
 
     MigrationWizardPage {
         record_kind: MIGRATION_WIZARD_PAGE_RECORD_KIND.to_owned(),
@@ -934,6 +1221,7 @@ pub fn build_migration_wizard_page(
         shared_contract_ref: MIGRATION_WIZARD_SHARED_CONTRACT_REF.to_owned(),
         wizard_session_id,
         migration_session_ref: packet.migration_session_ref.clone(),
+        header,
         current_stage: target_stage,
         stage_history,
         descriptors,
@@ -945,6 +1233,108 @@ pub fn build_migration_wizard_page(
         apply_gate,
         summary,
         generated_at: GENERATED_AT.to_owned(),
+    }
+}
+
+fn build_session_header(
+    packet: &ImportDiffReviewPacket,
+    wizard_session_id: &str,
+    target_stage: WizardStage,
+    mapping_report: &WizardMappingReport,
+) -> MigrationSessionHeader {
+    let suffix = stable_suffix(&packet.import_review_id);
+    let target_scope = target_scope_for(&packet.destination_workspace_target);
+    let source_tool = source_tool_chip_for(packet.source_classification);
+    MigrationSessionHeader {
+        record_kind: MIGRATION_WIZARD_HEADER_RECORD_KIND.to_owned(),
+        schema_version: MIGRATION_WIZARD_SCHEMA_VERSION,
+        shared_contract_ref: MIGRATION_WIZARD_SHARED_CONTRACT_REF.to_owned(),
+        wizard_session_id: wizard_session_id.to_owned(),
+        migration_session_ref: packet.migration_session_ref.clone(),
+        source_tool,
+        target_scope,
+        checkpoint_notice: MigrationCheckpointNotice {
+            checkpoint_ref: packet.rollback_checkpoint.checkpoint_ref.clone(),
+            restore_record_ref: packet.rollback_checkpoint.restore_record_ref.clone(),
+            created_before_apply: packet.rollback_checkpoint.created_before_apply,
+            created_at: packet.rollback_checkpoint.created_at.clone(),
+            notice_label: format!(
+                "Checkpoint created before apply: {}",
+                packet.rollback_checkpoint.checkpoint_ref
+            ),
+        },
+        restore_action: MigrationHeaderAction {
+            action_id: format!("migration-header-restore:{suffix}"),
+            action_label: "Restore from checkpoint".to_owned(),
+            action_token: "restore_from_checkpoint".to_owned(),
+            target_ref: packet.rollback_checkpoint.restore_record_ref.clone(),
+            enabled: packet.rollback_checkpoint.clear_pre_apply_checkpoint(),
+        },
+        compatibility_report_action: MigrationHeaderAction {
+            action_id: format!("migration-header-compatibility:{suffix}"),
+            action_label: "Open compatibility report".to_owned(),
+            action_token: "open_compatibility_report".to_owned(),
+            target_ref: format!("compatibility-report:{suffix}"),
+            enabled: true,
+        },
+        partial_apply_context_visible: target_stage.is_post_apply()
+            || mapping_report.classification_summary.partial > 0
+            || mapping_report.classification_summary.unsupported > 0,
+        downgrade_context_visible: target_stage.is_post_apply()
+            || mapping_report.classification_summary.partial > 0
+            || mapping_report.classification_summary.shimmed > 0
+            || mapping_report.classification_summary.unsupported > 0,
+        restore_context_visible: true,
+        support_export_ref: format!("support-export:migration-wizard:{suffix}"),
+        issue_template_ref: format!("issue-template:migration-wizard:{suffix}"),
+    }
+}
+
+fn source_tool_chip_for(classification: CompetitorConfigClassification) -> MigrationSourceToolChip {
+    match classification {
+        CompetitorConfigClassification::VSCodeWorkspaceRoot => MigrationSourceToolChip {
+            source_tool_id: "source-tool:vs_code_code_oss".to_owned(),
+            source_tool_label: "VS Code / Code OSS".to_owned(),
+            source_version_label: "version not read (marker-only)".to_owned(),
+            version_truth_class: SourceVersionTruthClass::MarkerOnlyVersionUnknown,
+            version_evidence_ref: "source-marker:.vscode".to_owned(),
+        },
+        CompetitorConfigClassification::JetBrainsIdeaRoot => MigrationSourceToolChip {
+            source_tool_id: "source-tool:jetbrains_family".to_owned(),
+            source_tool_label: "JetBrains IDE family".to_owned(),
+            source_version_label: "version not read (marker-only)".to_owned(),
+            version_truth_class: SourceVersionTruthClass::MarkerOnlyVersionUnknown,
+            version_evidence_ref: "source-marker:.idea".to_owned(),
+        },
+        CompetitorConfigClassification::UnknownConfigRoot => MigrationSourceToolChip {
+            source_tool_id: "source-tool:unknown".to_owned(),
+            source_tool_label: "Unknown source tool".to_owned(),
+            source_version_label: "version unavailable".to_owned(),
+            version_truth_class: SourceVersionTruthClass::MarkerOnlyVersionUnknown,
+            version_evidence_ref: "source-marker:unresolved".to_owned(),
+        },
+    }
+}
+
+fn target_scope_for(target: &str) -> MigrationTargetScope {
+    let (scope_kind, target_label) = if target.starts_with("workspace:") {
+        (
+            MigrationTargetScopeKind::Workspace,
+            target.trim_start_matches("workspace:").to_owned(),
+        )
+    } else if target.starts_with("profile:") {
+        (
+            MigrationTargetScopeKind::Profile,
+            target.trim_start_matches("profile:").to_owned(),
+        )
+    } else {
+        (MigrationTargetScopeKind::Profile, target.to_owned())
+    };
+    MigrationTargetScope {
+        scope_kind,
+        target_ref: target.to_owned(),
+        target_label,
+        writes_land_in: format!("{} {}", scope_kind.as_str(), target),
     }
 }
 

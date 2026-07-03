@@ -27,9 +27,17 @@ fn every_subject_is_forecast_exactly_once() {
             .iter()
             .filter(|s| s.subject == subject)
             .collect();
-        assert_eq!(matches.len(), 1, "subject `{}` not forecast once", subject.as_str());
+        assert_eq!(
+            matches.len(),
+            1,
+            "subject `{}` not forecast once",
+            subject.as_str()
+        );
         let forecast = matches[0];
-        assert_eq!(forecast.primary_artifact_class, subject.primary_artifact_class());
+        assert_eq!(
+            forecast.primary_artifact_class,
+            subject.primary_artifact_class()
+        );
         assert_eq!(forecast.owner_role, subject.owner_role());
         // Every claimed line is forecast.
         assert_eq!(forecast.line_forecasts.len(), CompatibilityLine::ALL.len());
@@ -42,15 +50,20 @@ fn forecast_identifies_affected_subjects_before_widening() {
     // / helpers before restart or rollout widening.
     let packet = packet();
     // The narrowed subjects are surfaced with their per-line drift and a non-clear readiness.
-    let sdk = packet.subject(CompatibilitySubject::ExtensionSdkRange).unwrap();
+    let sdk = packet
+        .subject(CompatibilitySubject::ExtensionSdkRange)
+        .unwrap();
     assert_eq!(sdk.readiness, ForecastReadiness::ReviewBeforeWidening);
     assert!(sdk
         .line_forecasts
         .iter()
-        .any(|l| l.line == CompatibilityLine::Stable && l.drift_class == DriftClass::MigrationRequired));
+        .any(|l| l.line == CompatibilityLine::Stable
+            && l.drift_class == DriftClass::MigrationRequired));
     assert!(sdk.requires_migration_task);
     // The clear subjects are clear to widen.
-    let archetype = packet.subject(CompatibilitySubject::CertifiedArchetype).unwrap();
+    let archetype = packet
+        .subject(CompatibilitySubject::CertifiedArchetype)
+        .unwrap();
     assert_eq!(archetype.readiness, ForecastReadiness::ClearToWiden);
     assert!(!archetype.requires_migration_task);
 }
@@ -85,13 +98,17 @@ fn every_narrowed_subject_has_an_actionable_migration_task() {
 fn compatible_is_distinguished_from_breaking() {
     // Guardrail: a compatible-within-window forecast must not read like a breaking drift.
     let packet = packet();
-    let remote = packet.subject(CompatibilitySubject::RemoteAgentSkew).unwrap();
+    let remote = packet
+        .subject(CompatibilitySubject::RemoteAgentSkew)
+        .unwrap();
     // A scheduled deprecation narrows but never holds.
     assert_eq!(remote.worst_gate, DescriptorGate::Narrowed);
     assert!(!remote.requires_pre_rollout_resolution);
 
     let hold = seeded_m5_compatibility_forecast_sheet_hold();
-    let archetype = hold.subject(CompatibilitySubject::CertifiedArchetype).unwrap();
+    let archetype = hold
+        .subject(CompatibilitySubject::CertifiedArchetype)
+        .unwrap();
     assert!(archetype
         .line_forecasts
         .iter()
@@ -107,16 +124,26 @@ fn confirmed_migration_narrows_exactly_the_consumers_that_read_it() {
     let packet = seeded_m5_compatibility_forecast_sheet_review();
     assert!(packet.validate().is_empty(), "{:?}", packet.validate());
     let subject = CompatibilitySubject::PublicSchemaReader;
-    assert_eq!(packet.subject(subject).unwrap().worst_gate, DescriptorGate::Narrowed);
+    assert_eq!(
+        packet.subject(subject).unwrap().worst_gate,
+        DescriptorGate::Narrowed
+    );
     for c in &packet.consumers {
         if c.read_subjects.contains(&subject) {
-            assert!(c.is_review(), "consumer `{}` reads migration but did not review", c.consumer.as_str());
-            assert!(c
-                .gaps
-                .iter()
-                .any(|g| g.subject == subject && g.gap_kind == ForecastGapKind::ReviewBeforeWidening));
+            assert!(
+                c.is_review(),
+                "consumer `{}` reads migration but did not review",
+                c.consumer.as_str()
+            );
+            assert!(c.gaps.iter().any(
+                |g| g.subject == subject && g.gap_kind == ForecastGapKind::ReviewBeforeWidening
+            ));
         } else {
-            assert!(c.is_clear(), "consumer `{}` should stay clear", c.consumer.as_str());
+            assert!(
+                c.is_clear(),
+                "consumer `{}` should stay clear",
+                c.consumer.as_str()
+            );
         }
     }
     assert!(!packet.requires_pre_rollout_resolution());
@@ -133,15 +160,23 @@ fn confirmed_breaking_drift_holds_exactly_the_consumers_that_read_it() {
     let packet = seeded_m5_compatibility_forecast_sheet_hold();
     assert!(packet.validate().is_empty(), "{:?}", packet.validate());
     let subject = CompatibilitySubject::CertifiedArchetype;
-    assert_eq!(packet.subject(subject).unwrap().worst_gate, DescriptorGate::Blocked);
+    assert_eq!(
+        packet.subject(subject).unwrap().worst_gate,
+        DescriptorGate::Blocked
+    );
     for c in &packet.consumers {
         if c.read_subjects.contains(&subject) {
-            assert!(c.is_hold(), "consumer `{}` reads breaking drift but did not hold", c.consumer.as_str());
+            assert!(
+                c.is_hold(),
+                "consumer `{}` reads breaking drift but did not hold",
+                c.consumer.as_str()
+            );
             assert!(c.requires_pre_rollout_resolution);
             assert!(c
                 .gaps
                 .iter()
-                .any(|g| g.subject == subject && g.gap_kind == ForecastGapKind::ResolveBeforeWidening));
+                .any(|g| g.subject == subject
+                    && g.gap_kind == ForecastGapKind::ResolveBeforeWidening));
         }
     }
     assert!(packet.requires_pre_rollout_resolution());
@@ -169,10 +204,9 @@ fn out_of_window_forecast_is_never_a_hard_failure() {
     for c in &packet.consumers {
         if c.read_subjects.contains(&subject) {
             assert!(c.is_review());
-            assert!(c
-                .gaps
-                .iter()
-                .any(|g| g.subject == subject && g.gap_kind == ForecastGapKind::OutsideClaimedWindow));
+            assert!(c.gaps.iter().any(
+                |g| g.subject == subject && g.gap_kind == ForecastGapKind::OutsideClaimedWindow
+            ));
         }
     }
     assert!(packet.coverage.has_partial_coverage);
@@ -272,7 +306,10 @@ fn narrowed_subject_without_a_task_is_rejected() {
 fn consumers_read_one_sheet() {
     // Acceptance criterion: every consumer reads one sheet and derives its disclosed scope from it.
     let packet = packet();
-    assert_eq!(packet.consumer_tokens, tokens(&ForecastConsumer::ALL, |c| c.as_str()));
+    assert_eq!(
+        packet.consumer_tokens,
+        tokens(&ForecastConsumer::ALL, |c| c.as_str())
+    );
     assert!(packet.disclosure.all_consume());
     assert!(packet.conformance.consumers_read_one_sheet);
     for c in &packet.consumers {
@@ -317,19 +354,31 @@ fn controlled_vocabulary_is_frozen() {
         "public_export_reader",
         "public_schema_reader",
     ] {
-        assert!(vocab.subjects.contains(&needle.to_owned()), "missing {needle}");
+        assert!(
+            vocab.subjects.contains(&needle.to_owned()),
+            "missing {needle}"
+        );
     }
     for needle in ["stable", "beta", "preview", "lts"] {
         assert!(vocab.lines.contains(&needle.to_owned()), "missing {needle}");
     }
     for needle in ["no_drift", "migration_required", "breaking_drift"] {
-        assert!(vocab.drift_classes.contains(&needle.to_owned()), "missing {needle}");
+        assert!(
+            vocab.drift_classes.contains(&needle.to_owned()),
+            "missing {needle}"
+        );
     }
     for needle in ["pin", "postpone", "side_by_side", "validator", "repair"] {
-        assert!(vocab.actions.contains(&needle.to_owned()), "missing {needle}");
+        assert!(
+            vocab.actions.contains(&needle.to_owned()),
+            "missing {needle}"
+        );
     }
     for needle in ["qualified", "outside_claimed_window", "unknown"] {
-        assert!(vocab.confidence_levels.contains(&needle.to_owned()), "missing {needle}");
+        assert!(
+            vocab.confidence_levels.contains(&needle.to_owned()),
+            "missing {needle}"
+        );
     }
 }
 

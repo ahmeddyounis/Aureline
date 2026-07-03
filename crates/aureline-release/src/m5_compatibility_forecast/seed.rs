@@ -71,7 +71,14 @@ fn lf(
 fn clear_lines(subject: CompatibilitySubject) -> Vec<LineForecast> {
     CompatibilityLine::ALL
         .iter()
-        .map(|&line| lf(subject, line, DriftClass::NoDrift, ForecastConfidence::Qualified))
+        .map(|&line| {
+            lf(
+                subject,
+                line,
+                DriftClass::NoDrift,
+                ForecastConfidence::Qualified,
+            )
+        })
         .collect()
 }
 
@@ -90,7 +97,10 @@ fn clear_subject(subject: CompatibilitySubject) -> SubjectForecast {
 
 /// The six all-clear subject forecasts the drills perturb.
 fn all_clear_subjects() -> Vec<SubjectForecast> {
-    CompatibilitySubject::ALL.iter().map(|&s| clear_subject(s)).collect()
+    CompatibilitySubject::ALL
+        .iter()
+        .map(|&s| clear_subject(s))
+        .collect()
 }
 
 /// The canonical, realistic subject forecasts: three subjects drift within the claimed window.
@@ -276,7 +286,9 @@ fn canonical_tasks() -> Vec<MigrationTaskRow> {
             // The deferral is recorded with a rationale, as the policy requires.
             waiver: Some(MigrationWaiver {
                 waived: true,
-                rationale: Some("Reader pinned to v12 until the next maintenance window.".to_owned()),
+                rationale: Some(
+                    "Reader pinned to v12 until the next maintenance window.".to_owned(),
+                ),
                 waived_by_role: Some("release_owner".to_owned()),
                 waiver_message_id: format!(
                     "{}task.{}.{}.waiver",
@@ -305,7 +317,10 @@ fn set_subject(subjects: &mut [SubjectForecast], replacement: SubjectForecast) {
 fn consumer_rows() -> Vec<ForecastConsumerRow> {
     vec![
         ForecastConsumerRow::new(ForecastConsumer::UpdateCenter, &CompatibilitySubject::ALL),
-        ForecastConsumerRow::new(ForecastConsumer::MigrationAssistant, &CompatibilitySubject::ALL),
+        ForecastConsumerRow::new(
+            ForecastConsumer::MigrationAssistant,
+            &CompatibilitySubject::ALL,
+        ),
         ForecastConsumerRow::new(ForecastConsumer::ReleaseCenter, &CompatibilitySubject::ALL),
         ForecastConsumerRow::new(
             ForecastConsumer::AdminConsole,
@@ -374,10 +389,30 @@ pub fn seeded_m5_compatibility_forecast_sheet_review() -> CompatibilityForecastS
             subject_id: "schema-reader:v12".to_owned(),
             within_claimed_window: true,
             line_forecasts: vec![
-                lf(REVIEW_DRILL_SUBJECT, CompatibilityLine::Stable, DriftClass::MigrationRequired, ForecastConfidence::Qualified),
-                lf(REVIEW_DRILL_SUBJECT, CompatibilityLine::Beta, DriftClass::MigrationRequired, ForecastConfidence::Qualified),
-                lf(REVIEW_DRILL_SUBJECT, CompatibilityLine::Preview, DriftClass::CompatibleWithinWindow, ForecastConfidence::Qualified),
-                lf(REVIEW_DRILL_SUBJECT, CompatibilityLine::Lts, DriftClass::NoDrift, ForecastConfidence::Qualified),
+                lf(
+                    REVIEW_DRILL_SUBJECT,
+                    CompatibilityLine::Stable,
+                    DriftClass::MigrationRequired,
+                    ForecastConfidence::Qualified,
+                ),
+                lf(
+                    REVIEW_DRILL_SUBJECT,
+                    CompatibilityLine::Beta,
+                    DriftClass::MigrationRequired,
+                    ForecastConfidence::Qualified,
+                ),
+                lf(
+                    REVIEW_DRILL_SUBJECT,
+                    CompatibilityLine::Preview,
+                    DriftClass::CompatibleWithinWindow,
+                    ForecastConfidence::Qualified,
+                ),
+                lf(
+                    REVIEW_DRILL_SUBJECT,
+                    CompatibilityLine::Lts,
+                    DriftClass::NoDrift,
+                    ForecastConfidence::Qualified,
+                ),
             ],
             affected_artifact_classes: vec![ArtifactClass::SchemaContracts],
             affected_profiles: both_profiles(),
@@ -420,10 +455,30 @@ pub fn seeded_m5_compatibility_forecast_sheet_hold() -> CompatibilityForecastShe
             subject_id: "archetype:web-app".to_owned(),
             within_claimed_window: true,
             line_forecasts: vec![
-                lf(HOLD_DRILL_SUBJECT, CompatibilityLine::Stable, DriftClass::BreakingDrift, ForecastConfidence::Qualified),
-                lf(HOLD_DRILL_SUBJECT, CompatibilityLine::Beta, DriftClass::MigrationRequired, ForecastConfidence::Qualified),
-                lf(HOLD_DRILL_SUBJECT, CompatibilityLine::Preview, DriftClass::CompatibleWithinWindow, ForecastConfidence::Qualified),
-                lf(HOLD_DRILL_SUBJECT, CompatibilityLine::Lts, DriftClass::NoDrift, ForecastConfidence::Qualified),
+                lf(
+                    HOLD_DRILL_SUBJECT,
+                    CompatibilityLine::Stable,
+                    DriftClass::BreakingDrift,
+                    ForecastConfidence::Qualified,
+                ),
+                lf(
+                    HOLD_DRILL_SUBJECT,
+                    CompatibilityLine::Beta,
+                    DriftClass::MigrationRequired,
+                    ForecastConfidence::Qualified,
+                ),
+                lf(
+                    HOLD_DRILL_SUBJECT,
+                    CompatibilityLine::Preview,
+                    DriftClass::CompatibleWithinWindow,
+                    ForecastConfidence::Qualified,
+                ),
+                lf(
+                    HOLD_DRILL_SUBJECT,
+                    CompatibilityLine::Lts,
+                    DriftClass::NoDrift,
+                    ForecastConfidence::Qualified,
+                ),
             ],
             affected_artifact_classes: vec![ArtifactClass::WorkspaceState],
             affected_profiles: both_profiles(),
@@ -471,10 +526,30 @@ pub fn seeded_m5_compatibility_forecast_sheet_out_of_window() -> CompatibilityFo
             subject_id: "extension-sdk:third-party".to_owned(),
             within_claimed_window: false,
             line_forecasts: vec![
-                lf(OUT_OF_WINDOW_DRILL_SUBJECT, CompatibilityLine::Stable, DriftClass::BreakingDrift, ForecastConfidence::OutsideClaimedWindow),
-                lf(OUT_OF_WINDOW_DRILL_SUBJECT, CompatibilityLine::Beta, DriftClass::BreakingDrift, ForecastConfidence::OutsideClaimedWindow),
-                lf(OUT_OF_WINDOW_DRILL_SUBJECT, CompatibilityLine::Preview, DriftClass::MigrationRequired, ForecastConfidence::OutsideClaimedWindow),
-                lf(OUT_OF_WINDOW_DRILL_SUBJECT, CompatibilityLine::Lts, DriftClass::NoDrift, ForecastConfidence::NotApplicable),
+                lf(
+                    OUT_OF_WINDOW_DRILL_SUBJECT,
+                    CompatibilityLine::Stable,
+                    DriftClass::BreakingDrift,
+                    ForecastConfidence::OutsideClaimedWindow,
+                ),
+                lf(
+                    OUT_OF_WINDOW_DRILL_SUBJECT,
+                    CompatibilityLine::Beta,
+                    DriftClass::BreakingDrift,
+                    ForecastConfidence::OutsideClaimedWindow,
+                ),
+                lf(
+                    OUT_OF_WINDOW_DRILL_SUBJECT,
+                    CompatibilityLine::Preview,
+                    DriftClass::MigrationRequired,
+                    ForecastConfidence::OutsideClaimedWindow,
+                ),
+                lf(
+                    OUT_OF_WINDOW_DRILL_SUBJECT,
+                    CompatibilityLine::Lts,
+                    DriftClass::NoDrift,
+                    ForecastConfidence::NotApplicable,
+                ),
             ],
             affected_artifact_classes: vec![ArtifactClass::ExtensionPacks],
             affected_profiles: both_profiles(),

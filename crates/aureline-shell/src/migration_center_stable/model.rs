@@ -607,6 +607,67 @@ pub struct SurfaceParity {
     pub parity_holds: bool,
 }
 
+/// Header state rendered above migration-center and post-apply records.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MigrationFlowHeader {
+    /// Canonical migration-session ref shared by UI, CLI, support, and issues.
+    pub migration_session_ref: String,
+    /// Source tool chip label.
+    pub source_tool_label: String,
+    /// Source version chip label. Must disclose unknown marker-only truth.
+    pub source_version_label: String,
+    /// Target profile/workspace ref where writes land.
+    pub target_scope_ref: String,
+    /// Reviewer-facing target scope label.
+    pub target_scope_label: String,
+    /// Short sentence describing where writes land.
+    pub writes_land_in: String,
+    /// Checkpoint-created notice text.
+    pub checkpoint_created_notice: String,
+    /// Canonical checkpoint ref.
+    pub checkpoint_ref: String,
+    /// Canonical restore record ref.
+    pub restore_record_ref: String,
+    /// Canonical restore action ref.
+    pub restore_action_ref: String,
+    /// Canonical compatibility report ref.
+    pub compatibility_report_ref: String,
+    /// Canonical compatibility-report open action ref.
+    pub compatibility_report_action_ref: String,
+    /// Canonical support export ref.
+    pub support_export_ref: String,
+    /// Canonical issue-template ref.
+    pub issue_template_ref: String,
+    /// Whether partial-apply context stays visible after review/apply.
+    pub partial_apply_context_visible: bool,
+    /// Whether downgrade/narrowing context stays visible after review/apply.
+    pub downgrade_context_visible: bool,
+    /// Whether restore context stays visible after review/apply.
+    pub restore_context_visible: bool,
+}
+
+impl MigrationFlowHeader {
+    /// Returns true when the header answers the required migration questions.
+    pub fn answers_required_questions(&self) -> bool {
+        !self.source_tool_label.trim().is_empty()
+            && !self.source_version_label.trim().is_empty()
+            && !self.writes_land_in.trim().is_empty()
+            && !self.checkpoint_created_notice.trim().is_empty()
+            && is_canonical_object_ref(&self.migration_session_ref)
+            && is_canonical_object_ref(&self.target_scope_ref)
+            && is_canonical_object_ref(&self.checkpoint_ref)
+            && is_canonical_object_ref(&self.restore_record_ref)
+            && is_canonical_object_ref(&self.restore_action_ref)
+            && is_canonical_object_ref(&self.compatibility_report_ref)
+            && is_canonical_object_ref(&self.compatibility_report_action_ref)
+            && is_canonical_object_ref(&self.support_export_ref)
+            && is_canonical_object_ref(&self.issue_template_ref)
+            && self.partial_apply_context_visible
+            && self.downgrade_context_visible
+            && self.restore_context_visible
+    }
+}
+
 /// Upstream ids the record is a genuine projection of, kept for support
 /// traceability. These are upstream source refs, not canonical durable objects.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -636,6 +697,8 @@ pub struct MigrationFlowDisclosureInput {
     pub migration_session_ref: String,
     /// Source ecosystem this flow imported from.
     pub source_ecosystem: IncumbentEcosystem,
+    /// Header state rendered before review and retained after apply.
+    pub header: MigrationFlowHeader,
     /// Reviewer-facing title.
     pub title: String,
     /// Reviewer-facing summary.
@@ -693,6 +756,8 @@ pub struct MigrationFlowDisclosureRecord {
     pub source_ecosystem: IncumbentEcosystem,
     /// Compact source-ecosystem label (the vocabulary docs / Help/About ingest).
     pub source_ecosystem_label: String,
+    /// Header state rendered before review and retained after apply.
+    pub header: MigrationFlowHeader,
     /// Reviewer-facing title.
     pub title: String,
     /// Reviewer-facing summary.
@@ -782,6 +847,8 @@ pub enum BuildError {
     HiddenWithoutAccount,
     /// A flow was hidden when managed services were absent.
     HiddenWithoutManagedServices,
+    /// Header state is incomplete or drifts from the record.
+    HeaderIncomplete,
 }
 
 impl core::fmt::Display for BuildError {
@@ -877,6 +944,10 @@ impl core::fmt::Display for BuildError {
                 f,
                 "a migration flow row must stay available without managed services"
             ),
+            Self::HeaderIncomplete => write!(
+                f,
+                "migration header must preserve source/version, target scope, checkpoint, restore, compatibility, support, and issue-template refs for the same session"
+            ),
         }
     }
 }
@@ -900,6 +971,14 @@ impl MigrationFlowDisclosureRecord {
             return Err(BuildError::InvalidSentence { field: "summary" });
         }
         require_ref("migration_session_ref", &input.migration_session_ref)?;
+        if input.header.migration_session_ref != input.migration_session_ref
+            || input.header.checkpoint_ref != input.rollback.checkpoint_ref
+            || input.header.restore_record_ref != input.rollback.restore_record_ref
+            || input.header.support_export_ref != input.support_export_ref
+            || !input.header.answers_required_questions()
+        {
+            return Err(BuildError::HeaderIncomplete);
+        }
         require_ref("diff.diff_preview_ref", &input.diff.diff_preview_ref)?;
         require_ref("rollback.checkpoint_ref", &input.rollback.checkpoint_ref)?;
         require_ref(
@@ -1139,6 +1218,7 @@ impl MigrationFlowDisclosureRecord {
             migration_session_ref: input.migration_session_ref,
             source_ecosystem: input.source_ecosystem,
             source_ecosystem_label: ecosystem_label,
+            header: input.header,
             title: input.title,
             summary: input.summary,
             diff: input.diff,
@@ -1166,6 +1246,16 @@ impl MigrationFlowDisclosureRecord {
         let mut lines = vec![
             format!("migration_flow_disclosure: {}", self.record_id),
             format!("migration_session_ref: {}", self.migration_session_ref),
+            format!(
+                "header: source={} version={} target={} checkpoint={} restore={} compatibility={} issue_template={}",
+                self.header.source_tool_label,
+                self.header.source_version_label,
+                self.header.writes_land_in,
+                self.header.checkpoint_ref,
+                self.header.restore_action_ref,
+                self.header.compatibility_report_ref,
+                self.header.issue_template_ref
+            ),
             format!("as_of: {}", self.as_of),
             format!(
                 "source_ecosystem: {} ({})",

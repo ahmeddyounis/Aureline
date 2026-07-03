@@ -146,7 +146,8 @@ pub const M5_OWNING_WINDOW_ROUTING_PUBLISHED_DOC_REF: &str =
     "docs/shell/m5_owning_window_routing_contract.md";
 
 /// Repo-relative ref to the frozen shell-zone matrix schema.
-pub const M5_OWNING_WINDOW_ROUTING_MATRIX_SCHEMA_REF: &str = matrix::M5_SHELL_ZONE_MATRIX_SCHEMA_REF;
+pub const M5_OWNING_WINDOW_ROUTING_MATRIX_SCHEMA_REF: &str =
+    matrix::M5_SHELL_ZONE_MATRIX_SCHEMA_REF;
 
 /// Window-topology contract this proof mirrors for detach/reopen routing.
 pub const M5_OWNING_WINDOW_ROUTING_WINDOW_TOPOLOGY_CONTRACT_REF: &str =
@@ -567,7 +568,10 @@ impl RoutingContinuityRow {
         if !self.routing_expectations_complete() {
             return true;
         }
-        if matches!(self.dialog_binding, DialogBindingState::BindingLostOrOrphaned) {
+        if matches!(
+            self.dialog_binding,
+            DialogBindingState::BindingLostOrOrphaned
+        ) {
             return true;
         }
         if matches!(
@@ -773,7 +777,10 @@ impl RoutingContinuityRow {
                 family: family.clone(),
             });
         }
-        if matches!(self.dialog_binding, DialogBindingState::BindingLostOrOrphaned) {
+        if matches!(
+            self.dialog_binding,
+            DialogBindingState::BindingLostOrOrphaned
+        ) {
             findings.push(RoutingContinuityFinding::DialogBindingLostOrOrphaned {
                 family: family.clone(),
             });
@@ -798,9 +805,11 @@ impl RoutingContinuityRow {
             self.os_notification_privacy,
             OsNotificationPrivacyState::LeaksContentOrBypassesReview
         ) {
-            findings.push(RoutingContinuityFinding::OsNotificationLeaksOrBypassesReview {
-                family: family.clone(),
-            });
+            findings.push(
+                RoutingContinuityFinding::OsNotificationLeaksOrBypassesReview {
+                    family: family.clone(),
+                },
+            );
         }
         if !self.plans_cover_declared_window_classes() {
             findings.push(RoutingContinuityFinding::PlanWindowCoverageMismatch {

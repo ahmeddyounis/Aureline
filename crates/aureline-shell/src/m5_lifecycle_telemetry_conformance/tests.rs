@@ -109,8 +109,14 @@ fn every_binding_is_pulled_from_the_frozen_matrix() {
             .expect("driving journey is frozen by the matrix");
         assert_eq!(row.admitted_states, object.admitted_states);
         assert_eq!(row.primary_status_surface, object.primary_status_surface);
-        assert_eq!(row.status_code_export_field, object.status_code_export_field);
-        assert_eq!(row.last_failure_reason_field, object.last_failure_reason_field);
+        assert_eq!(
+            row.status_code_export_field,
+            object.status_code_export_field
+        );
+        assert_eq!(
+            row.last_failure_reason_field,
+            object.last_failure_reason_field
+        );
         assert_eq!(row.recovery_affordance, object.recovery_affordance);
         assert_eq!(row.qualification, object.qualification);
         assert_eq!(row.required_consumer_surfaces, object.consumer_surfaces);
@@ -254,10 +260,10 @@ fn headless_parity_loss_blocks_the_extension() {
     assert_eq!(row.derived_status, TelemetryConformanceStatus::Red);
     assert!(!row.headless_parity_preserved);
     assert!(!packet.report_clean);
-    assert!(packet
-        .blocking_findings
-        .iter()
-        .any(|finding| matches!(finding, TelemetryConformanceFinding::HeadlessParityLost { .. })));
+    assert!(packet.blocking_findings.iter().any(|finding| matches!(
+        finding,
+        TelemetryConformanceFinding::HeadlessParityLost { .. }
+    )));
     assert!(row.conformance_causes.iter().any(|cause| matches!(
         cause.trigger,
         M5LifecycleDowngradeTrigger::StateVocabularyDrift

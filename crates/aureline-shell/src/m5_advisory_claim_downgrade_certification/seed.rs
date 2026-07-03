@@ -144,12 +144,13 @@ fn offline_reduced_continuity_waiver() -> AdvisoryClaimWaiver {
     AdvisoryClaimWaiver {
         waiver_id: "waiver:offline-reduced-continuity-proof:0001".to_owned(),
         profile: M5AdvisoryClaimProfile::Offline,
-        reason: "On an air-gapped install the local-continuity proof is reduced to the last signed \
+        reason:
+            "On an air-gapped install the local-continuity proof is reduced to the last signed \
                  bundle's evidence pending an operator acknowledgement, so the advisory claim is \
                  narrowed to a disclosed, waivered awaiting-user-action state while local work \
                  stays visibly safe; the full continuity proof is restored on the next bundle \
                  import."
-            .to_owned(),
+                .to_owned(),
         owner_role: "Offline continuity surface owner".to_owned(),
         expires_at: "2026-09-30T00:00:00Z".to_owned(),
     }

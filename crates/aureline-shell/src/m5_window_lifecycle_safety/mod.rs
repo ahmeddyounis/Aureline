@@ -144,7 +144,8 @@ pub const M5_WINDOW_LIFECYCLE_SAFETY_PUBLISHED_DOC_REF: &str =
     "docs/shell/m5_window_lifecycle_safety_contract.md";
 
 /// Repo-relative ref to the frozen shell-zone matrix schema.
-pub const M5_WINDOW_LIFECYCLE_SAFETY_MATRIX_SCHEMA_REF: &str = matrix::M5_SHELL_ZONE_MATRIX_SCHEMA_REF;
+pub const M5_WINDOW_LIFECYCLE_SAFETY_MATRIX_SCHEMA_REF: &str =
+    matrix::M5_SHELL_ZONE_MATRIX_SCHEMA_REF;
 
 /// Window-topology contract this proof mirrors for detach/close/reopen safety.
 pub const M5_WINDOW_LIFECYCLE_SAFETY_WINDOW_TOPOLOGY_CONTRACT_REF: &str =
@@ -567,7 +568,9 @@ impl WindowLifecycleRow {
 
     /// `true` when every per-verb plan advertises its verb before the drop completes.
     pub fn plans_disclose_before_drop(&self) -> bool {
-        self.drag_plans.iter().all(|plan| plan.disclosed_before_drop)
+        self.drag_plans
+            .iter()
+            .all(|plan| plan.disclosed_before_drop)
     }
 
     /// `true` when every per-verb plan keeps a keyboard command equivalent.
@@ -651,10 +654,11 @@ impl WindowLifecycleRow {
                 family: self.family,
                 trigger: M5ShellDowngradeTrigger::OwningWindowRoutingLost,
                 disclosed: false,
-                detail: "The row does not declare all four protected close resources (dirty buffer, \
+                detail:
+                    "The row does not declare all four protected close resources (dirty buffer, \
                          live approval, collaboration control, evidence review), so closing a \
                          secondary window could silently orphan one."
-                    .to_owned(),
+                        .to_owned(),
             });
         }
         match self.drag_verb_disclosure {
@@ -689,11 +693,12 @@ impl WindowLifecycleRow {
                     family: self.family,
                     trigger: M5ShellDowngradeTrigger::UpstreamDependencyNarrowed,
                     disclosed: true,
-                    detail: "Closing a secondary window defers a protected resource to a disclosed, \
+                    detail:
+                        "Closing a secondary window defers a protected resource to a disclosed, \
                              waivered relocation into the primary workspace window with a \
                              still-visible prompt rather than blocking outright, so nothing is \
                              silently orphaned."
-                        .to_owned(),
+                            .to_owned(),
                 });
             }
             CloseOrphanGuardState::SilentOrphanOnClose => {
@@ -726,10 +731,11 @@ impl WindowLifecycleRow {
                     family: self.family,
                     trigger: M5ShellDowngradeTrigger::PlaceholderLostIdentityOrReopen,
                     disclosed: false,
-                    detail: "A specialized-window reopen orphaned the object or landed on the wrong \
+                    detail:
+                        "A specialized-window reopen orphaned the object or landed on the wrong \
                              surface when an exact dependency was missing, losing the object \
                              identity and its reopen path."
-                        .to_owned(),
+                            .to_owned(),
                 });
             }
         }

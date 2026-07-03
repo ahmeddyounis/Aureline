@@ -17,8 +17,8 @@ use aureline_shell::m5_window_lifecycle_safety::{
     seeded_m5_window_lifecycle_safety_packet, validate_m5_window_lifecycle_safety_packet,
     WindowLifecycleDashboard, WindowLifecyclePacket, WindowLifecycleStatus,
     WindowLifecycleSupportExport, M5_WINDOW_LIFECYCLE_SAFETY_PACKET_RECORD_KIND,
-    M5_WINDOW_LIFECYCLE_SAFETY_PUBLISHED_REPORT_REF, M5_WINDOW_LIFECYCLE_SAFETY_SHARED_CONTRACT_REF,
-    REQUIRED_FAMILIES,
+    M5_WINDOW_LIFECYCLE_SAFETY_PUBLISHED_REPORT_REF,
+    M5_WINDOW_LIFECYCLE_SAFETY_SHARED_CONTRACT_REF, REQUIRED_FAMILIES,
 };
 
 fn fixtures_root() -> PathBuf {
@@ -144,10 +144,8 @@ fn fixture_dashboard_matches_packet_projection() {
 fn fixture_support_export_quotes_packet_and_waiver_refs() {
     let packet: WindowLifecyclePacket = load_json("packet.json");
     let export: WindowLifecycleSupportExport = load_json("support_export.json");
-    let expected = WindowLifecycleSupportExport::from_packet(
-        export.support_export_id.clone(),
-        packet.clone(),
-    );
+    let expected =
+        WindowLifecycleSupportExport::from_packet(export.support_export_id.clone(), packet.clone());
     assert_eq!(export, expected);
     assert!(export.case_ids.contains(&packet.packet_id));
     assert!(export.case_ids.contains(&packet.matrix_packet_ref));

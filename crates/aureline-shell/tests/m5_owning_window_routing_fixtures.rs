@@ -235,9 +235,10 @@ fn published_csv_matches_seeded_rendering() {
 
 #[test]
 fn published_doc_links_artifacts_and_quotes_families() {
-    let body =
-        std::fs::read_to_string(repo_root().join("docs/shell/m5_owning_window_routing_contract.md"))
-            .expect("published owning-window-routing contract must exist");
+    let body = std::fs::read_to_string(
+        repo_root().join("docs/shell/m5_owning_window_routing_contract.md"),
+    )
+    .expect("published owning-window-routing contract must exist");
     assert!(body.contains("artifacts/shell/m5-owning-window-routing.md"));
     assert!(body.contains("artifacts/release/m5-owning-window-routing-proof/packet.json"));
     assert!(body.contains("artifacts/release/m5-owning-window-routing-proof/dashboard.json"));

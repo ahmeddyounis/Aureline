@@ -355,7 +355,10 @@ impl AssuranceStateFamily {
     /// The ordered canonical state tokens of this family, each bound to a gate posture and floor.
     pub fn state_defs(self) -> Vec<AssuranceStateTokenDef> {
         match self {
-            Self::AssuranceClaim => AssuranceClaimState::ALL.iter().map(|s| s.to_def()).collect(),
+            Self::AssuranceClaim => AssuranceClaimState::ALL
+                .iter()
+                .map(|s| s.to_def())
+                .collect(),
             Self::Governance => GovernanceState::ALL.iter().map(|s| s.to_def()).collect(),
             Self::CapabilityBoundary => CapabilityBoundaryState::ALL
                 .iter()

@@ -79,7 +79,10 @@ fn every_binding_is_pulled_from_the_frozen_matrix() {
     let packet = seeded_m5_lifecycle_object_certification_packet();
     for matrix_row in &matrix.object_state_rows {
         let row = packet.row(matrix_row.object_family).unwrap();
-        assert_eq!(row.primary_status_surface, matrix_row.primary_status_surface);
+        assert_eq!(
+            row.primary_status_surface,
+            matrix_row.primary_status_surface
+        );
         assert_eq!(
             row.status_code_export_field,
             matrix_row.status_code_export_field
@@ -90,10 +93,7 @@ fn every_binding_is_pulled_from_the_frozen_matrix() {
         );
         assert_eq!(row.recovery_affordance, matrix_row.recovery_affordance);
         assert_eq!(row.qualification, matrix_row.qualification);
-        assert_eq!(
-            row.required_consumer_surfaces,
-            matrix_row.consumer_surfaces
-        );
+        assert_eq!(row.required_consumer_surfaces, matrix_row.consumer_surfaces);
     }
 }
 
@@ -149,7 +149,9 @@ fn disclosed_partial_export_keeps_profiler_yellow_without_a_waiver() {
 fn lost_status_surface_blocks_the_notebook_runtime() {
     let packet =
         seeded_m5_lifecycle_object_certification_packet_notebook_status_surface_missing_blocked();
-    let row = packet.row(M5LifecycleObjectFamily::NotebookRuntime).unwrap();
+    let row = packet
+        .row(M5LifecycleObjectFamily::NotebookRuntime)
+        .unwrap();
     assert_eq!(row.derived_status, LifecycleObjectStatus::Red);
     assert!(!packet.report_clean);
     assert!(!packet.all_rows_publishable);
@@ -229,10 +231,10 @@ fn headless_parity_loss_blocks_the_extension() {
     assert_eq!(row.derived_status, LifecycleObjectStatus::Red);
     assert!(!row.headless_parity_preserved);
     assert!(!packet.report_clean);
-    assert!(packet.blocking_findings.iter().any(|finding| matches!(
-        finding,
-        LifecycleObjectFinding::HeadlessParityLost { .. }
-    )));
+    assert!(packet
+        .blocking_findings
+        .iter()
+        .any(|finding| matches!(finding, LifecycleObjectFinding::HeadlessParityLost { .. })));
     assert!(row.object_causes.iter().any(|cause| matches!(
         cause.trigger,
         M5LifecycleDowngradeTrigger::StateVocabularyDrift
