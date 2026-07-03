@@ -22,7 +22,7 @@ tenant/user identifiers.
 | Component family | Canonical sources consumed by reference | First consumers |
 | --- | --- | --- |
 | Pipeline run row | `artifacts/review/m5/implement_normalized_pipeline_run_rows_log_viewers_artifact_browsers_and_safe_preview_trust_classes.md`, `schemas/review/implement-normalized-pipeline-run-rows-log-viewers-artifact-browsers-and-safe-preview-trust-classes.schema.json`, `aureline_review::current_pipeline_viewer_export` | Review pane, pipeline viewer, project-health CI center, companion CI summary, support export, release proof |
-| Annotation row | `schemas/review/ship-ai-review-evidence-finding-cards-and-review-pack-integration-with-change-objects.schema.json`, `artifacts/review/m5/ship_ai_review_evidence_finding_cards_and_review_pack_integration_with_change_objects.md`, normalized diagnostic records | Review pane, diagnostics panel, project-health center, support export, release proof |
+| Annotation row | `schemas/review/ship-ai-review-evidence-finding-cards-and-review-pack-integration-with-change-objects.schema.json`, `artifacts/review/m5/ship_ai_review_evidence_finding_cards_and_review_pack_integration_with_change_objects.md`, normalized diagnostic records, `aureline_ui::m5_annotation_rows::AnnotationRow` | Code surface, review pane, diagnostics panel, project-health center, support export, release proof |
 | Dependency row | `artifacts/deps/m5/package-set-inventory-and-scope-truth.json`, `artifacts/deps/m5/freeze-the-m5-package-state-manifest-scope-registry-auth-and-lockfile-authority-matrix.json`, `schemas/deps/package-review-cross-surface-integration.schema.json` | Package manager, review pane, framework-pack health, project-health dependencies, companion inspect, support export |
 | Manifest diff card | `artifacts/deps/m5/grouped-update-and-rollback-review.json`, `artifacts/deps/m5/manifest-scope-review.json`, `artifacts/deps/m5/reviewed-mutation-flows.json`, package mutation operation history | Package manager, review stage, project-health remediation, support export, release proof |
 | Security finding card | `artifacts/deps/m4/dependency-security-compliance-export-truth.json`, `docs/security/m5_advisory_card_row_primitive_contract.md`, `schemas/security/m5-advisory-card-row.schema.json`, normalized security result packets | Package health, review pane, project-health security center, incident/support export, release proof |
@@ -31,7 +31,7 @@ tenant/user identifiers.
 
 | Vocabulary | Values |
 | --- | --- |
-| `consumer_surface` | `review_pane`, `pipeline_viewer`, `package_manager`, `project_health_center`, `framework_pack_health`, `companion_client`, `support_export`, `release_proof` |
+| `consumer_surface` | `code_surface`, `review_pane`, `pipeline_viewer`, `package_manager`, `project_health_center`, `framework_pack_health`, `companion_client`, `support_export`, `release_proof` |
 | `freshness_state` | `current`, `live`, `warm_cached`, `stale`, `superseded`, `partial`, `blocked`, `policy_hidden`, `expired`, `no_fix_yet`, `unknown` |
 | `degraded_state` | `none`, `stale`, `superseded`, `partial`, `blocked`, `policy_hidden`, `no_fix_yet`, `provider_unreachable`, `evidence_missing`, `rollback_unavailable`, `advisory_feed_stale`, `manifest_scope_unknown` |
 | `suppression_state` | `unsuppressed`, `suppressed_until_review`, `suppressed_by_policy`, `exception_expired` |
@@ -79,12 +79,16 @@ Required fields:
 | `row_id` | Stable row id reused by review, diagnostics, project health, and support export. |
 | `annotation_id`, `diagnostic_id` | Canonical annotation and diagnostic ids. |
 | `anchor_ref` | Durable file, symbol, change, package, or run anchor; raw paths stay outside the component. |
+| `source_provider` | Source provider/scanner disclosure: provider label, provider kind, scanner label, source run/revision refs, redacted payload ref, and raw-provider-dump exclusion. |
+| `anchor` | Typed file, symbol, manifest, package, run, change, artifact, or unresolved anchor details with revision and partial-anchor disclosure. |
 | `source_packet_ref` | Opaque diagnostic/review packet ref. |
 | `annotation_kind` | Diagnostic, review finding, policy finding, build annotation, or package annotation. |
 | `severity`, `confidence`, `freshness_state` | Severity, confidence, and freshness rendered as separate fields. |
+| `stale_handoff` | Current/stale/superseded/partial/unverified handoff state with reason, previous anchor, successor candidate, review-required flag, and `silent_retarget_prohibited`. |
 | `suppression_state` | One of `unsuppressed`, `suppressed_until_review`, `suppressed_by_policy`, or `exception_expired`; suppressed rows remain visible. |
 | `remediation` | Remediation action, fix availability, owner ref, and due/review ref; no-fix-yet stays explicit. |
-| `copy_export` | Text, JSON, and Markdown copy preserving diagnostic id, anchor, severity, confidence, freshness, suppression, and remediation. |
+| `open_details_action` | Stable open-detail action id and target ref; provider handoff is disclosed when richer provider context is required. |
+| `copy_export` | Text, JSON, and Markdown copy preserving provider/scanner, diagnostic id, anchor, stale handoff, severity, confidence, freshness, suppression, remediation, and open-detail action. |
 
 Degraded states:
 
@@ -211,3 +215,8 @@ Rows/cards narrow instead of disappearing when evidence is stale, partial,
 superseded, blocked by policy, hidden by policy, unavailable, or no-fix-yet.
 Promotion is blocked until the component has a conforming fixture, schema, source
 binding, consumer projection, copy/export parity, and proof freshness row.
+
+Annotation rows specifically preserve the producer's original anchor when the
+visible run, file revision, or manifest changed. A successor anchor can be shown
+as a review candidate, but the row must keep `silent_retarget_prohibited = true`
+until review or a provider refresh supersedes the finding.

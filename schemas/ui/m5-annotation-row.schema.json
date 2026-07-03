@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/ui/m5-annotation-row.schema.json",
   "title": "Aureline M5 annotation row",
-  "description": "Reusable diagnostic/review annotation row that keeps diagnostic id, anchor, severity, confidence, freshness, suppression, and remediation separate across review panes, diagnostics, project health, support export, and release proof.",
+  "description": "Reusable diagnostic/review annotation row that keeps provider/scanner provenance, diagnostic id, typed anchor, severity, confidence, freshness, stale handoff, suppression, remediation, and open-detail action separate across review panes, diagnostics, project health, support export, and release proof.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -11,15 +11,19 @@
     "row_id",
     "annotation_id",
     "diagnostic_id",
+    "source_provider",
     "anchor_ref",
+    "anchor",
     "source_packet_ref",
     "annotation_kind",
     "severity",
     "confidence",
     "freshness_state",
     "degraded_state",
+    "stale_handoff",
     "suppression_state",
     "remediation",
+    "open_details_action",
     "source_refs",
     "consumer_surfaces",
     "copy_export"
@@ -30,7 +34,9 @@
     "row_id": { "$ref": "#/$defs/id" },
     "annotation_id": { "$ref": "#/$defs/id" },
     "diagnostic_id": { "$ref": "#/$defs/id" },
+    "source_provider": { "$ref": "#/$defs/source_provider" },
     "anchor_ref": { "$ref": "#/$defs/ref" },
+    "anchor": { "$ref": "#/$defs/anchor" },
     "source_packet_ref": { "$ref": "#/$defs/ref" },
     "annotation_kind": {
       "type": "string",
@@ -43,8 +49,10 @@
       "type": "string",
       "enum": ["none", "stale", "superseded", "partial", "policy_hidden", "evidence_missing", "no_fix_yet"]
     },
+    "stale_handoff": { "$ref": "#/$defs/stale_handoff" },
     "suppression_state": { "$ref": "#/$defs/suppression_state" },
     "remediation": { "$ref": "#/$defs/remediation" },
+    "open_details_action": { "$ref": "#/$defs/open_details_action" },
     "source_refs": { "$ref": "#/$defs/ref_array" },
     "consumer_surfaces": { "$ref": "#/$defs/consumer_surfaces" },
     "copy_export": { "$ref": "#/$defs/copy_export" }
@@ -56,6 +64,89 @@
     "severity": { "type": "string", "enum": ["info", "low", "medium", "high", "critical", "blocking"] },
     "confidence": { "type": "string", "enum": ["confirmed", "high", "medium", "low", "unknown"] },
     "freshness_state": { "type": "string", "enum": ["current", "live", "warm_cached", "stale", "superseded", "partial", "blocked", "policy_hidden", "expired", "no_fix_yet", "unknown"] },
+    "source_provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_label",
+        "provider_kind",
+        "scanner_label",
+        "source_run_ref",
+        "source_revision_ref",
+        "provider_payload_ref",
+        "raw_provider_dump_included"
+      ],
+      "properties": {
+        "provider_label": { "$ref": "#/$defs/ref" },
+        "provider_kind": {
+          "type": "string",
+          "enum": ["ci_provider", "test_runner", "compiler", "linter", "security_scanner", "package_manager", "policy_engine", "unknown"]
+        },
+        "scanner_label": { "$ref": "#/$defs/ref" },
+        "source_run_ref": { "$ref": "#/$defs/ref" },
+        "source_revision_ref": { "$ref": "#/$defs/ref" },
+        "provider_payload_ref": { "$ref": "#/$defs/ref" },
+        "raw_provider_dump_included": { "const": false }
+      }
+    },
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_kind",
+        "anchor_ref",
+        "file_ref",
+        "symbol_ref",
+        "manifest_ref",
+        "revision_ref",
+        "line_range_ref",
+        "partial_anchor"
+      ],
+      "properties": {
+        "anchor_kind": {
+          "type": "string",
+          "enum": ["file", "symbol", "manifest", "package", "pipeline_run", "change", "artifact", "unresolved"]
+        },
+        "anchor_ref": { "$ref": "#/$defs/ref" },
+        "file_ref": { "$ref": "#/$defs/ref" },
+        "symbol_ref": { "$ref": "#/$defs/ref" },
+        "manifest_ref": { "$ref": "#/$defs/ref" },
+        "revision_ref": { "$ref": "#/$defs/ref" },
+        "line_range_ref": { "$ref": "#/$defs/ref" },
+        "partial_anchor": { "type": "boolean" }
+      }
+    },
+    "stale_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "reason",
+        "previous_anchor_ref",
+        "successor_anchor_ref",
+        "review_required",
+        "silent_retarget_prohibited"
+      ],
+      "properties": {
+        "state": { "type": "string", "enum": ["current", "stale", "superseded", "partial", "unverified"] },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "not_applicable",
+            "visible_run_changed",
+            "file_revision_changed",
+            "manifest_changed",
+            "anchor_partial",
+            "provider_refresh_pending",
+            "source_packet_superseded"
+          ]
+        },
+        "previous_anchor_ref": { "$ref": "#/$defs/ref" },
+        "successor_anchor_ref": { "$ref": "#/$defs/ref" },
+        "review_required": { "type": "boolean" },
+        "silent_retarget_prohibited": { "const": true }
+      }
+    },
     "suppression_state": {
       "type": "object",
       "additionalProperties": false,
@@ -79,11 +170,24 @@
         "blocked_reason": { "$ref": "#/$defs/ref" }
       }
     },
+    "open_details_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "label", "target_ref", "requires_provider_handoff", "enabled", "disabled_reason"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/id" },
+        "label": { "type": "string", "enum": ["open_details"] },
+        "target_ref": { "$ref": "#/$defs/ref" },
+        "requires_provider_handoff": { "type": "boolean" },
+        "enabled": { "type": "boolean" },
+        "disabled_reason": { "$ref": "#/$defs/ref" }
+      }
+    },
     "consumer_surfaces": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "type": "string", "enum": ["review_pane", "project_health_center", "companion_client", "support_export", "release_proof"] }
+      "items": { "type": "string", "enum": ["code_surface", "review_pane", "project_health_center", "companion_client", "support_export", "release_proof"] }
     },
     "copy_export": {
       "type": "object",

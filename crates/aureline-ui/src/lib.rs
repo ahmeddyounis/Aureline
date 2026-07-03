@@ -133,12 +133,21 @@
 //! packet rather than re-deciding which form families are certified, so a claimed family can
 //! never read wider than its current structured-input, provenance, draft-recovery, and
 //! staged-review evidence backs.
+//!
+//! [`m5_annotation_rows::AnnotationRow`] freezes the reusable annotation row for
+//! build, test, security, and provider findings. It keeps source provider/scanner
+//! provenance, typed file/symbol/manifest anchors, severity, confidence,
+//! freshness, stale/superseded/partial handoff state, suppression, remediation,
+//! and open-details action as separate export-safe fields so review panes,
+//! project-health centers, companion clients, support exports, and release proof
+//! render the same anchor truth instead of silently retargeting stale findings.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
 pub mod components;
 pub mod density;
 pub mod m5_accessibility_and_continuity;
+pub mod m5_annotation_rows;
 pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;
 pub mod m5_form_family_certification;
