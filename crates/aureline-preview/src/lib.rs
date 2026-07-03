@@ -65,6 +65,7 @@ pub mod browser_runtime_inspectors;
 pub mod extension_provider_conformance;
 pub mod freeze_the_m5_design_canvas_structure_tree_property_inspector_source_sync_and_breakpoint_preview_component_matrix;
 pub mod freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix;
+pub mod implement_the_m5_design_canvas_structure_tree_and_property_inspector_selected_node_primitive;
 pub mod inspect_to_source_tree;
 pub mod preview_drift_recovery;
 pub mod preview_origin;
@@ -100,6 +101,22 @@ pub use freeze_the_m5_design_canvas_structure_tree_property_inspector_source_syn
     VISUAL_DESIGNER_COMPONENT_MATRIX_FIXTURE_DIR, VISUAL_DESIGNER_COMPONENT_MATRIX_RECORD_KIND,
     VISUAL_DESIGNER_COMPONENT_MATRIX_SCHEMA_REF, VISUAL_DESIGNER_COMPONENT_MATRIX_SCHEMA_VERSION,
     VISUAL_DESIGNER_COMPONENT_MATRIX_SUMMARY_REF,
+};
+
+pub use implement_the_m5_design_canvas_structure_tree_and_property_inspector_selected_node_primitive::{
+    current_stable_m5_selected_node_primitive_export, resolve_visual_selection,
+    seeded_m5_selected_node_primitive_packet, M5PropertyEditInput, M5PropertyEditorKind,
+    M5ResolvedCanvasFrame, M5ResolvedPropertyRow, M5ResolvedTreeRow, M5ResolvedVisualSelection,
+    M5SelectedNodeConsumerProjection, M5SelectedNodeExportField, M5SelectedNodeGovernanceReview,
+    M5SelectedNodePrimitiveArtifactError, M5SelectedNodePrimitivePacket,
+    M5SelectedNodePrimitivePacketInput, M5SelectedNodePrimitiveViolation,
+    M5SelectedNodeReleasePosture, M5SelectedNodeVocabularySet, M5VisualDesignSurfaceFamily,
+    M5VisualDesignSurfaceRow, M5VisualSelectionCase, M5VisualSelectionInput,
+    M5VisualSelectionResolutionError, M5VisualSupportState, M5_SELECTED_NODE_ARTIFACT_REF,
+    M5_SELECTED_NODE_COMPONENT_MATRIX_REF, M5_SELECTED_NODE_CSV_REF, M5_SELECTED_NODE_DOC_REF,
+    M5_SELECTED_NODE_FIXTURE_DIR, M5_SELECTED_NODE_PRIMITIVE_RECORD_KIND,
+    M5_SELECTED_NODE_PRIMITIVE_SCHEMA_VERSION, M5_SELECTED_NODE_REPORT_REF,
+    M5_SELECTED_NODE_SCHEMA_REF, M5_SELECTED_NODE_VISUAL_EDIT_REF,
 };
 
 pub use browser_runtime_inspectors::{
