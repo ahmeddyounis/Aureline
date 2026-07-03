@@ -9,7 +9,9 @@ Primary files:
 - `artifacts/design/m5-request-data-component-matrix.md`
 - `artifacts/release/m5-request-data-component-proof/proof_packet.json`
 - `artifacts/release/m5-request-data-component-proof/support_export.json`
+- `fixtures/ui/m5-request-data-components/component_manifest.json`
 - `fixtures/ui/m5-request-data-components/`
+- `tools/ci/m5/request_data_component_check.py`
 
 The proof narrows any consumer that fails controlled vocabulary parity, reduced
 capability disclosure, secret redaction parity, copy/export parity, or

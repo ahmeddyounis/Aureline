@@ -2,7 +2,11 @@
 
 Browser-runtime request panels reuse the same request-editor header,
 environment picker, variable-resolution inspector, and auth sheet contracts as
-the desktop request workspace. The browser-runtime fixture
+the desktop request workspace. The canonical component matrix is
+`artifacts/design/m5-request-data-component-matrix.md`, and the release proof
+that gates browser-runtime claim parity is
+`artifacts/release/m5-request-data-component-proof/proof_packet.json`.
+The browser-runtime fixture
 `fixtures/ui/m5-request-data-components/request_editor_header.json` is the
 first narrowed consumer: it keeps `execution_origin=browser_runtime`, exposes
 the managed-policy environment layer, shows device-code auth posture, blocks

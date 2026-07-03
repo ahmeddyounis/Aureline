@@ -4,7 +4,11 @@ The request editor header, environment picker, variable-resolution inspector,
 and auth sheet are reusable UI contracts for every M5 surface that can send,
 replay, or inspect a request. The canonical matrix is
 `artifacts/design/m5-request-data-component-matrix.md`; first-consumer fixtures
-live under `fixtures/ui/m5-request-data-components/`.
+live under `fixtures/ui/m5-request-data-components/`. The release/support
+certification packet is
+`artifacts/release/m5-request-data-component-proof/proof_packet.json`, with
+support parity projected in
+`artifacts/release/m5-request-data-component-proof/support_export.json`.
 
 ## Request header
 

@@ -2,6 +2,12 @@
 
 These fixtures are the first-consumer examples for the frozen matrix at
 `artifacts/design/m5-request-data-component-matrix.md`.
+The release certification bundle is
+`artifacts/release/m5-request-data-component-proof/proof_packet.json`, the
+support projection is
+`artifacts/release/m5-request-data-component-proof/support_export.json`, and
+the fixture-to-consumer manifest is
+`fixtures/ui/m5-request-data-components/component_manifest.json`.
 
 | Fixture | Schema | Scenario |
 | --- | --- | --- |

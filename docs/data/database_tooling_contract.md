@@ -63,6 +63,21 @@ Companion artifacts:
   — promoted-build qualification packet that decides which database,
   SQL, explain-plan, query-history, result-grid, and handoff rows may
   display stable language and which must narrow below stable.
+- [`/artifacts/design/m5-request-data-component-matrix.md`](../../artifacts/design/m5-request-data-component-matrix.md)
+  — frozen M5 request/data reusable-component matrix for connection picker
+  rows, schema object rows, SQL run bars, result grids, query-history rows,
+  and explain-plan panes.
+- [`/artifacts/release/m5-request-data-component-proof/proof_packet.json`](../../artifacts/release/m5-request-data-component-proof/proof_packet.json)
+  — release proof that every claim-bearing data tooling consumer preserves
+  controlled labels, export posture, freshness vocabulary, and automatic
+  narrowing behavior.
+- [`/artifacts/release/m5-request-data-component-proof/support_export.json`](../../artifacts/release/m5-request-data-component-proof/support_export.json)
+  — support projection for the same component truth, including machine-readable
+  support joins and safe raw-material defaults.
+- [`/schemas/ui/m5-result-grid.schema.json`](../../schemas/ui/m5-result-grid.schema.json)
+  and [`/schemas/ui/m5-explain-plan-pane.schema.json`](../../schemas/ui/m5-explain-plan-pane.schema.json)
+  — UI component contracts for row-count scope, typed export, redaction review,
+  and estimated-versus-actual plan freshness.
 - [`/fixtures/data/database_cases/`](../../fixtures/data/database_cases/)
   — worked YAML fixtures covering local SQLite read-only,
   Postgres broker-handle staging read-only, production-blast
