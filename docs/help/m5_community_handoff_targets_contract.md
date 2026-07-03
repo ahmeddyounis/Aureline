@@ -13,6 +13,8 @@ distinguishable in-product and in exported issue/support packets.
 - Canonical support export: [`artifacts/help/m5-community-handoff-proof/target_set.json`](../../artifacts/help/m5-community-handoff-proof/target_set.json)
 - Governance summary: [`artifacts/help/m5-community-handoff-governance.md`](../../artifacts/help/m5-community-handoff-governance.md)
 - Matrix CSV: [`artifacts/help/m5-community-handoff-targets.csv`](../../artifacts/help/m5-community-handoff-targets.csv)
+- Reusable component matrix: [`artifacts/design/m5-benchmark-help-migration-component-matrix.md`](../../artifacts/design/m5-benchmark-help-migration-component-matrix.md)
+- Community-handoff tile schema: [`schemas/ui/m5-community-handoff-tile.schema.json`](../../schemas/ui/m5-community-handoff-tile.schema.json)
 - Fixtures: [`fixtures/help/community-handoff/`](../../fixtures/help/community-handoff/)
 - Producer: `aureline_shell::m5_community_handoff_targets::current_stable_m5_community_handoff_target_set`
 - Headless emitter: `aureline_shell_m5_community_handoff_targets`
@@ -82,6 +84,19 @@ The producer enforces, and the schema mirrors, the following:
 Raw URLs, raw email addresses, raw local paths, raw usernames, raw hostnames,
 tokens, and raw secret material never cross this boundary; the records carry
 opaque refs and bounded reviewable sentences only.
+
+## Tile Component Contract
+
+Help/About handoff choosers, issue/report templates, docs feedback, security
+disclosure, support handoff, and local-draft fallback surfaces render each route
+through the shared community-handoff tile contract. The tile preserves
+`ownership_class`, `trust_class`, `visibility_boundary`, `auth_expectation`,
+`data_exit_boundary`, `commitment_class`, `destination_state`,
+`pre_exit_review_required`, `local_safe_fallback_ref`, and
+`community_owned_destination` in text, JSON, and Markdown copy/export. A
+community route therefore remains visibly community-owned before exit and in
+support exports; it cannot inherit an official-support commitment from nearby
+Help/About copy.
 
 ## Versioning
 

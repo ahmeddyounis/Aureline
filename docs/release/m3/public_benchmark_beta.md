@@ -7,6 +7,17 @@ rerun-trigger metadata for beta review. Its comparability posture is
 `not_yet_comparable`, so public release copy must stay limited to the
 methodology and known limits.
 
+M5 benchmark explanation surfaces now render benchmark claims through the shared
+benchmark evidence card contract in
+[`artifacts/design/m5-benchmark-help-migration-component-matrix.md`](../../../artifacts/design/m5-benchmark-help-migration-component-matrix.md)
+and
+[`schemas/ui/m5-benchmark-evidence-card.schema.json`](../../../schemas/ui/m5-benchmark-evidence-card.schema.json).
+Any benchmark report, docs/help card, release note, shiproom proof, or support
+export must preserve the card's workflow ref, budget ref, corpus ref,
+hardware/capture ref, freshness state, downgrade state, and text/JSON/Markdown
+copy/export fields. Stale benchmark evidence renders as `retest_pending` or
+`methodology_only`; it cannot be copied as current measured proof.
+
 The benchmark council notes at
 `artifacts/benchmarks/m3/benchmark_council_notes.md` decide what is
 publishable now, what stays internal, and which reruns must complete

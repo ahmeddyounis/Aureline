@@ -11,6 +11,10 @@ export now consume one descriptor:
   `aureline_service_health::finalize_service_health_destination_truth`
 - Headless inspector:
   `cargo run -q -p aureline-service-health --bin aureline_service_health_destination_truth -- validation`
+- Reusable component matrix:
+  `artifacts/design/m5-benchmark-help-migration-component-matrix.md`
+- About/service-health card schema:
+  `schemas/ui/m5-about-service-health-card.schema.json`
 
 ## Contract State Vocabulary
 
@@ -59,3 +63,14 @@ implicitly.
 Support export stays local-first. The saved packet starts as `local_only`, can be
 inspected before submit, and can only leave through an explicit submit action.
 Cached or offline descriptors never claim live vendor reachability.
+
+## Component Consumption
+
+Help/About summary cards, service-health banners, and service-health status
+cards consume the shared About/service-health card fields from the M5 component
+matrix rather than cloning local status text. The card must preserve
+`service_contract_state`, `source_trust_class`, `freshness_state`,
+`local_continuity_state`, and `downgrade_state` into text, JSON, and Markdown
+copy/export. A cached or stale service-health source renders
+`cached_service_health` or `stale_cache`; it may not be promoted to live
+reachability by a first consumer.

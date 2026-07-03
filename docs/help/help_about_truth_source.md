@@ -18,6 +18,13 @@ claim-manifest and compatibility-report projection through
 the same manifest rows as service health and activates the community handoff
 action without losing the current object or issue context.
 
+M5 reusable explanation components are governed by
+[`artifacts/design/m5-benchmark-help-migration-component-matrix.md`](../../artifacts/design/m5-benchmark-help-migration-component-matrix.md).
+Help / About consumes the About/service-health card, support-package card, and
+community-handoff tile schemas from `schemas/ui/`, preserving their controlled
+freshness, trust-class, local-only, and community-owned labels in copy/export
+instead of restating those states as local prose.
+
 The docs / public-proof parity blocker
 (`tools/ci/m3/docs_public_proof_gate/`) verifies that the freshness tokens
 rendered by this Help / About card remain the same tokens used by the claim

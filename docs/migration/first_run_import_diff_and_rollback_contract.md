@@ -46,6 +46,11 @@ Companion artifacts:
   native alternatives surfaced by preview packets.
 - [`/docs/architecture/preview_runtime_contract.md`](../architecture/preview_runtime_contract.md)
   — preview/apply discipline reused for planned mutation disclosure.
+- [`/artifacts/design/m5-benchmark-help-migration-component-matrix.md`](../../artifacts/design/m5-benchmark-help-migration-component-matrix.md)
+  and [`/schemas/ui/m5-importer-diff-row.schema.json`](../../schemas/ui/m5-importer-diff-row.schema.json)
+  — reusable importer-diff row component that first-run import preview,
+  migration center, CLI/headless reports, docs/help, and support export all
+  consume instead of cloning local outcome labels.
 
 If this document disagrees with the PRD, technical architecture,
 technical design, UI/UX spec, or the frozen migration-center and

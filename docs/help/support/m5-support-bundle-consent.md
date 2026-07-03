@@ -73,6 +73,16 @@ formal support-handoff packet, and the support export of the review itself all b
 registry. Each preserves the same consent vocabulary and object ids, keeps local-save first-class, and
 narrows with the gate, so the answer to "what is in this export?" is identical everywhere.
 
+M5 support-package cards also consume the shared component matrix at
+[`artifacts/design/m5-benchmark-help-migration-component-matrix.md`](../../../artifacts/design/m5-benchmark-help-migration-component-matrix.md)
+and the card schema at
+[`schemas/ui/m5-support-package-card.schema.json`](../../../schemas/ui/m5-support-package-card.schema.json).
+Support Center, CLI/headless review, Help/About, and support export must preserve
+`package_state`, `destination_class`, `trust_class`, `local_save_state`,
+`redaction_state`, count fields, and text/JSON/Markdown copy/export. A package
+that has only been saved locally remains `saved_local_only`; no consumer may
+describe it as submitted support until the inspected submit path succeeds.
+
 ## Regenerating this packet
 
 This packet is checked in alongside the registry it documents. When the consent registry changes,
