@@ -1,0 +1,51 @@
+# M5 Disclosure / History Block Primitive: Current Status, Resolved-State Downgrade, Copy-Safe CVE / GHSA IDs, and Open-Doc / Open-Browser Parity
+
+- Packet: `m5-disclosure-history-block-primitive:stable:0001`
+- Label: `M5 disclosure / history block primitive: current status, affected versions / components, copy-safe CVE / GHSA reference ids, resolved-state downgrade, provenance, and open-doc / open-browser parity across Help/About, update, and support channels`
+- Disclosure-source lanes: 6 (6 stable)
+- Anatomy parts: current_status, affected_versions_components, reference_ids, disclosure_path, provenance_source, history_state, open_actions
+- Severity classes: informational, low, moderate, high, critical, operational_emergency
+- Channels: help_about, update_center, support_bundle
+- History states: draft, published, mitigated, superseded, resolved, withdrawn
+- Display postures: full_weight, stepped_down_inspectable, draft_restricted
+- Export fields: advisory_id, severity, action_state, affected_surface, mitigation_state, delivery_profile, freshness_state, continuity_note, disclosure_visibility, history_state
+- Proof freshness SLO: 720 hours (last refresh: 2026-06-30T00:00:00Z)
+
+## Disclosure-source lanes
+
+- **First-Party Signed**: `stable`
+  - Owner: Security-advisory / disclosure owner
+  - Scope: The first-party-signed lane renders a published critical disclosure at full weight with the current status, affected versions, the copy-safe Aureline / CVE / GHSA reference ids, and an open-in-product-doc handoff — the copy-safe ids never degrade to a link
+  - Shell zone: `main_workspace`
+  - Worked disclosures: 1
+    - `AURELINE-ADV-2026-0401` — critical (published), posture `full_weight`, handoff `in_product_doc`
+- **Mirrored**: `stable`
+  - Owner: Mirror / offline-continuity owner
+  - Scope: The mirrored lane renders a mitigated operational-emergency disclosure delivered through an approved mirror, disclosing the mirror freshness and preserving the mirror provenance so the handoff never becomes a dead-end link
+  - Shell zone: `main_workspace`
+  - Worked disclosures: 1
+    - `AURELINE-ADV-2026-0402` — operational_emergency (mitigated), posture `full_weight`, handoff `mirror_provenance_preserved`
+- **Offline Imported**: `stable`
+  - Owner: Offline-import / bundle owner
+  - Scope: The offline-imported lane renders a superseded high disclosure stepped down to inspectable history while keeping the current-status truth, the offline-import provenance, and the expired-snapshot disclosure
+  - Shell zone: `main_workspace`
+  - Worked disclosures: 1
+    - `AURELINE-ADV-2026-0403` — high (superseded), posture `stepped_down_inspectable`, handoff `offline_import_provenance_preserved`
+- **Externally Linked**: `stable`
+  - Owner: External-disclosure liaison
+  - Scope: The externally-linked lane renders a resolved moderate disclosure stepped down to inspectable history and opens an external browser while preserving provenance — it never replaces the in-product disclosure state with a dead-end link
+  - Shell zone: `main_workspace`
+  - Worked disclosures: 1
+    - `AURELINE-ADV-2026-0404` — moderate (resolved), posture `stepped_down_inspectable`, handoff `external_browser_provenance_preserved`
+- **Community Postmortem**: `stable`
+  - Owner: Community-handoff owner
+  - Scope: The community-postmortem lane renders a withdrawn low disclosure that remains visible as a stepped-down but inspectable withdrawn history row and preserves the community-postmortem provenance instead of silently removing the row
+  - Shell zone: `main_workspace`
+  - Worked disclosures: 1
+    - `AURELINE-ADV-2026-0405` — low (withdrawn), posture `stepped_down_inspectable`, handoff `external_browser_provenance_preserved`
+- **Vendor Cross-Reference**: `stable`
+  - Owner: Upstream / vendor liaison
+  - Scope: The vendor-cross-reference lane renders an informational draft disclosure at restricted draft weight, keeping the copy-safe reference ids and the upstream-vendor provenance visible while the draft is not yet published
+  - Shell zone: `main_workspace`
+  - Worked disclosures: 1
+    - `AURELINE-ADV-2026-0406` — informational (draft), posture `draft_restricted`, handoff `external_browser_provenance_preserved`
