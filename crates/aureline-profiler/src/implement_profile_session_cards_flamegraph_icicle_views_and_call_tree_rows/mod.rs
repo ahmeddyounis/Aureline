@@ -527,7 +527,8 @@ impl ProfileHotpathComponentPacket {
             profile_cost_view_count: self.profile_cost_views.len(),
             call_tree_row_count: self.call_tree_rows.len(),
             consumer_projection_count: self.consumer_projection_rows.len(),
-            hotspot_consumer_present: consumers.contains(&ComponentConsumerSurface::HotspotWorkspace),
+            hotspot_consumer_present: consumers
+                .contains(&ComponentConsumerSurface::HotspotWorkspace),
             secondary_consumer_present: consumers
                 .iter()
                 .any(|surface| *surface != ComponentConsumerSurface::HotspotWorkspace),
@@ -571,9 +572,11 @@ impl ProfileHotpathComponentPacket {
                 || card.captured_at.trim().is_empty()
                 || card.duration_ms == 0
             {
-                violations.push(ProfileHotpathComponentViolation::IncompleteProfileSessionCard {
-                    id: card.card_id.clone(),
-                });
+                violations.push(
+                    ProfileHotpathComponentViolation::IncompleteProfileSessionCard {
+                        id: card.card_id.clone(),
+                    },
+                );
             }
             if card.target.raw_command_line_exported {
                 violations.push(ProfileHotpathComponentViolation::RawCommandLineExported {
@@ -581,9 +584,11 @@ impl ProfileHotpathComponentPacket {
                 });
             }
             if !card.actions.compare_available || !card.actions.export_available {
-                violations.push(ProfileHotpathComponentViolation::MissingCompareOrExportAction {
-                    id: card.card_id.clone(),
-                });
+                violations.push(
+                    ProfileHotpathComponentViolation::MissingCompareOrExportAction {
+                        id: card.card_id.clone(),
+                    },
+                );
             }
             if !card
                 .consumer_surfaces
@@ -616,9 +621,11 @@ impl ProfileHotpathComponentPacket {
                 || view.zoom_state.root_ref.trim().is_empty()
                 || view.zoom_state.depth_limit == 0
             {
-                violations.push(ProfileHotpathComponentViolation::IncompleteProfileCostView {
-                    id: view.view_id.clone(),
-                });
+                violations.push(
+                    ProfileHotpathComponentViolation::IncompleteProfileCostView {
+                        id: view.view_id.clone(),
+                    },
+                );
             }
             if matches!(
                 view.view_mode,
@@ -666,18 +673,22 @@ impl ProfileHotpathComponentPacket {
             if !row.symbolization_state.is_disclosed()
                 || row.mapping_quality == UiMappingQuality::NotApplicable
             {
-                violations.push(ProfileHotpathComponentViolation::MissingSymbolizationOrMapping {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    ProfileHotpathComponentViolation::MissingSymbolizationOrMapping {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
             if !row.navigation.caller_navigation_available
                 || !row.navigation.callee_navigation_available
                 || row.caller_refs.is_empty()
                 || row.callee_refs.is_empty()
             {
-                violations.push(ProfileHotpathComponentViolation::MissingCallerCalleeNavigation {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    ProfileHotpathComponentViolation::MissingCallerCalleeNavigation {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
         }
 
@@ -693,7 +704,10 @@ fn has_copy_export(copy_export: &CopyExportProjection) -> bool {
     copy_export.screenshot_only_prohibited
         && copy_export.formats.iter().any(|format| format == "text")
         && copy_export.formats.iter().any(|format| format == "json")
-        && copy_export.formats.iter().any(|format| format == "markdown")
+        && copy_export
+            .formats
+            .iter()
+            .any(|format| format == "markdown")
         && !copy_export.export_fields.is_empty()
 }
 
@@ -706,45 +720,18 @@ pub fn current_profile_hotpath_component_packet(
 /// Validation failure for M05-797 component packets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProfileHotpathComponentViolation {
-    SchemaVersion {
-        expected: u32,
-        actual: u32,
-    },
-    RecordKind {
-        expected: String,
-        actual: String,
-    },
-    DuplicateId {
-        kind: &'static str,
-        id: String,
-    },
-    IncompleteProfileSessionCard {
-        id: String,
-    },
-    RawCommandLineExported {
-        id: String,
-    },
-    MissingCompareOrExportAction {
-        id: String,
-    },
-    IncompleteProfileCostView {
-        id: String,
-    },
-    MissingExportOrRawAction {
-        id: String,
-    },
-    IncompleteCallTreeRow {
-        id: String,
-    },
-    MissingSymbolizationOrMapping {
-        id: String,
-    },
-    MissingCallerCalleeNavigation {
-        id: String,
-    },
-    MissingConsumerParity {
-        id: String,
-    },
+    SchemaVersion { expected: u32, actual: u32 },
+    RecordKind { expected: String, actual: String },
+    DuplicateId { kind: &'static str, id: String },
+    IncompleteProfileSessionCard { id: String },
+    RawCommandLineExported { id: String },
+    MissingCompareOrExportAction { id: String },
+    IncompleteProfileCostView { id: String },
+    MissingExportOrRawAction { id: String },
+    IncompleteCallTreeRow { id: String },
+    MissingSymbolizationOrMapping { id: String },
+    MissingCallerCalleeNavigation { id: String },
+    MissingConsumerParity { id: String },
     SummaryMismatch,
 }
 
@@ -752,7 +739,10 @@ impl fmt::Display for ProfileHotpathComponentViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SchemaVersion { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::RecordKind { expected, actual } => {
                 write!(f, "record kind mismatch: expected {expected}, got {actual}")
@@ -765,23 +755,35 @@ impl fmt::Display for ProfileHotpathComponentViolation {
                 write!(f, "profile-session card {id} exported a raw command line")
             }
             Self::MissingCompareOrExportAction { id } => {
-                write!(f, "profile-session card {id} is missing compare/export action")
+                write!(
+                    f,
+                    "profile-session card {id} is missing compare/export action"
+                )
             }
             Self::IncompleteProfileCostView { id } => {
                 write!(f, "incomplete flamegraph/icicle view: {id}")
             }
             Self::MissingExportOrRawAction { id } => {
-                write!(f, "profile-cost view {id} is missing export/open-raw action")
+                write!(
+                    f,
+                    "profile-cost view {id} is missing export/open-raw action"
+                )
             }
             Self::IncompleteCallTreeRow { id } => write!(f, "incomplete call-tree row: {id}"),
             Self::MissingSymbolizationOrMapping { id } => {
-                write!(f, "call-tree row {id} is missing symbolization or mapping truth")
+                write!(
+                    f,
+                    "call-tree row {id} is missing symbolization or mapping truth"
+                )
             }
             Self::MissingCallerCalleeNavigation { id } => {
                 write!(f, "call-tree row {id} is missing caller/callee navigation")
             }
             Self::MissingConsumerParity { id } => {
-                write!(f, "component {id} is missing hotspot plus secondary consumer parity")
+                write!(
+                    f,
+                    "component {id} is missing hotspot plus secondary consumer parity"
+                )
             }
             Self::SummaryMismatch => write!(f, "computed summary does not match stored summary"),
         }

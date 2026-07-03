@@ -144,6 +144,20 @@
 //! [`/schemas/perf/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.schema.json`](../../../schemas/perf/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.schema.json).
 //! The checked-in stable packet is at
 //! [`/artifacts/perf/m5/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.json`](../../../artifacts/perf/m5/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.json).
+//!
+//! This crate also exposes the
+//! [`ship_trace_timeline_heap_allocation_and_profile_compare_components`]
+//! module (M05-798) that pins the reusable trace-timeline, heap/allocation
+//! compare, and profile-compare component contracts every timeline, heap, and
+//! compare surface reads. It keeps synchronized clock/capture origin and lane
+//! partiality explicit on timelines and keeps baseline identity, environment
+//! deltas, threshold/waiver state, and confounder notes explicit on compare
+//! cards before any regression is claimed.
+//!
+//! The frozen matrix contract for these families is at
+//! [`/artifacts/design/m5-profiler-topology-component-matrix.md`](../../../artifacts/design/m5-profiler-topology-component-matrix.md).
+//! The checked-in component packet is at
+//! [`/artifacts/perf/m5/m5-trace-heap-compare-components.json`](../../../artifacts/perf/m5/m5-trace-heap-compare-components.json).
 
 #![doc(html_root_url = "https://docs.rs/aureline-profiler/0.0.0")]
 
@@ -159,6 +173,7 @@ pub mod integrate_profile_and_trace_artifacts_into_incident_workspaces_ai_explan
 pub mod materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth;
 pub mod ship_coverage_profile_test_debug_and_notebook_evidence_handoff_bars_with_artifact_lineage;
 pub mod ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation;
+pub mod ship_trace_timeline_heap_allocation_and_profile_compare_components;
 
 pub use certify_profiler_trace_replay_and_imported_versus_live_truth_on_all_claimed_m5_rows::{
     current_certification_qualification, BaselineComparability, CertificationQualificationLabel,
@@ -249,12 +264,13 @@ pub use implement_profile_session_cards_flamegraph_icicle_views_and_call_tree_ro
     current_profile_hotpath_component_packet, ArtifactOrigin, AutoNarrowingContract,
     BaselineDisclosure, BaselineEnvironmentState, CallTreeNavigation, ComponentConsumerProjection,
     ComponentConsumerSurface, CopyExportProjection, CostScope, ExecutionOrigin, MetricPresentation,
-    MetricValue, ProfileCallTreeRow, ProfileCostView, ProfileCostViewMode, ProfileHotpathComponentPacket,
-    ProfileHotpathComponentSummary, ProfileHotpathComponentViolation, ProfileKind, ProfileMetric,
-    ProfileSessionActions, ProfileSessionCard, ProfileViewActions, ReducedCapabilityBanner,
-    SourceNavigationDisclosure, SupportExportJoin, SymbolSummary, SymbolizationState, TargetIdentity,
-    ThreadProcessContext, ThreadProcessFilters, UiCaptureMode, UiMappingQuality, UiThresholdState,
-    ZoomState, PROFILE_HOTPATH_COMPONENT_PACKET_JSON, PROFILE_HOTPATH_COMPONENT_PACKET_PATH,
+    MetricValue, ProfileCallTreeRow, ProfileCostView, ProfileCostViewMode,
+    ProfileHotpathComponentPacket, ProfileHotpathComponentSummary,
+    ProfileHotpathComponentViolation, ProfileKind, ProfileMetric, ProfileSessionActions,
+    ProfileSessionCard, ProfileViewActions, ReducedCapabilityBanner, SourceNavigationDisclosure,
+    SupportExportJoin, SymbolSummary, SymbolizationState, TargetIdentity, ThreadProcessContext,
+    ThreadProcessFilters, UiCaptureMode, UiMappingQuality, UiThresholdState, ZoomState,
+    PROFILE_HOTPATH_COMPONENT_PACKET_JSON, PROFILE_HOTPATH_COMPONENT_PACKET_PATH,
     PROFILE_HOTPATH_COMPONENT_RECORD_KIND, PROFILE_HOTPATH_COMPONENT_SCHEMA_VERSION,
 };
 
@@ -302,4 +318,12 @@ pub use ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_lab
     ProfilePosture, SessionStripRow, SourceNavigationAction, SourceNavigationRow,
     HOTSPOT_WORKSPACE_QUALIFICATION_PACKET_JSON, HOTSPOT_WORKSPACE_QUALIFICATION_PACKET_PATH,
     HOTSPOT_WORKSPACE_QUALIFICATION_RECORD_KIND, HOTSPOT_WORKSPACE_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use ship_trace_timeline_heap_allocation_and_profile_compare_components::{
+    current_trace_heap_compare_component_packet, ChronologyCapability, ClockSyncBasis,
+    HeapProfileCompareCard, LaneSummary, TraceHeapCompareComponentPacket,
+    TraceHeapCompareComponentSummary, TraceHeapCompareComponentViolation, TraceTimeline,
+    TRACE_HEAP_COMPARE_COMPONENT_PACKET_JSON, TRACE_HEAP_COMPARE_COMPONENT_PACKET_PATH,
+    TRACE_HEAP_COMPARE_COMPONENT_RECORD_KIND, TRACE_HEAP_COMPARE_COMPONENT_SCHEMA_VERSION,
 };

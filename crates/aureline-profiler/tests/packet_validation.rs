@@ -4,9 +4,10 @@ use aureline_profiler::{
     current_certification_qualification, current_chronology_qualification,
     current_evidence_handoff_qualification, current_hotspot_workspace_qualification,
     current_integrate_profile_trace_qualification, current_memory_analysis_qualification,
-    current_profile_compare_qualification, current_profile_launcher_qualification,
-    current_profile_hotpath_component_packet, current_regression_baseline_qualification,
-    current_replay_qualification, current_trace_viewer_qualification,
+    current_profile_compare_qualification, current_profile_hotpath_component_packet,
+    current_profile_launcher_qualification, current_regression_baseline_qualification,
+    current_replay_qualification, current_trace_heap_compare_component_packet,
+    current_trace_viewer_qualification,
 };
 
 // --- Certification packet (M05-055) ---
@@ -373,6 +374,115 @@ fn call_tree_rows_disclose_symbolization_mapping_and_navigation() {
         assert!(row.navigation.callee_navigation_available);
         assert!(row.navigation.source_navigation.available);
     }
+}
+
+// --- Trace-timeline / heap-allocation / profile-compare components (M05-798) ---
+
+#[test]
+fn embedded_trace_heap_compare_component_packet_parses() {
+    let packet = current_trace_heap_compare_component_packet().expect("embedded packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.trace_timelines.is_empty());
+    assert!(!packet.heap_compare_cards.is_empty());
+    assert!(!packet.consumer_projection_rows.is_empty());
+}
+
+#[test]
+fn embedded_trace_heap_compare_component_packet_has_no_violations() {
+    let packet = current_trace_heap_compare_component_packet().expect("embedded packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_trace_heap_compare_component_summary_matches_computed() {
+    let packet = current_trace_heap_compare_component_packet().expect("embedded packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+    assert!(packet.summary.trace_viewer_consumer_present);
+    assert!(packet.summary.profile_compare_consumer_present);
+    assert!(packet.summary.imported_and_live_both_present);
+    assert!(packet.summary.all_components_preserve_mapping_quality);
+    assert!(packet.summary.all_components_have_copy_export);
+    assert!(packet.summary.all_compare_cards_disclose_baseline);
+}
+
+#[test]
+fn trace_timelines_keep_imported_versus_live_and_clock_basis_visible() {
+    use aureline_profiler::ArtifactOrigin;
+
+    let packet = current_trace_heap_compare_component_packet().expect("embedded packet must parse");
+    // Both a live and a non-live timeline are present and stay distinct.
+    assert!(packet
+        .trace_timelines
+        .iter()
+        .any(|t| t.artifact_origin == ArtifactOrigin::LiveCapture));
+    assert!(packet
+        .trace_timelines
+        .iter()
+        .any(|t| t.artifact_origin != ArtifactOrigin::LiveCapture));
+
+    for timeline in &packet.trace_timelines {
+        assert!(!timeline.lane_summary.process_refs.is_empty());
+        assert!(!timeline.lane_summary.thread_refs.is_empty());
+        assert!(!timeline.textual_fallback_ref.is_empty());
+        assert!(timeline
+            .copy_export
+            .export_fields
+            .iter()
+            .any(|f| f == "artifact_origin"));
+        assert!(timeline
+            .copy_export
+            .export_fields
+            .iter()
+            .any(|f| f == "clock_sync_basis"));
+    }
+}
+
+#[test]
+fn heap_compare_cards_foreground_baseline_before_regression() {
+    use aureline_profiler::UiThresholdState;
+
+    let packet = current_trace_heap_compare_component_packet().expect("embedded packet must parse");
+    for card in &packet.heap_compare_cards {
+        // Every card foregrounds baseline identity and confounder notes.
+        assert!(card.baseline_disclosed());
+        // Any card that claims a regression is backed by a comparable baseline
+        // with visible environment deltas.
+        if card.claims_regression() {
+            assert!(card.regression_claim_supported());
+        }
+        // Imported artifacts may never claim a regression and must be narrowed.
+        if card.is_imported_artifact() {
+            assert_ne!(card.baseline.threshold_state, UiThresholdState::Regression);
+            assert_ne!(card.reduced_capability_banner.capability_state, "full");
+        }
+        // The compare/confounder vocabulary survives the export.
+        assert!(card
+            .copy_export
+            .export_fields
+            .iter()
+            .any(|f| f.contains("confounder")));
+        assert!(card
+            .copy_export
+            .export_fields
+            .iter()
+            .any(|f| f.contains("threshold_state")));
+    }
+}
+
+#[test]
+fn clock_sync_basis_degraded_behavior_is_correct() {
+    use aureline_profiler::ClockSyncBasis;
+
+    assert!(!ClockSyncBasis::MonotonicSingleProcess.is_degraded());
+    assert!(!ClockSyncBasis::SynchronizedMultiProcess.is_degraded());
+    assert!(ClockSyncBasis::ImportedClockDomain.is_degraded());
+    assert!(ClockSyncBasis::PartialClockCorrelation.is_degraded());
+    assert!(ClockSyncBasis::Unknown.is_degraded());
 }
 
 // --- Trace viewer packet (M05-047) ---
