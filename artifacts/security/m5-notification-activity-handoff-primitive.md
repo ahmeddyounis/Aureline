@@ -1,0 +1,51 @@
+# M5 Notification / Activity-Center Handoff Routing Primitive: Durable, Reopenable Advisory Routing and Help/Support Parity
+
+- Packet: `m5-notification-activity-handoff-primitive:stable:0001`
+- Label: `M5 notification / activity-center handoff routing primitive: durable, reopenable advisory and revocation routing that never collapses to badge-only, toast-only, or website-only across activity-center, native-notification, Help/About, and support-bundle channels`
+- Notification-delivery lanes: 6 (6 stable)
+- Anatomy parts: event_identity, severity, affected_scope, current_status, delivery_state, reopen_target, primary_action
+- Severity classes: informational, low, moderate, high, critical, operational_emergency
+- Channels: activity_center, native_notification, help_about, support_bundle
+- Event kinds: advisory_published, advisory_updated, advisory_revoked, emergency_notice, mitigation_available, advisory_resolved
+- Delivery postures: native_notification_plus_activity_row, activity_center_durable_only, emergency_bypass_delivered, deferred_then_durable
+- Export fields: advisory_id, severity, action_state, affected_surface, mitigation_state, delivery_profile, freshness_state, continuity_note, disclosure_visibility, history_state
+- Proof freshness SLO: 720 hours (last refresh: 2026-06-30T00:00:00Z)
+
+## Notification-delivery lanes
+
+- **Foreground Focused**: `stable`
+  - Owner: Activity-center / notification owner
+  - Scope: The foreground-focused lane routes a published critical advisory to a native notification plus a durable activity row that reopens onto the affected-install panel, sharing one advisory id and severity across both
+  - Shell zone: `status_bar`
+  - Worked handoffs: 1
+    - `AURELINE-ADV-2026-0501` — critical (advisory_published), delivery `native_notification_plus_activity_row`, reopen `affected_install_panel`
+- **Background Unfocused**: `stable`
+  - Owner: Revocation / attention-routing owner
+  - Scope: The background-unfocused lane routes a high-severity revocation to a native notification plus a durable activity row that reopens onto the disclosure block, never collapsing to a bare badge
+  - Shell zone: `status_bar`
+  - Worked handoffs: 1
+    - `AURELINE-ADV-2026-0502` — high (advisory_revoked), delivery `native_notification_plus_activity_row`, reopen `disclosure_block`
+- **Quiet Hours Active**: `stable`
+  - Owner: Quiet-hours / durability owner
+  - Scope: The quiet-hours lane suppresses the OS notification for a moderate mitigation-available event but keeps it durable in the activity center, reopening onto the advisory card instead of collapsing to a badge
+  - Shell zone: `status_bar`
+  - Worked handoffs: 1
+    - `AURELINE-ADV-2026-0503` — moderate (mitigation_available), delivery `activity_center_durable_only`, reopen `advisory_card`
+- **Do-Not-Disturb Enforced**: `stable`
+  - Owner: Emergency-notice routing owner
+  - Scope: The do-not-disturb lane still delivers an operational-emergency event by bypassing the suppression and reopens onto the emergency notice, keeping the blast radius and continuity visible
+  - Shell zone: `status_bar`
+  - Worked handoffs: 1
+    - `AURELINE-ADV-2026-0504` — operational_emergency (emergency_notice), delivery `emergency_bypass_delivered`, reopen `emergency_notice`
+- **Offline / Mirror Deferred**: `stable`
+  - Owner: Mirror / offline-continuity owner
+  - Scope: The offline / mirror-deferred lane defers a low-severity resolved event behind a mirror lag then lands it durably in the activity center, disclosing the freshness and reopening onto the disclosure block
+  - Shell zone: `status_bar`
+  - Worked handoffs: 1
+    - `AURELINE-ADV-2026-0505` — low (advisory_resolved), delivery `deferred_then_durable`, reopen `disclosure_block`
+- **Managed Policy Restricted**: `stable`
+  - Owner: Managed-deployment / admin owner
+  - Scope: The managed-policy-restricted lane keeps an informational advisory-updated event durable in the activity center when OS notifications are policy-restricted, reopening onto the affected-install panel
+  - Shell zone: `status_bar`
+  - Worked handoffs: 1
+    - `AURELINE-ADV-2026-0506` — informational (advisory_updated), delivery `activity_center_durable_only`, reopen `affected_install_panel`
