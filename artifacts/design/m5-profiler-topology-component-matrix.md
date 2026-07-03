@@ -26,6 +26,8 @@ Certification bundle:
   `artifacts/release/m5-profiler-topology-component-proof/proof_packet.json`
 - Support export:
   `artifacts/release/m5-profiler-topology-component-proof/support_export.json`
+- Profile hotpath consumer packet:
+  `artifacts/perf/m5/m5-profile-session-hotpath-components.json`
 - Fixtures:
   `fixtures/ui/m5-profiler-topology-components/`
 
@@ -34,7 +36,8 @@ Certification bundle:
 | Component family | Canonical sources consumed by reference | First consumers |
 | --- | --- | --- |
 | Profile session card | `artifacts/perf/m5/materialize-profile-launcher-and-attach-sheets-capture-mode-descriptors-and-storage-location-truth.json`, `artifacts/perf/m5/certify-profiler-trace-replay-and-imported-versus-live-truth-on-all-claimed-m5-rows.json`, `schemas/ui/m5-profile-session-card.schema.json` | Desktop profiler workspace, hotspot workspace, trace viewer, profile compare, incident workspace, AI context panel, CLI/headless, support export, release proof |
-| Flamegraph view | `artifacts/perf/m5/ship-the-hotspot-workspace-with-flamegraph-call-tree-mapping-quality-labels-and-source-navigation.json`, `schemas/ui/m5-flamegraph-view.schema.json` | Hotspot workspace, profile compare, review workspace, AI context panel, support export, release proof |
+| Flamegraph / icicle view | `artifacts/perf/m5/ship-the-hotspot-workspace-with-flamegraph-call-tree-mapping-quality-labels-and-source-navigation.json`, `artifacts/perf/m5/m5-profile-session-hotpath-components.json`, `schemas/ui/m5-flamegraph-view.schema.json` | Hotspot workspace, profile compare, review workspace, AI context panel, support export, release proof |
+| Call-tree row | `artifacts/perf/m5/ship-the-hotspot-workspace-with-flamegraph-call-tree-mapping-quality-labels-and-source-navigation.json`, `artifacts/perf/m5/m5-profile-session-hotpath-components.json`, `schemas/ui/m5-call-tree-row.schema.json` | Hotspot workspace, profile compare, review workspace, AI context panel, support export, release proof |
 | Trace timeline | `artifacts/perf/m5/implement-the-shared-trace-viewer-with-synchronized-event-lanes-bookmarks-and-textual-fallback.json`, `artifacts/perf/m5/add-chronology-and-reverse-step-controls-history-partiality-cues-and-import-or-export-packets.json`, `schemas/ui/m5-trace-timeline.schema.json` | Trace viewer, chronology replay, incident workspace, support export, release proof |
 | Heap/profile compare card | `artifacts/perf/m5/add-memory-analysis-views-snapshot-pairs-retained-or-allocation-diffs-and-leak-hint-confidence.json`, `artifacts/perf/m5/implement-profile-compare-cards-threshold-or-waiver-state-and-confounder-disclosure.json`, `schemas/ui/m5-flamegraph-view.schema.json` | Heap analysis, profile compare, incident workspace, support export, release proof |
 | Workset switcher row | `artifacts/graph/m5/m5-workset-scope.json`, `artifacts/search/m4/scope_provenance_truth_packet.json`, `schemas/ui/m5-workset-switcher-row.schema.json` | Search results, topology map, architecture explainer, review workspace, onboarding tour, AI context panel, support export |
@@ -96,20 +99,29 @@ waiver state are visible.
 
 ### Profile Session Card
 
-Required truth: profile/session identity, capture mode, artifact origin,
-execution origin, build identity, runtime identity, target process/config,
-captured-at timestamp, storage/export posture, mapping quality, baseline ref and
-comparability state when compare is available, trace/profile refs, compare
-actions, export actions, source refs, consumer surfaces, reduced-capability
-banner, support-export join, and auto-narrowing contract.
+Required truth: profile/session identity, profile kind, capture mode, artifact
+origin, execution origin, build identity, runtime identity, target process/config,
+captured-at timestamp, duration, storage/export posture, mapping quality,
+baseline ref and comparability state when compare is available, trace/profile
+refs, compare actions, export actions, source refs, consumer surfaces,
+reduced-capability banner, support-export join, and auto-narrowing contract.
 
-### Flamegraph View
+### Flamegraph / Icicle View
 
 Required truth: profile ref, session ref, view mode, thread/process context,
-mapping quality, symbol/source-map summary, imported-versus-live artifact
-origin, focus node, sample or cost scope, call-tree availability, source
-navigation availability, compare baseline state, threshold/waiver state, textual
-fallback, copy/export projections, and reduced-capability disclosure.
+thread/process filters, mapping quality, symbol/source-map summary,
+imported-versus-live artifact origin, focus node, total samples/time,
+self-versus-inclusive metric presentation, sample or cost scope, zoom state,
+call-tree availability, source navigation availability, export/open-raw actions,
+compare baseline state, threshold/waiver state, textual fallback, copy/export
+projections, and reduced-capability disclosure.
+
+### Call-Tree Row
+
+Required truth: row/frame identity, function/frame name, self and inclusive
+metrics, file/module/service refs, thread ref, symbolization state, mapping
+quality, caller refs, callee refs, caller/callee navigation, source navigation,
+copy/export projections, support-export join, and auto-narrowing contract.
 
 ### Trace Timeline
 

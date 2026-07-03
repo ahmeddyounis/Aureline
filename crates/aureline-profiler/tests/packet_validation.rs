@@ -5,8 +5,8 @@ use aureline_profiler::{
     current_evidence_handoff_qualification, current_hotspot_workspace_qualification,
     current_integrate_profile_trace_qualification, current_memory_analysis_qualification,
     current_profile_compare_qualification, current_profile_launcher_qualification,
-    current_regression_baseline_qualification, current_replay_qualification,
-    current_trace_viewer_qualification,
+    current_profile_hotpath_component_packet, current_regression_baseline_qualification,
+    current_replay_qualification, current_trace_viewer_qualification,
 };
 
 // --- Certification packet (M05-055) ---
@@ -276,6 +276,102 @@ fn hotspot_workspace_stable_surfaces_have_complete_guards() {
                 surface.surface_id
             );
         }
+    }
+}
+
+// --- Profile session / flamegraph / icicle / call-tree components (M05-797) ---
+
+#[test]
+fn embedded_profile_hotpath_component_packet_parses() {
+    let packet = current_profile_hotpath_component_packet().expect("embedded packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.profile_session_cards.is_empty());
+    assert!(!packet.profile_cost_views.is_empty());
+    assert!(!packet.call_tree_rows.is_empty());
+    assert!(!packet.consumer_projection_rows.is_empty());
+}
+
+#[test]
+fn embedded_profile_hotpath_component_packet_has_no_violations() {
+    let packet = current_profile_hotpath_component_packet().expect("embedded packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_profile_hotpath_component_summary_matches_computed() {
+    let packet = current_profile_hotpath_component_packet().expect("embedded packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+    assert!(packet.summary.hotspot_consumer_present);
+    assert!(packet.summary.secondary_consumer_present);
+    assert!(packet.summary.all_components_preserve_mapping_quality);
+    assert!(packet.summary.all_components_have_copy_export);
+}
+
+#[test]
+fn profile_session_cards_disclose_capture_identity_and_actions() {
+    let packet = current_profile_hotpath_component_packet().expect("embedded packet must parse");
+    for card in &packet.profile_session_cards {
+        assert!(!card.session_ref.is_empty());
+        assert!(!card.build_identity_ref.is_empty());
+        assert!(!card.runtime_identity_ref.is_empty());
+        assert!(!card.target.process_ref.is_empty());
+        assert!(!card.target.config_ref.is_empty());
+        assert!(!card.target.raw_command_line_exported);
+        assert!(card.duration_ms > 0);
+        assert!(card.actions.compare_available);
+        assert!(card.actions.export_available);
+        assert!(card
+            .consumer_surfaces
+            .contains(&aureline_profiler::ComponentConsumerSurface::HotspotWorkspace));
+    }
+}
+
+#[test]
+fn flamegraph_and_icicle_views_disclose_filters_zoom_and_raw_export() {
+    use aureline_profiler::ProfileCostViewMode;
+
+    let packet = current_profile_hotpath_component_packet().expect("embedded packet must parse");
+    assert!(packet
+        .profile_cost_views
+        .iter()
+        .any(|view| view.view_mode == ProfileCostViewMode::Flamegraph));
+    assert!(packet
+        .profile_cost_views
+        .iter()
+        .any(|view| view.view_mode == ProfileCostViewMode::Icicle));
+
+    for view in &packet.profile_cost_views {
+        assert!(view.total_samples > 0);
+        assert!(view.total_time_ms > 0);
+        assert!(!view.thread_process_context.thread_refs.is_empty());
+        assert!(!view.thread_process_filters.thread_filter_refs.is_empty());
+        assert!(view.zoom_state.depth_limit > 0);
+        assert!(view.actions.export_available);
+        assert!(view.actions.open_raw_available);
+        assert!(view.call_tree_available);
+    }
+}
+
+#[test]
+fn call_tree_rows_disclose_symbolization_mapping_and_navigation() {
+    let packet = current_profile_hotpath_component_packet().expect("embedded packet must parse");
+    for row in &packet.call_tree_rows {
+        assert!(!row.function_name.is_empty());
+        assert!(row.inclusive_metric.value >= row.self_metric.value);
+        assert!(!row.file_ref.is_empty());
+        assert!(!row.module_ref.is_empty());
+        assert!(!row.service_ref.is_empty());
+        assert!(!row.thread_ref.is_empty());
+        assert!(!row.caller_refs.is_empty());
+        assert!(!row.callee_refs.is_empty());
+        assert!(row.navigation.caller_navigation_available);
+        assert!(row.navigation.callee_navigation_available);
+        assert!(row.navigation.source_navigation.available);
     }
 }
 

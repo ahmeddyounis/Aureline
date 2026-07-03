@@ -152,6 +152,7 @@ pub mod add_memory_analysis_views_snapshot_pairs_retained_or_allocation_diffs_an
 pub mod build_the_regression_baseline_store_baseline_selection_ux_and_comparable_environment_guards;
 pub mod certify_profiler_trace_replay_and_imported_versus_live_truth_on_all_claimed_m5_rows;
 pub mod implement_profile_compare_cards_threshold_or_waiver_state_and_confounder_disclosure;
+pub mod implement_profile_session_cards_flamegraph_icicle_views_and_call_tree_rows;
 pub mod implement_the_first_justified_replay_backend_with_recording_mode_banner_expiry_and_cost_posture;
 pub mod implement_the_shared_trace_viewer_with_synchronized_event_lanes_bookmarks_and_textual_fallback;
 pub mod integrate_profile_and_trace_artifacts_into_incident_workspaces_ai_explanations_and_support_bundles;
@@ -242,6 +243,19 @@ pub use implement_profile_compare_cards_threshold_or_waiver_state_and_confounder
     ThresholdStateRow, WaiverStateRow, WaiverStatus, PROFILE_COMPARE_QUALIFICATION_PACKET_JSON,
     PROFILE_COMPARE_QUALIFICATION_PACKET_PATH, PROFILE_COMPARE_QUALIFICATION_RECORD_KIND,
     PROFILE_COMPARE_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use implement_profile_session_cards_flamegraph_icicle_views_and_call_tree_rows::{
+    current_profile_hotpath_component_packet, ArtifactOrigin, AutoNarrowingContract,
+    BaselineDisclosure, BaselineEnvironmentState, CallTreeNavigation, ComponentConsumerProjection,
+    ComponentConsumerSurface, CopyExportProjection, CostScope, ExecutionOrigin, MetricPresentation,
+    MetricValue, ProfileCallTreeRow, ProfileCostView, ProfileCostViewMode, ProfileHotpathComponentPacket,
+    ProfileHotpathComponentSummary, ProfileHotpathComponentViolation, ProfileKind, ProfileMetric,
+    ProfileSessionActions, ProfileSessionCard, ProfileViewActions, ReducedCapabilityBanner,
+    SourceNavigationDisclosure, SupportExportJoin, SymbolSummary, SymbolizationState, TargetIdentity,
+    ThreadProcessContext, ThreadProcessFilters, UiCaptureMode, UiMappingQuality, UiThresholdState,
+    ZoomState, PROFILE_HOTPATH_COMPONENT_PACKET_JSON, PROFILE_HOTPATH_COMPONENT_PACKET_PATH,
+    PROFILE_HOTPATH_COMPONENT_RECORD_KIND, PROFILE_HOTPATH_COMPONENT_SCHEMA_VERSION,
 };
 
 pub use ship_coverage_profile_test_debug_and_notebook_evidence_handoff_bars_with_artifact_lineage::{

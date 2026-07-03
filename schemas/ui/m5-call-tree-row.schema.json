@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-call-tree-row.schema.json",
+  "title": "Aureline M5 call-tree row",
+  "description": "Reusable call-tree row contract preserving frame identity, self/inclusive metrics, file/module/service, thread, symbolization state, mapping quality, caller/callee navigation, and copy/export parity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "row_id",
+    "session_ref",
+    "frame_ref",
+    "function_name",
+    "frame_identity_ref",
+    "self_metric",
+    "inclusive_metric",
+    "file_ref",
+    "module_ref",
+    "service_ref",
+    "thread_ref",
+    "symbolization_state",
+    "mapping_quality",
+    "caller_refs",
+    "callee_refs",
+    "navigation",
+    "source_refs",
+    "consumer_surfaces",
+    "copy_export",
+    "support_export_join",
+    "auto_narrowing_contract"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_call_tree_row" },
+    "schema_version": { "const": 1 },
+    "row_id": { "$ref": "#/$defs/ref" },
+    "session_ref": { "$ref": "#/$defs/ref" },
+    "frame_ref": { "$ref": "#/$defs/ref" },
+    "function_name": { "$ref": "#/$defs/ref" },
+    "frame_identity_ref": { "$ref": "#/$defs/ref" },
+    "self_metric": { "$ref": "#/$defs/metric_value" },
+    "inclusive_metric": { "$ref": "#/$defs/metric_value" },
+    "file_ref": { "$ref": "#/$defs/ref" },
+    "module_ref": { "$ref": "#/$defs/ref" },
+    "service_ref": { "$ref": "#/$defs/ref" },
+    "thread_ref": { "$ref": "#/$defs/ref" },
+    "symbolization_state": { "enum": ["symbolicated", "source_mapped", "partial", "missing"] },
+    "mapping_quality": { "$ref": "#/$defs/mapping_quality" },
+    "caller_refs": { "$ref": "#/$defs/ref_array" },
+    "callee_refs": { "$ref": "#/$defs/ref_array" },
+    "navigation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caller_navigation_available", "callee_navigation_available", "source_navigation"],
+      "properties": {
+        "caller_navigation_available": { "type": "boolean" },
+        "callee_navigation_available": { "type": "boolean" },
+        "source_navigation": { "$ref": "#/$defs/source_navigation" }
+      }
+    },
+    "source_refs": { "$ref": "#/$defs/ref_array" },
+    "consumer_surfaces": { "$ref": "#/$defs/consumer_surfaces" },
+    "copy_export": { "$ref": "#/$defs/copy_export" },
+    "support_export_join": { "$ref": "#/$defs/support_export_join" },
+    "auto_narrowing_contract": { "$ref": "#/$defs/auto_narrowing_contract" }
+  },
+  "$defs": {
+    "ref": { "type": "string", "minLength": 1 },
+    "ref_array": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/ref" } },
+    "mapping_quality": { "enum": ["exact", "symbolicated", "source_mapped", "partial", "heuristic", "missing", "not_applicable"] },
+    "metric_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "value", "unit"],
+      "properties": {
+        "metric": { "enum": ["samples", "cpu_time", "wall_time", "allocations", "bytes", "retained_bytes"] },
+        "value": { "type": "integer", "minimum": 0 },
+        "unit": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "source_navigation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "disabled_reason_ref"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "disabled_reason_ref": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "enum": [
+          "hotspot_workspace",
+          "profile_compare",
+          "review_workspace",
+          "ai_context_panel",
+          "support_export",
+          "release_proof"
+        ]
+      }
+    },
+    "copy_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formats", "export_fields", "text", "json", "markdown", "screenshot_only_prohibited"],
+      "properties": {
+        "formats": { "type": "array", "items": { "enum": ["text", "json", "markdown"] }, "minItems": 3 },
+        "export_fields": { "$ref": "#/$defs/ref_array" },
+        "text": { "type": "string" },
+        "json": { "type": "string" },
+        "markdown": { "type": "string" },
+        "screenshot_only_prohibited": { "const": true }
+      }
+    },
+    "support_export_join": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["join_id", "schema_ref", "joined_object_kinds", "raw_profile_samples_exported", "raw_trace_events_exported", "gui_cli_support_label_parity"],
+      "properties": {
+        "join_id": { "$ref": "#/$defs/ref" },
+        "schema_ref": { "$ref": "#/$defs/ref" },
+        "joined_object_kinds": { "$ref": "#/$defs/ref_array" },
+        "raw_profile_samples_exported": { "const": false },
+        "raw_trace_events_exported": { "const": false },
+        "gui_cli_support_label_parity": { "const": true }
+      }
+    },
+    "auto_narrowing_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["narrow_on_missing_or_stale", "stale_or_missing_effect", "policy_blocked_effect", "degraded_state_reason_field", "release_help_claim_ceiling"],
+      "properties": {
+        "narrow_on_missing_or_stale": { "$ref": "#/$defs/ref_array" },
+        "stale_or_missing_effect": { "const": "narrow_claim" },
+        "policy_blocked_effect": { "enum": ["block_export_or_narrow_claim", "narrow_claim"] },
+        "degraded_state_reason_field": { "const": "narrowed_claim_reasons" },
+        "release_help_claim_ceiling": { "const": "available_evidence_only" }
+      }
+    }
+  }
+}
