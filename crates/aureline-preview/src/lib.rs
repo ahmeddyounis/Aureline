@@ -66,6 +66,7 @@ pub mod extension_provider_conformance;
 pub mod freeze_the_m5_design_canvas_structure_tree_property_inspector_source_sync_and_breakpoint_preview_component_matrix;
 pub mod freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix;
 pub mod implement_the_m5_design_canvas_structure_tree_and_property_inspector_selected_node_primitive;
+pub mod implement_the_m5_source_sync_chip_round_trip_conflict_and_generated_or_protected_boundary_primitive;
 pub mod inspect_to_source_tree;
 pub mod preview_drift_recovery;
 pub mod preview_origin;
@@ -117,6 +118,21 @@ pub use implement_the_m5_design_canvas_structure_tree_and_property_inspector_sel
     M5_SELECTED_NODE_FIXTURE_DIR, M5_SELECTED_NODE_PRIMITIVE_RECORD_KIND,
     M5_SELECTED_NODE_PRIMITIVE_SCHEMA_VERSION, M5_SELECTED_NODE_REPORT_REF,
     M5_SELECTED_NODE_SCHEMA_REF, M5_SELECTED_NODE_VISUAL_EDIT_REF,
+};
+
+pub use implement_the_m5_source_sync_chip_round_trip_conflict_and_generated_or_protected_boundary_primitive::{
+    current_stable_m5_round_trip_honesty_export, resolve_round_trip_status,
+    seeded_m5_round_trip_honesty_packet, M5ResolvedBoundaryNotice, M5ResolvedConflictBanner,
+    M5ResolvedRoundTripStatus, M5ResolvedSourceSyncChip, M5ResolvedUnsupportedCard,
+    M5RoundTripConsumerProjection, M5RoundTripExportField, M5RoundTripGovernanceReview,
+    M5RoundTripHonestyArtifactError, M5RoundTripHonestyPacket, M5RoundTripHonestyPacketInput,
+    M5RoundTripHonestyViolation, M5RoundTripReleasePosture, M5RoundTripResolutionError,
+    M5RoundTripStatusCase, M5RoundTripStatusInput, M5RoundTripSurfaceRow, M5RoundTripVocabularySet,
+    M5SourceBoundaryClass, M5SourceFirstFallback, M5SourceSyncChipState, M5WriteAuthority,
+    M5_ROUND_TRIP_ARTIFACT_REF, M5_ROUND_TRIP_COMPONENT_MATRIX_REF, M5_ROUND_TRIP_CSV_REF,
+    M5_ROUND_TRIP_DOC_REF, M5_ROUND_TRIP_FIXTURE_DIR, M5_ROUND_TRIP_HONESTY_RECORD_KIND,
+    M5_ROUND_TRIP_HONESTY_SCHEMA_VERSION, M5_ROUND_TRIP_REPORT_REF, M5_ROUND_TRIP_SCHEMA_REF,
+    M5_ROUND_TRIP_VISUAL_EDIT_REF,
 };
 
 pub use browser_runtime_inspectors::{
