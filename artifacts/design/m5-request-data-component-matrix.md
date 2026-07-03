@@ -39,7 +39,7 @@ Certification bundle:
 | Schema object row | `artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json`, `schemas/ui/m5-schema-object-row.schema.json` | Connection browser, SQL editor object picker, explain-plan pane, support export |
 | SQL run bar | `artifacts/data/m5/add-the-statement-safety-classifier-write-mode-bar-and-protected-target-step-up-flows.json`, `artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json`, `schemas/ui/m5-sql-run-bar.schema.json` | SQL editor run bar, query session header, CLI/headless query inspect, support export |
 | Result grid | `artifacts/data/m5/ship-result-grid-virtualization-typed-copy-or-export-filter-and-sort-state-and-row-count-boundary-truth.json`, `schemas/ui/m5-result-grid.schema.json` | SQL result viewer, request data preview, notebook handoff, chart handoff, AI context handoff, support export, release proof |
-| Query-history row | `artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json`, `artifacts/data/m5/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.json`, `schemas/ui/m5-request-history-row.schema.json`, `schemas/ui/m5-result-grid.schema.json` | Request history, query history, exact rerun/current-context replay, support export |
+| Query-history row | `artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json`, `artifacts/data/m5/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.json`, `schemas/ui/m5-query-history-row.schema.json`, `schemas/ui/m5-result-grid.schema.json` | Database query history, notebook handoff, chart handoff, exact rerun/current-context replay, CLI/headless query inspect, support export, release proof |
 | Explain-plan pane | `artifacts/data/m5/implement-explain-plan-freshness-notes-engine-version-context-and-plan-comparison-flows.json`, `schemas/ui/m5-explain-plan-pane.schema.json` | SQL editor explain pane, plan comparison flow, query history detail, support export, release proof |
 
 ## Controlled Vocabulary
@@ -180,24 +180,30 @@ surfaces.
 ### Result Grid
 
 Required truth: result identity, statement/request identity, column type
-identity, row-count scope, returned/total row counts, truncation, virtualization,
+identity, nullability, null/binary/JSON rendering rules, row-count scope,
+returned/total row counts, loaded ranges, truncation, virtualization,
 filter/sort locus, typed copy/export actions, redaction review, and export
-posture. Copy/export payloads preserve type identity and truncation truth.
+posture. Copy/export payloads preserve type identity, loaded-range truth, and
+truncation truth.
 
 ### Query-History Row
 
 Required truth: statement or request identity, connection/environment refs,
-origin, replay mode, auth drift, result scope, assertion state, redaction or
-retention mode, exact-rerun/current-context capability, and support/export
-posture. A history row that cannot rerun exactly must say why.
+connection/service label, origin, target location, statement class, duration,
+row/affected counts, success/error class, replay mode, auth storage or drift,
+result scope, redaction or retention mode, exact-rerun/current-context
+capability, result-grid and explain-plan refs, and support/export posture. A
+history row that cannot rerun exactly must say why.
 
 ### Explain-Plan Pane
 
 Required truth: statement identity, engine family/version, capture kind,
 estimated-versus-actual distinction, actual execution disclosure, freshness,
-captured-at time, comparison basis, diff visibility, rollback recommendation,
-and export posture. Imported or stale plans must remain labeled through support
-and release proof.
+captured-at time, warnings, safe path back to the source query text, comparison
+basis, diff visibility, rollback recommendation, and export posture. Imported
+or stale plans must remain labeled through support and release proof. Plan
+panes may reference result grids or history rows, but may not present plan
+analysis as result data.
 
 ## Consumer Projection Rules
 

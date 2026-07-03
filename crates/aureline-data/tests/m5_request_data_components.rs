@@ -40,6 +40,13 @@ fn bool_field(value: &Value, field: &str) -> bool {
         .unwrap_or_else(|| panic!("missing boolean field {field}"))
 }
 
+fn i64_field(value: &Value, field: &str) -> i64 {
+    value
+        .get(field)
+        .and_then(Value::as_i64)
+        .unwrap_or_else(|| panic!("missing integer field {field}"))
+}
+
 fn array_field<'a>(value: &'a Value, field: &str) -> &'a Vec<Value> {
     value
         .get(field)
@@ -58,6 +65,12 @@ fn contains_string(value: &Value, field: &str, expected: &str) -> bool {
     array_field(value, field)
         .iter()
         .any(|entry| entry.as_str() == Some(expected))
+}
+
+fn array_contains_str(value: &Value, expected: &str) -> bool {
+    value
+        .as_array()
+        .is_some_and(|values| values.iter().any(|entry| entry.as_str() == Some(expected)))
 }
 
 fn enum_contains(schema: &Value, pointer: &str, expected: &str) -> bool {
@@ -404,11 +417,7 @@ fn connection_schema_covers_local_tunnel_container_remote_and_managed_targets() 
 
     for location in ["local", "tunneled", "container_local", "remote", "managed"] {
         assert!(
-            enum_contains(
-                &schema,
-                "/$defs/target_location_class/enum",
-                location
-            ),
+            enum_contains(&schema, "/$defs/target_location_class/enum", location),
             "target_location_class must include {location}"
         );
     }
@@ -484,7 +493,10 @@ fn sql_run_bar_preserves_selected_connection_transaction_and_actions() {
 
     assert_eq!(str_field(&bar, "record_kind"), "m5_sql_run_bar");
     assert_eq!(str_field(&bar, "access_mode"), "read_only");
-    assert_eq!(str_field(&bar, "write_risk_state"), "read_only_no_write_risk");
+    assert_eq!(
+        str_field(&bar, "write_risk_state"),
+        "read_only_no_write_risk"
+    );
     assert_eq!(str_field(&bar, "autocommit_state"), "not_executable");
     assert_eq!(str_field(&bar, "transaction_state"), "explain_only");
     assert_eq!(
@@ -529,4 +541,283 @@ fn sql_run_bar_preserves_selected_connection_transaction_and_actions() {
             "SQL run bar must expose {action}"
         );
     }
+}
+
+#[test]
+fn result_grid_preserves_virtualized_range_type_rendering_and_export_review_truth() {
+    let grid = load_fixture("result_grid.json");
+
+    assert_eq!(str_field(&grid, "record_kind"), "m5_result_grid");
+    assert_eq!(
+        str_field(&grid, "row_count_scope"),
+        "exact_returned_only_total_unknown"
+    );
+    assert_eq!(i64_field(&grid, "returned_row_count"), 1000);
+    assert!(grid.get("total_row_count").is_some_and(Value::is_null));
+    assert_eq!(
+        str_field(&grid, "truncation_state"),
+        "row_truncated_user_limit"
+    );
+    assert_eq!(
+        str_field(&grid, "virtualization_state"),
+        "row_and_column_virtualized"
+    );
+
+    let loaded = grid
+        .get("loaded_range_truth")
+        .expect("loaded range truth is present");
+    assert_eq!(
+        str_field(loaded, "range_scope"),
+        "partial_returned_rows_loaded"
+    );
+    assert_eq!(i64_field(loaded, "loaded_row_count"), 120);
+    assert!(bool_field(loaded, "unloaded_rows_known"));
+    let ranges = array_field(loaded, "loaded_ranges");
+    assert_eq!(i64_field(&ranges[0], "start_row_inclusive"), 0);
+    assert_eq!(i64_field(&ranges[0], "end_row_exclusive"), 120);
+
+    let columns = array_field(&grid, "columns");
+    for type_identity in ["decimal_or_numeric", "binary_bytes", "json_document"] {
+        assert!(
+            columns
+                .iter()
+                .any(|column| column.get("type_identity").and_then(Value::as_str)
+                    == Some(type_identity)),
+            "grid must preserve {type_identity} column identity"
+        );
+    }
+    assert!(columns.iter().any(|column| {
+        column.get("nullable").and_then(Value::as_bool) == Some(true)
+            && column.get("rendering_rule").and_then(Value::as_str) == Some("binary_size_digest")
+    }));
+    assert!(columns.iter().any(|column| {
+        column.get("type_identity").and_then(Value::as_str) == Some("json_document")
+            && column.get("rendering_rule").and_then(Value::as_str) == Some("json_collapsed_tree")
+    }));
+
+    let rendering = grid
+        .get("value_rendering_rules")
+        .expect("value rendering rules are present");
+    assert_eq!(
+        str_field(rendering, "null_display"),
+        "null_glyph_with_type_tooltip"
+    );
+    assert_eq!(
+        str_field(rendering, "binary_display"),
+        "size_and_digest_only"
+    );
+    assert_eq!(str_field(rendering, "json_display"), "collapsed_tree_typed");
+    assert!(!bool_field(rendering, "raw_binary_copy_default"));
+    assert!(bool_field(rendering, "json_preserves_type_identity"));
+
+    let export_review = grid.get("export_review").expect("export review is present");
+    assert!(bool_field(export_review, "review_required"));
+    assert!(bool_field(export_review, "raw_values_blocked_by_default"));
+    for action in [
+        "review_visible_row_scope",
+        "review_binary_payloads",
+        "approve_notebook_handoff",
+        "approve_support_export",
+    ] {
+        assert!(
+            contains_string(export_review, "review_actions", action),
+            "result grid export review must expose {action}"
+        );
+    }
+    for surface in [
+        "desktop_database_tool",
+        "notebook_handoff",
+        "support_export",
+    ] {
+        assert!(
+            contains_string(&grid, "consumer_surfaces", surface),
+            "result grid must project to {surface}"
+        );
+    }
+}
+
+#[test]
+fn query_history_row_carries_origin_statement_counts_outcome_and_retention() {
+    let row = load_fixture("query_history_row.json");
+
+    assert_eq!(str_field(&row, "record_kind"), "m5_query_history_row");
+    assert_eq!(str_field(&row, "connection_label"), "Prod analytics");
+    assert_eq!(str_field(&row, "service_label"), "Snowflake prod analytics");
+    assert_eq!(str_field(&row, "execution_origin"), "managed_workspace");
+    assert_eq!(str_field(&row, "target_location_class"), "managed");
+    assert_eq!(str_field(&row, "statement_class"), "read_only_query");
+    assert_eq!(i64_field(&row, "duration_ms"), 842);
+    assert_eq!(str_field(&row, "retention_mode"), "metadata_only");
+    assert_eq!(str_field(&row, "auth_storage_mode"), "policy_injected");
+    assert_eq!(
+        str_field(&row, "result_grid_ref"),
+        "result-grid:snowflake:recent-orders"
+    );
+    assert_eq!(
+        str_field(&row, "explain_plan_ref"),
+        "explain-pane:imported-estimated-orders"
+    );
+
+    let counts = row.get("result_counts").expect("result counts are present");
+    assert_eq!(
+        str_field(counts, "row_count_scope"),
+        "exact_returned_only_total_unknown"
+    );
+    assert_eq!(i64_field(counts, "returned_row_count"), 1000);
+    assert_eq!(i64_field(counts, "affected_row_count"), 0);
+    assert!(counts.get("total_row_count").is_some_and(Value::is_null));
+
+    let outcome = row.get("outcome").expect("outcome is present");
+    assert_eq!(str_field(outcome, "status"), "success");
+    assert!(outcome.get("error_class").is_some_and(Value::is_null));
+    assert!(outcome.get("error_ref").is_some_and(Value::is_null));
+
+    let replay = row.get("replay").expect("replay is present");
+    assert_eq!(str_field(replay, "replay_mode"), "current_context_only");
+    assert!(!bool_field(replay, "exact_rerun_available"));
+    assert!(bool_field(replay, "current_context_replay_available"));
+
+    for surface in [
+        "desktop_database_tool",
+        "notebook_handoff",
+        "chart_handoff",
+        "support_export",
+    ] {
+        assert!(
+            contains_string(&row, "consumer_surfaces", surface),
+            "query history row must project to {surface}"
+        );
+    }
+
+    let export = row.get("copy_export").expect("copy/export is present");
+    for field in [
+        "service_label",
+        "execution_origin",
+        "statement_class",
+        "duration_ms",
+        "result_counts",
+        "outcome",
+        "retention_mode",
+    ] {
+        assert!(
+            contains_string(export, "export_fields", field),
+            "query history export must preserve {field}"
+        );
+    }
+}
+
+#[test]
+fn explain_plan_pane_keeps_estimated_actual_freshness_and_source_query_truth() {
+    let pane = load_fixture("explain_plan_pane.json");
+
+    assert_eq!(str_field(&pane, "record_kind"), "m5_explain_plan_pane");
+    assert_eq!(
+        str_field(&pane, "statement_identity_ref"),
+        "statement:sql:recent-orders"
+    );
+    assert_eq!(str_field(&pane, "engine_family"), "postgresql");
+    assert_eq!(str_field(&pane, "engine_version_ref"), "postgresql:15.1");
+    assert_eq!(str_field(&pane, "plan_capture_kind"), "imported_estimated");
+    assert_eq!(
+        str_field(&pane, "estimated_vs_actual_truth"),
+        "imported_estimated_not_replayed"
+    );
+    assert!(!bool_field(&pane, "actual_execution_disclosed"));
+    assert_eq!(str_field(&pane, "freshness_state"), "stale");
+    assert_eq!(str_field(&pane, "execution_origin"), "imported_snapshot");
+    assert!(array_contains_str(
+        pane.get("warnings").expect("warnings are present"),
+        "estimated_plan_did_not_execute"
+    ));
+
+    let source = pane
+        .get("source_query_link")
+        .expect("source query link is present");
+    assert_eq!(str_field(source, "action"), "open_source_query");
+    assert_eq!(
+        str_field(source, "statement_identity_ref"),
+        str_field(&pane, "statement_identity_ref")
+    );
+    assert!(bool_field(source, "safe_to_open"));
+    assert!(!bool_field(source, "raw_statement_exported"));
+
+    let comparison = pane.get("comparison").expect("comparison is present");
+    assert_eq!(
+        str_field(comparison, "comparison_basis"),
+        "imported_vs_live"
+    );
+    assert!(bool_field(comparison, "diff_visible"));
+
+    assert!(
+        pane.get("result_identity_ref").is_none(),
+        "explain plan panes must not masquerade as result data"
+    );
+    let export = pane.get("copy_export").expect("copy/export is present");
+    assert!(
+        contains_string(export, "export_fields", "source_query_link"),
+        "explain exports must preserve the safe path back to source query text"
+    );
+    assert!(
+        !contains_string(export, "export_fields", "result_identity_ref"),
+        "explain exports must not export result-grid identity as plan truth"
+    );
+}
+
+#[test]
+fn result_query_and_plan_schemas_cover_required_truth_vocabularies() {
+    let result_schema = load_schema("m5-result-grid.schema.json");
+    assert!(enum_contains(
+        &result_schema,
+        "/properties/loaded_range_truth/properties/range_scope/enum",
+        "partial_returned_rows_loaded"
+    ));
+    assert!(enum_contains(
+        &result_schema,
+        "/properties/columns/items/properties/rendering_rule/enum",
+        "binary_size_digest"
+    ));
+    assert!(enum_contains(
+        &result_schema,
+        "/properties/copy_export_actions/items/enum",
+        "notebook_handoff_typed"
+    ));
+
+    let history_schema = load_schema("m5-query-history-row.schema.json");
+    assert!(enum_contains(
+        &history_schema,
+        "/properties/statement_class/enum",
+        "read_only_query"
+    ));
+    assert!(enum_contains(
+        &history_schema,
+        "/properties/outcome/properties/status/enum",
+        "error"
+    ));
+    assert!(enum_contains(
+        &history_schema,
+        "/properties/retention_mode/enum",
+        "metadata_only"
+    ));
+
+    let plan_schema = load_schema("m5-explain-plan-pane.schema.json");
+    for plan_kind in [
+        "estimated",
+        "actual",
+        "imported_estimated",
+        "imported_actual",
+    ] {
+        assert!(
+            enum_contains(
+                &plan_schema,
+                "/properties/plan_capture_kind/enum",
+                plan_kind
+            ),
+            "plan schema must keep {plan_kind} distinct"
+        );
+    }
+    assert!(enum_contains(
+        &plan_schema,
+        "/properties/source_query_link/properties/action/enum",
+        "open_source_query"
+    ));
 }

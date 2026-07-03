@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-query-history-row.schema.json",
+  "title": "Aureline M5 query history row",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["record_kind", "schema_version", "history_row_id", "connection_identity_ref", "connection_label", "service_identity_ref", "service_label", "execution_origin", "target_location_class", "statement_identity_ref", "statement_fingerprint_ref", "statement_class", "duration_ms", "result_counts", "outcome", "retention_mode", "auth_storage_mode", "replay", "result_grid_ref", "explain_plan_ref", "redaction_review_state", "export_posture", "source_refs", "consumer_surfaces", "copy_export"],
+  "properties": {
+    "record_kind": { "const": "m5_query_history_row" },
+    "schema_version": { "const": 1 },
+    "history_row_id": { "$ref": "#/$defs/id" },
+    "connection_identity_ref": { "$ref": "#/$defs/ref" },
+    "connection_label": { "$ref": "#/$defs/ref" },
+    "service_identity_ref": { "$ref": "#/$defs/ref" },
+    "service_label": { "$ref": "#/$defs/ref" },
+    "execution_origin": { "$ref": "#/$defs/origin" },
+    "target_location_class": { "type": "string", "enum": ["local", "tunneled", "container_local", "remote", "managed", "browser_runtime", "imported_snapshot", "unknown"] },
+    "statement_identity_ref": { "$ref": "#/$defs/ref" },
+    "statement_fingerprint_ref": { "$ref": "#/$defs/ref" },
+    "statement_class": { "type": "string", "enum": ["read_only_query", "dml", "ddl", "session_affecting", "multi_statement", "ambiguous", "blocked"] },
+    "duration_ms": { "type": "integer", "minimum": 0 },
+    "result_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row_count_scope", "returned_row_count", "total_row_count", "affected_row_count"],
+      "properties": {
+        "row_count_scope": { "type": "string", "enum": ["exact_total_known", "exact_returned_only_total_unknown", "estimate_engine_provided", "estimate_planner_provided", "unknown_streaming", "visible_rows_only", "sampled_rows"] },
+        "returned_row_count": { "type": "integer", "minimum": 0 },
+        "total_row_count": { "type": ["integer", "null"], "minimum": 0 },
+        "affected_row_count": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "error_class", "error_ref"],
+      "properties": {
+        "status": { "type": "string", "enum": ["success", "error", "cancelled", "blocked", "partial"] },
+        "error_class": { "type": ["string", "null"], "enum": ["connection_error", "permission_error", "syntax_error", "timeout", "engine_error", "policy_blocked", null] },
+        "error_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "retention_mode": { "type": "string", "enum": ["metadata_only", "redacted_replayable", "full_capture_reviewed", "expired_metadata_only", "policy_blocked"] },
+    "auth_storage_mode": { "type": "string", "enum": ["no_auth", "secret_broker_handle", "delegated_identity", "policy_injected", "browser_device_code", "local_encrypted_store", "managed_rotation", "imported_no_live_auth", "policy_blocked"] },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["replay_mode", "exact_rerun_available", "current_context_replay_available", "blocked_reason_ref"],
+      "properties": {
+        "replay_mode": { "type": "string", "enum": ["exact_rerun", "current_context_only", "inspect_only", "blocked"] },
+        "exact_rerun_available": { "type": "boolean" },
+        "current_context_replay_available": { "type": "boolean" },
+        "blocked_reason_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "result_grid_ref": { "$ref": "#/$defs/ref" },
+    "explain_plan_ref": { "type": ["string", "null"], "minLength": 1 },
+    "redaction_review_state": { "type": "string", "enum": ["not_required", "required_before_export", "completed", "blocked_by_policy"] },
+    "export_posture": { "type": "string", "enum": ["metadata_only", "redacted_typed", "visible_rows_only_typed", "full_result_typed", "blocked_pending_consent", "blocked_pending_policy", "blocked_redaction_class_too_high"] },
+    "source_refs": { "$ref": "#/$defs/ref_array" },
+    "consumer_surfaces": { "$ref": "#/$defs/consumer_surfaces" },
+    "copy_export": { "$ref": "#/$defs/copy_export" }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9]+(?:[._:-][a-z0-9]+)*$" },
+    "ref": { "type": "string", "minLength": 1 },
+    "ref_array": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/ref" } },
+    "origin": { "type": "string", "enum": ["local_desktop", "ssh_remote", "container_workspace", "managed_workspace", "browser_runtime", "imported_snapshot", "cli_headless"] },
+    "consumer_surfaces": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["desktop_request_workspace", "desktop_database_tool", "remote_workspace", "container_workspace", "managed_workspace", "browser_runtime_panel", "notebook_handoff", "chart_handoff", "ai_context_handoff", "cli_headless", "support_export", "release_proof"] } },
+    "copy_export": { "type": "object", "additionalProperties": false, "required": ["formats", "export_fields", "text", "json", "markdown", "screenshot_only_prohibited"], "properties": { "formats": { "type": "array", "minItems": 3, "uniqueItems": true, "items": { "type": "string", "enum": ["text", "json", "markdown"] } }, "export_fields": { "$ref": "#/$defs/ref_array" }, "text": { "$ref": "#/$defs/ref" }, "json": { "$ref": "#/$defs/ref" }, "markdown": { "$ref": "#/$defs/ref" }, "screenshot_only_prohibited": { "const": true } } }
+  }
+}
