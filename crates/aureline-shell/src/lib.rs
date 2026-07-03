@@ -143,6 +143,7 @@ pub mod locale_pack_beta;
 pub mod m5_accessibility_parity;
 pub mod m5_action_label_scope_parity;
 pub mod m5_activity_objects;
+pub mod m5_advisory_claim_downgrade_certification;
 pub mod m5_ambient_instrumentation_stability;
 pub mod m5_appearance_parity;
 pub mod m5_auth_boundaries;
