@@ -17,6 +17,11 @@ These fixtures are the first-consumer examples for the frozen matrix at
 | `explain_plan_pane.json` | `schemas/ui/m5-explain-plan-pane.schema.json` | An imported estimated plan remains stale, carries warnings and a safe source-query link, and cannot masquerade as an actual executed plan. |
 | `component_manifest.json` | Matrix manifest | Maps auth sheet, environment picker, schema tree, and query-history rows to canonical component families and narrowed behaviors. |
 
+Each schema-backed fixture carries `reduced_capability_banner` and
+`provider_handoff_notes` so narrower consumers disclose missing send, replay,
+mutate, or raw-export authority without changing canonical labels or dropping
+export fields.
+
 Validate with:
 
 ```sh
@@ -33,6 +38,7 @@ pairs = [
     ("schemas/ui/m5-request-history-row.schema.json", "fixtures/ui/m5-request-data-components/request_history_row.json"),
     ("schemas/ui/m5-contract-source-badge.schema.json", "fixtures/ui/m5-request-data-components/contract_source_badge.json"),
     ("schemas/ui/m5-connection-picker-row.schema.json", "fixtures/ui/m5-request-data-components/connection_picker_row.json"),
+    ("schemas/ui/m5-sql-run-bar.schema.json", "fixtures/ui/m5-request-data-components/sql_run_bar.json"),
     ("schemas/ui/m5-result-grid.schema.json", "fixtures/ui/m5-request-data-components/result_grid.json"),
     ("schemas/ui/m5-query-history-row.schema.json", "fixtures/ui/m5-request-data-components/query_history_row.json"),
     ("schemas/ui/m5-explain-plan-pane.schema.json", "fixtures/ui/m5-request-data-components/explain_plan_pane.json"),
@@ -42,5 +48,14 @@ for schema_path, fixture_path in pairs:
     fixture = json.loads(Path(fixture_path).read_text())
     Draft202012Validator.check_schema(schema)
     Draft202012Validator(schema).validate(fixture)
+
+row_schema = json.loads(Path("schemas/ui/m5-schema-object-row.schema.json").read_text())
+Draft202012Validator.check_schema(row_schema)
+row_validator = Draft202012Validator(row_schema)
+schema_rows = json.loads(Path("fixtures/ui/m5-request-data-components/schema_object_rows.json").read_text())
+for row in schema_rows["rows"]:
+    row["reduced_capability_banner"] = schema_rows["reduced_capability_banner"]
+    row["provider_handoff_notes"] = schema_rows["provider_handoff_notes"]
+    row_validator.validate(row)
 PY
 ```

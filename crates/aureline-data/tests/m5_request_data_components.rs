@@ -61,6 +61,88 @@ fn object_field<'a>(value: &'a Value, field: &str) -> &'a serde_json::Map<String
         .unwrap_or_else(|| panic!("missing object field {field}"))
 }
 
+fn assert_reduced_capability_disclosure(value: &Value, fixture_name: &str) {
+    let banner = value
+        .get("reduced_capability_banner")
+        .unwrap_or_else(|| panic!("{fixture_name} missing reduced capability banner"));
+    assert!(
+        banner.get("banner_id").and_then(Value::as_str).is_some(),
+        "{fixture_name} banner must carry a stable id"
+    );
+    assert!(
+        banner
+            .get("visible_label")
+            .and_then(Value::as_str)
+            .is_some(),
+        "{fixture_name} banner must carry visible reduced-capability copy"
+    );
+    assert!(
+        banner
+            .get("missing_capabilities")
+            .and_then(Value::as_array)
+            .is_some_and(|items| !items.is_empty()),
+        "{fixture_name} banner must disclose missing capabilities"
+    );
+    assert!(
+        banner
+            .get("preserved_fields")
+            .and_then(Value::as_array)
+            .is_some_and(|items| !items.is_empty()),
+        "{fixture_name} banner must list fields preserved across consumers"
+    );
+
+    let action_policy = banner
+        .get("action_policy")
+        .unwrap_or_else(|| panic!("{fixture_name} missing reduced action policy"));
+    for action in [
+        "live_send_available",
+        "replay_available",
+        "mutate_available",
+        "export_available",
+    ] {
+        assert!(
+            action_policy.get(action).and_then(Value::as_bool).is_some(),
+            "{fixture_name} action policy must disclose {action}"
+        );
+    }
+
+    let notes = value
+        .get("provider_handoff_notes")
+        .and_then(Value::as_array)
+        .unwrap_or_else(|| panic!("{fixture_name} missing provider handoff notes"));
+    assert!(
+        !notes.is_empty(),
+        "{fixture_name} must carry at least one provider handoff note"
+    );
+    for note in notes {
+        assert!(
+            note.get("note_id").and_then(Value::as_str).is_some(),
+            "{fixture_name} provider handoff note must carry a stable id"
+        );
+        assert!(
+            note.get("provider_surface")
+                .and_then(Value::as_str)
+                .is_some(),
+            "{fixture_name} provider handoff note must name the provider surface"
+        );
+        assert!(
+            note.get("handoff_state").and_then(Value::as_str).is_some(),
+            "{fixture_name} provider handoff note must name the handoff state"
+        );
+        assert!(
+            note.get("truth_preserved")
+                .and_then(Value::as_array)
+                .is_some_and(|items| !items.is_empty()),
+            "{fixture_name} provider handoff note must list preserved truth fields"
+        );
+        assert_eq!(
+            note.get("raw_material_exported").and_then(Value::as_bool),
+            Some(false),
+            "{fixture_name} provider handoff note must stay raw-material safe"
+        );
+    }
+}
+
 fn contains_string(value: &Value, field: &str, expected: &str) -> bool {
     array_field(value, field)
         .iter()
@@ -627,6 +709,8 @@ fn result_grid_preserves_virtualized_range_type_rendering_and_export_review_trut
     for surface in [
         "desktop_database_tool",
         "notebook_handoff",
+        "chart_handoff",
+        "ai_context_handoff",
         "support_export",
     ] {
         assert!(
@@ -634,6 +718,14 @@ fn result_grid_preserves_virtualized_range_type_rendering_and_export_review_trut
             "result grid must project to {surface}"
         );
     }
+    assert!(
+        contains_string(&grid, "copy_export_actions", "chart_handoff_typed"),
+        "result grid must preserve the typed chart handoff action"
+    );
+    assert!(
+        contains_string(&grid, "copy_export_actions", "ai_context_metadata_only"),
+        "result grid must preserve the metadata-only AI handoff action"
+    );
 }
 
 #[test]
@@ -820,4 +912,100 @@ fn result_query_and_plan_schemas_cover_required_truth_vocabularies() {
         "/properties/source_query_link/properties/action/enum",
         "open_source_query"
     ));
+}
+
+#[test]
+fn reusable_component_fixtures_carry_reduced_capability_and_provider_handoff_disclosures() {
+    let manifest = load_fixture("component_manifest.json");
+    let fixtures = array_field(&manifest, "fixtures");
+    assert!(fixtures.len() >= 12);
+
+    let mut all_consumers = Vec::new();
+    for entry in fixtures {
+        assert!(
+            entry
+                .get("reduced_capability_banner_ref")
+                .and_then(Value::as_str)
+                .is_some(),
+            "manifest entry must point at a reduced-capability banner"
+        );
+        assert!(
+            entry
+                .get("provider_handoff_note_refs")
+                .and_then(Value::as_array)
+                .is_some_and(|refs| !refs.is_empty()),
+            "manifest entry must point at provider handoff notes"
+        );
+
+        let fixture_ref = str_field(entry, "fixture_ref");
+        let fixture_name = fixture_ref
+            .rsplit('/')
+            .next()
+            .expect("fixture ref has a filename");
+        if fixture_name != "component_manifest.json" {
+            let fixture = load_fixture(fixture_name);
+            assert_reduced_capability_disclosure(&fixture, fixture_name);
+        }
+
+        for consumer in array_field(entry, "claimed_consumers") {
+            if let Some(consumer) = consumer.as_str() {
+                all_consumers.push(consumer.to_owned());
+            }
+        }
+    }
+
+    for required_consumer in [
+        "desktop_request_workspace",
+        "desktop_database_tool",
+        "notebook_handoff",
+        "chart_handoff",
+        "browser_runtime_panel",
+        "support_export",
+    ] {
+        assert!(
+            all_consumers
+                .iter()
+                .any(|consumer| consumer == required_consumer),
+            "component manifest must include first consumer {required_consumer}"
+        );
+    }
+}
+
+#[test]
+fn proof_packet_consumer_claims_match_fixture_projection_surfaces() {
+    let proof =
+        load_repo_json("artifacts/release/m5-request-data-component-proof/proof_packet.json");
+    for family in array_field(&proof, "component_families") {
+        let fixture_ref = str_field(family, "fixture_ref");
+        let fixture = load_repo_json(fixture_ref);
+        let mut fixture_surfaces = Vec::new();
+        if fixture_ref.ends_with("schema_object_rows.json") {
+            for row in array_field(&fixture, "rows") {
+                for surface in array_field(row, "consumer_surfaces") {
+                    if let Some(surface) = surface.as_str() {
+                        fixture_surfaces.push(surface.to_owned());
+                    }
+                }
+            }
+        } else {
+            for surface in array_field(&fixture, "consumer_surfaces") {
+                if let Some(surface) = surface.as_str() {
+                    fixture_surfaces.push(surface.to_owned());
+                }
+            }
+        }
+
+        for consumer in array_field(family, "consumer_surfaces") {
+            let consumer = consumer
+                .as_str()
+                .expect("proof consumer surface must be a string");
+            assert!(
+                fixture_surfaces
+                    .iter()
+                    .any(|fixture_surface| fixture_surface == consumer),
+                "{} proof claim is missing fixture projection surface {consumer}",
+                str_field(family, "family")
+            );
+        }
+    }
 }

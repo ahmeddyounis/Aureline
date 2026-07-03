@@ -14,6 +14,10 @@ The matrix is metadata-only. Components carry stable refs, controlled labels,
 freshness and permission state, redaction/export posture, and copy-safe
 summaries. They do not carry raw secrets, raw connection strings, raw response
 bodies, raw result rows, raw cookies, raw local paths, or browser storage values.
+Every first-consumer fixture also carries a `reduced_capability_banner` and
+`provider_handoff_notes`. Narrower consumers use those fields to explain which
+send, replay, mutate, or raw-export capabilities are unavailable while keeping
+the same canonical field names and export actions.
 
 Certification bundle:
 
@@ -41,6 +45,20 @@ Certification bundle:
 | Result grid | `artifacts/data/m5/ship-result-grid-virtualization-typed-copy-or-export-filter-and-sort-state-and-row-count-boundary-truth.json`, `schemas/ui/m5-result-grid.schema.json` | SQL result viewer, request data preview, notebook handoff, chart handoff, AI context handoff, support export, release proof |
 | Query-history row | `artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json`, `artifacts/data/m5/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.json`, `schemas/ui/m5-query-history-row.schema.json`, `schemas/ui/m5-result-grid.schema.json` | Database query history, notebook handoff, chart handoff, exact rerun/current-context replay, CLI/headless query inspect, support export, release proof |
 | Explain-plan pane | `artifacts/data/m5/implement-explain-plan-freshness-notes-engine-version-context-and-plan-comparison-flows.json`, `schemas/ui/m5-explain-plan-pane.schema.json` | SQL editor explain pane, plan comparison flow, query history detail, support export, release proof |
+
+## Shared Disclosure Fields
+
+All component fixtures include:
+
+- `reduced_capability_banner` — stable banner id, severity, visible label,
+  canonical `capability_state`, missing capabilities, preserved fields, and
+  action policy for live send, replay, mutate, and export.
+- `provider_handoff_notes` — provider surface, handoff state, preserved truth
+  fields, return anchor, and `raw_material_exported=false`.
+
+Consumers may narrow authority, but they must use these fields instead of
+renaming or dropping request/data truth. The banner and notes are exported in
+text, JSON, and Markdown projections wherever the component itself is exported.
 
 ## Controlled Vocabulary
 
@@ -228,6 +246,7 @@ analysis as result data.
 | `required_field_parity` | Every required schema field on every claimed consumer | Narrow the consumer claim. |
 | `controlled_vocabulary_parity` | Origin, auth storage, capability, freshness, row-count scope, export posture, plan capture kind | Narrow the consumer claim. |
 | `reduced_capability_disclosure` | Remote, container, managed, browser-runtime, CLI/headless consumers | Narrow to inspect-only or out-of-scope. |
+| `provider_handoff_notes` | Notebook, chart, AI, browser-runtime, support, and release consumers | Narrow the consumer claim. |
 | `secret_redaction_parity` | Environment picker, variable inspector, auth sheet, response headers/cookies, support export | Block export or narrow claim. |
 | `copy_export_parity` | Text, JSON, and Markdown exports with source refs | Narrow the consumer claim. |
 | `estimated_actual_plan_truth` | Explain-plan panes and comparisons | Block stable plan claim. |
