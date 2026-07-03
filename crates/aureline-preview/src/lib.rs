@@ -61,6 +61,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-preview/0.0.0")]
 
+pub mod add_visual_designer_fallback_parity_keyboard_and_screen_reader_navigation_and_no_drag_only_editing_rules;
 pub mod browser_runtime_inspectors;
 pub mod extension_provider_conformance;
 pub mod freeze_the_m5_design_canvas_structure_tree_property_inspector_source_sync_and_breakpoint_preview_component_matrix;
@@ -75,6 +76,22 @@ pub mod preview_runtime_certification;
 pub mod preview_session_descriptors;
 pub mod safe_preview;
 pub mod visual_edit_transforms;
+
+pub use add_visual_designer_fallback_parity_keyboard_and_screen_reader_navigation_and_no_drag_only_editing_rules::{
+    current_m5_visual_designer_a11y_fallback_export,
+    seeded_m5_visual_designer_a11y_fallback_packet, AccessibilityAutoNarrow,
+    ComponentAccessibilityArtifactError, ComponentAccessibilityPacket,
+    ComponentAccessibilityPacketInput, ComponentAccessibilityRow, ComponentAccessibilityStatus,
+    ComponentAccessibilitySummary, ComponentAccessibilityViolation, CopyExportParity,
+    DragEditingState, ExportSummaryState, M5AccessibilityRenderingSurface, M5FallbackModality,
+    M5VisualDesignerConsumerSurface, NarrowingDisclosureState, NonVisualReachState,
+    RenderingNarrowingDisclosure, VISUAL_DESIGNER_A11Y_FALLBACK_ARTIFACT_REF,
+    VISUAL_DESIGNER_A11Y_FALLBACK_COMPONENT_MATRIX_REF, VISUAL_DESIGNER_A11Y_FALLBACK_CSV_REF,
+    VISUAL_DESIGNER_A11Y_FALLBACK_DOC_REF, VISUAL_DESIGNER_A11Y_FALLBACK_FIXTURE_DIR,
+    VISUAL_DESIGNER_A11Y_FALLBACK_RECORD_KIND, VISUAL_DESIGNER_A11Y_FALLBACK_REPORT_REF,
+    VISUAL_DESIGNER_A11Y_FALLBACK_ROW_RECORD_KIND, VISUAL_DESIGNER_A11Y_FALLBACK_SCHEMA_REF,
+    VISUAL_DESIGNER_A11Y_FALLBACK_SCHEMA_VERSION,
+};
 
 pub use freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix::{
     current_m5_preview_inspection_matrix_export, AttachDepthClass, MatrixConsumerProjection,
