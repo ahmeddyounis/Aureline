@@ -19,6 +19,7 @@ pub mod m5_graph_certification;
 pub mod m5_graph_governance;
 pub mod m5_impact_query;
 pub mod m5_ownership_and_contracts;
+pub mod m5_ownership_explainer_components;
 pub mod m5_topology_identity;
 pub mod m5_workset_scope;
 pub mod m5_workset_topology_components;
@@ -161,6 +162,16 @@ pub use m5_ownership_and_contracts::{
     M5_OWNERSHIP_CONTRACTS_PATH, M5_OWNERSHIP_CONTRACTS_RECORD_KIND,
     M5_OWNERSHIP_CONTRACTS_SCHEMA_REF, M5_OWNERSHIP_CONTRACTS_SCHEMA_VERSION,
     M5_OWNERSHIP_CONTRACTS_SCOPE_PACKET_REF, M5_OWNERSHIP_CONTRACTS_TOPOLOGY_PACKET_REF,
+};
+pub use m5_ownership_explainer_components::{
+    current_m5_ownership_explainer_component_packet, CitationKind as ExplainerSectionCitationKind,
+    CitationRef, CitationState, ExplainerSectionCard, OwnershipCard as OwnershipContractCard,
+    OwnershipExplainerComponentPacket, OwnershipExplainerComponentSummary,
+    OwnershipExplainerComponentViolation, RoleAssignment, RoleType, SummaryGenerationMode,
+    EXPLAINER_SECTION_CARD_SCHEMA_REF, OWNERSHIP_CARD_SCHEMA_REF,
+    OWNERSHIP_EXPLAINER_COMPONENT_MATRIX_REF, OWNERSHIP_EXPLAINER_COMPONENT_PACKET_JSON,
+    OWNERSHIP_EXPLAINER_COMPONENT_PACKET_PATH, OWNERSHIP_EXPLAINER_COMPONENT_RECORD_KIND,
+    OWNERSHIP_EXPLAINER_COMPONENT_SCHEMA_VERSION,
 };
 pub use m5_topology_identity::{
     current_m5_topology_identity_packet, ContractBadge, M5TopologyIdentityExportProjection,

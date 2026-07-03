@@ -32,6 +32,8 @@ Certification bundle:
   `artifacts/perf/m5/m5-trace-heap-compare-components.json`
 - Workset/topology consumer packet:
   `artifacts/graph/m5/m5-workset-topology-components.json`
+- Ownership/explainer consumer packet:
+  `artifacts/graph/m5/m5-ownership-explainer-components.json`
 - Fixtures:
   `fixtures/ui/m5-profiler-topology-components/`
 

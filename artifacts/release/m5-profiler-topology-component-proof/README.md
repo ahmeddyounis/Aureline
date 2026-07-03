@@ -22,6 +22,15 @@ Release and support proof for
   coverage, no-silent-widening, and node/edge freshness, confidence, provenance,
   and partial/blocked language explicit across search, topology, and explainer
   consumers.
+- `artifacts/graph/m5/m5-ownership-explainer-components.json` is the M05-800
+  consumer packet for ownership/contract cards and explainer-section cards. It
+  keeps owner, reviewer, maintainer, service-owner, on-call, and approver roles
+  distinct (never collapsed into one ambiguous owner), attaches protected-path /
+  change-control links, and requires explainer cards to carry concrete
+  file/symbol/doc citations with generated-vs-curated provenance. Generated
+  summaries automatically narrow when their citations, freshness, or workset
+  scope truth is incomplete, so an explanation never masquerades as uncited
+  primary truth across topology, onboarding, AI, and review consumers.
 
 This proof packet is the release/support companion for tasks M05-796,
-M05-797, M05-798, and M05-799.
+M05-797, M05-798, M05-799, and M05-800.
