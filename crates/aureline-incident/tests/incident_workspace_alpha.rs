@@ -175,6 +175,11 @@ fn incident_workspace() -> aureline_incident::IncidentWorkspacePacket {
         "task-history:rerun-failed:summary",
         action_context(),
     ));
+    builder.add_evidence(IncidentEvidenceAttachment::pipeline_run_row(
+        "pipeline-run-row:rerun-failed",
+        "fixtures/ui/m5-pipeline-dependency-finding-components/pipeline_run_row.json",
+        "schemas/ui/m5-pipeline-run-row.schema.json",
+    ));
     builder.attach_crash_trail(&crash_trail_missing_symbolication());
     builder.attach_support_bundle_preview(&support_preview());
     let provider_page = seeded_work_item_transition_beta_page();
@@ -207,6 +212,7 @@ fn incident_workspace_attaches_evidence_without_claiming_missing_spans_are_prese
     assert!(packet.has_evidence_kind(IncidentEvidenceKind::LogSlice));
     assert!(packet.has_evidence_kind(IncidentEvidenceKind::CrashReference));
     assert!(packet.has_evidence_kind(IncidentEvidenceKind::TaskHistory));
+    assert!(packet.has_evidence_kind(IncidentEvidenceKind::PipelineRunRow));
     assert!(packet.has_evidence_kind(IncidentEvidenceKind::SupportBundle));
     assert!(packet.has_missing_required_spans());
     assert!(packet.span_coverage_is_honest());
@@ -219,6 +225,7 @@ fn incident_workspace_attaches_evidence_without_claiming_missing_spans_are_prese
     let kinds = evidence_kinds(&packet.evidence_attachments);
     assert!(kinds.contains(&IncidentEvidenceKind::LogSlice));
     assert!(kinds.contains(&IncidentEvidenceKind::TaskHistory));
+    assert!(kinds.contains(&IncidentEvidenceKind::PipelineRunRow));
     assert_eq!(packet.linked_work_item_rows.len(), 1);
     assert_eq!(packet.linked_work_item_rows[0].canonical_id, "INC-246");
     assert_eq!(
@@ -230,6 +237,15 @@ fn incident_workspace_attaches_evidence_without_claiming_missing_spans_are_prese
         packet.lifecycle_binding.destruction_receipt_ref.as_deref(),
         Some("receipt:incident-packet:0001")
     );
+    let pipeline_row = packet
+        .evidence_attachments
+        .iter()
+        .find(|evidence| evidence.evidence_kind == IncidentEvidenceKind::PipelineRunRow)
+        .expect("incident packet references shared pipeline row");
+    assert!(pipeline_row
+        .source_refs
+        .contains(&"schemas/ui/m5-pipeline-run-row.schema.json".to_owned()));
+    assert_eq!(pipeline_row.availability, EvidenceAvailability::ByReference);
 }
 
 #[test]

@@ -150,6 +150,8 @@ pub enum IncidentEvidenceKind {
     CrashReference,
     /// Task, command, or invocation history summary.
     TaskHistory,
+    /// Shared pipeline run row contract ref.
+    PipelineRunRow,
     /// Support bundle manifest or preview ref.
     SupportBundle,
     /// Runbook packet ref.
@@ -167,6 +169,7 @@ impl IncidentEvidenceKind {
             Self::LogSlice => "log_slice",
             Self::CrashReference => "crash_reference",
             Self::TaskHistory => "task_history",
+            Self::PipelineRunRow => "pipeline_run_row",
             Self::SupportBundle => "support_bundle",
             Self::RunbookPacket => "runbook_packet",
             Self::MissingSpanDisclosure => "missing_span_disclosure",
@@ -180,6 +183,7 @@ impl IncidentEvidenceKind {
             Self::LogSlice => "incident_log_slice_ref",
             Self::CrashReference => "crash_incident_trail_alpha_record",
             Self::TaskHistory => "incident_task_history_summary",
+            Self::PipelineRunRow => "m5_pipeline_run_row",
             Self::SupportBundle => "support_bundle_manifest_ref",
             Self::RunbookPacket => "support_runbook_packet_record",
             Self::MissingSpanDisclosure => "missing_span_disclosure",
@@ -360,6 +364,29 @@ impl IncidentEvidenceAttachment {
             estimated_bytes: Some(4096),
             action_context: Some(action_context),
             notes: "Task history carries command, target, route, and policy refs without raw command lines.".into(),
+        }
+    }
+
+    /// Creates a shared pipeline-run-row attachment by reference.
+    pub fn pipeline_run_row(
+        evidence_id: impl Into<String>,
+        pipeline_row_ref: impl Into<String>,
+        contract_ref: impl Into<String>,
+    ) -> Self {
+        let evidence_id = evidence_id.into();
+        Self {
+            support_pack_item_id: support_item_id("incident.pipeline_run_row", &evidence_id),
+            evidence_id,
+            title: "Pipeline run row".into(),
+            evidence_kind: IncidentEvidenceKind::PipelineRunRow,
+            source_refs: vec![pipeline_row_ref.into(), contract_ref.into()],
+            data_class: DiagnosticDataClass::MetadataOnly,
+            high_risk_content_class: HighRiskContentClass::NotApplicable,
+            availability: EvidenceAvailability::ByReference,
+            required_for_first_diagnosis: true,
+            estimated_bytes: Some(2048),
+            action_context: None,
+            notes: "Incident surface references the shared pipeline-run row contract; no provider widget or raw provider payload is embedded.".into(),
         }
     }
 

@@ -12,14 +12,19 @@
     "pipeline_run_id",
     "provider_run_ref",
     "provider_label",
+    "workflow_or_job_name",
     "review_anchor_ref",
     "trigger",
+    "duration",
     "branch_change_relation",
     "normalized_status",
     "artifact_summary",
     "freshness_state",
+    "freshness_note",
     "degraded_state",
     "run_control_authority",
+    "open_details_action",
+    "provider_handoff",
     "source_refs",
     "consumer_surfaces",
     "copy_export"
@@ -34,8 +39,10 @@
       "type": "string",
       "enum": ["github_actions", "gitlab_ci", "azure_pipelines", "circleci", "buildkite", "local_ci", "imported_provider", "unknown"]
     },
+    "workflow_or_job_name": { "$ref": "#/$defs/ref" },
     "review_anchor_ref": { "$ref": "#/$defs/ref" },
     "trigger": { "$ref": "#/$defs/trigger" },
+    "duration": { "$ref": "#/$defs/duration" },
     "branch_change_relation": { "$ref": "#/$defs/branch_change_relation" },
     "normalized_status": {
       "type": "string",
@@ -43,11 +50,17 @@
     },
     "artifact_summary": { "$ref": "#/$defs/artifact_summary" },
     "freshness_state": { "$ref": "#/$defs/freshness_state" },
+    "freshness_note": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
     "degraded_state": {
       "type": "string",
       "enum": ["none", "stale", "superseded", "partial", "blocked", "policy_hidden", "provider_unreachable"]
     },
     "run_control_authority": { "$ref": "#/$defs/run_control_authority" },
+    "open_details_action": { "$ref": "#/$defs/open_details_action" },
+    "provider_handoff": { "$ref": "#/$defs/provider_handoff" },
     "source_refs": { "$ref": "#/$defs/ref_array" },
     "consumer_surfaces": { "$ref": "#/$defs/consumer_surfaces" },
     "copy_export": { "$ref": "#/$defs/copy_export" }
@@ -77,30 +90,56 @@
     "trigger": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["trigger_type", "actor_ref", "event_ref", "triggered_at"],
+      "required": ["trigger_type", "actor_ref", "actor_class", "event_ref", "triggered_at"],
       "properties": {
         "trigger_type": {
           "type": "string",
           "enum": ["push", "pull_request", "merge_queue", "manual", "scheduled", "rerun", "provider_import"]
         },
         "actor_ref": { "$ref": "#/$defs/ref" },
+        "actor_class": {
+          "type": "string",
+          "enum": ["human_account", "install_or_bot_account", "delegated_user", "scheduled_trigger", "policy_injected_trigger", "replayed_trigger", "unknown_actor_class"]
+        },
         "event_ref": { "$ref": "#/$defs/ref" },
         "triggered_at": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "duration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "milliseconds", "display_label"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["exact", "approximate", "unknown"]
+        },
+        "milliseconds": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "display_label": { "$ref": "#/$defs/ref" }
       }
     },
     "branch_change_relation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["branch_ref", "change_object_ref", "base_relation", "stale_base"],
+      "required": ["branch_ref", "commit_ref", "change_object_ref", "base_relation", "stale_base"],
       "properties": {
-        "branch_ref": { "$ref": "#/$defs/ref" },
-        "change_object_ref": { "$ref": "#/$defs/ref" },
+        "branch_ref": { "type": ["string", "null"], "minLength": 1 },
+        "commit_ref": { "type": ["string", "null"], "minLength": 1 },
+        "change_object_ref": { "type": ["string", "null"], "minLength": 1 },
         "base_relation": {
           "type": "string",
-          "enum": ["current_base", "stale_base", "detached_change", "unknown_relation", "policy_hidden"]
+          "enum": ["current_base", "stale_base", "detached_change", "superseded_commit", "unknown_relation", "policy_hidden"]
         },
         "stale_base": { "type": "boolean" }
-      }
+      },
+      "anyOf": [
+        { "properties": { "branch_ref": { "$ref": "#/$defs/ref" } } },
+        { "properties": { "commit_ref": { "$ref": "#/$defs/ref" } } },
+        { "properties": { "change_object_ref": { "$ref": "#/$defs/ref" } } }
+      ]
     },
     "artifact_summary": {
       "type": "object",
@@ -138,6 +177,26 @@
         "acting_identity_ref": { "$ref": "#/$defs/ref" },
         "side_effect_review_required": { "type": "boolean" },
         "disabled_reason": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "open_details_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_ref", "action_label", "details_target_ref"],
+      "properties": {
+        "action_ref": { "$ref": "#/$defs/ref" },
+        "action_label": { "$ref": "#/$defs/ref" },
+        "details_target_ref": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "provider_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_native_required", "handoff_target_ref", "handoff_reason"],
+      "properties": {
+        "provider_native_required": { "type": "boolean" },
+        "handoff_target_ref": { "$ref": "#/$defs/ref" },
+        "handoff_reason": { "$ref": "#/$defs/ref" }
       }
     },
     "copy_export": {

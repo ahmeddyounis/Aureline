@@ -346,8 +346,12 @@ pub use implement_durable_review_workspace_headers_local_ci_parity_and_stable_an
     DURABLE_REVIEW_HEADER_SCHEMA_VERSION, DURABLE_REVIEW_HEADER_SUMMARY_REF,
 };
 pub use implement_normalized_pipeline_run_rows_log_viewers_artifact_browsers_and_safe_preview_trust_classes::{
-    current_pipeline_viewer_export, ArtifactBrowserRow, ArtifactKind, LogStreamState, LogViewerRow,
-    PipelineRunRow, PipelineRunStatus, PipelineViewerArtifactError,
+    current_pipeline_viewer_export, ArtifactBrowserRow, ArtifactKind, BranchChangeRelationClass,
+    LogStreamState, LogViewerRow, PipelineArtifactSummary, PipelineBranchChangeRelation,
+    PipelineOpenDetailsAction, PipelineProviderHandoffBar, PipelineProviderLabel,
+    PipelineRunControlAuthorityState, PipelineRunControlDisclosure, PipelineRunDuration,
+    PipelineRunDurationState, PipelineRunRow, PipelineRunStatus, PipelineTriggerActorClass,
+    PipelineViewerArtifactError,
     PipelineViewerConsumerProjection, PipelineViewerConsumerSurface,
     PipelineViewerDowngradeTrigger, PipelineViewerPacket, PipelineViewerPacketInput,
     PipelineViewerProofFreshness, PipelineViewerRunControlAuthority, PipelineViewerTrustReview,

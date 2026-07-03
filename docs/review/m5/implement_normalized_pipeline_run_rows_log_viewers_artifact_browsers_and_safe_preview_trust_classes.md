@@ -19,13 +19,19 @@ than cloning status text.
 
 ### Normalized pipeline run rows
 
-Each `run_rows[]` row binds a run to its `target_identity_label` (what the run is
-for), a `durable_anchor_id` that ties the run to its review anchor, a
-`pipeline_label`, a `run_status`, a `freshness` class, a `trigger_attribution_label`,
-a `run_control_authority` class, and a human-readable `status_summary`. A
-non-green `run_status` must carry at least one entry in `attention_reasons`, so a
-run is never read as benign when it failed, was cancelled, needs action, timed
-out, or returned an unrecognised provider-owned status. Every `run_id` must
+Each `run_rows[]` row binds a run to its `provider_run_ref`, `provider_label`,
+`workflow_or_job_name`, `target_identity_label` (what the run is for), and a
+`durable_anchor_id` that ties the run to its review anchor. The same row renders
+`branch_change_relation` (branch, commit, change object, stale-base or
+superseded relation), `run_status`, `duration`, `freshness`,
+`trigger_attribution_label`, `trigger_actor_class`, `artifact_summary`,
+`run_control_authority`, `run_control_disclosure`, `open_details_action`,
+`provider_handoff`, and a human-readable `status_summary`. A non-green
+`run_status` must carry at least one entry in `attention_reasons`, so a run is
+never read as benign when it failed, was cancelled, needs action, timed out, or
+returned an unrecognised provider-owned status. Stale, superseded, degraded, or
+unverified rows must carry a `freshness_note`, and a provider-native handoff bar
+must disclose why the richer provider view still matters. Every `run_id` must
 appear in at least one log viewer row.
 
 | Field | Source contract |

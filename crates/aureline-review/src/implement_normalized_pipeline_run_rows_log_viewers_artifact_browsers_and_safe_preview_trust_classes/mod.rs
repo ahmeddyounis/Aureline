@@ -183,6 +183,273 @@ impl RunFreshness {
     }
 }
 
+/// Provider family label rendered on a shared pipeline run row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PipelineProviderLabel {
+    /// GitHub Actions.
+    GithubActions,
+    /// GitLab CI.
+    GitlabCi,
+    /// Azure Pipelines.
+    AzurePipelines,
+    /// CircleCI.
+    CircleCi,
+    /// Buildkite.
+    Buildkite,
+    /// Local CI or local validation.
+    LocalCi,
+    /// Imported provider row with no first-party provider adapter.
+    ImportedProvider,
+    /// Provider label is not recognised yet.
+    Unknown,
+}
+
+impl PipelineProviderLabel {
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::GithubActions => "github_actions",
+            Self::GitlabCi => "gitlab_ci",
+            Self::AzurePipelines => "azure_pipelines",
+            Self::CircleCi => "circleci",
+            Self::Buildkite => "buildkite",
+            Self::LocalCi => "local_ci",
+            Self::ImportedProvider => "imported_provider",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+/// Branch, commit, or change relation shown on a shared pipeline run row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BranchChangeRelationClass {
+    /// Run targets the current review base.
+    CurrentBase,
+    /// Run targets a stale base.
+    StaleBase,
+    /// Run targets a detached change object.
+    DetachedChange,
+    /// Run targets a commit that has been superseded by a newer run.
+    SupersededCommit,
+    /// Relation is hidden by policy.
+    PolicyHidden,
+    /// Relation is unknown.
+    UnknownRelation,
+}
+
+impl BranchChangeRelationClass {
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CurrentBase => "current_base",
+            Self::StaleBase => "stale_base",
+            Self::DetachedChange => "detached_change",
+            Self::SupersededCommit => "superseded_commit",
+            Self::PolicyHidden => "policy_hidden",
+            Self::UnknownRelation => "unknown_relation",
+        }
+    }
+
+    /// Whether this relation needs an explicit stale/superseded note.
+    pub const fn requires_freshness_note(self) -> bool {
+        matches!(self, Self::StaleBase | Self::SupersededCommit)
+    }
+}
+
+/// Branch or commit relation block rendered on the row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PipelineBranchChangeRelation {
+    /// Opaque branch ref when branch truth is known.
+    pub branch_ref: Option<String>,
+    /// Opaque commit ref when commit truth is known.
+    pub commit_ref: Option<String>,
+    /// Opaque review/change object ref when linked.
+    pub change_object_ref: Option<String>,
+    /// Normalized branch/change relation class.
+    pub relation_class: BranchChangeRelationClass,
+    /// True when the run is behind the current base.
+    pub stale_base: bool,
+}
+
+impl PipelineBranchChangeRelation {
+    fn has_identity(&self) -> bool {
+        self.branch_ref
+            .as_ref()
+            .is_some_and(|value| !value.trim().is_empty())
+            || self
+                .commit_ref
+                .as_ref()
+                .is_some_and(|value| !value.trim().is_empty())
+            || self
+                .change_object_ref
+                .as_ref()
+                .is_some_and(|value| !value.trim().is_empty())
+    }
+}
+
+/// Duration state rendered for the run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PipelineRunDurationState {
+    /// Exact provider duration.
+    Exact,
+    /// Approximate duration.
+    Approximate,
+    /// Duration is not known.
+    Unknown,
+}
+
+/// Duration disclosure rendered for the run.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PipelineRunDuration {
+    /// Duration state.
+    pub state: PipelineRunDurationState,
+    /// Duration in milliseconds when known.
+    pub milliseconds: Option<u64>,
+    /// Redaction-aware display label.
+    pub display_label: String,
+}
+
+/// Trigger actor class rendered separately from run status.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PipelineTriggerActorClass {
+    /// Human account.
+    HumanAccount,
+    /// Bot or app installation account.
+    InstallOrBotAccount,
+    /// Delegated user.
+    DelegatedUser,
+    /// Scheduled trigger.
+    ScheduledTrigger,
+    /// Policy-injected trigger.
+    PolicyInjectedTrigger,
+    /// Replayed trigger.
+    ReplayedTrigger,
+    /// Provider-owned actor class that is not recognised yet.
+    UnknownActorClass,
+}
+
+impl PipelineTriggerActorClass {
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::HumanAccount => "human_account",
+            Self::InstallOrBotAccount => "install_or_bot_account",
+            Self::DelegatedUser => "delegated_user",
+            Self::ScheduledTrigger => "scheduled_trigger",
+            Self::PolicyInjectedTrigger => "policy_injected_trigger",
+            Self::ReplayedTrigger => "replayed_trigger",
+            Self::UnknownActorClass => "unknown_actor_class",
+        }
+    }
+}
+
+/// Artifact count disclosure rendered on the shared row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PipelineArtifactSummary {
+    /// Total artifact count visible to the row.
+    pub artifact_count: u32,
+    /// Log count visible to the row.
+    pub log_count: u32,
+    /// Artifacts or logs known but unavailable.
+    pub unavailable_count: u32,
+    /// Opaque artifact browser ref.
+    pub artifact_browser_ref: String,
+}
+
+/// Explicit run-control authority state rendered before a provider pane opens.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PipelineRunControlAuthorityState {
+    /// Rerun/cancel is allowed in product.
+    Allowed,
+    /// Reapproval is required before the action can fire.
+    RequiresReapproval,
+    /// Provider-native pane owns the control.
+    ProviderOwned,
+    /// Policy denies the control.
+    PolicyDenied,
+    /// Control is unavailable.
+    Unavailable,
+    /// Read-only row.
+    ReadOnly,
+}
+
+impl PipelineRunControlAuthorityState {
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Allowed => "allowed",
+            Self::RequiresReapproval => "requires_reapproval",
+            Self::ProviderOwned => "provider_owned",
+            Self::PolicyDenied => "policy_denied",
+            Self::Unavailable => "unavailable",
+            Self::ReadOnly => "read_only",
+        }
+    }
+}
+
+/// Explicit rerun/cancel availability disclosure.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PipelineRunControlDisclosure {
+    /// Whether rerun is currently available.
+    pub rerun_available: bool,
+    /// Whether cancel is currently available.
+    pub cancel_available: bool,
+    /// Authority state explaining current availability.
+    pub authority_state: PipelineRunControlAuthorityState,
+    /// Acting identity required for the authority decision.
+    pub acting_identity_ref: String,
+    /// Whether side-effect review is required before firing an action.
+    pub side_effect_review_required: bool,
+    /// Disabled reason when either action is unavailable.
+    pub disabled_reason: Option<String>,
+}
+
+impl PipelineRunControlDisclosure {
+    fn matches_summary_authority(&self, authority: PipelineViewerRunControlAuthority) -> bool {
+        match authority {
+            PipelineViewerRunControlAuthority::ReadOnlyNoControl => {
+                !self.rerun_available && !self.cancel_available
+            }
+            PipelineViewerRunControlAuthority::AttributableRerun => {
+                self.rerun_available && !self.cancel_available
+            }
+            PipelineViewerRunControlAuthority::AttributableCancel => {
+                !self.rerun_available && self.cancel_available
+            }
+            PipelineViewerRunControlAuthority::AttributableRerunAndCancel => {
+                self.rerun_available && self.cancel_available
+            }
+        }
+    }
+}
+
+/// Open-details action rendered on the shared row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PipelineOpenDetailsAction {
+    /// Stable action ref.
+    pub action_ref: String,
+    /// User-facing action label.
+    pub action_label: String,
+    /// Target ref opened by the action.
+    pub details_target_ref: String,
+}
+
+/// Provider-handoff bar shown when the provider-native pane still matters.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PipelineProviderHandoffBar {
+    /// Whether native provider details are required for richer inspection.
+    pub provider_native_required: bool,
+    /// Provider handoff target ref.
+    pub handoff_target_ref: String,
+    /// Redaction-aware handoff reason.
+    pub handoff_reason: String,
+}
+
 /// Rerun/cancel authority a pipeline viewer surface may exercise for a run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -499,20 +766,42 @@ impl PipelineViewerConsumerSurface {
 pub struct PipelineRunRow {
     /// Stable run id.
     pub run_id: String,
+    /// Provider/run ref carried from the normalized provider packet.
+    pub provider_run_ref: String,
+    /// Provider label rendered consistently across provider families.
+    pub provider_label: PipelineProviderLabel,
     /// Human-readable target identity (what the run is for).
     pub target_identity_label: String,
     /// Durable review anchor id bound to this run.
     pub durable_anchor_id: String,
     /// Human-readable pipeline / workflow label.
     pub pipeline_label: String,
+    /// Workflow or job name rendered on the row.
+    pub workflow_or_job_name: String,
+    /// Branch, commit, or change relation.
+    pub branch_change_relation: PipelineBranchChangeRelation,
     /// Normalized run status.
     pub run_status: PipelineRunStatus,
+    /// Duration disclosure.
+    pub duration: PipelineRunDuration,
     /// Freshness class shown for the run.
     pub freshness: RunFreshness,
+    /// Stale, superseded, partial, or provider-owned note shown when the row narrows.
+    pub freshness_note: Option<String>,
     /// Human-readable trigger attribution (who or what started the run).
     pub trigger_attribution_label: String,
+    /// Trigger actor class rendered separately from status.
+    pub trigger_actor_class: PipelineTriggerActorClass,
+    /// Artifact count disclosure.
+    pub artifact_summary: PipelineArtifactSummary,
     /// Rerun/cancel authority the surface may exercise for the run.
     pub run_control_authority: PipelineViewerRunControlAuthority,
+    /// Explicit rerun/cancel availability and disabled reason.
+    pub run_control_disclosure: PipelineRunControlDisclosure,
+    /// Open-details action.
+    pub open_details_action: PipelineOpenDetailsAction,
+    /// Provider handoff bar shown when the native provider view still matters.
+    pub provider_handoff: PipelineProviderHandoffBar,
     /// Human-readable run-status summary.
     pub status_summary: String,
     /// Attention reasons; required and non-empty when the status needs attention.
@@ -862,14 +1151,30 @@ impl PipelineViewerPacket {
         out.push_str("\n## Run rows\n\n");
         for row in &self.run_rows {
             out.push_str(&format!(
-                "- **{}** ({}) → anchor `{}`: status `{}`, freshness `{}`, authority `{}`\n",
+                "- **{}** ({}) on `{}` run `{}` -> anchor `{}`: status `{}`, duration `{}`, branch/change `{}`, artifacts `{}`, freshness `{}`, rerun={}, cancel={}, authority `{}`\n",
                 row.target_identity_label,
-                row.pipeline_label,
+                row.workflow_or_job_name,
+                row.provider_label.as_str(),
+                row.provider_run_ref,
                 row.durable_anchor_id,
                 row.run_status.as_str(),
+                row.duration.display_label,
+                row.branch_change_relation.relation_class.as_str(),
+                row.artifact_summary.artifact_count,
                 row.freshness.as_str(),
-                row.run_control_authority.as_str()
+                row.run_control_disclosure.rerun_available,
+                row.run_control_disclosure.cancel_available,
+                row.run_control_disclosure.authority_state.as_str()
             ));
+            if let Some(note) = &row.freshness_note {
+                out.push_str(&format!("  - Note: {}\n", note));
+            }
+            if row.provider_handoff.provider_native_required {
+                out.push_str(&format!(
+                    "  - Provider handoff: `{}` ({})\n",
+                    row.provider_handoff.handoff_target_ref, row.provider_handoff.handoff_reason
+                ));
+            }
         }
 
         out.push_str("\n## Log viewers\n\n");
@@ -947,6 +1252,24 @@ pub enum PipelineViewerViolation {
     RunRowsMissing,
     /// A run row is incomplete.
     RunRowIncomplete,
+    /// A run row is missing provider/run identity.
+    ProviderRunIdentityMissing,
+    /// A run row is missing branch, commit, or change relation.
+    BranchChangeRelationMissing,
+    /// A run row is missing duration disclosure.
+    DurationDisclosureMissing,
+    /// A run row is missing artifact-count disclosure.
+    ArtifactCountDisclosureMissing,
+    /// A run row is missing open-details action.
+    OpenDetailsActionMissing,
+    /// Rerun/cancel summary authority disagrees with explicit disclosure.
+    RunControlDisclosureMismatch,
+    /// Rerun/cancel is unavailable without a disabled reason.
+    RunControlDisabledReasonMissing,
+    /// A stale or superseded row is missing its freshness note.
+    StaleOrSupersededNoteMissing,
+    /// Provider-native handoff is required but not explained.
+    ProviderHandoffDisclosureMissing,
     /// A non-green run is missing its attention reasons.
     AttentionReasonMissing,
     /// A run row has no log viewer row.
@@ -993,6 +1316,15 @@ impl PipelineViewerViolation {
             Self::MissingSourceContracts => "missing_source_contracts",
             Self::RunRowsMissing => "run_rows_missing",
             Self::RunRowIncomplete => "run_row_incomplete",
+            Self::ProviderRunIdentityMissing => "provider_run_identity_missing",
+            Self::BranchChangeRelationMissing => "branch_change_relation_missing",
+            Self::DurationDisclosureMissing => "duration_disclosure_missing",
+            Self::ArtifactCountDisclosureMissing => "artifact_count_disclosure_missing",
+            Self::OpenDetailsActionMissing => "open_details_action_missing",
+            Self::RunControlDisclosureMismatch => "run_control_disclosure_mismatch",
+            Self::RunControlDisabledReasonMissing => "run_control_disabled_reason_missing",
+            Self::StaleOrSupersededNoteMissing => "stale_or_superseded_note_missing",
+            Self::ProviderHandoffDisclosureMissing => "provider_handoff_disclosure_missing",
             Self::AttentionReasonMissing => "attention_reason_missing",
             Self::RunMissingLogView => "run_missing_log_view",
             Self::OrphanRowReference => "orphan_row_reference",
@@ -1072,11 +1404,72 @@ fn validate_run_rows(packet: &PipelineViewerPacket, violations: &mut Vec<Pipelin
             || row.target_identity_label.trim().is_empty()
             || row.durable_anchor_id.trim().is_empty()
             || row.pipeline_label.trim().is_empty()
+            || row.workflow_or_job_name.trim().is_empty()
             || row.trigger_attribution_label.trim().is_empty()
+            || row
+                .run_control_disclosure
+                .acting_identity_ref
+                .trim()
+                .is_empty()
             || row.status_summary.trim().is_empty()
             || row.source_contract_refs.is_empty()
         {
             violations.push(PipelineViewerViolation::RunRowIncomplete);
+        }
+        if row.provider_run_ref.trim().is_empty() {
+            violations.push(PipelineViewerViolation::ProviderRunIdentityMissing);
+        }
+        if !row.branch_change_relation.has_identity() {
+            violations.push(PipelineViewerViolation::BranchChangeRelationMissing);
+        }
+        if row.duration.display_label.trim().is_empty()
+            || (row.duration.state != PipelineRunDurationState::Unknown
+                && row.duration.milliseconds.is_none())
+        {
+            violations.push(PipelineViewerViolation::DurationDisclosureMissing);
+        }
+        if row.artifact_summary.artifact_browser_ref.trim().is_empty() {
+            violations.push(PipelineViewerViolation::ArtifactCountDisclosureMissing);
+        }
+        if row.open_details_action.action_ref.trim().is_empty()
+            || row.open_details_action.action_label.trim().is_empty()
+            || row.open_details_action.details_target_ref.trim().is_empty()
+        {
+            violations.push(PipelineViewerViolation::OpenDetailsActionMissing);
+        }
+        if !row
+            .run_control_disclosure
+            .matches_summary_authority(row.run_control_authority)
+        {
+            violations.push(PipelineViewerViolation::RunControlDisclosureMismatch);
+        }
+        if (!row.run_control_disclosure.rerun_available
+            || !row.run_control_disclosure.cancel_available)
+            && match row.run_control_disclosure.disabled_reason.as_ref() {
+                Some(reason) => reason.trim().is_empty(),
+                None => true,
+            }
+        {
+            violations.push(PipelineViewerViolation::RunControlDisabledReasonMissing);
+        }
+        if (row.freshness.narrows_open_path()
+            || row
+                .branch_change_relation
+                .relation_class
+                .requires_freshness_note()
+            || row.branch_change_relation.stale_base)
+            && match row.freshness_note.as_ref() {
+                Some(note) => note.trim().is_empty(),
+                None => true,
+            }
+        {
+            violations.push(PipelineViewerViolation::StaleOrSupersededNoteMissing);
+        }
+        if row.provider_handoff.provider_native_required
+            && (row.provider_handoff.handoff_target_ref.trim().is_empty()
+                || row.provider_handoff.handoff_reason.trim().is_empty())
+        {
+            violations.push(PipelineViewerViolation::ProviderHandoffDisclosureMissing);
         }
         if row.run_status.requires_attention_reason() && row.attention_reasons.is_empty() {
             violations.push(PipelineViewerViolation::AttentionReasonMissing);

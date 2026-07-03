@@ -9,13 +9,14 @@
 
 ## Coverage
 
-- **Normalized pipeline run rows** carry the target identity (what the run is
-  for), the durable review anchor id, the pipeline label, the normalized run
-  status, the freshness class, the trigger attribution, and the rerun/cancel
-  authority. A non-green status (`failed`, `cancelled`, `action_required`,
-  `timed_out`, `unknown`) must carry at least one attention reason, so the viewer
-  never reads a run as benign when it is not, and `unknown` is never flattened
-  into `failed` or `succeeded`.
+- **Normalized pipeline run rows** carry provider/run identity, the workflow or
+  job name, branch/commit/change relation, normalized run status, duration,
+  trigger actor class, artifact/log/unavailable counts, freshness, open-details
+  action, provider handoff, and explicit rerun/cancel authority disclosure. A
+  non-green status (`failed`, `cancelled`, `action_required`, `timed_out`,
+  `unknown`) must carry at least one attention reason, stale or superseded rows
+  must carry a freshness note, and authority disclosure must show whether rerun
+  or cancel is available before a provider-native pane opens.
 - **Log viewer** rows record, per log, the stream state (`live_streaming`,
   `completed_replay`, `partial_retained`, `unavailable`), the safe-preview trust
   class, and the safe-open path. A partial or unavailable log must carry a
@@ -39,8 +40,9 @@ trust class is shown for every log and artifact; provider-boundary content never
 resolves `TrustedLocalActive`; log truncation and artifact retention are labeled
 rather than hidden; freshness is explicit and narrows the open path when
 degraded; rerun/cancel authority is explicit and every action stays attributable;
-no surface creates hidden write scope; downgrade narrows the claim instead of
-hiding the lane; and stale or underqualified rows block promotion.
+open-details and provider-handoff targets are disclosed; no surface creates
+hidden write scope; downgrade narrows the claim instead of hiding the lane; and
+stale or underqualified rows block promotion.
 
 Proof freshness SLO is 168 hours with automatic narrowing on stale proof. The
 supported downgrade triggers are `proof_stale`, `policy_blocked`,

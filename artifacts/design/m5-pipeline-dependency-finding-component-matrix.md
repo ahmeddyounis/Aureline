@@ -49,15 +49,17 @@ Required fields:
 | --- | --- |
 | `row_id` | Stable reusable row id preserved across review, project-health, companion, support, and release surfaces. |
 | `pipeline_run_id` | Canonical run id from the normalized pipeline packet; never a surface-local id. |
-| `provider_run_ref`, `provider_label` | Opaque provider/run identity and controlled provider label. |
+| `provider_run_ref`, `provider_label`, `workflow_or_job_name` | Opaque provider/run identity, controlled provider label, and workflow/job name. |
 | `review_anchor_ref` | Durable review/change anchor attached to the run. |
-| `trigger` | Trigger type, actor ref, and trigger event ref shown separately from status. |
-| `branch_change_relation` | Branch ref, change object ref, base relation, and stale-base flag. |
+| `trigger` | Trigger type, actor ref, actor class, and trigger event ref shown separately from status. |
+| `duration` | Exact, approximate, or unknown duration disclosure with display label. |
+| `branch_change_relation` | Branch ref, commit ref, change object ref, base relation, and stale-base/superseded flag. |
 | `normalized_status` | Provider-normalized run status; unknown, action-required, cancelled, timed-out, and blocked are first-class. |
 | `artifact_summary` | Artifact count, log count, unavailable count, and artifact browser ref. |
-| `freshness_state`, `degraded_state` | Explicit current/stale/superseded/partial/blocked/policy-hidden state. |
+| `freshness_state`, `freshness_note`, `degraded_state` | Explicit current/stale/superseded/partial/blocked/policy-hidden state and stale/superseded note. |
 | `run_control_authority` | Rerun/cancel availability, acting identity requirement, side-effect review requirement, and disabled reason. |
-| `copy_export` | Text, JSON, and Markdown copy carrying run id, provider, trigger, branch/change relation, artifact count, freshness, and rerun/cancel authority. |
+| `open_details_action`, `provider_handoff` | In-product details action plus provider-native handoff bar when richer provider context is required. |
+| `copy_export` | Text, JSON, and Markdown copy carrying run id, provider, workflow/job, trigger actor class, branch/change relation, duration, artifact count, freshness, provider handoff, and rerun/cancel authority. |
 
 Degraded states:
 
