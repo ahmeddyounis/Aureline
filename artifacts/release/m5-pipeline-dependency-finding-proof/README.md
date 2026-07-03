@@ -3,7 +3,10 @@
 This proof packet binds the frozen matrix at
 `artifacts/design/m5-pipeline-dependency-finding-component-matrix.md` to the UI
 schemas and first-consumer fixtures for reusable pipeline run rows, annotation
-rows, dependency rows, manifest diff cards, and security finding cards.
+rows, dependency rows, manifest diff cards, and security finding cards. Security
+finding cards prove finding class, affected scope, fix availability, controlled
+suppression labels, remediation path, local validation, docs/help path, and
+audit action parity instead of relying on a generic warning model.
 
 Files:
 

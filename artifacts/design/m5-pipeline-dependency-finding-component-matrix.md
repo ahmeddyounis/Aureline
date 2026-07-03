@@ -25,7 +25,7 @@ tenant/user identifiers.
 | Annotation row | `schemas/review/ship-ai-review-evidence-finding-cards-and-review-pack-integration-with-change-objects.schema.json`, `artifacts/review/m5/ship_ai_review_evidence_finding_cards_and_review_pack_integration_with_change_objects.md`, normalized diagnostic records, `aureline_ui::m5_annotation_rows::AnnotationRow` | Code surface, review pane, diagnostics panel, project-health center, support export, release proof |
 | Dependency row | `artifacts/deps/m5/package-set-inventory-and-scope-truth.json`, `artifacts/deps/m5/freeze-the-m5-package-state-manifest-scope-registry-auth-and-lockfile-authority-matrix.json`, `schemas/deps/package-review-cross-surface-integration.schema.json`, `aureline_ui::m5_dependency_rows::DependencyRow` | Package manager, review pane, framework-pack health, project-health dependencies, companion inspect, support export |
 | Manifest diff card | `artifacts/deps/m5/grouped-update-and-rollback-review.json`, `artifacts/deps/m5/manifest-scope-review.json`, `artifacts/deps/m5/reviewed-mutation-flows.json`, package mutation operation history | Package manager, review stage, project-health remediation, support export, release proof |
-| Security finding card | `artifacts/deps/m4/dependency-security-compliance-export-truth.json`, `docs/security/m5_advisory_card_row_primitive_contract.md`, `schemas/security/m5-advisory-card-row.schema.json`, normalized security result packets | Package health, review pane, project-health security center, incident/support export, release proof |
+| Security finding card | `artifacts/deps/m4/dependency-security-compliance-export-truth.json`, `docs/security/m5_advisory_card_row_primitive_contract.md`, `schemas/security/m5-advisory-card-row.schema.json`, normalized security result packets, `aureline_ui::m5_security_finding_cards::SecurityFindingCard` | Package health, review pane, project-health security center, incident/support export, release proof |
 
 ## Controlled Labels
 
@@ -35,6 +35,10 @@ tenant/user identifiers.
 | `freshness_state` | `current`, `live`, `warm_cached`, `stale`, `superseded`, `partial`, `blocked`, `policy_hidden`, `expired`, `no_fix_yet`, `unknown` |
 | `degraded_state` | `none`, `stale`, `superseded`, `partial`, `blocked`, `policy_hidden`, `no_fix_yet`, `provider_unreachable`, `evidence_missing`, `rollback_unavailable`, `advisory_feed_stale`, `manifest_scope_unknown` |
 | `suppression_state` | `unsuppressed`, `suppressed_until_review`, `suppressed_by_policy`, `exception_expired` |
+| `suppression_display_label` | `Unsuppressed`, `Suppressed until review`, `Suppressed by policy`, `Exception expired` |
+| `finding_class` | `package`, `secret`, `policy`, `code_analysis`, `pipeline_artifact`, `install_surface`, `advisory` |
+| `fix_availability` | `fix_available`, `mitigation_available`, `no_fix_yet`, `blocked_by_policy`, `unknown` |
+| `safest_next_step` | `apply_fix`, `apply_mitigation`, `open_review`, `request_policy_exception`, `wait_for_upstream_fix`, `rotate_secret`, `inspect_only` |
 | `severity` | `info`, `low`, `medium`, `high`, `critical`, `blocking` |
 | `confidence` | `confirmed`, `high`, `medium`, `low`, `unknown` |
 | `copy_format` | `text`, `json`, `markdown` |
@@ -159,13 +163,16 @@ Required fields:
 | Field | Contract |
 | --- | --- |
 | `card_id` | Stable finding card id. |
-| `finding_id`, `security_result_packet_ref`, `advisory_ref` | Canonical finding id, security result packet ref, and advisory/ref id. |
+| `finding_id`, `finding_class`, `security_result_packet_ref`, `advisory_ref` | Canonical finding id, reusable class (`package`, `secret`, `policy`, `code_analysis`, and related security classes), security result packet ref, and advisory/ref id. |
 | `affected_object_ref` | Affected package, manifest, pipeline artifact, or install surface. |
+| `affected_scope` | Scope class plus affected artifact, code-anchor, manifest, policy, and package refs; package, secret, policy, and code-analysis findings reuse the same grammar while filling their scope-specific refs. |
 | `severity`, `confidence`, `freshness_state` | Severity, confidence, and freshness rendered separately. |
-| `suppression_state` | Suppression vocabulary remains visible: `unsuppressed`, `suppressed_until_review`, `suppressed_by_policy`, or `exception_expired`. |
-| `remediation` | Fix version/action, mitigation, owner, no-fix-yet flag, and blocked reason. |
+| `fix_availability` | Fix availability state, fixed version or fix action ref, auto-apply eligibility, review requirement, and reason. |
+| `suppression_state` | Suppression vocabulary and display label remain visible: `Unsuppressed`, `Suppressed until review`, `Suppressed by policy`, or `Exception expired`. |
+| `remediation` | Safest next step, local validation option, docs/help path, fix version/action, mitigation, owner, no-fix-yet flag, and blocked reason. |
 | `exposure_summary` | Exposure state, affected surfaces, exploitability label, and affected manifest refs. |
-| `copy_export` | Text, JSON, and Markdown copy preserving finding id, result packet, advisory, severity, confidence, freshness, suppression, exposure, and remediation. |
+| `audit_actions` | Export audit record, support export, evidence copy, or attach-to-review actions with support-export inclusion truth. |
+| `copy_export` | Text, JSON, and Markdown copy preserving finding id, class, result packet, advisory, affected scope, severity, confidence, freshness, fix availability, suppression label, exposure, remediation path, local validation, docs/help path, and audit actions. |
 
 Degraded states:
 
@@ -197,6 +204,19 @@ findings must remain visible and exportable as one of:
 Suppression state is separate from severity, confidence, freshness, and
 remediation. A critical finding suppressed by policy still exports as critical,
 with policy suppression visible.
+
+## Security Finding Invariants
+
+Security finding cards must not use a generic warning state as a substitute for
+structured truth. Package, secret, policy, and code-analysis findings use one
+card grammar, but each card must still name its `finding_class`,
+`affected_scope`, `fix_availability`, controlled suppression label, and
+`remediation.safest_next_step`.
+
+Remediation copy must include the local validation route when one exists and the
+docs/help/support path even when no fixed version is available. Audit actions are
+part of the card contract and must be present in support export; a screenshot or
+generic warning banner is not an audit record.
 
 ## Consumer Projection Rules
 

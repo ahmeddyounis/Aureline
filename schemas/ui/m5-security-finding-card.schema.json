@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/ui/m5-security-finding-card.schema.json",
   "title": "Aureline M5 security finding card",
-  "description": "Reusable security finding card that keeps severity, confidence, freshness, suppression, exposure, and remediation separate while binding to canonical security result packets and advisory refs.",
+  "description": "Reusable security finding card that keeps finding class, severity, confidence, freshness, affected scope, fix availability, suppression, exposure, remediation path, and audit/export actions separate while binding to canonical security result packets and advisory refs.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -10,16 +10,20 @@
     "schema_version",
     "card_id",
     "finding_id",
+    "finding_class",
     "security_result_packet_ref",
     "advisory_ref",
     "affected_object_ref",
+    "affected_scope",
     "severity",
     "confidence",
     "freshness_state",
     "degraded_state",
+    "fix_availability",
     "suppression_state",
     "remediation",
     "exposure_summary",
+    "audit_actions",
     "source_refs",
     "consumer_surfaces",
     "copy_export"
@@ -29,9 +33,11 @@
     "schema_version": { "const": 1 },
     "card_id": { "$ref": "#/$defs/id" },
     "finding_id": { "$ref": "#/$defs/id" },
+    "finding_class": { "$ref": "#/$defs/finding_class" },
     "security_result_packet_ref": { "$ref": "#/$defs/ref" },
     "advisory_ref": { "$ref": "#/$defs/ref" },
     "affected_object_ref": { "$ref": "#/$defs/ref" },
+    "affected_scope": { "$ref": "#/$defs/affected_scope" },
     "severity": { "$ref": "#/$defs/severity" },
     "confidence": { "$ref": "#/$defs/confidence" },
     "freshness_state": { "$ref": "#/$defs/freshness_state" },
@@ -39,9 +45,11 @@
       "type": "string",
       "enum": ["none", "stale", "superseded", "partial", "blocked", "policy_hidden", "no_fix_yet", "advisory_feed_stale"]
     },
+    "fix_availability": { "$ref": "#/$defs/fix_availability" },
     "suppression_state": { "$ref": "#/$defs/suppression_state" },
     "remediation": { "$ref": "#/$defs/remediation" },
     "exposure_summary": { "$ref": "#/$defs/exposure_summary" },
+    "audit_actions": { "$ref": "#/$defs/audit_actions" },
     "source_refs": { "$ref": "#/$defs/ref_array" },
     "consumer_surfaces": { "$ref": "#/$defs/consumer_surfaces" },
     "copy_export": { "$ref": "#/$defs/copy_export" }
@@ -50,15 +58,69 @@
     "id": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9]+(?:[._:-][a-z0-9]+)*$" },
     "ref": { "type": "string", "minLength": 1 },
     "ref_array": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/ref" } },
+    "optional_ref_array": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/ref" } },
+    "finding_class": {
+      "type": "string",
+      "enum": ["package", "secret", "policy", "code_analysis", "pipeline_artifact", "install_surface", "advisory"]
+    },
     "severity": { "type": "string", "enum": ["info", "low", "medium", "high", "critical", "blocking"] },
     "confidence": { "type": "string", "enum": ["confirmed", "high", "medium", "low", "unknown"] },
     "freshness_state": { "type": "string", "enum": ["current", "live", "warm_cached", "stale", "superseded", "partial", "blocked", "policy_hidden", "expired", "no_fix_yet", "unknown"] },
+    "affected_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "scope_label_ref",
+        "affected_artifact_refs",
+        "code_anchor_refs",
+        "manifest_refs",
+        "policy_refs",
+        "package_refs"
+      ],
+      "properties": {
+        "scope_class": {
+          "type": "string",
+          "enum": ["package", "secret", "policy", "code_analysis", "pipeline_artifact", "install_surface", "workspace"]
+        },
+        "scope_label_ref": { "$ref": "#/$defs/ref" },
+        "affected_artifact_refs": { "$ref": "#/$defs/optional_ref_array" },
+        "code_anchor_refs": { "$ref": "#/$defs/optional_ref_array" },
+        "manifest_refs": { "$ref": "#/$defs/optional_ref_array" },
+        "policy_refs": { "$ref": "#/$defs/optional_ref_array" },
+        "package_refs": { "$ref": "#/$defs/optional_ref_array" }
+      },
+      "anyOf": [
+        { "properties": { "affected_artifact_refs": { "minItems": 1 } } },
+        { "properties": { "code_anchor_refs": { "minItems": 1 } } },
+        { "properties": { "manifest_refs": { "minItems": 1 } } },
+        { "properties": { "policy_refs": { "minItems": 1 } } },
+        { "properties": { "package_refs": { "minItems": 1 } } }
+      ]
+    },
+    "fix_availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "fixed_version_ref", "fix_action_ref", "can_auto_apply", "review_required", "availability_reason_ref"],
+      "properties": {
+        "state": { "type": "string", "enum": ["fix_available", "mitigation_available", "no_fix_yet", "blocked_by_policy", "unknown"] },
+        "fixed_version_ref": { "$ref": "#/$defs/ref" },
+        "fix_action_ref": { "$ref": "#/$defs/ref" },
+        "can_auto_apply": { "type": "boolean" },
+        "review_required": { "type": "boolean" },
+        "availability_reason_ref": { "$ref": "#/$defs/ref" }
+      }
+    },
     "suppression_state": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["state", "reason_ref", "review_ref", "visible_in_export"],
+      "required": ["state", "display_label", "reason_ref", "review_ref", "visible_in_export"],
       "properties": {
         "state": { "type": "string", "enum": ["unsuppressed", "suppressed_until_review", "suppressed_by_policy", "exception_expired"] },
+        "display_label": {
+          "type": "string",
+          "enum": ["Unsuppressed", "Suppressed until review", "Suppressed by policy", "Exception expired"]
+        },
         "reason_ref": { "$ref": "#/$defs/ref" },
         "review_ref": { "$ref": "#/$defs/ref" },
         "visible_in_export": { "const": true }
@@ -67,8 +129,41 @@
     "remediation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["fix_version_or_action", "mitigation_ref", "owner_ref", "no_fix_yet", "blocked_reason"],
+      "required": [
+        "safest_next_step",
+        "local_validation",
+        "docs_help_path",
+        "fix_version_or_action",
+        "mitigation_ref",
+        "owner_ref",
+        "no_fix_yet",
+        "blocked_reason"
+      ],
       "properties": {
+        "safest_next_step": {
+          "type": "string",
+          "enum": ["apply_fix", "apply_mitigation", "open_review", "request_policy_exception", "wait_for_upstream_fix", "rotate_secret", "inspect_only"]
+        },
+        "local_validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["available", "validation_action_ref", "expected_evidence_ref"],
+          "properties": {
+            "available": { "type": "boolean" },
+            "validation_action_ref": { "$ref": "#/$defs/ref" },
+            "expected_evidence_ref": { "$ref": "#/$defs/ref" }
+          }
+        },
+        "docs_help_path": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["help_ref", "docs_ref", "support_path_ref"],
+          "properties": {
+            "help_ref": { "$ref": "#/$defs/ref" },
+            "docs_ref": { "$ref": "#/$defs/ref" },
+            "support_path_ref": { "$ref": "#/$defs/ref" }
+          }
+        },
         "fix_version_or_action": { "$ref": "#/$defs/ref" },
         "mitigation_ref": { "$ref": "#/$defs/ref" },
         "owner_ref": { "$ref": "#/$defs/ref" },
@@ -85,6 +180,23 @@
         "affected_surface_refs": { "$ref": "#/$defs/ref_array" },
         "exploitability_label": { "type": "string", "enum": ["known_exploited", "proof_of_concept", "theoretical", "unknown", "not_applicable"] },
         "affected_manifest_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "audit_actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/audit_action" }
+    },
+    "audit_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "label", "target_ref", "enabled", "included_in_support_export"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/id" },
+        "label": { "type": "string", "enum": ["export_audit_record", "open_support_export", "copy_evidence", "attach_to_review"] },
+        "target_ref": { "$ref": "#/$defs/ref" },
+        "enabled": { "type": "boolean" },
+        "included_in_support_export": { "const": true }
       }
     },
     "consumer_surfaces": {

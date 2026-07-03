@@ -149,6 +149,14 @@
 //! lockfile impact, advisory counts, and changelog/license actions as separate
 //! export-safe fields, and preserves limited, blocked, and policy-constrained
 //! update states as visible rows instead of reducing them to disabled buttons.
+//!
+//! [`m5_security_finding_cards::SecurityFindingCard`] freezes the reusable
+//! security-finding card for package, secret, policy, and code-analysis
+//! findings. It keeps finding class, affected scope, severity, confidence,
+//! freshness, fix availability, controlled suppression labels, remediation
+//! path, local validation, docs/help path, and audit actions as separate
+//! export-safe fields for review, package, health, companion, support, and
+//! release surfaces.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -162,6 +170,7 @@ pub mod m5_field_control_rows;
 pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_parameter_source_and_precedence;
+pub mod m5_security_finding_cards;
 pub mod m5_staged_review_sheets;
 pub mod m5_structured_input_and_staged_review;
 pub mod motion;
