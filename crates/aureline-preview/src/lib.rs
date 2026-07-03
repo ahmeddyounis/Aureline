@@ -63,6 +63,7 @@
 
 pub mod browser_runtime_inspectors;
 pub mod extension_provider_conformance;
+pub mod freeze_the_m5_design_canvas_structure_tree_property_inspector_source_sync_and_breakpoint_preview_component_matrix;
 pub mod freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix;
 pub mod inspect_to_source_tree;
 pub mod preview_drift_recovery;
@@ -82,6 +83,23 @@ pub use freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtim
     M5_PREVIEW_INSPECTION_MATRIX_DOC_REF, M5_PREVIEW_INSPECTION_MATRIX_FIXTURE_DIR,
     M5_PREVIEW_INSPECTION_MATRIX_RECORD_KIND, M5_PREVIEW_INSPECTION_MATRIX_SCHEMA_REF,
     M5_PREVIEW_INSPECTION_MATRIX_SCHEMA_VERSION, M5_PREVIEW_INSPECTION_MATRIX_SUMMARY_REF,
+};
+
+pub use freeze_the_m5_design_canvas_structure_tree_property_inspector_source_sync_and_breakpoint_preview_component_matrix::{
+    current_m5_visual_designer_component_matrix_export, seeded_visual_designer_component_matrix,
+    BreakpointPreviewRowDescriptor, ComponentRow, DegradedState, DesignCanvasDescriptor,
+    M5BreakpointMappingQuality, M5CanvasState, M5ConflictResolutionRoute, M5DevicePreviewClass,
+    M5PreviewDataPosture, M5PropertyValueState, M5PropertyWriteScope, M5RoundTripConflictClass,
+    M5StructureNodeKind, M5SyncRecoveryRoute, M5VisualDesignerComponentFamily,
+    M5VisualDesignerDowngradeTrigger, M5VisualDesignerRequiredLabel,
+    PropertyInspectorRowDescriptor, RoundTripConflictBannerDescriptor, SourceSyncChipDescriptor,
+    StructureTreeRowDescriptor, VisualDesignerComponentArtifactError, VisualDesignerComponentMatrix,
+    VisualDesignerComponentMatrixInput, VisualDesignerComponentViolation,
+    VisualDesignerConsumerProjection, VisualDesignerGuardrails,
+    VISUAL_DESIGNER_COMPONENT_MATRIX_ARTIFACT_REF, VISUAL_DESIGNER_COMPONENT_MATRIX_DOC_REF,
+    VISUAL_DESIGNER_COMPONENT_MATRIX_FIXTURE_DIR, VISUAL_DESIGNER_COMPONENT_MATRIX_RECORD_KIND,
+    VISUAL_DESIGNER_COMPONENT_MATRIX_SCHEMA_REF, VISUAL_DESIGNER_COMPONENT_MATRIX_SCHEMA_VERSION,
+    VISUAL_DESIGNER_COMPONENT_MATRIX_SUMMARY_REF,
 };
 
 pub use browser_runtime_inspectors::{
