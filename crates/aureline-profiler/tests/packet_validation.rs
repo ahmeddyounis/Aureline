@@ -2,12 +2,13 @@
 
 use aureline_profiler::{
     current_certification_qualification, current_chronology_qualification,
-    current_component_fallback_packet, current_evidence_handoff_qualification,
-    current_hotspot_workspace_qualification, current_integrate_profile_trace_qualification,
-    current_memory_analysis_qualification, current_profile_compare_qualification,
-    current_profile_hotpath_component_packet, current_profile_launcher_qualification,
-    current_regression_baseline_qualification, current_replay_qualification,
-    current_trace_heap_compare_component_packet, current_trace_viewer_qualification,
+    current_component_certification_packet, current_component_fallback_packet,
+    current_evidence_handoff_qualification, current_hotspot_workspace_qualification,
+    current_integrate_profile_trace_qualification, current_memory_analysis_qualification,
+    current_profile_compare_qualification, current_profile_hotpath_component_packet,
+    current_profile_launcher_qualification, current_regression_baseline_qualification,
+    current_replay_qualification, current_trace_heap_compare_component_packet,
+    current_trace_viewer_qualification,
 };
 
 // --- Certification packet (M05-055) ---
@@ -620,6 +621,146 @@ fn component_fallback_status_flags_stranded_rows() {
     // packet must reject it.
     packet.rows[0].keyboard_reach = NonVisualReachState::ViewOnlyTrap;
     assert_eq!(packet.rows[0].status(), ComponentFallbackStatus::Stranded);
+    let violations = packet.validate();
+    assert!(!violations.is_empty());
+}
+
+// --- Profiler/topology component certification (M05-803) ---
+
+#[test]
+fn embedded_component_certification_packet_parses() {
+    let packet = current_component_certification_packet().expect("embedded packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert_eq!(packet.rows.len(), 17);
+}
+
+#[test]
+fn embedded_component_certification_packet_has_no_violations() {
+    let packet = current_component_certification_packet().expect("embedded packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_component_certification_summary_matches_computed() {
+    let packet = current_component_certification_packet().expect("embedded packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+    assert!(packet.summary.family_coverage_complete);
+    assert!(packet.summary.all_surfaces_certify_or_narrow);
+    assert!(packet.summary.all_reference_one_bundle);
+    assert_eq!(packet.summary.red_count, 0);
+    assert_eq!(packet.summary.green_count, 12);
+    assert_eq!(packet.summary.yellow_count, 5);
+}
+
+#[test]
+fn component_certification_covers_every_claimed_surface() {
+    use aureline_profiler::M5ClaimedSurface;
+
+    let packet = current_component_certification_packet().expect("embedded packet must parse");
+    for surface in M5ClaimedSurface::ALL {
+        assert!(
+            packet.rows.iter().any(|row| row.surface == surface),
+            "claimed surface {surface:?} must be certified"
+        );
+    }
+}
+
+#[test]
+fn component_certification_spans_every_frozen_family() {
+    use aureline_profiler::M5ComponentFamily;
+
+    let packet = current_component_certification_packet().expect("embedded packet must parse");
+    for family in M5ComponentFamily::ALL {
+        assert!(
+            packet
+                .rows
+                .iter()
+                .any(|row| row.consumed_families.contains(&family)),
+            "family {family:?} must be consumed by a certified surface"
+        );
+    }
+}
+
+#[test]
+fn component_certification_axes_match_consumed_families() {
+    let packet = current_component_certification_packet().expect("embedded packet must parse");
+    for row in &packet.rows {
+        assert!(
+            row.axes_match_consumed_families(),
+            "row {} truth axes must apply exactly to its consumed families",
+            row.row_id
+        );
+    }
+}
+
+#[test]
+fn every_claimed_surface_certifies_or_narrows() {
+    use aureline_profiler::SurfaceCertificationStatus;
+
+    let packet = current_component_certification_packet().expect("embedded packet must parse");
+    for row in &packet.rows {
+        assert!(row.certifies_or_narrows());
+        assert!(row.claim_narrowing_is_coherent());
+        assert!(row.discloses_narrowing());
+        assert_ne!(row.status(), SurfaceCertificationStatus::Blocked);
+    }
+}
+
+#[test]
+fn every_certified_surface_cites_one_bundle() {
+    let packet = current_component_certification_packet().expect("embedded packet must parse");
+    for row in &packet.rows {
+        assert!(row.references_one_bundle(&packet.certification_bundle_ref));
+        assert!(row.excludes_raw_material());
+    }
+}
+
+#[test]
+fn component_certification_truth_states_behave_correctly() {
+    use aureline_profiler::{
+        CaptureExecutionTruthState, ClaimExportParityState, CompareBaselineTruthState,
+        GraphProvenanceTruthState, WorksetScopeTruthState,
+    };
+
+    assert!(CaptureExecutionTruthState::IdentityCertified.never_violates());
+    assert!(CaptureExecutionTruthState::DisclosedReducedIdentity.is_disclosed_reduction());
+    assert!(!CaptureExecutionTruthState::IdentityHiddenOrImportedAsLive.never_violates());
+    assert!(CaptureExecutionTruthState::NotApplicable.is_not_applicable());
+
+    assert!(CompareBaselineTruthState::DisclosedDeferredComparison.is_disclosed_reduction());
+    assert!(!CompareBaselineTruthState::RegressionClaimedBeforeBaselineTruth.never_violates());
+
+    assert!(WorksetScopeTruthState::DisclosedNarrowedScope.is_disclosed_reduction());
+    assert!(!WorksetScopeTruthState::SilentWideningOrHiddenScope.never_violates());
+
+    assert!(
+        GraphProvenanceTruthState::DisclosedNarrowedToAvailableEvidence.is_disclosed_reduction()
+    );
+    assert!(!GraphProvenanceTruthState::PartialGraphPresentedAsFullTruth.never_violates());
+
+    assert!(ClaimExportParityState::DisclosedPartialExport.is_disclosed_reduction());
+    assert!(!ClaimExportParityState::LabelsDroppedOrScreenshotOnly.never_violates());
+}
+
+#[test]
+fn component_certification_flags_truth_hiding_surfaces() {
+    use aureline_profiler::{GraphProvenanceTruthState, SurfaceCertificationStatus};
+
+    let mut packet = current_component_certification_packet().expect("embedded packet must parse");
+    // Force the topology map to present partial graph state as full truth: it
+    // must become blocked (red) and the packet must reject it.
+    let row = packet
+        .rows
+        .iter_mut()
+        .find(|row| row.row_id == "cert-topology-map")
+        .expect("topology map row must exist");
+    row.graph_provenance_truth = GraphProvenanceTruthState::PartialGraphPresentedAsFullTruth;
+    assert_eq!(row.status(), SurfaceCertificationStatus::Blocked);
     let violations = packet.validate();
     assert!(!violations.is_empty());
 }

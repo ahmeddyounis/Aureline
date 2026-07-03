@@ -44,6 +44,18 @@ Certification bundle:
   search/graph, onboarding/explainer, AI/review, and incident/support consumers,
   each pointing back to one canonical family with badge/scope/citation/degraded
   labels preserved even when read-only or export-only.
+- Surface certification packet:
+  `artifacts/perf/m5/m5-profiler-topology-component-certification.json`
+  (schema `schemas/ui/m5-profiler-topology-component-certification.schema.json`) —
+  the M05-803 certification capstone. It certifies, per claimed consumer surface
+  (17 performance, codebase-understanding, and shared-evidence surfaces), that the
+  surface either passes the shared component packet (green) or auto-narrows its
+  claim (yellow) on capture/execution identity, compare baseline/confounder
+  disclosure, workset scope and no-silent-widening, topology/ownership/explainer
+  provenance and citation posture, and label/export parity. A surface that hides
+  truth or presents partial state as full truth is rejected (red). Every certified
+  surface cites this one certification bundle so release, help, and support packets
+  reference a single proof of profiler/graph component truth.
 - Fixtures:
   `fixtures/ui/m5-profiler-topology-components/`
 
@@ -224,3 +236,4 @@ disclosure.
 | `export_safe_summary_parity` | GUI, companion, browser, handoff packet, CLI/headless, support export, release proof | Every component carries an export-safe summary object that reconstructs its meaning without a screenshot; screenshot-only export narrows the claim. |
 | `narrowed_surface_disclosure` | Companion, read-only browser, handoff packet, CLI/headless, support export | Narrower surfaces disclose reduced interactivity and keep the same labels/summary vocabulary; silently dropping state or actions blocks review. |
 | `cross_surface_consumer_reuse` | Every claimed consumer class (performance, search/graph, onboarding/explainer, AI/review, incident/support) plus help/support/release evidence surfaces | Each consumer points back to exactly one canonical component family rather than cloning surface-local prose; renaming, omitting, or under-disclosing a canonical badge/scope/citation/degraded label on a narrower consumer blocks review. |
+| `surface_component_certification` | Every claimed M5 performance, codebase-understanding, and shared-evidence surface (17 surfaces) | Each surface either passes the shared component packet on every applicable truth axis (capture/execution identity, compare baseline/confounder, workset scope, graph provenance/citation, label/export parity) or auto-narrows its claim with a disclosed reduced-capability banner; a surface that hides truth or presents partial graph state as full truth is rejected, and every certified surface cites one certification bundle for release/help/support. |

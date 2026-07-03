@@ -61,5 +61,22 @@ Release and support proof for
   rather than renaming or dropping governed state. Its record schema is
   `schemas/ui/m5-cross-surface-component-consumer.schema.json`.
 
+- `artifacts/perf/m5/m5-profiler-topology-component-certification.json` is the
+  M05-803 surface certification capstone. It certifies, per claimed consumer
+  surface (17 performance, codebase-understanding, and shared-evidence surfaces),
+  that the surface either passes the shared component packet or auto-narrows its
+  claim state. Each row certifies four component-truth axes that apply to the
+  families it consumes — capture/execution identity and imported-versus-live
+  truth, compare baseline and confounder disclosure, workset scope and
+  no-silent-widening, and topology/ownership/explainer provenance and citation
+  posture — plus a cross-cutting label/export parity axis. A surface passes
+  (green) when every applicable axis is certified, narrows (yellow) with a
+  disclosed reduced-capability banner when an axis is a disclosed reduction, and
+  is rejected (red) if it hides truth or presents partial graph state as full
+  truth. Every certified surface cites this proof packet as its single
+  certification bundle, so release, help, and support packets reference one proof
+  of profiler/graph component truth. Its record schema is
+  `schemas/ui/m5-profiler-topology-component-certification.schema.json`.
+
 This proof packet is the release/support companion for tasks M05-796,
-M05-797, M05-798, M05-799, M05-800, M05-801, and M05-802.
+M05-797, M05-798, M05-799, M05-800, M05-801, M05-802, and M05-803.
