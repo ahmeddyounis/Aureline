@@ -16,6 +16,12 @@ Release and support proof for
   profile-compare cards, keeping baseline identity, environment deltas,
   threshold/waiver state, confounder notes, and imported-versus-live truth
   explicit before any regression is claimed.
+- `artifacts/graph/m5/m5-workset-topology-components.json` is the M05-799
+  consumer packet for workset switcher rows (with repo-lens scope banners),
+  topology node cards, and relationship chips, keeping workset scope, index
+  coverage, no-silent-widening, and node/edge freshness, confidence, provenance,
+  and partial/blocked language explicit across search, topology, and explainer
+  consumers.
 
 This proof packet is the release/support companion for tasks M05-796,
-M05-797, and M05-798.
+M05-797, M05-798, and M05-799.

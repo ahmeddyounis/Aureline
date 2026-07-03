@@ -21,6 +21,7 @@ pub mod m5_impact_query;
 pub mod m5_ownership_and_contracts;
 pub mod m5_topology_identity;
 pub mod m5_workset_scope;
+pub mod m5_workset_topology_components;
 pub mod navigation_target_truth_packet;
 pub mod public_proof_publication_truth_packet;
 mod query;
@@ -180,6 +181,20 @@ pub use m5_workset_scope::{
     M5_WORKSET_SCOPE_GOVERNANCE_MATRIX_REF, M5_WORKSET_SCOPE_JSON, M5_WORKSET_SCOPE_PATH,
     M5_WORKSET_SCOPE_RECORD_KIND, M5_WORKSET_SCOPE_SCHEMA_REF, M5_WORKSET_SCOPE_SCHEMA_VERSION,
     M5_WORKSET_SCOPE_SOURCE_PACKET_REF,
+};
+pub use m5_workset_topology_components::{
+    current_m5_workset_topology_component_packet, AutoNarrowingContract,
+    ComponentConsumerProjection, ComponentConsumerSurface, Confidence, CopyExportProjection,
+    CoverageState, EdgeDirection, EdgeSummary, FreshnessState,
+    IndexCoverage as WorksetIndexCoverage, NodeKind, ProvenanceClass, ReducedCapabilityBanner,
+    RelationFidelity as WorksetTopologyRelationFidelity, RelationshipChip, ScopeAction,
+    ScopeChangeDirection as WorksetScopeChangeDirection, ScopeChangeState, ScopeSource,
+    SupportExportJoin, TopologyNodeCard, WorksetScope, WorksetSwitcherRow,
+    WorksetTopologyComponentPacket, WorksetTopologyComponentSummary,
+    WorksetTopologyComponentViolation, TOPOLOGY_NODE_CARD_SCHEMA_REF,
+    WORKSET_SWITCHER_ROW_SCHEMA_REF, WORKSET_TOPOLOGY_COMPONENT_MATRIX_REF,
+    WORKSET_TOPOLOGY_COMPONENT_PACKET_JSON, WORKSET_TOPOLOGY_COMPONENT_PACKET_PATH,
+    WORKSET_TOPOLOGY_COMPONENT_RECORD_KIND, WORKSET_TOPOLOGY_COMPONENT_SCHEMA_VERSION,
 };
 pub use navigation_target_truth_packet::{
     current_stable_navigation_target_truth_packet, AccessKind as NavigationAccessKind,
