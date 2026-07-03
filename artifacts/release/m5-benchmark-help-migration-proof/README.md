@@ -30,9 +30,9 @@ The M5 release gate narrows any first consumer below execution-ready when it:
 - renders cached service health as live reachability;
 - treats a local-only saved support package as submitted support;
 - hides bridge-required import rows or checkpoint/restore context; or
-- opens a community-owned destination without ownership, visibility, auth,
-  commitment, and local fallback labels.
+- opens or copies a help/release/migration/support handoff without destination
+  group/type, ownership, trust class, version note, visibility, auth,
+  commitment, action, and local fallback labels.
 
 Validate the schemas and fixtures with the command in
 `fixtures/ui/m5-benchmark-help-migration-components/README.md`.
-

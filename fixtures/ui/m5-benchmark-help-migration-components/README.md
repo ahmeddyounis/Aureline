@@ -13,7 +13,11 @@ These fixtures are the first-consumer examples for the frozen matrix at
 | `about_service_health_card.json` | `schemas/ui/m5-about-service-health-card.schema.json` | Cached service-health status stays local-first and visible as cached rather than live. |
 | `support_package_card.json` | `schemas/ui/m5-support-package-card.schema.json` | A package saved locally is not represented as submitted support. |
 | `importer_diff_row.json` | `schemas/ui/m5-importer-diff-row.schema.json` | A bridge-required import row keeps compatibility and checkpoint/restore context. |
+| `community_handoff_tile_official_public.json` | `schemas/ui/m5-community-handoff-tile.schema.json` | An official public release issue template discloses world-readable visibility, version-specific release context, and copyable issue-template context. |
+| `community_handoff_tile_official_authenticated.json` | `schemas/ui/m5-community-handoff-tile.schema.json` | An official authenticated support handoff remains inspectable when browser launch is blocked. |
 | `community_handoff_tile.json` | `schemas/ui/m5-community-handoff-tile.schema.json` | A community-owned destination is disclosed before exit and keeps a local fallback. |
+| `community_handoff_tile_vendor.json` | `schemas/ui/m5-community-handoff-tile.schema.json` | A vendor-owned extension support route is distinct from Aureline official support and keeps offline copy continuity. |
+| `community_handoff_tile_local_only.json` | `schemas/ui/m5-community-handoff-tile.schema.json` | A local-only migration draft discloses cached/offline version context and never opens an external destination. |
 
 Validate with:
 
@@ -32,7 +36,11 @@ pairs = [
     ("schemas/ui/m5-about-service-health-card.schema.json", "fixtures/ui/m5-benchmark-help-migration-components/about_service_health_card.json"),
     ("schemas/ui/m5-support-package-card.schema.json", "fixtures/ui/m5-benchmark-help-migration-components/support_package_card.json"),
     ("schemas/ui/m5-importer-diff-row.schema.json", "fixtures/ui/m5-benchmark-help-migration-components/importer_diff_row.json"),
+    ("schemas/ui/m5-community-handoff-tile.schema.json", "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_official_public.json"),
+    ("schemas/ui/m5-community-handoff-tile.schema.json", "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_official_authenticated.json"),
     ("schemas/ui/m5-community-handoff-tile.schema.json", "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile.json"),
+    ("schemas/ui/m5-community-handoff-tile.schema.json", "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_vendor.json"),
+    ("schemas/ui/m5-community-handoff-tile.schema.json", "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_local_only.json"),
 ]
 for schema_path, fixture_path in pairs:
     schema = json.loads(Path(schema_path).read_text())

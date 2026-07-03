@@ -7,7 +7,9 @@
 //! It also covers the About/service-health and support-package lanes from
 //! `.plans/M05-774.md`, where build facts, cached service health, local
 //! diagnostics, and local-save-submit-later truth must remain available without
-//! sign-in or browser handoff.
+//! sign-in or browser handoff. The community-handoff tile lane from
+//! `.plans/M05-775.md` keeps official, authenticated, community, vendor, and
+//! local-only destinations visibly distinct before any browser handoff.
 
 use std::collections::BTreeSet;
 
@@ -74,6 +76,46 @@ pub const M5_SUPPORT_PACKAGE_CARD_JSON: &str = include_str!(concat!(
 pub const M5_BENCHMARK_EVIDENCE_CARD_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/ui/m5-benchmark-help-migration-components/benchmark_evidence_card.json"
+));
+
+/// Supported community-handoff tile schema version.
+pub const M5_COMMUNITY_HANDOFF_TILE_SCHEMA_VERSION: u32 = 1;
+
+/// Stable record-kind tag for community-handoff tiles.
+pub const M5_COMMUNITY_HANDOFF_TILE_RECORD_KIND: &str = "m5_community_handoff_tile";
+
+/// Repo-relative community-handoff tile schema ref.
+pub const M5_COMMUNITY_HANDOFF_TILE_SCHEMA_REF: &str =
+    "schemas/ui/m5-community-handoff-tile.schema.json";
+
+/// Canonical community-handoff fixture.
+pub const M5_COMMUNITY_HANDOFF_TILE_FIXTURE_REF: &str =
+    "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile.json";
+
+/// Embedded canonical community-owned fixture.
+pub const M5_COMMUNITY_HANDOFF_TILE_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile.json"
+));
+
+const M5_COMMUNITY_HANDOFF_TILE_OFFICIAL_PUBLIC_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_official_public.json"
+));
+
+const M5_COMMUNITY_HANDOFF_TILE_OFFICIAL_AUTHENTICATED_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_official_authenticated.json"
+));
+
+const M5_COMMUNITY_HANDOFF_TILE_VENDOR_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_vendor.json"
+));
+
+const M5_COMMUNITY_HANDOFF_TILE_LOCAL_ONLY_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_local_only.json"
 ));
 
 const M5_BENCHMARK_EVIDENCE_CARD_SELF_CAPTURE_JSON: &str = include_str!(concat!(
@@ -1863,6 +1905,776 @@ pub enum SupportPackageCardViolation {
         package_id: String,
         /// Missing token.
         token: String,
+    },
+}
+
+/// Governed outbound route shown by a handoff tile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CommunityHandoffRoute {
+    /// Public issue route.
+    PublicIssue,
+    /// Private security disclosure route.
+    SecurityDisclosure,
+    /// Documentation feedback route.
+    DocsFeedback,
+    /// RFC/discussion route.
+    RfcDiscussion,
+    /// Community support route.
+    CommunitySupport,
+    /// Official support route.
+    OfficialSupport,
+    /// Extension or vendor-owned support route.
+    ExtensionVendorSupport,
+    /// Local draft route.
+    LocalDraft,
+}
+
+impl CommunityHandoffRoute {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::PublicIssue => "public_issue",
+            Self::SecurityDisclosure => "security_disclosure",
+            Self::DocsFeedback => "docs_feedback",
+            Self::RfcDiscussion => "rfc_discussion",
+            Self::CommunitySupport => "community_support",
+            Self::OfficialSupport => "official_support",
+            Self::ExtensionVendorSupport => "extension_vendor_support",
+            Self::LocalDraft => "local_draft",
+        }
+    }
+
+    const fn expects_issue_template_action(self) -> bool {
+        matches!(
+            self,
+            Self::PublicIssue | Self::DocsFeedback | Self::RfcDiscussion | Self::CommunitySupport
+        )
+    }
+}
+
+/// Help destination grouping lane.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffDestinationGroup {
+    /// Help/About lane.
+    Help,
+    /// Release lane.
+    Release,
+    /// Migration lane.
+    Migration,
+    /// Support lane.
+    Support,
+    /// Community lane.
+    Community,
+    /// Extension/vendor lane.
+    ExtensionVendor,
+    /// Local-only lane.
+    LocalOnly,
+}
+
+/// Destination type shown on the tile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffDestinationType {
+    /// Public issue template.
+    PublicIssueTemplate,
+    /// Official documentation feedback.
+    DocsFeedback,
+    /// Release notes or release proof destination.
+    ReleaseNotes,
+    /// Migration guidance or migration-center handoff.
+    MigrationGuidance,
+    /// Authenticated support intake.
+    SupportIntake,
+    /// Security disclosure.
+    SecurityDisclosure,
+    /// Community discussion.
+    CommunityDiscussion,
+    /// Community support forum.
+    CommunitySupport,
+    /// Extension/vendor support.
+    ExtensionVendorSupport,
+    /// Local draft/save-later target.
+    LocalDraft,
+}
+
+/// Destination ownership class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffOwnershipClass {
+    /// First-party official destination.
+    Official,
+    /// Community-owned destination.
+    Community,
+    /// Private security destination.
+    PrivateSecurity,
+    /// Official authenticated destination.
+    OfficialAuthenticated,
+    /// Vendor-managed destination.
+    VendorManaged,
+    /// Local-only destination.
+    LocalOnly,
+}
+
+impl HandoffOwnershipClass {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Official => "official",
+            Self::Community => "community",
+            Self::PrivateSecurity => "private_security",
+            Self::OfficialAuthenticated => "official_authenticated",
+            Self::VendorManaged => "vendor_managed",
+            Self::LocalOnly => "local_only",
+        }
+    }
+}
+
+/// Destination trust class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffTrustClass {
+    /// Official public destination.
+    OfficialPublic,
+    /// Official authenticated destination.
+    OfficialAuthenticated,
+    /// Community destination.
+    Community,
+    /// Private security destination.
+    PrivateSecurity,
+    /// Vendor-managed destination.
+    VendorManaged,
+    /// Local-only destination.
+    LocalOnly,
+}
+
+impl HandoffTrustClass {
+    /// Trust classes required by M05-775.
+    pub const REQUIRED_DESTINATION_CLASSES: [Self; 5] = [
+        Self::OfficialPublic,
+        Self::OfficialAuthenticated,
+        Self::Community,
+        Self::VendorManaged,
+        Self::LocalOnly,
+    ];
+
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::OfficialPublic => "official_public",
+            Self::OfficialAuthenticated => "official_authenticated",
+            Self::Community => "community",
+            Self::PrivateSecurity => "private_security",
+            Self::VendorManaged => "vendor_managed",
+            Self::LocalOnly => "local_only",
+        }
+    }
+}
+
+/// Visibility boundary shown before exit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffVisibilityBoundary {
+    /// World-readable public surface.
+    WorldReadablePublic,
+    /// Official account-visible surface.
+    OfficialAccountVisible,
+    /// Community-visible surface.
+    CommunityVisible,
+    /// Private security channel.
+    PrivateSecurityChannel,
+    /// Vendor-visible surface.
+    VendorVisible,
+    /// Local data never leaves the product.
+    LocalNeverLeaves,
+}
+
+/// Auth expectation shown before exit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffAuthExpectation {
+    /// No account needed.
+    NoAccountNeeded,
+    /// Official account required.
+    OfficialAccountRequired,
+    /// Community account typical.
+    CommunityAccountTypical,
+    /// Security-channel credential.
+    SecurityChannelCredential,
+    /// Vendor account required.
+    VendorAccountRequired,
+    /// Local, no network.
+    LocalNoNetwork,
+}
+
+/// Data-exit boundary shown before exit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffDataExitBoundary {
+    /// No payload leaves the product.
+    NoPayloadLeavesProduct,
+    /// Metadata-safe object refs only.
+    MetadataSafeObjectRefs,
+    /// Proposal refs only.
+    ProposalRefsOnly,
+    /// Redacted support packet.
+    RedactedSupportPacket,
+    /// Security payloads only.
+    SecurityPayloadsOnly,
+    /// External public browse only.
+    ExternalPublicBrowse,
+    /// Vendor or third-party outbound handoff.
+    VendorOrThirdPartyOutbound,
+}
+
+/// Commitment class shown before exit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffCommitmentClass {
+    /// Official supported commitment.
+    OfficialSupportedCommitment,
+    /// Best-effort community destination.
+    BestEffortCommunity,
+    /// No-commitment public forum.
+    NoCommitmentPublicForum,
+    /// Security handled privately.
+    SecurityHandledPrivately,
+    /// Vendor-owned destination with no Aureline product commitment.
+    VendorOwnedNoProductCommitment,
+    /// Local draft, no delivery.
+    LocalDraftNoDelivery,
+}
+
+/// Destination reachability state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffDestinationState {
+    /// Ready to open.
+    Ready,
+    /// Browser launch was blocked.
+    BrowserBlocked,
+    /// Offline.
+    Offline,
+    /// Policy blocked.
+    PolicyBlocked,
+    /// Cached target is stale.
+    StaleCachedTarget,
+    /// Unsupported profile.
+    UnsupportedProfile,
+}
+
+impl HandoffDestinationState {
+    const fn requires_continuity(self) -> bool {
+        !matches!(self, Self::Ready)
+    }
+
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Ready => "ready",
+            Self::BrowserBlocked => "browser_blocked",
+            Self::Offline => "offline",
+            Self::PolicyBlocked => "policy_blocked",
+            Self::StaleCachedTarget => "stale_cached_target",
+            Self::UnsupportedProfile => "unsupported_profile",
+        }
+    }
+}
+
+/// Version-awareness posture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VersionAwarenessState {
+    /// Current version-aware destination.
+    Current,
+    /// Version-specific destination.
+    VersionSpecific,
+    /// Cached or offline version note.
+    CachedOrOffline,
+    /// Not applicable.
+    NotApplicable,
+}
+
+/// Handoff tile action kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffActionKind {
+    /// Open destination.
+    OpenDestination,
+    /// Copy handoff context.
+    CopyContext,
+    /// Open issue template.
+    OpenIssueTemplate,
+    /// Copy issue template.
+    CopyIssueTemplate,
+    /// Export local draft.
+    ExportLocalDraft,
+}
+
+impl HandoffActionKind {
+    const fn is_copy_or_export(self) -> bool {
+        matches!(
+            self,
+            Self::CopyContext | Self::CopyIssueTemplate | Self::ExportLocalDraft
+        )
+    }
+
+    const fn is_issue_template(self) -> bool {
+        matches!(self, Self::OpenIssueTemplate | Self::CopyIssueTemplate)
+    }
+
+    const fn is_open_external(self) -> bool {
+        matches!(self, Self::OpenDestination | Self::OpenIssueTemplate)
+    }
+}
+
+/// Open/copy/export action displayed on the tile.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HandoffAction {
+    /// Stable action id.
+    pub action_id: String,
+    /// Action kind.
+    pub action_kind: HandoffActionKind,
+    /// User-facing label.
+    pub label: String,
+    /// Whether the action preserves destination identity.
+    pub preserves_destination_identity: bool,
+    /// Whether the action preserves trust-class context.
+    pub preserves_trust_class_context: bool,
+    /// Whether the action is available offline/cached.
+    pub available_offline: bool,
+    /// Whether the action opens an external surface.
+    pub opens_external: bool,
+}
+
+/// Reusable community/help handoff tile.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CommunityHandoffTile {
+    /// Record kind.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Stable tile id.
+    pub tile_id: String,
+    /// Help destination group.
+    pub destination_group: HandoffDestinationGroup,
+    /// Destination type.
+    pub destination_type: HandoffDestinationType,
+    /// Governed route.
+    pub route: CommunityHandoffRoute,
+    /// Ownership class.
+    pub ownership_class: HandoffOwnershipClass,
+    /// Trust class.
+    pub trust_class: HandoffTrustClass,
+    /// Version-awareness state.
+    pub version_awareness_state: VersionAwarenessState,
+    /// Version-awareness note.
+    pub version_awareness_note: String,
+    /// Visibility boundary.
+    pub visibility_boundary: HandoffVisibilityBoundary,
+    /// Auth expectation.
+    pub auth_expectation: HandoffAuthExpectation,
+    /// Data-exit boundary.
+    pub data_exit_boundary: HandoffDataExitBoundary,
+    /// Commitment class.
+    pub commitment_class: HandoffCommitmentClass,
+    /// Destination state.
+    pub destination_state: HandoffDestinationState,
+    /// Whether review is required before leaving the product.
+    pub pre_exit_review_required: bool,
+    /// Local-safe fallback ref.
+    pub local_safe_fallback_ref: String,
+    /// Whether the destination is community-owned.
+    pub community_owned_destination: bool,
+    /// Available actions.
+    pub actions: Vec<HandoffAction>,
+    /// Canonical source refs.
+    pub source_refs: Vec<String>,
+    /// First consumer surfaces.
+    pub consumer_surfaces: Vec<String>,
+    /// Copy/export payload.
+    pub copy_export: ComponentCopyExport,
+}
+
+impl CommunityHandoffTile {
+    /// Validate one tile's non-schema invariants.
+    pub fn validate(&self) -> Vec<CommunityHandoffTileViolation> {
+        let mut violations = Vec::new();
+        if self.record_kind != M5_COMMUNITY_HANDOFF_TILE_RECORD_KIND {
+            violations.push(CommunityHandoffTileViolation::UnsupportedRecordKind {
+                tile_id: self.tile_id.clone(),
+            });
+        }
+        if self.schema_version != M5_COMMUNITY_HANDOFF_TILE_SCHEMA_VERSION {
+            violations.push(CommunityHandoffTileViolation::UnsupportedSchemaVersion {
+                tile_id: self.tile_id.clone(),
+            });
+        }
+        for (field, value) in [
+            ("tile_id", &self.tile_id),
+            ("version_awareness_note", &self.version_awareness_note),
+            ("local_safe_fallback_ref", &self.local_safe_fallback_ref),
+        ] {
+            if value.trim().is_empty() {
+                violations.push(CommunityHandoffTileViolation::EmptyField {
+                    tile_id: self.tile_id.clone(),
+                    field,
+                });
+            }
+        }
+        if self.actions.is_empty() {
+            violations.push(CommunityHandoffTileViolation::MissingAction {
+                tile_id: self.tile_id.clone(),
+            });
+        }
+
+        if expected_trust_class(self.ownership_class) != self.trust_class {
+            violations.push(CommunityHandoffTileViolation::TrustClassMismatch {
+                tile_id: self.tile_id.clone(),
+                ownership_class: self.ownership_class,
+                trust_class: self.trust_class,
+            });
+        }
+        if self.community_owned_destination
+            != matches!(self.ownership_class, HandoffOwnershipClass::Community)
+        {
+            violations.push(
+                CommunityHandoffTileViolation::CommunityOwnershipFlagMismatch {
+                    tile_id: self.tile_id.clone(),
+                },
+            );
+        }
+        if !matches!(self.trust_class, HandoffTrustClass::LocalOnly)
+            && !self.pre_exit_review_required
+        {
+            violations.push(CommunityHandoffTileViolation::MissingPreExitReview {
+                tile_id: self.tile_id.clone(),
+            });
+        }
+        if matches!(self.trust_class, HandoffTrustClass::LocalOnly) {
+            if self.data_exit_boundary != HandoffDataExitBoundary::NoPayloadLeavesProduct
+                || self.visibility_boundary != HandoffVisibilityBoundary::LocalNeverLeaves
+                || self.auth_expectation != HandoffAuthExpectation::LocalNoNetwork
+            {
+                violations.push(CommunityHandoffTileViolation::LocalOnlyBoundaryWidened {
+                    tile_id: self.tile_id.clone(),
+                });
+            }
+        }
+        if matches!(
+            self.trust_class,
+            HandoffTrustClass::Community | HandoffTrustClass::VendorManaged
+        ) && self.commitment_class == HandoffCommitmentClass::OfficialSupportedCommitment
+        {
+            violations.push(
+                CommunityHandoffTileViolation::UnofficialCommitmentOverclaimed {
+                    tile_id: self.tile_id.clone(),
+                },
+            );
+        }
+        if self.destination_state.requires_continuity()
+            && !self.actions.iter().any(|action| {
+                action.action_kind.is_copy_or_export()
+                    && action.available_offline
+                    && action.preserves_destination_identity
+                    && action.preserves_trust_class_context
+            })
+        {
+            violations.push(CommunityHandoffTileViolation::MissingBlockedContinuity {
+                tile_id: self.tile_id.clone(),
+                destination_state: self.destination_state,
+            });
+        }
+        if self.route.expects_issue_template_action()
+            && !self
+                .actions
+                .iter()
+                .any(|action| action.action_kind.is_issue_template())
+        {
+            violations.push(CommunityHandoffTileViolation::MissingIssueTemplateAction {
+                tile_id: self.tile_id.clone(),
+            });
+        }
+        for action in &self.actions {
+            if !action.preserves_destination_identity || !action.preserves_trust_class_context {
+                violations.push(CommunityHandoffTileViolation::ActionDropsHandoffContext {
+                    tile_id: self.tile_id.clone(),
+                    action_id: action.action_id.clone(),
+                });
+            }
+            if action.action_kind.is_copy_or_export() && !action.available_offline {
+                violations.push(
+                    CommunityHandoffTileViolation::CopyActionUnavailableOffline {
+                        tile_id: self.tile_id.clone(),
+                        action_id: action.action_id.clone(),
+                    },
+                );
+            }
+            if matches!(self.trust_class, HandoffTrustClass::LocalOnly)
+                && action.action_kind.is_open_external()
+            {
+                violations.push(
+                    CommunityHandoffTileViolation::LocalOnlyActionOpensExternal {
+                        tile_id: self.tile_id.clone(),
+                        action_id: action.action_id.clone(),
+                    },
+                );
+            }
+        }
+
+        validate_component_copy_export(
+            &self.tile_id,
+            &self.copy_export,
+            COMMUNITY_HANDOFF_TILE_COPY_EXPORT_FIELDS,
+            &mut violations,
+            |tile_id, format| CommunityHandoffTileViolation::MissingCopyFormat { tile_id, format },
+            |tile_id, field| CommunityHandoffTileViolation::MissingCopyExportField {
+                tile_id,
+                field,
+            },
+            |tile_id| CommunityHandoffTileViolation::ScreenshotOnlyExportAllowed { tile_id },
+        );
+
+        let copy_text = format!(
+            "{}\n{}\n{}",
+            self.copy_export.text, self.copy_export.json, self.copy_export.markdown
+        );
+        for required in [
+            self.route.as_str(),
+            self.ownership_class.as_str(),
+            self.trust_class.as_str(),
+            self.destination_state.as_str(),
+            self.local_safe_fallback_ref.as_str(),
+            "version",
+        ] {
+            if !copy_text.contains(required) {
+                violations.push(
+                    CommunityHandoffTileViolation::CopyExportDropsRequiredTruth {
+                        tile_id: self.tile_id.clone(),
+                        token: required.to_owned(),
+                    },
+                );
+            }
+        }
+        violations
+    }
+}
+
+const COMMUNITY_HANDOFF_TILE_COPY_EXPORT_FIELDS: &[&str] = &[
+    "destination_group",
+    "destination_type",
+    "route",
+    "ownership_class",
+    "trust_class",
+    "version_awareness_state",
+    "version_awareness_note",
+    "visibility_boundary",
+    "auth_expectation",
+    "data_exit_boundary",
+    "commitment_class",
+    "destination_state",
+    "pre_exit_review_required",
+    "local_safe_fallback_ref",
+    "community_owned_destination",
+    "actions",
+];
+
+const REQUIRED_HANDOFF_GROUPS: &[HandoffDestinationGroup] = &[
+    HandoffDestinationGroup::Help,
+    HandoffDestinationGroup::Release,
+    HandoffDestinationGroup::Migration,
+    HandoffDestinationGroup::Support,
+];
+
+const fn expected_trust_class(ownership_class: HandoffOwnershipClass) -> HandoffTrustClass {
+    match ownership_class {
+        HandoffOwnershipClass::Official => HandoffTrustClass::OfficialPublic,
+        HandoffOwnershipClass::Community => HandoffTrustClass::Community,
+        HandoffOwnershipClass::PrivateSecurity => HandoffTrustClass::PrivateSecurity,
+        HandoffOwnershipClass::OfficialAuthenticated => HandoffTrustClass::OfficialAuthenticated,
+        HandoffOwnershipClass::VendorManaged => HandoffTrustClass::VendorManaged,
+        HandoffOwnershipClass::LocalOnly => HandoffTrustClass::LocalOnly,
+    }
+}
+
+/// Parse the canonical community-handoff tile.
+pub fn current_community_handoff_tile() -> Result<CommunityHandoffTile, serde_json::Error> {
+    serde_json::from_str(M5_COMMUNITY_HANDOFF_TILE_JSON)
+}
+
+/// Parse all checked-in community-handoff tile fixtures.
+pub fn current_community_handoff_tiles() -> Result<Vec<CommunityHandoffTile>, serde_json::Error> {
+    [
+        M5_COMMUNITY_HANDOFF_TILE_OFFICIAL_PUBLIC_JSON,
+        M5_COMMUNITY_HANDOFF_TILE_OFFICIAL_AUTHENTICATED_JSON,
+        M5_COMMUNITY_HANDOFF_TILE_JSON,
+        M5_COMMUNITY_HANDOFF_TILE_VENDOR_JSON,
+        M5_COMMUNITY_HANDOFF_TILE_LOCAL_ONLY_JSON,
+    ]
+    .into_iter()
+    .map(serde_json::from_str)
+    .collect()
+}
+
+/// Validate a fixture set for required route/trust coverage.
+pub fn validate_community_handoff_tiles(
+    tiles: &[CommunityHandoffTile],
+) -> Vec<CommunityHandoffTileViolation> {
+    let mut violations = Vec::new();
+    let mut seen = BTreeSet::new();
+    let mut trust_classes = BTreeSet::new();
+    let mut groups = BTreeSet::new();
+    for tile in tiles {
+        if !seen.insert(tile.tile_id.clone()) {
+            violations.push(CommunityHandoffTileViolation::DuplicateTileId {
+                tile_id: tile.tile_id.clone(),
+            });
+        }
+        trust_classes.insert(tile.trust_class);
+        groups.insert(tile.destination_group);
+        violations.extend(tile.validate());
+    }
+    for trust_class in HandoffTrustClass::REQUIRED_DESTINATION_CLASSES {
+        if !trust_classes.contains(&trust_class) {
+            violations.push(CommunityHandoffTileViolation::MissingTrustClass { trust_class });
+        }
+    }
+    for group in REQUIRED_HANDOFF_GROUPS {
+        if !groups.contains(group) {
+            violations.push(CommunityHandoffTileViolation::MissingDestinationGroup {
+                destination_group: *group,
+            });
+        }
+    }
+    violations
+}
+
+/// Validation errors for community-handoff tiles.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CommunityHandoffTileViolation {
+    /// Unsupported record kind.
+    UnsupportedRecordKind {
+        /// Tile id.
+        tile_id: String,
+    },
+    /// Unsupported schema version.
+    UnsupportedSchemaVersion {
+        /// Tile id.
+        tile_id: String,
+    },
+    /// Required text field is empty.
+    EmptyField {
+        /// Tile id.
+        tile_id: String,
+        /// Field name.
+        field: &'static str,
+    },
+    /// No action is present.
+    MissingAction {
+        /// Tile id.
+        tile_id: String,
+    },
+    /// Ownership and trust class diverge.
+    TrustClassMismatch {
+        /// Tile id.
+        tile_id: String,
+        /// Ownership class.
+        ownership_class: HandoffOwnershipClass,
+        /// Trust class.
+        trust_class: HandoffTrustClass,
+    },
+    /// Community flag diverges from ownership class.
+    CommunityOwnershipFlagMismatch {
+        /// Tile id.
+        tile_id: String,
+    },
+    /// Off-product tile omitted pre-exit review.
+    MissingPreExitReview {
+        /// Tile id.
+        tile_id: String,
+    },
+    /// Local-only destination widened its boundary.
+    LocalOnlyBoundaryWidened {
+        /// Tile id.
+        tile_id: String,
+    },
+    /// Community/vendor destination claimed official support.
+    UnofficialCommitmentOverclaimed {
+        /// Tile id.
+        tile_id: String,
+    },
+    /// Browser-blocked/offline/policy-blocked target lacks copy/export continuity.
+    MissingBlockedContinuity {
+        /// Tile id.
+        tile_id: String,
+        /// Destination state.
+        destination_state: HandoffDestinationState,
+    },
+    /// Issue/report route lacks issue-template action parity.
+    MissingIssueTemplateAction {
+        /// Tile id.
+        tile_id: String,
+    },
+    /// Action drops identity or trust-class context.
+    ActionDropsHandoffContext {
+        /// Tile id.
+        tile_id: String,
+        /// Action id.
+        action_id: String,
+    },
+    /// Copy/export action is unavailable offline.
+    CopyActionUnavailableOffline {
+        /// Tile id.
+        tile_id: String,
+        /// Action id.
+        action_id: String,
+    },
+    /// Local-only action opens external destination.
+    LocalOnlyActionOpensExternal {
+        /// Tile id.
+        tile_id: String,
+        /// Action id.
+        action_id: String,
+    },
+    /// Copy format missing.
+    MissingCopyFormat {
+        /// Tile id.
+        tile_id: String,
+        /// Format name.
+        format: &'static str,
+    },
+    /// Copy export field missing.
+    MissingCopyExportField {
+        /// Tile id.
+        tile_id: String,
+        /// Field name.
+        field: &'static str,
+    },
+    /// Screenshot-only export would be allowed.
+    ScreenshotOnlyExportAllowed {
+        /// Tile id.
+        tile_id: String,
+    },
+    /// Copy/export dropped required truth.
+    CopyExportDropsRequiredTruth {
+        /// Tile id.
+        tile_id: String,
+        /// Missing token.
+        token: String,
+    },
+    /// Duplicate tile id.
+    DuplicateTileId {
+        /// Tile id.
+        tile_id: String,
+    },
+    /// Required trust class not covered.
+    MissingTrustClass {
+        /// Trust class.
+        trust_class: HandoffTrustClass,
+    },
+    /// Required destination group not covered.
+    MissingDestinationGroup {
+        /// Destination group.
+        destination_group: HandoffDestinationGroup,
     },
 }
 

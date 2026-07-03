@@ -36,6 +36,7 @@ payloads, raw issue bodies, credentials, or private tenant/user identifiers.
 | `service_contract_state` | `ready`, `degraded`, `local_only`, `stale`, `contract_mismatch`, `policy_blocked`, `unavailable` |
 | `support_package_state` | `review_ready`, `narrowed_review`, `send_blocked`, `saved_local_only`, `submitted`, `stale_schema` |
 | `importer_outcome_state` | `imported`, `mapped`, `skipped`, `manual_review`, `bridge_required`, `unsupported` |
+| `destination_group` | `help`, `release`, `migration`, `support`, `community`, `extension_vendor`, `local_only` |
 | `destination_trust_class` | `official_public`, `official_authenticated`, `community`, `private_security`, `vendor_managed`, `local_only` |
 | `copy_format` | `text`, `json`, `markdown` |
 
@@ -174,16 +175,20 @@ Required fields:
 | Field | Contract |
 | --- | --- |
 | `tile_id` | Stable tile id for Help/About and issue/report consumers. |
+| `destination_group` | Grouped lane where the destination appears: help, release, migration, support, community, extension/vendor, or local-only. |
+| `destination_type` | Destination type such as public issue template, release notes, migration guidance, support intake, community discussion, extension/vendor support, or local draft. |
 | `route` | Governed route such as `public_issue`, `security_disclosure`, `community_support`, or `local_draft`. |
 | `ownership_class` | `official`, `community`, `private_security`, `official_authenticated`, `vendor_managed`, or `local_only`. |
 | `trust_class` | Destination trust class shown before exit. |
+| `version_awareness_state`, `version_awareness_note` | Version current/specific/cached/offline posture and the note shown before opening or copying the destination. |
 | `visibility_boundary` | What audience can see the destination or payload. |
 | `auth_expectation` | Expected account/auth before submit. |
 | `data_exit_boundary` | What leaves the product. |
-| `commitment_class` | Official commitment, best-effort community, no-commitment public forum, private security, or local draft. |
+| `commitment_class` | Official commitment, best-effort community, no-commitment public forum, private security, vendor-owned no-product-commitment, or local draft. |
 | `destination_state` | Ready, browser-blocked, offline, policy-blocked, stale cached target, or unsupported profile. |
 | `pre_exit_review_required` | Must be true for public/community/private off-product routes. |
 | `local_safe_fallback_ref` | Local draft or saved packet fallback that survives failed handoff. |
+| `actions` | Open, copy-context, open/copy issue-template, or export-local-draft actions; copy/export actions preserve destination identity and trust class. |
 | `copy_export` | Copy-safe handoff summary; public/community ownership must survive copy/export. |
 
 Degraded states:

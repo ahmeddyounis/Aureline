@@ -15,6 +15,10 @@ fn support_card() -> SupportPackageCard {
     current_support_package_card().expect("support package fixture parses")
 }
 
+fn handoff_tiles() -> Vec<CommunityHandoffTile> {
+    current_community_handoff_tiles().expect("community handoff fixtures parse")
+}
+
 #[test]
 fn embedded_benchmark_cards_parse_and_validate() {
     let cards = cards();
@@ -273,5 +277,99 @@ fn support_package_saved_local_only_must_stay_local_first() {
             SupportPackageCardViolation::SavedLocalOnlyNotLocalFirst { .. }
         )),
         "expected saved-local-only violation, got {violations:#?}"
+    );
+}
+
+#[test]
+fn community_handoff_tiles_validate_and_cover_required_destination_classes() {
+    let tiles = handoff_tiles();
+    let violations = validate_community_handoff_tiles(&tiles);
+    assert!(
+        violations.is_empty(),
+        "unexpected community-handoff violations: {violations:#?}"
+    );
+
+    let trust_classes: BTreeSet<_> = tiles.iter().map(|tile| tile.trust_class).collect();
+    for required in HandoffTrustClass::REQUIRED_DESTINATION_CLASSES {
+        assert!(trust_classes.contains(&required), "missing {required:?}");
+    }
+}
+
+#[test]
+fn community_tile_preserves_issue_template_and_copy_context() {
+    let tile = current_community_handoff_tile().expect("community handoff fixture parses");
+    assert_eq!(tile.record_kind, M5_COMMUNITY_HANDOFF_TILE_RECORD_KIND);
+    assert_eq!(
+        tile.schema_version,
+        M5_COMMUNITY_HANDOFF_TILE_SCHEMA_VERSION
+    );
+    assert_eq!(tile.destination_group, HandoffDestinationGroup::Help);
+    assert_eq!(tile.trust_class, HandoffTrustClass::Community);
+    assert!(tile.community_owned_destination);
+    assert!(tile.pre_exit_review_required);
+    assert!(tile
+        .actions
+        .iter()
+        .any(|action| action.action_kind == HandoffActionKind::OpenIssueTemplate));
+    assert!(tile.actions.iter().any(|action| action.action_kind
+        == HandoffActionKind::CopyIssueTemplate
+        && action.available_offline));
+}
+
+#[test]
+fn community_or_vendor_handoff_cannot_claim_official_commitment() {
+    let mut tile = current_community_handoff_tile().expect("community handoff fixture parses");
+    tile.commitment_class = HandoffCommitmentClass::OfficialSupportedCommitment;
+    let violations = tile.validate();
+    assert!(
+        violations.iter().any(|violation| matches!(
+            violation,
+            CommunityHandoffTileViolation::UnofficialCommitmentOverclaimed { .. }
+        )),
+        "expected unofficial-commitment violation, got {violations:#?}"
+    );
+}
+
+#[test]
+fn blocked_handoff_requires_offline_copy_or_export_continuity() {
+    let mut tile = handoff_tiles()
+        .into_iter()
+        .find(|tile| tile.destination_state == HandoffDestinationState::BrowserBlocked)
+        .expect("browser-blocked handoff fixture exists");
+    for action in &mut tile.actions {
+        action.available_offline = false;
+    }
+    let violations = tile.validate();
+    assert!(
+        violations.iter().any(|violation| matches!(
+            violation,
+            CommunityHandoffTileViolation::MissingBlockedContinuity { .. }
+        )),
+        "expected blocked-continuity violation, got {violations:#?}"
+    );
+}
+
+#[test]
+fn local_only_handoff_cannot_open_external_destination() {
+    let mut tile = handoff_tiles()
+        .into_iter()
+        .find(|tile| tile.trust_class == HandoffTrustClass::LocalOnly)
+        .expect("local-only handoff fixture exists");
+    tile.actions.push(HandoffAction {
+        action_id: "handoff.migration.open".to_owned(),
+        action_kind: HandoffActionKind::OpenDestination,
+        label: "Open external migration destination".to_owned(),
+        preserves_destination_identity: true,
+        preserves_trust_class_context: true,
+        available_offline: false,
+        opens_external: true,
+    });
+    let violations = tile.validate();
+    assert!(
+        violations.iter().any(|violation| matches!(
+            violation,
+            CommunityHandoffTileViolation::LocalOnlyActionOpensExternal { .. }
+        )),
+        "expected local-only external-open violation, got {violations:#?}"
     );
 }

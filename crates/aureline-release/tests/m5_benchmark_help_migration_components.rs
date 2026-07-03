@@ -4,12 +4,15 @@ use std::collections::BTreeSet;
 
 use aureline_release::m5_benchmark_help_migration_components::{
     current_about_service_health_card, current_benchmark_evidence_card,
-    current_benchmark_evidence_cards, current_support_package_card,
-    validate_benchmark_evidence_cards, AboutDowngradeState, BenchmarkEvidenceSourceClass,
-    ServiceFreshnessState, SupportPackageState, M5_ABOUT_SERVICE_HEALTH_CARD_FIXTURE_REF,
-    M5_ABOUT_SERVICE_HEALTH_CARD_SCHEMA_REF, M5_BENCHMARK_EVIDENCE_CARD_FIXTURE_REF,
-    M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_REF, M5_SUPPORT_PACKAGE_CARD_FIXTURE_REF,
-    M5_SUPPORT_PACKAGE_CARD_SCHEMA_REF,
+    current_benchmark_evidence_cards, current_community_handoff_tiles,
+    current_support_package_card, validate_benchmark_evidence_cards,
+    validate_community_handoff_tiles, AboutDowngradeState, BenchmarkEvidenceSourceClass,
+    CommunityHandoffTileViolation, HandoffDestinationGroup, HandoffDestinationState,
+    HandoffTrustClass, ServiceFreshnessState, SupportPackageState,
+    M5_ABOUT_SERVICE_HEALTH_CARD_FIXTURE_REF, M5_ABOUT_SERVICE_HEALTH_CARD_SCHEMA_REF,
+    M5_BENCHMARK_EVIDENCE_CARD_FIXTURE_REF, M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_REF,
+    M5_COMMUNITY_HANDOFF_TILE_FIXTURE_REF, M5_COMMUNITY_HANDOFF_TILE_SCHEMA_REF,
+    M5_SUPPORT_PACKAGE_CARD_FIXTURE_REF, M5_SUPPORT_PACKAGE_CARD_SCHEMA_REF,
 };
 
 const PROOF_PACKET_JSON: &str = include_str!(concat!(
@@ -266,5 +269,163 @@ fn proof_packet_names_about_service_health_and_support_required_fields() {
         "submit_later_summary",
     ] {
         assert!(support_fields.contains(required), "missing {required}");
+    }
+}
+
+#[test]
+fn community_handoff_fixtures_validate_and_preserve_class_boundaries() {
+    let tiles = current_community_handoff_tiles().expect("community handoff fixtures parse");
+    let violations = validate_community_handoff_tiles(&tiles);
+    assert!(
+        violations.is_empty(),
+        "unexpected community handoff violations: {violations:#?}"
+    );
+
+    let trust_classes: BTreeSet<_> = tiles.iter().map(|tile| tile.trust_class).collect();
+    for required in [
+        HandoffTrustClass::OfficialPublic,
+        HandoffTrustClass::OfficialAuthenticated,
+        HandoffTrustClass::Community,
+        HandoffTrustClass::VendorManaged,
+        HandoffTrustClass::LocalOnly,
+    ] {
+        assert!(trust_classes.contains(&required), "missing {required:?}");
+    }
+
+    let groups: BTreeSet<_> = tiles.iter().map(|tile| tile.destination_group).collect();
+    for required in [
+        HandoffDestinationGroup::Help,
+        HandoffDestinationGroup::Release,
+        HandoffDestinationGroup::Migration,
+        HandoffDestinationGroup::Support,
+    ] {
+        assert!(groups.contains(&required), "missing {required:?}");
+    }
+
+    for blocked in [
+        HandoffDestinationState::BrowserBlocked,
+        HandoffDestinationState::Offline,
+        HandoffDestinationState::StaleCachedTarget,
+    ] {
+        let tile = tiles
+            .iter()
+            .find(|tile| tile.destination_state == blocked)
+            .expect("blocked/offline fixture present");
+        assert!(
+            tile.actions.iter().any(|action| action.available_offline
+                && action.preserves_destination_identity
+                && action.preserves_trust_class_context),
+            "{blocked:?} missing offline context action"
+        );
+    }
+}
+
+#[test]
+fn missing_vendor_class_coverage_fails_community_handoff_validation() {
+    let tiles: Vec<_> = current_community_handoff_tiles()
+        .expect("community handoff fixtures parse")
+        .into_iter()
+        .filter(|tile| tile.trust_class != HandoffTrustClass::VendorManaged)
+        .collect();
+    let violations = validate_community_handoff_tiles(&tiles);
+    assert!(
+        violations.iter().any(|violation| matches!(
+            violation,
+            CommunityHandoffTileViolation::MissingTrustClass {
+                trust_class: HandoffTrustClass::VendorManaged
+            }
+        )),
+        "expected vendor trust-class coverage violation, got {violations:#?}"
+    );
+}
+
+#[test]
+fn proof_packet_names_community_handoff_destination_classes_and_actions() {
+    let proof: serde_json::Value =
+        serde_json::from_str(PROOF_PACKET_JSON).expect("proof packet parses");
+    let family = proof["component_families"]
+        .as_array()
+        .expect("families")
+        .iter()
+        .find(|family| family["family"].as_str() == Some("community_handoff_tile"))
+        .expect("community handoff family present");
+
+    assert_eq!(
+        family["schema_ref"].as_str(),
+        Some(M5_COMMUNITY_HANDOFF_TILE_SCHEMA_REF)
+    );
+    assert_eq!(
+        family["fixture_ref"].as_str(),
+        Some(M5_COMMUNITY_HANDOFF_TILE_FIXTURE_REF)
+    );
+
+    let classes: BTreeSet<_> = family["destination_classes_proved"]
+        .as_array()
+        .expect("destination classes")
+        .iter()
+        .map(|value| value.as_str().expect("string").to_owned())
+        .collect();
+    for required in [
+        "official_public",
+        "official_authenticated",
+        "community",
+        "vendor_managed",
+        "local_only",
+    ] {
+        assert!(classes.contains(required), "missing {required}");
+    }
+
+    let fields: BTreeSet<_> = family["handoff_truth_fields"]
+        .as_array()
+        .expect("handoff truth fields")
+        .iter()
+        .map(|value| value.as_str().expect("string").to_owned())
+        .collect();
+    for required in [
+        "destination_group",
+        "destination_type",
+        "trust_class",
+        "version_awareness_note",
+        "destination_state",
+        "local_safe_fallback_ref",
+        "actions",
+    ] {
+        assert!(fields.contains(required), "missing {required}");
+    }
+}
+
+#[test]
+fn support_export_names_handoff_continuity_and_class_coverage() {
+    let export: serde_json::Value =
+        serde_json::from_str(SUPPORT_EXPORT_JSON).expect("support export parses");
+    let row = export["rows"]
+        .as_array()
+        .expect("rows")
+        .iter()
+        .find(|row| row["family"].as_str() == Some("community_handoff_tile"))
+        .expect("community handoff support row present");
+
+    assert_eq!(
+        row["handoff_truth"].as_str(),
+        Some("destination_group_type_route_ownership_trust_version_visibility_auth_data_exit_commitment_destination_state_fallback_actions_visible")
+    );
+    assert_eq!(
+        row["continuity_truth"].as_str(),
+        Some("browser_blocked_offline_stale_cached_targets_keep_copy_or_export_actions_with_destination_identity_and_trust_class")
+    );
+    let classes: BTreeSet<_> = row["destination_class_coverage"]
+        .as_array()
+        .expect("destination classes")
+        .iter()
+        .map(|value| value.as_str().expect("string").to_owned())
+        .collect();
+    for required in [
+        "official_public",
+        "official_authenticated",
+        "community",
+        "vendor_managed",
+        "local_only",
+    ] {
+        assert!(classes.contains(required), "missing {required}");
     }
 }
