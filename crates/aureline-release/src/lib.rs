@@ -699,15 +699,29 @@ pub use ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_pr
 };
 
 pub use m5_benchmark_help_migration_components::{
-    current_benchmark_evidence_card, current_benchmark_evidence_cards,
-    validate_benchmark_evidence_cards, BenchmarkClaimScope, BenchmarkCompareMode,
-    BenchmarkCompareView, BenchmarkComparisonBasis, BenchmarkCopyExport, BenchmarkDegradedState,
-    BenchmarkDowngradeBanner, BenchmarkDowngradeBannerLabel, BenchmarkDowngradeState,
-    BenchmarkEvidenceCard, BenchmarkEvidenceCardViolation, BenchmarkEvidenceSourceClass,
-    BenchmarkFreshnessState, BenchmarkMetricRow, BenchmarkTraceReportExport, ColdWarmState,
-    ExecutionScope, PowerMode, M5_BENCHMARK_EVIDENCE_CARD_FIXTURE_REF,
+    current_about_service_health_card, current_benchmark_evidence_card,
+    current_benchmark_evidence_cards, current_support_package_card,
+    validate_benchmark_evidence_cards, AboutDowngradeState, AboutServiceHealthCard,
+    AboutServiceHealthCardFamily, AboutServiceHealthCardViolation, AboutSourceTrustClass,
+    BenchmarkClaimScope, BenchmarkCompareMode, BenchmarkCompareView, BenchmarkComparisonBasis,
+    BenchmarkCopyExport, BenchmarkDegradedState, BenchmarkDowngradeBanner,
+    BenchmarkDowngradeBannerLabel, BenchmarkDowngradeState, BenchmarkEvidenceCard,
+    BenchmarkEvidenceCardViolation, BenchmarkEvidenceSourceClass, BenchmarkFreshnessState,
+    BenchmarkMetricRow, BenchmarkTraceReportExport, BuildProvenanceState, BuildSummary,
+    ColdWarmState, ComponentCopyExport, DataClassCounts, ExecutionScope, ExportState, InstallMode,
+    LocalAction, LocalActionKind, LocalContinuityState, LocalSaveState, LocalSaveSummary,
+    PackageContentKind, PowerMode, RedactionExportSummary, RedactionState, ReleaseChannel,
+    ServiceContractState as AboutServiceContractState, ServiceFreshnessState, ServiceHealthSummary,
+    SubmitLaterSummary, SubmitState, SupportDestinationClass, SupportPackageCard,
+    SupportPackageCardViolation, SupportPackageState, SupportTrustClass,
+    M5_ABOUT_SERVICE_HEALTH_CARD_FIXTURE_REF, M5_ABOUT_SERVICE_HEALTH_CARD_JSON,
+    M5_ABOUT_SERVICE_HEALTH_CARD_RECORD_KIND, M5_ABOUT_SERVICE_HEALTH_CARD_SCHEMA_REF,
+    M5_ABOUT_SERVICE_HEALTH_CARD_SCHEMA_VERSION, M5_BENCHMARK_EVIDENCE_CARD_FIXTURE_REF,
     M5_BENCHMARK_EVIDENCE_CARD_JSON, M5_BENCHMARK_EVIDENCE_CARD_RECORD_KIND,
     M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_REF, M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_VERSION,
+    M5_SUPPORT_PACKAGE_CARD_FIXTURE_REF, M5_SUPPORT_PACKAGE_CARD_JSON,
+    M5_SUPPORT_PACKAGE_CARD_RECORD_KIND, M5_SUPPORT_PACKAGE_CARD_SCHEMA_REF,
+    M5_SUPPORT_PACKAGE_CARD_SCHEMA_VERSION,
 };
 
 pub use ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions::{

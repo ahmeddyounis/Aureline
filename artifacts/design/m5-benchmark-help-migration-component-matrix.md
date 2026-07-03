@@ -99,6 +99,8 @@ Required fields:
 | `freshness_state` | `live`, `cached`, `mirrored`, `offline_pack`, `stale_cache`, or `policy_limited`. |
 | `local_continuity_state` | `available`, `narrowed`, `unavailable`, or `not_applicable`. |
 | `downgrade_state` | Explicit cache, local-only, service-degraded, policy-limited, or unavailable state. |
+| `build_summary` | Version, channel, install mode, provenance state, open/local boundary note, and a copy-build-info action that is local, unauthenticated, and does not open a browser. |
+| `service_health_summary` | Affected service family, current contract state, cached freshness, local workflows that still work, managed features affected, diagnostics action, and export action. |
 | `copy_export` | Copy-safe status and refs for Help/About, diagnostics, and support export. |
 
 Degraded states:
@@ -124,6 +126,10 @@ Required fields:
 | `redaction_state` | Default-safe, policy-narrowed, user-broadened, high-risk blocked, or stale-schema state. |
 | `included_counts`, `excluded_counts`, `policy_locked_counts` | Counts by diagnostic data class. |
 | `inspect_before_submit_required` | Must be true for any off-machine destination. |
+| `package_contents` | Controlled list of included packet sections such as build info, service-health snapshot, diagnostic summary, redaction manifest, import preview, migration diff, policy receipts, local log metadata, or reproduction steps. |
+| `local_save_summary` | Whether the packet is saved to the local store, the local packet ref, current submit state, and proof that local inspection does not require auth. |
+| `redaction_export_summary` | Redaction state, local/off-machine export state, high-risk exclusion posture, and visible policy-locked exclusions. |
+| `submit_later_summary` | Later destination class and guarantees that submission would require explicit user action and inspection, while the current card is not a submission and does not open a browser before local review. |
 | `copy_export` | Reviewable text/JSON/Markdown projection; local-only packages copy as saved local evidence, not submitted support. |
 
 Degraded states:
@@ -207,9 +213,12 @@ bridge-required, or local-only truth as generic prose is non-conforming.
 
 - Stale benchmark evidence narrows to `retest_pending` or `methodology_only`.
 - Cached service health must show `cached_service_health`; it cannot claim live
-  reachability.
+  reachability, and it must name affected managed features separately from the
+  local-core workflows that still work.
 - A support package saved locally remains `saved_local_only` until an explicit
-  inspected submit succeeds.
+  inspected submit succeeds; its card must show package contents, redaction/export
+  state, local packet ref, and submit-later consequence without treating local
+  save as support submission.
 - Import rows with `bridge_required` must keep bridge and compatibility refs
   visible in preview, migration center, docs/help, and support export.
 - Community-owned destinations must show `community_owned_destination` and

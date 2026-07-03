@@ -3,9 +3,13 @@
 use std::collections::BTreeSet;
 
 use aureline_release::m5_benchmark_help_migration_components::{
-    current_benchmark_evidence_card, current_benchmark_evidence_cards,
-    validate_benchmark_evidence_cards, BenchmarkEvidenceSourceClass,
-    M5_BENCHMARK_EVIDENCE_CARD_FIXTURE_REF, M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_REF,
+    current_about_service_health_card, current_benchmark_evidence_card,
+    current_benchmark_evidence_cards, current_support_package_card,
+    validate_benchmark_evidence_cards, AboutDowngradeState, BenchmarkEvidenceSourceClass,
+    ServiceFreshnessState, SupportPackageState, M5_ABOUT_SERVICE_HEALTH_CARD_FIXTURE_REF,
+    M5_ABOUT_SERVICE_HEALTH_CARD_SCHEMA_REF, M5_BENCHMARK_EVIDENCE_CARD_FIXTURE_REF,
+    M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_REF, M5_SUPPORT_PACKAGE_CARD_FIXTURE_REF,
+    M5_SUPPORT_PACKAGE_CARD_SCHEMA_REF,
 };
 
 const PROOF_PACKET_JSON: &str = include_str!(concat!(
@@ -131,5 +135,136 @@ fn support_export_preserves_source_class_coverage_and_caveat_parity() {
         "imported_evidence",
     ] {
         assert!(coverage.contains(required), "missing {required}");
+    }
+}
+
+#[test]
+fn about_service_health_fixture_validates_and_preserves_local_first_truth() {
+    let card = current_about_service_health_card().expect("about fixture parses");
+    let violations = card.validate();
+    assert!(
+        violations.is_empty(),
+        "unexpected about/service-health violations: {violations:#?}"
+    );
+    assert_eq!(
+        card.freshness_state,
+        ServiceFreshnessState::StaleCache,
+        "fixture must prove cached/stale health honesty"
+    );
+    assert_eq!(
+        card.downgrade_state,
+        AboutDowngradeState::CachedServiceHealth
+    );
+
+    let copy = format!(
+        "{}\n{}\n{}",
+        card.copy_export.text, card.copy_export.json, card.copy_export.markdown
+    );
+    for required in [
+        "1.0.0",
+        "stable",
+        "local_app",
+        "mirrored_verified",
+        "local_docs_pack_search",
+        "Copy build info",
+        "diagnostics",
+        "require no sign-in",
+    ] {
+        assert!(copy.contains(required), "missing {required}");
+    }
+}
+
+#[test]
+fn support_package_fixture_validates_and_preserves_save_local_submit_later_truth() {
+    let card = current_support_package_card().expect("support fixture parses");
+    let violations = card.validate();
+    assert!(
+        violations.is_empty(),
+        "unexpected support-package violations: {violations:#?}"
+    );
+    assert_eq!(card.package_state, SupportPackageState::SavedLocalOnly);
+
+    let copy = format!(
+        "{}\n{}\n{}",
+        card.copy_export.text, card.copy_export.json, card.copy_export.markdown
+    );
+    for required in [
+        "saved_local_only",
+        "local-support-packet:m5:import-preview:0001",
+        "not_submitted",
+        "build_info",
+        "service_health_snapshot",
+        "explicit user action",
+        "inspection",
+    ] {
+        assert!(copy.contains(required), "missing {required}");
+    }
+}
+
+#[test]
+fn proof_packet_names_about_service_health_and_support_required_fields() {
+    let proof: serde_json::Value =
+        serde_json::from_str(PROOF_PACKET_JSON).expect("proof packet parses");
+
+    let about = proof["component_families"]
+        .as_array()
+        .expect("families")
+        .iter()
+        .find(|family| family["family"].as_str() == Some("about_service_health_card"))
+        .expect("about/service-health family present");
+    assert_eq!(
+        about["schema_ref"].as_str(),
+        Some(M5_ABOUT_SERVICE_HEALTH_CARD_SCHEMA_REF)
+    );
+    assert_eq!(
+        about["fixture_ref"].as_str(),
+        Some(M5_ABOUT_SERVICE_HEALTH_CARD_FIXTURE_REF)
+    );
+    let about_fields: BTreeSet<_> = about["export_parity_fields"]
+        .as_array()
+        .expect("about export fields")
+        .iter()
+        .map(|value| value.as_str().expect("string").to_owned())
+        .collect();
+    for required in [
+        "version",
+        "channel",
+        "install_mode",
+        "provenance_state",
+        "copy_build_info_action",
+        "local_workflows_available",
+        "diagnostics_action",
+        "export_action",
+    ] {
+        assert!(about_fields.contains(required), "missing {required}");
+    }
+
+    let support = proof["component_families"]
+        .as_array()
+        .expect("families")
+        .iter()
+        .find(|family| family["family"].as_str() == Some("support_package_card"))
+        .expect("support-package family present");
+    assert_eq!(
+        support["schema_ref"].as_str(),
+        Some(M5_SUPPORT_PACKAGE_CARD_SCHEMA_REF)
+    );
+    assert_eq!(
+        support["fixture_ref"].as_str(),
+        Some(M5_SUPPORT_PACKAGE_CARD_FIXTURE_REF)
+    );
+    let support_fields: BTreeSet<_> = support["export_parity_fields"]
+        .as_array()
+        .expect("support export fields")
+        .iter()
+        .map(|value| value.as_str().expect("string").to_owned())
+        .collect();
+    for required in [
+        "package_contents",
+        "local_save_summary",
+        "redaction_export_summary",
+        "submit_later_summary",
+    ] {
+        assert!(support_fields.contains(required), "missing {required}");
     }
 }
