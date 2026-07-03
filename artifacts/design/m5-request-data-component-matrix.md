@@ -31,7 +31,7 @@ Certification bundle:
 | Request editor header | `artifacts/data/m5/materialize-versioned-request-workspace-documents-environment-sets-and-auth-source-inspectors.json`, `artifacts/data/m5/implement-the-request-composer-mutation-review-sheets-and-replay-or-history-lanes-with-redaction-safe-export.json`, `schemas/ui/m5-request-editor-header.schema.json` | Desktop request workspace, remote workspace, container workspace, managed workspace, browser-runtime request replay, CLI/headless request inspect, support export, release proof |
 | Environment picker | `artifacts/data/m5/materialize-versioned-request-workspace-documents-environment-sets-and-auth-source-inspectors.json`, `schemas/ui/m5-request-editor-header.schema.json` | Request editor header, send/replay bar, auth sheet, variable inspector, CLI/headless request inspect, support export |
 | Variable-resolution inspector | `artifacts/data/m5/materialize-versioned-request-workspace-documents-environment-sets-and-auth-source-inspectors.json`, `artifacts/data/m5/ship-auth-sheets-secret-source-cues-browser-or-device-code-continuity-and-offline-or-mirror-safe-collection-portability.json`, `schemas/ui/m5-variable-resolution-inspector.schema.json` | Request editor, auth sheet, send/replay review, browser-runtime request replay, support export |
-| Auth sheet | `artifacts/data/m5/ship-auth-sheets-secret-source-cues-browser-or-device-code-continuity-and-offline-or-mirror-safe-collection-portability.json`, `schemas/ui/m5-variable-resolution-inspector.schema.json` | Request editor, connection picker, query history, browser-runtime device-code continuation, support export |
+| Auth sheet | `artifacts/data/m5/ship-auth-sheets-secret-source-cues-browser-or-device-code-continuity-and-offline-or-mirror-safe-collection-portability.json`, `schemas/ui/m5-auth-sheet.schema.json` | Request editor, connection picker, query history, browser-runtime device-code continuation, support export |
 | Response tab set | `artifacts/data/m5/ship-rest-and-graphql-response-viewers-assertions-timing-tabs-and-browser-runtime-trust-classes.json`, `schemas/ui/m5-response-tabset.schema.json` | REST response viewer, GraphQL response viewer, browser-runtime trust panel, request history detail, support export, release proof |
 | Connection picker row | `artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json`, `schemas/ui/m5-connection-picker-row.schema.json` | Database connection browser, SQL editor target picker, query history, notebook/chart handoff, support export |
 | Schema tree | `artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json`, `schemas/ui/m5-connection-picker-row.schema.json` | Connection browser, SQL editor object picker, explain-plan pane, support export |
@@ -46,8 +46,16 @@ Certification bundle:
 | `consumer_surface` | `desktop_request_workspace`, `desktop_database_tool`, `remote_workspace`, `container_workspace`, `managed_workspace`, `browser_runtime_panel`, `notebook_handoff`, `chart_handoff`, `ai_context_handoff`, `cli_headless`, `support_export`, `release_proof` |
 | `execution_origin` | `local_desktop`, `ssh_remote`, `container_workspace`, `managed_workspace`, `browser_runtime`, `imported_snapshot`, `cli_headless` |
 | `auth_storage_mode` | `no_auth`, `secret_broker_handle`, `delegated_identity`, `policy_injected`, `browser_device_code`, `local_encrypted_store`, `managed_rotation`, `imported_no_live_auth`, `policy_blocked` |
+| `auth_scheme` | `no_auth`, `basic`, `bearer`, `api_key`, `oauth2_authorization_code`, `oauth2_client_credentials`, `oauth2_device_code`, `browser_session`, `mtls` |
+| `secret_source_class` | `none`, `workspace_variable`, `secret_broker`, `delegated_identity`, `policy_injected`, `browser_device_code`, `local_encrypted_store`, `managed_rotation`, `imported_no_live_auth`, `policy_blocked` |
+| `token_lifetime` | `no_expiry`, `short_lived`, `refreshable`, `expired`, `session_bound`, `unknown` |
+| `handoff_state` | `not_applicable`, `pending`, `awaiting_user_authorization`, `authorized`, `expired`, `denied`, `policy_blocked` |
 | `capability_state` | `read_only`, `write_capable`, `inspect_only`, `mutation_review_required`, `policy_blocked`, `unavailable` |
 | `freshness_state` | `live`, `current`, `warm_cached`, `cached`, `imported`, `stale`, `superseded`, `partial`, `expired`, `policy_limited`, `unknown` |
+| `run_control_state` | `idle`, `ready`, `running`, `cancelling`, `blocked` |
+| `resolution_state` | `resolved`, `unresolved`, `shadowed`, `policy_hidden`, `secret_handle` |
+| `override_scope` | `not_overridable`, `request_only`, `workspace_profile`, `runtime_session`, `managed_policy_only` |
+| `environment_or_variable_export_scope` | `metadata_only`, `redacted_preview`, `secret_handle_ref`, `blocked_by_policy`, `not_exported` |
 | `row_count_scope` | `exact_total_known`, `exact_returned_only_total_unknown`, `estimate_engine_provided`, `estimate_planner_provided`, `unknown_streaming`, `visible_rows_only`, `sampled_rows` |
 | `export_posture` | `metadata_only`, `redacted_typed`, `visible_rows_only_typed`, `full_result_typed`, `blocked_pending_consent`, `blocked_pending_policy`, `blocked_redaction_class_too_high` |
 | `plan_capture_kind` | `estimated`, `actual`, `imported_estimated`, `imported_actual`, `unavailable` |
@@ -64,31 +72,36 @@ count without its scope.
 ### Request Editor Header
 
 Required truth: method or operation kind, target identity, execution origin,
-environment picker, auth mode, auth storage mode, capability state, last-run
-state, schema/contract freshness, variable inspector ref, and copy/export
-projection. Browser-runtime and managed consumers may be inspect-only, but must
-keep origin and auth posture visible.
+environment picker, auth mode, auth storage mode, capability state, run/cancel
+control state, last-run state, last-run summary, schema/contract freshness,
+variable inspector ref, auth sheet ref, and copy/export projection.
+Browser-runtime and managed consumers may be inspect-only, but must keep origin
+and auth posture visible.
 
 ### Environment Picker
 
 Required truth: environment set ref, source layers, selected layer, effective
-fingerprint, freshness state, origin boundary, policy lock, and secret-handle
-only behavior. Pickers may not display raw secret values or collapse workspace,
-profile, runtime, and imported layers into one generic environment label.
+fingerprint, freshness state, origin boundary, policy lock, override scope,
+export scope, and secret-handle only behavior. Pickers may not display raw
+secret values or collapse workspace, profile, runtime, and imported layers into
+one generic environment label.
 
 ### Variable-Resolution Inspector
 
 Required truth: variable identity, all candidate source layers, winning layer,
-missing/policy-hidden state, redacted or secret-handle value state, auth storage
-mode, origin boundary, freshness, and no-raw-secret proof. Source layers remain
+resolved/unresolved or policy-hidden state, redacted preview where safe,
+secret-handle value state, override scope, export scope, auth storage mode,
+origin boundary, freshness, and no-raw-secret proof. Source layers remain
 visible even when the effective value is withheld.
 
 ### Auth Sheet
 
-Required truth: auth strategy, storage mode, source layer, continuity state,
-offline or mirror behavior, policy lock, rotation/delegation refs, and
+Required truth: auth strategy, scheme, storage mode, secret source class, token
+lifetime, expiry label or timestamp, browser/device-code handoff state,
+offline or mirror behavior, policy notes, rotation/delegation refs, and
 redaction/export posture. Device-code and browser handoffs must show where auth
-continues and what leaves the product.
+continues and what leaves the product without exposing raw verification codes,
+tokens, cookies, or credential bodies.
 
 ### Response Tab Set
 
