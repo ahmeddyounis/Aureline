@@ -19,6 +19,20 @@ Every first-consumer fixture also carries a `reduced_capability_banner` and
 send, replay, mutate, or raw-export capabilities are unavailable while keeping
 the same canonical field names and export actions.
 
+M05-794 adds three required parity blocks to every manifest row:
+
+- `accessibility_contract` freezes keyboard traversal, screen-reader labels,
+  accessible text/table fallbacks, and 200% zoom/high-density behavior for the
+  same first consumers that claim the component.
+- `support_export_join` binds each component to its machine-readable schema and
+  to support/CLI joins for request runs, result sets, history rows, and plan
+  objects without exporting raw secrets, raw result rows, or raw response
+  bodies by default.
+- `auto_narrowing_contract` forces GUI, CLI/headless, support export, release,
+  and help surfaces to narrow claims when auth-source class, origin boundary,
+  schema freshness, plan freshness, or export-redaction posture is missing,
+  stale, or policy-blocked.
+
 Certification bundle:
 
 - Release proof:
@@ -55,6 +69,14 @@ All component fixtures include:
   action policy for live send, replay, mutate, and export.
 - `provider_handoff_notes` — provider surface, handoff state, preserved truth
   fields, return anchor, and `raw_material_exported=false`.
+- `accessibility_contract` — roving keyboard traversal, stable screen-reader
+  labels/descriptions, accessible text/table fallback requirements, and
+  zoom/high-density guarantees.
+- `support_export_join` — stable join id, schema ref, request/result/history
+  and plan object coverage, and raw-material default exclusions.
+- `auto_narrowing_contract` — the missing/stale/policy-blocked truth triggers
+  that cap the public claim and project the same degraded-state reasons to GUI,
+  CLI/headless, support export, and release proof.
 
 Consumers may narrow authority, but they must use these fields instead of
 renaming or dropping request/data truth. The banner and notes are exported in
@@ -250,6 +272,9 @@ analysis as result data.
 | `secret_redaction_parity` | Environment picker, variable inspector, auth sheet, response headers/cookies, support export | Block export or narrow claim. |
 | `copy_export_parity` | Text, JSON, and Markdown exports with source refs | Narrow the consumer claim. |
 | `estimated_actual_plan_truth` | Explain-plan panes and comparisons | Block stable plan claim. |
+| `accessibility_parity` | Keyboard traversal, screen-reader labels, accessible text/table fallback, zoom/high-density | Narrow the consumer claim. |
+| `machine_readable_support_join_parity` | Request runs, result sets, history rows, plan objects, CLI/headless, support export | Block export or narrow claim. |
+| `truth_auto_narrowing` | Auth-source class, origin boundary, schema freshness, plan freshness, export-redaction posture | Narrow the consumer claim. |
 
 Review cannot proceed with feature-local labels that conflict with the frozen
 matrix vocabulary. Claim-bearing consumers must either pass the current proof

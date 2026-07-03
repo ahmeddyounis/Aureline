@@ -143,6 +143,157 @@ fn assert_reduced_capability_disclosure(value: &Value, fixture_name: &str) {
     }
 }
 
+fn assert_accessibility_contract(value: &Value, fixture_name: &str) {
+    let contract = value
+        .get("accessibility_contract")
+        .unwrap_or_else(|| panic!("{fixture_name} missing accessibility contract"));
+
+    let keyboard = contract
+        .get("keyboard_traversal")
+        .unwrap_or_else(|| panic!("{fixture_name} missing keyboard traversal contract"));
+    for flag in [
+        "roving_tabindex",
+        "arrow_key_navigation",
+        "home_end_navigation",
+        "escape_returns_focus",
+    ] {
+        assert!(
+            bool_field(keyboard, flag),
+            "{fixture_name} keyboard traversal must enable {flag}"
+        );
+    }
+    assert!(
+        keyboard
+            .get("tab_stop_order")
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.len() >= 4),
+        "{fixture_name} must declare a stable tab stop order"
+    );
+
+    let screen_reader = contract
+        .get("screen_reader")
+        .unwrap_or_else(|| panic!("{fixture_name} missing screen-reader contract"));
+    assert!(
+        screen_reader
+            .get("label_ref")
+            .and_then(Value::as_str)
+            .is_some_and(|label| label.starts_with("a11y:")),
+        "{fixture_name} must expose a stable screen-reader label ref"
+    );
+    assert!(
+        screen_reader
+            .get("described_by_refs")
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.len() >= 2),
+        "{fixture_name} must expose described-by refs for state and degraded reasons"
+    );
+    assert!(
+        screen_reader
+            .get("state_announced_fields")
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.len() >= 4),
+        "{fixture_name} must name fields announced to screen readers"
+    );
+    assert!(
+        !bool_field(screen_reader, "raw_secret_announced"),
+        "{fixture_name} must never announce raw secrets"
+    );
+
+    let fallback = contract
+        .get("fallback")
+        .unwrap_or_else(|| panic!("{fixture_name} missing accessible fallback contract"));
+    assert!(bool_field(fallback, "accessible_text_summary_required"));
+    assert!(bool_field(fallback, "accessible_table_fallback_required"));
+    for format in ["text", "json", "markdown"] {
+        assert!(
+            contains_string(fallback, "fallback_export_formats", format),
+            "{fixture_name} fallback must include {format}"
+        );
+    }
+    assert!(bool_field(fallback, "screenshot_only_prohibited"));
+
+    let zoom_density = contract
+        .get("zoom_density")
+        .unwrap_or_else(|| panic!("{fixture_name} missing zoom/density contract"));
+    for flag in [
+        "supports_200_percent_zoom",
+        "supports_high_density",
+        "stable_row_height_under_density",
+        "no_horizontal_content_loss",
+    ] {
+        assert!(
+            bool_field(zoom_density, flag),
+            "{fixture_name} zoom/density contract must enable {flag}"
+        );
+    }
+}
+
+fn assert_support_export_join(value: &Value, fixture_name: &str) -> Vec<String> {
+    let join = value
+        .get("support_export_join")
+        .unwrap_or_else(|| panic!("{fixture_name} missing support-export join"));
+    assert!(
+        str_field(join, "join_id").starts_with("support-join:"),
+        "{fixture_name} join id must be stable"
+    );
+    assert!(
+        str_field(join, "schema_ref").starts_with("schemas/ui/"),
+        "{fixture_name} join must reference the machine-readable UI schema"
+    );
+    let object_kinds = array_field(join, "joined_object_kinds")
+        .iter()
+        .map(|kind| {
+            kind.as_str()
+                .unwrap_or_else(|| panic!("{fixture_name} joined object kind must be a string"))
+                .to_owned()
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        !object_kinds.is_empty(),
+        "{fixture_name} join must declare at least one object kind"
+    );
+    assert!(bool_field(join, "preserve_gui_labels_in_cli_and_support"));
+    assert!(!bool_field(join, "raw_secrets_exported"));
+    assert!(!bool_field(join, "raw_rows_exported_by_default"));
+    assert!(!bool_field(join, "raw_response_bodies_exported_by_default"));
+    object_kinds
+}
+
+fn assert_auto_narrowing_contract(value: &Value, fixture_name: &str) {
+    let contract = value
+        .get("auto_narrowing_contract")
+        .unwrap_or_else(|| panic!("{fixture_name} missing auto-narrowing contract"));
+    for trigger in [
+        "auth_source_class",
+        "origin_boundary",
+        "schema_freshness",
+        "plan_freshness",
+        "export_redaction_posture",
+    ] {
+        assert!(
+            contains_string(contract, "narrow_on_missing_or_stale", trigger),
+            "{fixture_name} must narrow on missing or stale {trigger}"
+        );
+    }
+    assert_eq!(
+        str_field(contract, "stale_or_missing_effect"),
+        "narrow_claim"
+    );
+    assert_eq!(
+        str_field(contract, "policy_blocked_effect"),
+        "block_export_or_narrow_claim"
+    );
+    assert_eq!(
+        str_field(contract, "degraded_state_reason_field"),
+        "narrowed_claim_reasons"
+    );
+    assert!(bool_field(contract, "cli_support_reason_parity"));
+    assert_eq!(
+        str_field(contract, "release_help_claim_ceiling"),
+        "available_evidence_only"
+    );
+}
+
 fn contains_string(value: &Value, field: &str, expected: &str) -> bool {
     array_field(value, field)
         .iter()
@@ -921,6 +1072,7 @@ fn reusable_component_fixtures_carry_reduced_capability_and_provider_handoff_dis
     assert!(fixtures.len() >= 12);
 
     let mut all_consumers = Vec::new();
+    let mut joined_object_kinds = Vec::new();
     for entry in fixtures {
         assert!(
             entry
@@ -936,6 +1088,12 @@ fn reusable_component_fixtures_carry_reduced_capability_and_provider_handoff_dis
                 .is_some_and(|refs| !refs.is_empty()),
             "manifest entry must point at provider handoff notes"
         );
+        assert_accessibility_contract(entry, str_field(entry, "family"));
+        joined_object_kinds.extend(assert_support_export_join(
+            entry,
+            str_field(entry, "family"),
+        ));
+        assert_auto_narrowing_contract(entry, str_field(entry, "family"));
 
         let fixture_ref = str_field(entry, "fixture_ref");
         let fixture_name = fixture_ref
@@ -969,15 +1127,178 @@ fn reusable_component_fixtures_carry_reduced_capability_and_provider_handoff_dis
             "component manifest must include first consumer {required_consumer}"
         );
     }
+
+    for object_kind in ["request_run", "result_set", "history_row", "plan_object"] {
+        assert!(
+            joined_object_kinds.iter().any(|kind| kind == object_kind),
+            "component manifest support joins must cover {object_kind}"
+        );
+    }
+}
+
+#[test]
+fn support_export_preserves_accessibility_join_and_narrowing_reason_parity() {
+    let export =
+        load_repo_json("artifacts/release/m5-request-data-component-proof/support_export.json");
+    let manifest = load_fixture("component_manifest.json");
+    let manifest_families = array_field(&manifest, "fixtures")
+        .iter()
+        .map(|entry| str_field(entry, "family").to_owned())
+        .collect::<Vec<_>>();
+    let export_families = array_field(&export, "rows")
+        .iter()
+        .map(|row| str_field(row, "family").to_owned())
+        .collect::<Vec<_>>();
+    for family in manifest_families {
+        assert!(
+            export_families
+                .iter()
+                .any(|export_family| export_family == &family),
+            "support export must carry a row for manifest family {family}"
+        );
+    }
+
+    let contract = export
+        .get("support_export_contract")
+        .expect("support export contract is present");
+    assert!(bool_field(
+        contract,
+        "preserve_gui_labels_in_cli_and_support"
+    ));
+    assert!(bool_field(
+        contract,
+        "joins_request_runs_result_sets_history_rows_and_plan_objects"
+    ));
+    assert!(!bool_field(contract, "raw_secret_export_default"));
+    assert!(!bool_field(contract, "raw_result_row_export_default"));
+    assert!(!bool_field(contract, "raw_response_body_export_default"));
+    assert!(bool_field(contract, "degraded_state_reasons_match_gui"));
+    assert_eq!(
+        str_field(contract, "release_help_claim_ceiling"),
+        "available_evidence_only"
+    );
+
+    let freshness = export
+        .get("freshness_and_parity")
+        .expect("freshness and parity block is present");
+    for check in [
+        "accessibility_parity",
+        "machine_readable_support_join_parity",
+        "truth_auto_narrowing",
+    ] {
+        assert!(
+            contains_string(freshness, "narrowing_checks", check),
+            "support export must enforce {check}"
+        );
+    }
+
+    for row in array_field(&export, "rows") {
+        assert!(
+            str_field(row, "support_export_join_id").starts_with("support-join:"),
+            "support export rows must carry join ids"
+        );
+        assert!(
+            str_field(row, "machine_readable_schema_ref").starts_with("schemas/ui/"),
+            "support export rows must carry schema refs"
+        );
+
+        let a11y = row
+            .get("accessibility_summary")
+            .expect("accessibility summary is present");
+        for field in [
+            "keyboard_traversal_exported",
+            "screen_reader_label_exported",
+            "accessible_text_or_table_fallback_exported",
+            "zoom_and_high_density_reviewed",
+        ] {
+            assert!(bool_field(a11y, field), "row must export {field}");
+        }
+
+        for reason in [
+            "auth_source_class_missing_or_stale",
+            "origin_boundary_missing_or_stale",
+            "schema_freshness_missing_or_stale",
+            "plan_freshness_missing_or_stale",
+            "export_redaction_posture_missing_or_stale",
+        ] {
+            assert!(
+                contains_string(row, "narrowed_claim_reasons", reason),
+                "support export row must include narrowed reason {reason}"
+            );
+        }
+        assert!(!bool_field(row, "raw_secret_exported"));
+        assert!(!bool_field(row, "raw_rows_exported_by_default"));
+        assert!(bool_field(row, "gui_cli_support_label_parity"));
+    }
 }
 
 #[test]
 fn proof_packet_consumer_claims_match_fixture_projection_surfaces() {
     let proof =
         load_repo_json("artifacts/release/m5-request-data-component-proof/proof_packet.json");
+    let contract = proof
+        .get("qualification_contract")
+        .expect("qualification contract is present");
+    assert!(bool_field(contract, "accessibility_review_required"));
+    assert!(bool_field(contract, "cli_headless_label_parity_required"));
+    assert!(bool_field(contract, "support_export_join_required"));
+    assert!(!bool_field(contract, "raw_secret_export_default"));
+    assert!(!bool_field(contract, "raw_result_row_export_default"));
+    assert!(!bool_field(contract, "raw_response_body_export_default"));
+    assert_eq!(
+        str_field(contract, "release_help_claim_ceiling"),
+        "available_evidence_only"
+    );
+    for trigger in [
+        "auth_source_class",
+        "origin_boundary",
+        "schema_freshness",
+        "plan_freshness",
+        "export_redaction_posture",
+    ] {
+        assert!(
+            contains_string(contract, "auto_narrowing_triggers", trigger),
+            "proof packet must narrow on {trigger}"
+        );
+    }
+
     for family in array_field(&proof, "component_families") {
         let fixture_ref = str_field(family, "fixture_ref");
         let fixture = load_repo_json(fixture_ref);
+        assert!(
+            str_field(family, "accessibility_contract_ref").starts_with("accessibility:"),
+            "proof family must carry accessibility contract ref"
+        );
+        assert!(
+            str_field(family, "support_export_join_id").starts_with("support-join:"),
+            "proof family must carry support-export join id"
+        );
+        assert_eq!(
+            str_field(family, "machine_readable_schema_ref"),
+            str_field(family, "schema_ref"),
+            "proof family machine-readable schema ref must match schema ref"
+        );
+        for trigger in [
+            "auth_source_class",
+            "origin_boundary",
+            "schema_freshness",
+            "plan_freshness",
+            "export_redaction_posture",
+        ] {
+            assert!(
+                contains_string(family, "auto_narrowing_triggers", trigger),
+                "{} proof family must narrow on {trigger}",
+                str_field(family, "family")
+            );
+        }
+        for projection in ["gui", "cli_headless", "support_export", "release_proof"] {
+            assert!(
+                contains_string(family, "narrowed_claim_reason_projection", projection),
+                "{} must project narrowed reasons to {projection}",
+                str_field(family, "family")
+            );
+        }
+
         let mut fixture_surfaces = Vec::new();
         if fixture_ref.ends_with("schema_object_rows.json") {
             for row in array_field(&fixture, "rows") {

@@ -14,3 +14,13 @@ Primary files:
 The proof narrows any consumer that fails controlled vocabulary parity, reduced
 capability disclosure, secret redaction parity, copy/export parity, or
 estimated-versus-actual plan truth.
+
+M05-794 parity is part of the frozen proof:
+
+- Keyboard traversal, screen-reader labeling, accessible text/table fallback,
+  and 200% zoom/high-density behavior are required for every first consumer.
+- CLI/headless and support exports join request runs, result sets, history
+  rows, and plan objects through schema refs and stable support join ids.
+- Missing, stale, or policy-blocked auth-source class, origin boundary, schema
+  freshness, plan freshness, or export-redaction posture narrows the public
+  claim and exports the same degraded-state reasons shown in the GUI.
