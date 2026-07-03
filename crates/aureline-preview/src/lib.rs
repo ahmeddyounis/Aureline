@@ -65,6 +65,7 @@ pub mod browser_runtime_inspectors;
 pub mod extension_provider_conformance;
 pub mod freeze_the_m5_design_canvas_structure_tree_property_inspector_source_sync_and_breakpoint_preview_component_matrix;
 pub mod freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix;
+pub mod implement_the_m5_breakpoint_and_device_preview_row_primitive;
 pub mod implement_the_m5_design_canvas_structure_tree_and_property_inspector_selected_node_primitive;
 pub mod implement_the_m5_source_sync_chip_round_trip_conflict_and_generated_or_protected_boundary_primitive;
 pub mod inspect_to_source_tree;
@@ -102,6 +103,22 @@ pub use freeze_the_m5_design_canvas_structure_tree_property_inspector_source_syn
     VISUAL_DESIGNER_COMPONENT_MATRIX_FIXTURE_DIR, VISUAL_DESIGNER_COMPONENT_MATRIX_RECORD_KIND,
     VISUAL_DESIGNER_COMPONENT_MATRIX_SCHEMA_REF, VISUAL_DESIGNER_COMPONENT_MATRIX_SCHEMA_VERSION,
     VISUAL_DESIGNER_COMPONENT_MATRIX_SUMMARY_REF,
+};
+
+pub use implement_the_m5_breakpoint_and_device_preview_row_primitive::{
+    current_stable_m5_breakpoint_preview_export, resolve_breakpoint_preview,
+    seeded_m5_breakpoint_preview_packet, M5BreakpointConsumerProjection,
+    M5BreakpointContinuityAction, M5BreakpointExportField, M5BreakpointGovernanceReview,
+    M5BreakpointPreviewArtifactError, M5BreakpointPreviewCase, M5BreakpointPreviewInput,
+    M5BreakpointPreviewPacket, M5BreakpointPreviewPacketInput, M5BreakpointPreviewResolutionError,
+    M5BreakpointPreviewViolation, M5BreakpointReleasePosture, M5BreakpointSurfaceRow,
+    M5BreakpointVocabularySet, M5PreviewRuntimeOrigin, M5ResolvedBreakpointPreview,
+    M5ResolvedContinuity, M5ResolvedDevicePreviewRow, M5ResolvedRuntimeTruthCue,
+    M5_BREAKPOINT_PREVIEW_ARTIFACT_REF, M5_BREAKPOINT_PREVIEW_COMPONENT_MATRIX_REF,
+    M5_BREAKPOINT_PREVIEW_CSV_REF, M5_BREAKPOINT_PREVIEW_DOC_REF,
+    M5_BREAKPOINT_PREVIEW_FIXTURE_DIR, M5_BREAKPOINT_PREVIEW_RECORD_KIND,
+    M5_BREAKPOINT_PREVIEW_REPORT_REF, M5_BREAKPOINT_PREVIEW_SCHEMA_REF,
+    M5_BREAKPOINT_PREVIEW_SCHEMA_VERSION, M5_BREAKPOINT_PREVIEW_VISUAL_EDIT_REF,
 };
 
 pub use implement_the_m5_design_canvas_structure_tree_and_property_inspector_selected_node_primitive::{
