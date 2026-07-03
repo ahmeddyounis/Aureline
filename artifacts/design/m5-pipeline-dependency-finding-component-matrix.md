@@ -17,13 +17,22 @@ copy/export-safe summaries. They do not carry raw provider payloads, raw logs,
 raw local paths, credentials, raw advisory bodies, exploit details, or private
 tenant/user identifiers.
 
+Certification bundle:
+
+- Release proof:
+  `artifacts/release/m5-pipeline-dependency-finding-proof/proof_packet.json`
+- Support export:
+  `artifacts/release/m5-pipeline-dependency-finding-proof/support_export.json`
+- Fixtures:
+  `fixtures/ui/m5-pipeline-dependency-finding-components/`
+
 ## Source Bindings
 
 | Component family | Canonical sources consumed by reference | First consumers |
 | --- | --- | --- |
 | Pipeline run row | `artifacts/review/m5/implement_normalized_pipeline_run_rows_log_viewers_artifact_browsers_and_safe_preview_trust_classes.md`, `schemas/review/implement-normalized-pipeline-run-rows-log-viewers-artifact-browsers-and-safe-preview-trust-classes.schema.json`, `aureline_review::current_pipeline_viewer_export` | Review pane, pipeline viewer, project-health CI center, companion CI summary, support export, release proof |
-| Annotation row | `schemas/review/ship-ai-review-evidence-finding-cards-and-review-pack-integration-with-change-objects.schema.json`, `artifacts/review/m5/ship_ai_review_evidence_finding_cards_and_review_pack_integration_with_change_objects.md`, normalized diagnostic records, `aureline_ui::m5_annotation_rows::AnnotationRow` | Code surface, review pane, diagnostics panel, project-health center, support export, release proof |
-| Dependency row | `artifacts/deps/m5/package-set-inventory-and-scope-truth.json`, `artifacts/deps/m5/freeze-the-m5-package-state-manifest-scope-registry-auth-and-lockfile-authority-matrix.json`, `schemas/deps/package-review-cross-surface-integration.schema.json`, `aureline_ui::m5_dependency_rows::DependencyRow` | Package manager, review pane, framework-pack health, project-health dependencies, companion inspect, support export |
+| Annotation row | `schemas/review/ship-ai-review-evidence-finding-cards-and-review-pack-integration-with-change-objects.schema.json`, `artifacts/review/m5/ship_ai_review_evidence_finding_cards_and_review_pack_integration_with_change_objects.md`, normalized diagnostic records, `aureline_ui::m5_annotation_rows::AnnotationRow` | Code surface, review pane, diagnostics panel, project-health center, companion client, support export, release proof |
+| Dependency row | `artifacts/deps/m5/package-set-inventory-and-scope-truth.json`, `artifacts/deps/m5/freeze-the-m5-package-state-manifest-scope-registry-auth-and-lockfile-authority-matrix.json`, `schemas/deps/package-review-cross-surface-integration.schema.json`, `aureline_ui::m5_dependency_rows::DependencyRow` | Package manager, review pane, framework-pack health, project-health dependencies, companion inspect, support export, release proof |
 | Manifest diff card | `artifacts/deps/m5/grouped-update-and-rollback-review.json`, `artifacts/deps/m5/manifest-scope-review.json`, `artifacts/deps/m5/reviewed-mutation-flows.json`, package mutation operation history | Package manager, review stage, project-health remediation, companion inspect, support export, release proof |
 | Security finding card | `artifacts/deps/m4/dependency-security-compliance-export-truth.json`, `docs/security/m5_advisory_card_row_primitive_contract.md`, `schemas/security/m5-advisory-card-row.schema.json`, normalized security result packets, `aureline_ui::m5_security_finding_cards::SecurityFindingCard` | Package health, review pane, project-health security center, incident/support export, release proof |
 
@@ -232,6 +241,26 @@ generic warning banner is not an audit record.
   rollback, and apply-boundary labels while narrowing apply to inspect/follow-up.
 - Support export and release proof must include the same controlled labels as
   the primary UI, not generic prose.
+
+## Freshness And Parity Gates
+
+The release proof packet carries the checked gates that claim-bearing consumers
+must pass before they can cite this matrix:
+
+| Gate | Scope | Failure effect |
+| --- | --- | --- |
+| `required_field_parity` | Every required schema field on every claimed consumer | Narrow the consumer claim. |
+| `controlled_label_parity` | Provider, status, freshness, suppression, remediation, and action labels | Narrow the consumer claim. |
+| `action_vocabulary_parity` | Rerun/cancel, open details, changelog/license, apply, remediation, and audit actions | Narrow the consumer claim. |
+| `degraded_state_parity` | Stale, superseded, partial, blocked, policy-hidden, no-fix-yet, provider-unreachable, and rollback-unavailable states | Narrow the consumer claim. |
+| `suppression_visibility` | Annotation and security-finding suppression states | Narrow the consumer claim. |
+| `copy_export_parity` | Text, JSON, and Markdown exports with source refs | Narrow the consumer claim. |
+
+Review panes, package-manager views, project-health centers, and companion
+clients must either pass the current proof freshness SLO or publish a narrowed
+claim. Companion clients may narrow mutation and apply authority to inspect-only,
+but they may not rename fields, drop suppressed rows, or replace component
+exports with screenshots.
 
 ## Narrowing Rules
 

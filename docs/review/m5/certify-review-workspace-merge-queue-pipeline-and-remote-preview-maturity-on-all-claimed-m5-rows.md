@@ -13,6 +13,8 @@ checked-in packet rather than cloning status text.
 - Canonical support export: [`artifacts/review/m5/certify-review-workspace-merge-queue-pipeline-and-remote-preview-maturity-on-all-claimed-m5-rows/support_export.json`](../../../artifacts/review/m5/certify-review-workspace-merge-queue-pipeline-and-remote-preview-maturity-on-all-claimed-m5-rows/support_export.json)
 - Summary artifact: [`artifacts/review/m5/certify-review-workspace-merge-queue-pipeline-and-remote-preview-maturity-on-all-claimed-m5-rows.md`](../../../artifacts/review/m5/certify-review-workspace-merge-queue-pipeline-and-remote-preview-maturity-on-all-claimed-m5-rows.md)
 - Fixtures: [`fixtures/review/m5/certify-review-workspace-merge-queue-pipeline-and-remote-preview-maturity-on-all-claimed-m5-rows/`](../../../fixtures/review/m5/certify-review-workspace-merge-queue-pipeline-and-remote-preview-maturity-on-all-claimed-m5-rows/)
+- Shared row/card component proof: [`artifacts/release/m5-pipeline-dependency-finding-proof/proof_packet.json`](../../../artifacts/release/m5-pipeline-dependency-finding-proof/proof_packet.json)
+- Shared component matrix: [`artifacts/design/m5-pipeline-dependency-finding-component-matrix.md`](../../../artifacts/design/m5-pipeline-dependency-finding-component-matrix.md)
 - Producer / first consumer: `aureline_review::certify_from_current_exports`
 - Reader: `aureline_review::current_m5_review_certification_export`
 
@@ -44,6 +46,13 @@ or underqualified row narrows the certification automatically instead of leaving
 it greener than the evidence. The checked-in support export is exactly the packet
 that function produces, so `cargo test -p aureline-review` fails if any upstream
 export drifts.
+
+The review pane also cites the shared pipeline/dependency/finding component
+proof for reusable `pipeline_run_row`, `annotation_row`, `dependency_row`,
+`manifest_diff_card`, and `security_finding_card` projections. A review surface
+claim narrows when the shared proof freshness SLO expires or when any required
+field, controlled label, action vocabulary, degraded state, suppression state, or
+copy/export field drifts from the matrix.
 
 ## Compatibility report
 

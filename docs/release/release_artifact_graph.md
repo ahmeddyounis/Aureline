@@ -64,6 +64,14 @@ Companion artifacts:
 - [`/artifacts/release/evidence_ownership_map.yaml`](../../artifacts/release/evidence_ownership_map.yaml)
   — machine-readable map from required qualification outputs to proof
   lane, review forum, freshness rules, and source-of-truth refs.
+- [`/artifacts/release/m5-pipeline-dependency-finding-proof/proof_packet.json`](../../artifacts/release/m5-pipeline-dependency-finding-proof/proof_packet.json)
+  and
+  [`/artifacts/design/m5-pipeline-dependency-finding-component-matrix.md`](../../artifacts/design/m5-pipeline-dependency-finding-component-matrix.md)
+  — shared M5 review/package/health/companion component certification for
+  pipeline rows, annotation rows, dependency rows, manifest diff cards,
+  and security finding cards. Release evidence cites this bundle instead
+  of restating component fields in package, review, health, and support
+  packets.
 - [`/docs/release/compatibility_report_template.md`](./compatibility_report_template.md)
   — compatibility report template that extends seeded compatibility rows
   into release-facing packets.

@@ -14,6 +14,7 @@ or awaiting rollback.
 - **Matrix CSV:** `artifacts/release/m5-advisory-card-row-proof/matrix.csv`
 - **Markdown report:** `artifacts/security/m5-advisory-card-row-primitive.md`
 - **Narrowed fixtures:** `fixtures/security/m5-advisory-card-row-primitive/`
+- **Shared security finding component proof:** `artifacts/release/m5-pipeline-dependency-finding-proof/proof_packet.json`
 - **Emitter:** `cargo run -p aureline-shell --bin aureline_shell_m5_advisory_card_row_primitive -- <subcommand>`
 
 This primitive *narrows* the frozen M5 advisory-component matrix
@@ -25,6 +26,16 @@ qualification classes, and downgrade triggers verbatim, and reuses the frozen
 shell-zone matrix's zones, responsive classes, window classes, and consumer surfaces.
 The install state and the derived exposure state are resolver-side vocabularies, kept
 out of the frozen set.
+
+Security findings that are rendered in review, package, project-health,
+framework-health, companion, support, or release surfaces must also satisfy the
+shared `security_finding_card` component contract from
+`artifacts/design/m5-pipeline-dependency-finding-component-matrix.md`. That proof
+keeps severity, confidence, freshness, affected scope, fix availability,
+suppression display label, remediation, local validation, docs/help paths, and
+audit actions separate. If a consumer flattens those fields into a generic
+warning, hides an exception-expired or policy-suppressed card, or loses export
+parity, its shared-component claim narrows.
 
 ## Resolver
 

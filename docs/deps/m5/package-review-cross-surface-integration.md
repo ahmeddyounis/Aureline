@@ -11,6 +11,17 @@ user-facing companion to the governed artifact at
 model in the `aureline-deps` crate
 (`package_review_cross_surface_integration`).
 
+Shared component certification for the package-manager, review, health, and
+companion consumers lives at
+`artifacts/release/m5-pipeline-dependency-finding-proof/proof_packet.json`,
+with the reusable field/label matrix at
+`artifacts/design/m5-pipeline-dependency-finding-component-matrix.md`. Package
+surfaces cite that packet for `dependency_row`, `manifest_diff_card`, and
+`security_finding_card` parity. If a package consumer drops required fields,
+renames action labels, hides stale/advisory-feed/rollback-unavailable states, or
+loses text/JSON/Markdown export parity, the package-surface claim narrows instead
+of staying green.
+
 ## What this packet covers
 
 The packet answers, for every dependency/package card and every cross-surface
