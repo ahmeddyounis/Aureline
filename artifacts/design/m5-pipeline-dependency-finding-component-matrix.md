@@ -23,7 +23,7 @@ tenant/user identifiers.
 | --- | --- | --- |
 | Pipeline run row | `artifacts/review/m5/implement_normalized_pipeline_run_rows_log_viewers_artifact_browsers_and_safe_preview_trust_classes.md`, `schemas/review/implement-normalized-pipeline-run-rows-log-viewers-artifact-browsers-and-safe-preview-trust-classes.schema.json`, `aureline_review::current_pipeline_viewer_export` | Review pane, pipeline viewer, project-health CI center, companion CI summary, support export, release proof |
 | Annotation row | `schemas/review/ship-ai-review-evidence-finding-cards-and-review-pack-integration-with-change-objects.schema.json`, `artifacts/review/m5/ship_ai_review_evidence_finding_cards_and_review_pack_integration_with_change_objects.md`, normalized diagnostic records, `aureline_ui::m5_annotation_rows::AnnotationRow` | Code surface, review pane, diagnostics panel, project-health center, support export, release proof |
-| Dependency row | `artifacts/deps/m5/package-set-inventory-and-scope-truth.json`, `artifacts/deps/m5/freeze-the-m5-package-state-manifest-scope-registry-auth-and-lockfile-authority-matrix.json`, `schemas/deps/package-review-cross-surface-integration.schema.json` | Package manager, review pane, framework-pack health, project-health dependencies, companion inspect, support export |
+| Dependency row | `artifacts/deps/m5/package-set-inventory-and-scope-truth.json`, `artifacts/deps/m5/freeze-the-m5-package-state-manifest-scope-registry-auth-and-lockfile-authority-matrix.json`, `schemas/deps/package-review-cross-surface-integration.schema.json`, `aureline_ui::m5_dependency_rows::DependencyRow` | Package manager, review pane, framework-pack health, project-health dependencies, companion inspect, support export |
 | Manifest diff card | `artifacts/deps/m5/grouped-update-and-rollback-review.json`, `artifacts/deps/m5/manifest-scope-review.json`, `artifacts/deps/m5/reviewed-mutation-flows.json`, package mutation operation history | Package manager, review stage, project-health remediation, support export, release proof |
 | Security finding card | `artifacts/deps/m4/dependency-security-compliance-export-truth.json`, `docs/security/m5_advisory_card_row_primitive_contract.md`, `schemas/security/m5-advisory-card-row.schema.json`, normalized security result packets | Package health, review pane, project-health security center, incident/support export, release proof |
 
@@ -106,14 +106,16 @@ Required fields:
 | Field | Contract |
 | --- | --- |
 | `row_id` | Stable row id. |
-| `package_identity_ref`, `resolved_identity_ref` | Package coordinate and resolved exact identity from package-set truth. |
+| `package_name`, `package_identity_ref`, `resolved_identity_ref` | User-visible package name, package coordinate, and resolved exact identity from package-set truth. |
 | `manifest_identity` | Manifest ref, scope kind, ecosystem, and owning workset/workspace ref. |
 | `dependency_relation` | `direct`, `transitive`, `workspace_local`, `path`, or `vcs`; direct/transitive truth is never hidden. |
 | `version_delta` | Current, target, requested range, delta class, and lockfile authority. |
+| `lockfile_impact` | Lockfile impact state, lockfile ref, affected entry count, review-required flag, and summary. |
 | `advisory_summary` | Advisory count, highest severity, advisory freshness, and suppression counts. |
 | `license_action`, `changelog_action` | Separate license and changelog actions with refs and availability. |
+| `update_state` | `available`, `limited`, `blocked`, `policy_constrained`, `inspect_only`, or `not_applicable`; constrained states remain visible as rows. |
 | `freshness_state`, `degraded_state` | Registry/advisory/package freshness and explicit stale/partial/blocked/policy-hidden state. |
-| `copy_export` | Text, JSON, and Markdown copy preserving package identity, manifest scope, relation, version delta, advisory count, license action, and changelog action. |
+| `copy_export` | Text, JSON, and Markdown copy preserving package name, ecosystem, manifest scope, relation, version delta, lockfile impact, advisory count, update state, license action, and changelog action. |
 
 Degraded states:
 

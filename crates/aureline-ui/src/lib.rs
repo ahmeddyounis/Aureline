@@ -141,6 +141,14 @@
 //! and open-details action as separate export-safe fields so review panes,
 //! project-health centers, companion clients, support exports, and release proof
 //! render the same anchor truth instead of silently retargeting stale findings.
+//!
+//! [`m5_dependency_rows::DependencyRow`] freezes the reusable dependency row for
+//! package-manager, review, project-health, framework-pack health, companion,
+//! support, and release surfaces. It keeps package name and ecosystem, direct
+//! versus transitive relation, current-to-target version delta, manifest scope,
+//! lockfile impact, advisory counts, and changelog/license actions as separate
+//! export-safe fields, and preserves limited, blocked, and policy-constrained
+//! update states as visible rows instead of reducing them to disabled buttons.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -148,6 +156,7 @@ pub mod components;
 pub mod density;
 pub mod m5_accessibility_and_continuity;
 pub mod m5_annotation_rows;
+pub mod m5_dependency_rows;
 pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;
 pub mod m5_form_family_certification;
