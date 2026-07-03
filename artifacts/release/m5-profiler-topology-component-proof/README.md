@@ -46,5 +46,20 @@ Release and support proof for
   rather than silently dropping state or actions. Its record schema is
   `schemas/ui/m5-component-accessibility-fallback.schema.json`.
 
+- `artifacts/support/m5/m5-cross-surface-component-consumers.json` is the M05-802
+  cross-surface consumer adoption packet. It proves the frozen families are
+  reusable primitives rather than profile-only or graph-only implementations by
+  adopting them across the five claimed consumer classes — performance tooling,
+  search/graph understanding, an onboarding/explainer entry path, an AI/review
+  consumer, and an incident/support surface — plus the help/support/release
+  evidence surfaces. Every consumer points back to exactly one canonical
+  component family (schema + producer packet) instead of cloning surface-local
+  prose, and preserves the same capture/source badges, workset scope language,
+  citation vocabulary, and degraded-state labels even when it is read-only,
+  inspect-only, compare-only, or export-only; narrower consumers disclose the
+  reduction with a reduced-capability banner and a companion/browser/handoff note
+  rather than renaming or dropping governed state. Its record schema is
+  `schemas/ui/m5-cross-surface-component-consumer.schema.json`.
+
 This proof packet is the release/support companion for tasks M05-796,
-M05-797, M05-798, M05-799, M05-800, and M05-801.
+M05-797, M05-798, M05-799, M05-800, M05-801, and M05-802.

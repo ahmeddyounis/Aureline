@@ -37,6 +37,13 @@ Certification bundle:
 - Accessibility fallback / export-safe summary packet:
   `artifacts/perf/m5/m5-component-accessibility-fallback-components.json`
   (schema `schemas/ui/m5-component-accessibility-fallback.schema.json`)
+- Cross-surface consumer adoption packet:
+  `artifacts/support/m5/m5-cross-surface-component-consumers.json`
+  (schema `schemas/ui/m5-cross-surface-component-consumer.schema.json`) — proves
+  the families are reusable primitives by adopting them across performance,
+  search/graph, onboarding/explainer, AI/review, and incident/support consumers,
+  each pointing back to one canonical family with badge/scope/citation/degraded
+  labels preserved even when read-only or export-only.
 - Fixtures:
   `fixtures/ui/m5-profiler-topology-components/`
 
@@ -216,3 +223,4 @@ disclosure.
 | `accessibility_fallback_parity` | Every canvas-heavy family (flamegraph, icicle, heap/profile compare, trace timeline, topology map) plus ownership/explainer views on every claimed consumer | Bind a keyboard/screen-reader-reachable list/table/textual path with the same filter/sort/range semantics; a view-only chart/map that strands assistive tech blocks review. |
 | `export_safe_summary_parity` | GUI, companion, browser, handoff packet, CLI/headless, support export, release proof | Every component carries an export-safe summary object that reconstructs its meaning without a screenshot; screenshot-only export narrows the claim. |
 | `narrowed_surface_disclosure` | Companion, read-only browser, handoff packet, CLI/headless, support export | Narrower surfaces disclose reduced interactivity and keep the same labels/summary vocabulary; silently dropping state or actions blocks review. |
+| `cross_surface_consumer_reuse` | Every claimed consumer class (performance, search/graph, onboarding/explainer, AI/review, incident/support) plus help/support/release evidence surfaces | Each consumer points back to exactly one canonical component family rather than cloning surface-local prose; renaming, omitting, or under-disclosing a canonical badge/scope/citation/degraded label on a narrower consumer blocks review. |

@@ -412,6 +412,7 @@ pub mod m5_action_plans;
 pub mod m5_cache_repair;
 pub mod m5_clear_data_review;
 pub mod m5_crash_intake_and_recovery;
+pub mod m5_cross_surface_component_consumers;
 pub mod m5_embedded_dashboards;
 pub mod m5_fault_crash_certification;
 pub mod m5_fault_crash_governance;
@@ -527,6 +528,16 @@ pub use m5_crash_intake_and_recovery::{
     M5_CRASH_INTAKE_RECOVERY_RECORD_KIND, M5_CRASH_INTAKE_RECOVERY_REVIEW_PACKET_REF,
     M5_CRASH_INTAKE_RECOVERY_SCHEMA_REF, M5_CRASH_INTAKE_RECOVERY_SCHEMA_VERSION,
     M5_CRASH_INTAKE_RECOVERY_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_cross_surface_component_consumers::{
+    current_cross_surface_consumer_packet, AuthorityMode as CrossSurfaceAuthorityMode,
+    ConsumerGroup as CrossSurfaceConsumerGroup, CrossSurfaceConsumerPacket, CrossSurfaceConsumerRow,
+    CrossSurfaceConsumerSummary, CrossSurfaceConsumerViolation,
+    HandoffTarget as CrossSurfaceHandoffTarget, LabelParityState as CrossSurfaceLabelParityState,
+    M5ComponentFamily as CrossSurfaceComponentFamily, CROSS_SURFACE_CONSUMER_MATRIX_REF,
+    CROSS_SURFACE_CONSUMER_PACKET_JSON, CROSS_SURFACE_CONSUMER_PACKET_PATH,
+    CROSS_SURFACE_CONSUMER_RECORD_KIND, CROSS_SURFACE_CONSUMER_ROW_RECORD_KIND,
+    CROSS_SURFACE_CONSUMER_SCHEMA_REF, CROSS_SURFACE_CONSUMER_SCHEMA_VERSION,
 };
 pub use m5_fault_crash_certification::{
     seeded_m5_fault_crash_certification_packet,
