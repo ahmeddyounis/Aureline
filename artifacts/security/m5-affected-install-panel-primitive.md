@@ -1,0 +1,51 @@
+# M5 Affected-Install Assessment Panel Primitive: Build / Channel / Install-Mode Identity, Impacted Components, Mirror Freshness, and Rollback / Repin Parity
+
+- Packet: `m5-affected-install-panel-primitive:stable:0001`
+- Label: `M5 affected-install assessment panel primitive: build / channel / install-mode identity, impacted components, current exposure, mitigation status, mirror freshness, and rollback / repin / help-action parity across channels`
+- Install-profile lanes: 6 (6 stable)
+- Anatomy parts: install_identity, impacted_components, current_exposure, mitigation_status, mirror_freshness, primary_action, help_support_action
+- Severity classes: informational, low, moderate, high, critical, operational_emergency
+- Channels: update_center, help_about, support_bundle, admin_report
+- Assessment verdicts: affected, mitigated_no_action_needed, contained_action_advised, awaiting_rollback_or_repin, not_affected, resolved, clean_pending_mirror_refresh
+- Export fields: advisory_id, severity, action_state, affected_surface, mitigation_state, delivery_profile, freshness_state, continuity_note, disclosure_visibility, history_state
+- Proof freshness SLO: 720 hours (last refresh: 2026-06-30T00:00:00Z)
+
+## Install-profile lanes
+
+- **Per-User Installed**: `stable`
+  - Owner: Update / install-topology owner
+  - Scope: The per-user-installed lane answers `am I affected?` against the local install graph so a critical advisory on the running build shows `affected`, the exact build/channel identity, the impacted components, `up_to_date` mirror freshness, and an attached rollback/repin plus support-export action — no external website lookup
+  - Shell zone: `right_inspector`
+  - Worked assessments: 1
+    - `AURELINE-ADV-2026-0301` — critical (affected), exposure `exposed`, mirror `up_to_date`
+- **Per-Machine Installed**: `stable`
+  - Owner: Managed install / rollback owner
+  - Scope: The per-machine-installed lane shows `awaiting_rollback_or_repin` when the machine-wide build is pinned to a fixed rollback target, keeping the rollback/repin and support-export actions attached to the same panel instead of scattering them across separate surfaces
+  - Shell zone: `right_inspector`
+  - Worked assessments: 1
+    - `AURELINE-ADV-2026-0302` — high (awaiting_rollback_or_repin), exposure `awaiting_rollback`, mirror `up_to_date`
+- **Portable Archive**: `stable`
+  - Owner: Portable-distribution owner
+  - Scope: The portable lane shows `mitigated_no_action_needed` when a compensating control is applied in place, keeping the install identity, impacted components, and mirror freshness visible in the same assessment surface
+  - Shell zone: `right_inspector`
+  - Worked assessments: 1
+    - `AURELINE-ADV-2026-0303` — moderate (mitigated_no_action_needed), exposure `mitigated_in_place`, mirror `up_to_date`
+- **Managed Deployed**: `stable`
+  - Owner: Managed-deployment owner
+  - Scope: The managed-deployed lane shows `contained_action_advised` when the admin-deployed build is blocked by revocation, keeping a disable action and an attached contact-admin help action on the panel while local continuity requires disabling the affected profile
+  - Shell zone: `right_inspector`
+  - Worked assessments: 1
+    - `AURELINE-ADV-2026-0304` — operational_emergency (contained_action_advised), exposure `contained_by_block`, mirror `up_to_date`
+- **Offline Bundle**: `stable`
+  - Owner: Offline / mirror-continuity owner
+  - Scope: The offline-bundle lane auto-narrows a clean verdict to `clean_pending_mirror_refresh` when the offline snapshot is expired — mirror lag is disclosed instead of staying silently green — and shows `resolved` once a fixed build supersedes the advisory over a fresh mirror
+  - Shell zone: `right_inspector`
+  - Worked assessments: 2
+    - `AURELINE-ADV-2026-0305` — informational (clean_pending_mirror_refresh), exposure `not_affected`, mirror `offline_expired`
+    - `AURELINE-ADV-2026-0306` — low (resolved), exposure `resolved`, mirror `up_to_date`
+- **Side-by-Side Preview**: `stable`
+  - Owner: Preview / side-by-side owner
+  - Scope: The side-by-side-preview lane shows `not_affected` when the preview build is not installed on this device over a fresh mirror, so the assessment states local use is unaffected without a generic update prompt
+  - Shell zone: `right_inspector`
+  - Worked assessments: 1
+    - `AURELINE-ADV-2026-0307` — low (not_affected), exposure `not_affected`, mirror `up_to_date`
