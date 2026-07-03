@@ -32,7 +32,7 @@ payloads, raw issue bodies, credentials, or private tenant/user identifiers.
 | --- | --- |
 | `freshness_state` | `current`, `live`, `warm_cached`, `cached`, `mirrored`, `offline_pack`, `stale`, `stale_cache`, `policy_limited`, `retest_pending`, `expired`, `quarantined` |
 | `downgrade_state` | `none`, `methodology_only`, `narrowed_to_internal`, `retest_pending`, `quarantined`, `cached_service_health`, `local_only_continuity`, `service_degraded`, `policy_limited`, `saved_local_only`, `send_blocked`, `bridge_required_import`, `community_owned_destination`, `unsupported` |
-| `benchmark_evidence_source_class` | `lab_run`, `self_capture`, `community_report`, `release_reproduction`, `methodology_only` |
+| `benchmark_evidence_source_class` | `lab_reference_run`, `self_capture`, `design_partner_result`, `community_report`, `imported_evidence`, `methodology_only` |
 | `service_contract_state` | `ready`, `degraded`, `local_only`, `stale`, `contract_mismatch`, `policy_blocked`, `unavailable` |
 | `support_package_state` | `review_ready`, `narrowed_review`, `send_blocked`, `saved_local_only`, `submitted`, `stale_schema` |
 | `importer_outcome_state` | `imported`, `mapped`, `skipped`, `manual_review`, `bridge_required`, `unsupported` |
@@ -48,17 +48,29 @@ Required fields:
 | Field | Contract |
 | --- | --- |
 | `card_id` | Stable card id quoted by docs/help, release proof, and support export. |
+| `benchmark_id` | Stable benchmark/run id preserved in every copy/export and trace/report handoff. |
 | `claim_ref` | Opaque ref to the benchmark claim/publication row. |
 | `claim_scope` | One of `methodology_only`, `aureline_only_reference`, `head_to_head_comparison`, or `workflow_claim`. |
-| `evidence_source_class` | `lab_run`, `self_capture`, `community_report`, `release_reproduction`, or `methodology_only`; self/community evidence cannot render as lab evidence. |
+| `evidence_source_class` | `lab_reference_run`, `self_capture`, `design_partner_result`, `community_report`, `imported_evidence`, or `methodology_only`; self/design-partner/community/imported evidence cannot render as lab/reference proof. |
 | `workflow_ref` | Workflow or benchmark suite being claimed. |
 | `budget_ref` | Runtime, power, thermal, variance, or rerun budget ref. |
+| `measured_value_repr`, `budget_value_repr` | Human-readable measured value versus budget value shown together on the card and preserved in exports. |
 | `corpus_ref` | Corpus or corpus-manifest ref. |
 | `hardware_or_capture_ref` | Reference hardware profile, lab image, or self-capture source. |
+| `cold_warm_state` | Cold, warm, mixed, or not-applicable run state. |
+| `sample_size` | Number of samples/runs behind the visible metric. |
+| `extension_set_ref` | Extension set used for the run or capture. |
+| `power_mode` | Plugged-in, battery, low-power, performance, managed-policy, or unknown power mode. |
+| `execution_scope` | Local-only, remote-attached, managed-remote, or mixed execution scope. |
+| `as_of_date` | Date the card's benchmark truth was current as `YYYY-MM-DD`. |
 | `metric_rows` | Metric rows with value labels and comparison basis; rows may render `not_comparable` without disappearing. |
+| `compare_view` | Compare-mode, baseline ref, comparable flag, comparison basis, and caveat refs for compare views. |
 | `freshness_state` | Current/stale/retest posture. |
 | `downgrade_state` | Explicit downgrade or narrowing reason. |
 | `degraded_state` | Explicit degraded state such as `stale_benchmark_evidence` or `self_capture_only`. |
+| `downgrade_banner` | Visible downgrade banner state; stale, incomparable, non-lab, unverified, or quarantined evidence must show the banner. |
+| `caveat_summary_refs` | Caveat summary refs that must survive copy/export outside the product. |
+| `trace_report_export` | Trace/report export refs and booleans proving benchmark id, caveats, workflow/budget truth, and environment truth are included. |
 | `copy_export` | Text, JSON, and Markdown copy with export fields sufficient to reconstruct the claim without a screenshot. |
 
 Degraded states:
@@ -68,7 +80,9 @@ Degraded states:
 - `incomparable_hardware`
 - `narrowed_corpus`
 - `self_capture_only`
+- `design_partner_limited`
 - `community_unverified`
+- `imported_evidence_unverified`
 
 ### About / Service-Health Card
 
@@ -202,4 +216,3 @@ bridge-required, or local-only truth as generic prose is non-conforming.
   cannot inherit an official-support commitment.
 - Any first consumer that drops the component's copy/export fields or replaces
   controlled labels with local prose narrows below M5-ready.
-

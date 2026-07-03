@@ -434,6 +434,7 @@ pub mod m5_assurance_claim_reducer;
 pub mod m5_assurance_consumer_parity;
 pub mod m5_assurance_route_governance;
 pub mod m5_badge_vocabulary;
+pub mod m5_benchmark_help_migration_components;
 pub mod m5_boundary_inspector;
 pub mod m5_change_impact_card;
 pub mod m5_claim_narrowing;
@@ -695,6 +696,18 @@ pub use ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_pr
     SurfaceState as FitnessSurfaceState,
     TrustTier as FitnessSurfaceTrustTier, FITNESS_SURFACE_JSON, FITNESS_SURFACE_PATH,
     FITNESS_SURFACE_RECORD_KIND, FITNESS_SURFACE_SCHEMA_VERSION,
+};
+
+pub use m5_benchmark_help_migration_components::{
+    current_benchmark_evidence_card, current_benchmark_evidence_cards,
+    validate_benchmark_evidence_cards, BenchmarkClaimScope, BenchmarkCompareMode,
+    BenchmarkCompareView, BenchmarkComparisonBasis, BenchmarkCopyExport, BenchmarkDegradedState,
+    BenchmarkDowngradeBanner, BenchmarkDowngradeBannerLabel, BenchmarkDowngradeState,
+    BenchmarkEvidenceCard, BenchmarkEvidenceCardViolation, BenchmarkEvidenceSourceClass,
+    BenchmarkFreshnessState, BenchmarkMetricRow, BenchmarkTraceReportExport, ColdWarmState,
+    ExecutionScope, PowerMode, M5_BENCHMARK_EVIDENCE_CARD_FIXTURE_REF,
+    M5_BENCHMARK_EVIDENCE_CARD_JSON, M5_BENCHMARK_EVIDENCE_CARD_RECORD_KIND,
+    M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_REF, M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_VERSION,
 };
 
 pub use ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions::{
