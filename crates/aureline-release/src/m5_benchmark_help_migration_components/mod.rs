@@ -15,8 +15,45 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+use crate::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
+
 #[cfg(test)]
 mod tests;
+
+/// Supported certification bundle schema version.
+pub const M5_BENCHMARK_HELP_MIGRATION_COMPONENT_CERTIFICATION_SCHEMA_VERSION: u32 = 1;
+
+/// Stable record-kind tag for the executable certification bundle.
+pub const M5_BENCHMARK_HELP_MIGRATION_COMPONENT_CERTIFICATION_RECORD_KIND: &str =
+    "m5_benchmark_help_migration_component_certification";
+
+/// Stable record-kind tag for the checked-in proof packet.
+pub const M5_BENCHMARK_HELP_MIGRATION_COMPONENT_PROOF_RECORD_KIND: &str =
+    "m5_benchmark_help_migration_component_proof";
+
+/// Repo-relative proof packet ref.
+pub const M5_BENCHMARK_HELP_MIGRATION_COMPONENT_PROOF_PACKET_REF: &str =
+    "artifacts/release/m5-benchmark-help-migration-proof/proof_packet.json";
+
+/// Repo-relative support export ref.
+pub const M5_BENCHMARK_HELP_MIGRATION_COMPONENT_SUPPORT_EXPORT_REF: &str =
+    "artifacts/release/m5-benchmark-help-migration-proof/support_export.json";
+
+/// Repo-relative design matrix ref.
+pub const M5_BENCHMARK_HELP_MIGRATION_COMPONENT_MATRIX_REF: &str =
+    "artifacts/design/m5-benchmark-help-migration-component-matrix.md";
+
+/// Embedded checked-in proof packet.
+pub const M5_BENCHMARK_HELP_MIGRATION_COMPONENT_PROOF_PACKET_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../artifacts/release/m5-benchmark-help-migration-proof/proof_packet.json"
+));
+
+/// Embedded support projection for the certification bundle.
+pub const M5_BENCHMARK_HELP_MIGRATION_COMPONENT_SUPPORT_EXPORT_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../artifacts/release/m5-benchmark-help-migration-proof/support_export.json"
+));
 
 /// Supported benchmark evidence-card schema version.
 pub const M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_VERSION: u32 = 1;
@@ -4047,6 +4084,760 @@ pub enum CommunityHandoffTileViolation {
         /// Destination group.
         destination_group: HandoffDestinationGroup,
     },
+}
+
+/// Component families covered by the M05-779 certification bundle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BenchmarkHelpMigrationComponentFamily {
+    /// Benchmark evidence cards.
+    BenchmarkEvidenceCard,
+    /// About and service-health cards.
+    AboutServiceHealthCard,
+    /// Support-package cards.
+    SupportPackageCard,
+    /// Migration importer diff rows and review tables.
+    ImporterDiffRow,
+    /// Community/public handoff tiles.
+    CommunityHandoffTile,
+}
+
+impl BenchmarkHelpMigrationComponentFamily {
+    /// Every certified component family.
+    pub const ALL: [Self; 5] = [
+        Self::BenchmarkEvidenceCard,
+        Self::AboutServiceHealthCard,
+        Self::SupportPackageCard,
+        Self::ImporterDiffRow,
+        Self::CommunityHandoffTile,
+    ];
+
+    /// Stable token recorded in proof packets.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::BenchmarkEvidenceCard => "benchmark_evidence_card",
+            Self::AboutServiceHealthCard => "about_service_health_card",
+            Self::SupportPackageCard => "support_package_card",
+            Self::ImporterDiffRow => "importer_diff_row",
+            Self::CommunityHandoffTile => "community_handoff_tile",
+        }
+    }
+}
+
+/// Bundle-level certification state for a component family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ComponentCertificationState {
+    /// Current evidence supports the claimed label without narrowing.
+    CertifiedCurrent,
+    /// The component is valid and honestly narrowed/degraded on the card.
+    CertifiedNarrowed,
+    /// The shared packet cannot certify this family until a gap is fixed.
+    NeedsReview,
+}
+
+impl ComponentCertificationState {
+    const fn is_release_ready(self) -> bool {
+        matches!(self, Self::CertifiedCurrent | Self::CertifiedNarrowed)
+    }
+}
+
+/// Closed reasons a family narrows or fails certification.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ComponentCertificationReason {
+    /// The checked-in proof packet is missing the component family.
+    ProofFamilyMissing,
+    /// Schema, fixture, matrix, or support-export refs drifted from the canonical packet.
+    ProofRefMismatch,
+    /// First-consumer surfaces are missing from either fixture truth or the proof packet.
+    FirstConsumerMissing,
+    /// A family-specific validator found dropped component truth.
+    ComponentInvariantViolation,
+    /// Benchmark evidence is stale, pending retest, expired, quarantined, or downgraded.
+    BenchmarkEvidenceNarrowed,
+    /// Service health is cached, stale, policy-limited, unavailable, or locally narrowed.
+    ServiceHealthNarrowed,
+    /// Support package truth is saved-local-only, send-blocked, stale, or policy narrowed.
+    SupportPackageNarrowed,
+    /// Migration compatibility requires a bridge, review, unsupported outcome, or partial apply.
+    MigrationCompatibilityNarrowed,
+    /// Handoff ownership, reachability, or local-only posture narrows the destination claim.
+    HandoffDestinationNarrowed,
+}
+
+impl ComponentCertificationReason {
+    const fn is_blocking(self) -> bool {
+        matches!(
+            self,
+            Self::ProofFamilyMissing
+                | Self::ProofRefMismatch
+                | Self::FirstConsumerMissing
+                | Self::ComponentInvariantViolation
+        )
+    }
+}
+
+/// One certified family row inside the bundle.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ComponentCertificationRow {
+    /// Component family.
+    pub family: BenchmarkHelpMigrationComponentFamily,
+    /// Certification state.
+    pub state: ComponentCertificationState,
+    /// Label the family would like to carry before narrowing.
+    pub claimed_label: StableClaimLevel,
+    /// Label consumers may publish after applying component truth.
+    pub effective_label: StableClaimLevel,
+    /// Checked-in proof packet ref.
+    pub proof_packet_ref: String,
+    /// Support/export projection ref.
+    pub support_export_ref: String,
+    /// Schema ref used by the family.
+    pub schema_ref: String,
+    /// Fixture refs consumed by the certification.
+    pub fixture_refs: Vec<String>,
+    /// First consumers covered by fixtures and proof packet.
+    pub first_consumers: Vec<String>,
+    /// Active reasons explaining narrowing or review.
+    pub active_reasons: Vec<ComponentCertificationReason>,
+    /// Number of family-specific validator violations.
+    pub component_violation_count: usize,
+}
+
+impl ComponentCertificationRow {
+    /// Whether this row can be published by claim-bearing M5 surfaces.
+    pub fn release_ready(&self) -> bool {
+        self.state.is_release_ready()
+            && self
+                .active_reasons
+                .iter()
+                .all(|reason| !reason.is_blocking())
+    }
+
+    fn has_reason(&self, reason: ComponentCertificationReason) -> bool {
+        self.active_reasons.contains(&reason)
+    }
+}
+
+/// Roll-up for the executable certification bundle.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ComponentCertificationSummary {
+    /// Total families covered.
+    pub total_families: usize,
+    /// Families certified without narrowing.
+    pub current_families: usize,
+    /// Families certified with honest component-level narrowing.
+    pub narrowed_families: usize,
+    /// Families requiring review before publication.
+    pub needs_review_families: usize,
+}
+
+impl ComponentCertificationSummary {
+    fn derive(rows: &[ComponentCertificationRow]) -> Self {
+        Self {
+            total_families: rows.len(),
+            current_families: rows
+                .iter()
+                .filter(|row| row.state == ComponentCertificationState::CertifiedCurrent)
+                .count(),
+            narrowed_families: rows
+                .iter()
+                .filter(|row| row.state == ComponentCertificationState::CertifiedNarrowed)
+                .count(),
+            needs_review_families: rows
+                .iter()
+                .filter(|row| row.state == ComponentCertificationState::NeedsReview)
+                .count(),
+        }
+    }
+}
+
+/// Executable certification bundle for benchmark/help/migration component truth.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct M5BenchmarkHelpMigrationComponentCertification {
+    /// Record kind.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Design matrix ref.
+    pub matrix_ref: String,
+    /// Checked-in proof packet ref.
+    pub proof_packet_ref: String,
+    /// Support/export projection ref.
+    pub support_export_ref: String,
+    /// Per-family certification rows.
+    pub rows: Vec<ComponentCertificationRow>,
+    /// Roll-up summary.
+    pub summary: ComponentCertificationSummary,
+    /// Release decision derived from rows.
+    pub release_decision: PromotionDecision,
+}
+
+impl M5BenchmarkHelpMigrationComponentCertification {
+    fn from_parts(
+        proof_packet: ComponentProofPacket,
+        benchmark_cards: Vec<BenchmarkEvidenceCard>,
+        about_card: AboutServiceHealthCard,
+        support_card: SupportPackageCard,
+        importer_table: ImporterReviewTable,
+        handoff_tiles: Vec<CommunityHandoffTile>,
+    ) -> Self {
+        let mut rows = Vec::new();
+        rows.push(certify_benchmark_family(&proof_packet, &benchmark_cards));
+        rows.push(certify_about_family(&proof_packet, &about_card));
+        rows.push(certify_support_family(&proof_packet, &support_card));
+        rows.push(certify_importer_family(&proof_packet, &importer_table));
+        rows.push(certify_handoff_family(&proof_packet, &handoff_tiles));
+        let summary = ComponentCertificationSummary::derive(&rows);
+        let release_decision = if rows.iter().all(ComponentCertificationRow::release_ready) {
+            PromotionDecision::Proceed
+        } else {
+            PromotionDecision::Hold
+        };
+        Self {
+            record_kind: M5_BENCHMARK_HELP_MIGRATION_COMPONENT_CERTIFICATION_RECORD_KIND.to_owned(),
+            schema_version: M5_BENCHMARK_HELP_MIGRATION_COMPONENT_CERTIFICATION_SCHEMA_VERSION,
+            matrix_ref: M5_BENCHMARK_HELP_MIGRATION_COMPONENT_MATRIX_REF.to_owned(),
+            proof_packet_ref: M5_BENCHMARK_HELP_MIGRATION_COMPONENT_PROOF_PACKET_REF.to_owned(),
+            support_export_ref: M5_BENCHMARK_HELP_MIGRATION_COMPONENT_SUPPORT_EXPORT_REF.to_owned(),
+            rows,
+            summary,
+            release_decision,
+        }
+    }
+
+    /// Find a row by family.
+    pub fn row(
+        &self,
+        family: BenchmarkHelpMigrationComponentFamily,
+    ) -> Option<&ComponentCertificationRow> {
+        self.rows.iter().find(|row| row.family == family)
+    }
+
+    /// Validate the bundle-level invariants.
+    pub fn validate(&self) -> Vec<ComponentCertificationViolation> {
+        let mut violations = Vec::new();
+        if self.record_kind != M5_BENCHMARK_HELP_MIGRATION_COMPONENT_CERTIFICATION_RECORD_KIND {
+            violations.push(ComponentCertificationViolation::UnsupportedRecordKind);
+        }
+        if self.schema_version != M5_BENCHMARK_HELP_MIGRATION_COMPONENT_CERTIFICATION_SCHEMA_VERSION
+        {
+            violations.push(ComponentCertificationViolation::UnsupportedSchemaVersion);
+        }
+        if self.matrix_ref != M5_BENCHMARK_HELP_MIGRATION_COMPONENT_MATRIX_REF
+            || self.proof_packet_ref != M5_BENCHMARK_HELP_MIGRATION_COMPONENT_PROOF_PACKET_REF
+            || self.support_export_ref != M5_BENCHMARK_HELP_MIGRATION_COMPONENT_SUPPORT_EXPORT_REF
+        {
+            violations.push(ComponentCertificationViolation::PacketRefDrift);
+        }
+        if self.summary != ComponentCertificationSummary::derive(&self.rows) {
+            violations.push(ComponentCertificationViolation::SummaryDrift);
+        }
+        let expected_decision = if self
+            .rows
+            .iter()
+            .all(ComponentCertificationRow::release_ready)
+        {
+            PromotionDecision::Proceed
+        } else {
+            PromotionDecision::Hold
+        };
+        if self.release_decision != expected_decision {
+            violations.push(ComponentCertificationViolation::ReleaseDecisionDrift);
+        }
+
+        let mut families = BTreeSet::new();
+        for row in &self.rows {
+            if !families.insert(row.family) {
+                violations
+                    .push(ComponentCertificationViolation::DuplicateFamily { family: row.family });
+            }
+            validate_certification_row(row, &mut violations);
+        }
+        for family in BenchmarkHelpMigrationComponentFamily::ALL {
+            if !families.contains(&family) {
+                violations.push(ComponentCertificationViolation::MissingFamily { family });
+            }
+        }
+        violations
+    }
+}
+
+/// Build the current certification bundle from checked-in proof, schemas, and fixtures.
+pub fn current_m5_benchmark_help_migration_component_certification(
+) -> Result<M5BenchmarkHelpMigrationComponentCertification, serde_json::Error> {
+    Ok(M5BenchmarkHelpMigrationComponentCertification::from_parts(
+        serde_json::from_str(M5_BENCHMARK_HELP_MIGRATION_COMPONENT_PROOF_PACKET_JSON)?,
+        current_benchmark_evidence_cards()?,
+        current_about_service_health_card()?,
+        current_support_package_card()?,
+        current_importer_review_table()?,
+        current_community_handoff_tiles()?,
+    ))
+}
+
+/// Validation errors for the executable certification bundle.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ComponentCertificationViolation {
+    /// Unsupported record kind.
+    UnsupportedRecordKind,
+    /// Unsupported schema version.
+    UnsupportedSchemaVersion,
+    /// Packet refs drifted from the canonical bundle.
+    PacketRefDrift,
+    /// Summary does not match rows.
+    SummaryDrift,
+    /// Release decision does not match rows.
+    ReleaseDecisionDrift,
+    /// A family appears more than once.
+    DuplicateFamily {
+        /// Component family.
+        family: BenchmarkHelpMigrationComponentFamily,
+    },
+    /// A required family is missing.
+    MissingFamily {
+        /// Component family.
+        family: BenchmarkHelpMigrationComponentFamily,
+    },
+    /// A row still has a blocking reason but claims to be release-ready.
+    BlockingReasonMarkedReady {
+        /// Component family.
+        family: BenchmarkHelpMigrationComponentFamily,
+        /// Reason.
+        reason: ComponentCertificationReason,
+    },
+    /// A row narrows without lowering the effective label below Stable.
+    NarrowedRowDidNotLowerLabel {
+        /// Component family.
+        family: BenchmarkHelpMigrationComponentFamily,
+    },
+    /// A current row carries narrowing reasons.
+    CurrentRowHasReasons {
+        /// Component family.
+        family: BenchmarkHelpMigrationComponentFamily,
+    },
+    /// A row needs review but carries no blocking reason.
+    NeedsReviewWithoutBlockingReason {
+        /// Component family.
+        family: BenchmarkHelpMigrationComponentFamily,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ComponentProofPacket {
+    record_kind: String,
+    schema_version: u32,
+    matrix_ref: String,
+    component_families: Vec<ComponentProofFamily>,
+    #[serde(default)]
+    required_invariants: Vec<String>,
+    release_decision: ComponentProofReleaseDecision,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ComponentProofFamily {
+    family: BenchmarkHelpMigrationComponentFamily,
+    schema_ref: String,
+    fixture_ref: String,
+    #[serde(default)]
+    additional_fixture_refs: Vec<String>,
+    first_consumers: Vec<String>,
+    required_copy_formats: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ComponentProofReleaseDecision {
+    component_contracts_execution_ready: bool,
+    narrowing_rule: String,
+    support_export_ref: String,
+}
+
+fn certify_benchmark_family(
+    proof_packet: &ComponentProofPacket,
+    cards: &[BenchmarkEvidenceCard],
+) -> ComponentCertificationRow {
+    let mut reasons = family_packet_reasons(
+        proof_packet,
+        BenchmarkHelpMigrationComponentFamily::BenchmarkEvidenceCard,
+        M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_REF,
+        &[
+            M5_BENCHMARK_EVIDENCE_CARD_FIXTURE_REF,
+            "fixtures/ui/m5-benchmark-help-migration-components/benchmark_evidence_card_self_capture.json",
+            "fixtures/ui/m5-benchmark-help-migration-components/benchmark_evidence_card_design_partner.json",
+            "fixtures/ui/m5-benchmark-help-migration-components/benchmark_evidence_card_community.json",
+            "fixtures/ui/m5-benchmark-help-migration-components/benchmark_evidence_card_imported.json",
+        ],
+        &consumer_surfaces_from_benchmark_cards(cards),
+    );
+    let component_violation_count = validate_benchmark_evidence_cards(cards).len();
+    if component_violation_count > 0 {
+        reasons.push(ComponentCertificationReason::ComponentInvariantViolation);
+    }
+    if cards.iter().any(|card| {
+        !card.freshness_state.is_current()
+            || !card.downgrade_state.is_none()
+            || !card.degraded_state.is_none()
+            || card.evidence_source_class != BenchmarkEvidenceSourceClass::LabReferenceRun
+    }) {
+        reasons.push(ComponentCertificationReason::BenchmarkEvidenceNarrowed);
+    }
+    certification_row(
+        BenchmarkHelpMigrationComponentFamily::BenchmarkEvidenceCard,
+        M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_REF,
+        &[
+            M5_BENCHMARK_EVIDENCE_CARD_FIXTURE_REF,
+            "fixtures/ui/m5-benchmark-help-migration-components/benchmark_evidence_card_self_capture.json",
+            "fixtures/ui/m5-benchmark-help-migration-components/benchmark_evidence_card_design_partner.json",
+            "fixtures/ui/m5-benchmark-help-migration-components/benchmark_evidence_card_community.json",
+            "fixtures/ui/m5-benchmark-help-migration-components/benchmark_evidence_card_imported.json",
+        ],
+        consumer_surfaces_from_benchmark_cards(cards),
+        dedupe_reasons(reasons),
+        component_violation_count,
+    )
+}
+
+fn certify_about_family(
+    proof_packet: &ComponentProofPacket,
+    card: &AboutServiceHealthCard,
+) -> ComponentCertificationRow {
+    let mut reasons = family_packet_reasons(
+        proof_packet,
+        BenchmarkHelpMigrationComponentFamily::AboutServiceHealthCard,
+        M5_ABOUT_SERVICE_HEALTH_CARD_SCHEMA_REF,
+        &[M5_ABOUT_SERVICE_HEALTH_CARD_FIXTURE_REF],
+        &card.consumer_surfaces,
+    );
+    let component_violation_count = card.validate().len();
+    if component_violation_count > 0 {
+        reasons.push(ComponentCertificationReason::ComponentInvariantViolation);
+    }
+    if !card.service_contract_state.is_ready()
+        || !card.freshness_state.is_live()
+        || !card.downgrade_state.is_none()
+        || !card.local_continuity_state.has_local_path()
+    {
+        reasons.push(ComponentCertificationReason::ServiceHealthNarrowed);
+    }
+    certification_row(
+        BenchmarkHelpMigrationComponentFamily::AboutServiceHealthCard,
+        M5_ABOUT_SERVICE_HEALTH_CARD_SCHEMA_REF,
+        &[M5_ABOUT_SERVICE_HEALTH_CARD_FIXTURE_REF],
+        card.consumer_surfaces.clone(),
+        dedupe_reasons(reasons),
+        component_violation_count,
+    )
+}
+
+fn certify_support_family(
+    proof_packet: &ComponentProofPacket,
+    card: &SupportPackageCard,
+) -> ComponentCertificationRow {
+    let mut reasons = family_packet_reasons(
+        proof_packet,
+        BenchmarkHelpMigrationComponentFamily::SupportPackageCard,
+        M5_SUPPORT_PACKAGE_CARD_SCHEMA_REF,
+        &[M5_SUPPORT_PACKAGE_CARD_FIXTURE_REF],
+        &card.consumer_surfaces,
+    );
+    let component_violation_count = card.validate().len();
+    if component_violation_count > 0 {
+        reasons.push(ComponentCertificationReason::ComponentInvariantViolation);
+    }
+    if card.package_state != SupportPackageState::ReviewReady
+        || card.destination_class == SupportDestinationClass::LocalOnlyReview
+        || card.local_save_state == LocalSaveState::SavedLocalOnly
+        || matches!(
+            card.redaction_state,
+            RedactionState::PolicyNarrowed
+                | RedactionState::BlockedHighRisk
+                | RedactionState::StaleSchema
+        )
+    {
+        reasons.push(ComponentCertificationReason::SupportPackageNarrowed);
+    }
+    certification_row(
+        BenchmarkHelpMigrationComponentFamily::SupportPackageCard,
+        M5_SUPPORT_PACKAGE_CARD_SCHEMA_REF,
+        &[M5_SUPPORT_PACKAGE_CARD_FIXTURE_REF],
+        card.consumer_surfaces.clone(),
+        dedupe_reasons(reasons),
+        component_violation_count,
+    )
+}
+
+fn certify_importer_family(
+    proof_packet: &ComponentProofPacket,
+    table: &ImporterReviewTable,
+) -> ComponentCertificationRow {
+    let mut reasons = family_packet_reasons(
+        proof_packet,
+        BenchmarkHelpMigrationComponentFamily::ImporterDiffRow,
+        M5_IMPORTER_DIFF_ROW_SCHEMA_REF,
+        &[
+            M5_IMPORTER_DIFF_ROW_FIXTURE_REF,
+            M5_IMPORTER_REVIEW_TABLE_FIXTURE_REF,
+        ],
+        &table.consumer_surfaces,
+    );
+    let component_violation_count = table.validate().len();
+    if component_violation_count > 0 {
+        reasons.push(ComponentCertificationReason::ComponentInvariantViolation);
+    }
+    if table.rows.iter().any(|row| {
+        row.lossy_mapping
+            || row.degraded_state != ImporterDegradedState::None
+            || !matches!(
+                row.compatibility_state,
+                ImporterCompatibilityState::Compatible
+                    | ImporterCompatibilityState::NativeAlternative
+            )
+            || !matches!(
+                row.outcome_state,
+                ImporterOutcomeState::Imported | ImporterOutcomeState::Mapped
+            )
+    }) || table.partial_apply_summary.apply_state != ImporterApplyState::Complete
+    {
+        reasons.push(ComponentCertificationReason::MigrationCompatibilityNarrowed);
+    }
+    certification_row(
+        BenchmarkHelpMigrationComponentFamily::ImporterDiffRow,
+        M5_IMPORTER_DIFF_ROW_SCHEMA_REF,
+        &[
+            M5_IMPORTER_DIFF_ROW_FIXTURE_REF,
+            M5_IMPORTER_REVIEW_TABLE_FIXTURE_REF,
+        ],
+        table.consumer_surfaces.clone(),
+        dedupe_reasons(reasons),
+        component_violation_count,
+    )
+}
+
+fn certify_handoff_family(
+    proof_packet: &ComponentProofPacket,
+    tiles: &[CommunityHandoffTile],
+) -> ComponentCertificationRow {
+    let mut reasons = family_packet_reasons(
+        proof_packet,
+        BenchmarkHelpMigrationComponentFamily::CommunityHandoffTile,
+        M5_COMMUNITY_HANDOFF_TILE_SCHEMA_REF,
+        &[
+            M5_COMMUNITY_HANDOFF_TILE_FIXTURE_REF,
+            "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_official_public.json",
+            "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_official_authenticated.json",
+            "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_vendor.json",
+            "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_local_only.json",
+        ],
+        &consumer_surfaces_from_handoff_tiles(tiles),
+    );
+    let component_violation_count = validate_community_handoff_tiles(tiles).len();
+    if component_violation_count > 0 {
+        reasons.push(ComponentCertificationReason::ComponentInvariantViolation);
+    }
+    if tiles.iter().any(|tile| {
+        tile.trust_class != HandoffTrustClass::OfficialPublic
+            || tile.destination_state != HandoffDestinationState::Ready
+            || tile.community_owned_destination
+    }) {
+        reasons.push(ComponentCertificationReason::HandoffDestinationNarrowed);
+    }
+    certification_row(
+        BenchmarkHelpMigrationComponentFamily::CommunityHandoffTile,
+        M5_COMMUNITY_HANDOFF_TILE_SCHEMA_REF,
+        &[
+            M5_COMMUNITY_HANDOFF_TILE_FIXTURE_REF,
+            "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_official_public.json",
+            "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_official_authenticated.json",
+            "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_vendor.json",
+            "fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_local_only.json",
+        ],
+        consumer_surfaces_from_handoff_tiles(tiles),
+        dedupe_reasons(reasons),
+        component_violation_count,
+    )
+}
+
+fn family_packet_reasons(
+    proof_packet: &ComponentProofPacket,
+    family: BenchmarkHelpMigrationComponentFamily,
+    expected_schema_ref: &str,
+    expected_fixture_refs: &[&str],
+    expected_consumers: &[String],
+) -> Vec<ComponentCertificationReason> {
+    let mut reasons = Vec::new();
+    if proof_packet.record_kind != M5_BENCHMARK_HELP_MIGRATION_COMPONENT_PROOF_RECORD_KIND
+        || proof_packet.schema_version
+            != M5_BENCHMARK_HELP_MIGRATION_COMPONENT_CERTIFICATION_SCHEMA_VERSION
+        || proof_packet.matrix_ref != M5_BENCHMARK_HELP_MIGRATION_COMPONENT_MATRIX_REF
+        || !proof_packet
+            .release_decision
+            .component_contracts_execution_ready
+        || proof_packet.release_decision.support_export_ref
+            != M5_BENCHMARK_HELP_MIGRATION_COMPONENT_SUPPORT_EXPORT_REF
+        || proof_packet
+            .release_decision
+            .narrowing_rule
+            .trim()
+            .is_empty()
+        || !proof_packet
+            .required_invariants
+            .iter()
+            .any(|invariant| invariant == "screenshot_only_explanation_prohibited")
+    {
+        reasons.push(ComponentCertificationReason::ProofRefMismatch);
+    }
+    let Some(proof_family) = proof_packet
+        .component_families
+        .iter()
+        .find(|proof_family| proof_family.family == family)
+    else {
+        reasons.push(ComponentCertificationReason::ProofFamilyMissing);
+        return reasons;
+    };
+    let expected_fixtures: BTreeSet<String> = expected_fixture_refs
+        .iter()
+        .map(|fixture| (*fixture).to_owned())
+        .collect();
+    let actual_fixtures: BTreeSet<String> = std::iter::once(proof_family.fixture_ref.clone())
+        .chain(proof_family.additional_fixture_refs.iter().cloned())
+        .collect();
+    if proof_family.schema_ref != expected_schema_ref || actual_fixtures != expected_fixtures {
+        reasons.push(ComponentCertificationReason::ProofRefMismatch);
+    }
+    for format in ["text", "json", "markdown"] {
+        if !proof_family
+            .required_copy_formats
+            .iter()
+            .any(|f| f == format)
+        {
+            reasons.push(ComponentCertificationReason::ProofRefMismatch);
+        }
+    }
+    let proof_consumers: BTreeSet<_> = proof_family.first_consumers.iter().cloned().collect();
+    let expected_consumers: BTreeSet<_> = expected_consumers.iter().cloned().collect();
+    if proof_consumers != expected_consumers || expected_consumers.is_empty() {
+        reasons.push(ComponentCertificationReason::FirstConsumerMissing);
+    }
+    reasons
+}
+
+fn certification_row(
+    family: BenchmarkHelpMigrationComponentFamily,
+    schema_ref: &str,
+    fixture_refs: &[&str],
+    first_consumers: Vec<String>,
+    active_reasons: Vec<ComponentCertificationReason>,
+    component_violation_count: usize,
+) -> ComponentCertificationRow {
+    let blocking = active_reasons.iter().any(|reason| reason.is_blocking());
+    let state = if blocking {
+        ComponentCertificationState::NeedsReview
+    } else if active_reasons.is_empty() {
+        ComponentCertificationState::CertifiedCurrent
+    } else {
+        ComponentCertificationState::CertifiedNarrowed
+    };
+    let effective_label = match state {
+        ComponentCertificationState::CertifiedCurrent => StableClaimLevel::Stable,
+        ComponentCertificationState::CertifiedNarrowed => StableClaimLevel::Beta,
+        ComponentCertificationState::NeedsReview => StableClaimLevel::Withdrawn,
+    };
+    ComponentCertificationRow {
+        family,
+        state,
+        claimed_label: StableClaimLevel::Stable,
+        effective_label,
+        proof_packet_ref: M5_BENCHMARK_HELP_MIGRATION_COMPONENT_PROOF_PACKET_REF.to_owned(),
+        support_export_ref: M5_BENCHMARK_HELP_MIGRATION_COMPONENT_SUPPORT_EXPORT_REF.to_owned(),
+        schema_ref: schema_ref.to_owned(),
+        fixture_refs: fixture_refs
+            .iter()
+            .map(|fixture| (*fixture).to_owned())
+            .collect(),
+        first_consumers,
+        active_reasons,
+        component_violation_count,
+    }
+}
+
+fn validate_certification_row(
+    row: &ComponentCertificationRow,
+    violations: &mut Vec<ComponentCertificationViolation>,
+) {
+    for reason in &row.active_reasons {
+        if reason.is_blocking() && row.state.is_release_ready() {
+            violations.push(ComponentCertificationViolation::BlockingReasonMarkedReady {
+                family: row.family,
+                reason: *reason,
+            });
+        }
+    }
+    match row.state {
+        ComponentCertificationState::CertifiedCurrent => {
+            if !row.active_reasons.is_empty() {
+                violations.push(ComponentCertificationViolation::CurrentRowHasReasons {
+                    family: row.family,
+                });
+            }
+            if row.effective_label != row.claimed_label {
+                violations.push(
+                    ComponentCertificationViolation::NarrowedRowDidNotLowerLabel {
+                        family: row.family,
+                    },
+                );
+            }
+        }
+        ComponentCertificationState::CertifiedNarrowed => {
+            if row.effective_label.rank() >= row.claimed_label.rank() {
+                violations.push(
+                    ComponentCertificationViolation::NarrowedRowDidNotLowerLabel {
+                        family: row.family,
+                    },
+                );
+            }
+        }
+        ComponentCertificationState::NeedsReview => {
+            if !row.active_reasons.iter().any(|reason| reason.is_blocking()) {
+                violations.push(
+                    ComponentCertificationViolation::NeedsReviewWithoutBlockingReason {
+                        family: row.family,
+                    },
+                );
+            }
+        }
+    }
+}
+
+fn consumer_surfaces_from_benchmark_cards(cards: &[BenchmarkEvidenceCard]) -> Vec<String> {
+    unique_strings(
+        cards
+            .iter()
+            .flat_map(|card| card.consumer_surfaces.iter().cloned()),
+    )
+}
+
+fn consumer_surfaces_from_handoff_tiles(tiles: &[CommunityHandoffTile]) -> Vec<String> {
+    unique_strings(
+        tiles
+            .iter()
+            .flat_map(|tile| tile.consumer_surfaces.iter().cloned()),
+    )
+}
+
+fn unique_strings(values: impl Iterator<Item = String>) -> Vec<String> {
+    values.collect::<BTreeSet<_>>().into_iter().collect()
+}
+
+fn dedupe_reasons(reasons: Vec<ComponentCertificationReason>) -> Vec<ComponentCertificationReason> {
+    reasons
+        .into_iter()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 fn validate_component_copy_export<V, MissingFormat, MissingField, ScreenshotOnly>(

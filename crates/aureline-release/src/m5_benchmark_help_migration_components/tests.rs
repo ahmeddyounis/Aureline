@@ -469,3 +469,117 @@ fn local_only_handoff_cannot_open_external_destination() {
         "expected local-only external-open violation, got {violations:#?}"
     );
 }
+
+#[test]
+fn certification_bundle_validates_and_narrows_each_honest_claim_family() {
+    let bundle = current_m5_benchmark_help_migration_component_certification()
+        .expect("certification bundle builds");
+    let violations = bundle.validate();
+    assert!(
+        violations.is_empty(),
+        "unexpected certification violations: {violations:#?}"
+    );
+    assert_eq!(
+        bundle.record_kind,
+        M5_BENCHMARK_HELP_MIGRATION_COMPONENT_CERTIFICATION_RECORD_KIND
+    );
+    assert_eq!(
+        bundle.rows.len(),
+        BenchmarkHelpMigrationComponentFamily::ALL.len()
+    );
+    assert_eq!(bundle.release_decision, PromotionDecision::Proceed);
+    assert_eq!(bundle.summary.current_families, 0);
+    assert_eq!(bundle.summary.narrowed_families, 5);
+    assert_eq!(bundle.summary.needs_review_families, 0);
+
+    let expectations = [
+        (
+            BenchmarkHelpMigrationComponentFamily::BenchmarkEvidenceCard,
+            ComponentCertificationReason::BenchmarkEvidenceNarrowed,
+        ),
+        (
+            BenchmarkHelpMigrationComponentFamily::AboutServiceHealthCard,
+            ComponentCertificationReason::ServiceHealthNarrowed,
+        ),
+        (
+            BenchmarkHelpMigrationComponentFamily::SupportPackageCard,
+            ComponentCertificationReason::SupportPackageNarrowed,
+        ),
+        (
+            BenchmarkHelpMigrationComponentFamily::ImporterDiffRow,
+            ComponentCertificationReason::MigrationCompatibilityNarrowed,
+        ),
+        (
+            BenchmarkHelpMigrationComponentFamily::CommunityHandoffTile,
+            ComponentCertificationReason::HandoffDestinationNarrowed,
+        ),
+    ];
+    for (family, reason) in expectations {
+        let row = bundle.row(family).expect("family row exists");
+        assert_eq!(row.state, ComponentCertificationState::CertifiedNarrowed);
+        assert_eq!(row.claimed_label, StableClaimLevel::Stable);
+        assert_eq!(row.effective_label, StableClaimLevel::Beta);
+        assert!(
+            row.has_reason(reason),
+            "{family:?} missing expected reason {reason:?}: {row:#?}"
+        );
+        assert!(row.release_ready(), "{family:?} should be release-ready");
+    }
+}
+
+#[test]
+fn certification_bundle_holds_release_when_a_proof_family_is_missing() {
+    let mut proof_packet: ComponentProofPacket =
+        serde_json::from_str(M5_BENCHMARK_HELP_MIGRATION_COMPONENT_PROOF_PACKET_JSON)
+            .expect("proof packet parses");
+    proof_packet
+        .component_families
+        .retain(|family| family.family != BenchmarkHelpMigrationComponentFamily::ImporterDiffRow);
+
+    let bundle = M5BenchmarkHelpMigrationComponentCertification::from_parts(
+        proof_packet,
+        cards(),
+        about_card(),
+        support_card(),
+        importer_table(),
+        handoff_tiles(),
+    );
+    let row = bundle
+        .row(BenchmarkHelpMigrationComponentFamily::ImporterDiffRow)
+        .expect("importer row exists");
+    assert_eq!(row.state, ComponentCertificationState::NeedsReview);
+    assert_eq!(row.effective_label, StableClaimLevel::Withdrawn);
+    assert!(row.has_reason(ComponentCertificationReason::ProofFamilyMissing));
+    assert_eq!(bundle.release_decision, PromotionDecision::Hold);
+    assert!(
+        bundle.validate().is_empty(),
+        "derived hold bundle should be internally coherent"
+    );
+}
+
+#[test]
+fn certification_bundle_holds_when_component_truth_is_dropped() {
+    let proof_packet: ComponentProofPacket =
+        serde_json::from_str(M5_BENCHMARK_HELP_MIGRATION_COMPONENT_PROOF_PACKET_JSON)
+            .expect("proof packet parses");
+    let mut cards = cards();
+    cards[0].copy_export.text.clear();
+    cards[0].copy_export.json.clear();
+    cards[0].copy_export.markdown.clear();
+
+    let bundle = M5BenchmarkHelpMigrationComponentCertification::from_parts(
+        proof_packet,
+        cards,
+        about_card(),
+        support_card(),
+        importer_table(),
+        handoff_tiles(),
+    );
+    let row = bundle
+        .row(BenchmarkHelpMigrationComponentFamily::BenchmarkEvidenceCard)
+        .expect("benchmark row exists");
+    assert_eq!(row.state, ComponentCertificationState::NeedsReview);
+    assert!(row.component_violation_count > 0);
+    assert!(row.has_reason(ComponentCertificationReason::ComponentInvariantViolation));
+    assert_eq!(bundle.release_decision, PromotionDecision::Hold);
+}

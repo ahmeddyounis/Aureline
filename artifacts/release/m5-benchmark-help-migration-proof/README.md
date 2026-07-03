@@ -20,8 +20,14 @@ wording.
 - Fixtures: `fixtures/ui/m5-benchmark-help-migration-components/`
 - Proof packet: `artifacts/release/m5-benchmark-help-migration-proof/proof_packet.json`
 - Support projection: `artifacts/release/m5-benchmark-help-migration-proof/support_export.json`
+- Executable bundle: `aureline_release::current_m5_benchmark_help_migration_component_certification()`
 
 ## Release Gate
+
+The executable bundle certifies each family as either current, honestly narrowed,
+or needing review. Honest narrowing still allows release publication when the
+card preserves the downgrade state; missing proof, ref drift, dropped first
+consumers, or validator failures hold the release decision.
 
 The M5 release gate narrows any first consumer below execution-ready when it:
 
