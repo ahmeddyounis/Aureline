@@ -112,6 +112,45 @@ impl MutationFlowClass {
     pub const fn re_resolves(self) -> bool {
         matches!(self, Self::Install | Self::Update | Self::Regenerate)
     }
+
+    /// The manifest-diff action class shown on reusable cards.
+    pub const fn manifest_diff_action(self) -> ManifestDiffActionClass {
+        match self {
+            Self::Install => ManifestDiffActionClass::Add,
+            Self::Update => ManifestDiffActionClass::Update,
+            Self::Remove => ManifestDiffActionClass::Remove,
+            Self::Regenerate => ManifestDiffActionClass::Resolve,
+        }
+    }
+}
+
+/// Add/update/remove class shown on a manifest-diff card.
+///
+/// `Resolve` is kept explicit for lockfile-only regenerate flows, so they do not
+/// masquerade as dependency add/update/remove changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ManifestDiffActionClass {
+    /// Adds a manifest requirement.
+    Add,
+    /// Updates a manifest requirement or resolved set.
+    Update,
+    /// Removes a manifest requirement.
+    Remove,
+    /// Re-resolves or regenerates lockfile state.
+    Resolve,
+}
+
+impl ManifestDiffActionClass {
+    /// Stable token recorded in card projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Add => "add",
+            Self::Update => "update",
+            Self::Remove => "remove",
+            Self::Resolve => "resolve",
+        }
+    }
 }
 
 /// Script and native-build risk label for a mutation flow.
@@ -749,6 +788,51 @@ impl MutationReviewSheet {
     }
 }
 
+fn constraint_note_for_sheet(sheet: &MutationReviewSheet) -> String {
+    let mut notes = Vec::new();
+    if !sheet.script_build.required_toolchain_refs.is_empty() {
+        notes.push(format!(
+            "Runtime/toolchain constraint: {}",
+            sheet.script_build.required_toolchain_refs.join(", ")
+        ));
+    }
+    if matches!(sheet.manifest_scope.ecosystem, EcosystemKind::NodePnpm)
+        && sheet.flow_class == MutationFlowClass::Update
+    {
+        notes.push("Peer dependency compatibility reviewed for the updated package.".to_owned());
+    }
+    if notes.is_empty() {
+        "No peer/runtime constraint changes claimed by this preview.".to_owned()
+    } else {
+        notes.join(" ")
+    }
+}
+
+fn constraint_changes_for_sheet(sheet: &MutationReviewSheet) -> Vec<ConstraintChangeNote> {
+    let mut changes = Vec::new();
+    for toolchain in &sheet.script_build.required_toolchain_refs {
+        changes.push(ConstraintChangeNote {
+            constraint_kind: "toolchain".to_owned(),
+            subject_ref: sheet.requested.package_name.clone(),
+            from_ref: "not_required".to_owned(),
+            to_ref: toolchain.clone(),
+            compatibility_posture: "review_required".to_owned(),
+        });
+    }
+    if matches!(sheet.manifest_scope.ecosystem, EcosystemKind::NodePnpm)
+        && sheet.flow_class == MutationFlowClass::Update
+    {
+        changes.push(ConstraintChangeNote {
+            constraint_kind: "peer".to_owned(),
+            subject_ref: sheet.requested.package_name.clone(),
+            from_ref: "previous_peer_set".to_owned(),
+            to_ref: "resolved_peer_set".to_owned(),
+            compatibility_posture: "review_required".to_owned(),
+        });
+    }
+    changes
+}
+
 /// The checkpoint state a disposition expects.
 const fn disposition_allows_checkpoint(
     disposition: ReviewDisposition,
@@ -781,6 +865,272 @@ pub struct MutationReviewSheetSurfaceProjection {
     pub redacted: bool,
     /// Whether the commit gate is blocked for this sheet.
     pub commit_blocked: bool,
+}
+
+/// Manifest-diff preview honesty state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ManifestDiffPreviewState {
+    /// A full manifest/lockfile preview is available.
+    Available,
+    /// The surface only has a narrowed preview and must say so.
+    NarrowedFallback,
+    /// No manifest/lockfile preview is available.
+    NoPreview,
+}
+
+impl ManifestDiffPreviewState {
+    /// Stable token recorded in card projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Available => "available",
+            Self::NarrowedFallback => "narrowed_fallback",
+            Self::NoPreview => "no_preview",
+        }
+    }
+}
+
+/// Checkpoint state shown before apply.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ManifestDiffCheckpointState {
+    /// A durable checkpoint exists before apply.
+    Available,
+    /// No checkpoint exists and apply must remain blocked or narrowed.
+    Missing,
+    /// The surface narrowed because it cannot provide a durable checkpoint.
+    NarrowedNoCheckpoint,
+}
+
+impl ManifestDiffCheckpointState {
+    /// Stable token recorded in card projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Available => "available",
+            Self::Missing => "missing",
+            Self::NarrowedNoCheckpoint => "narrowed_no_checkpoint",
+        }
+    }
+}
+
+/// Rollback state shown before apply.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ManifestDiffRollbackState {
+    /// A durable rollback path exists.
+    Available,
+    /// Only a compensating rollback path exists.
+    CompensatingOnly,
+    /// No rollback path exists.
+    Unavailable,
+}
+
+impl ManifestDiffRollbackState {
+    /// Stable token recorded in card projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Available => "available",
+            Self::CompensatingOnly => "compensating_only",
+            Self::Unavailable => "unavailable",
+        }
+    }
+}
+
+/// Apply action shown by a manifest-diff card.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ManifestDiffApplyAction {
+    /// The current surface may apply the mutation.
+    Apply,
+    /// The current surface may stage the mutation for review, but not apply.
+    StageForReview,
+    /// The current surface may inspect/export only.
+    InspectOnly,
+    /// Apply is blocked by review, policy, preview, checkpoint, or validation state.
+    Blocked,
+}
+
+impl ManifestDiffApplyAction {
+    /// Stable token recorded in card projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Apply => "apply",
+            Self::StageForReview => "stage_for_review",
+            Self::InspectOnly => "inspect_only",
+            Self::Blocked => "blocked",
+        }
+    }
+}
+
+/// Peer/runtime constraint disclosure shown on a manifest-diff card.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConstraintChangeNote {
+    /// Constraint kind, such as peer, runtime, engine, or toolchain.
+    pub constraint_kind: String,
+    /// Package or runtime the note speaks for.
+    pub subject_ref: String,
+    /// Redaction-safe before value.
+    pub from_ref: String,
+    /// Redaction-safe after value.
+    pub to_ref: String,
+    /// Compatibility posture shown to review.
+    pub compatibility_posture: String,
+}
+
+/// Reusable manifest-diff card rendered before any package write.
+///
+/// The card is a projection, not a second packet. It is derived from the
+/// canonical review sheet plus its checkpoint receipt, and automation surfaces
+/// may attach the validation selection that governed the proposal.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManifestDiffCard {
+    /// Stable card id.
+    pub card_id: String,
+    /// Review sheet this card renders.
+    pub sheet_ref: String,
+    /// Source that proposed the mutation.
+    pub proposal_source: ProposalSource,
+    /// Add/update/remove/resolve class.
+    pub action_class: ManifestDiffActionClass,
+    /// Package or workspace target.
+    pub package_ref: String,
+    /// Manifests touched or claimed by the preview.
+    pub affected_manifest_refs: Vec<String>,
+    /// Lockfiles touched or claimed by the preview. Empty is paired with
+    /// `lockfile_touch_note` for no-lockfile-change honesty.
+    pub affected_lockfile_refs: Vec<String>,
+    /// Explicit note for touched lockfiles, including no-change cases.
+    pub lockfile_touch_note: String,
+    /// Explicit scripts/hooks/native-build note.
+    pub scripts_hooks_note: String,
+    /// Explicit peer/runtime constraint note.
+    pub peer_runtime_constraints_note: String,
+    /// Constraint changes, if any.
+    pub constraint_changes: Vec<ConstraintChangeNote>,
+    /// Preview state.
+    pub preview_state: ManifestDiffPreviewState,
+    /// Checkpoint state before apply.
+    pub checkpoint_state: ManifestDiffCheckpointState,
+    /// Rollback state before apply.
+    pub rollback_state: ManifestDiffRollbackState,
+    /// Redaction-safe checkpoint ref, or a missing-state token.
+    pub checkpoint_ref: String,
+    /// Redaction-safe rollback ref, or a missing-state token.
+    pub rollback_ref: String,
+    /// Validation-task selection ref, when the card is rendered from automation.
+    pub validation_selection_ref: Option<String>,
+    /// Selected validation-task tokens, when the card is rendered from automation.
+    pub selected_validation_tasks: Vec<String>,
+    /// Apply action for this card on its current surface.
+    pub apply_action: ManifestDiffApplyAction,
+    /// Consumer surfaces proven to use this card grammar.
+    pub consumer_surfaces: Vec<String>,
+}
+
+impl ManifestDiffCard {
+    /// Whether the card names the files, risks, constraint posture, and
+    /// checkpoint/rollback posture required before apply.
+    pub fn discloses_apply_boundary(&self) -> bool {
+        !self.affected_manifest_refs.is_empty()
+            && !self.lockfile_touch_note.trim().is_empty()
+            && !self.scripts_hooks_note.trim().is_empty()
+            && !self.peer_runtime_constraints_note.trim().is_empty()
+            && !self.checkpoint_ref.trim().is_empty()
+            && !self.rollback_ref.trim().is_empty()
+    }
+
+    /// Whether the card honestly blocks or narrows when preview/checkpoint state
+    /// is unavailable.
+    pub const fn fallback_honest(&self) -> bool {
+        match (self.preview_state, self.checkpoint_state, self.apply_action) {
+            (ManifestDiffPreviewState::Available, ManifestDiffCheckpointState::Available, _) => {
+                true
+            }
+            (_, _, ManifestDiffApplyAction::Blocked | ManifestDiffApplyAction::InspectOnly) => true,
+            _ => false,
+        }
+    }
+}
+
+impl MutationReviewSheet {
+    /// Builds the reusable manifest-diff card for this sheet.
+    pub fn manifest_diff_card(
+        &self,
+        receipt: Option<&RollbackReceipt>,
+        commit_blocked: bool,
+    ) -> ManifestDiffCard {
+        let (checkpoint_state, rollback_state, checkpoint_ref, rollback_ref) = match receipt {
+            Some(receipt) if receipt.is_durable_recovery() => {
+                let rollback_state = if receipt.rollback_class == RollbackClass::CompensatingOnly {
+                    ManifestDiffRollbackState::CompensatingOnly
+                } else {
+                    ManifestDiffRollbackState::Available
+                };
+                (
+                    ManifestDiffCheckpointState::Available,
+                    rollback_state,
+                    receipt.checkpoint_id.clone(),
+                    receipt.checkpoint_id.clone(),
+                )
+            }
+            Some(receipt) => (
+                ManifestDiffCheckpointState::Missing,
+                ManifestDiffRollbackState::Unavailable,
+                receipt.checkpoint_id.clone(),
+                "rollback:unavailable".to_owned(),
+            ),
+            None => (
+                ManifestDiffCheckpointState::Missing,
+                ManifestDiffRollbackState::Unavailable,
+                "checkpoint:missing".to_owned(),
+                "rollback:missing".to_owned(),
+            ),
+        };
+
+        let apply_action =
+            if commit_blocked || checkpoint_state != ManifestDiffCheckpointState::Available {
+                ManifestDiffApplyAction::Blocked
+            } else {
+                ManifestDiffApplyAction::Apply
+            };
+
+        let lockfile_touch_note = if self.lockfile.affected_lockfile_ids.is_empty() {
+            format!("No lockfile touched: {}", self.lockfile.note)
+        } else {
+            self.lockfile.note.clone()
+        };
+
+        ManifestDiffCard {
+            card_id: format!("mdc:{}", self.sheet_id),
+            sheet_ref: self.sheet_id.clone(),
+            proposal_source: self.proposal_source,
+            action_class: self.flow_class.manifest_diff_action(),
+            package_ref: self.requested.package_name.clone(),
+            affected_manifest_refs: self.manifest_scope.affected_manifest_ids.clone(),
+            affected_lockfile_refs: self.lockfile.affected_lockfile_ids.clone(),
+            lockfile_touch_note,
+            scripts_hooks_note: self.script_build.disclosure_note.clone(),
+            peer_runtime_constraints_note: constraint_note_for_sheet(self),
+            constraint_changes: constraint_changes_for_sheet(self),
+            preview_state: ManifestDiffPreviewState::Available,
+            checkpoint_state,
+            rollback_state,
+            checkpoint_ref,
+            rollback_ref,
+            validation_selection_ref: None,
+            selected_validation_tasks: Vec::new(),
+            apply_action,
+            consumer_surfaces: vec![
+                "package_manager".to_owned(),
+                "review_pane".to_owned(),
+                "ai_recipe_cli".to_owned(),
+                "support_export".to_owned(),
+                "release_proof".to_owned(),
+            ],
+        }
+    }
 }
 
 /// Summary counts derived from the rows.
@@ -910,6 +1260,28 @@ impl ReviewedMutationFlows {
         self.checkpoints
             .iter()
             .find(|row| row.checkpoint_id == checkpoint_id)
+    }
+
+    /// Builds the reusable manifest-diff card for `sheet_id`.
+    pub fn manifest_diff_card(&self, sheet_id: &str) -> Option<ManifestDiffCard> {
+        let sheet = self.sheet(sheet_id)?;
+        Some(sheet.manifest_diff_card(
+            self.checkpoint(&sheet.rollback_checkpoint_id),
+            self.commit_blocked(sheet),
+        ))
+    }
+
+    /// Builds manifest-diff cards for every reviewed mutation sheet.
+    pub fn manifest_diff_cards(&self) -> Vec<ManifestDiffCard> {
+        self.sheets
+            .iter()
+            .map(|sheet| {
+                sheet.manifest_diff_card(
+                    self.checkpoint(&sheet.rollback_checkpoint_id),
+                    self.commit_blocked(sheet),
+                )
+            })
+            .collect()
     }
 
     /// Whether the sheet's commit gate is blocked.
@@ -1415,6 +1787,22 @@ impl ReviewedMutationFlows {
                 }
             }
         }
+        let card = sheet.manifest_diff_card(
+            self.checkpoint(&sheet.rollback_checkpoint_id),
+            self.commit_blocked(sheet),
+        );
+        if !card.discloses_apply_boundary() {
+            violations.push(ReviewedMutationFlowsViolation::ManifestDiffCardIncomplete {
+                sheet_id: sheet.sheet_id.clone(),
+            });
+        }
+        if !card.fallback_honest() {
+            violations.push(
+                ReviewedMutationFlowsViolation::ManifestDiffFallbackDishonest {
+                    sheet_id: sheet.sheet_id.clone(),
+                },
+            );
+        }
         // The commit gate: a committed sheet may carry no live block reason.
         if sheet.review_disposition == ReviewDisposition::CommittedAfterReview
             && self.commit_blocked(sheet)
@@ -1665,6 +2053,16 @@ pub enum ReviewedMutationFlowsViolation {
         /// Referenced matrix id.
         referenced: String,
     },
+    /// The derived manifest-diff card omits a required pre-apply disclosure.
+    ManifestDiffCardIncomplete {
+        /// Sheet id.
+        sheet_id: String,
+    },
+    /// The derived manifest-diff card failed to block or narrow a fallback.
+    ManifestDiffFallbackDishonest {
+        /// Sheet id.
+        sheet_id: String,
+    },
     /// Summary counts disagree with the rows.
     SummaryMismatch,
 }
@@ -1771,6 +2169,14 @@ impl fmt::Display for ReviewedMutationFlowsViolation {
             Self::MatrixBindingMismatch { referenced } => {
                 write!(f, "packet binds to non-frozen matrix {referenced}")
             }
+            Self::ManifestDiffCardIncomplete { sheet_id } => write!(
+                f,
+                "sheet {sheet_id} manifest-diff card omits a required pre-apply disclosure"
+            ),
+            Self::ManifestDiffFallbackDishonest { sheet_id } => write!(
+                f,
+                "sheet {sheet_id} manifest-diff card does not honestly block or narrow a fallback"
+            ),
             Self::SummaryMismatch => write!(f, "packet summary counts disagree with the rows"),
         }
     }

@@ -292,6 +292,77 @@ fn the_same_sheet_feeds_every_surface() {
 }
 
 #[test]
+fn manifest_diff_cards_name_files_hooks_constraints_and_rollback() {
+    let packet = packet();
+    let cards = packet.manifest_diff_cards();
+    assert_eq!(cards.len(), packet.sheets.len());
+    for card in &cards {
+        assert!(
+            card.discloses_apply_boundary(),
+            "{} omits a pre-apply disclosure",
+            card.card_id
+        );
+        assert!(
+            card.fallback_honest(),
+            "{} does not honestly handle fallback state",
+            card.card_id
+        );
+        assert!(!card.affected_manifest_refs.is_empty());
+        assert!(!card.lockfile_touch_note.trim().is_empty());
+        assert!(!card.scripts_hooks_note.trim().is_empty());
+        assert!(!card.peer_runtime_constraints_note.trim().is_empty());
+        assert_ne!(card.checkpoint_state, ManifestDiffCheckpointState::Missing);
+        assert_ne!(card.rollback_state, ManifestDiffRollbackState::Unavailable);
+    }
+}
+
+#[test]
+fn manifest_diff_cards_keep_add_update_remove_classes_distinct() {
+    let packet = packet();
+    let add = packet
+        .manifest_diff_card("rmf:install:cargo:serde-add")
+        .expect("add card");
+    let update = packet
+        .manifest_diff_card("rmf:update:node:lodash-bump")
+        .expect("update card");
+    let remove = packet
+        .manifest_diff_card("rmf:remove:cargo:obsolete")
+        .expect("remove card");
+    let resolve = packet
+        .manifest_diff_card("rmf:regenerate:node:relock-unknown")
+        .expect("resolve card");
+
+    assert_eq!(add.action_class, ManifestDiffActionClass::Add);
+    assert_eq!(update.action_class, ManifestDiffActionClass::Update);
+    assert_eq!(remove.action_class, ManifestDiffActionClass::Remove);
+    assert_eq!(resolve.action_class, ManifestDiffActionClass::Resolve);
+    assert_eq!(resolve.apply_action, ManifestDiffApplyAction::Blocked);
+}
+
+#[test]
+fn manifest_diff_cards_share_grammar_across_direct_ai_recipe_and_cli_sources() {
+    let packet = packet();
+    let cards = packet.manifest_diff_cards();
+    for source in ProposalSource::ALL {
+        assert!(
+            cards.iter().any(|card| card.proposal_source == source),
+            "missing card for source {}",
+            source.as_str()
+        );
+    }
+    for card in cards {
+        assert!(card
+            .consumer_surfaces
+            .contains(&"package_manager".to_owned()));
+        assert!(card.consumer_surfaces.contains(&"review_pane".to_owned()));
+        assert!(card.consumer_surfaces.contains(&"ai_recipe_cli".to_owned()));
+        assert!(card
+            .consumer_surfaces
+            .contains(&"support_export".to_owned()));
+    }
+}
+
+#[test]
 fn export_projection_is_redaction_safe() {
     let packet = packet();
     let projection = packet.export_projection();
@@ -507,6 +578,18 @@ fn validate_flags_duplicate_sheet_id() {
 
 #[test]
 fn tokens_are_stable() {
+    assert_eq!(ManifestDiffActionClass::Add.as_str(), "add");
+    assert_eq!(ManifestDiffActionClass::Update.as_str(), "update");
+    assert_eq!(ManifestDiffActionClass::Remove.as_str(), "remove");
+    assert_eq!(ManifestDiffPreviewState::NoPreview.as_str(), "no_preview");
+    assert_eq!(
+        ManifestDiffCheckpointState::NarrowedNoCheckpoint.as_str(),
+        "narrowed_no_checkpoint"
+    );
+    assert_eq!(
+        ManifestDiffApplyAction::StageForReview.as_str(),
+        "stage_for_review"
+    );
     assert_eq!(MutationFlowClass::Regenerate.as_str(), "regenerate");
     assert_eq!(
         ScriptBuildLabel::KnownInstallScripts.as_str(),
@@ -554,6 +637,12 @@ fn every_vocabulary_round_trips_through_serde() {
     round_trip(&ReviewDisposition::ALL);
     round_trip(&CheckpointState::ALL);
     round_trip(&RecoveryActionKind::ALL);
+    round_trip(&[
+        ManifestDiffActionClass::Add,
+        ManifestDiffActionClass::Update,
+        ManifestDiffActionClass::Remove,
+        ManifestDiffActionClass::Resolve,
+    ]);
 }
 
 /// Scenario fixtures, embedded so they validate without a runtime walk.

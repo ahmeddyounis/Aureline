@@ -66,7 +66,9 @@ use crate::freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile
 };
 use crate::package_state_descriptors::EcosystemKind;
 use crate::reviewed_mutation_flows::{
-    LockfileDiffClass, MutationFlowClass, ProposalSource, RecoveryActionKind, ScriptBuildLabel,
+    LockfileDiffClass, ManifestDiffApplyAction, ManifestDiffCard,
+    ManifestDiffCheckpointState, ManifestDiffPreviewState, ManifestDiffRollbackState,
+    MutationFlowClass, ProposalSource, RecoveryActionKind, ScriptBuildLabel,
 };
 
 /// Supported automation-governance packet schema version.
@@ -664,6 +666,106 @@ impl GovernedMutationProposal {
     /// The frozen labels this proposal surfaces.
     pub fn labels(&self) -> &[PackageStateLabel] {
         &self.applicable_labels
+    }
+
+    /// Builds the reusable manifest-diff card for this governed proposal.
+    ///
+    /// Automation cards carry the selected validation-task set, and they narrow
+    /// honestly when the proposal cannot provide a preview or durable checkpoint.
+    pub fn manifest_diff_card(&self) -> ManifestDiffCard {
+        let preview_state = if self.capability.provides_review_preview {
+            ManifestDiffPreviewState::Available
+        } else {
+            ManifestDiffPreviewState::NoPreview
+        };
+        let checkpoint_state = if self.capability.provides_durable_rollback {
+            ManifestDiffCheckpointState::Available
+        } else {
+            ManifestDiffCheckpointState::NarrowedNoCheckpoint
+        };
+        let rollback_state = if self.rollback_handle.is_durable_recovery() {
+            if self.rollback_handle.rollback_class == RollbackClass::CompensatingOnly {
+                ManifestDiffRollbackState::CompensatingOnly
+            } else {
+                ManifestDiffRollbackState::Available
+            }
+        } else {
+            ManifestDiffRollbackState::Unavailable
+        };
+        let apply_action = if self.commit_gate_blocked() {
+            match self.execution_decision {
+                ExecutionDecision::NarrowToInspectOnly
+                | ExecutionDecision::NarrowToExportOnly
+                | ExecutionDecision::HandoffToBrowser
+                | ExecutionDecision::HandoffToCli => ManifestDiffApplyAction::InspectOnly,
+                ExecutionDecision::BlockedNoSafePath | ExecutionDecision::ProceedAfterReview => {
+                    ManifestDiffApplyAction::Blocked
+                }
+            }
+        } else {
+            ManifestDiffApplyAction::Apply
+        };
+        let selected_validation_tasks = self
+            .validation
+            .tasks
+            .iter()
+            .filter(|task| task.selected)
+            .map(|task| task.kind.as_str().to_owned())
+            .collect();
+        let lockfile_touch_note = if self.reviewed_sheet.lockfile_diff.changes_lockfile() {
+            format!(
+                "{} lockfile preview under {} authority",
+                self.reviewed_sheet.lockfile_diff.as_str(),
+                self.reviewed_sheet.lockfile_authority.as_str()
+            )
+        } else {
+            "No lockfile touched by this governed proposal.".to_owned()
+        };
+        ManifestDiffCard {
+            card_id: format!("mdc:{}", self.proposal_id),
+            sheet_ref: self.reviewed_sheet.sheet_ref.clone(),
+            proposal_source: self.automation_surface,
+            action_class: self.reviewed_sheet.flow_class.manifest_diff_action(),
+            package_ref: self.proposal_id.clone(),
+            affected_manifest_refs: vec![self.reviewed_sheet.redacted_manifest_path.clone()],
+            affected_lockfile_refs: if self.reviewed_sheet.lockfile_diff.changes_lockfile() {
+                vec![format!(
+                    "lockfile:{}:{}",
+                    self.reviewed_sheet.ecosystem.as_str(),
+                    self.reviewed_sheet.lockfile_diff.as_str()
+                )]
+            } else {
+                Vec::new()
+            },
+            lockfile_touch_note,
+            scripts_hooks_note: self.reviewed_sheet.script_disclosure_note.clone(),
+            peer_runtime_constraints_note: if self
+                .reviewed_sheet
+                .script_disclosure_note
+                .contains("native")
+            {
+                "Runtime/toolchain constraints are reviewed with the selected validation tasks."
+                    .to_owned()
+            } else {
+                "No peer/runtime constraint changes claimed by this governed proposal.".to_owned()
+            },
+            constraint_changes: Vec::new(),
+            preview_state,
+            checkpoint_state,
+            rollback_state,
+            checkpoint_ref: self.rollback_handle.checkpoint_ref.clone(),
+            rollback_ref: self.rollback_handle.checkpoint_ref.clone(),
+            validation_selection_ref: Some(self.validation.selection_id.clone()),
+            selected_validation_tasks,
+            apply_action,
+            consumer_surfaces: vec![
+                "package_manager".to_owned(),
+                "review_pane".to_owned(),
+                "ai_recipe_cli".to_owned(),
+                "support_export".to_owned(),
+                "release_proof".to_owned(),
+            ],
+        }
     }
 }
 

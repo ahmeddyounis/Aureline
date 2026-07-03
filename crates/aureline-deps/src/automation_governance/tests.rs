@@ -247,6 +247,62 @@ fn the_same_proposal_feeds_every_surface_identically() {
 }
 
 #[test]
+fn automation_manifest_diff_card_preserves_validation_selection() {
+    let packet = packet();
+    let proposal = packet
+        .proposal("ag:ai:cargo:serde-add")
+        .expect("ai serde add");
+    let card = proposal.manifest_diff_card();
+    assert_eq!(
+        card.validation_selection_ref.as_deref(),
+        Some("ag:val:ai:serde-add")
+    );
+    assert!(card.selected_validation_tasks.contains(&"build".to_owned()));
+    assert!(card.selected_validation_tasks.contains(&"test".to_owned()));
+    assert!(card
+        .selected_validation_tasks
+        .contains(&"lockfile_verify".to_owned()));
+    assert!(card.discloses_apply_boundary());
+    assert!(card.fallback_honest());
+    assert_eq!(card.proposal_source, ProposalSource::AiProposal);
+    assert_eq!(card.apply_action, ManifestDiffApplyAction::Apply);
+}
+
+#[test]
+fn automation_manifest_diff_card_is_honest_when_preview_or_checkpoint_is_missing() {
+    let packet = packet();
+    let no_preview = packet
+        .proposal("ag:ai:other:unsupported-handoff")
+        .expect("unsupported handoff")
+        .manifest_diff_card();
+    assert_eq!(
+        no_preview.preview_state,
+        ManifestDiffPreviewState::NoPreview
+    );
+    assert_eq!(
+        no_preview.checkpoint_state,
+        ManifestDiffCheckpointState::NarrowedNoCheckpoint
+    );
+    assert_eq!(
+        no_preview.apply_action,
+        ManifestDiffApplyAction::InspectOnly
+    );
+    assert!(no_preview.fallback_honest());
+
+    let blocked = packet
+        .proposal("ag:ai:pip:auth-blocked")
+        .expect("auth blocked")
+        .manifest_diff_card();
+    assert_eq!(
+        blocked.checkpoint_state,
+        ManifestDiffCheckpointState::NarrowedNoCheckpoint
+    );
+    assert_ne!(blocked.apply_action, ManifestDiffApplyAction::Apply);
+    assert!(blocked.discloses_apply_boundary());
+    assert!(blocked.fallback_honest());
+}
+
+#[test]
 fn blocked_proposal_never_executes_from_any_surface() {
     let packet = packet();
     let desktop = packet
