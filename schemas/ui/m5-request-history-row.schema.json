@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-request-history-row.schema.json",
+  "title": "Aureline M5 request-history row",
+  "description": "Reusable request-history row contract preserving timestamp, environment, origin scope, result class, assertions, retention/redaction, replay, export, compare, and contract-source badges without raw secrets or unsafe payloads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["record_kind", "schema_version", "history_row_id", "request_identity_ref", "response_identity_ref", "executed_at", "environment", "execution_origin", "origin_scope", "status_result_class", "status_label", "assertions", "redaction_retention", "replay", "actions", "contract_source_badges", "source_refs", "consumer_surfaces", "copy_export"],
+  "properties": {
+    "record_kind": { "const": "m5_request_history_row" },
+    "schema_version": { "const": 1 },
+    "history_row_id": { "$ref": "#/$defs/id" },
+    "request_identity_ref": { "$ref": "#/$defs/ref" },
+    "response_identity_ref": { "type": ["string", "null"], "minLength": 1 },
+    "executed_at": { "type": "string", "format": "date-time" },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["environment_ref", "display_label", "freshness_state", "effective_fingerprint_ref"],
+      "properties": {
+        "environment_ref": { "$ref": "#/$defs/ref" },
+        "display_label": { "$ref": "#/$defs/ref" },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "effective_fingerprint_ref": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "execution_origin": { "$ref": "#/$defs/origin" },
+    "origin_scope": { "type": "string", "enum": ["local_host", "ssh_remote", "container_workspace", "managed_workspace", "browser_companion", "browser_runtime", "imported_snapshot", "cli_headless"] },
+    "status_result_class": { "type": "string", "enum": ["success", "client_error", "server_error", "transport_error", "blocked", "cancelled", "assertion_failed", "partial"] },
+    "status_label": { "$ref": "#/$defs/ref" },
+    "assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assertion_state", "pass", "fail", "error", "skipped", "assertion_summary_ref"],
+      "properties": {
+        "assertion_state": { "type": "string", "enum": ["all_passed", "failed", "errored", "skipped", "not_run", "mixed"] },
+        "pass": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 },
+        "error": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "assertion_summary_ref": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "redaction_retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retention_mode", "redaction_posture", "raw_secret_retained", "unsafe_payload_retained_by_default", "cookie_values_retained", "export_posture"],
+      "properties": {
+        "retention_mode": { "type": "string", "enum": ["metadata_only", "redacted_replayable", "full_capture_reviewed", "expired_metadata_only", "policy_blocked"] },
+        "redaction_posture": { "type": "string", "enum": ["redact_all", "redacted_headers_body_metadata", "reviewed_redacted_body", "full_capture_blocked_by_policy"] },
+        "raw_secret_retained": { "const": false },
+        "unsafe_payload_retained_by_default": { "const": false },
+        "cookie_values_retained": { "const": false },
+        "export_posture": { "$ref": "#/$defs/export_posture" }
+      }
+    },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["replay_mode", "exact_rerun_available", "current_context_replay_available", "blocked_reason_ref"],
+      "properties": {
+        "replay_mode": { "type": "string", "enum": ["exact_rerun", "current_context_only", "metadata_compare_only", "unavailable"] },
+        "exact_rerun_available": { "type": "boolean" },
+        "current_context_replay_available": { "type": "boolean" },
+        "blocked_reason_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compare_actions", "export_actions", "action_label_parity"],
+      "properties": {
+        "compare_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["compare_summary", "compare_body_metadata", "compare_headers_redacted", "compare_assertions", "compare_timeline_transport"] }
+        },
+        "export_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["export_history_row", "export_redacted_response", "export_assertions", "export_timeline_transport", "export_support_packet"] }
+        },
+        "action_label_parity": { "const": true }
+      }
+    },
+    "contract_source_badges": { "$ref": "#/$defs/ref_array" },
+    "source_refs": { "$ref": "#/$defs/ref_array" },
+    "consumer_surfaces": { "$ref": "#/$defs/consumer_surfaces" },
+    "copy_export": { "$ref": "#/$defs/copy_export" }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9]+(?:[._:-][a-z0-9]+)*$" },
+    "ref": { "type": "string", "minLength": 1 },
+    "ref_array": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/ref" } },
+    "origin": { "type": "string", "enum": ["local_desktop", "ssh_remote", "container_workspace", "managed_workspace", "browser_runtime", "imported_snapshot", "cli_headless"] },
+    "freshness_state": { "type": "string", "enum": ["live", "current", "warm_cached", "cached", "imported", "stale", "superseded", "partial", "expired", "policy_limited", "unknown"] },
+    "export_posture": { "type": "string", "enum": ["metadata_only", "redacted_typed", "visible_rows_only_typed", "full_result_typed", "blocked_pending_consent", "blocked_pending_policy", "blocked_redaction_class_too_high"] },
+    "consumer_surfaces": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["desktop_request_workspace", "desktop_database_tool", "remote_workspace", "container_workspace", "managed_workspace", "browser_runtime_panel", "notebook_handoff", "chart_handoff", "ai_context_handoff", "cli_headless", "support_export", "release_proof"] } },
+    "copy_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formats", "export_fields", "text", "json", "markdown", "screenshot_only_prohibited"],
+      "properties": {
+        "formats": { "type": "array", "minItems": 3, "uniqueItems": true, "items": { "type": "string", "enum": ["text", "json", "markdown"] } },
+        "export_fields": { "$ref": "#/$defs/ref_array" },
+        "text": { "$ref": "#/$defs/ref" },
+        "json": { "$ref": "#/$defs/ref" },
+        "markdown": { "$ref": "#/$defs/ref" },
+        "screenshot_only_prohibited": { "const": true }
+      }
+    }
+  }
+}

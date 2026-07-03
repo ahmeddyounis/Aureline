@@ -9,6 +9,8 @@ These fixtures are the first-consumer examples for the frozen matrix at
 | `variable_resolution_inspector.json` | `schemas/ui/m5-variable-resolution-inspector.schema.json` | Layered variable resolution shows workspace, runtime, and secret-broker layers, redacted preview state, override scope, and export scope without exposing raw secrets. |
 | `auth_sheet.json` | `schemas/ui/m5-auth-sheet.schema.json` | A browser/device-code auth sheet exposes scheme, secret source class, token lifetime, expiry posture, handoff state, and policy notes without raw tokens or verification codes. |
 | `response_tabset.json` | `schemas/ui/m5-response-tabset.schema.json` | REST response tabs keep summary, body, headers/cookies, assertions, timeline, and browser trust separate. |
+| `request_history_row.json` | `schemas/ui/m5-request-history-row.schema.json` | Request history rows preserve timestamp, environment, origin scope, status/result class, assertion state, retention/redaction, replay, export, compare, and contract badge refs without raw secrets or unsafe payloads. |
+| `contract_source_badge.json` | `schemas/ui/m5-contract-source-badge.schema.json` | Contract/source badges link requests to OpenAPI/GraphQL/gRPC or imported/manual sources with version/snapshot and freshness truth across editor, history, handoff, compare, CLI, and support projections. |
 | `connection_picker_row.json` | `schemas/ui/m5-connection-picker-row.schema.json` | A managed warehouse connection is read-only and permission-limited while preserving schema tree freshness and auth storage mode. |
 | `result_grid.json` | `schemas/ui/m5-result-grid.schema.json` | A typed grid discloses returned-only row scope, truncation, virtualization, filter/sort locus, redaction review, and copy/export actions. |
 | `explain_plan_pane.json` | `schemas/ui/m5-explain-plan-pane.schema.json` | An imported estimated plan remains stale and cannot masquerade as an actual executed plan. |
@@ -27,6 +29,8 @@ pairs = [
     ("schemas/ui/m5-variable-resolution-inspector.schema.json", "fixtures/ui/m5-request-data-components/variable_resolution_inspector.json"),
     ("schemas/ui/m5-auth-sheet.schema.json", "fixtures/ui/m5-request-data-components/auth_sheet.json"),
     ("schemas/ui/m5-response-tabset.schema.json", "fixtures/ui/m5-request-data-components/response_tabset.json"),
+    ("schemas/ui/m5-request-history-row.schema.json", "fixtures/ui/m5-request-data-components/request_history_row.json"),
+    ("schemas/ui/m5-contract-source-badge.schema.json", "fixtures/ui/m5-request-data-components/contract_source_badge.json"),
     ("schemas/ui/m5-connection-picker-row.schema.json", "fixtures/ui/m5-request-data-components/connection_picker_row.json"),
     ("schemas/ui/m5-result-grid.schema.json", "fixtures/ui/m5-request-data-components/result_grid.json"),
     ("schemas/ui/m5-explain-plan-pane.schema.json", "fixtures/ui/m5-request-data-components/explain_plan_pane.json"),

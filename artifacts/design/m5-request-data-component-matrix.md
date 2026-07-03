@@ -33,10 +33,12 @@ Certification bundle:
 | Variable-resolution inspector | `artifacts/data/m5/materialize-versioned-request-workspace-documents-environment-sets-and-auth-source-inspectors.json`, `artifacts/data/m5/ship-auth-sheets-secret-source-cues-browser-or-device-code-continuity-and-offline-or-mirror-safe-collection-portability.json`, `schemas/ui/m5-variable-resolution-inspector.schema.json` | Request editor, auth sheet, send/replay review, browser-runtime request replay, support export |
 | Auth sheet | `artifacts/data/m5/ship-auth-sheets-secret-source-cues-browser-or-device-code-continuity-and-offline-or-mirror-safe-collection-portability.json`, `schemas/ui/m5-auth-sheet.schema.json` | Request editor, connection picker, query history, browser-runtime device-code continuation, support export |
 | Response tab set | `artifacts/data/m5/ship-rest-and-graphql-response-viewers-assertions-timing-tabs-and-browser-runtime-trust-classes.json`, `schemas/ui/m5-response-tabset.schema.json` | REST response viewer, GraphQL response viewer, browser-runtime trust panel, request history detail, support export, release proof |
+| Request-history row | `artifacts/data/m5/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.json`, `schemas/ui/m5-request-history-row.schema.json` | Request history, browser-runtime history, managed history, compare view, CLI/headless request inspect, support export, release proof |
+| Contract/source badge | `artifacts/data/m5/implement-operation-collection-and-request-list-views-with-protocol-class-environment-retention-mode-and-contract-or-source-badges.json`, `artifacts/data/m5/ship-contract-freshness-banners-imported-snapshot-labels-and-refresh-diff-or-open-spec-flows.json`, `schemas/ui/m5-contract-source-badge.schema.json` | Full request editor, request history row, response tab set, handoff surfaces, compare surfaces, CLI/headless request inspect, support export, release proof |
 | Connection picker row | `artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json`, `schemas/ui/m5-connection-picker-row.schema.json` | Database connection browser, SQL editor target picker, query history, notebook/chart handoff, support export |
 | Schema tree | `artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json`, `schemas/ui/m5-connection-picker-row.schema.json` | Connection browser, SQL editor object picker, explain-plan pane, support export |
 | Result grid | `artifacts/data/m5/ship-result-grid-virtualization-typed-copy-or-export-filter-and-sort-state-and-row-count-boundary-truth.json`, `schemas/ui/m5-result-grid.schema.json` | SQL result viewer, request data preview, notebook handoff, chart handoff, AI context handoff, support export, release proof |
-| Query-history row | `artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json`, `artifacts/data/m5/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.json`, `schemas/ui/m5-request-editor-header.schema.json`, `schemas/ui/m5-result-grid.schema.json` | Request history, query history, exact rerun/current-context replay, support export |
+| Query-history row | `artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json`, `artifacts/data/m5/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.json`, `schemas/ui/m5-request-history-row.schema.json`, `schemas/ui/m5-result-grid.schema.json` | Request history, query history, exact rerun/current-context replay, support export |
 | Explain-plan pane | `artifacts/data/m5/implement-explain-plan-freshness-notes-engine-version-context-and-plan-comparison-flows.json`, `schemas/ui/m5-explain-plan-pane.schema.json` | SQL editor explain pane, plan comparison flow, query history detail, support export, release proof |
 
 ## Controlled Vocabulary
@@ -61,6 +63,10 @@ Certification bundle:
 | `plan_capture_kind` | `estimated`, `actual`, `imported_estimated`, `imported_actual`, `unavailable` |
 | `redaction_review_state` | `not_required`, `required_before_export`, `completed`, `blocked_by_policy` |
 | `copy_format` | `text`, `json`, `markdown` |
+| `request_result_class` | `success`, `client_error`, `server_error`, `transport_error`, `blocked`, `cancelled`, `assertion_failed`, `partial` |
+| `assertion_state` | `all_passed`, `failed`, `errored`, `skipped`, `not_run`, `mixed` |
+| `history_retention_mode` | `metadata_only`, `redacted_replayable`, `full_capture_reviewed`, `expired_metadata_only`, `policy_blocked` |
+| `contract_kind` | `openapi`, `graphql`, `grpc`, `asyncapi`, `websocket`, `browser_capture`, `imported_snapshot`, `manual`, `local_collection` |
 
 Feature-local labels that conflict with this vocabulary block review. A
 consumer may narrow capability, but it may not rename `read_only` as safe,
@@ -74,7 +80,8 @@ count without its scope.
 Required truth: method or operation kind, target identity, execution origin,
 environment picker, auth mode, auth storage mode, capability state, run/cancel
 control state, last-run state, last-run summary, schema/contract freshness,
-variable inspector ref, auth sheet ref, and copy/export projection.
+variable inspector ref, auth sheet ref, contract/source badge refs, and
+copy/export projection.
 Browser-runtime and managed consumers may be inspect-only, but must keep origin
 and auth posture visible.
 
@@ -107,8 +114,29 @@ tokens, cookies, or credential bodies.
 
 Required truth: request identity, response identity, summary tab, body tab,
 headers/cookies tab, assertion tab, timeline/timing tab, browser-runtime trust
-class when applicable, body safety/truncation, and export posture. Assertions
-and timing never disappear into a raw body pane.
+class when applicable, body safety/truncation, explicit export actions,
+explicit compare actions, and export posture. Assertions and timing never
+disappear into a raw body pane.
+
+### Request-History Row
+
+Required truth: history row identity, request/response identity, timestamp,
+environment ref and fingerprint, execution origin, origin scope, status/result
+class, assertion state and counts, redaction/retention mode, replay mode,
+compare actions, export actions, contract/source badge refs, source refs, and
+support/export posture. Metadata-only is the safe default; raw secrets, raw
+cookies, and unsafe payloads are not retained by default. A row that cannot
+rerun exactly must say whether current-context replay remains available and
+which blocked reason applies.
+
+### Contract/Source Badge
+
+Required truth: request identity, surface contexts, contract kind, stable
+display label, contract ref, operation ref, version or snapshot ref, freshness
+state, drift state, generated-from-contract flag, badge actions, and raw
+contract payload posture. The same badge ref and label must project on full
+request editors, history rows, handoff surfaces, compare surfaces, CLI/headless
+output, and support exports without label drift.
 
 ### Connection Picker Row
 

@@ -10,10 +10,11 @@ live under `fixtures/ui/m5-request-data-components/`.
 
 The header must show the operation kind, target identity, execution origin,
 environment picker, auth posture, capability state, run/cancel control state,
-last-run state, last-run summary, variable inspector ref, and auth sheet ref
-before a send can commit. Browser-runtime and managed consumers may narrow to
-mutation review or inspect-only, but they keep the same origin, auth, and
-last-run labels as the desktop request workspace.
+last-run state, last-run summary, variable inspector ref, auth sheet ref, and
+contract/source badge refs before a send can commit. Browser-runtime and
+managed consumers may narrow to mutation review or inspect-only, but they keep
+the same origin, auth, contract/source, and last-run labels as the desktop
+request workspace.
 
 ## Environment and variable resolution
 
@@ -33,6 +34,14 @@ referenced from the request header so request workspace, browser-runtime panel,
 CLI/headless inspect, support export, and release proof share the same auth
 truth instead of rewording it.
 
+## Contract/source badges
+
+Contract/source badges render `contract_kind`, stable `display_label`,
+`contract_ref`, `operation_ref`, version or snapshot ref, freshness state, drift
+state, and badge actions. The same badge ref projects on full request editors,
+history rows, handoff surfaces, compare surfaces, CLI/headless output, and
+support exports without label drift or raw contract payload export.
+
 ## Verification
 
 Validate the checked-in UI contracts with:
@@ -47,6 +56,7 @@ pairs = [
     ("schemas/ui/m5-request-editor-header.schema.json", "fixtures/ui/m5-request-data-components/request_editor_header.json"),
     ("schemas/ui/m5-variable-resolution-inspector.schema.json", "fixtures/ui/m5-request-data-components/variable_resolution_inspector.json"),
     ("schemas/ui/m5-auth-sheet.schema.json", "fixtures/ui/m5-request-data-components/auth_sheet.json"),
+    ("schemas/ui/m5-contract-source-badge.schema.json", "fixtures/ui/m5-request-data-components/contract_source_badge.json"),
 ]
 
 for schema_path, fixture_path in pairs:
