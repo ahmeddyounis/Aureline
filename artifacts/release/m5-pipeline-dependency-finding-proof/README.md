@@ -10,7 +10,7 @@ audit action parity instead of relying on a generic warning model.
 
 Files:
 
-- `proof_packet.json` records schema, fixture, consumer, degraded-state, and copy/export coverage.
+- `proof_packet.json` records schema, fixture, consumer, degraded-state, and copy/export coverage, including companion-safe manifest-diff projection.
 - `support_export.json` is the support-safe projection of the same component baseline.
 - `matrix.csv` is the release-review checklist row per component family.
 

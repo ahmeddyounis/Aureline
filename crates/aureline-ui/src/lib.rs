@@ -150,6 +150,19 @@
 //! export-safe fields, and preserves limited, blocked, and policy-constrained
 //! update states as visible rows instead of reducing them to disabled buttons.
 //!
+//! [`m5_pipeline_run_rows::PipelineRunRow`] freezes the reusable pipeline-run
+//! row for review, pipeline, project-health, companion, support, and release
+//! surfaces. It preserves provider/run identity, trigger, branch/change
+//! relation, artifact counts, freshness, provider handoff, and rerun/cancel
+//! authority so reduced-capability consumers show limited-action notes instead
+//! of hiding controls.
+//!
+//! [`m5_manifest_diff_cards::ManifestDiffCard`] freezes the reusable manifest
+//! diff card for package, review, project-health, companion, support, and
+//! release surfaces. It preserves scripts/hooks preview, peer/runtime
+//! constraints, checkpoint/rollback state, and apply boundary so package changes
+//! cannot flatten into a generic update card.
+//!
 //! [`m5_security_finding_cards::SecurityFindingCard`] freezes the reusable
 //! security-finding card for package, secret, policy, and code-analysis
 //! findings. It keeps finding class, affected scope, severity, confidence,
@@ -157,6 +170,12 @@
 //! path, local validation, docs/help path, and audit actions as separate
 //! export-safe fields for review, package, health, companion, support, and
 //! release surfaces.
+//!
+//! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
+//! validates the first-consumer proof across the five component families and
+//! checks that review panes, package centers, project-health centers, companion
+//! clients, support export, and release proof preserve controlled labels and
+//! narrow action authority explicitly.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -169,7 +188,10 @@ pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;
 pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
+pub mod m5_manifest_diff_cards;
 pub mod m5_parameter_source_and_precedence;
+pub mod m5_pipeline_dependency_finding_components;
+pub mod m5_pipeline_run_rows;
 pub mod m5_security_finding_cards;
 pub mod m5_staged_review_sheets;
 pub mod m5_structured_input_and_staged_review;
