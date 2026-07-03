@@ -2430,6 +2430,142 @@ pub struct ImporterPostApplySummary {
     pub unsupported_row_refs: Vec<String>,
 }
 
+/// Dedicated digest for high-frequency shortcut/keybinding changes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterShortcutChangeDigest {
+    /// Stable digest id.
+    pub digest_id: String,
+    /// Shortcut rows rendered in the digest.
+    pub row_refs: Vec<String>,
+    /// Source command/keybinding refs likely to affect muscle memory.
+    pub high_frequency_command_refs: Vec<String>,
+    /// Number of changed high-frequency commands.
+    pub changed_command_count: u32,
+    /// Shortcut rows that are lossy, remapped, or require follow-up.
+    pub lossy_or_changed_row_refs: Vec<String>,
+    /// Whether the digest remains visible after apply.
+    pub visible_after_apply: bool,
+    /// Whether the digest is included in support export.
+    pub support_export_visible: bool,
+}
+
+/// Bridge inspector exposed from post-import summaries.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterBridgeDetailInspector {
+    /// Stable inspector id.
+    pub inspector_id: String,
+    /// Importer row this inspector explains.
+    pub row_ref: String,
+    /// Bridge or adapter ref.
+    pub bridge_ref: String,
+    /// Compatibility report ref linked from the inspector.
+    pub compatibility_report_ref: String,
+    /// Issue template ref prefilled for follow-up/reporting.
+    pub issue_template_ref: String,
+    /// Whether the inspector remains visible after apply.
+    pub visible_after_apply: bool,
+    /// Whether the inspector is included in support export.
+    pub support_export_visible: bool,
+}
+
+/// Compatibility report link surfaced after import.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterCompatibilityReportLink {
+    /// Stable link id.
+    pub link_id: String,
+    /// Compatibility report ref.
+    pub report_ref: String,
+    /// Rows covered by this report.
+    pub row_refs: Vec<String>,
+    /// Whether the link remains visible after apply.
+    pub visible_after_apply: bool,
+    /// Whether the link is included in support export.
+    pub support_export_visible: bool,
+}
+
+/// Issue-template export generated from post-import summaries.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterIssueTemplateExport {
+    /// Stable issue-template export id.
+    pub template_id: String,
+    /// Rows included in the exported issue template.
+    pub row_refs: Vec<String>,
+    /// Copy/export formats available for the template.
+    pub formats: Vec<String>,
+    /// Whether bridge details are included.
+    pub includes_bridge_details: bool,
+    /// Whether compatibility report links are included.
+    pub includes_compatibility_report_links: bool,
+    /// Whether partial-apply state is included.
+    pub includes_partial_apply_summary: bool,
+    /// Whether restore/checkpoint state is included.
+    pub includes_restore_summary: bool,
+    /// Whether the template remains visible after apply.
+    pub visible_after_apply: bool,
+    /// Whether the template is included in support export.
+    pub support_export_visible: bool,
+}
+
+/// Post-import apply state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImporterApplyState {
+    /// All rows applied with no unresolved follow-up.
+    Complete,
+    /// Some rows applied, but follow-up remains.
+    PartialApplied,
+    /// Apply completed in a downgraded/narrowed state.
+    Downgraded,
+    /// Apply failed.
+    Failed,
+    /// Apply has not run.
+    NotApplied,
+}
+
+/// Honest post-apply summary for partial or downgraded imports.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterPartialApplySummary {
+    /// Apply state shown after import.
+    pub apply_state: ImporterApplyState,
+    /// Rows that applied.
+    pub completed_row_refs: Vec<String>,
+    /// Rows still requiring user/vendor/support follow-up.
+    pub unresolved_row_refs: Vec<String>,
+    /// Rows applied with downgrade/narrowing.
+    pub downgraded_row_refs: Vec<String>,
+    /// Rows blocked from apply.
+    pub blocked_row_refs: Vec<String>,
+    /// Label shown by completion surfaces.
+    pub completion_label: String,
+    /// Whether the summary remains visible after apply.
+    pub visible_after_apply: bool,
+    /// Whether the summary is included in support export.
+    pub support_export_visible: bool,
+}
+
+/// Restore/checkpoint summary shown after apply and in support export.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterRestoreSummary {
+    /// Whether a restore path is available.
+    pub restore_available: bool,
+    /// Checkpoint refs preserved for restore.
+    pub checkpoint_refs: Vec<String>,
+    /// Restore refs available after apply.
+    pub restore_refs: Vec<String>,
+    /// Human-readable restore scope note.
+    pub restore_scope_note: String,
+    /// Whether the summary remains visible after apply.
+    pub visible_after_apply: bool,
+    /// Whether the summary is included in support export.
+    pub support_export_visible: bool,
+}
+
 /// Grouped importer review table consumed by first-run, migration center,
 /// CLI/headless, docs/help, and support export.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2451,6 +2587,18 @@ pub struct ImporterReviewTable {
     pub rows: Vec<ImporterDiffRow>,
     /// Post-apply/export visibility summary.
     pub post_apply_summary: ImporterPostApplySummary,
+    /// Dedicated high-frequency shortcut-change digest.
+    pub shortcut_change_digest: ImporterShortcutChangeDigest,
+    /// Bridge inspectors that remain available after apply.
+    pub bridge_detail_inspectors: Vec<ImporterBridgeDetailInspector>,
+    /// Compatibility report links that remain available after apply.
+    pub compatibility_report_links: Vec<ImporterCompatibilityReportLink>,
+    /// Issue-template export for unresolved follow-up.
+    pub issue_template_export: ImporterIssueTemplateExport,
+    /// Honest partial/downgraded apply summary.
+    pub partial_apply_summary: ImporterPartialApplySummary,
+    /// Restore/checkpoint summary preserved after import.
+    pub restore_summary: ImporterRestoreSummary,
     /// Canonical source refs.
     pub source_refs: Vec<String>,
     /// First consumer surfaces.
@@ -2592,6 +2740,7 @@ impl ImporterReviewTable {
                 });
             }
         }
+        self.validate_post_import_summaries(&row_ids, &mut violations);
 
         validate_component_copy_export(
             &self.table_id,
@@ -2626,6 +2775,12 @@ impl ImporterReviewTable {
             "extensions_and_providers",
             "tasks_and_run_configs",
             "workspace_metadata",
+            "shortcut_change_digest",
+            "bridge_detail_inspectors",
+            "compatibility_report_links",
+            "issue_template_export",
+            "partial_apply_summary",
+            "restore_summary",
         ] {
             if !copy_text.contains(required) {
                 violations.push(
@@ -2637,6 +2792,209 @@ impl ImporterReviewTable {
             }
         }
         violations
+    }
+
+    fn validate_post_import_summaries(
+        &self,
+        row_ids: &BTreeSet<String>,
+        violations: &mut Vec<ImporterDiffRowViolation>,
+    ) {
+        if self.shortcut_change_digest.row_refs.is_empty()
+            || self
+                .shortcut_change_digest
+                .row_refs
+                .iter()
+                .any(|row_ref| !row_ids.contains(row_ref))
+            || self
+                .shortcut_change_digest
+                .high_frequency_command_refs
+                .is_empty()
+            || self.shortcut_change_digest.changed_command_count == 0
+            || self
+                .shortcut_change_digest
+                .lossy_or_changed_row_refs
+                .is_empty()
+            || !self.shortcut_change_digest.visible_after_apply
+            || !self.shortcut_change_digest.support_export_visible
+        {
+            violations.push(
+                ImporterDiffRowViolation::ShortcutDigestMissingPostApplyTruth {
+                    table_id: self.table_id.clone(),
+                },
+            );
+        }
+        if !self.shortcut_change_digest.row_refs.iter().any(|row_ref| {
+            self.rows.iter().any(|row| {
+                &row.row_id == row_ref && row.migration_domain == ImporterMigrationDomain::Shortcuts
+            })
+        }) {
+            violations.push(ImporterDiffRowViolation::ShortcutDigestMissingShortcutRow {
+                table_id: self.table_id.clone(),
+            });
+        }
+
+        for row_ref in &self.shortcut_change_digest.lossy_or_changed_row_refs {
+            if !self.shortcut_change_digest.row_refs.contains(row_ref) {
+                violations.push(ImporterDiffRowViolation::ShortcutDigestUnknownChangedRow {
+                    table_id: self.table_id.clone(),
+                    row_ref: row_ref.clone(),
+                });
+            }
+        }
+
+        let bridge_rows: BTreeSet<_> = self
+            .rows
+            .iter()
+            .filter(|row| row.outcome_state == ImporterOutcomeState::BridgeRequired)
+            .map(|row| row.row_id.clone())
+            .collect();
+        let inspected_bridge_rows: BTreeSet<_> = self
+            .bridge_detail_inspectors
+            .iter()
+            .map(|inspector| inspector.row_ref.clone())
+            .collect();
+        for row_ref in &bridge_rows {
+            if !inspected_bridge_rows.contains(row_ref) {
+                violations.push(ImporterDiffRowViolation::BridgeInspectorMissing {
+                    row_id: row_ref.clone(),
+                });
+            }
+        }
+        for inspector in &self.bridge_detail_inspectors {
+            if !bridge_rows.contains(&inspector.row_ref)
+                || inspector.bridge_ref.trim().is_empty()
+                || inspector.compatibility_report_ref.trim().is_empty()
+                || inspector.issue_template_ref.trim().is_empty()
+                || !inspector.visible_after_apply
+                || !inspector.support_export_visible
+            {
+                violations.push(ImporterDiffRowViolation::BridgeInspectorMissing {
+                    row_id: inspector.row_ref.clone(),
+                });
+            }
+        }
+
+        let mut compatibility_report_rows = BTreeSet::new();
+        for link in &self.compatibility_report_links {
+            if link.report_ref.trim().is_empty()
+                || link.row_refs.is_empty()
+                || !link.visible_after_apply
+                || !link.support_export_visible
+            {
+                violations.push(ImporterDiffRowViolation::CompatibilityReportLinkMissing {
+                    table_id: self.table_id.clone(),
+                });
+            }
+            for row_ref in &link.row_refs {
+                if !row_ids.contains(row_ref) {
+                    violations.push(ImporterDiffRowViolation::CompatibilityReportUnknownRow {
+                        table_id: self.table_id.clone(),
+                        row_ref: row_ref.clone(),
+                    });
+                }
+                compatibility_report_rows.insert(row_ref.clone());
+            }
+        }
+        for row_ref in self
+            .post_apply_summary
+            .bridge_required_row_refs
+            .iter()
+            .chain(self.post_apply_summary.unsupported_row_refs.iter())
+        {
+            if !compatibility_report_rows.contains(row_ref) {
+                violations.push(ImporterDiffRowViolation::CompatibilityReportLinkMissing {
+                    table_id: self.table_id.clone(),
+                });
+            }
+        }
+
+        for format in ["text", "json", "markdown"] {
+            if !self
+                .issue_template_export
+                .formats
+                .iter()
+                .any(|f| f == format)
+            {
+                violations.push(ImporterDiffRowViolation::IssueTemplateExportMissing {
+                    table_id: self.table_id.clone(),
+                });
+            }
+        }
+        let issue_rows: BTreeSet<_> = self
+            .issue_template_export
+            .row_refs
+            .iter()
+            .cloned()
+            .collect();
+        for row_ref in self
+            .post_apply_summary
+            .bridge_required_row_refs
+            .iter()
+            .chain(self.post_apply_summary.unsupported_row_refs.iter())
+        {
+            if !issue_rows.contains(row_ref) {
+                violations.push(ImporterDiffRowViolation::IssueTemplateExportMissing {
+                    table_id: self.table_id.clone(),
+                });
+            }
+        }
+        if !self.issue_template_export.includes_bridge_details
+            || !self
+                .issue_template_export
+                .includes_compatibility_report_links
+            || !self.issue_template_export.includes_partial_apply_summary
+            || !self.issue_template_export.includes_restore_summary
+            || !self.issue_template_export.visible_after_apply
+            || !self.issue_template_export.support_export_visible
+        {
+            violations.push(ImporterDiffRowViolation::IssueTemplateExportMissing {
+                table_id: self.table_id.clone(),
+            });
+        }
+
+        let has_unresolved = !self.partial_apply_summary.unresolved_row_refs.is_empty()
+            || !self.partial_apply_summary.downgraded_row_refs.is_empty()
+            || !self.partial_apply_summary.blocked_row_refs.is_empty();
+        if has_unresolved && self.partial_apply_summary.apply_state == ImporterApplyState::Complete
+        {
+            violations.push(ImporterDiffRowViolation::PartialApplyTruthCollapsed {
+                table_id: self.table_id.clone(),
+            });
+        }
+        if !self.partial_apply_summary.visible_after_apply
+            || !self.partial_apply_summary.support_export_visible
+        {
+            violations.push(ImporterDiffRowViolation::PartialApplyTruthCollapsed {
+                table_id: self.table_id.clone(),
+            });
+        }
+        for row_ref in self
+            .partial_apply_summary
+            .completed_row_refs
+            .iter()
+            .chain(self.partial_apply_summary.unresolved_row_refs.iter())
+            .chain(self.partial_apply_summary.downgraded_row_refs.iter())
+            .chain(self.partial_apply_summary.blocked_row_refs.iter())
+        {
+            if !row_ids.contains(row_ref) {
+                violations.push(ImporterDiffRowViolation::PartialApplyUnknownRow {
+                    table_id: self.table_id.clone(),
+                    row_ref: row_ref.clone(),
+                });
+            }
+        }
+
+        if !self.restore_summary.restore_available
+            || self.restore_summary.checkpoint_refs.is_empty()
+            || self.restore_summary.restore_refs.is_empty()
+            || self.restore_summary.restore_scope_note.trim().is_empty()
+            || !self.restore_summary.visible_after_apply
+            || !self.restore_summary.support_export_visible
+        {
+            violations.push(ImporterDiffRowViolation::RestoreSummaryMissing {
+                table_id: self.table_id.clone(),
+            });
+        }
     }
 }
 
@@ -2655,6 +3013,12 @@ const IMPORTER_REVIEW_TABLE_COPY_EXPORT_FIELDS: &[&str] = &[
     "groups",
     "rows",
     "post_apply_summary",
+    "shortcut_change_digest",
+    "bridge_detail_inspectors",
+    "compatibility_report_links",
+    "issue_template_export",
+    "partial_apply_summary",
+    "restore_summary",
 ];
 
 /// Parse the canonical importer diff row.
@@ -2856,6 +3220,62 @@ pub enum ImporterDiffRowViolation {
         table_id: String,
         /// Missing token.
         token: String,
+    },
+    /// Shortcut-change digest is missing post-apply/export truth.
+    ShortcutDigestMissingPostApplyTruth {
+        /// Table id.
+        table_id: String,
+    },
+    /// Shortcut-change digest does not include a shortcut-domain row.
+    ShortcutDigestMissingShortcutRow {
+        /// Table id.
+        table_id: String,
+    },
+    /// Shortcut-change digest points at a changed row outside the digest.
+    ShortcutDigestUnknownChangedRow {
+        /// Table id.
+        table_id: String,
+        /// Row ref.
+        row_ref: String,
+    },
+    /// Bridge-required row is missing a post-apply inspector.
+    BridgeInspectorMissing {
+        /// Row id.
+        row_id: String,
+    },
+    /// Compatibility report link is missing or hidden.
+    CompatibilityReportLinkMissing {
+        /// Table id.
+        table_id: String,
+    },
+    /// Compatibility report link points at an unknown row.
+    CompatibilityReportUnknownRow {
+        /// Table id.
+        table_id: String,
+        /// Row ref.
+        row_ref: String,
+    },
+    /// Issue-template export is missing bridge/unsupported follow-up truth.
+    IssueTemplateExportMissing {
+        /// Table id.
+        table_id: String,
+    },
+    /// Partial apply was collapsed into a generic completion state.
+    PartialApplyTruthCollapsed {
+        /// Table id.
+        table_id: String,
+    },
+    /// Partial apply summary points at an unknown row.
+    PartialApplyUnknownRow {
+        /// Table id.
+        table_id: String,
+        /// Row ref.
+        row_ref: String,
+    },
+    /// Restore/checkpoint summary is missing after apply.
+    RestoreSummaryMissing {
+        /// Table id.
+        table_id: String,
     },
 }
 

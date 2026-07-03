@@ -175,6 +175,12 @@ Grouped review-table fields:
 | `groups` | One visible/exported table group per outcome, even when the group is used by a different first consumer. |
 | `rows` | Reusable importer diff rows; feature teams consume these instead of inventing ad hoc mapped-versus-unsupported tables. |
 | `post_apply_summary` | Visible and exported outcome states plus explicit lossy, skipped, bridge-required, and unsupported row refs. |
+| `shortcut_change_digest` | Dedicated post-apply digest for high-frequency shortcut/keybinding changes, kept separate from general settings diffs and included in support export. |
+| `bridge_detail_inspectors` | Bridge-required row inspectors with bridge refs, compatibility report refs, and issue-template refs that remain available after apply. |
+| `compatibility_report_links` | Post-import compatibility report links for bridge-required and unsupported rows, visible after apply and in support export. |
+| `issue_template_export` | Text/JSON/Markdown issue-template export that includes bridge details, compatibility report links, partial apply state, and restore summary. |
+| `partial_apply_summary` | Honest post-apply state with completed, unresolved, downgraded, and blocked row refs; partial/downgraded imports cannot render as generic completion. |
+| `restore_summary` | Restore availability, checkpoint refs, restore refs, and restore scope note preserved after apply, downgrade, and support export. |
 
 Degraded states:
 
@@ -246,6 +252,15 @@ bridge-required, or local-only truth as generic prose is non-conforming.
 - Import rows with `skipped`, lossy `mapped`, `manual_review`,
   `bridge_required`, or `unsupported` outcomes must remain visible in
   post-apply summaries and exported migration evidence.
+- High-frequency shortcut/keybinding changes render in `shortcut_change_digest`
+  after apply; they must not be hidden inside general settings diff counts.
+- Post-import bridge and unsupported follow-up paths keep
+  `bridge_detail_inspectors`, `compatibility_report_links`, and
+  `issue_template_export` available from summaries, not only from the initial
+  review table.
+- Partial or downgraded imports show `partial_apply_summary` and
+  `restore_summary` after apply and in support export; they cannot collapse into
+  a single "migration complete" state while unresolved work remains.
 - Review tables group rows only by the six stable outcome states; feature teams
   must not replace them with local labels such as approximate, partial, failed,
   best effort, or ignored.
