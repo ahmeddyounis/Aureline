@@ -13,11 +13,24 @@
     "source_profile_ref",
     "target_ref",
     "migration_domain",
+    "source_object_ref",
+    "source_value",
+    "target_object_ref",
+    "target_value",
+    "translated_result",
     "outcome_state",
     "compatibility_state",
     "mapping_basis",
+    "reason_class",
+    "reason_detail_note",
+    "lossy_mapping",
+    "manual_review_action",
+    "docs_action",
     "checkpoint_context",
     "degraded_state",
+    "export_safe_identifiers",
+    "post_apply_summary_visible",
+    "support_export_visible",
     "source_refs",
     "consumer_surfaces",
     "copy_export"
@@ -46,6 +59,11 @@
         "other"
       ]
     },
+    "source_object_ref": { "$ref": "#/$defs/ref" },
+    "source_value": { "$ref": "#/$defs/value" },
+    "target_object_ref": { "$ref": "#/$defs/nullable_ref" },
+    "target_value": { "$ref": "#/$defs/nullable_value" },
+    "translated_result": { "$ref": "#/$defs/value" },
     "outcome_state": {
       "type": "string",
       "enum": ["imported", "mapped", "skipped", "manual_review", "bridge_required", "unsupported"]
@@ -74,6 +92,27 @@
         "not_applicable"
       ]
     },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "exact_equivalent_available",
+        "semantic_equivalent_available",
+        "capability_mapping_available",
+        "user_declined_import",
+        "policy_excludes_import",
+        "existing_state_retained",
+        "conflict_requires_review",
+        "bridge_needed_for_parity",
+        "target_feature_not_supported",
+        "source_artifact_unreadable",
+        "source_version_not_qualified",
+        "insufficient_evidence"
+      ]
+    },
+    "reason_detail_note": { "$ref": "#/$defs/value" },
+    "lossy_mapping": { "type": "boolean" },
+    "manual_review_action": { "$ref": "#/$defs/review_action" },
+    "docs_action": { "$ref": "#/$defs/review_action" },
     "checkpoint_context": { "$ref": "#/$defs/checkpoint_context" },
     "degraded_state": {
       "type": "string",
@@ -87,6 +126,9 @@
         "policy_blocked"
       ]
     },
+    "export_safe_identifiers": { "$ref": "#/$defs/export_safe_identifiers" },
+    "post_apply_summary_visible": { "type": "boolean" },
+    "support_export_visible": { "type": "boolean" },
     "source_refs": { "$ref": "#/$defs/ref_array" },
     "consumer_surfaces": {
       "type": "array",
@@ -99,13 +141,53 @@
     },
     "copy_export": { "$ref": "#/$defs/copy_export" }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome_state": {
+            "enum": ["imported", "mapped", "bridge_required"]
+          }
+        },
+        "required": ["outcome_state"]
+      },
+      "then": {
+        "properties": {
+          "target_object_ref": { "type": "string", "minLength": 1 },
+          "target_value": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome_state": { "const": "bridge_required" }
+        },
+        "required": ["outcome_state"]
+      },
+      "then": {
+        "properties": {
+          "compatibility_state": { "const": "bridge_required" },
+          "mapping_basis": { "const": "bridge_adapter" },
+          "degraded_state": { "const": "bridge_required_import" }
+        }
+      }
+    }
+  ],
   "$defs": {
     "id": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9]+(?:[._:-][a-z0-9]+)*$" },
     "ref": { "type": "string", "minLength": 1 },
+    "value": { "type": "string", "minLength": 1, "maxLength": 1024 },
     "nullable_ref": {
       "oneOf": [
         { "type": "null" },
         { "$ref": "#/$defs/ref" }
+      ]
+    },
+    "nullable_value": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/value" }
       ]
     },
     "ref_array": {
@@ -125,6 +207,52 @@
         "restore_ref": { "$ref": "#/$defs/nullable_ref" }
       }
     },
+    "review_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_kind",
+        "label",
+        "docs_help_ref",
+        "required_before_completion"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/id" },
+        "action_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "review_mapping",
+            "keep_skipped",
+            "install_bridge",
+            "acknowledge_unsupported",
+            "open_docs"
+          ]
+        },
+        "label": { "$ref": "#/$defs/value" },
+        "docs_help_ref": { "$ref": "#/$defs/ref" },
+        "required_before_completion": { "type": "boolean" }
+      }
+    },
+    "export_safe_identifiers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "migration_session_ref",
+        "source_object_ref",
+        "target_object_ref",
+        "support_packet_ref"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/id" },
+        "migration_session_ref": { "$ref": "#/$defs/ref" },
+        "source_object_ref": { "$ref": "#/$defs/ref" },
+        "target_object_ref": { "$ref": "#/$defs/nullable_ref" },
+        "support_packet_ref": { "$ref": "#/$defs/ref" }
+      }
+    },
     "copy_export": {
       "type": "object",
       "additionalProperties": false,
@@ -138,20 +266,34 @@
         },
         "export_fields": {
           "type": "array",
-          "minItems": 9,
+          "minItems": 23,
           "uniqueItems": true,
           "items": {
             "type": "string",
             "enum": [
+              "row_id",
               "migration_session_ref",
               "source_profile_ref",
               "target_ref",
               "migration_domain",
+              "source_object_ref",
+              "source_value",
+              "target_object_ref",
+              "target_value",
+              "translated_result",
               "outcome_state",
               "compatibility_state",
               "mapping_basis",
+              "reason_class",
+              "reason_detail_note",
+              "lossy_mapping",
+              "manual_review_action",
+              "docs_action",
               "checkpoint_context",
-              "degraded_state"
+              "degraded_state",
+              "export_safe_identifiers",
+              "post_apply_summary_visible",
+              "support_export_visible"
             ]
           }
         },
@@ -163,4 +305,3 @@
     }
   }
 }
-

@@ -29,7 +29,9 @@ The M5 release gate narrows any first consumer below execution-ready when it:
   downgrade state from benchmark evidence;
 - renders cached service health as live reachability;
 - treats a local-only saved support package as submitted support;
-- hides bridge-required import rows or checkpoint/restore context; or
+- hides importer source/target values, translated results, reason notes,
+  manual/docs actions, bridge-required rows, lossy mappings, skipped rows,
+  unsupported rows, or checkpoint/restore context after apply/export; or
 - opens or copies a help/release/migration/support handoff without destination
   group/type, ownership, trust class, version note, visibility, auth,
   commitment, action, and local fallback labels.

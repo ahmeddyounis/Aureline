@@ -12,7 +12,8 @@ These fixtures are the first-consumer examples for the frozen matrix at
 | `benchmark_evidence_card_imported.json` | `schemas/ui/m5-benchmark-evidence-card.schema.json` | Imported evidence stays retest-pending until environment truth is verified. |
 | `about_service_health_card.json` | `schemas/ui/m5-about-service-health-card.schema.json` | Cached service-health status stays local-first and visible as cached rather than live. |
 | `support_package_card.json` | `schemas/ui/m5-support-package-card.schema.json` | A package saved locally is not represented as submitted support. |
-| `importer_diff_row.json` | `schemas/ui/m5-importer-diff-row.schema.json` | A bridge-required import row keeps compatibility and checkpoint/restore context. |
+| `importer_diff_row.json` | `schemas/ui/m5-importer-diff-row.schema.json` | A bridge-required import row keeps source/target values, translated result, reason note, actions, export-safe ids, compatibility, and checkpoint/restore context. |
+| `importer_review_table.json` | Shared typed fixture | Outcome-grouped review table proving `imported`, `mapped`, `skipped`, `manual_review`, `bridge_required`, and `unsupported` rows across settings, shortcuts, extensions, tasks, and workspace metadata remain visible after apply/export. |
 | `community_handoff_tile_official_public.json` | `schemas/ui/m5-community-handoff-tile.schema.json` | An official public release issue template discloses world-readable visibility, version-specific release context, and copyable issue-template context. |
 | `community_handoff_tile_official_authenticated.json` | `schemas/ui/m5-community-handoff-tile.schema.json` | An official authenticated support handoff remains inspectable when browser launch is blocked. |
 | `community_handoff_tile.json` | `schemas/ui/m5-community-handoff-tile.schema.json` | A community-owned destination is disclosed before exit and keeps a local fallback. |

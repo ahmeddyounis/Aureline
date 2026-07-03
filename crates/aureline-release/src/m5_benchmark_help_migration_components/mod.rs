@@ -98,6 +98,37 @@ pub const M5_COMMUNITY_HANDOFF_TILE_JSON: &str = include_str!(concat!(
     "/../../fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile.json"
 ));
 
+/// Supported importer diff row schema version.
+pub const M5_IMPORTER_DIFF_ROW_SCHEMA_VERSION: u32 = 1;
+
+/// Stable record-kind tag for importer diff rows.
+pub const M5_IMPORTER_DIFF_ROW_RECORD_KIND: &str = "m5_importer_diff_row";
+
+/// Stable record-kind tag for grouped importer review tables.
+pub const M5_IMPORTER_REVIEW_TABLE_RECORD_KIND: &str = "m5_importer_review_table";
+
+/// Repo-relative importer diff schema ref.
+pub const M5_IMPORTER_DIFF_ROW_SCHEMA_REF: &str = "schemas/ui/m5-importer-diff-row.schema.json";
+
+/// Canonical importer diff fixture.
+pub const M5_IMPORTER_DIFF_ROW_FIXTURE_REF: &str =
+    "fixtures/ui/m5-benchmark-help-migration-components/importer_diff_row.json";
+
+/// Grouped importer review-table fixture.
+pub const M5_IMPORTER_REVIEW_TABLE_FIXTURE_REF: &str =
+    "fixtures/ui/m5-benchmark-help-migration-components/importer_review_table.json";
+
+/// Embedded canonical importer diff fixture.
+pub const M5_IMPORTER_DIFF_ROW_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/ui/m5-benchmark-help-migration-components/importer_diff_row.json"
+));
+
+const M5_IMPORTER_REVIEW_TABLE_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/ui/m5-benchmark-help-migration-components/importer_review_table.json"
+));
+
 const M5_COMMUNITY_HANDOFF_TILE_OFFICIAL_PUBLIC_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/ui/m5-benchmark-help-migration-components/community_handoff_tile_official_public.json"
@@ -1903,6 +1934,926 @@ pub enum SupportPackageCardViolation {
     CopyExportDropsRequiredTruth {
         /// Package id.
         package_id: String,
+        /// Missing token.
+        token: String,
+    },
+}
+
+/// Governed migration domain for reusable importer diff rows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImporterMigrationDomain {
+    /// Settings import.
+    Settings,
+    /// Shortcut/keybinding import.
+    Shortcuts,
+    /// Theme and visual import.
+    ThemesAndVisuals,
+    /// Snippet/template import.
+    SnippetsAndTemplates,
+    /// Task and run configuration import.
+    TasksAndRunConfigs,
+    /// Launch/debug import.
+    LaunchDebug,
+    /// Extensions and provider import.
+    ExtensionsAndProviders,
+    /// Workspace metadata import.
+    WorkspaceMetadata,
+    /// Profile/layout import.
+    ProfilesAndLayout,
+    /// Docs/tour import.
+    DocsAndTours,
+    /// Bridge metadata import.
+    BridgeMetadata,
+    /// Other governed migration domain.
+    Other,
+}
+
+/// Stable importer outcome vocabulary shared by settings, keybindings,
+/// extensions, tasks, and workspace metadata.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImporterOutcomeState {
+    /// Imported without semantic narrowing beyond documented canonicalization.
+    Imported,
+    /// Mapped to a semantic or capability-equivalent target.
+    Mapped,
+    /// Intentionally skipped or target truth retained.
+    Skipped,
+    /// Human review is required.
+    ManualReview,
+    /// A compatibility bridge is required.
+    BridgeRequired,
+    /// Source concept is unsupported.
+    Unsupported,
+}
+
+impl ImporterOutcomeState {
+    /// Closed outcome order used by review tables and exports.
+    pub const STABLE_GROUP_ORDER: [Self; 6] = [
+        Self::Imported,
+        Self::Mapped,
+        Self::Skipped,
+        Self::ManualReview,
+        Self::BridgeRequired,
+        Self::Unsupported,
+    ];
+
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Imported => "imported",
+            Self::Mapped => "mapped",
+            Self::Skipped => "skipped",
+            Self::ManualReview => "manual_review",
+            Self::BridgeRequired => "bridge_required",
+            Self::Unsupported => "unsupported",
+        }
+    }
+}
+
+/// Compatibility state for an importer row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImporterCompatibilityState {
+    /// Compatible with native target behavior.
+    Compatible,
+    /// Native alternative exists.
+    NativeAlternative,
+    /// Bridge is required.
+    BridgeRequired,
+    /// Manual review is required.
+    ManualReview,
+    /// Unsupported by the target.
+    Unsupported,
+    /// Policy blocks import.
+    PolicyBlocked,
+    /// Evidence is insufficient.
+    InsufficientEvidence,
+}
+
+/// How the importer derived a row's target mapping.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImporterMappingBasis {
+    /// Exact identity.
+    ExactIdentity,
+    /// Semantic equivalent.
+    SemanticEquivalent,
+    /// Capability-based mapping.
+    CapabilityBased,
+    /// Bridge adapter.
+    BridgeAdapter,
+    /// Name heuristic.
+    NameHeuristic,
+    /// User override.
+    UserOverride,
+    /// Not applicable.
+    NotApplicable,
+}
+
+/// Typed reason class for importer row outcomes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImporterOutcomeReasonClass {
+    /// Exact equivalent is available.
+    ExactEquivalentAvailable,
+    /// Semantic equivalent is available.
+    SemanticEquivalentAvailable,
+    /// Capability mapping is available.
+    CapabilityMappingAvailable,
+    /// User declined import.
+    UserDeclinedImport,
+    /// Policy excludes import.
+    PolicyExcludesImport,
+    /// Existing target state is retained.
+    ExistingStateRetained,
+    /// Conflict requires review.
+    ConflictRequiresReview,
+    /// Bridge is needed for parity.
+    BridgeNeededForParity,
+    /// Target feature is unsupported.
+    TargetFeatureNotSupported,
+    /// Source artifact is unreadable.
+    SourceArtifactUnreadable,
+    /// Source version is not qualified.
+    SourceVersionNotQualified,
+    /// Evidence is insufficient.
+    InsufficientEvidence,
+}
+
+/// Importer degraded state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImporterDegradedState {
+    /// No degradation.
+    None,
+    /// Bridge is required.
+    BridgeRequiredImport,
+    /// Checkpoint is missing.
+    CheckpointMissing,
+    /// Restore is unavailable.
+    RestoreUnavailable,
+    /// Compatibility is unknown.
+    CompatibilityUnknown,
+    /// Source is unreadable.
+    SourceUnreadable,
+    /// Policy blocks import.
+    PolicyBlocked,
+}
+
+/// Manual/docs action attached to an importer row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImporterReviewActionKind {
+    /// No manual action is required.
+    None,
+    /// Open manual review.
+    ReviewMapping,
+    /// Keep skipped target state.
+    KeepSkipped,
+    /// Install or enable a bridge.
+    InstallBridge,
+    /// Acknowledge unsupported source concept.
+    AcknowledgeUnsupported,
+    /// Open docs/help guidance.
+    OpenDocs,
+}
+
+/// Action shown beside an importer row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterReviewAction {
+    /// Stable action id.
+    pub action_id: String,
+    /// Action kind.
+    pub action_kind: ImporterReviewActionKind,
+    /// User-facing label.
+    pub label: String,
+    /// Docs/help ref opened or copied by the action.
+    pub docs_help_ref: String,
+    /// Whether this action must be resolved before completion can be claimed.
+    pub required_before_completion: bool,
+}
+
+/// Checkpoint/restore posture for importer rows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterCheckpointContext {
+    /// Whether a checkpoint is required before apply.
+    pub checkpoint_required: bool,
+    /// Checkpoint ref.
+    pub checkpoint_ref: Option<String>,
+    /// Whether restore is available.
+    pub restore_available: bool,
+    /// Restore ref.
+    pub restore_ref: Option<String>,
+}
+
+/// Export-safe row identifiers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterExportSafeIdentifiers {
+    /// Stable row id.
+    pub row_id: String,
+    /// Durable migration session ref.
+    pub migration_session_ref: String,
+    /// Export-safe source object ref.
+    pub source_object_ref: String,
+    /// Export-safe target object ref, when one exists.
+    pub target_object_ref: Option<String>,
+    /// Support/export packet ref preserving the row.
+    pub support_packet_ref: String,
+}
+
+/// Reusable migration importer diff row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterDiffRow {
+    /// Record kind.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Stable row id.
+    pub row_id: String,
+    /// Durable migration session ref.
+    pub migration_session_ref: String,
+    /// Source profile/install ref.
+    pub source_profile_ref: String,
+    /// Target profile/workspace/domain ref.
+    pub target_ref: String,
+    /// Migration domain.
+    pub migration_domain: ImporterMigrationDomain,
+    /// Export-safe source object ref.
+    pub source_object_ref: String,
+    /// Source value shown in review/export.
+    pub source_value: String,
+    /// Export-safe target object ref.
+    pub target_object_ref: Option<String>,
+    /// Target value shown in review/export.
+    pub target_value: Option<String>,
+    /// Translated/imported result shown to the reviewer.
+    pub translated_result: String,
+    /// Stable outcome state.
+    pub outcome_state: ImporterOutcomeState,
+    /// Compatibility state.
+    pub compatibility_state: ImporterCompatibilityState,
+    /// Mapping basis.
+    pub mapping_basis: ImporterMappingBasis,
+    /// Typed reason class.
+    pub reason_class: ImporterOutcomeReasonClass,
+    /// Human-readable reason/detail note.
+    pub reason_detail_note: String,
+    /// Whether the mapping is lossy or narrowed.
+    pub lossy_mapping: bool,
+    /// Manual review action.
+    pub manual_review_action: ImporterReviewAction,
+    /// Docs/help action.
+    pub docs_action: ImporterReviewAction,
+    /// Checkpoint/restore posture.
+    pub checkpoint_context: ImporterCheckpointContext,
+    /// Degraded state.
+    pub degraded_state: ImporterDegradedState,
+    /// Export-safe identifiers.
+    pub export_safe_identifiers: ImporterExportSafeIdentifiers,
+    /// Whether the row stays visible in post-apply summaries.
+    pub post_apply_summary_visible: bool,
+    /// Whether the row stays visible in support/export evidence.
+    pub support_export_visible: bool,
+    /// Canonical source refs.
+    pub source_refs: Vec<String>,
+    /// First consumer surfaces.
+    pub consumer_surfaces: Vec<String>,
+    /// Copy/export payload.
+    pub copy_export: ComponentCopyExport,
+}
+
+impl ImporterDiffRow {
+    /// Validate one importer row's non-schema invariants.
+    pub fn validate(&self) -> Vec<ImporterDiffRowViolation> {
+        let mut violations = Vec::new();
+        if self.record_kind != M5_IMPORTER_DIFF_ROW_RECORD_KIND {
+            violations.push(ImporterDiffRowViolation::UnsupportedRecordKind {
+                row_id: self.row_id.clone(),
+            });
+        }
+        if self.schema_version != M5_IMPORTER_DIFF_ROW_SCHEMA_VERSION {
+            violations.push(ImporterDiffRowViolation::UnsupportedSchemaVersion {
+                row_id: self.row_id.clone(),
+            });
+        }
+        for (field, value) in [
+            ("row_id", &self.row_id),
+            ("migration_session_ref", &self.migration_session_ref),
+            ("source_profile_ref", &self.source_profile_ref),
+            ("target_ref", &self.target_ref),
+            ("source_object_ref", &self.source_object_ref),
+            ("source_value", &self.source_value),
+            ("translated_result", &self.translated_result),
+            ("reason_detail_note", &self.reason_detail_note),
+        ] {
+            if value.trim().is_empty() {
+                violations.push(ImporterDiffRowViolation::EmptyField {
+                    row_id: self.row_id.clone(),
+                    field,
+                });
+            }
+        }
+        if matches!(
+            self.outcome_state,
+            ImporterOutcomeState::Imported
+                | ImporterOutcomeState::Mapped
+                | ImporterOutcomeState::BridgeRequired
+        ) && (self.target_object_ref.is_none() || self.target_value.is_none())
+        {
+            violations.push(ImporterDiffRowViolation::MissingTargetTruth {
+                row_id: self.row_id.clone(),
+            });
+        }
+        if self.outcome_state == ImporterOutcomeState::BridgeRequired {
+            if self.compatibility_state != ImporterCompatibilityState::BridgeRequired
+                || self.mapping_basis != ImporterMappingBasis::BridgeAdapter
+                || self.degraded_state != ImporterDegradedState::BridgeRequiredImport
+                || self.manual_review_action.action_kind != ImporterReviewActionKind::InstallBridge
+            {
+                violations.push(ImporterDiffRowViolation::BridgeTruthCollapsed {
+                    row_id: self.row_id.clone(),
+                });
+            }
+        }
+        if self.outcome_state == ImporterOutcomeState::Unsupported
+            && self.compatibility_state != ImporterCompatibilityState::Unsupported
+        {
+            violations.push(ImporterDiffRowViolation::UnsupportedTruthCollapsed {
+                row_id: self.row_id.clone(),
+            });
+        }
+        if self.outcome_state == ImporterOutcomeState::ManualReview {
+            if self.manual_review_action.action_kind != ImporterReviewActionKind::ReviewMapping
+                || !self.manual_review_action.required_before_completion
+            {
+                violations.push(ImporterDiffRowViolation::ManualReviewActionMissing {
+                    row_id: self.row_id.clone(),
+                });
+            }
+        }
+        if matches!(
+            self.outcome_state,
+            ImporterOutcomeState::Skipped
+                | ImporterOutcomeState::ManualReview
+                | ImporterOutcomeState::BridgeRequired
+                | ImporterOutcomeState::Unsupported
+        ) || self.lossy_mapping
+        {
+            if !self.post_apply_summary_visible || !self.support_export_visible {
+                violations.push(
+                    ImporterDiffRowViolation::PostApplyOrExportVisibilityDropped {
+                        row_id: self.row_id.clone(),
+                        outcome_state: self.outcome_state,
+                    },
+                );
+            }
+        }
+        if self.checkpoint_context.checkpoint_required
+            && (self.checkpoint_context.checkpoint_ref.is_none()
+                || !self.checkpoint_context.restore_available
+                || self.checkpoint_context.restore_ref.is_none())
+        {
+            violations.push(ImporterDiffRowViolation::CheckpointRestoreTruthMissing {
+                row_id: self.row_id.clone(),
+            });
+        }
+        if self.export_safe_identifiers.row_id != self.row_id
+            || self.export_safe_identifiers.migration_session_ref != self.migration_session_ref
+            || self.export_safe_identifiers.source_object_ref != self.source_object_ref
+            || self.export_safe_identifiers.target_object_ref != self.target_object_ref
+            || self
+                .export_safe_identifiers
+                .support_packet_ref
+                .trim()
+                .is_empty()
+        {
+            violations.push(ImporterDiffRowViolation::ExportSafeIdentifiersMismatch {
+                row_id: self.row_id.clone(),
+            });
+        }
+
+        validate_component_copy_export(
+            &self.row_id,
+            &self.copy_export,
+            IMPORTER_DIFF_ROW_COPY_EXPORT_FIELDS,
+            &mut violations,
+            |row_id, format| ImporterDiffRowViolation::MissingCopyFormat { row_id, format },
+            |row_id, field| ImporterDiffRowViolation::MissingCopyExportField { row_id, field },
+            |row_id| ImporterDiffRowViolation::ScreenshotOnlyExportAllowed { row_id },
+        );
+
+        let copy_text = format!(
+            "{}\n{}\n{}",
+            self.copy_export.text, self.copy_export.json, self.copy_export.markdown
+        );
+        for required in [
+            self.row_id.as_str(),
+            self.migration_session_ref.as_str(),
+            self.source_object_ref.as_str(),
+            self.source_value.as_str(),
+            self.translated_result.as_str(),
+            self.outcome_state.as_str(),
+            self.reason_detail_note.as_str(),
+            self.export_safe_identifiers.support_packet_ref.as_str(),
+        ] {
+            if !copy_text.contains(required) {
+                violations.push(ImporterDiffRowViolation::CopyExportDropsRequiredTruth {
+                    row_id: self.row_id.clone(),
+                    token: required.to_owned(),
+                });
+            }
+        }
+        violations
+    }
+}
+
+const IMPORTER_DIFF_ROW_COPY_EXPORT_FIELDS: &[&str] = &[
+    "row_id",
+    "migration_session_ref",
+    "source_profile_ref",
+    "target_ref",
+    "migration_domain",
+    "source_object_ref",
+    "source_value",
+    "target_object_ref",
+    "target_value",
+    "translated_result",
+    "outcome_state",
+    "compatibility_state",
+    "mapping_basis",
+    "reason_class",
+    "reason_detail_note",
+    "lossy_mapping",
+    "manual_review_action",
+    "docs_action",
+    "checkpoint_context",
+    "degraded_state",
+    "export_safe_identifiers",
+    "post_apply_summary_visible",
+    "support_export_visible",
+];
+
+/// Group of rows for one stable outcome state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterOutcomeGroup {
+    /// Outcome state for the group.
+    pub outcome_state: ImporterOutcomeState,
+    /// Row refs in render order.
+    pub row_refs: Vec<String>,
+    /// Whether the group renders after apply.
+    pub post_apply_visible: bool,
+    /// Whether the group is included in support/export evidence.
+    pub support_export_visible: bool,
+}
+
+/// Summary proving lossy/skipped/manual/bridge/unsupported rows survive apply/export.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterPostApplySummary {
+    /// Outcome groups shown after apply.
+    pub visible_outcome_states: Vec<ImporterOutcomeState>,
+    /// Outcome groups included in export.
+    pub exported_outcome_states: Vec<ImporterOutcomeState>,
+    /// Row ids with lossy or narrowed mappings.
+    pub lossy_row_refs: Vec<String>,
+    /// Row ids that were skipped.
+    pub skipped_row_refs: Vec<String>,
+    /// Row ids that require bridge installation/use.
+    pub bridge_required_row_refs: Vec<String>,
+    /// Row ids that are unsupported.
+    pub unsupported_row_refs: Vec<String>,
+}
+
+/// Grouped importer review table consumed by first-run, migration center,
+/// CLI/headless, docs/help, and support export.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImporterReviewTable {
+    /// Record kind.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Stable table id.
+    pub table_id: String,
+    /// Migration session ref.
+    pub migration_session_ref: String,
+    /// Stable outcome group order.
+    pub outcome_group_order: Vec<ImporterOutcomeState>,
+    /// Outcome groups.
+    pub groups: Vec<ImporterOutcomeGroup>,
+    /// Rows rendered by the table.
+    pub rows: Vec<ImporterDiffRow>,
+    /// Post-apply/export visibility summary.
+    pub post_apply_summary: ImporterPostApplySummary,
+    /// Canonical source refs.
+    pub source_refs: Vec<String>,
+    /// First consumer surfaces.
+    pub consumer_surfaces: Vec<String>,
+    /// Copy/export payload.
+    pub copy_export: ComponentCopyExport,
+}
+
+impl ImporterReviewTable {
+    /// Validate table-level grouping and row invariants.
+    pub fn validate(&self) -> Vec<ImporterDiffRowViolation> {
+        let mut violations = Vec::new();
+        if self.record_kind != M5_IMPORTER_REVIEW_TABLE_RECORD_KIND {
+            violations.push(ImporterDiffRowViolation::UnsupportedReviewTableKind {
+                table_id: self.table_id.clone(),
+            });
+        }
+        if self.schema_version != M5_IMPORTER_DIFF_ROW_SCHEMA_VERSION {
+            violations.push(
+                ImporterDiffRowViolation::UnsupportedReviewTableSchemaVersion {
+                    table_id: self.table_id.clone(),
+                },
+            );
+        }
+        if self.outcome_group_order.as_slice() != &ImporterOutcomeState::STABLE_GROUP_ORDER {
+            violations.push(ImporterDiffRowViolation::UnstableOutcomeGroupOrder {
+                table_id: self.table_id.clone(),
+            });
+        }
+        let mut row_ids = BTreeSet::new();
+        let mut outcomes = BTreeSet::new();
+        let mut domains = BTreeSet::new();
+        for row in &self.rows {
+            if !row_ids.insert(row.row_id.clone()) {
+                violations.push(ImporterDiffRowViolation::DuplicateRowId {
+                    row_id: row.row_id.clone(),
+                });
+            }
+            if row.migration_session_ref != self.migration_session_ref {
+                violations.push(ImporterDiffRowViolation::MigrationSessionMismatch {
+                    row_id: row.row_id.clone(),
+                });
+            }
+            outcomes.insert(row.outcome_state);
+            domains.insert(row.migration_domain);
+            violations.extend(row.validate());
+        }
+        for required in ImporterOutcomeState::STABLE_GROUP_ORDER {
+            if !outcomes.contains(&required) {
+                violations.push(ImporterDiffRowViolation::MissingOutcomeCoverage {
+                    outcome_state: required,
+                });
+            }
+        }
+        for required in REQUIRED_IMPORTER_DOMAINS {
+            if !domains.contains(required) {
+                violations.push(ImporterDiffRowViolation::MissingDomainCoverage {
+                    migration_domain: *required,
+                });
+            }
+        }
+
+        let groups: BTreeSet<_> = self
+            .groups
+            .iter()
+            .map(|group| group.outcome_state)
+            .collect();
+        for required in ImporterOutcomeState::STABLE_GROUP_ORDER {
+            if !groups.contains(&required) {
+                violations.push(ImporterDiffRowViolation::MissingOutcomeGroup {
+                    outcome_state: required,
+                });
+            }
+        }
+        for group in &self.groups {
+            if !group.post_apply_visible || !group.support_export_visible {
+                violations.push(ImporterDiffRowViolation::OutcomeGroupVisibilityDropped {
+                    table_id: self.table_id.clone(),
+                    outcome_state: group.outcome_state,
+                });
+            }
+            for row_ref in &group.row_refs {
+                if !row_ids.contains(row_ref) {
+                    violations.push(ImporterDiffRowViolation::OutcomeGroupUnknownRowRef {
+                        table_id: self.table_id.clone(),
+                        row_ref: row_ref.clone(),
+                    });
+                }
+            }
+        }
+        for state in ImporterOutcomeState::STABLE_GROUP_ORDER {
+            if !self
+                .post_apply_summary
+                .visible_outcome_states
+                .contains(&state)
+                || !self
+                    .post_apply_summary
+                    .exported_outcome_states
+                    .contains(&state)
+            {
+                violations.push(ImporterDiffRowViolation::PostApplySummaryDropsOutcome {
+                    table_id: self.table_id.clone(),
+                    outcome_state: state,
+                });
+            }
+        }
+        for row in &self.rows {
+            let row_ref = &row.row_id;
+            if row.lossy_mapping && !self.post_apply_summary.lossy_row_refs.contains(row_ref) {
+                violations.push(ImporterDiffRowViolation::LossyRowMissingFromSummary {
+                    row_id: row.row_id.clone(),
+                });
+            }
+            if row.outcome_state == ImporterOutcomeState::Skipped
+                && !self.post_apply_summary.skipped_row_refs.contains(row_ref)
+            {
+                violations.push(ImporterDiffRowViolation::SkippedRowMissingFromSummary {
+                    row_id: row.row_id.clone(),
+                });
+            }
+            if row.outcome_state == ImporterOutcomeState::BridgeRequired
+                && !self
+                    .post_apply_summary
+                    .bridge_required_row_refs
+                    .contains(row_ref)
+            {
+                violations.push(ImporterDiffRowViolation::BridgeRowMissingFromSummary {
+                    row_id: row.row_id.clone(),
+                });
+            }
+            if row.outcome_state == ImporterOutcomeState::Unsupported
+                && !self
+                    .post_apply_summary
+                    .unsupported_row_refs
+                    .contains(row_ref)
+            {
+                violations.push(ImporterDiffRowViolation::UnsupportedRowMissingFromSummary {
+                    row_id: row.row_id.clone(),
+                });
+            }
+        }
+
+        validate_component_copy_export(
+            &self.table_id,
+            &self.copy_export,
+            IMPORTER_REVIEW_TABLE_COPY_EXPORT_FIELDS,
+            &mut violations,
+            |table_id, format| ImporterDiffRowViolation::MissingReviewTableCopyFormat {
+                table_id,
+                format,
+            },
+            |table_id, field| ImporterDiffRowViolation::MissingReviewTableCopyExportField {
+                table_id,
+                field,
+            },
+            |table_id| ImporterDiffRowViolation::ReviewTableScreenshotOnlyExportAllowed {
+                table_id,
+            },
+        );
+        let copy_text = format!(
+            "{}\n{}\n{}",
+            self.copy_export.text, self.copy_export.json, self.copy_export.markdown
+        );
+        for required in [
+            "imported",
+            "mapped",
+            "skipped",
+            "manual_review",
+            "bridge_required",
+            "unsupported",
+            "settings",
+            "shortcuts",
+            "extensions_and_providers",
+            "tasks_and_run_configs",
+            "workspace_metadata",
+        ] {
+            if !copy_text.contains(required) {
+                violations.push(
+                    ImporterDiffRowViolation::ReviewTableCopyExportDropsRequiredTruth {
+                        table_id: self.table_id.clone(),
+                        token: required.to_owned(),
+                    },
+                );
+            }
+        }
+        violations
+    }
+}
+
+const REQUIRED_IMPORTER_DOMAINS: &[ImporterMigrationDomain] = &[
+    ImporterMigrationDomain::Settings,
+    ImporterMigrationDomain::Shortcuts,
+    ImporterMigrationDomain::ExtensionsAndProviders,
+    ImporterMigrationDomain::TasksAndRunConfigs,
+    ImporterMigrationDomain::WorkspaceMetadata,
+];
+
+const IMPORTER_REVIEW_TABLE_COPY_EXPORT_FIELDS: &[&str] = &[
+    "table_id",
+    "migration_session_ref",
+    "outcome_group_order",
+    "groups",
+    "rows",
+    "post_apply_summary",
+];
+
+/// Parse the canonical importer diff row.
+pub fn current_importer_diff_row() -> Result<ImporterDiffRow, serde_json::Error> {
+    serde_json::from_str(M5_IMPORTER_DIFF_ROW_JSON)
+}
+
+/// Parse the grouped importer review table.
+pub fn current_importer_review_table() -> Result<ImporterReviewTable, serde_json::Error> {
+    serde_json::from_str(M5_IMPORTER_REVIEW_TABLE_JSON)
+}
+
+/// Validation errors for importer diff rows and grouped review tables.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ImporterDiffRowViolation {
+    /// Unsupported row record kind.
+    UnsupportedRecordKind {
+        /// Row id.
+        row_id: String,
+    },
+    /// Unsupported row schema version.
+    UnsupportedSchemaVersion {
+        /// Row id.
+        row_id: String,
+    },
+    /// Required row text field is empty.
+    EmptyField {
+        /// Row id.
+        row_id: String,
+        /// Field name.
+        field: &'static str,
+    },
+    /// Imported/mapped/bridge row omitted target truth.
+    MissingTargetTruth {
+        /// Row id.
+        row_id: String,
+    },
+    /// Bridge row collapsed bridge truth.
+    BridgeTruthCollapsed {
+        /// Row id.
+        row_id: String,
+    },
+    /// Unsupported row collapsed unsupported truth.
+    UnsupportedTruthCollapsed {
+        /// Row id.
+        row_id: String,
+    },
+    /// Manual-review row lacks required action.
+    ManualReviewActionMissing {
+        /// Row id.
+        row_id: String,
+    },
+    /// Important row disappeared after apply or export.
+    PostApplyOrExportVisibilityDropped {
+        /// Row id.
+        row_id: String,
+        /// Outcome state.
+        outcome_state: ImporterOutcomeState,
+    },
+    /// Checkpoint/restore truth missing.
+    CheckpointRestoreTruthMissing {
+        /// Row id.
+        row_id: String,
+    },
+    /// Export-safe ids do not match row fields.
+    ExportSafeIdentifiersMismatch {
+        /// Row id.
+        row_id: String,
+    },
+    /// Copy format missing.
+    MissingCopyFormat {
+        /// Row id.
+        row_id: String,
+        /// Format name.
+        format: &'static str,
+    },
+    /// Copy export field missing.
+    MissingCopyExportField {
+        /// Row id.
+        row_id: String,
+        /// Field name.
+        field: &'static str,
+    },
+    /// Screenshot-only export would be allowed.
+    ScreenshotOnlyExportAllowed {
+        /// Row id.
+        row_id: String,
+    },
+    /// Copy/export dropped required truth.
+    CopyExportDropsRequiredTruth {
+        /// Row id.
+        row_id: String,
+        /// Missing token.
+        token: String,
+    },
+    /// Unsupported review-table record kind.
+    UnsupportedReviewTableKind {
+        /// Table id.
+        table_id: String,
+    },
+    /// Unsupported review-table schema version.
+    UnsupportedReviewTableSchemaVersion {
+        /// Table id.
+        table_id: String,
+    },
+    /// Outcome group order is not the stable order.
+    UnstableOutcomeGroupOrder {
+        /// Table id.
+        table_id: String,
+    },
+    /// Duplicate row id.
+    DuplicateRowId {
+        /// Row id.
+        row_id: String,
+    },
+    /// Row belongs to a different migration session.
+    MigrationSessionMismatch {
+        /// Row id.
+        row_id: String,
+    },
+    /// Required outcome state is not represented.
+    MissingOutcomeCoverage {
+        /// Outcome state.
+        outcome_state: ImporterOutcomeState,
+    },
+    /// Required migration domain is not represented.
+    MissingDomainCoverage {
+        /// Migration domain.
+        migration_domain: ImporterMigrationDomain,
+    },
+    /// Required outcome group is missing.
+    MissingOutcomeGroup {
+        /// Outcome state.
+        outcome_state: ImporterOutcomeState,
+    },
+    /// Outcome group disappeared after apply or support export.
+    OutcomeGroupVisibilityDropped {
+        /// Table id.
+        table_id: String,
+        /// Outcome state.
+        outcome_state: ImporterOutcomeState,
+    },
+    /// Group points to an unknown row.
+    OutcomeGroupUnknownRowRef {
+        /// Table id.
+        table_id: String,
+        /// Row ref.
+        row_ref: String,
+    },
+    /// Post-apply summary omitted an outcome.
+    PostApplySummaryDropsOutcome {
+        /// Table id.
+        table_id: String,
+        /// Outcome state.
+        outcome_state: ImporterOutcomeState,
+    },
+    /// Lossy row omitted from post-apply summary.
+    LossyRowMissingFromSummary {
+        /// Row id.
+        row_id: String,
+    },
+    /// Skipped row omitted from post-apply summary.
+    SkippedRowMissingFromSummary {
+        /// Row id.
+        row_id: String,
+    },
+    /// Bridge-required row omitted from post-apply summary.
+    BridgeRowMissingFromSummary {
+        /// Row id.
+        row_id: String,
+    },
+    /// Unsupported row omitted from post-apply summary.
+    UnsupportedRowMissingFromSummary {
+        /// Row id.
+        row_id: String,
+    },
+    /// Review-table copy format missing.
+    MissingReviewTableCopyFormat {
+        /// Table id.
+        table_id: String,
+        /// Format name.
+        format: &'static str,
+    },
+    /// Review-table copy field missing.
+    MissingReviewTableCopyExportField {
+        /// Table id.
+        table_id: String,
+        /// Field name.
+        field: &'static str,
+    },
+    /// Review-table screenshot-only export would be allowed.
+    ReviewTableScreenshotOnlyExportAllowed {
+        /// Table id.
+        table_id: String,
+    },
+    /// Review-table copy/export dropped required truth.
+    ReviewTableCopyExportDropsRequiredTruth {
+        /// Table id.
+        table_id: String,
         /// Missing token.
         token: String,
     },

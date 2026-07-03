@@ -4,14 +4,16 @@ use std::collections::BTreeSet;
 
 use aureline_release::m5_benchmark_help_migration_components::{
     current_about_service_health_card, current_benchmark_evidence_card,
-    current_benchmark_evidence_cards, current_community_handoff_tiles,
-    current_support_package_card, validate_benchmark_evidence_cards,
+    current_benchmark_evidence_cards, current_community_handoff_tiles, current_importer_diff_row,
+    current_importer_review_table, current_support_package_card, validate_benchmark_evidence_cards,
     validate_community_handoff_tiles, AboutDowngradeState, BenchmarkEvidenceSourceClass,
     CommunityHandoffTileViolation, HandoffDestinationGroup, HandoffDestinationState,
-    HandoffTrustClass, ServiceFreshnessState, SupportPackageState,
-    M5_ABOUT_SERVICE_HEALTH_CARD_FIXTURE_REF, M5_ABOUT_SERVICE_HEALTH_CARD_SCHEMA_REF,
-    M5_BENCHMARK_EVIDENCE_CARD_FIXTURE_REF, M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_REF,
-    M5_COMMUNITY_HANDOFF_TILE_FIXTURE_REF, M5_COMMUNITY_HANDOFF_TILE_SCHEMA_REF,
+    HandoffTrustClass, ImporterDiffRowViolation, ImporterMigrationDomain, ImporterOutcomeState,
+    ServiceFreshnessState, SupportPackageState, M5_ABOUT_SERVICE_HEALTH_CARD_FIXTURE_REF,
+    M5_ABOUT_SERVICE_HEALTH_CARD_SCHEMA_REF, M5_BENCHMARK_EVIDENCE_CARD_FIXTURE_REF,
+    M5_BENCHMARK_EVIDENCE_CARD_SCHEMA_REF, M5_COMMUNITY_HANDOFF_TILE_FIXTURE_REF,
+    M5_COMMUNITY_HANDOFF_TILE_SCHEMA_REF, M5_IMPORTER_DIFF_ROW_FIXTURE_REF,
+    M5_IMPORTER_DIFF_ROW_SCHEMA_REF, M5_IMPORTER_REVIEW_TABLE_FIXTURE_REF,
     M5_SUPPORT_PACKAGE_CARD_FIXTURE_REF, M5_SUPPORT_PACKAGE_CARD_SCHEMA_REF,
 };
 
@@ -269,6 +271,166 @@ fn proof_packet_names_about_service_health_and_support_required_fields() {
         "submit_later_summary",
     ] {
         assert!(support_fields.contains(required), "missing {required}");
+    }
+}
+
+#[test]
+fn importer_fixtures_validate_and_group_stable_outcomes() {
+    let row = current_importer_diff_row().expect("importer row parses");
+    let row_violations = row.validate();
+    assert!(
+        row_violations.is_empty(),
+        "unexpected importer row violations: {row_violations:#?}"
+    );
+
+    let table = current_importer_review_table().expect("importer table parses");
+    let table_violations = table.validate();
+    assert!(
+        table_violations.is_empty(),
+        "unexpected importer table violations: {table_violations:#?}"
+    );
+
+    let outcomes: BTreeSet<_> = table.rows.iter().map(|row| row.outcome_state).collect();
+    for required in ImporterOutcomeState::STABLE_GROUP_ORDER {
+        assert!(outcomes.contains(&required), "missing {required:?}");
+    }
+
+    let domains: BTreeSet<_> = table.rows.iter().map(|row| row.migration_domain).collect();
+    for required in [
+        ImporterMigrationDomain::Settings,
+        ImporterMigrationDomain::Shortcuts,
+        ImporterMigrationDomain::ExtensionsAndProviders,
+        ImporterMigrationDomain::TasksAndRunConfigs,
+        ImporterMigrationDomain::WorkspaceMetadata,
+    ] {
+        assert!(domains.contains(&required), "missing {required:?}");
+    }
+}
+
+#[test]
+fn dropping_post_apply_importer_visibility_fails_validation() {
+    let mut table = current_importer_review_table().expect("importer table parses");
+    table.post_apply_summary.unsupported_row_refs.clear();
+    table.post_apply_summary.bridge_required_row_refs.clear();
+    let violations = table.validate();
+    assert!(
+        violations.iter().any(|violation| matches!(
+            violation,
+            ImporterDiffRowViolation::UnsupportedRowMissingFromSummary { .. }
+        )),
+        "expected unsupported summary violation, got {violations:#?}"
+    );
+    assert!(
+        violations.iter().any(|violation| matches!(
+            violation,
+            ImporterDiffRowViolation::BridgeRowMissingFromSummary { .. }
+        )),
+        "expected bridge summary violation, got {violations:#?}"
+    );
+}
+
+#[test]
+fn proof_packet_names_importer_diff_rows_review_groups_and_export_fields() {
+    let proof: serde_json::Value =
+        serde_json::from_str(PROOF_PACKET_JSON).expect("proof packet parses");
+    let family = proof["component_families"]
+        .as_array()
+        .expect("families")
+        .iter()
+        .find(|family| family["family"].as_str() == Some("importer_diff_row"))
+        .expect("importer family present");
+
+    assert_eq!(
+        family["schema_ref"].as_str(),
+        Some(M5_IMPORTER_DIFF_ROW_SCHEMA_REF)
+    );
+    assert_eq!(
+        family["fixture_ref"].as_str(),
+        Some(M5_IMPORTER_DIFF_ROW_FIXTURE_REF)
+    );
+    assert!(family["additional_fixture_refs"]
+        .as_array()
+        .expect("additional fixtures")
+        .iter()
+        .any(|value| value.as_str() == Some(M5_IMPORTER_REVIEW_TABLE_FIXTURE_REF)));
+
+    let groups: BTreeSet<_> = family["stable_outcome_groups_proved"]
+        .as_array()
+        .expect("outcome groups")
+        .iter()
+        .map(|value| value.as_str().expect("string").to_owned())
+        .collect();
+    for required in [
+        "imported",
+        "mapped",
+        "skipped",
+        "manual_review",
+        "bridge_required",
+        "unsupported",
+    ] {
+        assert!(groups.contains(required), "missing {required}");
+    }
+
+    let fields: BTreeSet<_> = family["importer_diff_truth_fields"]
+        .as_array()
+        .expect("importer fields")
+        .iter()
+        .map(|value| value.as_str().expect("string").to_owned())
+        .collect();
+    for required in [
+        "source_object_ref",
+        "source_value",
+        "target_object_ref",
+        "target_value",
+        "translated_result",
+        "reason_detail_note",
+        "manual_review_action",
+        "docs_action",
+        "export_safe_identifiers",
+    ] {
+        assert!(fields.contains(required), "missing {required}");
+    }
+}
+
+#[test]
+fn support_export_preserves_importer_grouping_and_post_apply_truth() {
+    let export: serde_json::Value =
+        serde_json::from_str(SUPPORT_EXPORT_JSON).expect("support export parses");
+    let row = export["rows"]
+        .as_array()
+        .expect("rows")
+        .iter()
+        .find(|row| row["family"].as_str() == Some("importer_diff_row"))
+        .expect("importer support row present");
+
+    assert_eq!(
+        row["row_truth"].as_str(),
+        Some("source_object_value_target_object_value_translated_result_outcome_reason_actions_export_safe_identifiers_visible")
+    );
+    assert_eq!(
+        row["review_table_truth"].as_str(),
+        Some("rows_grouped_by_imported_mapped_skipped_manual_review_bridge_required_unsupported")
+    );
+    assert_eq!(
+        row["post_apply_export_truth"].as_str(),
+        Some("lossy_skipped_bridge_required_unsupported_rows_remain_visible_after_apply_and_in_support_export")
+    );
+
+    let coverage: BTreeSet<_> = row["outcome_group_coverage"]
+        .as_array()
+        .expect("outcome coverage")
+        .iter()
+        .map(|value| value.as_str().expect("string").to_owned())
+        .collect();
+    for required in [
+        "imported",
+        "mapped",
+        "skipped",
+        "manual_review",
+        "bridge_required",
+        "unsupported",
+    ] {
+        assert!(coverage.contains(required), "missing {required}");
     }
 }
 

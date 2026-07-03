@@ -152,12 +152,29 @@ Required fields:
 | `source_profile_ref` | Source profile/install ref; never raw local path. |
 | `target_ref` | Target profile/workspace/domain ref. |
 | `migration_domain` | Governed migration domain. |
+| `source_object_ref`, `source_value` | Export-safe source object id and the source value shown in review/export. |
+| `target_object_ref`, `target_value` | Export-safe target object id and value when one exists; skipped and unsupported rows may carry null target truth but cannot hide the row. |
+| `translated_result` | The target-side imported, mapped, skipped, review, bridge, or unsupported result shown to the reviewer. |
 | `outcome_state` | `imported`, `mapped`, `skipped`, `manual_review`, `bridge_required`, or `unsupported`. |
 | `compatibility_state` | Compatible, native alternative, bridge-required, manual-review, unsupported, policy-blocked, or insufficient-evidence state. |
 | `mapping_basis` | Exact, semantic, capability-based, bridge adapter, heuristic, user override, or not applicable. |
+| `reason_class`, `reason_detail_note` | Stable typed reason plus export-safe detail note explaining why the row landed in the outcome group. |
+| `lossy_mapping` | True when the translated result narrows or changes source behavior; lossy rows remain visible after apply and in support export. |
+| `manual_review_action`, `docs_action` | The row's review action and docs/help action; manual-review rows must carry a required review action and bridge rows must carry a bridge action. |
 | `checkpoint_context` | Checkpoint and restore posture; rows that mutate durable truth name checkpoint and restore refs. |
 | `degraded_state` | Explicit bridge, checkpoint, restore, compatibility, source-read, or policy degraded state. |
+| `export_safe_identifiers` | Stable row, session, source, target, and support/export packet refs that can be copied without raw paths or private payloads. |
+| `post_apply_summary_visible`, `support_export_visible` | Booleans proving skipped, lossy, manual-review, bridge-required, and unsupported rows do not disappear once the wizard closes. |
 | `copy_export` | Row-level text/JSON/Markdown export; outcome vocabulary must survive support export. |
+
+Grouped review-table fields:
+
+| Field | Contract |
+| --- | --- |
+| `outcome_group_order` | Stable render order: `imported`, `mapped`, `skipped`, `manual_review`, `bridge_required`, `unsupported`. |
+| `groups` | One visible/exported table group per outcome, even when the group is used by a different first consumer. |
+| `rows` | Reusable importer diff rows; feature teams consume these instead of inventing ad hoc mapped-versus-unsupported tables. |
+| `post_apply_summary` | Visible and exported outcome states plus explicit lossy, skipped, bridge-required, and unsupported row refs. |
 
 Degraded states:
 
@@ -226,6 +243,12 @@ bridge-required, or local-only truth as generic prose is non-conforming.
   save as support submission.
 - Import rows with `bridge_required` must keep bridge and compatibility refs
   visible in preview, migration center, docs/help, and support export.
+- Import rows with `skipped`, lossy `mapped`, `manual_review`,
+  `bridge_required`, or `unsupported` outcomes must remain visible in
+  post-apply summaries and exported migration evidence.
+- Review tables group rows only by the six stable outcome states; feature teams
+  must not replace them with local labels such as approximate, partial, failed,
+  best effort, or ignored.
 - Community-owned destinations must show `community_owned_destination` and
   cannot inherit an official-support commitment.
 - Any first consumer that drops the component's copy/export fields or replaces

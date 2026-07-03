@@ -15,6 +15,14 @@ fn support_card() -> SupportPackageCard {
     current_support_package_card().expect("support package fixture parses")
 }
 
+fn importer_row() -> ImporterDiffRow {
+    current_importer_diff_row().expect("importer diff row fixture parses")
+}
+
+fn importer_table() -> ImporterReviewTable {
+    current_importer_review_table().expect("importer review table fixture parses")
+}
+
 fn handoff_tiles() -> Vec<CommunityHandoffTile> {
     current_community_handoff_tiles().expect("community handoff fixtures parse")
 }
@@ -277,6 +285,94 @@ fn support_package_saved_local_only_must_stay_local_first() {
             SupportPackageCardViolation::SavedLocalOnlyNotLocalFirst { .. }
         )),
         "expected saved-local-only violation, got {violations:#?}"
+    );
+}
+
+#[test]
+fn importer_diff_row_exposes_source_target_translation_reason_actions_and_export_ids() {
+    let row = importer_row();
+    let violations = row.validate();
+    assert!(
+        violations.is_empty(),
+        "unexpected importer row violations: {violations:#?}"
+    );
+    assert_eq!(row.record_kind, M5_IMPORTER_DIFF_ROW_RECORD_KIND);
+    assert_eq!(row.schema_version, M5_IMPORTER_DIFF_ROW_SCHEMA_VERSION);
+    assert_eq!(row.outcome_state, ImporterOutcomeState::BridgeRequired);
+    assert_eq!(
+        row.compatibility_state,
+        ImporterCompatibilityState::BridgeRequired
+    );
+    assert_eq!(row.mapping_basis, ImporterMappingBasis::BridgeAdapter);
+    assert_eq!(
+        row.manual_review_action.action_kind,
+        ImporterReviewActionKind::InstallBridge
+    );
+    assert!(!row.source_object_ref.is_empty());
+    assert!(!row.source_value.is_empty());
+    assert!(row.target_object_ref.is_some());
+    assert!(row.target_value.is_some());
+    assert!(!row.translated_result.is_empty());
+    assert!(!row.reason_detail_note.is_empty());
+    assert!(row.post_apply_summary_visible);
+    assert!(row.support_export_visible);
+}
+
+#[test]
+fn importer_review_table_groups_all_stable_outcomes_across_import_families() {
+    let table = importer_table();
+    let violations = table.validate();
+    assert!(
+        violations.is_empty(),
+        "unexpected importer table violations: {violations:#?}"
+    );
+    assert_eq!(
+        table.outcome_group_order.as_slice(),
+        &ImporterOutcomeState::STABLE_GROUP_ORDER
+    );
+
+    let outcomes: BTreeSet<_> = table.rows.iter().map(|row| row.outcome_state).collect();
+    for required in ImporterOutcomeState::STABLE_GROUP_ORDER {
+        assert!(outcomes.contains(&required), "missing {required:?}");
+    }
+
+    let domains: BTreeSet<_> = table.rows.iter().map(|row| row.migration_domain).collect();
+    for required in [
+        ImporterMigrationDomain::Settings,
+        ImporterMigrationDomain::Shortcuts,
+        ImporterMigrationDomain::ExtensionsAndProviders,
+        ImporterMigrationDomain::TasksAndRunConfigs,
+        ImporterMigrationDomain::WorkspaceMetadata,
+    ] {
+        assert!(domains.contains(&required), "missing {required:?}");
+    }
+}
+
+#[test]
+fn skipped_lossy_bridge_and_unsupported_rows_survive_post_apply_and_export() {
+    let table = importer_table();
+    assert!(!table.post_apply_summary.lossy_row_refs.is_empty());
+    assert!(!table.post_apply_summary.skipped_row_refs.is_empty());
+    assert!(!table.post_apply_summary.bridge_required_row_refs.is_empty());
+    assert!(!table.post_apply_summary.unsupported_row_refs.is_empty());
+
+    let mut broken = table.clone();
+    broken.post_apply_summary.skipped_row_refs.clear();
+    broken.post_apply_summary.lossy_row_refs.clear();
+    let violations = broken.validate();
+    assert!(
+        violations.iter().any(|violation| matches!(
+            violation,
+            ImporterDiffRowViolation::SkippedRowMissingFromSummary { .. }
+        )),
+        "expected skipped summary violation, got {violations:#?}"
+    );
+    assert!(
+        violations.iter().any(|violation| matches!(
+            violation,
+            ImporterDiffRowViolation::LossyRowMissingFromSummary { .. }
+        )),
+        "expected lossy summary violation, got {violations:#?}"
     );
 }
 
