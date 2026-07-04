@@ -17,6 +17,7 @@
 pub mod freeze_the_m5_deployment_continuity_component_matrix;
 pub mod harden_installation_topology_state_root_audits_silent_deployment;
 pub mod implement_the_m5_deployment_summary_residual_dependency_and_control_data_plane_primitive;
+pub mod implement_the_m5_handler_ownership_disclosure_and_channel_association_review_primitive;
 pub mod implement_the_m5_install_profile_side_by_side_import_and_rollout_ring_primitive;
 pub mod implement_the_m5_mirror_offline_mode_change_and_channel_association_primitive;
 pub mod m5_coexistence_and_fleet_rollout;
@@ -137,6 +138,25 @@ pub use implement_the_m5_deployment_summary_residual_dependency_and_control_data
     M5_DEPLOYMENT_SUMMARY_FIXTURE_DIR, M5_DEPLOYMENT_SUMMARY_RECORD_KIND,
     M5_DEPLOYMENT_SUMMARY_REPORT_REF, M5_DEPLOYMENT_SUMMARY_SCHEMA_REF,
     M5_DEPLOYMENT_SUMMARY_SCHEMA_VERSION,
+};
+
+pub use implement_the_m5_handler_ownership_disclosure_and_channel_association_review_primitive::{
+    current_stable_m5_handler_ownership_export, resolve_handler_ownership,
+    seeded_m5_handler_ownership_packet, M5ChannelAssociationAction, M5ChannelAssociationInput,
+    M5HandlerChangeState, M5HandlerChannelClass, M5HandlerImpactClass, M5HandlerOwnerClass,
+    M5HandlerOwnershipArtifactError, M5HandlerOwnershipCase,
+    M5HandlerOwnershipConsumerProjection, M5HandlerOwnershipExportField,
+    M5HandlerOwnershipGovernanceReview, M5HandlerOwnershipInput,
+    M5HandlerOwnershipPrimitivePacket, M5HandlerOwnershipPrimitivePacketInput,
+    M5HandlerOwnershipReleasePosture, M5HandlerOwnershipResolutionError,
+    M5HandlerOwnershipSurfaceRow, M5HandlerOwnershipViolation, M5HandlerOwnershipVocabularySet,
+    M5HandlerPrecedenceState, M5HandlerSurfaceFamily, M5ResolvedChannelAssociationReviewRow,
+    M5ResolvedHandlerOwnership, M5ResolvedHandlerOwnershipCard, M5ResolvedRecoveryAlignment,
+    M5ResolvedRecoveryPath, M5_HANDLER_OWNERSHIP_ARTIFACT_REF,
+    M5_HANDLER_OWNERSHIP_COMPONENT_MATRIX_REF, M5_HANDLER_OWNERSHIP_CSV_REF,
+    M5_HANDLER_OWNERSHIP_DOC_REF, M5_HANDLER_OWNERSHIP_FIXTURE_DIR,
+    M5_HANDLER_OWNERSHIP_RECORD_KIND, M5_HANDLER_OWNERSHIP_REPORT_REF,
+    M5_HANDLER_OWNERSHIP_SCHEMA_REF, M5_HANDLER_OWNERSHIP_SCHEMA_VERSION,
 };
 
 pub use implement_the_m5_install_profile_side_by_side_import_and_rollout_ring_primitive::{
