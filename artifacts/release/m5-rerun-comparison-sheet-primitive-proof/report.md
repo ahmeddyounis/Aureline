@@ -1,0 +1,60 @@
+# M5 Rerun-Comparison-Sheet Primitive
+
+- Packet: `m5-rerun-comparison-sheet-primitive:stable:0001`
+- Label: `M5 Rerun-Comparison-Sheet Primitive`
+- Execution surfaces: 10 / 10
+- Rerun modes: rerun_exactly, rerun_with_current_context, retry_failed_step_only
+- Change dimensions: input, target, runtime, profile, approval_authority, side_effect_class
+
+## Execution surfaces
+
+- **Task-run pane**
+  - Owner: Task-run guild
+  - Scope: Rerun sheets for task runs, keeping exact replay and current-context reruns distinct when the source has changed
+  - Worked cases: 1
+    - `rerun:task:build-and-test:0001` → prior `run:build-and-test:0001` [passed], rerun_with_current_context → whole_run (1 changed dim(s))
+- **Test-run pane**
+  - Owner: Test-run guild
+  - Scope: Rerun sheets for test runs offering a failed-step-only retry distinct from a whole-run rerun
+  - Worked cases: 1
+    - `rerun:test:integration:0002` → prior `run:integration:0002` [failed], retry_failed_step_only → failed_step_only (1 changed dim(s))
+- **Request-run pane**
+  - Owner: Request-execution guild
+  - Scope: Rerun sheets for API requests, reviewing changed approval / authority and target before re-dispatch
+  - Worked cases: 1
+    - `rerun:request:deploy:0003` → prior `run:deploy-request:0003` [passed], rerun_with_current_context → whole_run (2 changed dim(s))
+- **Notebook execution**
+  - Owner: Notebook-execution guild
+  - Scope: Rerun sheets for notebooks reviewing a changed runtime and profile before re-running
+  - Worked cases: 1
+    - `rerun:notebook:analysis:0004` → prior `run:notebook-analysis:0004` [partially_complete], rerun_with_current_context → whole_run (2 changed dim(s))
+- **AI-mediated execution**
+  - Owner: AI-execution guild
+  - Scope: Rerun sheets for agent runs disclosing a side-effect escalation before a write-authorized rerun
+  - Worked cases: 1
+    - `rerun:ai:refactor-agent:0005` → prior `run:refactor-agent:0005` [failed], rerun_with_current_context → whole_run (1 changed dim(s))
+- **Publish flow**
+  - Owner: Publish guild
+  - Scope: Rerun sheets for publish runs, offering one action for an exact replay when nothing has changed
+  - Worked cases: 1
+    - `rerun:publish:release-bundle:0006` → prior `run:release-bundle:0006` [failed], rerun_exactly → whole_run (0 changed dim(s))
+- **Preview flow**
+  - Owner: Preview guild
+  - Scope: Rerun sheets for preview renders reviewing a changed target viewport before re-rendering
+  - Worked cases: 1
+    - `rerun:preview:render:0007` → prior `run:preview-render:0007` [passed], rerun_with_current_context → selected_subset (1 changed dim(s))
+- **History / activity center**
+  - Owner: History / activity-center guild
+  - Scope: Rerun sheets from history flagging inputs that cannot be confirmed unchanged as unknown, not assumed exact
+  - Worked cases: 1
+    - `rerun:history:nightly:0008` → prior `run:nightly:0008` [stale_output], rerun_with_current_context → whole_run (1 changed dim(s))
+- **Support / export replay**
+  - Owner: Support / diagnostics guild
+  - Scope: Offline replay reconstructing a reviewed rerun of an imported run with a changed toolchain
+  - Worked cases: 1
+    - `rerun:support:imported-ci:0009` → prior `run:imported-ci:0009` [failed], rerun_with_current_context → whole_run (1 changed dim(s))
+- **Companion summary**
+  - Owner: Companion-surface guild
+  - Scope: Rerun sheets on the companion surface retrying only the failed step of a partially-complete run
+  - Worked cases: 1
+    - `rerun:companion:batch-job:0010` → prior `run:batch-job:0010` [partially_complete], retry_failed_step_only → failed_step_only (1 changed dim(s))
