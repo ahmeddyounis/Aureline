@@ -16,6 +16,7 @@
 
 pub mod freeze_the_m5_deployment_continuity_component_matrix;
 pub mod harden_installation_topology_state_root_audits_silent_deployment;
+pub mod implement_the_m5_install_profile_side_by_side_import_and_rollout_ring_primitive;
 pub mod m5_coexistence_and_fleet_rollout;
 pub mod m5_install_and_portability_governance;
 pub mod m5_install_config_auth_certification;
@@ -116,6 +117,23 @@ pub use harden_installation_topology_state_root_audits_silent_deployment::{
     HARDEN_INSTALL_TOPOLOGY_PAGE_RECORD_KIND, HARDEN_INSTALL_TOPOLOGY_SCHEMA_VERSION,
     HARDEN_INSTALL_TOPOLOGY_SHARED_CONTRACT_REF,
     HARDEN_INSTALL_TOPOLOGY_SUPPORT_EXPORT_RECORD_KIND, REQUIRED_FLEET_EVIDENCE,
+};
+
+pub use implement_the_m5_install_profile_side_by_side_import_and_rollout_ring_primitive::{
+    current_stable_m5_deployment_profile_export, resolve_deployment_profile,
+    seeded_m5_deployment_profile_packet, M5DeploymentProfileArtifactError, M5DeploymentProfileCase,
+    M5DeploymentProfileConsumerProjection, M5DeploymentProfileExportField,
+    M5DeploymentProfileGovernanceReview, M5DeploymentProfileInput,
+    M5DeploymentProfilePrimitivePacket, M5DeploymentProfilePrimitivePacketInput,
+    M5DeploymentProfileReleasePosture, M5DeploymentProfileResolutionError,
+    M5DeploymentProfileSurfaceRow, M5DeploymentProfileViolation, M5DeploymentProfileVocabularySet,
+    M5DeploymentSurfaceFamily, M5ImportChoice, M5InstallScope, M5ResolvedDeploymentProfile,
+    M5ResolvedInstallProfileCard, M5ResolvedRolloutRingRow, M5ResolvedSideBySideImportSheet,
+    M5RollbackTargetState, M5StateSharingModel, M5UpdaterOwner, M5_DEPLOYMENT_PROFILE_ARTIFACT_REF,
+    M5_DEPLOYMENT_PROFILE_COMPONENT_MATRIX_REF, M5_DEPLOYMENT_PROFILE_CSV_REF,
+    M5_DEPLOYMENT_PROFILE_DOC_REF, M5_DEPLOYMENT_PROFILE_FIXTURE_DIR,
+    M5_DEPLOYMENT_PROFILE_RECORD_KIND, M5_DEPLOYMENT_PROFILE_REPORT_REF,
+    M5_DEPLOYMENT_PROFILE_SCHEMA_REF, M5_DEPLOYMENT_PROFILE_SCHEMA_VERSION,
 };
 
 pub use stabilize_portable_install_side_by_side_channels_updater::{
