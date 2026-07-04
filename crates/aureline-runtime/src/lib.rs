@@ -309,6 +309,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-runtime/0.0.0")]
 
+pub mod add_shared_task_test_request_database_notebook_preview_ai_publish_and_support_execution_lifecycle_component_consumers;
 pub mod browser_runtime_inspection_qualification;
 pub mod build_intelligence;
 pub mod build_test_event_interoperability;
