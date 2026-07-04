@@ -14,6 +14,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-install/0.0.0")]
 
+pub mod add_shared_about_update_diagnostics_admin_support_offboarding_and_browser_handoff_deployment_continuity_component_consumers;
 pub mod freeze_the_m5_deployment_continuity_component_matrix;
 pub mod harden_installation_topology_state_root_audits_silent_deployment;
 pub mod implement_the_m5_deployment_summary_residual_dependency_and_control_data_plane_primitive;
