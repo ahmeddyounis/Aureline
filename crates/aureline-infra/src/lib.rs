@@ -10,6 +10,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-infra/0.0.0")]
 
 pub mod cluster_context_and_live_resource;
+pub mod freeze_the_m5_manifest_editor_schema_validator_resource_link_build_adapter_target_graph_and_fallback_confidence_component_matrix;
 pub mod infrastructure_surface_qualification;
 pub mod plan_and_validation_viewers;
 pub mod provider_overlay_and_vendor_console_handoff_continuity;
@@ -24,6 +25,24 @@ pub use cluster_context_and_live_resource::{
     CLUSTER_LIVE_RESOURCE_DOC_REF, CLUSTER_LIVE_RESOURCE_FIXTURE_DIR,
     CLUSTER_LIVE_RESOURCE_PACKET_RECORD_KIND, CLUSTER_LIVE_RESOURCE_SCHEMA_REF,
     CLUSTER_LIVE_RESOURCE_SCHEMA_VERSION,
+};
+pub use freeze_the_m5_manifest_editor_schema_validator_resource_link_build_adapter_target_graph_and_fallback_confidence_component_matrix::{
+    current_m5_manifest_build_component_matrix_export, seeded_manifest_build_component_matrix,
+    truth_mode_token, AdapterSourceBadgeDescriptor, CapabilityMatrixDescriptor, ComponentRow,
+    DegradedState, FallbackConfidenceDrawerDescriptor, ManifestBuildComponentArtifactError,
+    ManifestBuildComponentMatrix, ManifestBuildComponentMatrixInput,
+    ManifestBuildComponentViolation, ManifestBuildConsumerProjection, ManifestBuildGuardrails,
+    ManifestEditorHeaderDescriptor, RawEventDrawerDescriptor, ResourceExplorerRowDescriptor,
+    ResourceLinkRowDescriptor, SchemaValidatorRowDescriptor, TargetContextChipGroupDescriptor,
+    TargetGraphRowDescriptor, M5AdapterSourceKind, M5CapabilityState, M5DiscoveryConfidence,
+    M5FallbackConfidenceState, M5FallbackReason, M5FallbackRecoveryRoute,
+    M5ManifestBuildComponentFamily, M5ManifestBuildDowngradeTrigger, M5ManifestBuildRequiredLabel,
+    M5ManifestEditPosture, M5RawEventChannel, M5ResourceFreshness, M5ResourceLinkClass,
+    M5SchemaFreshness, M5SchemaValidationState, M5TargetGraphNodeKind,
+    MANIFEST_BUILD_COMPONENT_MATRIX_ARTIFACT_REF, MANIFEST_BUILD_COMPONENT_MATRIX_DOC_REF,
+    MANIFEST_BUILD_COMPONENT_MATRIX_FIXTURE_DIR, MANIFEST_BUILD_COMPONENT_MATRIX_RECORD_KIND,
+    MANIFEST_BUILD_COMPONENT_MATRIX_SCHEMA_REF, MANIFEST_BUILD_COMPONENT_MATRIX_SCHEMA_VERSION,
+    MANIFEST_BUILD_COMPONENT_MATRIX_SUMMARY_REF,
 };
 pub use infrastructure_surface_qualification::{
     current_infrastructure_surface_qualification_export,

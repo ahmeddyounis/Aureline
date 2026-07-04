@@ -1,0 +1,56 @@
+# M5 Manifest / Build Component Matrix
+
+- Packet: `m5-manifest-build-component-matrix:stable:0001`
+- Label: `M5 Manifest / Build Component Matrix`
+- Components: 14 across 10 / 10 families (6 degraded)
+
+## Components
+
+- **component:manifest-editor-header:0001** (manifest_editor_header) — Manifest editor header for an authored infrastructure manifest
+  - An authored manifest header keeps target context visible and offers a preview/apply/review edit posture over a fresh schema
+  - family=manifest_editor_header truth=authored_desired adapter=native_build_server export_safe=true assistive=true
+- **component:schema-validator-row:0001** (schema_validator_row) — Schema validator row reporting errors against a fresh schema
+  - A validator row reports schema errors and blocks apply rather than let an invalid manifest through
+  - family=schema_validator_row truth=planned adapter=native_build_server export_safe=true assistive=true
+  - Degraded: trigger=policy_block — The manifest fails schema validation; apply is blocked until the reported errors are resolved
+- **component:schema-validator-row:0002** (schema_validator_row) — Schema validator row over a stale schema
+  - A validator row discloses a stale schema and marks its warnings advisory rather than authoritative
+  - family=schema_validator_row truth=planned adapter=heuristic_parse export_safe=true assistive=true
+  - Degraded: trigger=schema_stale — The backing schema is stale; validation warnings are advisory until the schema is refreshed
+- **component:target-context-chip-group:0001** (target_context_chip_group) — Target-context chip group pinned to a live cluster surface
+  - A target-context chip group names the live target identity, environment, and scope and stays visible as the surface scrolls
+  - family=target_context_chip_group truth=live adapter=provider_overlay export_safe=true assistive=true
+- **component:resource-link-row:0001** (resource_link_row) — Resource-link row joining a rendered resource to its live counterpart
+  - A resource-link row joins rendered to live truth at high confidence and never overwrites a higher-confidence resource silently
+  - family=resource_link_row truth=rendered adapter=native_build_server export_safe=true assistive=true
+- **component:resource-explorer-row:0001** (resource_explorer_row) — Resource-explorer row showing cached data after a connector loss
+  - A resource-explorer row discloses cached-stale data after a connector loss rather than present it as fresh live truth
+  - family=resource_explorer_row truth=live adapter=imported_snapshot export_safe=true assistive=true
+  - Degraded: trigger=connector_loss — The live connector was lost; this row shows the last cached snapshot and is marked stale until the connector is restored
+- **component:adapter-source-badge:0001** (adapter_source_badge) — Adapter-source badge for a native build-event stream
+  - An adapter-source badge names its native build-event provenance explicitly and claims high confidence only because the source is native
+  - family=adapter_source_badge truth=live adapter=native_build_event export_safe=true assistive=true
+- **component:adapter-source-badge:0002** (adapter_source_badge) — Adapter-source badge for a heuristic parse of build output
+  - A heuristic-parse badge marks itself low confidence and never claims the authority of a native build channel
+  - family=adapter_source_badge truth=rendered adapter=heuristic_parse export_safe=true assistive=true
+  - Degraded: trigger=adapter_unavailable — No native build adapter answered; targets came from a heuristic parse and are marked low confidence
+- **component:target-graph-row:0001** (target_graph_row) — Target-graph row for a build target node
+  - A target-graph row names a build target node, its truth class, and its identity at high edge confidence
+  - family=target_graph_row truth=rendered adapter=native_build_server export_safe=true assistive=true
+- **component:capability-matrix:0001** (capability_matrix) — Capability matrix cell for native test-with-coverage support
+  - A capability-matrix cell reports supported test-with-coverage capability, disclosing its native source and high confidence
+  - family=capability_matrix truth=live adapter=native_build_server export_safe=true assistive=true
+- **component:capability-matrix:0002** (capability_matrix) — Capability matrix cell for an undetermined capability
+  - A capability-matrix cell shows an undetermined capability from a heuristic source rather than assume support
+  - family=capability_matrix truth=rendered adapter=heuristic_parse export_safe=true assistive=true
+  - Degraded: trigger=low_confidence_discovery — No native adapter reported this capability; it is shown as undetermined rather than assumed supported
+- **component:raw-event-drawer:0001** (raw_event_drawer) — Raw-event drawer over a native build-event stream
+  - A raw-event drawer discloses native build-event provenance, redacts raw payloads to typed tokens, and preserves stable event identity on export
+  - family=raw_event_drawer truth=live adapter=native_build_event export_safe=true assistive=true
+- **component:fallback-confidence-drawer:0001** (fallback_confidence_drawer) — Fallback-confidence drawer after a structured build channel was lost
+  - A fallback-confidence drawer names the structured-channel loss, marks results a heuristic fallback, and offers a reattach-adapter recovery route
+  - family=fallback_confidence_drawer truth=rendered adapter=heuristic_parse export_safe=true assistive=true
+  - Degraded: trigger=structured_channel_lost — The structured build channel dropped; results are now a heuristic fallback and never overwrite the last structured truth silently
+- **component:fallback-confidence-drawer:0002** (fallback_confidence_drawer) — Fallback-confidence drawer confirming structured high-confidence truth
+  - A fallback-confidence drawer confirms structured high-confidence native truth and carries no fallback reason
+  - family=fallback_confidence_drawer truth=live adapter=native_build_event export_safe=true assistive=true
