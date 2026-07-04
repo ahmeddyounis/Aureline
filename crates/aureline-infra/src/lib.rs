@@ -9,6 +9,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-infra/0.0.0")]
 
+pub mod add_shared_container_devcontainer_request_incident_support_and_ai_manifest_build_component_consumers;
 pub mod cluster_context_and_live_resource;
 pub mod freeze_the_m5_manifest_editor_schema_validator_resource_link_build_adapter_target_graph_and_fallback_confidence_component_matrix;
 pub mod implement_the_m5_adapter_drift_banner_launcher_state_and_no_higher_confidence_overwrite_primitive;
@@ -22,6 +23,20 @@ pub mod relation_graph_incident_support_parity;
 pub mod source_intelligence_and_resource_relationships;
 pub mod target_context_and_control_plane_boundary;
 
+pub use add_shared_container_devcontainer_request_incident_support_and_ai_manifest_build_component_consumers::{
+    canonical_packet_ref_for, canonical_schema_ref_for,
+    current_stable_m5_manifest_build_consumer_export, seeded_m5_manifest_build_consumer_packet,
+    AuthorityMode as ConsumerAuthorityMode, ConsumerGroup, CopyExportParity,
+    HandoffTarget as ConsumerHandoffTarget, LabelParityState, M5ManifestBuildConsumerSurface,
+    ManifestBuildConsumerArtifactError, ManifestBuildConsumerPacket, ManifestBuildConsumerRow,
+    ManifestBuildConsumerSummary, ManifestBuildConsumerViolation, ReducedCapabilityBanner,
+    MANIFEST_BUILD_CONSUMER_ARTIFACT_JSON, MANIFEST_BUILD_CONSUMER_ARTIFACT_REF,
+    MANIFEST_BUILD_CONSUMER_CSV_REF, MANIFEST_BUILD_CONSUMER_DOC_REF,
+    MANIFEST_BUILD_CONSUMER_FIXTURE_DIR, MANIFEST_BUILD_CONSUMER_MATRIX_REF,
+    MANIFEST_BUILD_CONSUMER_RECORD_KIND, MANIFEST_BUILD_CONSUMER_REPORT_REF,
+    MANIFEST_BUILD_CONSUMER_ROW_RECORD_KIND, MANIFEST_BUILD_CONSUMER_SCHEMA_REF,
+    MANIFEST_BUILD_CONSUMER_SCHEMA_VERSION,
+};
 pub use cluster_context_and_live_resource::{
     validate_packet as validate_cluster_live_resource_packet, ClusterContextStrip,
     ClusterLiveResourcePacket, ClusterLiveResourceValidationReport, ConsoleHandoffTruth,
