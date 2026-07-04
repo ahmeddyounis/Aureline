@@ -340,6 +340,7 @@ pub mod harden_coverage_flaky_test_snapshot_golden_and_baseline;
 pub mod harden_environment_capsule_resolution;
 pub mod harden_the_stable_profiler_and_tracing_hooks_needed;
 pub mod host_boundary;
+pub mod implement_the_m5_run_attempt_header_and_attempt_selector_primitive;
 pub mod language_hosts;
 pub mod launch_profiles;
 pub mod log_metric_slice_and_incident_timeline_contract;

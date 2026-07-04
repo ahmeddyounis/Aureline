@@ -1,0 +1,61 @@
+# M5 Run/Attempt-Header Primitive: Header and Attempt Selector
+
+- Packet: `m5-run-attempt-header-primitive:stable:0001`
+- Label: `M5 Run/Attempt-Header Primitive: Header and Attempt Selector`
+- Execution surfaces: 10 / 10
+- Initiator classes: user_manual, scheduled, ci_triggered, agent_ai, watch_auto
+- Admission-control classes: immediate, capacity_queued, dependency_queued, concurrency_limited, policy_gated
+
+## Execution surfaces
+
+- **Task-run pane**
+  - Owner: Task-run guild
+  - Scope: Run/attempt header and attempt selector for task runs, keeping run and attempt distinct across retries
+  - Worked cases: 2
+    - `header:task:build-and-test:0001` → run `run:build-and-test:0001` attempt #2 [Running] (live), 2 attempt(s)
+    - `header:task:lint:0002` → run `run:lint:0002` attempt #1 [Preparing] (live), 1 attempt(s)
+- **Test-run pane**
+  - Owner: Test-run guild
+  - Scope: Run/attempt header for test runs with the shared outcome vocabulary
+  - Worked cases: 1
+    - `header:test:integration:0007` → run `run:integration:0007` attempt #1 [Running] (live), 1 attempt(s)
+- **Request-run pane**
+  - Owner: Request-execution guild
+  - Scope: Run/attempt header for API requests awaiting input before dispatch
+  - Worked cases: 1
+    - `header:request:deploy-approval:0003` → run `run:deploy-approval:0003` attempt #1 [Waiting for input] (live), 1 attempt(s)
+- **Notebook execution**
+  - Owner: Notebook-execution guild
+  - Scope: Run/attempt header for notebook run-all keeping partial progress honest
+  - Worked cases: 1
+    - `header:notebook:analysis:0004` → run `run:notebook-analysis:0004` attempt #1 [Partially complete] (live), 1 attempt(s)
+- **AI-mediated execution**
+  - Owner: AI-execution guild
+  - Scope: Run/attempt header for agent runs disclosing queue reason and admission-control class
+  - Worked cases: 1
+    - `header:ai:refactor-agent:0005` → run `run:refactor-agent:0005` attempt #1 [Queued] (planned), 1 attempt(s)
+- **Publish flow**
+  - Owner: Publish guild
+  - Scope: Run/attempt header for publish runs with captured outcome truth
+  - Worked cases: 1
+    - `header:publish:release-bundle:0006` → run `run:release-bundle:0006` attempt #1 [Passed] (captured), 1 attempt(s)
+- **Preview flow**
+  - Owner: Preview guild
+  - Scope: Run/attempt header for preview renders with the shared outcome vocabulary
+  - Worked cases: 1
+    - `header:preview:render:0008` → run `run:preview-render:0008` attempt #1 [Passed] (captured), 1 attempt(s)
+- **History / activity center**
+  - Owner: History / activity-center guild
+  - Scope: Run/attempt history rows keeping stale output as captured evidence, never a live result
+  - Worked cases: 1
+    - `header:history:nightly:0009` → run `run:nightly:0009` attempt #1 [Stale output] (captured), 1 attempt(s)
+- **Support / export replay**
+  - Owner: Support / diagnostics guild
+  - Scope: Offline replay reconstructing run/attempt truth from an imported CI run
+  - Worked cases: 1
+    - `header:support:imported-ci:0010` → run `run:imported-ci:0010` attempt #1 [Failed] (imported), 1 attempt(s)
+- **Companion summary**
+  - Owner: Companion-surface guild
+  - Scope: Companion run summary keeping run/attempt identity and outcome explicit
+  - Worked cases: 1
+    - `header:companion:watch-run:0011` → run `run:watch-run:0011` attempt #1 [Cancelled] (captured), 1 attempt(s)
