@@ -1,0 +1,60 @@
+# M5 Input-Request / Artifact-Publish Primitive
+
+- Packet: `m5-input-request-artifact-publish-primitive:stable:0001`
+- Label: `M5 Input-Request / Artifact-Publish Primitive`
+- Execution surfaces: 10 / 10
+- Input-request kinds: plain_text, secret_input, file_path_selection, approval, choice, device_browser_handoff
+- Artifact freshness classes: live, buffered, imported, sampled, provider_supplied
+
+## Execution surfaces
+
+- **Task-run pane**
+  - Owner: Task-run guild
+  - Scope: Input prompts and artifact rows for task runs, keeping produced objects attributed while the run is live
+  - Worked cases: 1
+    - `interaction:task:build-and-test:0001` → run `run:build-and-test:0001` [running], input continued → run_proceeds (2 artifact(s))
+- **Test-run pane**
+  - Owner: Test-run guild
+  - Scope: Artifact rows for test runs disclosing buffered and sampled freshness
+  - Worked cases: 1
+    - `interaction:test:integration:0002` → run `run:integration:0002` [running], no input request (2 artifact(s))
+- **Request-run pane**
+  - Owner: Request-execution guild
+  - Scope: Approval input prompts for API requests, awaiting a response before dispatch
+  - Worked cases: 1
+    - `interaction:request:deploy-approval:0003` → run `run:deploy-approval:0003` [waiting_input], input awaiting_response → awaiting_response (0 artifact(s))
+- **Notebook execution**
+  - Owner: Notebook-execution guild
+  - Scope: File-selection prompts with a declared default and buffered notebook previews
+  - Worked cases: 1
+    - `interaction:notebook:analysis:0004` → run `run:notebook-analysis:0004` [partially_complete], input continued → run_proceeds (1 artifact(s))
+- **AI-mediated execution**
+  - Owner: AI-execution guild
+  - Scope: Choice prompts for agent runs where a dismissal leaves the run visibly blocked, never silently failed
+  - Worked cases: 1
+    - `interaction:ai:refactor-agent:0005` → run `run:refactor-agent:0005` [waiting_input], input dismissed → run_blocked_waiting (1 artifact(s))
+- **Publish flow**
+  - Owner: Publish guild
+  - Scope: Artifact rows for publish runs, keeping bundle lineage and retention visible
+  - Worked cases: 1
+    - `interaction:publish:release-bundle:0006` → run `run:release-bundle:0006` [passed], no input request (1 artifact(s))
+- **Preview flow**
+  - Owner: Preview guild
+  - Scope: Artifact rows for preview renders, disclosing buffered preview endpoints
+  - Worked cases: 1
+    - `interaction:preview:render:0007` → run `run:preview-render:0007` [passed], no input request (1 artifact(s))
+- **History / activity center**
+  - Owner: History / activity-center guild
+  - Scope: History rows keeping evicted artifacts attributable to their producing run via lineage
+  - Worked cases: 1
+    - `interaction:history:nightly:0008` → run `run:nightly:0008` [stale_output], no input request (1 artifact(s))
+- **Support / export replay**
+  - Owner: Support / diagnostics guild
+  - Scope: Offline replay reconstructing imported provider artifacts, disclosed as imported
+  - Worked cases: 1
+    - `interaction:support:imported-ci:0009` → run `run:imported-ci:0009` [failed], no input request (1 artifact(s))
+- **Companion summary**
+  - Owner: Companion-surface guild
+  - Scope: Device/browser handoff prompts whose timeout cancels the run, and provider-supplied artifacts shown as such
+  - Worked cases: 1
+    - `interaction:companion:handoff-run:0010` → run `run:handoff-run:0010` [cancelled], input timed_out → run_cancelled (1 artifact(s))

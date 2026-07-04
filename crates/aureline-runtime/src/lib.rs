@@ -340,6 +340,7 @@ pub mod harden_coverage_flaky_test_snapshot_golden_and_baseline;
 pub mod harden_environment_capsule_resolution;
 pub mod harden_the_stable_profiler_and_tracing_hooks_needed;
 pub mod host_boundary;
+pub mod implement_the_m5_input_request_prompt_and_artifact_publish_row_primitive;
 pub mod implement_the_m5_run_attempt_header_and_attempt_selector_primitive;
 pub mod language_hosts;
 pub mod launch_profiles;
