@@ -61,6 +61,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-preview/0.0.0")]
 
+pub mod add_shared_framework_pack_preview_runtime_browser_runtime_docs_demo_and_onboarding_visual_designer_component_consumers;
 pub mod add_visual_designer_fallback_parity_keyboard_and_screen_reader_navigation_and_no_drag_only_editing_rules;
 pub mod browser_runtime_inspectors;
 pub mod extension_provider_conformance;
@@ -76,6 +77,22 @@ pub mod preview_runtime_certification;
 pub mod preview_session_descriptors;
 pub mod safe_preview;
 pub mod visual_edit_transforms;
+
+pub use add_shared_framework_pack_preview_runtime_browser_runtime_docs_demo_and_onboarding_visual_designer_component_consumers::{
+    canonical_packet_ref_for, canonical_schema_ref_for,
+    current_m5_visual_designer_component_consumers_export,
+    seeded_m5_visual_designer_component_consumers_packet, AuthorityMode as ConsumerAuthorityMode,
+    ConsumerGroup, DesignSystemFidelity, HandoffTarget as ConsumerHandoffTarget,
+    LabelParityState, M5HandoffConsumerSurface, ReducedCapabilityBanner,
+    VisualDesignerConsumerArtifactError, VisualDesignerConsumerPacket,
+    VisualDesignerConsumerPacketInput, VisualDesignerConsumerRow, VisualDesignerConsumerSummary,
+    VisualDesignerConsumerViolation, REQUIRED_LABEL_FAMILIES,
+    VISUAL_DESIGNER_CONSUMER_ARTIFACT_REF, VISUAL_DESIGNER_CONSUMER_CSV_REF,
+    VISUAL_DESIGNER_CONSUMER_DOC_REF, VISUAL_DESIGNER_CONSUMER_FIXTURE_DIR,
+    VISUAL_DESIGNER_CONSUMER_MATRIX_REF, VISUAL_DESIGNER_CONSUMER_RECORD_KIND,
+    VISUAL_DESIGNER_CONSUMER_REPORT_REF, VISUAL_DESIGNER_CONSUMER_ROW_RECORD_KIND,
+    VISUAL_DESIGNER_CONSUMER_SCHEMA_REF, VISUAL_DESIGNER_CONSUMER_SCHEMA_VERSION,
+};
 
 pub use add_visual_designer_fallback_parity_keyboard_and_screen_reader_navigation_and_no_drag_only_editing_rules::{
     current_m5_visual_designer_a11y_fallback_export,
