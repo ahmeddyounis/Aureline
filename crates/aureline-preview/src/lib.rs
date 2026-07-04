@@ -64,6 +64,7 @@
 pub mod add_shared_framework_pack_preview_runtime_browser_runtime_docs_demo_and_onboarding_visual_designer_component_consumers;
 pub mod add_visual_designer_fallback_parity_keyboard_and_screen_reader_navigation_and_no_drag_only_editing_rules;
 pub mod browser_runtime_inspectors;
+pub mod certify_export_and_support_packet_parity_and_auto_narrowing_across_claimed_visual_design_surfaces;
 pub mod extension_provider_conformance;
 pub mod freeze_the_m5_design_canvas_structure_tree_property_inspector_source_sync_and_breakpoint_preview_component_matrix;
 pub mod freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix;
@@ -197,6 +198,21 @@ pub use browser_runtime_inspectors::{
     BROWSER_RUNTIME_INSPECTORS_FIXTURE_DIR, BROWSER_RUNTIME_INSPECTORS_RECORD_KIND,
     BROWSER_RUNTIME_INSPECTORS_SCHEMA_REF, BROWSER_RUNTIME_INSPECTORS_SCHEMA_VERSION,
     BROWSER_RUNTIME_INSPECTORS_SUMMARY_REF,
+};
+
+pub use certify_export_and_support_packet_parity_and_auto_narrowing_across_claimed_visual_design_surfaces::{
+    current_m5_visual_designer_surface_certification_export,
+    seeded_m5_visual_designer_surface_certification_packet, AxisCertificationState, ClaimAutoNarrow,
+    M5VisualDesignCertExportField, M5VisualDesignClaimTier, M5VisualDesignClaimedSurface,
+    M5VisualDesignTruthDimension, SurfaceCertStatus, VisualDesignSurfaceCertArtifactError,
+    VisualDesignSurfaceCertPacket, VisualDesignSurfaceCertPacketInput, VisualDesignSurfaceCertRow,
+    VisualDesignSurfaceCertSummary, VisualDesignSurfaceCertViolation,
+    VISUAL_DESIGNER_SURFACE_CERT_ARTIFACT_REF, VISUAL_DESIGNER_SURFACE_CERT_BUNDLE_REF,
+    VISUAL_DESIGNER_SURFACE_CERT_COMPONENT_MATRIX_REF, VISUAL_DESIGNER_SURFACE_CERT_CSV_REF,
+    VISUAL_DESIGNER_SURFACE_CERT_DOC_REF, VISUAL_DESIGNER_SURFACE_CERT_FIXTURE_DIR,
+    VISUAL_DESIGNER_SURFACE_CERT_RECORD_KIND, VISUAL_DESIGNER_SURFACE_CERT_REPORT_REF,
+    VISUAL_DESIGNER_SURFACE_CERT_ROW_RECORD_KIND, VISUAL_DESIGNER_SURFACE_CERT_SCHEMA_REF,
+    VISUAL_DESIGNER_SURFACE_CERT_SCHEMA_VERSION,
 };
 
 pub use extension_provider_conformance::{
