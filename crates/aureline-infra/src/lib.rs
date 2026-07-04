@@ -11,6 +11,7 @@
 
 pub mod cluster_context_and_live_resource;
 pub mod freeze_the_m5_manifest_editor_schema_validator_resource_link_build_adapter_target_graph_and_fallback_confidence_component_matrix;
+pub mod implement_the_m5_adapter_drift_banner_launcher_state_and_no_higher_confidence_overwrite_primitive;
 pub mod implement_the_m5_adapter_source_badge_target_graph_capability_matrix_raw_event_and_fallback_confidence_primitive;
 pub mod implement_the_m5_manifest_editor_schema_validator_and_target_context_apply_review_primitive;
 pub mod implement_the_m5_resource_link_compare_card_explorer_and_drift_banner_primitive;
@@ -46,6 +47,25 @@ pub use freeze_the_m5_manifest_editor_schema_validator_resource_link_build_adapt
     MANIFEST_BUILD_COMPONENT_MATRIX_FIXTURE_DIR, MANIFEST_BUILD_COMPONENT_MATRIX_RECORD_KIND,
     MANIFEST_BUILD_COMPONENT_MATRIX_SCHEMA_REF, MANIFEST_BUILD_COMPONENT_MATRIX_SCHEMA_VERSION,
     MANIFEST_BUILD_COMPONENT_MATRIX_SUMMARY_REF,
+};
+pub use implement_the_m5_adapter_drift_banner_launcher_state_and_no_higher_confidence_overwrite_primitive::{
+    current_stable_m5_execution_confidence_export, resolve_execution_confidence,
+    seeded_m5_execution_confidence_packet, M5AffordanceState, M5CapabilityDeltaKind,
+    M5ExecutionActionKind, M5ExecutionConfidenceArtifactError, M5ExecutionConfidenceCase,
+    M5ExecutionConfidenceConsumerProjection, M5ExecutionConfidenceGovernanceReview,
+    M5ExecutionConfidenceInput, M5ExecutionConfidencePrimitivePacket,
+    M5ExecutionConfidencePrimitivePacketInput, M5ExecutionConfidenceReleasePosture,
+    M5ExecutionConfidenceResolutionError, M5ExecutionConfidenceViolation,
+    M5ExecutionConfidenceVocabularySet, M5ExecutionExportField, M5ExecutionParitySurface,
+    M5ExecutionSurfaceFamily, M5ExecutionSurfaceRow, M5ExecutionVerbInput, M5OverwriteVerdict,
+    M5ResolvedAdapterDriftBanner, M5ResolvedExecutionConfidence, M5ResolvedExecutionLauncher,
+    M5ResolvedLaunchAffordance, M5ResolvedOverwriteGuard, M5ResolvedParityConsumer,
+    M5ResolvedVerbDelta, M5_EXECUTION_CONFIDENCE_ARTIFACT_REF,
+    M5_EXECUTION_CONFIDENCE_BUILD_PRIMITIVE_REF, M5_EXECUTION_CONFIDENCE_COMPONENT_MATRIX_REF,
+    M5_EXECUTION_CONFIDENCE_CSV_REF, M5_EXECUTION_CONFIDENCE_DOC_REF,
+    M5_EXECUTION_CONFIDENCE_FIXTURE_DIR, M5_EXECUTION_CONFIDENCE_RECORD_KIND,
+    M5_EXECUTION_CONFIDENCE_REPORT_REF, M5_EXECUTION_CONFIDENCE_SCHEMA_REF,
+    M5_EXECUTION_CONFIDENCE_SCHEMA_VERSION,
 };
 pub use implement_the_m5_adapter_source_badge_target_graph_capability_matrix_raw_event_and_fallback_confidence_primitive::{
     current_stable_m5_build_confidence_export, resolve_build_confidence,
