@@ -12,6 +12,7 @@
 pub mod cluster_context_and_live_resource;
 pub mod freeze_the_m5_manifest_editor_schema_validator_resource_link_build_adapter_target_graph_and_fallback_confidence_component_matrix;
 pub mod implement_the_m5_manifest_editor_schema_validator_and_target_context_apply_review_primitive;
+pub mod implement_the_m5_resource_link_compare_card_explorer_and_drift_banner_primitive;
 pub mod infrastructure_surface_qualification;
 pub mod plan_and_validation_viewers;
 pub mod provider_overlay_and_vendor_console_handoff_continuity;
@@ -62,6 +63,21 @@ pub use implement_the_m5_manifest_editor_schema_validator_and_target_context_app
     M5_MANIFEST_AUTHORING_DOC_REF, M5_MANIFEST_AUTHORING_FIXTURE_DIR,
     M5_MANIFEST_AUTHORING_RECORD_KIND, M5_MANIFEST_AUTHORING_REPORT_REF,
     M5_MANIFEST_AUTHORING_SCHEMA_REF, M5_MANIFEST_AUTHORING_SCHEMA_VERSION,
+};
+pub use implement_the_m5_resource_link_compare_card_explorer_and_drift_banner_primitive::{
+    current_stable_m5_live_resource_export, resolve_live_resource_navigation,
+    seeded_m5_live_resource_packet, M5CompareVerdict, M5LiveResourceArtifactError,
+    M5LiveResourceCase, M5LiveResourceConsumerProjection, M5LiveResourceExportField,
+    M5LiveResourceGovernanceReview, M5LiveResourceInput, M5LiveResourcePrimitivePacket,
+    M5LiveResourcePrimitivePacketInput, M5LiveResourceReleasePosture,
+    M5LiveResourceResolutionError, M5LiveResourceSurfaceFamily, M5LiveResourceSurfaceRow,
+    M5LiveResourceViolation, M5LiveResourceVocabularySet, M5PermissionPosture, M5ResolvedCompareCard,
+    M5ResolvedDriftBanner, M5ResolvedLiveResource, M5ResolvedResourceExplorerRow,
+    M5ResolvedResourceLinkRow, M5ResourceActionKind, M5ResourceHealth, M5ResourceIdentity,
+    M5ResourceKind, M5_LIVE_RESOURCE_ARTIFACT_REF, M5_LIVE_RESOURCE_COMPONENT_MATRIX_REF,
+    M5_LIVE_RESOURCE_CSV_REF, M5_LIVE_RESOURCE_DOC_REF, M5_LIVE_RESOURCE_FIXTURE_DIR,
+    M5_LIVE_RESOURCE_RECORD_KIND, M5_LIVE_RESOURCE_REPORT_REF, M5_LIVE_RESOURCE_SCHEMA_REF,
+    M5_LIVE_RESOURCE_SCHEMA_VERSION,
 };
 pub use infrastructure_surface_qualification::{
     current_infrastructure_surface_qualification_export,
