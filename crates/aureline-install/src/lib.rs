@@ -18,6 +18,7 @@ pub mod freeze_the_m5_deployment_continuity_component_matrix;
 pub mod harden_installation_topology_state_root_audits_silent_deployment;
 pub mod implement_the_m5_deployment_summary_residual_dependency_and_control_data_plane_primitive;
 pub mod implement_the_m5_install_profile_side_by_side_import_and_rollout_ring_primitive;
+pub mod implement_the_m5_mirror_offline_mode_change_and_channel_association_primitive;
 pub mod m5_coexistence_and_fleet_rollout;
 pub mod m5_install_and_portability_governance;
 pub mod m5_install_config_auth_certification;
@@ -153,6 +154,24 @@ pub use implement_the_m5_install_profile_side_by_side_import_and_rollout_ring_pr
     M5_DEPLOYMENT_PROFILE_DOC_REF, M5_DEPLOYMENT_PROFILE_FIXTURE_DIR,
     M5_DEPLOYMENT_PROFILE_RECORD_KIND, M5_DEPLOYMENT_PROFILE_REPORT_REF,
     M5_DEPLOYMENT_PROFILE_SCHEMA_REF, M5_DEPLOYMENT_PROFILE_SCHEMA_VERSION,
+};
+
+pub use implement_the_m5_mirror_offline_mode_change_and_channel_association_primitive::{
+    current_stable_m5_mirror_transition_export, resolve_mirror_transition,
+    seeded_m5_mirror_transition_packet, M5CacheDisposition, M5MirrorArtifactAction,
+    M5MirrorArtifactClass, M5MirrorArtifactInput, M5MirrorContinuityState,
+    M5MirrorSourceClass, M5MirrorSurfaceFamily, M5MirrorTransitionArtifactError,
+    M5MirrorTransitionCase, M5MirrorTransitionConsumerProjection,
+    M5MirrorTransitionExportField, M5MirrorTransitionGovernanceReview, M5MirrorTransitionInput,
+    M5MirrorTransitionPrimitivePacket, M5MirrorTransitionPrimitivePacketInput,
+    M5MirrorTransitionReleasePosture, M5MirrorTransitionResolutionError,
+    M5MirrorTransitionSurfaceRow, M5MirrorTransitionViolation, M5MirrorTransitionVocabularySet,
+    M5ResolvedChannelAssociationRow, M5ResolvedMirrorArtifactRow, M5ResolvedMirrorTransition,
+    M5ResolvedModeChangeReviewSheet, M5RollbackPathState, M5_MIRROR_TRANSITION_ARTIFACT_REF,
+    M5_MIRROR_TRANSITION_COMPONENT_MATRIX_REF, M5_MIRROR_TRANSITION_CSV_REF,
+    M5_MIRROR_TRANSITION_DOC_REF, M5_MIRROR_TRANSITION_FIXTURE_DIR,
+    M5_MIRROR_TRANSITION_RECORD_KIND, M5_MIRROR_TRANSITION_REPORT_REF,
+    M5_MIRROR_TRANSITION_SCHEMA_REF, M5_MIRROR_TRANSITION_SCHEMA_VERSION,
 };
 
 pub use stabilize_portable_install_side_by_side_channels_updater::{
