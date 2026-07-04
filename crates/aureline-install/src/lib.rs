@@ -16,6 +16,7 @@
 
 pub mod freeze_the_m5_deployment_continuity_component_matrix;
 pub mod harden_installation_topology_state_root_audits_silent_deployment;
+pub mod implement_the_m5_deployment_summary_residual_dependency_and_control_data_plane_primitive;
 pub mod implement_the_m5_install_profile_side_by_side_import_and_rollout_ring_primitive;
 pub mod m5_coexistence_and_fleet_rollout;
 pub mod m5_install_and_portability_governance;
@@ -117,6 +118,24 @@ pub use harden_installation_topology_state_root_audits_silent_deployment::{
     HARDEN_INSTALL_TOPOLOGY_PAGE_RECORD_KIND, HARDEN_INSTALL_TOPOLOGY_SCHEMA_VERSION,
     HARDEN_INSTALL_TOPOLOGY_SHARED_CONTRACT_REF,
     HARDEN_INSTALL_TOPOLOGY_SUPPORT_EXPORT_RECORD_KIND, REQUIRED_FLEET_EVIDENCE,
+};
+
+pub use implement_the_m5_deployment_summary_residual_dependency_and_control_data_plane_primitive::{
+    current_stable_m5_deployment_summary_export, resolve_deployment_summary,
+    seeded_m5_deployment_summary_packet, M5DeploymentScopeClass, M5DeploymentSummaryArtifactError,
+    M5DeploymentSummaryCase, M5DeploymentSummaryConsumerProjection,
+    M5DeploymentSummaryExportField, M5DeploymentSummaryGovernanceReview, M5DeploymentSummaryInput,
+    M5DeploymentSummaryPrimitivePacket, M5DeploymentSummaryPrimitivePacketInput,
+    M5DeploymentSummaryReleasePosture, M5DeploymentSummaryResolutionError,
+    M5DeploymentSummarySurfaceFamily, M5DeploymentSummarySurfaceRow, M5DeploymentSummaryViolation,
+    M5DeploymentSummaryVocabularySet, M5LocalSafeNextStep, M5ResidualDependencyInput,
+    M5ResidualFailureConsequence, M5ResidualMitigation, M5ResolvedControlDataPlaneStatusStrip,
+    M5ResolvedDeploymentSummary, M5ResolvedDeploymentSummaryCard, M5ResolvedResidualDependencyRow,
+    M5_DEPLOYMENT_SUMMARY_ARTIFACT_REF, M5_DEPLOYMENT_SUMMARY_COMPONENT_MATRIX_REF,
+    M5_DEPLOYMENT_SUMMARY_CSV_REF, M5_DEPLOYMENT_SUMMARY_DOC_REF,
+    M5_DEPLOYMENT_SUMMARY_FIXTURE_DIR, M5_DEPLOYMENT_SUMMARY_RECORD_KIND,
+    M5_DEPLOYMENT_SUMMARY_REPORT_REF, M5_DEPLOYMENT_SUMMARY_SCHEMA_REF,
+    M5_DEPLOYMENT_SUMMARY_SCHEMA_VERSION,
 };
 
 pub use implement_the_m5_install_profile_side_by_side_import_and_rollout_ring_primitive::{
