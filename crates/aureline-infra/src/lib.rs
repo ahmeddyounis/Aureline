@@ -11,6 +11,7 @@
 
 pub mod cluster_context_and_live_resource;
 pub mod freeze_the_m5_manifest_editor_schema_validator_resource_link_build_adapter_target_graph_and_fallback_confidence_component_matrix;
+pub mod implement_the_m5_adapter_source_badge_target_graph_capability_matrix_raw_event_and_fallback_confidence_primitive;
 pub mod implement_the_m5_manifest_editor_schema_validator_and_target_context_apply_review_primitive;
 pub mod implement_the_m5_resource_link_compare_card_explorer_and_drift_banner_primitive;
 pub mod infrastructure_surface_qualification;
@@ -45,6 +46,22 @@ pub use freeze_the_m5_manifest_editor_schema_validator_resource_link_build_adapt
     MANIFEST_BUILD_COMPONENT_MATRIX_FIXTURE_DIR, MANIFEST_BUILD_COMPONENT_MATRIX_RECORD_KIND,
     MANIFEST_BUILD_COMPONENT_MATRIX_SCHEMA_REF, MANIFEST_BUILD_COMPONENT_MATRIX_SCHEMA_VERSION,
     MANIFEST_BUILD_COMPONENT_MATRIX_SUMMARY_REF,
+};
+pub use implement_the_m5_adapter_source_badge_target_graph_capability_matrix_raw_event_and_fallback_confidence_primitive::{
+    current_stable_m5_build_confidence_export, resolve_build_confidence,
+    seeded_m5_build_confidence_packet, M5BuildActionKind, M5BuildConfidenceArtifactError,
+    M5BuildConfidenceCase, M5BuildConfidenceConsumerProjection, M5BuildConfidenceExportField,
+    M5BuildConfidenceGovernanceReview, M5BuildConfidenceInput, M5BuildConfidencePrimitivePacket,
+    M5BuildConfidencePrimitivePacketInput, M5BuildConfidenceReleasePosture,
+    M5BuildConfidenceResolutionError, M5BuildConfidenceSurfaceFamily, M5BuildConfidenceSurfaceRow,
+    M5BuildConfidenceViolation, M5BuildConfidenceVocabularySet, M5BuildVerb, M5CapabilityCell,
+    M5ResolvedAdapterSourceBadge, M5ResolvedBuildConfidence, M5ResolvedCapabilityCell,
+    M5ResolvedCapabilityMatrix, M5ResolvedFallbackConfidenceDrawer, M5ResolvedRawEventDrawer,
+    M5ResolvedTargetGraphRow, M5TargetIdentity, M5_BUILD_CONFIDENCE_ARTIFACT_REF,
+    M5_BUILD_CONFIDENCE_COMPONENT_MATRIX_REF, M5_BUILD_CONFIDENCE_CSV_REF,
+    M5_BUILD_CONFIDENCE_DOC_REF, M5_BUILD_CONFIDENCE_FIXTURE_DIR,
+    M5_BUILD_CONFIDENCE_RECORD_KIND, M5_BUILD_CONFIDENCE_REPORT_REF,
+    M5_BUILD_CONFIDENCE_SCHEMA_REF, M5_BUILD_CONFIDENCE_SCHEMA_VERSION,
 };
 pub use implement_the_m5_manifest_editor_schema_validator_and_target_context_apply_review_primitive::{
     current_stable_m5_manifest_authoring_export, resolve_manifest_authoring,
