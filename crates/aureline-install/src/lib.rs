@@ -14,6 +14,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-install/0.0.0")]
 
+pub mod freeze_the_m5_deployment_continuity_component_matrix;
 pub mod harden_installation_topology_state_root_audits_silent_deployment;
 pub mod m5_coexistence_and_fleet_rollout;
 pub mod m5_install_and_portability_governance;
