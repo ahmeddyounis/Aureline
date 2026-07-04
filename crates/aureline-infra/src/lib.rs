@@ -11,6 +11,7 @@
 
 pub mod cluster_context_and_live_resource;
 pub mod freeze_the_m5_manifest_editor_schema_validator_resource_link_build_adapter_target_graph_and_fallback_confidence_component_matrix;
+pub mod implement_the_m5_manifest_editor_schema_validator_and_target_context_apply_review_primitive;
 pub mod infrastructure_surface_qualification;
 pub mod plan_and_validation_viewers;
 pub mod provider_overlay_and_vendor_console_handoff_continuity;
@@ -43,6 +44,24 @@ pub use freeze_the_m5_manifest_editor_schema_validator_resource_link_build_adapt
     MANIFEST_BUILD_COMPONENT_MATRIX_FIXTURE_DIR, MANIFEST_BUILD_COMPONENT_MATRIX_RECORD_KIND,
     MANIFEST_BUILD_COMPONENT_MATRIX_SCHEMA_REF, MANIFEST_BUILD_COMPONENT_MATRIX_SCHEMA_VERSION,
     MANIFEST_BUILD_COMPONENT_MATRIX_SUMMARY_REF,
+};
+pub use implement_the_m5_manifest_editor_schema_validator_and_target_context_apply_review_primitive::{
+    current_stable_m5_manifest_authoring_export, resolve_manifest_authoring,
+    seeded_m5_manifest_authoring_packet, M5DryRunAvailability, M5ExecutionOrigin,
+    M5ManifestAuthoringArtifactError, M5ManifestAuthoringCase,
+    M5ManifestAuthoringConsumerProjection, M5ManifestAuthoringExportField,
+    M5ManifestAuthoringGovernanceReview, M5ManifestAuthoringInput,
+    M5ManifestAuthoringPrimitivePacket, M5ManifestAuthoringPrimitivePacketInput,
+    M5ManifestAuthoringReleasePosture, M5ManifestAuthoringResolutionError,
+    M5ManifestAuthoringSurfaceFamily, M5ManifestAuthoringSurfaceRow, M5ManifestAuthoringViolation,
+    M5ManifestAuthoringVocabularySet, M5ManifestSourceType, M5MutationCounts,
+    M5ResolvedApplyReviewBanner, M5ResolvedManifestAuthoring, M5ResolvedManifestHeader,
+    M5ResolvedSchemaValidatorRow, M5ResolvedTargetContextChips, M5RollbackPosture,
+    M5SchemaSourceKind, M5TargetContextChips, M5_MANIFEST_AUTHORING_ARTIFACT_REF,
+    M5_MANIFEST_AUTHORING_COMPONENT_MATRIX_REF, M5_MANIFEST_AUTHORING_CSV_REF,
+    M5_MANIFEST_AUTHORING_DOC_REF, M5_MANIFEST_AUTHORING_FIXTURE_DIR,
+    M5_MANIFEST_AUTHORING_RECORD_KIND, M5_MANIFEST_AUTHORING_REPORT_REF,
+    M5_MANIFEST_AUTHORING_SCHEMA_REF, M5_MANIFEST_AUTHORING_SCHEMA_VERSION,
 };
 pub use infrastructure_surface_qualification::{
     current_infrastructure_surface_qualification_export,
