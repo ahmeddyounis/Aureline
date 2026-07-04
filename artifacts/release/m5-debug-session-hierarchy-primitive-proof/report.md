@@ -1,0 +1,60 @@
+# M5 Debug-Session-Hierarchy Primitive
+
+- Packet: `m5-debug-session-hierarchy-primitive:stable:0001`
+- Label: `M5 Debug-Session-Hierarchy Primitive`
+- Execution surfaces: 10 / 10
+- Session modes: launch, attach, core, replay, inspect_only
+- Control postures: live_attached_control, captured_analysis, inspect_only_view
+
+## Execution surfaces
+
+- **Task-run pane**
+  - Owner: Task-run debug guild
+  - Scope: Debug headers for launched task runs, holding live attached control over the target process
+  - Worked cases: 1
+    - `debug:task:build-runner:0001` → target `process:build-runner:0001` [launch], live_attached_control / live (3 node(s), 0 dump(s))
+- **Test-run pane**
+  - Owner: Test-run debug guild
+  - Scope: Debug headers for attached test runs stopped at a breakpoint, keeping thread state explicit
+  - Worked cases: 1
+    - `debug:test:integration:0002` → target `process:integration:0002` [attach], live_attached_control / live (3 node(s), 0 dump(s))
+- **Request-run pane**
+  - Owner: Request-execution debug guild
+  - Scope: Inspect-only views of imported request-execution snapshots with no live control
+  - Worked cases: 1
+    - `debug:request:webhook:0003` → target `process:webhook:0003` [inspect_only], inspect_only_view / imported (2 node(s), 0 dump(s))
+- **Notebook execution**
+  - Owner: Notebook-execution debug guild
+  - Scope: Time-travel replay sessions for notebook kernels, captured analysis without live control
+  - Worked cases: 1
+    - `debug:notebook:analysis:0004` → target `process:notebook-analysis:0004` [replay], captured_analysis / captured (2 node(s), 0 dump(s))
+- **AI-mediated execution**
+  - Owner: AI-execution debug guild
+  - Scope: Debug headers for attached agent runtimes, keeping live control explicit even after a reconnect
+  - Worked cases: 1
+    - `debug:ai:refactor-agent:0005` → target `process:refactor-agent:0005` [attach], live_attached_control / live (3 node(s), 0 dump(s))
+- **Publish flow**
+  - Owner: Publish debug guild
+  - Scope: Crash analysis for publish runs over full core dumps, captured analysis with symbolicated frames
+  - Worked cases: 1
+    - `debug:publish:release-bundle:0006` → target `process:release-bundle:0006` [core], captured_analysis / captured (2 node(s), 1 dump(s))
+- **Preview flow**
+  - Owner: Preview debug guild
+  - Scope: Crash analysis for preview renders over crash reports, disclosing partial symbolication
+  - Worked cases: 1
+    - `debug:preview:render:0007` → target `process:preview-render:0007` [core], captured_analysis / captured (2 node(s), 1 dump(s))
+- **History / activity center**
+  - Owner: History / activity-center debug guild
+  - Scope: Restored crash sessions from history over minidumps, keeping the hierarchy understandable when degraded
+  - Worked cases: 1
+    - `debug:history:nightly:0008` → target `process:nightly:0008` [core], captured_analysis / captured (2 node(s), 1 dump(s))
+- **Support / export replay**
+  - Owner: Support / diagnostics debug guild
+  - Scope: Offline replay of imported heap snapshots for support triage, disclosing unavailable symbols
+  - Worked cases: 1
+    - `debug:support:imported-ci:0009` → target `process:imported-ci:0009` [replay], captured_analysis / imported (2 node(s), 1 dump(s))
+- **Companion summary**
+  - Owner: Companion-surface debug guild
+  - Scope: Inspect-only companion views of provider-reported debug snapshots with no live control
+  - Worked cases: 1
+    - `debug:companion:batch-job:0010` → target `process:batch-job:0010` [inspect_only], inspect_only_view / provider_reported (2 node(s), 0 dump(s))
