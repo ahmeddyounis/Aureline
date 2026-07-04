@@ -20,6 +20,7 @@ pub mod implement_the_m5_resource_link_compare_card_explorer_and_drift_banner_pr
 pub mod infrastructure_surface_qualification;
 pub mod plan_and_validation_viewers;
 pub mod provider_overlay_and_vendor_console_handoff_continuity;
+pub mod qualify_shared_manifest_build_components_across_every_claimed_consumer_with_one_certification_bundle;
 pub mod relation_graph_incident_support_parity;
 pub mod source_intelligence_and_resource_relationships;
 pub mod target_context_and_control_plane_boundary;
@@ -180,6 +181,22 @@ pub use provider_overlay_and_vendor_console_handoff_continuity::{
     PROVIDER_OVERLAY_HANDOFF_ARTIFACT_REF, PROVIDER_OVERLAY_HANDOFF_DOC_REF,
     PROVIDER_OVERLAY_HANDOFF_FIXTURE_DIR, PROVIDER_OVERLAY_HANDOFF_PACKET_RECORD_KIND,
     PROVIDER_OVERLAY_HANDOFF_SCHEMA_REF, PROVIDER_OVERLAY_HANDOFF_SCHEMA_VERSION,
+};
+pub use qualify_shared_manifest_build_components_across_every_claimed_consumer_with_one_certification_bundle::{
+    canonical_component_packet_refs as manifest_build_qualification_component_packet_refs,
+    current_m5_manifest_build_component_qualification_export,
+    seeded_m5_manifest_build_component_qualification_packet, ManifestBuildQualificationArtifactError,
+    ManifestBuildQualificationDimensionParity, ManifestBuildQualificationPacket,
+    ManifestBuildQualificationPacketInput, ManifestBuildQualificationRow,
+    ManifestBuildQualificationSummary, ManifestBuildQualificationViolation,
+    M5ManifestBuildParityState, M5ManifestBuildQualificationDimension,
+    M5ManifestBuildQualificationExportField, M5ManifestBuildQualificationVerdict,
+    M5QualifiedManifestBuildConsumer, MANIFEST_BUILD_QUALIFICATION_ARTIFACT_REF,
+    MANIFEST_BUILD_QUALIFICATION_BUNDLE_REF, MANIFEST_BUILD_QUALIFICATION_COMPONENT_MATRIX_REF,
+    MANIFEST_BUILD_QUALIFICATION_CSV_REF, MANIFEST_BUILD_QUALIFICATION_DOC_REF,
+    MANIFEST_BUILD_QUALIFICATION_FIXTURE_DIR, MANIFEST_BUILD_QUALIFICATION_RECORD_KIND,
+    MANIFEST_BUILD_QUALIFICATION_REPORT_REF, MANIFEST_BUILD_QUALIFICATION_ROW_RECORD_KIND,
+    MANIFEST_BUILD_QUALIFICATION_SCHEMA_REF, MANIFEST_BUILD_QUALIFICATION_SCHEMA_VERSION,
 };
 pub use relation_graph_incident_support_parity::{
     seeded_relation_graph_incident_support_parity_packet,
