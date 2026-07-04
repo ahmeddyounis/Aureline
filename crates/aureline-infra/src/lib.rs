@@ -9,6 +9,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-infra/0.0.0")]
 
+pub mod add_manifest_build_component_accessibility_keyboard_screen_reader_cli_export_parity_and_auto_narrowing;
 pub mod add_shared_container_devcontainer_request_incident_support_and_ai_manifest_build_component_consumers;
 pub mod cluster_context_and_live_resource;
 pub mod freeze_the_m5_manifest_editor_schema_validator_resource_link_build_adapter_target_graph_and_fallback_confidence_component_matrix;
@@ -23,6 +24,22 @@ pub mod relation_graph_incident_support_parity;
 pub mod source_intelligence_and_resource_relationships;
 pub mod target_context_and_control_plane_boundary;
 
+pub use add_manifest_build_component_accessibility_keyboard_screen_reader_cli_export_parity_and_auto_narrowing::{
+    current_m5_manifest_build_a11y_fallback_export, seeded_m5_manifest_build_a11y_fallback_packet,
+    AccessibilityAutoNarrow, ClaimAffordanceState, ClaimTruthSignals,
+    ComponentAccessibilityArtifactError, ComponentAccessibilityPacket,
+    ComponentAccessibilityPacketInput, ComponentAccessibilityRow, ComponentAccessibilityStatus,
+    ComponentAccessibilitySummary, ComponentAccessibilityViolation,
+    CopyExportParity as A11yCopyExportParity, ExportSummaryState,
+    M5ManifestBuildConsumerSurface as M5ManifestBuildA11yConsumerSurface,
+    M5ManifestBuildFallbackModality, M5ManifestBuildRenderingSurface, NarrowedClaimTier,
+    NarrowingDisclosureState, NonVisualReachState, RenderingNarrowingDisclosure,
+    MANIFEST_BUILD_A11Y_FALLBACK_ARTIFACT_REF, MANIFEST_BUILD_A11Y_FALLBACK_COMPONENT_MATRIX_REF,
+    MANIFEST_BUILD_A11Y_FALLBACK_CSV_REF, MANIFEST_BUILD_A11Y_FALLBACK_DOC_REF,
+    MANIFEST_BUILD_A11Y_FALLBACK_FIXTURE_DIR, MANIFEST_BUILD_A11Y_FALLBACK_RECORD_KIND,
+    MANIFEST_BUILD_A11Y_FALLBACK_REPORT_REF, MANIFEST_BUILD_A11Y_FALLBACK_ROW_RECORD_KIND,
+    MANIFEST_BUILD_A11Y_FALLBACK_SCHEMA_REF, MANIFEST_BUILD_A11Y_FALLBACK_SCHEMA_VERSION,
+};
 pub use add_shared_container_devcontainer_request_incident_support_and_ai_manifest_build_component_consumers::{
     canonical_packet_ref_for, canonical_schema_ref_for,
     current_stable_m5_manifest_build_consumer_export, seeded_m5_manifest_build_consumer_packet,
