@@ -76,6 +76,7 @@ pub mod preview_drift_recovery;
 pub mod preview_origin;
 pub mod preview_runtime_certification;
 pub mod preview_session_descriptors;
+pub mod qualify_shared_visual_designer_components_across_every_claimed_consumer_with_one_certification_bundle;
 pub mod safe_preview;
 pub mod visual_edit_transforms;
 
@@ -286,6 +287,20 @@ pub use preview_session_descriptors::{
     PREVIEW_SESSION_DESCRIPTOR_SET_FIXTURE_DIR, PREVIEW_SESSION_DESCRIPTOR_SET_RECORD_KIND,
     PREVIEW_SESSION_DESCRIPTOR_SET_SCHEMA_REF, PREVIEW_SESSION_DESCRIPTOR_SET_SCHEMA_VERSION,
     PREVIEW_SESSION_DESCRIPTOR_SET_SUMMARY_REF,
+};
+pub use qualify_shared_visual_designer_components_across_every_claimed_consumer_with_one_certification_bundle::{
+    canonical_component_packet_refs, current_m5_visual_designer_component_qualification_export,
+    seeded_m5_visual_designer_component_qualification_packet, M5ComponentQualificationDimension,
+    M5ComponentQualificationVerdict, M5QualificationExportField, M5QualifiedComponentConsumer,
+    QualificationDimensionParity, VisualDesignerQualificationArtifactError,
+    VisualDesignerQualificationPacket, VisualDesignerQualificationPacketInput,
+    VisualDesignerQualificationRow, VisualDesignerQualificationSummary,
+    VisualDesignerQualificationViolation, VISUAL_DESIGNER_QUALIFICATION_ARTIFACT_REF,
+    VISUAL_DESIGNER_QUALIFICATION_BUNDLE_REF, VISUAL_DESIGNER_QUALIFICATION_COMPONENT_MATRIX_REF,
+    VISUAL_DESIGNER_QUALIFICATION_CSV_REF, VISUAL_DESIGNER_QUALIFICATION_DOC_REF,
+    VISUAL_DESIGNER_QUALIFICATION_FIXTURE_DIR, VISUAL_DESIGNER_QUALIFICATION_RECORD_KIND,
+    VISUAL_DESIGNER_QUALIFICATION_REPORT_REF, VISUAL_DESIGNER_QUALIFICATION_ROW_RECORD_KIND,
+    VISUAL_DESIGNER_QUALIFICATION_SCHEMA_REF, VISUAL_DESIGNER_QUALIFICATION_SCHEMA_VERSION,
 };
 pub use safe_preview::{
     build_generated_content_preview, build_oversized_artifact_preview, build_risky_text_preview,
