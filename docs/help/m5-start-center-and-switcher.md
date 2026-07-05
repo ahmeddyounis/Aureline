@@ -60,6 +60,14 @@ partial-restore states are redacted to the target-kind label and carry no raw
 path, host, or credential body. The published audit lives at
 `artifacts/ux/m5/start-center-and-switcher-audit.md`.
 
+Reusable M5 project-entry cards, rows, and sheets are frozen in
+`artifacts/design/m5-project-entry-component-matrix.md`. Start Center quick
+actions, recent rows, workspace-switcher entries, restore cards, entry review
+sheets, destination-collision sheets, post-entry handoff cards, admission
+checkpoint cards, and archetype-readiness rows must use the schema refs under
+`schemas/ui/m5-*-*.schema.json` instead of inventing local target-kind,
+restore, trust, or setup-urgency wording.
+
 ## Inspecting the packet
 
 ```sh
