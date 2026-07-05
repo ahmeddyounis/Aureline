@@ -22,6 +22,38 @@ fn seeded_packet_validates() {
 }
 
 #[test]
+fn quick_action_cards_cover_distinct_entry_verbs_with_command_disclosure() {
+    let packet = seeded_m5_start_center_and_switcher_packet();
+    let expected = StartCenterPrimaryActionId::ordered();
+    assert_eq!(packet.quick_action_cards.len(), expected.len());
+    for (idx, action) in expected.iter().enumerate() {
+        let card = &packet.quick_action_cards[idx];
+        assert_eq!(card.action_id, action.token());
+        assert_eq!(card.label, action.label());
+        assert_eq!(card.helper_text, action.summary());
+        assert_eq!(card.command_id, action.command_id());
+        assert!(!card.icon_name.trim().is_empty());
+        assert!(!card.shortcut_disclosure.trim().is_empty());
+        assert!(!card.target_kinds.is_empty());
+        assert!(!card.resulting_modes.is_empty());
+        assert!(card.visible_before_sign_in);
+        assert!(card.visible_before_network_ready);
+        assert!(card.keyboard_reachable);
+    }
+    assert!(packet
+        .quick_action_cards
+        .iter()
+        .any(|card| card.action_id == "clone_repository"
+            && card.badge.as_deref() == Some("Review before trust")));
+    assert!(packet
+        .quick_action_cards
+        .iter()
+        .any(|card| card.action_id == "import_from"
+            && card.entry_verb == "import"
+            && card.badge.as_deref() == Some("Compare before apply")));
+}
+
+#[test]
 fn every_row_holds_full_cross_surface_parity() {
     let packet = seeded_m5_start_center_and_switcher_packet();
     assert!(packet.full_parity);
@@ -43,6 +75,16 @@ fn every_row_holds_full_cross_surface_parity() {
         assert_eq!(
             row.switcher_restore_availability,
             row.canonical_restore_availability
+        );
+        assert!(!row.last_opened_at.trim().is_empty());
+        assert_eq!(row.unavailable_target_condition, row.failure_state.as_str());
+        assert_eq!(
+            row.start_center_action_labels.len(),
+            row.start_center_safe_actions.len()
+        );
+        assert_eq!(
+            row.switcher_action_labels.len(),
+            row.switcher_safe_actions.len()
         );
     }
 }
@@ -176,6 +218,9 @@ fn support_export_collects_row_and_diagnostic_ids() {
     );
     assert_eq!(export.packet, packet);
     assert!(export.case_ids.contains(&packet.packet_id));
+    for card in &packet.quick_action_cards {
+        assert!(export.case_ids.contains(&card.action_id));
+    }
     for row in &packet.rows {
         assert!(export.case_ids.contains(&row.recent_work_id));
     }
@@ -250,6 +295,7 @@ fn compact_lines_and_markdown_render() {
 
     let markdown = packet.render_markdown();
     assert!(markdown.contains("Start Center and workspace-switcher parity"));
+    assert!(markdown.contains("Quick-action cards"));
     assert!(markdown.contains("Export-safe diagnostics"));
     assert!(markdown.contains("missing_root"));
 }

@@ -139,6 +139,9 @@ fn support_export_collects_row_and_diagnostic_ids() {
     let packet = seeded_m5_start_center_and_switcher_packet();
     assert_eq!(export.packet, packet);
     assert!(export.case_ids.contains(&packet.packet_id));
+    for card in &packet.quick_action_cards {
+        assert!(export.case_ids.contains(&card.action_id));
+    }
     for row in &packet.rows {
         assert!(export.case_ids.contains(&row.recent_work_id));
     }

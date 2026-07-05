@@ -9,6 +9,24 @@ request/data workspaces, profiler captures, framework packs, companion
 handoff, and managed sync — reuse this list instead of shipping their own
 launchers.
 
+## Quick actions are command-backed cards
+
+The first Start Center controls are five governed quick-action cards, not hero
+tiles or marketing prompts:
+
+| Card | Target truth | Disclosure |
+|---|---|---|
+| Open folder | Local folder or repository root | `cmd:workspace.open_folder`, folder icon, local-path account optional |
+| Open workspace | Workspace or workset manifest | `cmd:workspace.open_folder` scoped to workspace files |
+| Clone repository | Remote repository | `cmd:workspace.clone_repository`, review-before-trust badge |
+| Restore last session | Recovery checkpoint or prior root | `cmd:workspace.restore_from_checkpoint`, restore-fidelity badge |
+| Import from… | Portable state, handoff packet, or imported config | `cmd:workspace.import_profile`, compare-before-apply badge |
+
+Each card carries an icon, verb-first label, short helper text, optional badge,
+command id, and shortcut-state disclosure. The cards remain visible before
+sign-in and before network readiness so local open and restore paths are not
+hidden behind setup.
+
 ## Target kinds stay distinct
 
 Every recent row keeps its real target kind instead of collapsing into a
@@ -72,6 +90,7 @@ restore, trust, or setup-urgency wording.
 
 ```sh
 cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- packet
+cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- quick-actions
 cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- diagnostics
 cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- validate
 ```

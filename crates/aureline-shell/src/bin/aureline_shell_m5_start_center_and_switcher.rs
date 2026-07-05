@@ -8,6 +8,7 @@
 //!
 //! ```sh
 //! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- packet
+//! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- quick-actions
 //! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- rows
 //! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- diagnostics
 //! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- coverage
@@ -36,6 +37,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     match args.first().map(String::as_str) {
         Some("packet") | None => {
             print_json(&packet)?;
+        }
+        Some("quick-actions") => {
+            print_json(&packet.quick_action_cards)?;
         }
         Some("rows") => {
             print_json(&packet.rows)?;

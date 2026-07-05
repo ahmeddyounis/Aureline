@@ -52,7 +52,8 @@ use aureline_workspace::{
 };
 
 use crate::start_center::{
-    build_searchable_recent_work_rows, StartCenterRecentWorkPrivacyMode, StartCenterRecentWorkRow,
+    build_searchable_recent_work_rows, StartCenterPrimaryActionId,
+    StartCenterRecentWorkPrivacyMode, StartCenterRecentWorkRow,
 };
 use crate::workspace_switcher::{build_switcher_rows, WorkspaceSwitcherRow};
 
@@ -74,6 +75,10 @@ pub const M5_START_CENTER_AND_SWITCHER_ROW_RECORD_KIND: &str =
 /// Stable record kind for [`M5EntryDiagnostic`] payloads.
 pub const M5_START_CENTER_AND_SWITCHER_DIAGNOSTIC_RECORD_KIND: &str =
     "shell_m5_start_center_and_switcher_diagnostic_record";
+
+/// Stable record kind for [`M5StartCenterQuickActionCard`] payloads.
+pub const M5_START_CENTER_QUICK_ACTION_CARD_RECORD_KIND: &str =
+    "shell_m5_start_center_quick_action_card_record";
 
 /// Stable record kind for [`M5StartCenterSwitcherSupportExport`] payloads.
 pub const M5_START_CENTER_AND_SWITCHER_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -322,6 +327,175 @@ impl M5DiagnosticClass {
     }
 }
 
+/// One governed quick-action card rendered before account, bundle, or
+/// marketing-adjacent content on the Start Center.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5StartCenterQuickActionCard {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Schema version exported with the card.
+    pub schema_version: u32,
+    /// Shared contract ref consumed by every consumer.
+    pub shared_contract_ref: String,
+    /// Stable action token matching the live Start Center primary action.
+    pub action_id: String,
+    /// Icon token from the shell icon set.
+    pub icon_name: String,
+    /// Verb-first label shown on the card.
+    pub label: String,
+    /// Short helper text shown under the label.
+    pub helper_text: String,
+    /// Optional badge shown when the action has extra posture to disclose.
+    pub badge: Option<String>,
+    /// Canonical command id dispatched by the card.
+    pub command_id: String,
+    /// Shortcut or shortcut-state disclosure shown with the command id.
+    pub shortcut_disclosure: String,
+    /// Entry verb represented by the card.
+    pub entry_verb: String,
+    /// Target-kind candidates the card may activate.
+    pub target_kinds: Vec<TargetKind>,
+    /// Resulting modes the user can inspect before activation.
+    pub resulting_modes: Vec<String>,
+    /// Trust posture disclosed before activation.
+    pub trust_posture_class: String,
+    /// Restore posture disclosed before activation.
+    pub restore_disclosure: String,
+    /// Account posture disclosed in-place on the card.
+    pub account_opt_in_posture: String,
+    /// Cards render before sign-in so local work remains available.
+    pub visible_before_sign_in: bool,
+    /// Cards render before network readiness except where the action later
+    /// asks for a network-backed target.
+    pub visible_before_network_ready: bool,
+    /// Cards are keyboard reachable in the Start Center action list.
+    pub keyboard_reachable: bool,
+}
+
+impl M5StartCenterQuickActionCard {
+    fn from_action(action: StartCenterPrimaryActionId) -> Self {
+        let (
+            icon_name,
+            badge,
+            shortcut_disclosure,
+            entry_verb,
+            target_kinds,
+            resulting_modes,
+            trust_posture_class,
+            restore_disclosure,
+            account_opt_in_posture,
+        ) = match action {
+            StartCenterPrimaryActionId::OpenFolder => (
+                "folder-open",
+                None,
+                "Shortcut: platform open-folder binding when assigned; otherwise Command Palette",
+                "open",
+                vec![TargetKind::LocalFolder, TargetKind::LocalRepoRoot],
+                vec![
+                    "folder".to_string(),
+                    "repo_root".to_string(),
+                    "workspace_candidate".to_string(),
+                ],
+                "trust_pending_until_admission",
+                "No restore implied",
+                "optional_local_path_available",
+            ),
+            StartCenterPrimaryActionId::OpenWorkspace => (
+                "layout-panel-left",
+                None,
+                "Shortcut: shares open-folder command binding with workspace-file scope",
+                "open",
+                vec![TargetKind::WorkspaceManifest, TargetKind::WorksetManifest],
+                vec![
+                    "workspace_with_roots".to_string(),
+                    "workset_slice".to_string(),
+                ],
+                "trust_pending_until_admission",
+                "Restore depends on selected workspace",
+                "optional_local_path_available",
+            ),
+            StartCenterPrimaryActionId::CloneRepository => (
+                "git-branch",
+                Some("Review before trust"),
+                "Shortcut: unassigned by default; available from Command Palette",
+                "clone",
+                vec![TargetKind::RemoteRepository],
+                vec![
+                    "clone_then_review".to_string(),
+                    "clone_then_open".to_string(),
+                    "clone_only".to_string(),
+                ],
+                "trust_never_implied_by_clone",
+                "No restore implied",
+                "required_for_this_row",
+            ),
+            StartCenterPrimaryActionId::RestoreLastSession => (
+                "history",
+                Some("Restore available"),
+                "Shortcut: restore command binding when assigned; otherwise Command Palette",
+                "restore",
+                vec![TargetKind::RecoveryCheckpoint, TargetKind::LocalRepoRoot],
+                vec![
+                    "restore_last_session".to_string(),
+                    "restore_from_checkpoint".to_string(),
+                ],
+                "trust_inherited_from_target",
+                "Restores only the advertised checkpoint fidelity",
+                "optional_local_path_available",
+            ),
+            StartCenterPrimaryActionId::ImportFrom => (
+                "import",
+                Some("Compare before apply"),
+                "Shortcut: unassigned by default; available from Command Palette",
+                "import",
+                vec![
+                    TargetKind::PortableStatePackage,
+                    TargetKind::HandoffPacket,
+                    TargetKind::CompetitorConfigRoot,
+                ],
+                vec![
+                    "extract_then_review".to_string(),
+                    "compare_before_restore".to_string(),
+                ],
+                "trust_unchanged_until_admit",
+                "No restore applied before review",
+                "deferred_review_pending",
+            ),
+        };
+
+        Self {
+            record_kind: M5_START_CENTER_QUICK_ACTION_CARD_RECORD_KIND.to_owned(),
+            schema_version: M5_START_CENTER_AND_SWITCHER_SCHEMA_VERSION,
+            shared_contract_ref: M5_START_CENTER_AND_SWITCHER_SHARED_CONTRACT_REF.to_owned(),
+            action_id: action.token().to_owned(),
+            icon_name: icon_name.to_owned(),
+            label: action.label().to_owned(),
+            helper_text: action.summary().to_owned(),
+            badge: badge.map(str::to_owned),
+            command_id: action.command_id().to_owned(),
+            shortcut_disclosure: shortcut_disclosure.to_owned(),
+            entry_verb: entry_verb.to_owned(),
+            target_kinds,
+            resulting_modes,
+            trust_posture_class: trust_posture_class.to_owned(),
+            restore_disclosure: restore_disclosure.to_owned(),
+            account_opt_in_posture: account_opt_in_posture.to_owned(),
+            visible_before_sign_in: true,
+            visible_before_network_ready: true,
+            keyboard_reachable: true,
+        }
+    }
+}
+
+/// Returns the governed quick-action card set in rendered order.
+pub fn seeded_m5_start_center_quick_action_cards() -> Vec<M5StartCenterQuickActionCard> {
+    StartCenterPrimaryActionId::ordered()
+        .iter()
+        .copied()
+        .map(M5StartCenterQuickActionCard::from_action)
+        .collect()
+}
+
 /// Cross-surface parity flags computed from the two live projections.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct M5SurfaceParity {
@@ -383,12 +557,18 @@ pub struct M5StartCenterSwitcherRow {
     pub start_center_restore_availability: RestoreAvailability,
     /// Restore availability the switcher row displayed.
     pub switcher_restore_availability: RestoreAvailability,
+    /// Stable last-opened timestamp from the recent-work registry.
+    pub last_opened_at: String,
+    /// Whether any restorable state is available before activation.
+    pub restore_available: bool,
     /// Raw target state captured for this entry.
     pub target_state: RecentWorkTargetState,
     /// Shared unavailable-target classification.
     pub failure_state: RecentWorkFailureState,
     /// Root-resolution posture derived from the failure state.
     pub root_state: M5RootState,
+    /// Human-readable missing/unavailable condition label.
+    pub unavailable_target_condition: String,
     /// Whether the row appears in the Start Center recent-work projection.
     pub present_in_start_center: bool,
     /// Whether the row appears in the in-workspace switcher projection.
@@ -405,8 +585,12 @@ pub struct M5StartCenterSwitcherRow {
     pub reconnect_or_locate_available: bool,
     /// Recovery actions the Start Center row exposes.
     pub start_center_safe_actions: Vec<SafeRecoveryAction>,
+    /// Human labels for the Start Center recovery actions.
+    pub start_center_action_labels: Vec<String>,
     /// Recovery actions the switcher row exposes.
     pub switcher_safe_actions: Vec<SafeRecoveryAction>,
+    /// Human labels for the switcher recovery actions.
+    pub switcher_action_labels: Vec<String>,
     /// Cross-surface parity flags.
     pub parity: M5SurfaceParity,
     /// Diagnostic class when the row is unavailable or only partially
@@ -489,9 +673,12 @@ impl M5StartCenterSwitcherRow {
             canonical_restore_availability: canonical.restore_availability,
             start_center_restore_availability: start_center.restore_availability,
             switcher_restore_availability: switcher.restore_availability,
+            last_opened_at: canonical.last_opened_at.clone(),
+            restore_available: canonical.restore_availability != RestoreAvailability::None,
             target_state: canonical.target_state,
             failure_state,
             root_state,
+            unavailable_target_condition: failure_state.as_str().to_owned(),
             present_in_start_center: true,
             present_in_switcher: true,
             pinned: canonical.pinned,
@@ -500,7 +687,9 @@ impl M5StartCenterSwitcherRow {
             remove_action_available,
             reconnect_or_locate_available,
             start_center_safe_actions: start_center.safe_recovery_actions.clone(),
+            start_center_action_labels: action_labels(&start_center.safe_recovery_actions),
             switcher_safe_actions: switcher.safe_recovery_actions.clone(),
+            switcher_action_labels: action_labels(&switcher.safe_recovery_actions),
             parity: M5SurfaceParity {
                 target_kind_parity,
                 trust_parity,
@@ -518,6 +707,13 @@ fn action_present(
     predicate: impl Fn(SafeRecoveryAction) -> bool,
 ) -> bool {
     actions.iter().copied().any(predicate)
+}
+
+fn action_labels(actions: &[SafeRecoveryAction]) -> Vec<String> {
+    actions
+        .iter()
+        .map(|action| action.surface_label().to_owned())
+        .collect()
 }
 
 /// Export-safe diagnostic for one unavailable or partially restorable row.
@@ -641,6 +837,8 @@ pub struct M5StartCenterSwitcherPacket {
     pub packet_id: String,
     /// Reviewer-facing summary line printed above the rows.
     pub headline: String,
+    /// Start Center quick-action cards in rendered order.
+    pub quick_action_cards: Vec<M5StartCenterQuickActionCard>,
     /// Parity rows in canonical seed order.
     pub rows: Vec<M5StartCenterSwitcherRow>,
     /// Export-safe diagnostics for unavailable / partial rows.
@@ -684,8 +882,9 @@ impl M5StartCenterSwitcherPacket {
     pub fn compact_lines(&self) -> Vec<String> {
         let mut lines = Vec::new();
         lines.push(format!(
-            "packet: id={}, rows={}, classes={}/{}, diagnostics={}",
+            "packet: id={}, quick_actions={}, rows={}, classes={}/{}, diagnostics={}",
             self.packet_id,
+            self.quick_action_cards.len(),
             self.rows.len(),
             self.surface_class_coverage.covered_classes.len(),
             self.surface_class_coverage.total_required_classes,
@@ -733,6 +932,10 @@ impl M5StartCenterSwitcherPacket {
         out.push_str("```\n\n");
 
         out.push_str(&format!("- Packet id: `{}`\n", self.packet_id));
+        out.push_str(&format!(
+            "- Quick-action cards: {}\n",
+            self.quick_action_cards.len()
+        ));
         out.push_str(&format!("- Rows: {}\n", self.rows.len()));
         out.push_str(&format!(
             "- Surface classes covered: {}/{}\n",
@@ -752,16 +955,32 @@ impl M5StartCenterSwitcherPacket {
         out.push_str(&format!("- Full parity: {}\n", self.full_parity));
         out.push_str(&format!("- Generated at: `{}`\n\n", self.generated_at));
 
+        out.push_str("## Quick-action cards\n\n");
+        out.push_str("| Action | Icon | Command | Shortcut disclosure | Badge |\n");
+        out.push_str("|---|---|---|---|---|\n");
+        for card in &self.quick_action_cards {
+            out.push_str(&format!(
+                "| {} | `{}` | `{}` | {} | {} |\n",
+                card.label,
+                card.icon_name,
+                card.command_id,
+                card.shortcut_disclosure,
+                card.badge.as_deref().unwrap_or("-"),
+            ));
+        }
+        out.push('\n');
+
         out.push_str("## Parity rows\n\n");
         out.push_str(
-            "| Surface class | Target kind | Trust | Restore | Root state | In both | Parity | Diagnostic |\n",
+            "| Surface class | Target kind | Last opened | Trust | Restore | Root state | In both | Parity | Diagnostic |\n",
         );
-        out.push_str("|---|---|---|---|---|:---:|:---:|---|\n");
+        out.push_str("|---|---|---|---|---|---|:---:|:---:|---|\n");
         for row in &self.rows {
             out.push_str(&format!(
-                "| {} | `{}` | `{}` | `{}` | `{}` | {} | {} | {} |\n",
+                "| {} | `{}` | `{}` | `{}` | `{}` | `{}` | {} | {} | {} |\n",
                 row.surface_class.display_label(),
                 row.target_kind.as_str(),
+                row.last_opened_at,
                 row.canonical_trust_state.as_str(),
                 row.canonical_restore_availability.as_str(),
                 row.root_state.as_str(),
@@ -835,6 +1054,9 @@ impl M5StartCenterSwitcherSupportExport {
     ) -> Self {
         let mut case_ids = Vec::new();
         case_ids.push(packet.packet_id.clone());
+        for card in &packet.quick_action_cards {
+            case_ids.push(card.action_id.clone());
+        }
         for row in &packet.rows {
             case_ids.push(row.recent_work_id.clone());
         }
@@ -865,6 +1087,21 @@ pub enum M5StartCenterSwitcherValidationError {
     MissingDiagnosticClass {
         /// Diagnostic class with the missing diagnostic.
         diagnostic_class: String,
+    },
+    /// A required quick-action card is missing or out of order.
+    QuickActionCardMissing {
+        /// Action id that violated the invariant.
+        action_id: String,
+    },
+    /// A quick-action card does not disclose command and shortcut truth.
+    QuickActionDisclosureMissing {
+        /// Action id that violated the invariant.
+        action_id: String,
+    },
+    /// A quick-action card hides local-first entry before sign-in or network.
+    QuickActionAvailabilityNarrowed {
+        /// Action id that violated the invariant.
+        action_id: String,
     },
     /// A row is missing from the Start Center projection.
     RowMissingFromStartCenter {
@@ -971,6 +1208,61 @@ pub fn validate_m5_start_center_and_switcher_packet(
         }
     }
 
+    let expected_actions = StartCenterPrimaryActionId::ordered();
+    if packet.quick_action_cards.len() != expected_actions.len() {
+        for action in expected_actions {
+            if !packet
+                .quick_action_cards
+                .iter()
+                .any(|card| card.action_id == action.token())
+            {
+                errors.push(
+                    M5StartCenterSwitcherValidationError::QuickActionCardMissing {
+                        action_id: action.token().to_owned(),
+                    },
+                );
+            }
+        }
+    }
+    for (idx, action) in expected_actions.iter().enumerate() {
+        let Some(card) = packet.quick_action_cards.get(idx) else {
+            errors.push(
+                M5StartCenterSwitcherValidationError::QuickActionCardMissing {
+                    action_id: action.token().to_owned(),
+                },
+            );
+            continue;
+        };
+        if card.action_id != action.token() || card.label != action.label() {
+            errors.push(
+                M5StartCenterSwitcherValidationError::QuickActionCardMissing {
+                    action_id: action.token().to_owned(),
+                },
+            );
+        }
+        if card.icon_name.trim().is_empty()
+            || card.helper_text.trim().is_empty()
+            || card.command_id != action.command_id()
+            || card.shortcut_disclosure.trim().is_empty()
+        {
+            errors.push(
+                M5StartCenterSwitcherValidationError::QuickActionDisclosureMissing {
+                    action_id: card.action_id.clone(),
+                },
+            );
+        }
+        if !card.visible_before_sign_in
+            || !card.visible_before_network_ready
+            || !card.keyboard_reachable
+        {
+            errors.push(
+                M5StartCenterSwitcherValidationError::QuickActionAvailabilityNarrowed {
+                    action_id: card.action_id.clone(),
+                },
+            );
+        }
+    }
+
     for row in &packet.rows {
         if !row.present_in_start_center {
             errors.push(
@@ -1021,6 +1313,16 @@ pub fn validate_m5_start_center_and_switcher_packet(
             });
         }
         if !row.keyboard_complete {
+            errors.push(M5StartCenterSwitcherValidationError::KeyboardIncomplete {
+                recent_work_id: row.recent_work_id.clone(),
+            });
+        }
+        if row.last_opened_at.trim().is_empty()
+            || row.target_kind_label.trim().is_empty()
+            || row.unavailable_target_condition != row.failure_state.as_str()
+            || row.start_center_action_labels.len() != row.start_center_safe_actions.len()
+            || row.switcher_action_labels.len() != row.switcher_safe_actions.len()
+        {
             errors.push(M5StartCenterSwitcherValidationError::KeyboardIncomplete {
                 recent_work_id: row.recent_work_id.clone(),
             });
@@ -1407,6 +1709,7 @@ pub fn seeded_m5_start_center_and_switcher_packet() -> M5StartCenterSwitcherPack
         headline:
             "Start Center and in-workspace switcher project the same M5 entry-target classes, trust, restore, and missing-root truth."
                 .to_owned(),
+        quick_action_cards: seeded_m5_start_center_quick_action_cards(),
         rows,
         diagnostics,
         surface_class_coverage,
