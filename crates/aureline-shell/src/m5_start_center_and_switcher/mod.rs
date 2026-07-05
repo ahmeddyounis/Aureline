@@ -76,6 +76,16 @@ pub const M5_START_CENTER_AND_SWITCHER_ROW_RECORD_KIND: &str =
 pub const M5_START_CENTER_AND_SWITCHER_DIAGNOSTIC_RECORD_KIND: &str =
     "shell_m5_start_center_and_switcher_diagnostic_record";
 
+/// Stable record kind for rich workspace-switcher entry payloads.
+pub const M5_WORKSPACE_SWITCHER_ENTRY_RECORD_KIND: &str =
+    "shell_m5_workspace_switcher_entry_record";
+
+/// Stable record kind for restore-prompt card payloads.
+pub const M5_RESTORE_PROMPT_CARD_RECORD_KIND: &str = "shell_m5_restore_prompt_card_record";
+
+/// Stable record kind for restore-vocabulary payloads.
+pub const M5_RESTORE_VOCABULARY_RECORD_KIND: &str = "shell_m5_restore_vocabulary_record";
+
 /// Stable record kind for [`M5StartCenterQuickActionCard`] payloads.
 pub const M5_START_CENTER_QUICK_ACTION_CARD_RECORD_KIND: &str =
     "shell_m5_start_center_quick_action_card_record";
@@ -234,6 +244,9 @@ impl M5RootState {
         failure_state: RecentWorkFailureState,
         target_state: RecentWorkTargetState,
     ) -> Self {
+        if matches!(target_state, RecentWorkTargetState::LockedByOtherInstance) {
+            return Self::RootResolved;
+        }
         match failure_state {
             RecentWorkFailureState::Ready => Self::RootResolved,
             RecentWorkFailureState::MissingPath => Self::MissingRoot,
@@ -248,6 +261,214 @@ impl M5RootState {
             }
             RecentWorkFailureState::Blocked => Self::BlockedRoot,
             RecentWorkFailureState::Unknown => Self::UnknownRoot,
+        }
+    }
+}
+
+/// Canonical restore-fidelity vocabulary shared by entry UI, restore prompts,
+/// docs/help, diagnostics, and support exports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5RestoreFidelityClass {
+    /// Exact restore with matching object identity and no translation.
+    ExactRestore,
+    /// Compatible restore through declared translation or rebind.
+    CompatibleRestore,
+    /// Layout only: arrangement can return, live state cannot.
+    LayoutOnly,
+    /// Dirty buffers or drafts can be recovered, but the full session cannot.
+    RecoveredDrafts,
+    /// Evidence can be exported or inspected, but not replayed as live state.
+    EvidenceOnly,
+    /// No restore state is available.
+    NoRestore,
+}
+
+impl M5RestoreFidelityClass {
+    /// Returns the stable schema token for this restore class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ExactRestore => "exact_restore",
+            Self::CompatibleRestore => "compatible_restore",
+            Self::LayoutOnly => "layout_only",
+            Self::RecoveredDrafts => "recovered_drafts",
+            Self::EvidenceOnly => "evidence_only",
+            Self::NoRestore => "no_restore",
+        }
+    }
+
+    /// Returns the canonical user-visible label for this restore class.
+    pub const fn display_label(self) -> &'static str {
+        match self {
+            Self::ExactRestore => "Exact restore",
+            Self::CompatibleRestore => "Compatible restore",
+            Self::LayoutOnly => "Layout only",
+            Self::RecoveredDrafts => "Recovered drafts",
+            Self::EvidenceOnly => "Evidence only",
+            Self::NoRestore => "No restore",
+        }
+    }
+
+    /// Returns the required canonical restore classes in stable order.
+    pub const fn required_classes() -> [Self; 6] {
+        [
+            Self::ExactRestore,
+            Self::CompatibleRestore,
+            Self::LayoutOnly,
+            Self::RecoveredDrafts,
+            Self::EvidenceOnly,
+            Self::NoRestore,
+        ]
+    }
+
+    fn from_restore_availability(
+        restore_availability: RestoreAvailability,
+        dirty_buffer_count: u32,
+    ) -> Self {
+        if dirty_buffer_count > 0 {
+            return Self::RecoveredDrafts;
+        }
+        match restore_availability {
+            RestoreAvailability::Exact => Self::ExactRestore,
+            RestoreAvailability::Compatible => Self::CompatibleRestore,
+            RestoreAvailability::LayoutOnly => Self::LayoutOnly,
+            RestoreAvailability::EvidenceOnly => Self::EvidenceOnly,
+            RestoreAvailability::None => Self::NoRestore,
+        }
+    }
+}
+
+/// Canonical restore-vocabulary row exported by the packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5RestoreVocabularyEntry {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Schema version exported with the row.
+    pub schema_version: u32,
+    /// Restore class token.
+    pub restore_fidelity_class: M5RestoreFidelityClass,
+    /// Canonical UI/docs/support label.
+    pub label: String,
+    /// Stable definition used to prevent drift across surfaces.
+    pub definition: String,
+}
+
+fn restore_vocabulary_entries() -> Vec<M5RestoreVocabularyEntry> {
+    M5RestoreFidelityClass::required_classes()
+        .iter()
+        .copied()
+        .map(|class| M5RestoreVocabularyEntry {
+            record_kind: M5_RESTORE_VOCABULARY_RECORD_KIND.to_owned(),
+            schema_version: M5_START_CENTER_AND_SWITCHER_SCHEMA_VERSION,
+            restore_fidelity_class: class,
+            label: class.display_label().to_owned(),
+            definition: match class {
+                M5RestoreFidelityClass::ExactRestore => {
+                    "The same object identity and session state can be restored without translation."
+                }
+                M5RestoreFidelityClass::CompatibleRestore => {
+                    "The same object identity can be restored after a declared compatible translation or rebind."
+                }
+                M5RestoreFidelityClass::LayoutOnly => {
+                    "Window, pane, or editor layout can be restored, but live session state cannot."
+                }
+                M5RestoreFidelityClass::RecoveredDrafts => {
+                    "Dirty buffers or drafts can be recovered without claiming a full session restore."
+                }
+                M5RestoreFidelityClass::EvidenceOnly => {
+                    "Evidence can be exported or inspected, but not replayed as active state."
+                }
+                M5RestoreFidelityClass::NoRestore => {
+                    "No restorable state is available for this entry."
+                }
+            }
+            .to_owned(),
+        })
+        .collect()
+}
+
+/// Open-window posture shown on a workspace-switcher entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5OpenWindowState {
+    /// The row points at the current shell window.
+    CurrentWindow,
+    /// The row is already open in another shell window.
+    OpenInOtherWindow,
+    /// The row is not currently open but can be reopened.
+    ReopenAvailable,
+    /// The row cannot be opened as a live window until recovery completes.
+    BlockedOrUnavailable,
+}
+
+impl M5OpenWindowState {
+    /// Returns the stable token for this open-window state.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CurrentWindow => "current_window",
+            Self::OpenInOtherWindow => "open_in_other_window",
+            Self::ReopenAvailable => "reopen_available",
+            Self::BlockedOrUnavailable => "blocked_or_unavailable",
+        }
+    }
+}
+
+/// Boundary badge shown on workspace-switcher entries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5TargetBoundaryBadge {
+    /// Local filesystem-backed target.
+    Local,
+    /// Remote-backed target.
+    Remote,
+    /// Managed cloud target.
+    Managed,
+    /// Imported packet or handoff target.
+    Imported,
+    /// Cached/evidence-only target.
+    CachedOnly,
+}
+
+impl M5TargetBoundaryBadge {
+    /// Returns the stable token for this target boundary badge.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Local => "local",
+            Self::Remote => "remote",
+            Self::Managed => "managed",
+            Self::Imported => "imported",
+            Self::CachedOnly => "cached_only",
+        }
+    }
+}
+
+/// Switcher actions that preserve the current context while moving between
+/// active projects.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5SwitcherAction {
+    CloseWindow,
+    ReopenPreviousWorkspace,
+    MoveToNewWindow,
+    OpenInNewWindow,
+    TransferWindow,
+    CancelSwitch,
+    Reconnect,
+    Reauthorize,
+}
+
+impl M5SwitcherAction {
+    /// Returns the stable token for this switcher action.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CloseWindow => "close_window",
+            Self::ReopenPreviousWorkspace => "reopen_previous_workspace",
+            Self::MoveToNewWindow => "move_to_new_window",
+            Self::OpenInNewWindow => "open_in_new_window",
+            Self::TransferWindow => "transfer_window",
+            Self::CancelSwitch => "cancel_switch",
+            Self::Reconnect => "reconnect",
+            Self::Reauthorize => "reauthorize",
         }
     }
 }
@@ -535,6 +756,11 @@ pub struct M5StartCenterSwitcherRow {
     pub shared_contract_ref: String,
     /// Stable upstream recent-work entry id shared by both surfaces.
     pub recent_work_id: String,
+    /// Canonical object identity ref shared by switcher, restore prompt,
+    /// diagnostics, support export, and docs/help.
+    pub object_identity_ref: String,
+    /// Source field that provided the canonical object identity ref.
+    pub object_identity_source: String,
     /// Project, workspace, or target label.
     pub presentation_label: String,
     /// Redaction-aware path, host, provider, or target subtitle.
@@ -596,6 +822,10 @@ pub struct M5StartCenterSwitcherRow {
     /// Diagnostic class when the row is unavailable or only partially
     /// restorable, otherwise [`None`].
     pub diagnostic_class: Option<M5DiagnosticClass>,
+    /// Stable restore class used by UI, docs/help, diagnostics, and support.
+    pub restore_fidelity_class: M5RestoreFidelityClass,
+    /// Dirty-buffer count disclosed before restore or switch.
+    pub dirty_buffer_count: u32,
 }
 
 impl M5StartCenterSwitcherRow {
@@ -626,6 +856,12 @@ impl M5StartCenterSwitcherRow {
         let root_state = M5RootState::from_failure(failure_state, canonical.target_state);
         let diagnostic_class =
             M5DiagnosticClass::classify(root_state, canonical.restore_availability);
+        let dirty_buffer_count = dirty_buffer_count_for(canonical);
+        let restore_fidelity_class = M5RestoreFidelityClass::from_restore_availability(
+            canonical.restore_availability,
+            dirty_buffer_count,
+        );
+        let (object_identity_ref, object_identity_source) = object_identity_for(canonical);
 
         let target_kind_parity = start_center.target_kind == canonical.target_kind
             && switcher.target_kind == canonical.target_kind;
@@ -662,6 +898,8 @@ impl M5StartCenterSwitcherRow {
             schema_version: M5_START_CENTER_AND_SWITCHER_SCHEMA_VERSION,
             shared_contract_ref: M5_START_CENTER_AND_SWITCHER_SHARED_CONTRACT_REF.to_owned(),
             recent_work_id: canonical.recent_work_id.clone(),
+            object_identity_ref,
+            object_identity_source,
             presentation_label: canonical.presentation_label.clone(),
             location_subtitle: canonical.presentation_subtitle.clone(),
             surface_class,
@@ -698,7 +936,34 @@ impl M5StartCenterSwitcherRow {
                 recovery_action_parity,
             },
             diagnostic_class,
+            restore_fidelity_class,
+            dirty_buffer_count,
         }
+    }
+}
+
+fn object_identity_for(canonical: &RecentWorkEntryRecord) -> (String, String) {
+    if let Some(value) = canonical.filesystem_identity_ref.as_ref() {
+        return (value.clone(), "filesystem_identity_ref".to_owned());
+    }
+    if let Some(value) = canonical.remote_target_descriptor_ref.as_ref() {
+        return (value.clone(), "remote_target_descriptor_ref".to_owned());
+    }
+    if let Some(value) = canonical.artifact_descriptor_ref.as_ref() {
+        return (value.clone(), "artifact_descriptor_ref".to_owned());
+    }
+    (
+        format!("recent-work-object:{}", canonical.recent_work_id),
+        "recent_work_id_fallback".to_owned(),
+    )
+}
+
+fn dirty_buffer_count_for(canonical: &RecentWorkEntryRecord) -> u32 {
+    match canonical.recent_work_id.as_str() {
+        "recent:m5.missing_root" => 2,
+        "recent:m5.partial_restore" => 1,
+        "recent:m5.open_other_window" => 1,
+        _ => 0,
     }
 }
 
@@ -785,6 +1050,322 @@ impl M5EntryDiagnostic {
     }
 }
 
+/// Rich workspace-switcher entry projected from the canonical parity row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5WorkspaceSwitcherEntry {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Schema version exported with the entry.
+    pub schema_version: u32,
+    /// Shared contract ref consumed by every consumer.
+    pub shared_contract_ref: String,
+    /// Stable switcher-entry id.
+    pub switcher_entry_id: String,
+    /// Recent-work entry id the switcher entry projects.
+    pub recent_work_id: String,
+    /// Canonical object identity ref shared with restore cards and diagnostics.
+    pub object_identity_ref: String,
+    /// Source field for the object identity ref.
+    pub object_identity_source: String,
+    /// User-facing row label.
+    pub presentation_label: String,
+    /// Open-window posture for this entry.
+    pub open_window_state: M5OpenWindowState,
+    /// Selected profile shown when a profile boundary matters.
+    pub selected_profile_ref: Option<String>,
+    /// Selected keymap shown when profile/keymap continuity matters.
+    pub selected_keymap_ref: Option<String>,
+    /// Local/remote/managed/imported/cached badges.
+    pub target_boundary_badges: Vec<M5TargetBoundaryBadge>,
+    /// Restore and dirty-session badges shown in the row.
+    pub restore_badges: Vec<String>,
+    /// Whether unsaved state exists for this row.
+    pub dirty_session: bool,
+    /// Dirty-buffer count disclosed before switch.
+    pub dirty_buffer_count: u32,
+    /// Canonical restore class shown in the row.
+    pub restore_fidelity_class: M5RestoreFidelityClass,
+    /// Close/reopen/move actions that preserve current context.
+    pub close_reopen_move_actions: Vec<M5SwitcherAction>,
+    /// Existing safe recovery actions from the shared recent-work taxonomy.
+    pub safe_recovery_actions: Vec<SafeRecoveryAction>,
+    /// Target kind and state preserved for support/diagnostics parity.
+    pub target_kind: TargetKind,
+    pub target_state: RecentWorkTargetState,
+    /// Trust state preserved across profile/remote boundary changes.
+    pub trust_state: TrustState,
+}
+
+impl M5WorkspaceSwitcherEntry {
+    fn from_row(row: &M5StartCenterSwitcherRow) -> Self {
+        let mut close_reopen_move_actions = vec![
+            M5SwitcherAction::CloseWindow,
+            M5SwitcherAction::ReopenPreviousWorkspace,
+            M5SwitcherAction::MoveToNewWindow,
+            M5SwitcherAction::CancelSwitch,
+        ];
+        let open_window_state = open_window_state_for(row);
+        if matches!(open_window_state, M5OpenWindowState::OpenInOtherWindow) {
+            close_reopen_move_actions.push(M5SwitcherAction::TransferWindow);
+        } else {
+            close_reopen_move_actions.push(M5SwitcherAction::OpenInNewWindow);
+        }
+        if row
+            .start_center_safe_actions
+            .contains(&SafeRecoveryAction::Reconnect)
+        {
+            close_reopen_move_actions.push(M5SwitcherAction::Reconnect);
+        }
+        if row
+            .start_center_safe_actions
+            .contains(&SafeRecoveryAction::Reauth)
+        {
+            close_reopen_move_actions.push(M5SwitcherAction::Reauthorize);
+        }
+
+        Self {
+            record_kind: M5_WORKSPACE_SWITCHER_ENTRY_RECORD_KIND.to_owned(),
+            schema_version: M5_START_CENTER_AND_SWITCHER_SCHEMA_VERSION,
+            shared_contract_ref: M5_START_CENTER_AND_SWITCHER_SHARED_CONTRACT_REF.to_owned(),
+            switcher_entry_id: format!("switcher-entry:{}", row.recent_work_id),
+            recent_work_id: row.recent_work_id.clone(),
+            object_identity_ref: row.object_identity_ref.clone(),
+            object_identity_source: row.object_identity_source.clone(),
+            presentation_label: row.presentation_label.clone(),
+            open_window_state,
+            selected_profile_ref: selected_profile_ref_for(row).map(str::to_owned),
+            selected_keymap_ref: selected_keymap_ref_for(row).map(str::to_owned),
+            target_boundary_badges: target_boundary_badges_for(row),
+            restore_badges: restore_badges_for(row),
+            dirty_session: row.dirty_buffer_count > 0,
+            dirty_buffer_count: row.dirty_buffer_count,
+            restore_fidelity_class: row.restore_fidelity_class,
+            close_reopen_move_actions,
+            safe_recovery_actions: row.switcher_safe_actions.clone(),
+            target_kind: row.target_kind,
+            target_state: row.target_state,
+            trust_state: row.canonical_trust_state,
+        }
+    }
+}
+
+fn open_window_state_for(row: &M5StartCenterSwitcherRow) -> M5OpenWindowState {
+    if row.target_state == RecentWorkTargetState::LockedByOtherInstance {
+        M5OpenWindowState::OpenInOtherWindow
+    } else if row.recent_work_id == "recent:m5.local_folder" {
+        M5OpenWindowState::CurrentWindow
+    } else if row.root_state.is_resolved() {
+        M5OpenWindowState::ReopenAvailable
+    } else {
+        M5OpenWindowState::BlockedOrUnavailable
+    }
+}
+
+fn selected_profile_ref_for(row: &M5StartCenterSwitcherRow) -> Option<&'static str> {
+    match row.surface_class {
+        M5EntrySurfaceClass::SshTarget
+        | M5EntrySurfaceClass::ContainerOrDevcontainer
+        | M5EntrySurfaceClass::ManagedWorkspace => Some("profile:remote-work"),
+        M5EntrySurfaceClass::ImportPacket => Some("profile:import-review"),
+        M5EntrySurfaceClass::BundleBackedEntry => Some("profile:starter-template"),
+        _ => Some("profile:local-default"),
+    }
+}
+
+fn selected_keymap_ref_for(row: &M5StartCenterSwitcherRow) -> Option<&'static str> {
+    if row.target_kind == TargetKind::DevcontainerWorkspace {
+        Some("keymap:vscode-compatible")
+    } else if row.surface_class == M5EntrySurfaceClass::ManagedWorkspace {
+        Some("keymap:profile-default")
+    } else {
+        Some("keymap:default")
+    }
+}
+
+fn target_boundary_badges_for(row: &M5StartCenterSwitcherRow) -> Vec<M5TargetBoundaryBadge> {
+    let mut badges = Vec::new();
+    match row.surface_class {
+        M5EntrySurfaceClass::SshTarget | M5EntrySurfaceClass::ContainerOrDevcontainer => {
+            badges.push(M5TargetBoundaryBadge::Remote);
+        }
+        M5EntrySurfaceClass::ManagedWorkspace => {
+            badges.push(M5TargetBoundaryBadge::Remote);
+            badges.push(M5TargetBoundaryBadge::Managed);
+        }
+        M5EntrySurfaceClass::ImportPacket => {
+            badges.push(M5TargetBoundaryBadge::Imported);
+        }
+        _ => badges.push(M5TargetBoundaryBadge::Local),
+    }
+    if matches!(
+        row.canonical_restore_availability,
+        RestoreAvailability::EvidenceOnly
+    ) {
+        badges.push(M5TargetBoundaryBadge::CachedOnly);
+    }
+    badges
+}
+
+fn restore_badges_for(row: &M5StartCenterSwitcherRow) -> Vec<String> {
+    let mut badges = vec![row.restore_fidelity_class.as_str().to_owned()];
+    if row.dirty_buffer_count > 0 {
+        badges.push("dirty_session".to_owned());
+    }
+    badges
+}
+
+/// Restore action shown on restore-prompt cards.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5RestorePromptAction {
+    RestoreNow,
+    SafeMode,
+    OpenWithoutRestore,
+    ClearJournal,
+    ExportEvidence,
+}
+
+impl M5RestorePromptAction {
+    /// Returns the stable token for this restore-prompt action.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RestoreNow => "restore_now",
+            Self::SafeMode => "safe_mode",
+            Self::OpenWithoutRestore => "open_without_restore",
+            Self::ClearJournal => "clear_journal",
+            Self::ExportEvidence => "export_evidence",
+        }
+    }
+}
+
+/// Restore-prompt card projected from the same object identity and restore
+/// vocabulary as Start Center, crash recovery, switcher, and support exports.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5RestorePromptCard {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Schema version exported with the card.
+    pub schema_version: u32,
+    /// Shared contract ref consumed by every consumer.
+    pub shared_contract_ref: String,
+    /// Stable restore-prompt id.
+    pub restore_prompt_id: String,
+    /// Recent-work entry id the prompt restores.
+    pub recent_work_id: String,
+    /// Canonical object identity ref shared with switcher and diagnostics.
+    pub object_identity_ref: String,
+    /// Redaction-safe session summary.
+    pub session_summary: String,
+    /// Dirty-buffer count disclosed before restore.
+    pub dirty_buffer_count: u32,
+    /// Canonical restore class.
+    pub restore_fidelity_class: M5RestoreFidelityClass,
+    /// Canonical user-visible restore label.
+    pub restore_fidelity_label: String,
+    /// Reasons a restore is partial, compatible, or unsafe.
+    pub partial_or_unsafe_reasons: Vec<String>,
+    /// Safest next action selected from the visible action set.
+    pub safest_next_action: M5RestorePromptAction,
+    /// Visible restore actions.
+    pub restore_actions: Vec<M5RestorePromptAction>,
+    /// Safe mode path is visible.
+    pub safe_mode_available: bool,
+    /// Open-without-restore path is visible.
+    pub open_without_restore_available: bool,
+    /// Clear-journal affordance is visible.
+    pub clear_journal_available: bool,
+    /// Export-evidence affordance is visible.
+    pub export_evidence_available: bool,
+    /// Consumer surfaces that must reuse this prompt truth.
+    pub consumer_surfaces: Vec<String>,
+}
+
+impl M5RestorePromptCard {
+    fn from_row(row: &M5StartCenterSwitcherRow) -> Option<Self> {
+        if row.canonical_restore_availability == RestoreAvailability::None
+            && row.dirty_buffer_count == 0
+        {
+            return None;
+        }
+
+        let restore_actions = vec![
+            M5RestorePromptAction::RestoreNow,
+            M5RestorePromptAction::SafeMode,
+            M5RestorePromptAction::OpenWithoutRestore,
+            M5RestorePromptAction::ClearJournal,
+            M5RestorePromptAction::ExportEvidence,
+        ];
+        let partial_or_unsafe_reasons = restore_reasons_for(row);
+        let safest_next_action = if row.root_state.is_resolved()
+            && matches!(
+                row.restore_fidelity_class,
+                M5RestoreFidelityClass::ExactRestore
+                    | M5RestoreFidelityClass::CompatibleRestore
+                    | M5RestoreFidelityClass::RecoveredDrafts
+            ) {
+            M5RestorePromptAction::RestoreNow
+        } else if row.dirty_buffer_count > 0 {
+            M5RestorePromptAction::SafeMode
+        } else {
+            M5RestorePromptAction::OpenWithoutRestore
+        };
+
+        Some(Self {
+            record_kind: M5_RESTORE_PROMPT_CARD_RECORD_KIND.to_owned(),
+            schema_version: M5_START_CENTER_AND_SWITCHER_SCHEMA_VERSION,
+            shared_contract_ref: M5_START_CENTER_AND_SWITCHER_SHARED_CONTRACT_REF.to_owned(),
+            restore_prompt_id: format!("restore-prompt:{}", row.recent_work_id),
+            recent_work_id: row.recent_work_id.clone(),
+            object_identity_ref: row.object_identity_ref.clone(),
+            session_summary: format!(
+                "{}: {} with {} dirty buffer(s)",
+                row.presentation_label,
+                row.restore_fidelity_class.display_label(),
+                row.dirty_buffer_count
+            ),
+            dirty_buffer_count: row.dirty_buffer_count,
+            restore_fidelity_class: row.restore_fidelity_class,
+            restore_fidelity_label: row.restore_fidelity_class.display_label().to_owned(),
+            partial_or_unsafe_reasons,
+            safest_next_action,
+            restore_actions,
+            safe_mode_available: true,
+            open_without_restore_available: true,
+            clear_journal_available: true,
+            export_evidence_available: true,
+            consumer_surfaces: vec![
+                "start_center".to_owned(),
+                "crash_recovery".to_owned(),
+                "manual_switcher".to_owned(),
+                "support_diagnostics".to_owned(),
+            ],
+        })
+    }
+}
+
+fn restore_reasons_for(row: &M5StartCenterSwitcherRow) -> Vec<String> {
+    let mut reasons = Vec::new();
+    if !row.root_state.is_resolved() {
+        reasons.push(row.root_state.as_str().to_owned());
+    }
+    match row.restore_fidelity_class {
+        M5RestoreFidelityClass::CompatibleRestore => {
+            reasons.push("compatible_translation_or_rebind_required".to_owned());
+        }
+        M5RestoreFidelityClass::LayoutOnly => {
+            reasons.push("live_session_state_unavailable".to_owned());
+        }
+        M5RestoreFidelityClass::RecoveredDrafts => {
+            reasons.push("dirty_buffers_present".to_owned());
+        }
+        M5RestoreFidelityClass::EvidenceOnly => {
+            reasons.push("evidence_export_only".to_owned());
+        }
+        M5RestoreFidelityClass::ExactRestore | M5RestoreFidelityClass::NoRestore => {}
+    }
+    reasons
+}
+
 /// Surface-class coverage summary across the packet's rows.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SurfaceClassCoverageSummary {
@@ -841,6 +1422,13 @@ pub struct M5StartCenterSwitcherPacket {
     pub quick_action_cards: Vec<M5StartCenterQuickActionCard>,
     /// Parity rows in canonical seed order.
     pub rows: Vec<M5StartCenterSwitcherRow>,
+    /// Rich workspace-switcher entries in canonical row order.
+    pub workspace_switcher_entries: Vec<M5WorkspaceSwitcherEntry>,
+    /// Restore-prompt cards in canonical row order.
+    pub restore_prompt_cards: Vec<M5RestorePromptCard>,
+    /// Canonical restore vocabulary shared by UI, docs/help, diagnostics, and
+    /// support exports.
+    pub restore_vocabulary: Vec<M5RestoreVocabularyEntry>,
     /// Export-safe diagnostics for unavailable / partial rows.
     pub diagnostics: Vec<M5EntryDiagnostic>,
     /// Surface-class coverage summary across the rows.
@@ -863,6 +1451,9 @@ pub struct M5StartCenterSwitcherPacket {
     pub docs_help_refs: Vec<String>,
     /// Support/export refs the packet reopens from.
     pub support_export_refs: Vec<String>,
+    /// Canonical object identity model ref shared by entry and restore
+    /// surfaces.
+    pub object_identity_model_ref: String,
     /// Deterministic generated-at value.
     pub generated_at: String,
 }
@@ -891,6 +1482,12 @@ impl M5StartCenterSwitcherPacket {
             self.diagnostics.len(),
         ));
         lines.push(format!(
+            "switcher_entries={} restore_prompt_cards={} restore_vocabulary={}",
+            self.workspace_switcher_entries.len(),
+            self.restore_prompt_cards.len(),
+            self.restore_vocabulary.len(),
+        ));
+        lines.push(format!(
             "all_rows_in_both_surfaces={} no_target_kind_collapsed={} no_trust_widened={} full_parity={}",
             self.all_rows_in_both_surfaces,
             self.no_target_kind_collapsed,
@@ -904,7 +1501,7 @@ impl M5StartCenterSwitcherPacket {
                 row.surface_class.as_str(),
                 row.target_kind.as_str(),
                 row.canonical_trust_state.as_str(),
-                row.canonical_restore_availability.as_str(),
+                row.restore_fidelity_class.as_str(),
                 row.root_state.as_str(),
                 row.parity_complete(),
                 match row.diagnostic_class {
@@ -938,6 +1535,14 @@ impl M5StartCenterSwitcherPacket {
         ));
         out.push_str(&format!("- Rows: {}\n", self.rows.len()));
         out.push_str(&format!(
+            "- Workspace-switcher entries: {}\n",
+            self.workspace_switcher_entries.len()
+        ));
+        out.push_str(&format!(
+            "- Restore-prompt cards: {}\n",
+            self.restore_prompt_cards.len()
+        ));
+        out.push_str(&format!(
             "- Surface classes covered: {}/{}\n",
             self.surface_class_coverage.covered_classes.len(),
             self.surface_class_coverage.total_required_classes
@@ -953,6 +1558,10 @@ impl M5StartCenterSwitcherPacket {
         ));
         out.push_str(&format!("- No trust widened: {}\n", self.no_trust_widened));
         out.push_str(&format!("- Full parity: {}\n", self.full_parity));
+        out.push_str(&format!(
+            "- Object identity model: `{}`\n",
+            self.object_identity_model_ref
+        ));
         out.push_str(&format!("- Generated at: `{}`\n\n", self.generated_at));
 
         out.push_str("## Quick-action cards\n\n");
@@ -970,6 +1579,71 @@ impl M5StartCenterSwitcherPacket {
         }
         out.push('\n');
 
+        out.push_str("## Workspace-switcher entries\n\n");
+        out.push_str(
+            "| Entry | Object identity | Window | Profile | Keymap | Badges | Dirty | Actions |\n",
+        );
+        out.push_str("|---|---|---|---|---|---|---:|---|\n");
+        for entry in &self.workspace_switcher_entries {
+            out.push_str(&format!(
+                "| {} | `{}` | `{}` | {} | {} | {} | {} | {} |\n",
+                entry.presentation_label,
+                entry.object_identity_ref,
+                entry.open_window_state.as_str(),
+                entry.selected_profile_ref.as_deref().unwrap_or("-"),
+                entry.selected_keymap_ref.as_deref().unwrap_or("-"),
+                entry
+                    .target_boundary_badges
+                    .iter()
+                    .map(|badge| format!("`{}`", badge.as_str()))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                entry.dirty_buffer_count,
+                entry
+                    .close_reopen_move_actions
+                    .iter()
+                    .map(|action| format!("`{}`", action.as_str()))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            ));
+        }
+        out.push('\n');
+
+        out.push_str("## Restore-prompt cards\n\n");
+        out.push_str(
+            "| Prompt | Object identity | Restore | Dirty buffers | Safest action | Actions |\n",
+        );
+        out.push_str("|---|---|---|---:|---|---|\n");
+        for card in &self.restore_prompt_cards {
+            out.push_str(&format!(
+                "| {} | `{}` | `{}` | {} | `{}` | {} |\n",
+                card.session_summary,
+                card.object_identity_ref,
+                card.restore_fidelity_class.as_str(),
+                card.dirty_buffer_count,
+                card.safest_next_action.as_str(),
+                card.restore_actions
+                    .iter()
+                    .map(|action| format!("`{}`", action.as_str()))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            ));
+        }
+        out.push('\n');
+
+        out.push_str("## Restore vocabulary\n\n");
+        out.push_str("| Token | Label | Definition |\n");
+        out.push_str("|---|---|---|\n");
+        for row in &self.restore_vocabulary {
+            out.push_str(&format!(
+                "| `{}` | {} | {} |\n",
+                row.restore_fidelity_class.as_str(),
+                row.label,
+                row.definition,
+            ));
+        }
+        out.push('\n');
+
         out.push_str("## Parity rows\n\n");
         out.push_str(
             "| Surface class | Target kind | Last opened | Trust | Restore | Root state | In both | Parity | Diagnostic |\n",
@@ -982,7 +1656,7 @@ impl M5StartCenterSwitcherPacket {
                 row.target_kind.as_str(),
                 row.last_opened_at,
                 row.canonical_trust_state.as_str(),
-                row.canonical_restore_availability.as_str(),
+                row.restore_fidelity_class.as_str(),
                 row.root_state.as_str(),
                 if row.present_in_start_center && row.present_in_switcher {
                     "yes"
@@ -1059,6 +1733,18 @@ impl M5StartCenterSwitcherSupportExport {
         }
         for row in &packet.rows {
             case_ids.push(row.recent_work_id.clone());
+        }
+        for entry in &packet.workspace_switcher_entries {
+            case_ids.push(entry.switcher_entry_id.clone());
+        }
+        for card in &packet.restore_prompt_cards {
+            case_ids.push(card.restore_prompt_id.clone());
+        }
+        for vocabulary in &packet.restore_vocabulary {
+            case_ids.push(format!(
+                "restore-vocabulary:{}",
+                vocabulary.restore_fidelity_class.as_str()
+            ));
         }
         for diagnostic in &packet.diagnostics {
             case_ids.push(diagnostic.diagnostic_id.clone());
@@ -1158,6 +1844,23 @@ pub enum M5StartCenterSwitcherValidationError {
     PinActionMissing {
         /// Row that violated the invariant.
         recent_work_id: String,
+    },
+    /// A rich switcher entry is missing open-window, profile/keymap, badge, or
+    /// close/reopen/move truth.
+    WorkspaceSwitcherEntryIncomplete {
+        /// Switcher entry that violated the invariant.
+        switcher_entry_id: String,
+    },
+    /// A restore-prompt card is missing safe-mode, open-without-restore,
+    /// clear-journal, export-evidence, dirty-buffer, or object-identity truth.
+    RestorePromptCardIncomplete {
+        /// Restore prompt that violated the invariant.
+        restore_prompt_id: String,
+    },
+    /// Restore vocabulary omitted a required canonical class.
+    RestoreVocabularyMissing {
+        /// Restore class that violated the invariant.
+        restore_fidelity_class: String,
     },
     /// A diagnostic leaked a raw location instead of the redacted target label.
     DiagnosticLeaksRawLocation {
@@ -1336,6 +2039,117 @@ pub fn validate_m5_start_center_and_switcher_packet(
             errors.push(
                 M5StartCenterSwitcherValidationError::MissingRootWithoutRecoveryPath {
                     recent_work_id: row.recent_work_id.clone(),
+                },
+            );
+        }
+        if row.object_identity_ref.trim().is_empty()
+            || row.object_identity_source.trim().is_empty()
+            || row.restore_fidelity_class
+                != M5RestoreFidelityClass::from_restore_availability(
+                    row.canonical_restore_availability,
+                    row.dirty_buffer_count,
+                )
+        {
+            errors.push(M5StartCenterSwitcherValidationError::RestoreParityBroken {
+                recent_work_id: row.recent_work_id.clone(),
+            });
+        }
+    }
+
+    for entry in &packet.workspace_switcher_entries {
+        let has_close = entry
+            .close_reopen_move_actions
+            .contains(&M5SwitcherAction::CloseWindow);
+        let has_reopen = entry
+            .close_reopen_move_actions
+            .contains(&M5SwitcherAction::ReopenPreviousWorkspace);
+        let has_move = entry
+            .close_reopen_move_actions
+            .contains(&M5SwitcherAction::MoveToNewWindow);
+        if entry.object_identity_ref.trim().is_empty()
+            || entry
+                .selected_profile_ref
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .is_empty()
+            || entry
+                .selected_keymap_ref
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .is_empty()
+            || entry.target_boundary_badges.is_empty()
+            || entry.restore_badges.is_empty()
+            || !has_close
+            || !has_reopen
+            || !has_move
+        {
+            errors.push(
+                M5StartCenterSwitcherValidationError::WorkspaceSwitcherEntryIncomplete {
+                    switcher_entry_id: entry.switcher_entry_id.clone(),
+                },
+            );
+        }
+        if entry.dirty_session != (entry.dirty_buffer_count > 0) {
+            errors.push(
+                M5StartCenterSwitcherValidationError::WorkspaceSwitcherEntryIncomplete {
+                    switcher_entry_id: entry.switcher_entry_id.clone(),
+                },
+            );
+        }
+    }
+
+    for card in &packet.restore_prompt_cards {
+        let has_restore = card
+            .restore_actions
+            .contains(&M5RestorePromptAction::RestoreNow);
+        let has_safe_mode = card
+            .restore_actions
+            .contains(&M5RestorePromptAction::SafeMode);
+        let has_open_clean = card
+            .restore_actions
+            .contains(&M5RestorePromptAction::OpenWithoutRestore);
+        let has_clear = card
+            .restore_actions
+            .contains(&M5RestorePromptAction::ClearJournal);
+        let has_export = card
+            .restore_actions
+            .contains(&M5RestorePromptAction::ExportEvidence);
+        if card.object_identity_ref.trim().is_empty()
+            || card.session_summary.trim().is_empty()
+            || card.restore_fidelity_label != card.restore_fidelity_class.display_label()
+            || !has_restore
+            || !has_safe_mode
+            || !has_open_clean
+            || !has_clear
+            || !has_export
+            || !card.safe_mode_available
+            || !card.open_without_restore_available
+            || !card.clear_journal_available
+            || !card.export_evidence_available
+            || !card
+                .consumer_surfaces
+                .iter()
+                .any(|surface| surface == "support_diagnostics")
+        {
+            errors.push(
+                M5StartCenterSwitcherValidationError::RestorePromptCardIncomplete {
+                    restore_prompt_id: card.restore_prompt_id.clone(),
+                },
+            );
+        }
+    }
+
+    for class in M5RestoreFidelityClass::required_classes() {
+        if !packet
+            .restore_vocabulary
+            .iter()
+            .any(|entry| entry.restore_fidelity_class == class)
+        {
+            errors.push(
+                M5StartCenterSwitcherValidationError::RestoreVocabularyMissing {
+                    restore_fidelity_class: class.as_str().to_owned(),
                 },
             );
         }
@@ -1552,6 +2366,22 @@ fn entry_seeds() -> Vec<EntrySeed> {
             remote_target_descriptor_ref: None,
             artifact_descriptor_ref: Some("artifact:ts_web_app_template"),
         },
+        EntrySeed {
+            recent_work_id: "recent:m5.open_other_window",
+            presentation_label: "release branch",
+            presentation_subtitle: "Repository open in another window",
+            target_kind: TargetKind::LocalRepoRoot,
+            target_state: RecentWorkTargetState::LockedByOtherInstance,
+            portability_class: PortabilityClass::LocalOnly,
+            trust_state: TrustState::Trusted,
+            restore_availability: RestoreAvailability::Exact,
+            safe_recovery_actions: &[SafeRecoveryAction::OpenInNewWindow],
+            pinned: true,
+            last_opened_at: "mono:0000:00:00:00.0002",
+            filesystem_identity_ref: Some("fs:release_branch"),
+            remote_target_descriptor_ref: None,
+            artifact_descriptor_ref: None,
+        },
         // Failure exemplars that drive the export-safe diagnostics.
         EntrySeed {
             recent_work_id: "recent:m5.missing_root",
@@ -1690,6 +2520,15 @@ pub fn seeded_m5_start_center_and_switcher_packet() -> M5StartCenterSwitcherPack
             diagnostics.push(M5EntryDiagnostic::from_row(row, diagnostic_class));
         }
     }
+    let workspace_switcher_entries = rows
+        .iter()
+        .map(M5WorkspaceSwitcherEntry::from_row)
+        .collect::<Vec<_>>();
+    let restore_prompt_cards = rows
+        .iter()
+        .filter_map(M5RestorePromptCard::from_row)
+        .collect::<Vec<_>>();
+    let restore_vocabulary = restore_vocabulary_entries();
 
     let surface_class_coverage = SurfaceClassCoverageSummary::from_rows(&rows);
     let all_rows_in_both_surfaces = rows
@@ -1711,6 +2550,9 @@ pub fn seeded_m5_start_center_and_switcher_packet() -> M5StartCenterSwitcherPack
                 .to_owned(),
         quick_action_cards: seeded_m5_start_center_quick_action_cards(),
         rows,
+        workspace_switcher_entries,
+        restore_prompt_cards,
+        restore_vocabulary,
         diagnostics,
         surface_class_coverage,
         all_rows_in_both_surfaces,
@@ -1733,6 +2575,7 @@ pub fn seeded_m5_start_center_and_switcher_packet() -> M5StartCenterSwitcherPack
         support_export_refs: vec![
             "support:export.include_m5_start_center_and_switcher_packet".to_owned(),
         ],
+        object_identity_model_ref: "docs/workspace/entry_restore_object_model.md".to_owned(),
         generated_at: GENERATED_AT.to_owned(),
     }
 }

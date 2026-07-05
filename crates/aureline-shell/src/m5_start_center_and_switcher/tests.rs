@@ -202,6 +202,99 @@ fn partial_restore_row_is_reachable_but_layout_only() {
 }
 
 #[test]
+fn switcher_entries_show_window_profile_boundary_dirty_and_move_actions() {
+    let packet = seeded_m5_start_center_and_switcher_packet();
+    assert_eq!(packet.workspace_switcher_entries.len(), packet.rows.len());
+    for entry in &packet.workspace_switcher_entries {
+        assert!(!entry.object_identity_ref.trim().is_empty());
+        assert!(entry.selected_profile_ref.is_some());
+        assert!(entry.selected_keymap_ref.is_some());
+        assert!(!entry.target_boundary_badges.is_empty());
+        assert!(!entry.restore_badges.is_empty());
+        assert_eq!(entry.dirty_session, entry.dirty_buffer_count > 0);
+        assert!(entry
+            .close_reopen_move_actions
+            .contains(&M5SwitcherAction::CloseWindow));
+        assert!(entry
+            .close_reopen_move_actions
+            .contains(&M5SwitcherAction::ReopenPreviousWorkspace));
+        assert!(entry
+            .close_reopen_move_actions
+            .contains(&M5SwitcherAction::MoveToNewWindow));
+    }
+
+    let other_window = packet
+        .workspace_switcher_entries
+        .iter()
+        .find(|entry| entry.recent_work_id == "recent:m5.open_other_window")
+        .expect("open-other-window entry present");
+    assert_eq!(
+        other_window.open_window_state,
+        M5OpenWindowState::OpenInOtherWindow
+    );
+    assert!(other_window
+        .close_reopen_move_actions
+        .contains(&M5SwitcherAction::TransferWindow));
+    assert!(other_window.dirty_session);
+}
+
+#[test]
+fn restore_prompt_cards_explain_fidelity_and_safe_paths() {
+    let packet = seeded_m5_start_center_and_switcher_packet();
+    assert!(packet.restore_prompt_cards.iter().any(|card| {
+        card.restore_fidelity_class == M5RestoreFidelityClass::ExactRestore
+            && card.restore_fidelity_label == "Exact restore"
+    }));
+    assert!(packet.restore_prompt_cards.iter().any(|card| {
+        card.restore_fidelity_class == M5RestoreFidelityClass::CompatibleRestore
+            && card.restore_fidelity_label == "Compatible restore"
+    }));
+    assert!(packet.restore_prompt_cards.iter().any(|card| {
+        card.restore_fidelity_class == M5RestoreFidelityClass::LayoutOnly
+            && card.restore_fidelity_label == "Layout only"
+    }));
+
+    for card in &packet.restore_prompt_cards {
+        assert!(!card.session_summary.trim().is_empty());
+        assert!(!card.object_identity_ref.trim().is_empty());
+        assert!(card.safe_mode_available);
+        assert!(card.open_without_restore_available);
+        assert!(card.clear_journal_available);
+        assert!(card.export_evidence_available);
+        assert!(card
+            .restore_actions
+            .contains(&M5RestorePromptAction::SafeMode));
+        assert!(card
+            .restore_actions
+            .contains(&M5RestorePromptAction::OpenWithoutRestore));
+        assert!(card
+            .restore_actions
+            .contains(&M5RestorePromptAction::ClearJournal));
+        assert!(card
+            .restore_actions
+            .contains(&M5RestorePromptAction::ExportEvidence));
+        assert!(card
+            .consumer_surfaces
+            .iter()
+            .any(|surface| surface == "support_diagnostics"));
+    }
+}
+
+#[test]
+fn restore_vocabulary_is_complete_and_label_stable() {
+    let packet = seeded_m5_start_center_and_switcher_packet();
+    for class in M5RestoreFidelityClass::required_classes() {
+        let row = packet
+            .restore_vocabulary
+            .iter()
+            .find(|row| row.restore_fidelity_class == class)
+            .expect("restore class present");
+        assert_eq!(row.label, class.display_label());
+        assert!(!row.definition.trim().is_empty());
+    }
+}
+
+#[test]
 fn packet_round_trips_through_json() {
     let packet = seeded_m5_start_center_and_switcher_packet();
     let json = serde_json::to_string(&packet).expect("serialize");
@@ -223,6 +316,12 @@ fn support_export_collects_row_and_diagnostic_ids() {
     }
     for row in &packet.rows {
         assert!(export.case_ids.contains(&row.recent_work_id));
+    }
+    for entry in &packet.workspace_switcher_entries {
+        assert!(export.case_ids.contains(&entry.switcher_entry_id));
+    }
+    for card in &packet.restore_prompt_cards {
+        assert!(export.case_ids.contains(&card.restore_prompt_id));
     }
     for diagnostic in &packet.diagnostics {
         assert!(export.case_ids.contains(&diagnostic.diagnostic_id));

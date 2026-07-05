@@ -10,6 +10,9 @@
 //! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- packet
 //! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- quick-actions
 //! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- rows
+//! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- switcher-entries
+//! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- restore-prompts
+//! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- restore-vocabulary
 //! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- diagnostics
 //! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- coverage
 //! cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- support-export
@@ -43,6 +46,15 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some("rows") => {
             print_json(&packet.rows)?;
+        }
+        Some("switcher-entries") => {
+            print_json(&packet.workspace_switcher_entries)?;
+        }
+        Some("restore-prompts") => {
+            print_json(&packet.restore_prompt_cards)?;
+        }
+        Some("restore-vocabulary") => {
+            print_json(&packet.restore_vocabulary)?;
         }
         Some("diagnostics") => {
             print_json(&packet.diagnostics)?;

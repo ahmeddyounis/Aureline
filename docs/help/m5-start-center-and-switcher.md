@@ -53,6 +53,51 @@ evidence-only, or none) **before** activation. A probable, relocated, or
 unreachable target never silently widens trust — the displayed trust always
 matches the stored trust on both surfaces.
 
+The restore vocabulary is canonical everywhere:
+
+| Token | Label | Meaning |
+|---|---|---|
+| `exact_restore` | Exact restore | Same object identity and session state can return without translation. |
+| `compatible_restore` | Compatible restore | Same object identity can return after a declared compatible translation or rebind. |
+| `layout_only` | Layout only | Window, pane, or editor layout can return, but live session state cannot. |
+| `recovered_drafts` | Recovered drafts | Dirty buffers or drafts can return without claiming a full session restore. |
+| `evidence_only` | Evidence only | Evidence can be exported or inspected, but not replayed as active state. |
+| `no_restore` | No restore | No restorable state is available for the entry. |
+
+Start Center, crash recovery, manual switchers, support diagnostics, and
+headless exports use those exact labels and tokens.
+
+## Workspace-switcher entries preserve window and boundary truth
+
+The workspace switcher renders a richer entry record over the same recent-work
+object. Each entry carries:
+
+- The canonical object identity ref (`filesystem_identity_ref`,
+  `remote_target_descriptor_ref`, `artifact_descriptor_ref`, or recent-work
+  fallback).
+- Open-window state: current window, open in another window, reopen available,
+  or blocked/unavailable.
+- Selected profile and keymap refs when crossing local, remote, managed,
+  imported, or starter-template boundaries.
+- Local/remote/managed/imported/cached badges.
+- Dirty-session state, dirty-buffer count, and the canonical restore badge.
+- Close window, reopen previous workspace, move to new window, open/transfer,
+  reconnect, reauthorize, and cancel actions as applicable.
+
+Switching to a different project cannot destroy the current context silently:
+the action row says whether Aureline will reuse the current window, transfer an
+already-open window, open another window, or keep the previous workspace
+available for reopen.
+
+## Restore-prompt cards explain the safe path
+
+Restore prompts are also projections of the same object identity and restore
+vocabulary. A prompt shows a redaction-safe session summary, dirty-buffer
+count, canonical restore class, partial/unsafe reasons, and the safest next
+action. Safe mode, open without restore, clear journal, and export evidence are
+visible affordances on every prompt, including crash-recovery and support
+diagnostics projections.
+
 ## Missing, moved, and partial targets
 
 When a target cannot open as an ordinary live workspace, the row says so and
@@ -91,6 +136,9 @@ restore, trust, or setup-urgency wording.
 ```sh
 cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- packet
 cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- quick-actions
+cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- switcher-entries
+cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- restore-prompts
+cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- restore-vocabulary
 cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- diagnostics
 cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher -- validate
 ```

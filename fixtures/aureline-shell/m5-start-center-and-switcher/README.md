@@ -12,6 +12,13 @@ recent-work projection and the live in-workspace switcher projection, and the
 packet records, per row, that the two surfaces agree on the canonical target
 kind, trust state, restore class, and unavailable-target failure state.
 
+The packet also emits rich workspace-switcher entries and restore-prompt cards
+from the same recent-work object identity. Those projections pin open-window
+state, selected profile/keymap refs, local/remote/managed/imported badges,
+dirty-session counts, close/reopen/move actions, restore-prompt safe-mode and
+open-without-restore paths, clear-journal/export-evidence affordances, and the
+canonical restore vocabulary.
+
 No row collapses two distinct target kinds into a generic recent-project row,
 no surface widens trust beyond the canonical entry, and every unavailable or
 partially restorable row carries an export-safe diagnostic redacted to the
@@ -23,6 +30,9 @@ target-kind label (never a raw path, host, or provider body).
 |---|---|---|
 | `packet.json` | `packet` | Full parity packet record. |
 | `rows.json` | `rows` | Per-entry parity rows. |
+| `switcher_entries.json` | `switcher-entries` | Rich switcher entries with open-window, profile/keymap, badge, dirty-session, and move-action truth. |
+| `restore_prompts.json` | `restore-prompts` | Restore-prompt cards with session summary, dirty-buffer count, restore class, and safety affordances. |
+| `restore_vocabulary.json` | `restore-vocabulary` | Canonical restore class labels used across UI, docs/help, diagnostics, and support exports. |
 | `diagnostics.json` | `diagnostics` | Export-safe diagnostics for unavailable / partial rows. |
 | `coverage.json` | `coverage` | Surface-class and diagnostic-class coverage summary. |
 | `support_export.json` | `support-export` | Support-export wrapper with case ids. |
@@ -34,6 +44,9 @@ target-kind label (never a raw path, host, or provider body).
 BIN="cargo run -q -p aureline-shell --bin aureline_shell_m5_start_center_and_switcher --"
 $BIN packet         > fixtures/aureline-shell/m5-start-center-and-switcher/packet.json
 $BIN rows           > fixtures/aureline-shell/m5-start-center-and-switcher/rows.json
+$BIN switcher-entries > fixtures/aureline-shell/m5-start-center-and-switcher/switcher_entries.json
+$BIN restore-prompts  > fixtures/aureline-shell/m5-start-center-and-switcher/restore_prompts.json
+$BIN restore-vocabulary > fixtures/aureline-shell/m5-start-center-and-switcher/restore_vocabulary.json
 $BIN diagnostics    > fixtures/aureline-shell/m5-start-center-and-switcher/diagnostics.json
 $BIN coverage       > fixtures/aureline-shell/m5-start-center-and-switcher/coverage.json
 $BIN support-export > fixtures/aureline-shell/m5-start-center-and-switcher/support_export.json

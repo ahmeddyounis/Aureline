@@ -43,7 +43,7 @@ Every component row carries the same shared axes:
 | `start_center_quick_action_card` | `schemas/ui/m5-start-center-quick-action-card.schema.json` | Start Center, docs/help, CLI/headless preview | Entry verb, target kind, resulting mode, account posture, trust posture | `required_for_this_row`, `unavailable_in_this_envelope`, `pending_evaluation` |
 | `recent_work_row` | `schemas/ui/m5-recent-work-row.schema.json` | Start Center recent list, Open Recent, support export | Target state, trust state, restore fidelity, write-safety badge, recovery actions | `missing_target`, `remote_unreachable`, `cached_only`, `policy_blocked` |
 | `workspace_switcher_entry` | `schemas/ui/m5-workspace-switcher-entry.schema.json` | Palette switcher, menu switcher, dedicated switcher | Same recent-work truth plus cross-window consequence | `authority_expired`, `suspended_managed_workspace`, `locked_by_other_instance` |
-| `restore_prompt_card` | `schemas/ui/m5-restore-prompt-card.schema.json` | Restore flow, crash recovery, Start Center restore card | Restore fidelity, restorable counts, `restore_now` / `skip_once` / `open_clean` actions | `layout_only`, `recovered_drafts`, `evidence_only` |
+| `restore_prompt_card` | `schemas/ui/m5-restore-prompt-card.schema.json` | Restore flow, crash recovery, Start Center restore card | Restore fidelity, session summary, dirty-buffer count, safest action, `safe_mode` / `open_without_restore` / `clear_journal` / `export_evidence` affordances | `layout_only`, `recovered_drafts`, `evidence_only` |
 | `entry_chooser_row` | `schemas/ui/m5-entry-chooser-row.schema.json` | Start Center, palette, drag/drop, CLI/headless, deep link | Verb-distinct chooser row with target and resulting-mode candidates | `reroute_required`, `target_kind_unresolved`, `policy_limited` |
 | `entry_review_sheet` | `schemas/ui/m5-entry-review-sheet.schema.json` | Open, clone, import, resume review sheets | Target, resulting mode, destination disposition, side effects, trust posture before writes | `review_required`, `trust_review_required`, `write_blocked` |
 | `destination_collision_sheet` | `schemas/ui/m5-destination-collision-sheet.schema.json` | Clone, import, restore destination review | Collision class, safe actions, blocking choice before materialization | `existing_non_empty_path`, `existing_workspace_file`, `policy_blocked_destination` |
@@ -67,6 +67,35 @@ The first consumers for this matrix are:
 | `docs_help` | Quotes matrix component families and schema refs, not feature-local prose. |
 | `support_export` | Carries opaque ids, schema refs, component family, canonical tokens, and redaction-safe labels. |
 | `release_proof` | Certifies the matrix, fixture corpus, support export, and downgrade-state coverage. |
+
+## Workspace Switcher Entry Truth
+
+`workspace_switcher_entry` rows must preserve exact object identity and active
+window posture. A conforming row includes the canonical object identity ref and
+identity source, open-window state, selected profile ref, selected keymap ref,
+local/remote/managed/imported/cached badges, dirty-session flag, dirty-buffer
+count, restore badges, and the close/reopen/move action set. `locked_by_other_instance`
+must render as an open-in-other-window case with `transfer_window` available;
+remote or managed rows must show the remote/profile boundary before activation.
+
+The close/reopen/move action set is part of the component contract, not local UI
+chrome. It must include `close_window`, `reopen_previous_workspace`, and
+`move_to_new_window`; rows add `open_in_new_window`, `transfer_window`,
+`reconnect`, or `reauthorize` according to target state.
+
+## Restore Prompt Card Truth
+
+`restore_prompt_card` rows must project the same object identity and restore
+vocabulary used by Start Center, crash recovery, manual switchers, support
+diagnostics, and exports. A conforming card includes a redaction-safe session
+summary, dirty-buffer count, canonical restore class label, partial/unsafe
+reason tokens, safest next action, and visible affordances for `safe_mode`,
+`open_without_restore`, `clear_journal`, and `export_evidence`.
+
+The canonical labels are exactly `Exact restore`, `Compatible restore`,
+`Layout only`, `Recovered drafts`, `Evidence only`, and `No restore`. Docs/help,
+support exports, and release proof must quote those labels from this matrix and
+must not substitute feature-local wording.
 
 ## Evidence Expectations
 

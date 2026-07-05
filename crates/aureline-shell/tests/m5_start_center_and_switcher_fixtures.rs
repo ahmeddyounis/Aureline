@@ -7,8 +7,10 @@
 
 use aureline_shell::m5_start_center_and_switcher::{
     seeded_m5_start_center_and_switcher_packet, validate_m5_start_center_and_switcher_packet,
-    M5DiagnosticClass, M5EntryDiagnostic, M5EntrySurfaceClass, M5StartCenterSwitcherPacket,
-    M5StartCenterSwitcherRow, M5StartCenterSwitcherSupportExport, SurfaceClassCoverageSummary,
+    M5DiagnosticClass, M5EntryDiagnostic, M5EntrySurfaceClass, M5RestoreFidelityClass,
+    M5RestorePromptAction, M5RestorePromptCard, M5RestoreVocabularyEntry,
+    M5StartCenterSwitcherPacket, M5StartCenterSwitcherRow, M5StartCenterSwitcherSupportExport,
+    M5SwitcherAction, M5WorkspaceSwitcherEntry, SurfaceClassCoverageSummary,
     M5_START_CENTER_AND_SWITCHER_SCHEMA_VERSION, M5_START_CENTER_AND_SWITCHER_SHARED_CONTRACT_REF,
 };
 
@@ -104,6 +106,85 @@ fn rows_keep_target_kind_trust_and_restore_parity() {
 }
 
 #[test]
+fn workspace_switcher_entry_fixture_preserves_window_profile_and_move_truth() {
+    let entries: Vec<M5WorkspaceSwitcherEntry> = load("switcher_entries.json");
+    assert_eq!(
+        entries,
+        seeded_m5_start_center_and_switcher_packet().workspace_switcher_entries
+    );
+    for entry in &entries {
+        assert!(!entry.object_identity_ref.trim().is_empty());
+        assert!(entry.selected_profile_ref.is_some());
+        assert!(entry.selected_keymap_ref.is_some());
+        assert!(!entry.target_boundary_badges.is_empty());
+        assert!(!entry.restore_badges.is_empty());
+        assert!(entry
+            .close_reopen_move_actions
+            .contains(&M5SwitcherAction::CloseWindow));
+        assert!(entry
+            .close_reopen_move_actions
+            .contains(&M5SwitcherAction::ReopenPreviousWorkspace));
+        assert!(entry
+            .close_reopen_move_actions
+            .contains(&M5SwitcherAction::MoveToNewWindow));
+    }
+}
+
+#[test]
+fn restore_prompt_fixture_preserves_safe_paths_and_fidelity_labels() {
+    let cards: Vec<M5RestorePromptCard> = load("restore_prompts.json");
+    assert_eq!(
+        cards,
+        seeded_m5_start_center_and_switcher_packet().restore_prompt_cards
+    );
+    for class in [
+        M5RestoreFidelityClass::ExactRestore,
+        M5RestoreFidelityClass::CompatibleRestore,
+        M5RestoreFidelityClass::LayoutOnly,
+    ] {
+        assert!(
+            cards
+                .iter()
+                .any(|card| card.restore_fidelity_class == class),
+            "restore prompt fixture must cover {}",
+            class.as_str()
+        );
+    }
+    for card in &cards {
+        assert_eq!(
+            card.restore_fidelity_label,
+            card.restore_fidelity_class.display_label()
+        );
+        assert!(card.safe_mode_available);
+        assert!(card.open_without_restore_available);
+        assert!(card.clear_journal_available);
+        assert!(card.export_evidence_available);
+        assert!(card
+            .restore_actions
+            .contains(&M5RestorePromptAction::SafeMode));
+        assert!(card
+            .restore_actions
+            .contains(&M5RestorePromptAction::OpenWithoutRestore));
+    }
+}
+
+#[test]
+fn restore_vocabulary_fixture_is_canonical() {
+    let vocabulary: Vec<M5RestoreVocabularyEntry> = load("restore_vocabulary.json");
+    assert_eq!(
+        vocabulary,
+        seeded_m5_start_center_and_switcher_packet().restore_vocabulary
+    );
+    for class in M5RestoreFidelityClass::required_classes() {
+        let row = vocabulary
+            .iter()
+            .find(|row| row.restore_fidelity_class == class)
+            .expect("restore vocabulary row present");
+        assert_eq!(row.label, class.display_label());
+    }
+}
+
+#[test]
 fn diagnostics_cover_every_class_and_stay_export_safe() {
     let diagnostics: Vec<M5EntryDiagnostic> = load("diagnostics.json");
     for class in M5DiagnosticClass::required_classes() {
@@ -144,6 +225,12 @@ fn support_export_collects_row_and_diagnostic_ids() {
     }
     for row in &packet.rows {
         assert!(export.case_ids.contains(&row.recent_work_id));
+    }
+    for entry in &packet.workspace_switcher_entries {
+        assert!(export.case_ids.contains(&entry.switcher_entry_id));
+    }
+    for card in &packet.restore_prompt_cards {
+        assert!(export.case_ids.contains(&card.restore_prompt_id));
     }
     for diagnostic in &packet.diagnostics {
         assert!(export.case_ids.contains(&diagnostic.diagnostic_id));
