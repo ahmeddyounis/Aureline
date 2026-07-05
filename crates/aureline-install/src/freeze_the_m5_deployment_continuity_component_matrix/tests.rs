@@ -430,3 +430,143 @@ fn checked_support_export_matches_builder() {
         .expect("checked deployment/continuity component export validates");
     assert_eq!(checked, packet());
 }
+
+fn certification() -> M5DeploymentContinuitySurfaceCertificationPacket {
+    seeded_deployment_continuity_surface_certification()
+}
+
+fn certification_row_mut<'a>(
+    packet: &'a mut M5DeploymentContinuitySurfaceCertificationPacket,
+    surface: M5ClaimedDeploymentSurface,
+) -> &'a mut M5DeploymentContinuitySurfaceCertificationRow {
+    packet
+        .surface_rows
+        .iter_mut()
+        .find(|row| row.surface == surface)
+        .unwrap_or_else(|| panic!("surface {}", surface.as_str()))
+}
+
+#[test]
+fn surface_certification_validates() {
+    let packet = certification();
+    assert!(packet.validate().is_empty(), "{:?}", packet.validate());
+}
+
+#[test]
+fn surface_certification_covers_every_claimed_surface() {
+    let packet = certification();
+    let surfaces = packet.represented_surfaces();
+    for surface in M5ClaimedDeploymentSurface::ALL {
+        assert!(
+            surfaces.contains(&surface),
+            "missing surface: {}",
+            surface.as_str()
+        );
+    }
+}
+
+#[test]
+fn surface_certification_has_narrowed_rows() {
+    assert!(certification().narrowed_row_count() >= 1);
+}
+
+#[test]
+fn missing_surface_fails_certification() {
+    let mut packet = certification();
+    packet
+        .surface_rows
+        .retain(|row| row.surface != M5ClaimedDeploymentSurface::AirGapped);
+    assert!(packet
+        .validate()
+        .contains(&M5DeploymentContinuitySurfaceCertificationViolation::RequiredSurfaceMissing));
+}
+
+#[test]
+fn missing_certification_drill_fails() {
+    let mut packet = certification();
+    certification_row_mut(&mut packet, M5ClaimedDeploymentSurface::Managed)
+        .drills
+        .retain(|drill| drill.drill_kind != M5DeploymentCertificationDrillKind::Degradation);
+    let violations = packet.validate();
+    assert!(violations
+        .contains(&M5DeploymentContinuitySurfaceCertificationViolation::DrillCoverageMissing));
+    assert!(violations
+        .contains(&M5DeploymentContinuitySurfaceCertificationViolation::SurfaceRowIncomplete));
+}
+
+#[test]
+fn missing_compatibility_dimension_fails() {
+    let mut packet = certification();
+    certification_row_mut(&mut packet, M5ClaimedDeploymentSurface::Managed)
+        .compatibility_notes
+        .retain(|note| {
+            note.dimension != M5DeploymentCompatibilityDimension::ControlPlaneDataPlaneContinuity
+        });
+    let violations = packet.validate();
+    assert!(violations.contains(
+        &M5DeploymentContinuitySurfaceCertificationViolation::CompatibilityCoverageMissing
+    ));
+    assert!(violations
+        .contains(&M5DeploymentContinuitySurfaceCertificationViolation::SurfaceRowIncomplete));
+}
+
+#[test]
+fn degraded_surface_without_visible_narrowing_fails() {
+    let mut packet = certification();
+    let row = certification_row_mut(&mut packet, M5ClaimedDeploymentSurface::Managed);
+    row.effective_label = M5DeploymentClaimLabel::FullTruth;
+    row.auto_narrowed = false;
+    row.narrowing_reasons.clear();
+    let violations = packet.validate();
+    assert!(violations.contains(
+        &M5DeploymentContinuitySurfaceCertificationViolation::ClaimNarrowingInconsistent
+    ));
+    assert!(violations
+        .contains(&M5DeploymentContinuitySurfaceCertificationViolation::SurfaceRowIncomplete));
+}
+
+#[test]
+fn healthy_surface_with_spurious_narrowing_fails() {
+    let mut packet = certification();
+    let row = certification_row_mut(&mut packet, M5ClaimedDeploymentSurface::LocalOnly);
+    row.effective_label = M5DeploymentClaimLabel::DegradedNarrowed;
+    row.auto_narrowed = true;
+    row.narrowing_reasons
+        .push("Healthy local-only surface was incorrectly narrowed".to_owned());
+    let violations = packet.validate();
+    assert!(violations.contains(
+        &M5DeploymentContinuitySurfaceCertificationViolation::ClaimNarrowingInconsistent
+    ));
+}
+
+#[test]
+fn certification_release_proof_incomplete_fails() {
+    let mut packet = certification();
+    packet.release_support_proof.export_drills_complete = false;
+    assert!(packet.validate().contains(
+        &M5DeploymentContinuitySurfaceCertificationViolation::ReleaseSupportProofIncomplete
+    ));
+}
+
+#[test]
+fn certification_csv_names_surface_labels() {
+    let csv = certification().render_certification_csv();
+    assert!(csv.contains("surface,claimed_label,effective_label"));
+    assert!(csv.contains("air_gapped,full_truth,local_safe_only,true"));
+    assert!(csv.contains("side_by_side,full_truth,full_truth,false"));
+}
+
+#[test]
+fn certification_report_names_narrowing() {
+    let report = certification().render_certification_report();
+    assert!(report.contains("M5 Deployment/Continuity Surface Certification"));
+    assert!(report.contains("fleet_rollout"));
+    assert!(report.contains("auto_narrowed=true"));
+}
+
+#[test]
+fn checked_surface_certification_matches_builder() {
+    let checked = current_m5_deployment_continuity_surface_certification_export()
+        .expect("checked deployment/continuity surface certification validates");
+    assert_eq!(checked, certification());
+}

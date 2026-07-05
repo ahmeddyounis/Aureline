@@ -90,6 +90,20 @@ pub const DEPLOYMENT_CONTINUITY_COMPONENT_MATRIX_ARTIFACT_REF: &str =
 pub const DEPLOYMENT_CONTINUITY_COMPONENT_MATRIX_SUMMARY_REF: &str =
     "artifacts/design/m5-deployment-continuity-component-matrix.md";
 
+/// Repo-relative path of the checked certification artifact proving every claimed M5
+/// deployment surface consumes the shared component family and narrows when parity is
+/// degraded.
+pub const DEPLOYMENT_CONTINUITY_COMPONENT_CERTIFICATION_ARTIFACT_REF: &str =
+    "artifacts/release/m5-deployment-continuity-component-proof/certification.json";
+
+/// Repo-relative path of the certification CSV projection.
+pub const DEPLOYMENT_CONTINUITY_COMPONENT_CERTIFICATION_CSV_REF: &str =
+    "artifacts/release/m5-deployment-continuity-component-proof/certification.csv";
+
+/// Repo-relative path of the certification report.
+pub const DEPLOYMENT_CONTINUITY_COMPONENT_CERTIFICATION_REPORT_REF: &str =
+    "artifacts/release/m5-deployment-continuity-component-proof/certification.md";
+
 /// Closed reusable deployment/continuity component family. Each family is one governed
 /// primitive later M5 rows reference by name; the matrix must define every one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -1218,6 +1232,631 @@ impl DeploymentContinuityComponentMatrix {
     }
 }
 
+/// Claimed M5 deployment surface that must consume the shared component family instead
+/// of inheriting healthier-lane labels from another surface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5ClaimedDeploymentSurface {
+    /// Local-only desktop operation.
+    LocalOnly,
+    /// Managed online deployment.
+    Managed,
+    /// Customer self-hosted deployment.
+    SelfHosted,
+    /// Deployment served through a mirror.
+    Mirrored,
+    /// Sovereign / regulated deployment.
+    Sovereign,
+    /// Air-gapped deployment.
+    AirGapped,
+    /// Side-by-side channel coexistence.
+    SideBySide,
+    /// Portable install / portable state package.
+    Portable,
+    /// Fleet rollout surface.
+    FleetRollout,
+}
+
+impl M5ClaimedDeploymentSurface {
+    /// Every claimed surface in the order release evidence reports them.
+    pub const ALL: [Self; 9] = [
+        Self::LocalOnly,
+        Self::Managed,
+        Self::SelfHosted,
+        Self::Mirrored,
+        Self::Sovereign,
+        Self::AirGapped,
+        Self::SideBySide,
+        Self::Portable,
+        Self::FleetRollout,
+    ];
+
+    /// Stable token recorded in certification rows.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalOnly => "local_only",
+            Self::Managed => "managed",
+            Self::SelfHosted => "self_hosted",
+            Self::Mirrored => "mirrored",
+            Self::Sovereign => "sovereign",
+            Self::AirGapped => "air_gapped",
+            Self::SideBySide => "side_by_side",
+            Self::Portable => "portable",
+            Self::FleetRollout => "fleet_rollout",
+        }
+    }
+}
+
+/// Required drill family for each claimed deployment surface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5DeploymentCertificationDrillKind {
+    /// Functional behavior drill.
+    Functional,
+    /// Accessibility / non-visual parity drill.
+    Accessibility,
+    /// Support / release export reconstruction drill.
+    Export,
+    /// Failure / recovery degradation drill.
+    Degradation,
+}
+
+impl M5DeploymentCertificationDrillKind {
+    /// Every required drill family.
+    pub const ALL: [Self; 4] = [
+        Self::Functional,
+        Self::Accessibility,
+        Self::Export,
+        Self::Degradation,
+    ];
+
+    /// Stable token recorded in certification rows.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Functional => "functional",
+            Self::Accessibility => "accessibility",
+            Self::Export => "export",
+            Self::Degradation => "degradation",
+        }
+    }
+}
+
+/// Result of a required certification drill.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5DeploymentDrillOutcome {
+    /// Drill passed.
+    Passed,
+    /// Drill failed and must narrow the claim.
+    Failed,
+}
+
+impl M5DeploymentDrillOutcome {
+    /// True when this drill result is passing.
+    pub const fn is_passed(self) -> bool {
+        matches!(self, Self::Passed)
+    }
+}
+
+/// Compatibility dimension that must carry explicit notes for every claimed surface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5DeploymentCompatibilityDimension {
+    /// Channel ownership truth.
+    ChannelOwnership,
+    /// Handler precedence truth.
+    HandlerPrecedence,
+    /// Mirror / offline freshness truth.
+    MirrorOfflineFreshness,
+    /// Control-plane/data-plane continuity truth.
+    ControlPlaneDataPlaneContinuity,
+}
+
+impl M5DeploymentCompatibilityDimension {
+    /// Every compatibility dimension the certification packet must capture.
+    pub const ALL: [Self; 4] = [
+        Self::ChannelOwnership,
+        Self::HandlerPrecedence,
+        Self::MirrorOfflineFreshness,
+        Self::ControlPlaneDataPlaneContinuity,
+    ];
+
+    /// Stable token recorded in certification rows.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ChannelOwnership => "channel_ownership",
+            Self::HandlerPrecedence => "handler_precedence",
+            Self::MirrorOfflineFreshness => "mirror_offline_freshness",
+            Self::ControlPlaneDataPlaneContinuity => "control_plane_data_plane_continuity",
+        }
+    }
+}
+
+/// Compatibility posture for a claimed surface / dimension.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5DeploymentCompatibilityPosture {
+    /// Current and fully compatible.
+    Current,
+    /// Compatible but degraded; the public claim must narrow.
+    DegradedNarrowed,
+    /// Unsupported for this surface; the public claim must narrow.
+    UnsupportedNarrowed,
+}
+
+impl M5DeploymentCompatibilityPosture {
+    /// True when this posture can keep a full-truth label.
+    pub const fn is_current(self) -> bool {
+        matches!(self, Self::Current)
+    }
+}
+
+/// Published claim label after certification and auto-narrowing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5DeploymentClaimLabel {
+    /// Full truth parity is current.
+    FullTruth,
+    /// The claim is supported but narrowed because a dependency, freshness, or plane
+    /// state is degraded.
+    DegradedNarrowed,
+    /// The surface is local-safe only for the affected behavior.
+    LocalSafeOnly,
+    /// The path is unsupported and must not inherit a full-truth label.
+    UnsupportedNarrowed,
+}
+
+impl M5DeploymentClaimLabel {
+    /// True when this label is the full claim.
+    pub const fn is_full(self) -> bool {
+        matches!(self, Self::FullTruth)
+    }
+
+    /// Stable token recorded in certification rows.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::FullTruth => "full_truth",
+            Self::DegradedNarrowed => "degraded_narrowed",
+            Self::LocalSafeOnly => "local_safe_only",
+            Self::UnsupportedNarrowed => "unsupported_narrowed",
+        }
+    }
+}
+
+/// One drill result for one claimed surface.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5DeploymentContinuityDrillResult {
+    /// Required drill kind.
+    pub drill_kind: M5DeploymentCertificationDrillKind,
+    /// Drill outcome.
+    pub outcome: M5DeploymentDrillOutcome,
+    /// Evidence ref for the drill.
+    pub evidence_ref: String,
+}
+
+impl M5DeploymentContinuityDrillResult {
+    /// Whether the drill row is complete and passing.
+    pub fn is_complete_and_passing(&self) -> bool {
+        self.outcome.is_passed() && !self.evidence_ref.trim().is_empty()
+    }
+}
+
+/// One compatibility note for one claimed surface.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5DeploymentContinuityCompatibilityNote {
+    /// Compatibility dimension.
+    pub dimension: M5DeploymentCompatibilityDimension,
+    /// Compatibility posture.
+    pub posture: M5DeploymentCompatibilityPosture,
+    /// Export-safe summary of the compatibility result.
+    pub summary: String,
+    /// Optional auto-narrowing trigger when posture is not current.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_narrowing_trigger: Option<M5DeploymentDowngradeTrigger>,
+    /// Evidence ref backing this note.
+    pub evidence_ref: String,
+}
+
+impl M5DeploymentContinuityCompatibilityNote {
+    /// Whether the compatibility note is complete and honestly narrowed.
+    pub fn is_complete(&self) -> bool {
+        !self.summary.trim().is_empty()
+            && !label_is_generic(&self.summary)
+            && !self.evidence_ref.trim().is_empty()
+            && (self.posture.is_current() || self.auto_narrowing_trigger.is_some())
+    }
+}
+
+/// One claimed deployment surface certified against the shared component family.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5DeploymentContinuitySurfaceCertificationRow {
+    /// Claimed surface.
+    pub surface: M5ClaimedDeploymentSurface,
+    /// Component families consumed by this surface.
+    pub component_families: Vec<M5DeploymentComponentFamily>,
+    /// Component row refs consumed by this surface.
+    pub component_refs: Vec<String>,
+    /// Required drill results.
+    pub drills: Vec<M5DeploymentContinuityDrillResult>,
+    /// Compatibility notes for the required dimensions.
+    pub compatibility_notes: Vec<M5DeploymentContinuityCompatibilityNote>,
+    /// Label originally claimed by the surface.
+    pub claimed_label: M5DeploymentClaimLabel,
+    /// Label after certification and auto-narrowing.
+    pub effective_label: M5DeploymentClaimLabel,
+    /// True when the effective label was automatically narrowed.
+    pub auto_narrowed: bool,
+    /// Human-readable, export-safe narrowing reasons.
+    pub narrowing_reasons: Vec<String>,
+    /// The surface consumes shared component rows instead of feature-local chrome.
+    pub consumes_shared_component_family: bool,
+    /// Unsupported or degraded paths are visible.
+    pub unsupported_or_degraded_visible: bool,
+    /// Local-safe continuity is visible where applicable.
+    pub local_safe_continuity_visible: bool,
+}
+
+impl M5DeploymentContinuitySurfaceCertificationRow {
+    /// Dimensions represented by the row's compatibility notes.
+    pub fn represented_dimensions(&self) -> BTreeSet<M5DeploymentCompatibilityDimension> {
+        self.compatibility_notes
+            .iter()
+            .map(|note| note.dimension)
+            .collect()
+    }
+
+    /// Drill kinds represented by the row's drill results.
+    pub fn represented_drills(&self) -> BTreeSet<M5DeploymentCertificationDrillKind> {
+        self.drills.iter().map(|drill| drill.drill_kind).collect()
+    }
+
+    /// Whether every drill passed.
+    pub fn all_drills_passed(&self) -> bool {
+        self.drills
+            .iter()
+            .all(M5DeploymentContinuityDrillResult::is_complete_and_passing)
+    }
+
+    /// Whether every compatibility note is current.
+    pub fn all_compatibility_current(&self) -> bool {
+        self.compatibility_notes
+            .iter()
+            .all(|note| note.posture.is_current())
+    }
+
+    /// Whether the row should carry a narrowed effective label.
+    pub fn should_be_narrowed(&self) -> bool {
+        !self.all_drills_passed() || !self.all_compatibility_current()
+    }
+
+    /// Whether all required dimensions and drill kinds are present.
+    pub fn coverage_complete(&self) -> bool {
+        let drills = self.represented_drills();
+        let dimensions = self.represented_dimensions();
+        M5DeploymentCertificationDrillKind::ALL
+            .iter()
+            .all(|kind| drills.contains(kind))
+            && M5DeploymentCompatibilityDimension::ALL
+                .iter()
+                .all(|dimension| dimensions.contains(dimension))
+    }
+
+    /// Whether row-level claim narrowing is consistent with drill and compatibility
+    /// posture.
+    pub fn narrowing_consistent(&self) -> bool {
+        let should_narrow = self.should_be_narrowed();
+        if should_narrow {
+            self.auto_narrowed
+                && !self.effective_label.is_full()
+                && !self.narrowing_reasons.is_empty()
+                && self
+                    .narrowing_reasons
+                    .iter()
+                    .all(|reason| !reason.trim().is_empty() && !label_is_generic(reason))
+        } else {
+            !self.auto_narrowed
+                && self.effective_label.is_full()
+                && self.narrowing_reasons.is_empty()
+        }
+    }
+
+    /// Whether the row is complete enough to certify the claimed surface.
+    pub fn is_complete(&self) -> bool {
+        !self.component_families.is_empty()
+            && !self.component_refs.is_empty()
+            && self.component_refs.iter().all(|r| !r.trim().is_empty())
+            && self.coverage_complete()
+            && self
+                .drills
+                .iter()
+                .all(|drill| !drill.evidence_ref.trim().is_empty())
+            && self
+                .compatibility_notes
+                .iter()
+                .all(|note| note.is_complete())
+            && self.consumes_shared_component_family
+            && self.unsupported_or_degraded_visible
+            && self.local_safe_continuity_visible
+            && self.narrowing_consistent()
+    }
+}
+
+/// Release/support proof block for the surface certification packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5DeploymentContinuityReleaseSupportProof {
+    /// Functional drills are complete.
+    pub functional_drills_complete: bool,
+    /// Accessibility drills are complete.
+    pub accessibility_drills_complete: bool,
+    /// Export drills are complete.
+    pub export_drills_complete: bool,
+    /// Degradation drills are complete.
+    pub degradation_drills_complete: bool,
+    /// Compatibility notes cover required dimensions.
+    pub compatibility_notes_complete: bool,
+    /// Release/support proof packet is published.
+    pub proof_packet_published: bool,
+    /// Packet is stable enough to gate later M5 widening.
+    pub later_m5_gating_asset: bool,
+    /// Support/export refs that field teams can use.
+    pub support_export_refs: Vec<String>,
+}
+
+impl M5DeploymentContinuityReleaseSupportProof {
+    /// Whether all release/support proof invariants hold.
+    pub fn all_hold(&self) -> bool {
+        self.functional_drills_complete
+            && self.accessibility_drills_complete
+            && self.export_drills_complete
+            && self.degradation_drills_complete
+            && self.compatibility_notes_complete
+            && self.proof_packet_published
+            && self.later_m5_gating_asset
+            && !self.support_export_refs.is_empty()
+            && self
+                .support_export_refs
+                .iter()
+                .all(|r| !r.trim().is_empty())
+    }
+}
+
+/// Constructor input for [`M5DeploymentContinuitySurfaceCertificationPacket::new`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct M5DeploymentContinuitySurfaceCertificationPacketInput {
+    /// Stable packet id.
+    pub packet_id: String,
+    /// Human-readable packet label.
+    pub packet_label: String,
+    /// Matrix packet ref.
+    pub component_matrix_packet_ref: String,
+    /// Per-surface rows.
+    pub surface_rows: Vec<M5DeploymentContinuitySurfaceCertificationRow>,
+    /// Release/support proof block.
+    pub release_support_proof: M5DeploymentContinuityReleaseSupportProof,
+    /// Source contract refs.
+    pub source_contract_refs: Vec<String>,
+    /// Redaction token.
+    pub redaction_class_token: String,
+    /// Mint timestamp.
+    pub minted_at: String,
+}
+
+/// Certification packet proving shared deployment/continuity components across every
+/// claimed M5 deployment surface.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5DeploymentContinuitySurfaceCertificationPacket {
+    /// Record kind.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Stable packet id.
+    pub packet_id: String,
+    /// Human-readable packet label.
+    pub packet_label: String,
+    /// Matrix packet ref this packet certifies.
+    pub component_matrix_packet_ref: String,
+    /// Per-surface rows.
+    pub surface_rows: Vec<M5DeploymentContinuitySurfaceCertificationRow>,
+    /// Release/support proof block.
+    pub release_support_proof: M5DeploymentContinuityReleaseSupportProof,
+    /// Source contract refs.
+    pub source_contract_refs: Vec<String>,
+    /// Redaction token.
+    pub redaction_class_token: String,
+    /// Mint timestamp.
+    pub minted_at: String,
+}
+
+/// Stable record-kind tag carried by
+/// [`M5DeploymentContinuitySurfaceCertificationPacket`].
+pub const M5_DEPLOYMENT_CONTINUITY_SURFACE_CERTIFICATION_RECORD_KIND: &str =
+    "m5_deployment_continuity_surface_certification";
+
+/// Schema version for the surface certification packet.
+pub const M5_DEPLOYMENT_CONTINUITY_SURFACE_CERTIFICATION_SCHEMA_VERSION: u32 = 1;
+
+impl M5DeploymentContinuitySurfaceCertificationPacket {
+    /// Builds the certification packet.
+    pub fn new(input: M5DeploymentContinuitySurfaceCertificationPacketInput) -> Self {
+        Self {
+            record_kind: M5_DEPLOYMENT_CONTINUITY_SURFACE_CERTIFICATION_RECORD_KIND.to_owned(),
+            schema_version: M5_DEPLOYMENT_CONTINUITY_SURFACE_CERTIFICATION_SCHEMA_VERSION,
+            packet_id: input.packet_id,
+            packet_label: input.packet_label,
+            component_matrix_packet_ref: input.component_matrix_packet_ref,
+            surface_rows: input.surface_rows,
+            release_support_proof: input.release_support_proof,
+            source_contract_refs: input.source_contract_refs,
+            redaction_class_token: input.redaction_class_token,
+            minted_at: input.minted_at,
+        }
+    }
+
+    /// Claimed surfaces represented by the packet.
+    pub fn represented_surfaces(&self) -> BTreeSet<M5ClaimedDeploymentSurface> {
+        self.surface_rows.iter().map(|row| row.surface).collect()
+    }
+
+    /// Count of rows that auto-narrowed.
+    pub fn narrowed_row_count(&self) -> usize {
+        self.surface_rows
+            .iter()
+            .filter(|row| row.auto_narrowed)
+            .count()
+    }
+
+    /// Validates the certification packet.
+    pub fn validate(&self) -> Vec<M5DeploymentContinuitySurfaceCertificationViolation> {
+        let mut violations = Vec::new();
+        if self.record_kind != M5_DEPLOYMENT_CONTINUITY_SURFACE_CERTIFICATION_RECORD_KIND {
+            violations.push(M5DeploymentContinuitySurfaceCertificationViolation::WrongRecordKind);
+        }
+        if self.schema_version != M5_DEPLOYMENT_CONTINUITY_SURFACE_CERTIFICATION_SCHEMA_VERSION {
+            violations
+                .push(M5DeploymentContinuitySurfaceCertificationViolation::WrongSchemaVersion);
+        }
+        if self.packet_id.trim().is_empty()
+            || self.packet_label.trim().is_empty()
+            || self.component_matrix_packet_ref.trim().is_empty()
+            || self.redaction_class_token.trim().is_empty()
+            || self.minted_at.trim().is_empty()
+        {
+            violations.push(M5DeploymentContinuitySurfaceCertificationViolation::MissingIdentity);
+        }
+        validate_certification_source_contracts(self, &mut violations);
+        validate_certification_surface_coverage(self, &mut violations);
+        validate_certification_rows(self, &mut violations);
+        if !self.release_support_proof.all_hold() {
+            violations.push(
+                M5DeploymentContinuitySurfaceCertificationViolation::ReleaseSupportProofIncomplete,
+            );
+        }
+        if json_contains_forbidden_boundary_material(
+            &serde_json::to_value(self)
+                .expect("deployment/continuity certification packet serializes"),
+        ) {
+            violations.push(
+                M5DeploymentContinuitySurfaceCertificationViolation::RawBoundaryMaterialInExport,
+            );
+        }
+        violations
+    }
+
+    /// Deterministic export-safe JSON.
+    ///
+    /// # Panics
+    ///
+    /// Panics only if serializing this metadata-only packet fails.
+    pub fn export_safe_json(&self) -> String {
+        serde_json::to_string_pretty(self)
+            .expect("deployment/continuity certification packet serializes")
+    }
+
+    /// Deterministic CSV projection.
+    pub fn render_certification_csv(&self) -> String {
+        let mut out = String::from(
+            "surface,claimed_label,effective_label,auto_narrowed,component_family_count,drill_count,narrowing_reason_count\n",
+        );
+        for row in &self.surface_rows {
+            out.push_str(&format!(
+                "{surface},{claimed},{effective},{auto},{components},{drills},{reasons}\n",
+                surface = row.surface.as_str(),
+                claimed = row.claimed_label.as_str(),
+                effective = row.effective_label.as_str(),
+                auto = row.auto_narrowed,
+                components = row.component_families.len(),
+                drills = row.drills.len(),
+                reasons = row.narrowing_reasons.len(),
+            ));
+        }
+        out
+    }
+
+    /// Deterministic Markdown report.
+    pub fn render_certification_report(&self) -> String {
+        let mut out = String::new();
+        out.push_str("# M5 Deployment/Continuity Surface Certification\n\n");
+        out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
+        out.push_str(&format!(
+            "- Matrix: `{}`\n",
+            self.component_matrix_packet_ref
+        ));
+        out.push_str(&format!(
+            "- Surfaces: {} / {} ({} narrowed)\n\n",
+            self.represented_surfaces().len(),
+            M5ClaimedDeploymentSurface::ALL.len(),
+            self.narrowed_row_count(),
+        ));
+        out.push_str("## Surface Rows\n\n");
+        for row in &self.surface_rows {
+            out.push_str(&format!(
+                "- **{}**: claimed={} effective={} auto_narrowed={}\n",
+                row.surface.as_str(),
+                row.claimed_label.as_str(),
+                row.effective_label.as_str(),
+                row.auto_narrowed,
+            ));
+            if !row.narrowing_reasons.is_empty() {
+                out.push_str(&format!(
+                    "  - Narrowing: {}\n",
+                    row.narrowing_reasons.join("; ")
+                ));
+            }
+        }
+        out
+    }
+}
+
+/// Validation failures emitted by
+/// [`M5DeploymentContinuitySurfaceCertificationPacket::validate`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum M5DeploymentContinuitySurfaceCertificationViolation {
+    /// Packet record kind is wrong.
+    WrongRecordKind,
+    /// Packet schema version is wrong.
+    WrongSchemaVersion,
+    /// Required identity field is missing.
+    MissingIdentity,
+    /// Required source contract refs are incomplete.
+    MissingSourceContracts,
+    /// A claimed deployment surface is missing.
+    RequiredSurfaceMissing,
+    /// A surface row is incomplete.
+    SurfaceRowIncomplete,
+    /// A surface row is missing a required drill family.
+    DrillCoverageMissing,
+    /// A surface row is missing a required compatibility dimension.
+    CompatibilityCoverageMissing,
+    /// A degraded / unsupported row did not narrow visibly, or a healthy row narrowed.
+    ClaimNarrowingInconsistent,
+    /// The packet has no narrowed row, so it does not prove degradation behavior.
+    NoNarrowedRows,
+    /// The release/support proof block is incomplete.
+    ReleaseSupportProofIncomplete,
+    /// Export contains raw boundary material.
+    RawBoundaryMaterialInExport,
+}
+
+impl M5DeploymentContinuitySurfaceCertificationViolation {
+    /// Stable token used in tests and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::WrongRecordKind => "wrong_record_kind",
+            Self::WrongSchemaVersion => "wrong_schema_version",
+            Self::MissingIdentity => "missing_identity",
+            Self::MissingSourceContracts => "missing_source_contracts",
+            Self::RequiredSurfaceMissing => "required_surface_missing",
+            Self::SurfaceRowIncomplete => "surface_row_incomplete",
+            Self::DrillCoverageMissing => "drill_coverage_missing",
+            Self::CompatibilityCoverageMissing => "compatibility_coverage_missing",
+            Self::ClaimNarrowingInconsistent => "claim_narrowing_inconsistent",
+            Self::NoNarrowedRows => "no_narrowed_rows",
+            Self::ReleaseSupportProofIncomplete => "release_support_proof_incomplete",
+            Self::RawBoundaryMaterialInExport => "raw_boundary_material_in_export",
+        }
+    }
+}
+
 /// Errors emitted when reading the checked-in deployment/continuity component export.
 #[derive(Debug)]
 pub enum DeploymentContinuityComponentArtifactError {
@@ -1225,6 +1864,10 @@ pub enum DeploymentContinuityComponentArtifactError {
     SupportExport(serde_json::Error),
     /// Support export failed validation.
     Validation(Vec<DeploymentContinuityComponentViolation>),
+    /// Surface certification export failed to parse.
+    SurfaceCertification(serde_json::Error),
+    /// Surface certification export failed validation.
+    SurfaceCertificationValidation(Vec<M5DeploymentContinuitySurfaceCertificationViolation>),
 }
 
 impl fmt::Display for DeploymentContinuityComponentArtifactError {
@@ -1245,6 +1888,21 @@ impl fmt::Display for DeploymentContinuityComponentArtifactError {
                 write!(
                     formatter,
                     "deployment/continuity component export failed validation: {tokens}"
+                )
+            }
+            Self::SurfaceCertification(error) => write!(
+                formatter,
+                "deployment/continuity surface certification parse failed: {error}"
+            ),
+            Self::SurfaceCertificationValidation(violations) => {
+                let tokens = violations
+                    .iter()
+                    .map(|violation| violation.as_str())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                write!(
+                    formatter,
+                    "deployment/continuity surface certification failed validation: {tokens}"
                 )
             }
         }
@@ -1340,6 +1998,30 @@ pub fn current_m5_deployment_continuity_component_matrix_export(
     }
 }
 
+/// Reads and validates the checked-in deployment/continuity surface certification
+/// export.
+///
+/// # Errors
+///
+/// Returns an artifact error if the export cannot parse or fails validation.
+pub fn current_m5_deployment_continuity_surface_certification_export() -> Result<
+    M5DeploymentContinuitySurfaceCertificationPacket,
+    DeploymentContinuityComponentArtifactError,
+> {
+    let packet: M5DeploymentContinuitySurfaceCertificationPacket =
+        serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../artifacts/release/m5-deployment-continuity-component-proof/certification.json"
+        )))
+        .map_err(DeploymentContinuityComponentArtifactError::SurfaceCertification)?;
+    let violations = packet.validate();
+    if violations.is_empty() {
+        Ok(packet)
+    } else {
+        Err(DeploymentContinuityComponentArtifactError::SurfaceCertificationValidation(violations))
+    }
+}
+
 fn validate_source_contracts(
     packet: &DeploymentContinuityComponentMatrix,
     violations: &mut Vec<DeploymentContinuityComponentViolation>,
@@ -1427,6 +2109,79 @@ fn validate_consumer_projection(
     }
 }
 
+fn validate_certification_source_contracts(
+    packet: &M5DeploymentContinuitySurfaceCertificationPacket,
+    violations: &mut Vec<M5DeploymentContinuitySurfaceCertificationViolation>,
+) {
+    let refs: BTreeSet<&str> = packet
+        .source_contract_refs
+        .iter()
+        .map(String::as_str)
+        .collect();
+    for required in [
+        DEPLOYMENT_CONTINUITY_COMPONENT_MATRIX_SCHEMA_REF,
+        DEPLOYMENT_CONTINUITY_COMPONENT_MATRIX_DOC_REF,
+        DEPLOYMENT_CONTINUITY_COMPONENT_CERTIFICATION_ARTIFACT_REF,
+    ] {
+        if !refs.contains(required) {
+            violations
+                .push(M5DeploymentContinuitySurfaceCertificationViolation::MissingSourceContracts);
+            break;
+        }
+    }
+}
+
+fn validate_certification_surface_coverage(
+    packet: &M5DeploymentContinuitySurfaceCertificationPacket,
+    violations: &mut Vec<M5DeploymentContinuitySurfaceCertificationViolation>,
+) {
+    let surfaces = packet.represented_surfaces();
+    for required in M5ClaimedDeploymentSurface::ALL {
+        if !surfaces.contains(&required) {
+            violations
+                .push(M5DeploymentContinuitySurfaceCertificationViolation::RequiredSurfaceMissing);
+            break;
+        }
+    }
+    if packet.narrowed_row_count() == 0 {
+        violations.push(M5DeploymentContinuitySurfaceCertificationViolation::NoNarrowedRows);
+    }
+}
+
+fn validate_certification_rows(
+    packet: &M5DeploymentContinuitySurfaceCertificationPacket,
+    violations: &mut Vec<M5DeploymentContinuitySurfaceCertificationViolation>,
+) {
+    for row in &packet.surface_rows {
+        if !row.is_complete() {
+            violations
+                .push(M5DeploymentContinuitySurfaceCertificationViolation::SurfaceRowIncomplete);
+        }
+        let drills = row.represented_drills();
+        if !M5DeploymentCertificationDrillKind::ALL
+            .iter()
+            .all(|kind| drills.contains(kind))
+        {
+            violations
+                .push(M5DeploymentContinuitySurfaceCertificationViolation::DrillCoverageMissing);
+        }
+        let dimensions = row.represented_dimensions();
+        if !M5DeploymentCompatibilityDimension::ALL
+            .iter()
+            .all(|dimension| dimensions.contains(dimension))
+        {
+            violations.push(
+                M5DeploymentContinuitySurfaceCertificationViolation::CompatibilityCoverageMissing,
+            );
+        }
+        if !row.narrowing_consistent() {
+            violations.push(
+                M5DeploymentContinuitySurfaceCertificationViolation::ClaimNarrowingInconsistent,
+            );
+        }
+    }
+}
+
 /// Whether a degraded label is a generic non-answer rather than a precise label.
 fn label_is_generic(label: &str) -> bool {
     let trimmed = label.trim();
@@ -1488,8 +2243,352 @@ pub fn seeded_deployment_continuity_component_matrix() -> DeploymentContinuityCo
     })
 }
 
+/// Builds the canonical certification packet proving every claimed M5 deployment
+/// surface consumes the shared component family and narrows visibly when parity is
+/// degraded.
+pub fn seeded_deployment_continuity_surface_certification(
+) -> M5DeploymentContinuitySurfaceCertificationPacket {
+    M5DeploymentContinuitySurfaceCertificationPacket::new(
+        M5DeploymentContinuitySurfaceCertificationPacketInput {
+            packet_id: "m5-deployment-continuity-surface-certification:stable:0001".to_owned(),
+            packet_label: "M5 Deployment/Continuity Surface Certification".to_owned(),
+            component_matrix_packet_ref: "m5-deployment-continuity-component-matrix:stable:0001"
+                .to_owned(),
+            surface_rows: seeded_surface_certification_rows(),
+            release_support_proof: seeded_release_support_proof(),
+            source_contract_refs: seeded_certification_source_contract_refs(),
+            redaction_class_token: "metadata_safe_default".to_owned(),
+            minted_at: "2026-07-05T00:00:00Z".to_owned(),
+        },
+    )
+}
+
 fn ev(id: &str) -> Vec<String> {
     vec![format!("evidence:deployment-continuity:{id}")]
+}
+
+fn drill(
+    surface: M5ClaimedDeploymentSurface,
+    kind: M5DeploymentCertificationDrillKind,
+) -> M5DeploymentContinuityDrillResult {
+    M5DeploymentContinuityDrillResult {
+        drill_kind: kind,
+        outcome: M5DeploymentDrillOutcome::Passed,
+        evidence_ref: format!(
+            "evidence:deployment-continuity:{}:{}",
+            surface.as_str(),
+            kind.as_str()
+        ),
+    }
+}
+
+fn all_drills(surface: M5ClaimedDeploymentSurface) -> Vec<M5DeploymentContinuityDrillResult> {
+    M5DeploymentCertificationDrillKind::ALL
+        .iter()
+        .map(|kind| drill(surface, *kind))
+        .collect()
+}
+
+fn note(
+    surface: M5ClaimedDeploymentSurface,
+    dimension: M5DeploymentCompatibilityDimension,
+    posture: M5DeploymentCompatibilityPosture,
+    summary: &str,
+    trigger: Option<M5DeploymentDowngradeTrigger>,
+) -> M5DeploymentContinuityCompatibilityNote {
+    M5DeploymentContinuityCompatibilityNote {
+        dimension,
+        posture,
+        summary: summary.to_owned(),
+        auto_narrowing_trigger: trigger,
+        evidence_ref: format!(
+            "evidence:deployment-continuity:{}:{}",
+            surface.as_str(),
+            dimension.as_str()
+        ),
+    }
+}
+
+fn current_notes(
+    surface: M5ClaimedDeploymentSurface,
+) -> Vec<M5DeploymentContinuityCompatibilityNote> {
+    vec![
+        note(
+            surface,
+            M5DeploymentCompatibilityDimension::ChannelOwnership,
+            M5DeploymentCompatibilityPosture::Current,
+            "Channel owner is explicit and matches the active install profile",
+            None,
+        ),
+        note(
+            surface,
+            M5DeploymentCompatibilityDimension::HandlerPrecedence,
+            M5DeploymentCompatibilityPosture::Current,
+            "Handler precedence is declared and avoids last-writer-wins capture",
+            None,
+        ),
+        note(
+            surface,
+            M5DeploymentCompatibilityDimension::MirrorOfflineFreshness,
+            M5DeploymentCompatibilityPosture::Current,
+            "Mirror and offline freshness are either current or not applicable to this surface",
+            None,
+        ),
+        note(
+            surface,
+            M5DeploymentCompatibilityDimension::ControlPlaneDataPlaneContinuity,
+            M5DeploymentCompatibilityPosture::Current,
+            "Control-plane and data-plane status remain distinct with local-safe continuation visible",
+            None,
+        ),
+    ]
+}
+
+fn surface_row(
+    surface: M5ClaimedDeploymentSurface,
+    component_families: Vec<M5DeploymentComponentFamily>,
+    component_refs: Vec<&str>,
+    compatibility_notes: Vec<M5DeploymentContinuityCompatibilityNote>,
+    effective_label: M5DeploymentClaimLabel,
+    narrowing_reasons: Vec<&str>,
+) -> M5DeploymentContinuitySurfaceCertificationRow {
+    let auto_narrowed = !effective_label.is_full();
+    M5DeploymentContinuitySurfaceCertificationRow {
+        surface,
+        component_families,
+        component_refs: component_refs.into_iter().map(str::to_owned).collect(),
+        drills: all_drills(surface),
+        compatibility_notes,
+        claimed_label: M5DeploymentClaimLabel::FullTruth,
+        effective_label,
+        auto_narrowed,
+        narrowing_reasons: narrowing_reasons.into_iter().map(str::to_owned).collect(),
+        consumes_shared_component_family: true,
+        unsupported_or_degraded_visible: true,
+        local_safe_continuity_visible: true,
+    }
+}
+
+fn seeded_surface_certification_rows() -> Vec<M5DeploymentContinuitySurfaceCertificationRow> {
+    let mut rows = Vec::new();
+
+    rows.push(surface_row(
+        M5ClaimedDeploymentSurface::LocalOnly,
+        vec![
+            M5DeploymentComponentFamily::InstallProfileCard,
+            M5DeploymentComponentFamily::DeploymentSummaryCard,
+            M5DeploymentComponentFamily::ControlPlaneDataPlaneStatusStrip,
+        ],
+        vec![
+            "component:install-profile-card:0001",
+            "component:deployment-summary-card:0001",
+            "component:control-plane-data-plane-status-strip:0001",
+        ],
+        current_notes(M5ClaimedDeploymentSurface::LocalOnly),
+        M5DeploymentClaimLabel::FullTruth,
+        vec![],
+    ));
+
+    let mut notes = current_notes(M5ClaimedDeploymentSurface::Managed);
+    notes[3] = note(
+        M5ClaimedDeploymentSurface::Managed,
+        M5DeploymentCompatibilityDimension::ControlPlaneDataPlaneContinuity,
+        M5DeploymentCompatibilityPosture::DegradedNarrowed,
+        "Managed control plane is unreachable while local runtime and data-plane work continue",
+        Some(M5DeploymentDowngradeTrigger::ControlPlaneImpaired),
+    );
+    rows.push(surface_row(
+        M5ClaimedDeploymentSurface::Managed,
+        vec![
+            M5DeploymentComponentFamily::InstallProfileCard,
+            M5DeploymentComponentFamily::DeploymentSummaryCard,
+            M5DeploymentComponentFamily::ControlPlaneDataPlaneStatusStrip,
+        ],
+        vec![
+            "component:install-profile-card:0001",
+            "component:deployment-summary-card:0001",
+            "component:control-plane-data-plane-status-strip:0001",
+        ],
+        notes,
+        M5DeploymentClaimLabel::LocalSafeOnly,
+        vec!["Control-plane outage narrows managed continuity to local-safe operation"],
+    ));
+
+    let mut notes = current_notes(M5ClaimedDeploymentSurface::SelfHosted);
+    notes[0] = note(
+        M5ClaimedDeploymentSurface::SelfHosted,
+        M5DeploymentCompatibilityDimension::ChannelOwnership,
+        M5DeploymentCompatibilityPosture::DegradedNarrowed,
+        "Self-hosted install retains a vendor license-activation dependency that must be disclosed",
+        Some(M5DeploymentDowngradeTrigger::ResidualVendorDependency),
+    );
+    rows.push(surface_row(
+        M5ClaimedDeploymentSurface::SelfHosted,
+        vec![
+            M5DeploymentComponentFamily::DeploymentSummaryCard,
+            M5DeploymentComponentFamily::ResidualDependencyRow,
+        ],
+        vec![
+            "component:deployment-summary-card:0001",
+            "component:residual-dependency-row:0001",
+        ],
+        notes,
+        M5DeploymentClaimLabel::DegradedNarrowed,
+        vec!["Residual vendor dependency prevents a fully independent self-hosted label"],
+    ));
+
+    let mut notes = current_notes(M5ClaimedDeploymentSurface::Mirrored);
+    notes[2] = note(
+        M5ClaimedDeploymentSurface::Mirrored,
+        M5DeploymentCompatibilityDimension::MirrorOfflineFreshness,
+        M5DeploymentCompatibilityPosture::DegradedNarrowed,
+        "Mirrored artifact is verified but stale and renders as cached-offline freshness",
+        Some(M5DeploymentDowngradeTrigger::MirrorStale),
+    );
+    rows.push(surface_row(
+        M5ClaimedDeploymentSurface::Mirrored,
+        vec![
+            M5DeploymentComponentFamily::MirrorOfflineArtifactRow,
+            M5DeploymentComponentFamily::ModeChangeReviewSheet,
+        ],
+        vec![
+            "component:mirror-offline-artifact-row:0001",
+            "component:mode-change-review-sheet:0001",
+        ],
+        notes,
+        M5DeploymentClaimLabel::DegradedNarrowed,
+        vec!["Mirror freshness is stale, so mirrored deployment cannot inherit a live label"],
+    ));
+
+    let mut notes = current_notes(M5ClaimedDeploymentSurface::Sovereign);
+    notes[0] = note(
+        M5ClaimedDeploymentSurface::Sovereign,
+        M5DeploymentCompatibilityDimension::ChannelOwnership,
+        M5DeploymentCompatibilityPosture::DegradedNarrowed,
+        "Sovereign deployment carries an explicit residual vendor dependency review row",
+        Some(M5DeploymentDowngradeTrigger::ResidualVendorDependency),
+    );
+    rows.push(surface_row(
+        M5ClaimedDeploymentSurface::Sovereign,
+        vec![
+            M5DeploymentComponentFamily::DeploymentSummaryCard,
+            M5DeploymentComponentFamily::ResidualDependencyRow,
+        ],
+        vec![
+            "component:deployment-summary-card:0001",
+            "component:residual-dependency-row:0001",
+        ],
+        notes,
+        M5DeploymentClaimLabel::DegradedNarrowed,
+        vec!["Sovereign deployment is narrowed until residual dependency review is current"],
+    ));
+
+    let mut notes = current_notes(M5ClaimedDeploymentSurface::AirGapped);
+    notes[2] = note(
+        M5ClaimedDeploymentSurface::AirGapped,
+        M5DeploymentCompatibilityDimension::MirrorOfflineFreshness,
+        M5DeploymentCompatibilityPosture::DegradedNarrowed,
+        "Air-gapped deployment is operating from cached-offline media rather than a live source",
+        Some(M5DeploymentDowngradeTrigger::OfflineCacheOnly),
+    );
+    rows.push(surface_row(
+        M5ClaimedDeploymentSurface::AirGapped,
+        vec![
+            M5DeploymentComponentFamily::MirrorOfflineArtifactRow,
+            M5DeploymentComponentFamily::ModeChangeReviewSheet,
+        ],
+        vec![
+            "component:mirror-offline-artifact-row:0001",
+            "component:mode-change-review-sheet:0001",
+        ],
+        notes,
+        M5DeploymentClaimLabel::LocalSafeOnly,
+        vec!["Air-gapped deployment uses cached-offline truth and cannot claim live freshness"],
+    ));
+
+    rows.push(surface_row(
+        M5ClaimedDeploymentSurface::SideBySide,
+        vec![
+            M5DeploymentComponentFamily::SideBySideImportSheet,
+            M5DeploymentComponentFamily::ChannelAssociationReviewRow,
+            M5DeploymentComponentFamily::InstallProfileCard,
+        ],
+        vec![
+            "component:side-by-side-import-sheet:0001",
+            "component:channel-association-review-row:0001",
+            "component:install-profile-card:0001",
+        ],
+        current_notes(M5ClaimedDeploymentSurface::SideBySide),
+        M5DeploymentClaimLabel::FullTruth,
+        vec![],
+    ));
+
+    let mut notes = current_notes(M5ClaimedDeploymentSurface::Portable);
+    notes[0] = note(
+        M5ClaimedDeploymentSurface::Portable,
+        M5DeploymentCompatibilityDimension::ChannelOwnership,
+        M5DeploymentCompatibilityPosture::DegradedNarrowed,
+        "Portable state root is unavailable and the install-profile card names the reattach route",
+        Some(M5DeploymentDowngradeTrigger::StateRootUnavailable),
+    );
+    rows.push(surface_row(
+        M5ClaimedDeploymentSurface::Portable,
+        vec![M5DeploymentComponentFamily::InstallProfileCard],
+        vec!["component:install-profile-card:0002"],
+        notes,
+        M5DeploymentClaimLabel::LocalSafeOnly,
+        vec![
+            "Portable state root is unavailable, so portable install narrows to reattach-required",
+        ],
+    ));
+
+    let mut notes = current_notes(M5ClaimedDeploymentSurface::FleetRollout);
+    notes[0] = note(
+        M5ClaimedDeploymentSurface::FleetRollout,
+        M5DeploymentCompatibilityDimension::ChannelOwnership,
+        M5DeploymentCompatibilityPosture::DegradedNarrowed,
+        "Fleet rollout is held in canary and cannot publish a broad rollout label",
+        Some(M5DeploymentDowngradeTrigger::RolloutPaused),
+    );
+    rows.push(surface_row(
+        M5ClaimedDeploymentSurface::FleetRollout,
+        vec![M5DeploymentComponentFamily::RolloutRingRow],
+        vec!["component:rollout-ring-row:0001"],
+        notes,
+        M5DeploymentClaimLabel::DegradedNarrowed,
+        vec!["Rollout ring is held at canary pending promotion evidence"],
+    ));
+
+    rows
+}
+
+fn seeded_release_support_proof() -> M5DeploymentContinuityReleaseSupportProof {
+    M5DeploymentContinuityReleaseSupportProof {
+        functional_drills_complete: true,
+        accessibility_drills_complete: true,
+        export_drills_complete: true,
+        degradation_drills_complete: true,
+        compatibility_notes_complete: true,
+        proof_packet_published: true,
+        later_m5_gating_asset: true,
+        support_export_refs: vec![
+            DEPLOYMENT_CONTINUITY_COMPONENT_MATRIX_ARTIFACT_REF.to_owned(),
+            DEPLOYMENT_CONTINUITY_COMPONENT_CERTIFICATION_ARTIFACT_REF.to_owned(),
+            DEPLOYMENT_CONTINUITY_COMPONENT_CERTIFICATION_REPORT_REF.to_owned(),
+        ],
+    }
+}
+
+fn seeded_certification_source_contract_refs() -> Vec<String> {
+    vec![
+        DEPLOYMENT_CONTINUITY_COMPONENT_MATRIX_SCHEMA_REF.to_owned(),
+        DEPLOYMENT_CONTINUITY_COMPONENT_MATRIX_DOC_REF.to_owned(),
+        DEPLOYMENT_CONTINUITY_COMPONENT_CERTIFICATION_ARTIFACT_REF.to_owned(),
+        DEPLOYMENT_CONTINUITY_COMPONENT_CERTIFICATION_CSV_REF.to_owned(),
+        DEPLOYMENT_CONTINUITY_COMPONENT_CERTIFICATION_REPORT_REF.to_owned(),
+        "schemas/ui/m5-deployment-continuity-component-consumer.schema.json".to_owned(),
+        "schemas/ui/m5-deployment-continuity-accessibility-fallback.schema.json".to_owned(),
+    ]
 }
 
 fn mandatory_labels() -> Vec<M5DeploymentRequiredLabel> {
