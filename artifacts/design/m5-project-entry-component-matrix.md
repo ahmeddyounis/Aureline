@@ -44,8 +44,8 @@ Every component row carries the same shared axes:
 | `recent_work_row` | `schemas/ui/m5-recent-work-row.schema.json` | Start Center recent list, Open Recent, support export | Target state, trust state, restore fidelity, write-safety badge, recovery actions | `missing_target`, `remote_unreachable`, `cached_only`, `policy_blocked` |
 | `workspace_switcher_entry` | `schemas/ui/m5-workspace-switcher-entry.schema.json` | Palette switcher, menu switcher, dedicated switcher | Same recent-work truth plus cross-window consequence | `authority_expired`, `suspended_managed_workspace`, `locked_by_other_instance` |
 | `restore_prompt_card` | `schemas/ui/m5-restore-prompt-card.schema.json` | Restore flow, crash recovery, Start Center restore card | Restore fidelity, session summary, dirty-buffer count, safest action, `safe_mode` / `open_without_restore` / `clear_journal` / `export_evidence` affordances | `layout_only`, `recovered_drafts`, `evidence_only` |
-| `entry_chooser_row` | `schemas/ui/m5-entry-chooser-row.schema.json` | Start Center, palette, drag/drop, CLI/headless, deep link | Verb-distinct chooser row with target and resulting-mode candidates | `reroute_required`, `target_kind_unresolved`, `policy_limited` |
-| `entry_review_sheet` | `schemas/ui/m5-entry-review-sheet.schema.json` | Open, clone, import, resume review sheets | Target, resulting mode, destination disposition, side effects, trust posture before writes | `review_required`, `trust_review_required`, `write_blocked` |
+| `entry_chooser_row` | `schemas/ui/m5-entry-chooser-row.schema.json` | Start Center, palette, drag/drop, CLI/headless, deep link | Verb-distinct chooser row with target-kind candidates, resulting-mode candidates, last-used or recommended destination, and keyboard equivalent | `reroute_required`, `target_kind_unresolved`, `policy_limited` |
+| `entry_review_sheet` | `schemas/ui/m5-entry-review-sheet.schema.json` | Open, clone, import, resume review sheets | Literal target, normalized source locator, protocol/host/auth posture, resulting mode, write scope, post-open action, side effects, trust posture, and retained-input diagnostics before writes or remote contact | `review_required`, `trust_review_required`, `write_blocked` |
 | `destination_collision_sheet` | `schemas/ui/m5-destination-collision-sheet.schema.json` | Clone, import, restore destination review | Collision class, safe actions, blocking choice before materialization | `existing_non_empty_path`, `existing_workspace_file`, `policy_blocked_destination` |
 | `post_entry_handoff_card` | `schemas/ui/m5-post-entry-handoff-card.schema.json` | Post-clone, post-import, post-restore, managed resume | Admission checkpoint ref and first useful work route | `setup_later`, `review_before_trust`, `compare_before_restore` |
 | `admission_checkpoint_card` | `schemas/ui/m5-admission-checkpoint-card.schema.json` | Shell admission, project doctor, attention inbox, CLI/headless, support export | Admission class, blocked-vs-optional buckets, ordinary editing availability | `policy_blocked`, `missing_prerequisite`, `needs_repair` |
@@ -96,6 +96,32 @@ The canonical labels are exactly `Exact restore`, `Compatible restore`,
 `Layout only`, `Recovered drafts`, `Evidence only`, and `No restore`. Docs/help,
 support exports, and release proof must quote those labels from this matrix and
 must not substitute feature-local wording.
+
+## Entry Chooser Row Truth
+
+`entry_chooser_row` rows must preserve the literal entry verb selected by the
+surface that invoked them. Start Center, command palette, drag-and-drop,
+deep-link, and CLI/headless projections all carry the same `entry_verb_candidate`,
+`target_kind_candidates`, `resulting_mode_candidates`,
+`last_used_or_recommended_destination`, and `keyboard_equivalent` fields. A row
+for `clone` cannot be rewritten as `open` because a local copy exists, an
+`import` row cannot become `restore` because a packet includes restore metadata,
+and `restore` remains the session-recovery verb rather than a generic start path.
+
+## Entry Review Sheet Truth
+
+`entry_review_sheet` rows are the confirmation boundary for `open`, `clone`,
+`import`, and `resume`. A conforming sheet includes the redaction-safe literal
+target label, normalized source locator, source-locator kind, protocol class,
+host class, auth posture, resulting mode, write scope, post-open action,
+destination disposition, side-effect truth, and retained-input diagnostics.
+
+The side-effect truth is explicit before execution: repository hooks, dependency
+restore, and trust widening are either disclosed or blocked as hidden work.
+`no_hidden_hook_or_trust_widening_truth` must be true on every review sheet.
+Failed attempts preserve typed retained-input refs, redacted error context,
+repair actions, and retry posture so users can fix the attempt without
+re-entering the target, destination, auth posture, or resulting-mode choices.
 
 ## Evidence Expectations
 

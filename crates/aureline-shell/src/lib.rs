@@ -183,6 +183,7 @@ pub mod m5_os_notifications_and_badges;
 pub mod m5_owning_window_routing;
 pub mod m5_pane_control_certification;
 pub mod m5_post_install_disclosure;
+pub mod m5_project_entry_components;
 pub mod m5_public_handoff_certification;
 pub mod m5_reactive_state_explainer;
 pub mod m5_recent_items_and_reopen;
