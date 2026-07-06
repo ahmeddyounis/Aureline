@@ -22,6 +22,7 @@ pub mod entry;
 pub mod entry_flows;
 pub mod entry_hardening_lineage;
 pub mod finalize_workflow_bundle_lifecycle_drift_and_overrides;
+pub mod freeze_the_m5_workflow_bundle_launch_badge_detail_review_drift_and_rollback_component_matrix;
 pub mod generated_artifacts;
 pub mod generated_projects;
 pub mod harden_keymap_theme_settings_snippet_task_and_launch;
