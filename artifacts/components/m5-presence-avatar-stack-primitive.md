@@ -1,0 +1,77 @@
+# M5 Presence Avatar Stack and Role-or-Follow Badge Primitive: Names, Roles, Recording State, and Local-Fallback Continuity
+
+- Packet: `m5-presence-avatar-stack-primitive:stable:0001`
+- Label: `M5 presence avatar stack and role-or-follow badge primitive: participant identity, role, follow / presenter state, recording-or-retention cue, and local-fallback continuity`
+- Collaboration surfaces: 9 (9 stable)
+- Collaboration roles: session_host, collaborator, presenter, observer, control_holder
+- Follow states: following_presenter, being_followed, not_following, presenting_to_others, follow_paused
+- Continuity postures: live, degraded_visible, reconnecting_visible, local_fallback_visible, ended_last_known_visible
+- Recording cues: not_applicable, recording, retained, retention_pending, not_recorded
+- Presence actions: view_participant_list, follow_presenter, stop_following, reconnect_collaboration
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-06T00:00:00Z)
+
+## Collaboration surfaces
+
+- **Collaboration Strip**: `stable`
+  - Owner: Collaboration strip owner
+  - Scope: The always-on collaboration strip renders the shared avatar stack and role-or-follow badges so a live session shows who is presenting and that the local user is following, while a degraded link keeps the roster and roles visible with a reconnect action rather than collapsing into a generic session banner
+  - Shell zone: `status_bar`
+  - Worked resolutions: 2
+    - `strip-follow-presenter` → 2 present of 2, presenter `peer-alpha`, continuity `live`, recording `not_applicable`
+    - `strip-degraded-visible` → 2 present of 2, presenter `no presenter`, continuity `degraded_visible`, recording `recording`
+- **Shared Terminal Header**: `stable`
+  - Owner: Shared terminal header owner
+  - Scope: The shared terminal header renders the shared components so a control holder driving the terminal reads as presenter and control holder with the local user following, and so the local user presenting their own view reads as being followed with an explicit not-recorded cue
+  - Shell zone: `bottom_panel`
+  - Worked resolutions: 2
+    - `term-control-holder` → 2 present of 2, presenter `driver-x`, continuity `live`, recording `not_applicable`
+    - `term-self-presents` → 2 present of 2, presenter `local-you`, continuity `live`, recording `not_recorded`, view followed
+- **Shared Debug Pane**: `stable`
+  - Owner: Shared debug pane owner
+  - Scope: The shared debug pane renders the shared components so a session with an active presenter offers the local user a follow action, while a reconnecting link keeps the paused-follow roster and roles visible with a reconnect action rather than dropping presence
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 2
+    - `debug-follow-available` → 2 present of 2, presenter `lead-dbg`, continuity `live`, recording `not_applicable`
+    - `debug-reconnecting` → 2 present of 2, presenter `no presenter`, continuity `reconnecting_visible`, recording `retention_pending`
+- **Review / Session Header**: `stable`
+  - Owner: Review / session header owner
+  - Scope: The review / session header renders the shared components so a retained review session shows the local host being followed, and so an ended session keeps the last-known roster and the participant who held control visible instead of erasing who was present
+  - Shell zone: `title_context_bar`
+  - Worked resolutions: 2
+    - `review-being-followed` → 2 present of 2, presenter `no presenter`, continuity `live`, recording `retained`, view followed
+    - `review-ended-last-known` → 0 present of 2, presenter `no presenter`, continuity `ended_last_known_visible`, recording `retained`
+- **Presenter HUD**: `stable`
+  - Owner: Presenter HUD owner
+  - Scope: The presenter heads-up display renders the shared components so an offline local-fallback keeps the local presenter and the control-holding co-host visible with a reconnect action while recording, and so a live session offers the local observer a follow action
+  - Shell zone: `transient_overlay`
+  - Worked resolutions: 2
+    - `hud-offline-fallback` → 0 present of 2, presenter `local-you`, continuity `local_fallback_visible`, recording `recording`, view followed
+    - `hud-live-follow` → 2 present of 2, presenter `presenter-h`, continuity `live`, recording `not_applicable`
+- **Follow-Mode Banner**: `stable`
+  - Owner: Follow-mode banner owner
+  - Scope: The follow-mode banner renders the shared components so an active follow offers a stop-following action with the presenter named, and so a degraded link keeps the paused-follow banner and presenter visible with a reconnect action and an explicit not-recorded cue
+  - Shell zone: `title_context_bar`
+  - Worked resolutions: 2
+    - `follow-active` → 2 present of 2, presenter `speaker-f`, continuity `live`, recording `not_applicable`
+    - `follow-paused-degraded` → 2 present of 2, presenter `speaker-f`, continuity `degraded_visible`, recording `not_recorded`
+- **Session Roster Panel**: `stable`
+  - Owner: Session roster panel owner
+  - Scope: The session roster panel renders the shared components so a full roster distinguishes host, control holder, collaborator, observer, and presenter roles with follow badges, and so a reconnecting session keeps a departed participant accounted for rather than silently dropping them
+  - Shell zone: `right_inspector`
+  - Worked resolutions: 2
+    - `roster-full` → 5 present of 5, presenter `driver-r`, continuity `live`, recording `retained`, view followed
+    - `roster-departed` → 1 present of 2, presenter `no presenter`, continuity `reconnecting_visible`, recording `retention_pending`
+- **Activity-Center Presence**: `stable`
+  - Owner: Activity-center presence owner
+  - Scope: The activity-center presence entry renders the shared components so a quiet live session lists who is present without inventing a follow claim, and so an offline local-fallback keeps the last-known host visible with a reconnect action while recording
+  - Shell zone: `activity_rail`
+  - Worked resolutions: 2
+    - `activity-quiet` → 2 present of 2, presenter `no presenter`, continuity `live`, recording `not_applicable`
+    - `activity-offline` → 0 present of 2, presenter `no presenter`, continuity `local_fallback_visible`, recording `recording`
+- **Shared Preview Header**: `stable`
+  - Owner: Shared preview header owner
+  - Scope: The shared preview header renders the shared components so a live preview session shows the local user following the presenting designer, and so a quiet live preview lists who is present with an explicit not-recorded cue
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 2
+    - `preview-follow` → 2 present of 2, presenter `designer-p`, continuity `live`, recording `not_applicable`
+    - `preview-quiet` → 2 present of 2, presenter `no presenter`, continuity `live`, recording `not_recorded`
