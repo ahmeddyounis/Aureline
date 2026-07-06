@@ -1,0 +1,77 @@
+# M5 Remote-Target Pill and Environment-Status Strip Primitive: Source, Scope, and Readiness
+
+- Packet: `m5-remote-target-environment-primitive:stable:0001`
+- Label: `M5 remote-target pill and environment status strip primitive: target identity, host boundary, degraded/reconnect state, resolved runtime source, scope, readiness, and 'Why this context?' entrypoint`
+- Run-capable surfaces: 9 (9 stable)
+- Target postures: local_inline, connected_healthy, establishing, reconnecting, offline_cached, disconnected
+- Readiness states: ready, degraded_cached, degraded_narrowed, degraded_unreachable_target, blocked_by_policy, blocked_unresolved
+- Provenance states: resolved, cached_offline, narrowed_approximate, policy_blocked, unresolved
+- Resolved scopes: session_scope, project_scope, workspace_scope, host_scope, global_default_scope
+- Runtime source classes: project_pinned, workspace_configured, tool_manager_resolved, system_default, container_provided, session_override
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-06T00:00:00Z)
+
+## Run-capable surfaces
+
+- **Run Console**: `stable`
+  - Owner: Run console owner
+  - Scope: The run console renders the shared remote-target pill and environment status strip so a project-pinned local runtime reads as local-inline and ready with its winning source, while a connected remote serving an offline-cached value reads as degraded-cached rather than cleanly ready
+  - Shell zone: `status_bar`
+  - Worked resolutions: 2
+    - `run-local` on `local_host` → target `local_inline`, `ready` (source `project_pinned`, scope `project_scope`, resolved)
+    - `run-remote` on `remote_ssh_host` → target `connected_healthy`, `degraded_cached` (source `workspace_configured`, scope `workspace_scope`, cached_offline)
+- **Test Runner**: `stable`
+  - Owner: Test runner owner
+  - Scope: The test runner renders the shared pill and strip so a container-provided runtime whose connection is establishing reads as establishing and ready once resolved, while a reconnecting remote reads as degraded-unreachable-target rather than confirming readiness against a target that is not reachable
+  - Shell zone: `status_bar`
+  - Worked resolutions: 2
+    - `test-container` on `container_host` → target `establishing`, `ready` (source `container_provided`, scope `host_scope`, resolved)
+    - `test-remote` on `remote_ssh_host` → target `reconnecting`, `degraded_unreachable_target` (source `tool_manager_resolved`, scope `session_scope`, resolved)
+- **Debug Session**: `stable`
+  - Owner: Debug session owner
+  - Scope: The debug session renders the shared pill and strip so a managed workspace host serving a narrowed/approximate value over an offline cache reads as offline-cached and degraded-narrowed, while a disconnected VM whose runtime is blocked by policy reads as disconnected and blocked-by-policy before work starts
+  - Shell zone: `status_bar`
+  - Worked resolutions: 2
+    - `debug-managed` on `managed_workspace_host` → target `offline_cached`, `degraded_narrowed` (source `session_override`, scope `global_default_scope`, narrowed_approximate)
+    - `debug-vm` on `virtual_machine_host` → target `disconnected`, `blocked_by_policy` (source `system_default`, scope `workspace_scope`, policy_blocked)
+- **Notebook Runtime**: `stable`
+  - Owner: Notebook runtime owner
+  - Scope: The notebook runtime renders the shared pill and strip so a wasm-sandbox kernel whose runtime value could not be resolved reads as blocked-unresolved rather than a stale value, while a local system-default kernel reads as local-inline and ready with its winning source and scope explicit
+  - Shell zone: `status_bar`
+  - Worked resolutions: 2
+    - `kernel-wasm` on `wasm_sandbox_host` → target `connected_healthy`, `blocked_unresolved` (source `tool_manager_resolved`, scope `session_scope`, unresolved)
+    - `kernel-local` on `local_host` → target `local_inline`, `ready` (source `system_default`, scope `global_default_scope`, resolved)
+- **Request Runner**: `stable`
+  - Owner: Request runner owner
+  - Scope: The request runner renders the shared pill and strip so a connected remote environment reads as connected-healthy and ready, while a managed workspace host serving an offline-cached value reads as offline-cached and degraded-cached with the same source/scope/readiness vocabulary as every other surface
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 2
+    - `request-remote` on `remote_ssh_host` → target `connected_healthy`, `ready` (source `workspace_configured`, scope `workspace_scope`, resolved)
+    - `request-managed` on `managed_workspace_host` → target `offline_cached`, `degraded_cached` (source `container_provided`, scope `host_scope`, cached_offline)
+- **Database Session**: `stable`
+  - Owner: Database session owner
+  - Scope: The database session renders the shared pill and strip so a connected remote database whose runtime access is blocked by policy reads as connected-healthy on the pill but blocked-by-policy on the strip, while a local project-pinned client reads as local-inline and ready
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 2
+    - `db-remote` on `remote_ssh_host` → target `connected_healthy`, `blocked_by_policy` (source `system_default`, scope `host_scope`, policy_blocked)
+    - `db-local` on `local_host` → target `local_inline`, `ready` (source `project_pinned`, scope `project_scope`, resolved)
+- **Preview Server**: `stable`
+  - Owner: Preview server owner
+  - Scope: The preview server renders the shared pill and strip so a connected container-provided runtime reads as connected-healthy and ready, while a reconnecting VM reads as reconnecting on the pill and degraded-unreachable-target on the strip until the target is reachable again
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 2
+    - `preview-container` on `container_host` → target `connected_healthy`, `ready` (source `container_provided`, scope `workspace_scope`, resolved)
+    - `preview-vm` on `virtual_machine_host` → target `reconnecting`, `degraded_unreachable_target` (source `workspace_configured`, scope `workspace_scope`, resolved)
+- **Pipeline Run**: `stable`
+  - Owner: Pipeline run owner
+  - Scope: The pipeline run renders the shared pill and strip so a connected managed host resolving a narrowed value reads as connected-healthy and degraded-narrowed, while a disconnected remote whose value could not be resolved reads as disconnected and blocked-unresolved rather than presenting an unproven value as ready
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 2
+    - `pipeline-managed` on `managed_workspace_host` → target `connected_healthy`, `degraded_narrowed` (source `tool_manager_resolved`, scope `project_scope`, narrowed_approximate)
+    - `pipeline-remote` on `remote_ssh_host` → target `disconnected`, `blocked_unresolved` (source `system_default`, scope `host_scope`, unresolved)
+- **Incident Surface**: `stable`
+  - Owner: Incident surface owner
+  - Scope: The incident/break-glass surface renders the shared pill and strip so a connected remote session override reads as connected-healthy and ready with the winning source and scope explicit before any keystroke, while a container serving an offline cache reads as offline-cached and degraded-cached
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 2
+    - `incident-remote` on `remote_ssh_host` → target `connected_healthy`, `ready` (source `session_override`, scope `session_scope`, resolved)
+    - `incident-container` on `container_host` → target `offline_cached`, `degraded_cached` (source `container_provided`, scope `host_scope`, cached_offline)
