@@ -27,6 +27,7 @@ pub mod generated_artifacts;
 pub mod generated_projects;
 pub mod harden_keymap_theme_settings_snippet_task_and_launch;
 pub mod history;
+pub mod implement_keyboard_screen_reader_cli_export_parity_and_bundle_claim_auto_narrowing;
 pub mod implement_the_m5_bundle_class_disclosure_cards_and_claim_narrowing_rows;
 pub mod implement_the_m5_bundle_detail_pages_and_install_update_review_sheets;
 pub mod implement_the_m5_bundle_drift_banners_and_local_override_rows;
