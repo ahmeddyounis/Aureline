@@ -18,6 +18,7 @@ pub mod bundles;
 pub mod cache_storage_class_lineage;
 pub mod canonical_identity_lineage;
 pub mod certify_launch_bundles_imported_user_handoff_bundles_and;
+pub mod certify_workflow_bundle_launch_badge_detail_review_drift_and_rollback_component_truth_across_claimed_stack_entry_and_migration_surfaces;
 pub mod entry;
 pub mod entry_flows;
 pub mod entry_hardening_lineage;
