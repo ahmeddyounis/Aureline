@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aureline.dev/schemas/ui/m5-context-precedence-inspector.schema.json",
+  "title": "M5 Context Precedence Inspector Component Fragment",
+  "description": "The reusable precedence-inspector half of the M5 toolchain-pin / switch-review primitive: the ordered winning-versus-shadowed layer stack, its shadow explanations, and the switch-review card. Referenced as a source contract by the packet schema schemas/ui/m5-toolchain-pin-row.schema.json, which is the authoritative validation target for the checked-in artifacts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "target_kind",
+    "winning_scope",
+    "winning_source",
+    "pin_state",
+    "ordered_layers"
+  ],
+  "properties": {
+    "target_kind": {
+      "description": "The kind of toolchain target the inspector governs.",
+      "enum": ["interpreter", "sdk", "shell", "kernel", "runtime"]
+    },
+    "winning_scope": {
+      "description": "The scope of the winning (top-of-stack) layer.",
+      "$ref": "#/definitions/pinScope"
+    },
+    "winning_source": {
+      "description": "The source of the winning layer.",
+      "$ref": "#/definitions/toolchainSource"
+    },
+    "pin_state": {
+      "description": "The derived pin state disclosed by the inspector.",
+      "enum": [
+        "pinned_resolved",
+        "pinned_missing_fallback",
+        "unpinned",
+        "pin_conflict",
+        "pin_overridden"
+      ]
+    },
+    "shadows_durable_pin": {
+      "description": "True when the winning layer shadows a differing durable pin; the inspector must then disclose every shadowed layer.",
+      "type": "boolean"
+    },
+    "ordered_layers": {
+      "description": "The winning stack, ordered by precedence rank (winner first). Every non-winning layer must carry a shadow_reason so no durable pin is silently shadowed.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/rankedLayer" }
+    },
+    "affected_surfaces": {
+      "description": "The environment selectors the winning selection affects.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "switch_review": {
+      "description": "The predicted review of a requested context switch, when one is under consideration.",
+      "oneOf": [{ "$ref": "#/definitions/switchReview" }, { "type": "null" }]
+    }
+  },
+  "definitions": {
+    "pinScope": {
+      "enum": [
+        "policy_scope",
+        "session_scope",
+        "project_scope",
+        "workspace_scope",
+        "user_scope",
+        "host_scope",
+        "global_default_scope"
+      ]
+    },
+    "toolchainSource": {
+      "enum": [
+        "pin_file",
+        "workspace_setting",
+        "version_manager",
+        "system_installed",
+        "container_image",
+        "session_override"
+      ]
+    },
+    "rankedLayer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "source",
+        "selection_repr",
+        "precedence_rank",
+        "is_winner",
+        "is_durable_pin",
+        "shadow_reason"
+      ],
+      "properties": {
+        "scope": { "$ref": "#/definitions/pinScope" },
+        "source": { "$ref": "#/definitions/toolchainSource" },
+        "selection_repr": { "type": "string", "minLength": 1 },
+        "precedence_rank": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "is_winner": { "type": "boolean" },
+        "is_durable_pin": { "type": "boolean" },
+        "shadow_reason": { "type": ["string", "null"] }
+      }
+    },
+    "switchReview": {
+      "type": "object",
+      "required": ["blast_radius", "reversibility", "safe_local_only_fallback"],
+      "properties": {
+        "blast_radius": {
+          "enum": [
+            "no_writes_preview",
+            "workspace_scoped",
+            "toolchain_scoped",
+            "host_environment_scoped",
+            "multi_target_scoped"
+          ]
+        },
+        "reversibility": {
+          "enum": [
+            "fully_reversible_checkpoint",
+            "reversible_with_backup",
+            "partially_reversible",
+            "irreversible_confirmed",
+            "reversal_requires_manual_steps"
+          ]
+        },
+        "safe_local_only_fallback": { "type": "boolean" }
+      }
+    }
+  }
+}

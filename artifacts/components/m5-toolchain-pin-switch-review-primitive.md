@@ -1,0 +1,77 @@
+# M5 Toolchain-Pin Row, Precedence Inspector, and Switch-Review Card Primitive: Winning Scope, Shadowed Layers, and Revert-or-Repair
+
+- Packet: `m5-toolchain-pin-switch-review-primitive:stable:0001`
+- Label: `M5 toolchain pin row, precedence inspector, and switch-review card primitive: target kind, current selection, winning scope and source, pin state, shadowed layers, and switch blast radius`
+- Environment selectors: 9 (9 stable)
+- Target kinds: interpreter, sdk, shell, kernel, runtime
+- Pin states: pinned_resolved, pinned_missing_fallback, unpinned, pin_conflict, pin_overridden
+- Pin scopes: policy_scope, session_scope, project_scope, workspace_scope, user_scope, host_scope, global_default_scope
+- Selection-health states: healthy, degraded_stale, mismatched_version, missing_unavailable
+- Pin actions: review_precedence, clear_override, revert_to_shadowed_pin, repair_selection
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-06T00:00:00Z)
+
+## Environment selectors
+
+- **Status-Bar Selector**: `stable`
+  - Owner: Status-bar selector owner
+  - Scope: The status-bar selector renders the shared pin row, precedence inspector, and switch-review card so a project-pinned interpreter reads as pinned-resolved at project scope, while a managed policy override reads as pin-overridden with the shadowed project pin still inspectable and a clear-override action attached
+  - Shell zone: `status_bar`
+  - Worked resolutions: 2
+    - `status-py-resolved` (interpreter) → won at `project_scope`, `pinned_resolved` (source `pin_file`, health `healthy`, no switch)
+    - `status-py-policy-override` (interpreter) → won at `policy_scope`, `pin_overridden` (source `workspace_setting`, health `healthy`, no switch)
+- **Command-Palette Switcher**: `stable`
+  - Owner: Command-palette switcher owner
+  - Scope: The command-palette switcher renders the shared components so a session override reads as pin-overridden with the shadowed user pin and a toolchain-scoped, fully reversible switch previewed before it is applied, while an unset SDK reads as unpinned on a global default
+  - Shell zone: `transient_overlay`
+  - Worked resolutions: 2
+    - `palette-sdk-session-override` (sdk) → won at `session_scope`, `pin_overridden` (source `session_override`, health `healthy`, switch → toolchain_scoped (fully_reversible_checkpoint))
+    - `palette-sdk-unpinned` (sdk) → won at `global_default_scope`, `unpinned` (source `system_installed`, health `healthy`, no switch)
+- **Settings Toolchain Row**: `stable`
+  - Owner: Settings toolchain row owner
+  - Scope: The settings toolchain row renders the shared components so a workspace setting that shadows a differing user pin reads as pin-conflict with the shadowed user layer disclosed and a revert action attached — never a silent shadow — while a lone user pin reads as pinned-resolved at user scope
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 2
+    - `settings-shell-workspace-shadows-user` (shell) → won at `workspace_scope`, `pin_conflict` (source `workspace_setting`, health `healthy`, no switch)
+    - `settings-shell-user-resolved` (shell) → won at `user_scope`, `pinned_resolved` (source `version_manager`, health `healthy`, no switch)
+- **Interpreter Picker**: `stable`
+  - Owner: Interpreter picker owner
+  - Scope: The interpreter picker renders the shared components so a project pin whose interpreter is missing reads as pinned-missing-fallback with the degraded health explicit and a repair action attached, while a container-image interpreter reads as pinned-resolved at workspace scope
+  - Shell zone: `transient_overlay`
+  - Worked resolutions: 2
+    - `picker-py-missing` (interpreter) → won at `project_scope`, `pinned_missing_fallback` (source `pin_file`, health `missing_unavailable`, no switch)
+    - `picker-py-container` (interpreter) → won at `workspace_scope`, `pinned_resolved` (source `container_image`, health `healthy`, no switch)
+- **SDK Selector**: `stable`
+  - Owner: SDK selector owner
+  - Scope: The SDK selector renders the shared components so a stale project SDK keeps an explicit repair action rather than reading as cleanly resolved, while a session override whose version mismatches the pin previews a host-environment-scoped switch with its reversibility before it is applied
+  - Shell zone: `right_inspector`
+  - Worked resolutions: 2
+    - `sdk-project-stale` (sdk) → won at `project_scope`, `pinned_resolved` (source `version_manager`, health `degraded_stale`, no switch)
+    - `sdk-session-mismatch` (sdk) → won at `session_scope`, `pin_overridden` (source `session_override`, health `mismatched_version`, switch → host_environment_scoped (reversible_with_backup))
+- **Shell-Profile Picker**: `stable`
+  - Owner: Shell-profile picker owner
+  - Scope: The shell-profile picker renders the shared components so a host-installed shell with no pin reads as unpinned at host scope, while a session-override shell reads as pinned-resolved with a clear-override action and a workspace-scoped, fully reversible switch previewed before it is applied
+  - Shell zone: `status_bar`
+  - Worked resolutions: 2
+    - `shell-host-unpinned` (shell) → won at `host_scope`, `unpinned` (source `system_installed`, health `healthy`, no switch)
+    - `shell-session-clean` (shell) → won at `session_scope`, `pinned_resolved` (source `session_override`, health `healthy`, switch → workspace_scoped (fully_reversible_checkpoint))
+- **Kernel Picker**: `stable`
+  - Owner: Kernel picker owner
+  - Scope: The kernel picker renders the shared components so a project kernel that shadows a differing user pin reads as pin-conflict with the shadowed user layer disclosed, while a workspace kernel previews a multi-target, reconnect-required switch with its manual-reversal steps before it is applied
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 2
+    - `kernel-project-conflict` (kernel) → won at `project_scope`, `pin_conflict` (source `pin_file`, health `healthy`, no switch)
+    - `kernel-workspace-reconnect-switch` (kernel) → won at `workspace_scope`, `pinned_resolved` (source `container_image`, health `healthy`, switch → multi_target_scoped (reversal_requires_manual_steps))
+- **Runtime-Target Switcher**: `stable`
+  - Owner: Runtime-target switcher owner
+  - Scope: The runtime-target switcher renders the shared components so a project runtime previews a toolchain-scoped, restart-required switch with its partial reversibility, while a policy override that shadows both a workspace and a user pin reads as pin-overridden with every shadowed layer disclosed
+  - Shell zone: `title_context_bar`
+  - Worked resolutions: 2
+    - `runtime-project-restart-switch` (runtime) → won at `project_scope`, `pinned_resolved` (source `pin_file`, health `healthy`, switch → toolchain_scoped (partially_reversible))
+    - `runtime-policy-shadows-two` (runtime) → won at `policy_scope`, `pin_overridden` (source `workspace_setting`, health `healthy`, no switch)
+- **Repair-Panel Selector**: `stable`
+  - Owner: Repair-panel selector owner
+  - Scope: The Project Doctor repair-panel selector renders the shared components so a missing workspace runtime reads as pinned-missing-fallback with a repair action attached, while a mismatched project runtime keeps its repair action and previews a host-environment-scoped, fully reversible switch to the global default
+  - Shell zone: `right_inspector`
+  - Worked resolutions: 2
+    - `repair-workspace-missing` (runtime) → won at `workspace_scope`, `pinned_missing_fallback` (source `container_image`, health `missing_unavailable`, no switch)
+    - `repair-project-mismatch-switch` (runtime) → won at `project_scope`, `pinned_resolved` (source `pin_file`, health `mismatched_version`, switch → host_environment_scoped (fully_reversible_checkpoint))
