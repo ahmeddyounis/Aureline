@@ -252,6 +252,199 @@ fn validator_flags_collision_overwrite_fallback_and_missing_open_minimal() {
 }
 
 #[test]
+fn admission_checkpoint_cards_state_identity_recommendation_and_keep_plain_editing() {
+    let packet = current_m5_project_entry_component_matrix().expect("fixture parses");
+    let components = packet
+        .get("components")
+        .and_then(Value::as_array)
+        .expect("components array");
+    let cards = components
+        .iter()
+        .filter(|row| {
+            row.get("component_family").and_then(Value::as_str) == Some("admission_checkpoint_card")
+        })
+        .collect::<Vec<_>>();
+    assert!(cards.len() >= 2, "admission cards cover more than one class");
+
+    for card in &cards {
+        for field in ["root_identity_label", "recommendation_source"] {
+            assert!(card
+                .get(field)
+                .and_then(Value::as_str)
+                .is_some_and(|value| !value.trim().is_empty()));
+        }
+        assert_eq!(
+            card.get("continue_without_available").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            card.get("set_up_later_available").and_then(Value::as_bool),
+            Some(true)
+        );
+        let actions = card
+            .get("checkpoint_actions")
+            .and_then(Value::as_array)
+            .expect("checkpoint_actions array")
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>();
+        assert!(actions.contains(&"continue_without"));
+        assert!(actions.contains(&"set_up_later"));
+    }
+}
+
+#[test]
+fn archetype_readiness_rows_cover_all_outcomes_with_confidence_and_evidence() {
+    let packet = current_m5_project_entry_component_matrix().expect("fixture parses");
+    let components = packet
+        .get("components")
+        .and_then(Value::as_array)
+        .expect("components array");
+    let rows = components
+        .iter()
+        .filter(|row| {
+            row.get("component_family").and_then(Value::as_str) == Some("archetype_readiness_row")
+        })
+        .collect::<Vec<_>>();
+
+    for outcome in [
+        "certified",
+        "probable",
+        "mixed",
+        "generic",
+        "restricted",
+        "missing_prerequisite",
+    ] {
+        let row = rows
+            .iter()
+            .find(|row| {
+                row.get("detected_archetype_class").and_then(Value::as_str) == Some(outcome)
+            })
+            .unwrap_or_else(|| panic!("{outcome} readiness row exists"));
+        assert!(row
+            .get("confidence_class")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty()));
+        assert!(row
+            .get("evidence_source_class")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty()));
+        if matches!(outcome, "restricted" | "missing_prerequisite") {
+            assert_eq!(
+                row.get("readiness_bucket").and_then(Value::as_str),
+                Some("blocking_now")
+            );
+            assert!(row
+                .get("blocked_reason_class")
+                .and_then(Value::as_str)
+                .is_some_and(|value| !value.trim().is_empty()));
+        }
+    }
+}
+
+#[test]
+fn first_useful_work_routing_stays_attributable_to_entry_source() {
+    let packet = current_m5_project_entry_component_matrix().expect("fixture parses");
+    let components = packet
+        .get("components")
+        .and_then(Value::as_array)
+        .expect("components array");
+    let cards = components
+        .iter()
+        .filter(|row| {
+            row.get("component_family").and_then(Value::as_str) == Some("post_entry_handoff_card")
+        })
+        .collect::<Vec<_>>();
+
+    for source in [
+        "single_file_open",
+        "folder_or_repo_open",
+        "repo_clone",
+        "restore",
+        "review_link_open",
+        "imported_handoff_packet",
+    ] {
+        let card = cards
+            .iter()
+            .find(|card| card.get("entry_source_class").and_then(Value::as_str) == Some(source))
+            .unwrap_or_else(|| panic!("{source} handoff routing exists"));
+        assert_eq!(
+            card.get("plain_open_same_weight").and_then(Value::as_bool),
+            Some(true)
+        );
+        let route = card
+            .get("first_useful_work_route")
+            .and_then(Value::as_str)
+            .expect("route present");
+        if matches!(source, "single_file_open" | "folder_or_repo_open") {
+            assert_eq!(route, "ordinary_editing");
+        }
+    }
+}
+
+#[test]
+fn validator_flags_hidden_blocked_reason_and_welcome_tab_routing() {
+    let mut packet = current_m5_project_entry_component_matrix().expect("fixture parses");
+    let components = packet
+        .get_mut("components")
+        .and_then(Value::as_array_mut)
+        .expect("components array");
+
+    let restricted = components
+        .iter_mut()
+        .find(|row| {
+            row.get("component_family").and_then(Value::as_str) == Some("archetype_readiness_row")
+                && row.get("detected_archetype_class").and_then(Value::as_str) == Some("restricted")
+        })
+        .expect("restricted readiness row");
+    restricted
+        .as_object_mut()
+        .expect("row object")
+        .remove("blocked_reason_class");
+
+    let plain_open = components
+        .iter_mut()
+        .find(|row| {
+            row.get("component_family").and_then(Value::as_str) == Some("post_entry_handoff_card")
+                && row.get("entry_source_class").and_then(Value::as_str) == Some("single_file_open")
+        })
+        .expect("single-file handoff card");
+    plain_open["first_useful_work_route"] = Value::String("setup_later".into());
+
+    let errors =
+        validate_m5_project_entry_component_matrix(&packet).expect_err("mutated packet fails");
+    assert!(errors
+        .iter()
+        .any(|error| error.contains("blocked outcome states no blocked reason")));
+    assert!(errors
+        .iter()
+        .any(|error| error.contains("routes to setup_later instead of ordinary_editing")));
+}
+
+#[test]
+fn validator_flags_readiness_summary_mismatch() {
+    let mut packet = current_m5_project_entry_component_matrix().expect("fixture parses");
+    let components = packet
+        .get_mut("components")
+        .and_then(Value::as_array_mut)
+        .expect("components array");
+    let admission = components
+        .iter_mut()
+        .find(|row| {
+            row.get("component_family").and_then(Value::as_str) == Some("admission_checkpoint_card")
+                && row.get("admission_class").and_then(Value::as_str) == Some("trust_review_required")
+        })
+        .expect("trust-review admission card");
+    admission["readiness_bucket_summary"]["blocking_now_total"] = Value::from(4u64);
+
+    let errors =
+        validate_m5_project_entry_component_matrix(&packet).expect_err("mutated packet fails");
+    assert!(errors
+        .iter()
+        .any(|error| error.contains("does not match its blocking_now tasks")));
+}
+
+#[test]
 fn validator_flags_hidden_side_effect_and_lost_retained_inputs() {
     let mut packet = current_m5_project_entry_component_matrix().expect("fixture parses");
     let components = packet

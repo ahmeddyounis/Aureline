@@ -385,7 +385,8 @@
         "reveal_in_filesystem",
         "inspect_only",
         "cancel_no_change",
-        "finish_setup"
+        "finish_setup",
+        "continue_without"
       ]
     },
     "collision_source_class": {
@@ -428,6 +429,68 @@
         "non_durable_staging_not_shareable",
         "not_applicable"
       ]
+    },
+    "archetype_recommendation_source": {
+      "type": "string",
+      "enum": [
+        "certified_archetype_detection",
+        "probable_archetype_detection",
+        "workflow_bundle_manifest",
+        "template_or_prebuild_manifest",
+        "policy_profile",
+        "no_recommendation"
+      ]
+    },
+    "readiness_confidence_class": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "none"]
+    },
+    "readiness_evidence_source_class": {
+      "type": "string",
+      "enum": [
+        "repository_manifest_detected",
+        "lockfile_detected",
+        "config_or_toolchain_file_detected",
+        "workflow_bundle_manifest",
+        "policy_profile",
+        "remote_prerequisite_probe",
+        "no_local_evidence"
+      ]
+    },
+    "entry_source_class": {
+      "type": "string",
+      "enum": [
+        "single_file_open",
+        "folder_or_repo_open",
+        "repo_clone",
+        "restore",
+        "review_link_open",
+        "imported_handoff_packet",
+        "template_or_prebuild_open"
+      ]
+    },
+    "first_useful_work_route": {
+      "type": "string",
+      "enum": [
+        "ordinary_editing",
+        "review_before_trust",
+        "compare_before_restore",
+        "inspect_import",
+        "resume_live_session",
+        "setup_later"
+      ]
+    },
+    "readiness_task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_ref", "task_label", "readiness_bucket"],
+      "properties": {
+        "task_ref": { "$ref": "#/$defs/opaque_id" },
+        "task_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "readiness_bucket": { "$ref": "#/$defs/readiness_bucket" },
+        "blocked_reason_class": { "$ref": "#/$defs/blocked_reason_class" },
+        "optional_reason_class": { "$ref": "#/$defs/optional_reason_class" }
+      }
     },
     "start_center_quick_action_card": {
       "allOf": [
@@ -859,6 +922,7 @@
             "record_kind",
             "component_family",
             "entry_verb",
+            "entry_source_class",
             "opened_object_ref",
             "opened_object_label",
             "admission_checkpoint_ref",
@@ -866,6 +930,7 @@
             "intentionally_not_done",
             "recommended_next_action",
             "first_useful_work_route",
+            "plain_open_same_weight",
             "handoff_actions",
             "set_up_later_available",
             "open_minimal_available",
@@ -885,13 +950,15 @@
             "restore_fidelity_class": { "$ref": "#/$defs/restore_fidelity_class" },
             "resulting_modes": { "type": "array", "items": { "$ref": "#/$defs/resulting_mode" } },
             "entry_verb": { "$ref": "#/$defs/entry_verb" },
+            "entry_source_class": { "$ref": "#/$defs/entry_source_class" },
             "opened_object_ref": { "$ref": "#/$defs/opaque_id" },
             "opened_object_label": { "$ref": "#/$defs/redaction_aware_text" },
             "admission_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
             "pending_setup_or_trust_tasks": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/redaction_aware_text" } },
             "intentionally_not_done": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/redaction_aware_text" } },
             "recommended_next_action": { "$ref": "#/$defs/action_id" },
-            "first_useful_work_route": { "type": "string", "enum": ["ordinary_editing", "review_before_trust", "compare_before_restore", "inspect_import", "resume_live_session", "setup_later"] },
+            "first_useful_work_route": { "$ref": "#/$defs/first_useful_work_route" },
+            "plain_open_same_weight": { "type": "boolean", "const": true },
             "handoff_actions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/action_id" } },
             "set_up_later_available": { "type": "boolean", "const": true },
             "open_minimal_available": { "type": "boolean", "const": true },
@@ -909,7 +976,20 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["record_kind", "component_family", "admission_class", "readiness_bucket_summary", "ordinary_editing_available"],
+          "required": [
+            "record_kind",
+            "component_family",
+            "admission_class",
+            "root_identity_ref",
+            "root_identity_label",
+            "recommendation_source",
+            "readiness_bucket_summary",
+            "readiness_tasks",
+            "checkpoint_actions",
+            "continue_without_available",
+            "set_up_later_available",
+            "ordinary_editing_available"
+          ],
           "properties": {
             "record_kind": { "const": "m5_admission_checkpoint_card" },
             "schema_version": { "$ref": "#/$defs/schema_version" },
@@ -923,6 +1003,9 @@
             "restore_fidelity_class": { "$ref": "#/$defs/restore_fidelity_class" },
             "resulting_modes": { "type": "array", "items": { "$ref": "#/$defs/resulting_mode" } },
             "admission_class": { "type": "string", "enum": ["admitted", "trust_review_required", "needs_repair", "policy_blocked", "unsupported_target", "missing_prerequisite"] },
+            "root_identity_ref": { "$ref": "#/$defs/opaque_id" },
+            "root_identity_label": { "$ref": "#/$defs/redaction_aware_text" },
+            "recommendation_source": { "$ref": "#/$defs/archetype_recommendation_source" },
             "readiness_bucket_summary": {
               "type": "object",
               "additionalProperties": false,
@@ -933,8 +1016,17 @@
                 "optional_later_total": { "type": "integer", "minimum": 0 }
               }
             },
+            "readiness_tasks": { "type": "array", "items": { "$ref": "#/$defs/readiness_task" } },
             "blocked_reason_classes": { "type": "array", "items": { "$ref": "#/$defs/blocked_reason_class" } },
             "optional_reason_classes": { "type": "array", "items": { "$ref": "#/$defs/optional_reason_class" } },
+            "checkpoint_actions": {
+              "type": "array",
+              "minItems": 2,
+              "contains": { "const": "continue_without" },
+              "items": { "$ref": "#/$defs/action_id" }
+            },
+            "continue_without_available": { "type": "boolean", "const": true },
+            "set_up_later_available": { "type": "boolean", "const": true },
             "ordinary_editing_available": { "type": "boolean" },
             "copy_contract": { "$ref": "#/$defs/copy_contract" },
             "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_id" } }
@@ -948,7 +1040,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["record_kind", "component_family", "detected_archetype_class", "readiness_bucket", "setup_location_class"],
+          "required": ["record_kind", "component_family", "detected_archetype_class", "readiness_bucket", "setup_location_class", "confidence_class", "evidence_source_class"],
           "properties": {
             "record_kind": { "const": "m5_archetype_readiness_row" },
             "schema_version": { "$ref": "#/$defs/schema_version" },
@@ -964,6 +1056,8 @@
             "detected_archetype_class": { "type": "string", "enum": ["certified", "probable", "generic", "mixed", "restricted", "missing_prerequisite"] },
             "readiness_bucket": { "$ref": "#/$defs/readiness_bucket" },
             "setup_location_class": { "type": "string", "enum": ["local_workspace", "remote_workspace", "container", "devcontainer", "managed_cloud", "profile_or_policy", "external_provider"] },
+            "confidence_class": { "$ref": "#/$defs/readiness_confidence_class" },
+            "evidence_source_class": { "$ref": "#/$defs/readiness_evidence_source_class" },
             "blocked_reason_class": { "$ref": "#/$defs/blocked_reason_class" },
             "optional_reason_class": { "$ref": "#/$defs/optional_reason_class" },
             "copy_contract": { "$ref": "#/$defs/copy_contract" },

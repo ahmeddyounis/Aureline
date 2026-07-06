@@ -6,8 +6,16 @@
 //! `clone`, `import`, `restore`, and `resume` remain distinct inspectable
 //! verbs, with source-locator, write-scope, host/auth, side-effect, and
 //! retained-input diagnostics visible before execution.
+//!
+//! M05-841 adds admission-checkpoint cards (root identity, trust class,
+//! archetype/bundle recommendation source, blocked-vs-optional readiness
+//! tasks, and `Continue without`/`Set up later` choices), archetype/readiness
+//! rows across certified, probable, mixed, generic, restricted, and
+//! missing-prerequisite outcomes with confidence and evidence source, and
+//! first-useful-work routing that stays attributable to the entry source while
+//! preserving a same-weight plain-open path.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::Value;
 
@@ -47,6 +55,34 @@ pub const M5_COLLISION_SAFE_ACTION_VOCABULARY: &[&str] = &[
     "inspect_only",
     "cancel_no_change",
 ];
+
+/// Archetype/readiness outcomes an admission checkpoint must be able to state
+/// without pretending certainty: certified match, probable match,
+/// mixed/ambiguous, unknown/generic, restricted/policy-blocked, and
+/// missing-toolchain/remote-prerequisite (M05-841).
+pub const M5_ARCHETYPE_OUTCOME_VOCABULARY: &[&str] = &[
+    "certified",
+    "probable",
+    "mixed",
+    "generic",
+    "restricted",
+    "missing_prerequisite",
+];
+
+/// Entry sources whose first-useful-work cards must route differently while
+/// preserving a same-weight plain-open path (M05-841).
+pub const M5_FIRST_USEFUL_WORK_ENTRY_SOURCES: &[&str] = &[
+    "single_file_open",
+    "folder_or_repo_open",
+    "repo_clone",
+    "restore",
+    "review_link_open",
+    "imported_handoff_packet",
+];
+
+/// Entry sources whose plain-open path must route to ordinary editing rather
+/// than a generic welcome tab (M05-841).
+pub const M5_PLAIN_OPEN_ENTRY_SOURCES: &[&str] = &["single_file_open", "folder_or_repo_open"];
 
 /// Embedded checked-in fixture JSON.
 pub const M5_PROJECT_ENTRY_COMPONENT_JSON: &str = include_str!(concat!(
@@ -91,6 +127,9 @@ pub fn validate_m5_project_entry_component_matrix(packet: &Value) -> Result<(), 
     validate_entry_review_sheets(components, &mut errors);
     validate_destination_collision_sheets(components, &mut errors);
     validate_post_entry_handoff_cards(components, &mut errors);
+    validate_admission_checkpoint_cards(components, &mut errors);
+    validate_archetype_readiness_rows(components, &mut errors);
+    validate_first_useful_work_routing(components, &mut errors);
 
     if errors.is_empty() {
         Ok(())
@@ -350,6 +389,265 @@ fn validate_post_entry_handoff_cards(components: &[Value], errors: &mut Vec<Stri
             if !handoff_actions.contains(required) {
                 errors.push(format!("{id} handoff actions do not offer {required}"));
             }
+        }
+    }
+}
+
+fn validate_admission_checkpoint_cards(components: &[Value], errors: &mut Vec<String>) {
+    let cards: Vec<&Value> = components
+        .iter()
+        .filter(|component| {
+            component.get("component_family").and_then(Value::as_str)
+                == Some("admission_checkpoint_card")
+        })
+        .collect();
+
+    for card in cards {
+        let id = component_id(card);
+        for field in [
+            "admission_class",
+            "root_identity_ref",
+            "root_identity_label",
+            "recommendation_source",
+        ] {
+            require_non_empty_string(card, field, &id, errors);
+        }
+        require_surfaces(
+            card,
+            &["admission_checkpoint", "cli_headless", "support_export"],
+            &id,
+            errors,
+        );
+
+        // `Continue without` and `Set up later` must both stay reachable so an
+        // admission checkpoint never monopolizes plain editing.
+        if card.get("continue_without_available").and_then(Value::as_bool) != Some(true) {
+            errors.push(format!("{id} does not keep continue-without available"));
+        }
+        if card.get("set_up_later_available").and_then(Value::as_bool) != Some(true) {
+            errors.push(format!("{id} does not keep set-up-later available"));
+        }
+        let checkpoint_actions = string_set(card, "checkpoint_actions");
+        if checkpoint_actions.is_empty() {
+            errors.push(format!("{id} exposes no checkpoint actions"));
+        }
+        for required in ["continue_without", "set_up_later"] {
+            if !checkpoint_actions.contains(required) {
+                errors.push(format!("{id} checkpoint actions do not offer {required}"));
+            }
+        }
+
+        // Blocked-vs-optional readiness tasks stay explicit and reconcile with
+        // the summary totals rather than collapsing into one urgency.
+        let summary = card
+            .get("readiness_bucket_summary")
+            .and_then(Value::as_object);
+        let Some(summary) = summary else {
+            errors.push(format!("{id} is missing readiness_bucket_summary"));
+            continue;
+        };
+        let tasks = card
+            .get("readiness_tasks")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let mut bucket_counts: BTreeMap<&str, u64> = BTreeMap::new();
+        for task in &tasks {
+            let bucket = task
+                .get("readiness_bucket")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            if bucket.is_empty() {
+                errors.push(format!("{id} has a readiness task with no bucket"));
+                continue;
+            }
+            *bucket_counts.entry(bucket).or_default() += 1;
+            match bucket {
+                "blocking_now" => {
+                    if !task
+                        .get("blocked_reason_class")
+                        .and_then(Value::as_str)
+                        .is_some_and(|value| !value.trim().is_empty())
+                    {
+                        errors.push(format!("{id} blocking task states no blocked reason"));
+                    }
+                }
+                "optional_later" => {
+                    if !task
+                        .get("optional_reason_class")
+                        .and_then(Value::as_str)
+                        .is_some_and(|value| !value.trim().is_empty())
+                    {
+                        errors.push(format!("{id} optional task states no optional reason"));
+                    }
+                }
+                _ => {}
+            }
+        }
+        for (bucket, field) in [
+            ("blocking_now", "blocking_now_total"),
+            ("recommended_soon", "recommended_soon_total"),
+            ("optional_later", "optional_later_total"),
+        ] {
+            let total = summary.get(field).and_then(Value::as_u64).unwrap_or(0);
+            let counted = bucket_counts.get(bucket).copied().unwrap_or(0);
+            if total != counted {
+                errors.push(format!(
+                    "{id} {field} ({total}) does not match its {bucket} tasks ({counted})"
+                ));
+            }
+        }
+
+        let blocking_total = summary
+            .get("blocking_now_total")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let blocked_reasons = card
+            .get("blocked_reason_classes")
+            .and_then(Value::as_array)
+            .map(|values| values.iter().filter_map(Value::as_str).count())
+            .unwrap_or(0);
+        if blocking_total > 0 && blocked_reasons == 0 {
+            errors.push(format!("{id} has blocking work but no blocked reason class"));
+        }
+    }
+}
+
+fn validate_archetype_readiness_rows(components: &[Value], errors: &mut Vec<String>) {
+    let rows: Vec<&Value> = components
+        .iter()
+        .filter(|component| {
+            component.get("component_family").and_then(Value::as_str)
+                == Some("archetype_readiness_row")
+        })
+        .collect();
+
+    let outcomes = rows
+        .iter()
+        .filter_map(|row| row.get("detected_archetype_class").and_then(Value::as_str))
+        .collect::<BTreeSet<_>>();
+    for required in M5_ARCHETYPE_OUTCOME_VOCABULARY {
+        if !outcomes.contains(required) {
+            errors.push(format!(
+                "archetype readiness rows do not cover the {required} outcome"
+            ));
+        }
+    }
+
+    for row in rows {
+        let id = component_id(row);
+        for field in [
+            "detected_archetype_class",
+            "readiness_bucket",
+            "setup_location_class",
+            "confidence_class",
+            "evidence_source_class",
+        ] {
+            require_non_empty_string(row, field, &id, errors);
+        }
+        require_surfaces(
+            row,
+            &["admission_checkpoint", "docs_help", "support_export"],
+            &id,
+            errors,
+        );
+
+        let outcome = row
+            .get("detected_archetype_class")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let readiness = row
+            .get("readiness_bucket")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let confidence = row
+            .get("confidence_class")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let has_blocked_reason = row
+            .get("blocked_reason_class")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty());
+
+        // Restricted/policy-blocked and missing-prerequisite outcomes are
+        // blocking-now and must attribute the blocked reason.
+        if matches!(outcome, "restricted" | "missing_prerequisite") {
+            if !has_blocked_reason {
+                errors.push(format!("{id} blocked outcome states no blocked reason"));
+            }
+            if readiness != "blocking_now" {
+                errors.push(format!(
+                    "{id} blocked outcome must sit in blocking_now, not {readiness}"
+                ));
+            }
+        }
+
+        // Generic/unknown outcomes must not overclaim confidence.
+        if outcome == "generic" && !matches!(confidence, "none" | "low") {
+            errors.push(format!(
+                "{id} generic outcome overclaims {confidence} confidence"
+            ));
+        }
+    }
+}
+
+fn validate_first_useful_work_routing(components: &[Value], errors: &mut Vec<String>) {
+    let cards: Vec<&Value> = components
+        .iter()
+        .filter(|component| {
+            component.get("component_family").and_then(Value::as_str)
+                == Some("post_entry_handoff_card")
+        })
+        .collect();
+
+    let sources = cards
+        .iter()
+        .filter_map(|card| card.get("entry_source_class").and_then(Value::as_str))
+        .collect::<BTreeSet<_>>();
+    for required in M5_FIRST_USEFUL_WORK_ENTRY_SOURCES {
+        if !sources.contains(required) {
+            errors.push(format!(
+                "first-useful-work routing does not cover entry source {required}"
+            ));
+        }
+    }
+
+    let routes = cards
+        .iter()
+        .filter_map(|card| card.get("first_useful_work_route").and_then(Value::as_str))
+        .collect::<BTreeSet<_>>();
+    if routes.len() < 3 {
+        errors.push(
+            "first-useful-work routing collapses into fewer than three distinct routes".into(),
+        );
+    }
+
+    for card in cards {
+        let id = component_id(card);
+        require_non_empty_string(card, "entry_source_class", &id, errors);
+        require_non_empty_string(card, "first_useful_work_route", &id, errors);
+
+        // The same-weight plain-open path must stay available for every entry
+        // source instead of routing users into a universal welcome tab.
+        if card.get("plain_open_same_weight").and_then(Value::as_bool) != Some(true) {
+            errors.push(format!("{id} drops the same-weight plain-open path"));
+        }
+        if card.get("open_minimal_available").and_then(Value::as_bool) != Some(true) {
+            errors.push(format!("{id} does not keep plain open-minimal available"));
+        }
+
+        let source = card
+            .get("entry_source_class")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let route = card
+            .get("first_useful_work_route")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        if M5_PLAIN_OPEN_ENTRY_SOURCES.contains(&source) && route != "ordinary_editing" {
+            errors.push(format!(
+                "{id} plain-open source {source} routes to {route} instead of ordinary_editing"
+            ));
         }
     }
 }

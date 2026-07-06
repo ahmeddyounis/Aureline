@@ -47,9 +47,9 @@ Every component row carries the same shared axes:
 | `entry_chooser_row` | `schemas/ui/m5-entry-chooser-row.schema.json` | Start Center, palette, drag/drop, CLI/headless, deep link | Verb-distinct chooser row with target-kind candidates, resulting-mode candidates, last-used or recommended destination, and keyboard equivalent | `reroute_required`, `target_kind_unresolved`, `policy_limited` |
 | `entry_review_sheet` | `schemas/ui/m5-entry-review-sheet.schema.json` | Open, clone, import, resume review sheets | Literal target, normalized source locator, protocol/host/auth posture, resulting mode, write scope, post-open action, side effects, trust posture, and retained-input diagnostics before writes or remote contact | `review_required`, `trust_review_required`, `write_blocked` |
 | `destination_collision_sheet` | `schemas/ui/m5-destination-collision-sheet.schema.json` | Clone, import, restore destination review | Collision class, collision source, existing target identity, `Reuse` / `Add existing` / `Clone elsewhere` / `Reveal` / inspect / cancel choices, and blocking choice before materialization | `existing_non_empty_path`, `existing_workspace_file`, `existing_local_root`, `duplicate_clone_target`, `policy_blocked_destination` |
-| `post_entry_handoff_card` | `schemas/ui/m5-post-entry-handoff-card.schema.json` | Post-clone, post-import, post-restore, managed resume, template/prebuild entry | Opened object, pending setup/trust tasks, intentionally-not-done work, recommended next action, `Set up later`, `Open minimal`, follow-up state, export/share state, admission checkpoint ref, and first useful work route | `setup_later`, `non_durable_staging`, `open_minimal_available`, `review_before_trust`, `compare_before_restore` |
-| `admission_checkpoint_card` | `schemas/ui/m5-admission-checkpoint-card.schema.json` | Shell admission, project doctor, attention inbox, CLI/headless, support export | Admission class, blocked-vs-optional buckets, ordinary editing availability | `policy_blocked`, `missing_prerequisite`, `needs_repair` |
-| `archetype_readiness_row` | `schemas/ui/m5-archetype-readiness-row.schema.json` | Admission checkpoint, first-useful-work router, docs/help | Archetype class, setup location, readiness bucket, blocked/optional reason | `missing_prerequisite`, `restricted`, `mixed` |
+| `post_entry_handoff_card` | `schemas/ui/m5-post-entry-handoff-card.schema.json` | Post-clone, post-import, post-restore, managed resume, template/prebuild entry, single-file/folder/repo open, review-link open | Opened object, entry source class, pending setup/trust tasks, intentionally-not-done work, recommended next action, `Set up later`, `Open minimal`, follow-up state, export/share state, admission checkpoint ref, first useful work route, and same-weight plain-open path | `setup_later`, `non_durable_staging`, `open_minimal_available`, `review_before_trust`, `compare_before_restore` |
+| `admission_checkpoint_card` | `schemas/ui/m5-admission-checkpoint-card.schema.json` | Shell admission, project doctor, attention inbox, CLI/headless, support export | Root identity, trust class, archetype/bundle recommendation source, blocked-vs-optional readiness tasks, ordinary editing availability, and `Continue without` / `Set up later` choices | `policy_blocked`, `missing_prerequisite`, `needs_repair`, `trust_review_required` |
+| `archetype_readiness_row` | `schemas/ui/m5-archetype-readiness-row.schema.json` | Admission checkpoint, first-useful-work router, docs/help | Archetype class, confidence class, evidence source, setup location, readiness bucket, blocked/optional reason | `missing_prerequisite`, `restricted`, `mixed`, `generic` |
 
 ## First Consumer Freeze
 
@@ -155,6 +155,56 @@ non-durable staging, safe reuse/add/clone-elsewhere, and plain editing:
 `safe_clone_elsewhere_available`, and `open_minimal_available`. These states
 keep the later setup path recoverable while allowing ordinary editing or
 inspect-only mode immediately.
+
+## Admission Checkpoint Card Truth
+
+`admission_checkpoint_card` rows recommend a wedge or setup path without
+pretending certainty or monopolizing plain editing. A conforming card includes
+the `root_identity_ref` and redaction-safe `root_identity_label`, the
+`admission_class`, the trust class, the archetype-or-bundle
+`recommendation_source`, an explicit `readiness_bucket_summary`, and a
+`readiness_tasks` list whose per-task `readiness_bucket` values reconcile with
+that summary. Every `blocking_now` task names a `blocked_reason_class` and every
+`optional_later` task names an `optional_reason_class`, so blocking-now versus
+recommended-soon versus optional-later work stays explicit and reviewable.
+
+The `recommendation_source` vocabulary is
+`certified_archetype_detection`, `probable_archetype_detection`,
+`workflow_bundle_manifest`, `template_or_prebuild_manifest`, `policy_profile`,
+and `no_recommendation`. A card cannot auto-install packs or hide uncertainty:
+`continue_without_available` and `set_up_later_available` are always true, and
+`checkpoint_actions` always includes `continue_without` and `set_up_later`.
+
+## Archetype Readiness Row Truth
+
+`archetype_readiness_row` rows state a detected archetype outcome with honest
+confidence and evidence. The `detected_archetype_class` outcomes are
+`certified` (certified match), `probable` (probable match), `mixed`
+(mixed/ambiguous), `generic` (unknown/generic), `restricted`
+(restricted/policy-blocked), and `missing_prerequisite`
+(missing-toolchain/remote-prerequisite). Each row carries a `confidence_class`
+(`high`, `medium`, `low`, `none`) and an `evidence_source_class`
+(`repository_manifest_detected`, `lockfile_detected`,
+`config_or_toolchain_file_detected`, `workflow_bundle_manifest`,
+`policy_profile`, `remote_prerequisite_probe`, `no_local_evidence`).
+
+`restricted` and `missing_prerequisite` rows sit in `blocking_now` and name a
+`blocked_reason_class`; `generic` rows cannot overclaim confidence above `low`.
+
+## First-Useful-Work Routing Truth
+
+`post_entry_handoff_card` rows route first-useful-work differently for each
+entry source while preserving a same-weight plain-open path. The
+`entry_source_class` values are `single_file_open`, `folder_or_repo_open`,
+`repo_clone`, `restore`, `review_link_open`, and `imported_handoff_packet`
+(plus `template_or_prebuild_open` for prebuild entry). Plain opens
+(`single_file_open`, `folder_or_repo_open`) route to `ordinary_editing`; clone,
+restore, review-link, and import sources route to `review_before_trust`,
+`compare_before_restore`, or `inspect_import` as appropriate.
+
+Routing stays attributable to entry source and evidence rather than one
+universal welcome tab: `plain_open_same_weight` and `open_minimal_available` are
+always true, and the routes across sources never collapse into a single path.
 
 ## Evidence Expectations
 
