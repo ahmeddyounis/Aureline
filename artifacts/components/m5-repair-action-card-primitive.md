@@ -1,0 +1,77 @@
+# M5 Repair Action Card and Repair Preview Row Primitive: Impact Scope, Target Boundary, and Reversal-Class Honesty
+
+- Packet: `m5-repair-action-card-primitive:stable:0001`
+- Label: `M5 repair action card and repair preview row primitive: repair class, target / scope, changed-versus-unchanged classes, local-or-remote-or-managed boundary, trust / policy requirement, and reversal-class honesty`
+- Recovery surfaces: 9 (9 stable)
+- Repair classes: reinstall_toolchain, repair_environment_config, rebuild_index, clear_cache, repair_permissions, regenerate_lockfile, reconnect_remote_target, factory_reset_component
+- Blast radii: no_writes_preview, workspace_scoped, toolchain_scoped, host_environment_scoped, multi_target_scoped
+- Target boundaries: local_target, remote_target, managed_target
+- Reversibility classes: fully_reversible_checkpoint, reversible_with_backup, partially_reversible, irreversible_confirmed, reversal_requires_manual_steps
+- Action-label classes: apply_local_reversible, preview_only, request_policy_approval, review_off_device_repair, apply_non_exact_repair, open_factory_reset_out_of_band
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-06T00:00:00Z)
+
+## Recovery surfaces
+
+- **Project Doctor Panel**: `stable`
+  - Owner: Project Doctor panel owner
+  - Scope: The Project Doctor panel renders the shared repair action card and preview row so a local exact-reversible environment-config repair reads as an ordinary apply with its changed and untouched classes named, while a no-writes index-rebuild preview stays preview-only and changes nothing
+  - Shell zone: `main_workspace`
+  - Worked resolutions: 2
+    - `doctor-env-config-apply` → class `repair_environment_config`, blast `workspace_scoped`, boundary `local_target`, reversal `fully_reversible_checkpoint`, label `apply_local_reversible`, changed 1 / unchanged 2
+    - `doctor-index-preview` → class `rebuild_index`, blast `no_writes_preview`, boundary `local_target`, reversal `fully_reversible_checkpoint`, label `preview_only`, changed 0 / unchanged 2
+- **Doctor Repair Card**: `stable`
+  - Owner: Doctor repair card owner
+  - Scope: The Doctor repair card renders the shared components so a backup-reversible cache clear reads as a non-exact apply rather than a generic fix, and so a policy-gated toolchain reinstall requests approval before any mutation and never reads like a plain button
+  - Shell zone: `right_inspector`
+  - Worked resolutions: 2
+    - `card-cache-clear-nonexact` → class `clear_cache`, blast `workspace_scoped`, boundary `local_target`, reversal `reversible_with_backup`, label `apply_non_exact_repair`, changed 1 / unchanged 2
+    - `card-toolchain-approval` → class `reinstall_toolchain`, blast `toolchain_scoped`, boundary `local_target`, reversal `reversible_with_backup`, label `request_policy_approval`, changed 1 / unchanged 1
+- **Guided Repair Wizard**: `stable`
+  - Owner: Guided repair wizard owner
+  - Scope: The guided repair wizard renders the shared components so a partially reversible host-environment repair on a remote target reads as an off-device review rather than a local fix, and so a local exact-reversible lockfile regeneration reads as an ordinary apply with both change lists shown
+  - Shell zone: `transient_overlay`
+  - Worked resolutions: 2
+    - `wizard-remote-env` → class `repair_environment_config`, blast `host_environment_scoped`, boundary `remote_target`, reversal `partially_reversible`, label `review_off_device_repair`, changed 2 / unchanged 1
+    - `wizard-lockfile-apply` → class `regenerate_lockfile`, blast `workspace_scoped`, boundary `local_target`, reversal `fully_reversible_checkpoint`, label `apply_local_reversible`, changed 1 / unchanged 1
+- **Support-Bundle Repair Row**: `stable`
+  - Owner: Support-bundle repair row owner
+  - Scope: The support-bundle repair row renders the shared components so a local exact-reversible permission repair explains what it changes and leaves untouched outside the live UI, and so a multi-target factory reset reads as an out-of-band reset requiring manual reversal rather than a generic fix
+  - Shell zone: `bottom_panel`
+  - Worked resolutions: 2
+    - `bundle-permissions-apply` → class `repair_permissions`, blast `workspace_scoped`, boundary `local_target`, reversal `fully_reversible_checkpoint`, label `apply_local_reversible`, changed 1 / unchanged 2
+    - `bundle-factory-reset` → class `factory_reset_component`, blast `multi_target_scoped`, boundary `local_target`, reversal `reversal_requires_manual_steps`, label `open_factory_reset_out_of_band`, changed 3 / unchanged 1
+- **Environment Repair Prompt**: `stable`
+  - Owner: Environment repair prompt owner
+  - Scope: The environment repair prompt renders the shared components so an administrator-managed irreversible environment repair on a managed workspace requests approval and confirms irreversibility, and so a container-scoped index rebuild reads as an off-device review because the target is managed rather than local
+  - Shell zone: `title_context_bar`
+  - Worked resolutions: 2
+    - `env-managed-approval` → class `repair_environment_config`, blast `host_environment_scoped`, boundary `managed_target`, reversal `irreversible_confirmed`, label `request_policy_approval`, changed 1 / unchanged 1
+    - `env-container-index` → class `rebuild_index`, blast `workspace_scoped`, boundary `managed_target`, reversal `fully_reversible_checkpoint`, label `review_off_device_repair`, changed 1 / unchanged 1
+- **Toolchain Repair Card**: `stable`
+  - Owner: Toolchain repair card owner
+  - Scope: The toolchain repair card renders the shared components so a backup-reversible toolchain reinstall reads as a non-exact apply that keeps user sources and config untouched, and so a no-writes lockfile regeneration preview stays preview-only and writes nothing
+  - Shell zone: `right_inspector`
+  - Worked resolutions: 2
+    - `toolchain-reinstall-nonexact` → class `reinstall_toolchain`, blast `toolchain_scoped`, boundary `local_target`, reversal `reversible_with_backup`, label `apply_non_exact_repair`, changed 1 / unchanged 2
+    - `toolchain-lockfile-preview` → class `regenerate_lockfile`, blast `no_writes_preview`, boundary `local_target`, reversal `fully_reversible_checkpoint`, label `preview_only`, changed 0 / unchanged 2
+- **Remote-Host Repair Card**: `stable`
+  - Owner: Remote-host repair card owner
+  - Scope: The remote-host repair card renders the shared components so a multi-target remote reconnect reads as an off-device review that never masks the remote boundary as local, and so a remote permission repair whose fix requires explicit approval requests it before running
+  - Shell zone: `title_context_bar`
+  - Worked resolutions: 2
+    - `remote-reconnect-review` → class `reconnect_remote_target`, blast `multi_target_scoped`, boundary `remote_target`, reversal `fully_reversible_checkpoint`, label `review_off_device_repair`, changed 1 / unchanged 1
+    - `remote-permissions-approval` → class `repair_permissions`, blast `host_environment_scoped`, boundary `remote_target`, reversal `partially_reversible`, label `request_policy_approval`, changed 1 / unchanged 1
+- **Repair Preview Sheet**: `stable`
+  - Owner: Repair preview sheet owner
+  - Scope: The repair preview sheet renders the shared components so a no-writes cache-clear preview names every untouched class and writes nothing, and so a local exact-reversible environment repair discloses both its changed and its untouched classes before it runs so a user can review blast radius and reversibility first
+  - Shell zone: `transient_overlay`
+  - Worked resolutions: 2
+    - `preview-cache-clear` → class `clear_cache`, blast `no_writes_preview`, boundary `local_target`, reversal `reversible_with_backup`, label `preview_only`, changed 0 / unchanged 3
+    - `preview-env-review-before-apply` → class `repair_environment_config`, blast `workspace_scoped`, boundary `local_target`, reversal `fully_reversible_checkpoint`, label `apply_local_reversible`, changed 2 / unchanged 2
+- **Activity-Center Repair**: `stable`
+  - Owner: Activity-center repair owner
+  - Scope: The activity-center repair entry renders the shared components so a sandboxed index rebuild reads as an off-device review because the target is managed, and so a local exact-reversible cache clear reads as an ordinary apply with both change lists preserved into the activity feed
+  - Shell zone: `activity_rail`
+  - Worked resolutions: 2
+    - `activity-sandbox-index` → class `rebuild_index`, blast `workspace_scoped`, boundary `managed_target`, reversal `fully_reversible_checkpoint`, label `review_off_device_repair`, changed 1 / unchanged 1
+    - `activity-cache-apply` → class `clear_cache`, blast `workspace_scoped`, boundary `local_target`, reversal `fully_reversible_checkpoint`, label `apply_local_reversible`, changed 1 / unchanged 1
