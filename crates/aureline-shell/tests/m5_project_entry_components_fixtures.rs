@@ -109,6 +109,149 @@ fn review_sheets_expose_locator_write_scope_and_retained_diagnostics() {
 }
 
 #[test]
+fn destination_collision_sheets_distinguish_sources_and_offer_safe_actions() {
+    let packet = current_m5_project_entry_component_matrix().expect("fixture parses");
+    let components = packet
+        .get("components")
+        .and_then(Value::as_array)
+        .expect("components array");
+    let sheets = components
+        .iter()
+        .filter(|row| {
+            row.get("component_family").and_then(Value::as_str)
+                == Some("destination_collision_sheet")
+        })
+        .collect::<Vec<_>>();
+
+    for source in ["existing_local_root", "prior_workspace_state", "duplicate_clone_target"] {
+        let sheet = sheets
+            .iter()
+            .find(|sheet| {
+                sheet.get("collision_source_class").and_then(Value::as_str) == Some(source)
+            })
+            .unwrap_or_else(|| panic!("{source} collision sheet exists"));
+        assert_eq!(
+            sheet
+                .get("overwrite_or_retry_copy_forbidden")
+                .and_then(Value::as_bool),
+            Some(true),
+            "{source} collision must forbid overwrite/retry copy"
+        );
+        assert_eq!(
+            sheet.get("blocks_until_choice").and_then(Value::as_bool),
+            Some(true)
+        );
+        let safe_actions = sheet
+            .get("safe_actions")
+            .and_then(Value::as_array)
+            .expect("safe_actions array")
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>();
+        assert!(
+            safe_actions.iter().any(|action| matches!(
+                *action,
+                "reuse_existing" | "add_existing_to_workspace" | "clone_elsewhere"
+            )),
+            "{source} must offer a safe reuse/add/clone-elsewhere choice"
+        );
+        assert!(safe_actions.contains(&"reveal_in_filesystem"));
+        assert!(sheet
+            .get("existing_target_identity_ref")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty()));
+    }
+}
+
+#[test]
+fn post_entry_handoff_cards_state_deferred_work_and_keep_setup_recoverable() {
+    let packet = current_m5_project_entry_component_matrix().expect("fixture parses");
+    let components = packet
+        .get("components")
+        .and_then(Value::as_array)
+        .expect("components array");
+    let cards = components
+        .iter()
+        .filter(|row| {
+            row.get("component_family").and_then(Value::as_str) == Some("post_entry_handoff_card")
+        })
+        .collect::<Vec<_>>();
+
+    for follow_up in ["setup_deferred_durable", "non_durable_staging", "open_minimal_available"] {
+        let card = cards
+            .iter()
+            .find(|card| {
+                card.get("follow_up_state_class").and_then(Value::as_str) == Some(follow_up)
+            })
+            .unwrap_or_else(|| panic!("{follow_up} handoff card exists"));
+        assert!(card
+            .get("opened_object_label")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty()));
+        assert!(card
+            .get("intentionally_not_done")
+            .and_then(Value::as_array)
+            .is_some_and(|values| !values.is_empty()));
+        assert!(card
+            .get("pending_setup_or_trust_tasks")
+            .and_then(Value::as_array)
+            .is_some_and(|values| !values.is_empty()));
+        assert_eq!(
+            card.get("set_up_later_available").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            card.get("open_minimal_available").and_then(Value::as_bool),
+            Some(true)
+        );
+        let handoff_actions = card
+            .get("handoff_actions")
+            .and_then(Value::as_array)
+            .expect("handoff_actions array")
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>();
+        assert!(handoff_actions.contains(&"set_up_later"));
+        assert!(handoff_actions.contains(&"open_minimal"));
+    }
+}
+
+#[test]
+fn validator_flags_collision_overwrite_fallback_and_missing_open_minimal() {
+    let mut packet = current_m5_project_entry_component_matrix().expect("fixture parses");
+    let components = packet
+        .get_mut("components")
+        .and_then(Value::as_array_mut)
+        .expect("components array");
+
+    let collision = components
+        .iter_mut()
+        .find(|row| {
+            row.get("component_family").and_then(Value::as_str)
+                == Some("destination_collision_sheet")
+        })
+        .expect("collision sheet");
+    collision["overwrite_or_retry_copy_forbidden"] = Value::Bool(false);
+
+    let handoff = components
+        .iter_mut()
+        .find(|row| {
+            row.get("component_family").and_then(Value::as_str) == Some("post_entry_handoff_card")
+        })
+        .expect("handoff card");
+    handoff["open_minimal_available"] = Value::Bool(false);
+
+    let errors =
+        validate_m5_project_entry_component_matrix(&packet).expect_err("mutated packet fails");
+    assert!(errors
+        .iter()
+        .any(|error| error.contains("overwrite or retry copy")));
+    assert!(errors
+        .iter()
+        .any(|error| error.contains("open-minimal available")));
+}
+
+#[test]
 fn validator_flags_hidden_side_effect_and_lost_retained_inputs() {
     let mut packet = current_m5_project_entry_component_matrix().expect("fixture parses");
     let components = packet

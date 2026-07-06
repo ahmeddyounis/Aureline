@@ -371,6 +371,58 @@ impl ProjectEntryReviewRecord {
             {
                 findings.push("destination collision requires explicit choice".to_string());
             }
+            if !collision.safe_actions.iter().any(|action| {
+                matches!(
+                    action,
+                    EntryCollisionSafeAction::ReuseExisting
+                        | EntryCollisionSafeAction::AddExistingToWorkspace
+                        | EntryCollisionSafeAction::CloneElsewhere
+                )
+            }) && collision.collision_source_class != EntryCollisionSourceClass::PolicyBlockedDestination
+            {
+                findings.push(
+                    "destination collision must offer safe reuse, add, or clone-elsewhere choices"
+                        .to_string(),
+                );
+            }
+            if !collision
+                .safe_actions
+                .contains(&EntryCollisionSafeAction::RevealInFilesystem)
+            {
+                findings.push("destination collision must offer reveal in filesystem".to_string());
+            }
+        }
+        if self.post_entry_handoff_card.opened_object_label.trim().is_empty() {
+            findings.push("post-entry handoff must name the opened object".to_string());
+        }
+        if self.post_entry_handoff_card.pending_trust_or_setup_tasks.is_empty() {
+            findings.push(
+                "post-entry handoff must declare pending trust or setup tasks".to_string(),
+            );
+        }
+        if self.post_entry_handoff_card.recommended_next_action
+            != self.post_entry_handoff_card.primary_next_action
+        {
+            findings.push(
+                "post-entry handoff recommended next action must match the primary action"
+                    .to_string(),
+            );
+        }
+        if !self.post_entry_handoff_card.set_up_later_available
+            || !self
+                .post_entry_handoff_card
+                .safe_alternate_actions
+                .contains(&AdmissionAction::SetUpLater)
+        {
+            findings.push("post-entry handoff must offer set_up_later".to_string());
+        }
+        if !self.post_entry_handoff_card.open_minimal_available
+            || !self
+                .post_entry_handoff_card
+                .safe_alternate_actions
+                .contains(&AdmissionAction::OpenMinimal)
+        {
+            findings.push("post-entry handoff must offer open_minimal".to_string());
         }
         if !self.failure_repair_state.typed_source_input_preserved
             || !self.failure_repair_state.chosen_destination_preserved
@@ -423,14 +475,19 @@ impl ProjectEntryReviewRecord {
         ];
         if let Some(collision) = self.destination_collision_review.as_ref() {
             lines.push(format!(
-                "collision: {} explicit_choice={}",
+                "collision: {} source={} explicit_choice={}",
                 collision.collision_class.as_str(),
+                collision.collision_source_class.as_str(),
                 collision.requires_explicit_choice
             ));
         }
         lines.push(format!(
-            "handoff: primary={} not_yet_done={}",
+            "handoff: opened_object={} primary={} setup_later={} open_minimal={} export_or_share={} not_yet_done={}",
+            self.post_entry_handoff_card.opened_object_label,
             self.post_entry_handoff_card.primary_next_action.as_str(),
+            self.post_entry_handoff_card.set_up_later_available,
+            self.post_entry_handoff_card.open_minimal_available,
+            self.post_entry_handoff_card.export_or_share_state_available,
             self.post_entry_handoff_card.not_yet_done.len()
         ));
         lines
@@ -706,8 +763,12 @@ pub struct RestoreEntryReviewSheet {
 pub struct EntryDestinationCollisionReview {
     /// Destination collision class.
     pub collision_class: EntryDestinationCollisionClass,
+    /// Product-facing source bucket for why this sheet is shown.
+    pub collision_source_class: EntryCollisionSourceClass,
     /// Existing target label.
     pub existing_target_label: String,
+    /// Opaque identity for the existing target or prior state, when known.
+    pub existing_target_identity_ref: String,
     /// Whether an explicit user choice is required.
     pub requires_explicit_choice: bool,
     /// Whether overwrite requires an explicit destructive review.
@@ -754,31 +815,55 @@ impl_as_str!(EntryDestinationCollisionClass {
     DestinationBlockedByPolicy => "destination_blocked_by_policy",
 });
 
+/// User-facing source bucket for a destination collision sheet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EntryCollisionSourceClass {
+    /// Destination is an existing local root.
+    ExistingLocalRoot,
+    /// Destination carries prior workspace state.
+    PriorWorkspaceState,
+    /// Destination matches a prior clone target.
+    DuplicateCloneTarget,
+    /// Destination is a non-empty local path.
+    ExistingLocalPath,
+    /// Policy blocks the destination.
+    PolicyBlockedDestination,
+}
+
+impl_as_str!(EntryCollisionSourceClass {
+    ExistingLocalRoot => "existing_local_root",
+    PriorWorkspaceState => "prior_workspace_state",
+    DuplicateCloneTarget => "duplicate_clone_target",
+    ExistingLocalPath => "existing_local_path",
+    PolicyBlockedDestination => "policy_blocked_destination",
+});
+
 /// Safe action offered by a destination collision review.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EntryCollisionSafeAction {
     /// Reuse an existing target.
     ReuseExisting,
-    /// Add existing target as a root.
-    AddExistingAsRoot,
+    /// Add existing target to the active workspace.
+    AddExistingToWorkspace,
     /// Choose another destination.
     CloneElsewhere,
     /// Reveal the destination in the system shell.
-    Reveal,
+    RevealInFilesystem,
     /// Inspect only.
     InspectOnly,
     /// Cancel without durable change.
-    Cancel,
+    CancelNoChange,
 }
 
 impl_as_str!(EntryCollisionSafeAction {
     ReuseExisting => "reuse_existing",
-    AddExistingAsRoot => "add_existing_as_root",
+    AddExistingToWorkspace => "add_existing_to_workspace",
     CloneElsewhere => "clone_elsewhere",
-    Reveal => "reveal",
+    RevealInFilesystem => "reveal_in_filesystem",
     InspectOnly => "inspect_only",
-    Cancel => "cancel",
+    CancelNoChange => "cancel_no_change",
 });
 
 /// Post-entry handoff card.
@@ -788,8 +873,14 @@ pub struct EntryPostEntryHandoffCard {
     pub handoff_card_id: String,
     /// Opened, materialized, imported, or restored target label.
     pub target_label: String,
+    /// Opened, materialized, imported, or restored object identity.
+    pub opened_object_ref: String,
+    /// User-visible opened object label.
+    pub opened_object_label: String,
     /// Work intentionally not run yet.
     pub not_yet_done: Vec<EntryDeferredWorkClass>,
+    /// Pending trust/setup task classes, including blocked, recommended, and optional work.
+    pub pending_trust_or_setup_tasks: Vec<ReadinessTaskClass>,
     /// Blocking readiness task classes.
     pub blocked_tasks: Vec<ReadinessTaskClass>,
     /// Recommended readiness task classes.
@@ -798,13 +889,68 @@ pub struct EntryPostEntryHandoffCard {
     pub optional_tasks: Vec<ReadinessTaskClass>,
     /// Primary next action.
     pub primary_next_action: AdmissionAction,
+    /// Recommended next action, repeated for export and nonvisual consumers.
+    pub recommended_next_action: AdmissionAction,
     /// Safe alternate actions.
     pub safe_alternate_actions: Vec<AdmissionAction>,
+    /// Whether setup can be deferred without losing the reviewed state.
+    pub set_up_later_available: bool,
+    /// Whether minimal/plain editing can start without running optional setup.
+    pub open_minimal_available: bool,
+    /// Follow-up state class used by deferred setup and staging flows.
+    pub follow_up_state_class: EntryFollowUpStateClass,
     /// Whether support/export can retrieve this state later.
     pub export_or_share_state_available: bool,
+    /// Export/share posture for this handoff state.
+    pub export_or_share_state: EntryExportShareState,
     /// Summary for review surfaces.
     pub summary: String,
 }
+
+/// Shared follow-up state vocabulary for post-entry handoffs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EntryFollowUpStateClass {
+    /// Setup was deferred and can be resumed later.
+    SetupDeferredDurable,
+    /// Staging is inspect-only or non-durable.
+    NonDurableStaging,
+    /// User can reuse an existing destination safely.
+    SafeReuseAvailable,
+    /// User can add the existing target to the active workspace safely.
+    SafeAddExistingAvailable,
+    /// User can choose a different clone destination safely.
+    SafeCloneElsewhereAvailable,
+    /// Minimal/plain editing is available while setup remains pending.
+    OpenMinimalAvailable,
+}
+
+impl_as_str!(EntryFollowUpStateClass {
+    SetupDeferredDurable => "setup_deferred_durable",
+    NonDurableStaging => "non_durable_staging",
+    SafeReuseAvailable => "safe_reuse_available",
+    SafeAddExistingAvailable => "safe_add_existing_available",
+    SafeCloneElsewhereAvailable => "safe_clone_elsewhere_available",
+    OpenMinimalAvailable => "open_minimal_available",
+});
+
+/// Export/share posture for a post-entry handoff card.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EntryExportShareState {
+    /// The handoff can be exported as metadata-only support state.
+    MetadataOnlyAvailable,
+    /// The handoff is local-only but can be resumed later.
+    LocalOnlyResumeAvailable,
+    /// The handoff points to non-durable staging and is not shareable.
+    NonDurableStagingNotShareable,
+}
+
+impl_as_str!(EntryExportShareState {
+    MetadataOnlyAvailable => "metadata_only_available",
+    LocalOnlyResumeAvailable => "local_only_resume_available",
+    NonDurableStagingNotShareable => "non_durable_staging_not_shareable",
+});
 
 /// Work intentionally deferred by entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1228,26 +1374,37 @@ fn destination_collision_review_for(
     let safe_actions = match collision_class {
         EntryDestinationCollisionClass::DuplicateCloneTarget => vec![
             EntryCollisionSafeAction::ReuseExisting,
-            EntryCollisionSafeAction::AddExistingAsRoot,
-            EntryCollisionSafeAction::Reveal,
+            EntryCollisionSafeAction::AddExistingToWorkspace,
+            EntryCollisionSafeAction::RevealInFilesystem,
             EntryCollisionSafeAction::InspectOnly,
-            EntryCollisionSafeAction::Cancel,
+            EntryCollisionSafeAction::CancelNoChange,
         ],
         EntryDestinationCollisionClass::DestinationBlockedByPolicy => vec![
-            EntryCollisionSafeAction::Reveal,
-            EntryCollisionSafeAction::Cancel,
+            EntryCollisionSafeAction::RevealInFilesystem,
+            EntryCollisionSafeAction::CancelNoChange,
         ],
         _ => vec![
             EntryCollisionSafeAction::ReuseExisting,
-            EntryCollisionSafeAction::AddExistingAsRoot,
+            EntryCollisionSafeAction::AddExistingToWorkspace,
             EntryCollisionSafeAction::CloneElsewhere,
-            EntryCollisionSafeAction::Reveal,
-            EntryCollisionSafeAction::Cancel,
+            EntryCollisionSafeAction::RevealInFilesystem,
+            EntryCollisionSafeAction::CancelNoChange,
         ],
     };
     Some(EntryDestinationCollisionReview {
         collision_class,
+        collision_source_class: collision_source_class_for(collision_class),
         existing_target_label: normalize_review_label(destination),
+        existing_target_identity_ref: request
+            .destination_facts
+            .previously_cloned_target_ref
+            .clone()
+            .unwrap_or_else(|| {
+                format!(
+                    "destination:{:016x}",
+                    stable_hash(&normalize_review_label(destination))
+                )
+            }),
         requires_explicit_choice: true,
         explicit_overwrite_required: matches!(
             collision_class,
@@ -1261,6 +1418,31 @@ fn destination_collision_review_for(
             .clone(),
         summary: collision_summary(collision_class),
     })
+}
+
+fn collision_source_class_for(
+    collision_class: EntryDestinationCollisionClass,
+) -> EntryCollisionSourceClass {
+    match collision_class {
+        EntryDestinationCollisionClass::ExistingRepoRoot
+        | EntryDestinationCollisionClass::ExistingWorktree
+        | EntryDestinationCollisionClass::NestedRepository => {
+            EntryCollisionSourceClass::ExistingLocalRoot
+        }
+        EntryDestinationCollisionClass::ExistingWorkspaceManifest => {
+            EntryCollisionSourceClass::PriorWorkspaceState
+        }
+        EntryDestinationCollisionClass::DuplicateCloneTarget => {
+            EntryCollisionSourceClass::DuplicateCloneTarget
+        }
+        EntryDestinationCollisionClass::DestinationBlockedByPolicy => {
+            EntryCollisionSourceClass::PolicyBlockedDestination
+        }
+        EntryDestinationCollisionClass::NoCollision
+        | EntryDestinationCollisionClass::ExistingPathNonEmpty => {
+            EntryCollisionSourceClass::ExistingLocalPath
+        }
+    }
 }
 
 fn destination_collision_class(
@@ -1315,13 +1497,34 @@ fn post_entry_handoff_card_for(
     readiness: &ReadinessBuckets,
 ) -> EntryPostEntryHandoffCard {
     let not_yet_done = deferred_work_for(request.entry_verb);
+    let pending_trust_or_setup_tasks: Vec<ReadinessTaskClass> = readiness
+        .blocking_now
+        .iter()
+        .chain(readiness.recommended_soon.iter())
+        .chain(readiness.optional_later.iter())
+        .map(|task| task.task_class)
+        .collect();
+    let primary_next_action = primary_next_action_for(request.entry_verb, request.resulting_mode);
+    let follow_up_state_class = follow_up_state_class_for(request.entry_verb, request.resulting_mode);
+    let export_or_share_state = export_share_state_for(follow_up_state_class);
     EntryPostEntryHandoffCard {
         handoff_card_id: format!("handoff.{}", route.checkpoint.admission_checkpoint_id),
         target_label: admission_packet
             .normalized_target_identity
             .normalized_label
             .clone(),
+        opened_object_ref: format!(
+            "opened-object:{:016x}",
+            stable_hash(&format!(
+                "{}\n{}\n{}",
+                request.entry_verb.as_str(),
+                request.target_kind.as_str(),
+                admission_packet.normalized_target_identity.normalized_label
+            ))
+        ),
+        opened_object_label: opened_object_label_for(request, admission_packet),
         not_yet_done,
+        pending_trust_or_setup_tasks,
         blocked_tasks: readiness
             .blocking_now
             .iter()
@@ -1337,17 +1540,87 @@ fn post_entry_handoff_card_for(
             .iter()
             .map(|task| task.task_class)
             .collect(),
-        primary_next_action: primary_next_action_for(request.entry_verb, request.resulting_mode),
+        primary_next_action,
+        recommended_next_action: primary_next_action,
         safe_alternate_actions: vec![
             AdmissionAction::SetUpLater,
             AdmissionAction::OpenMinimal,
             AdmissionAction::Cancel,
         ],
+        set_up_later_available: true,
+        open_minimal_available: true,
+        follow_up_state_class,
         export_or_share_state_available: true,
+        export_or_share_state,
         summary: format!(
-            "{} entry produced a handoff card before trust, setup, or side-effect execution.",
-            request.entry_verb.as_str()
+            "{} entry opened `{}` and intentionally left trust/setup follow-up as `{}`.",
+            request.entry_verb.as_str(),
+            opened_object_label_for(request, admission_packet),
+            follow_up_state_class.as_str()
         ),
+    }
+}
+
+fn opened_object_label_for(
+    request: &ProjectEntryReviewRequest,
+    admission_packet: &AdmissionReviewPacket,
+) -> String {
+    match request.entry_verb {
+        EntryVerb::Clone => admission_packet
+            .destination_review
+            .destination_label
+            .clone(),
+        EntryVerb::Import | EntryVerb::StartFromSnapshot => request
+            .destination
+            .as_deref()
+            .map(normalize_review_label)
+            .unwrap_or_else(|| "labelled import staging".to_string()),
+        EntryVerb::AddRoot => request
+            .active_workspace_label
+            .as_deref()
+            .map(normalize_review_label)
+            .unwrap_or_else(|| "current workspace".to_string()),
+        EntryVerb::Open | EntryVerb::Restore | EntryVerb::Resume => admission_packet
+            .normalized_target_identity
+            .normalized_label
+            .clone(),
+    }
+}
+
+fn follow_up_state_class_for(
+    entry_verb: EntryVerb,
+    resulting_mode: ResultingMode,
+) -> EntryFollowUpStateClass {
+    match (entry_verb, resulting_mode) {
+        (EntryVerb::Import | EntryVerb::StartFromSnapshot, ResultingMode::InspectOnly) => {
+            EntryFollowUpStateClass::NonDurableStaging
+        }
+        (_, ResultingMode::OpenPrebuildMinimal) => EntryFollowUpStateClass::OpenMinimalAvailable,
+        (EntryVerb::Clone, ResultingMode::CloneThenAdd) | (EntryVerb::AddRoot, _) => {
+            EntryFollowUpStateClass::SafeAddExistingAvailable
+        }
+        (EntryVerb::Clone, ResultingMode::CloneOnly) => {
+            EntryFollowUpStateClass::SafeCloneElsewhereAvailable
+        }
+        (EntryVerb::Open, _) => EntryFollowUpStateClass::OpenMinimalAvailable,
+        _ => EntryFollowUpStateClass::SetupDeferredDurable,
+    }
+}
+
+fn export_share_state_for(follow_up: EntryFollowUpStateClass) -> EntryExportShareState {
+    match follow_up {
+        EntryFollowUpStateClass::NonDurableStaging => {
+            EntryExportShareState::NonDurableStagingNotShareable
+        }
+        EntryFollowUpStateClass::OpenMinimalAvailable => {
+            EntryExportShareState::LocalOnlyResumeAvailable
+        }
+        EntryFollowUpStateClass::SetupDeferredDurable
+        | EntryFollowUpStateClass::SafeReuseAvailable
+        | EntryFollowUpStateClass::SafeAddExistingAvailable
+        | EntryFollowUpStateClass::SafeCloneElsewhereAvailable => {
+            EntryExportShareState::MetadataOnlyAvailable
+        }
     }
 }
 
@@ -1803,11 +2076,11 @@ fn collision_summary(collision_class: EntryDestinationCollisionClass) -> String 
     match collision_class {
         EntryDestinationCollisionClass::NoCollision => "No destination collision.".to_string(),
         EntryDestinationCollisionClass::ExistingPathNonEmpty => {
-            "Destination is non-empty; choose reuse, add existing, clone elsewhere, reveal, or cancel."
+            "Destination is non-empty; choose reuse, add existing to workspace, clone elsewhere, reveal in filesystem, or cancel with no change."
                 .to_string()
         }
         EntryDestinationCollisionClass::ExistingRepoRoot => {
-            "Destination is already a repository root; reuse or add existing after review."
+            "Destination is already a local repository root; reuse or add existing to workspace after review."
                 .to_string()
         }
         EntryDestinationCollisionClass::NestedRepository => {
@@ -1815,14 +2088,14 @@ fn collision_summary(collision_class: EntryDestinationCollisionClass) -> String 
                 .to_string()
         }
         EntryDestinationCollisionClass::ExistingWorktree => {
-            "Destination is a Git worktree; reveal or reuse it without overwriting.".to_string()
+            "Destination is a Git worktree; reveal in filesystem or reuse it without overwriting.".to_string()
         }
         EntryDestinationCollisionClass::ExistingWorkspaceManifest => {
-            "Destination is a workspace manifest; open or add it through the workspace path."
+            "Destination carries prior workspace state; open or add it through the workspace path."
                 .to_string()
         }
         EntryDestinationCollisionClass::DuplicateCloneTarget => {
-            "Destination matches a previous clone; reuse or add existing instead of recloning."
+            "Destination matches a previous clone; reuse or add existing to workspace instead of recloning."
                 .to_string()
         }
         EntryDestinationCollisionClass::DestinationBlockedByPolicy => {

@@ -190,8 +190,9 @@ pub use entry_flows::{
 pub use entry::{
     build_project_entry_review, AddRootEntryReviewSheet, CloneDepthClass, CloneEntryReviewSheet,
     CloneReviewOptions, EntryCollisionSafeAction, EntryDeferredWorkClass,
-    EntryDestinationCollisionClass, EntryDestinationCollisionReview, EntryDestinationFacts,
-    EntryFailureRepairState, EntryPostEntryHandoffCard, EntryReviewRequirementClass,
+    EntryCollisionSourceClass, EntryDestinationCollisionClass, EntryDestinationCollisionReview,
+    EntryDestinationFacts, EntryExportShareState, EntryFailureRepairState,
+    EntryFollowUpStateClass, EntryPostEntryHandoffCard, EntryReviewRequirementClass,
     EntryReviewSheet, EntryReviewSheetKind, EntrySourceAccessClass, EntrySurfaceParity,
     EntryVocabularyReview, ImportEntryReviewSheet, ImportLossyMappingClass, ImportReviewOptions,
     ImportWriteBehaviorClass, OpenEntryReviewSheet, OpenWorkspaceReviewSheet,

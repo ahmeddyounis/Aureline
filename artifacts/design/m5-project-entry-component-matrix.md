@@ -46,8 +46,8 @@ Every component row carries the same shared axes:
 | `restore_prompt_card` | `schemas/ui/m5-restore-prompt-card.schema.json` | Restore flow, crash recovery, Start Center restore card | Restore fidelity, session summary, dirty-buffer count, safest action, `safe_mode` / `open_without_restore` / `clear_journal` / `export_evidence` affordances | `layout_only`, `recovered_drafts`, `evidence_only` |
 | `entry_chooser_row` | `schemas/ui/m5-entry-chooser-row.schema.json` | Start Center, palette, drag/drop, CLI/headless, deep link | Verb-distinct chooser row with target-kind candidates, resulting-mode candidates, last-used or recommended destination, and keyboard equivalent | `reroute_required`, `target_kind_unresolved`, `policy_limited` |
 | `entry_review_sheet` | `schemas/ui/m5-entry-review-sheet.schema.json` | Open, clone, import, resume review sheets | Literal target, normalized source locator, protocol/host/auth posture, resulting mode, write scope, post-open action, side effects, trust posture, and retained-input diagnostics before writes or remote contact | `review_required`, `trust_review_required`, `write_blocked` |
-| `destination_collision_sheet` | `schemas/ui/m5-destination-collision-sheet.schema.json` | Clone, import, restore destination review | Collision class, safe actions, blocking choice before materialization | `existing_non_empty_path`, `existing_workspace_file`, `policy_blocked_destination` |
-| `post_entry_handoff_card` | `schemas/ui/m5-post-entry-handoff-card.schema.json` | Post-clone, post-import, post-restore, managed resume | Admission checkpoint ref and first useful work route | `setup_later`, `review_before_trust`, `compare_before_restore` |
+| `destination_collision_sheet` | `schemas/ui/m5-destination-collision-sheet.schema.json` | Clone, import, restore destination review | Collision class, collision source, existing target identity, `Reuse` / `Add existing` / `Clone elsewhere` / `Reveal` / inspect / cancel choices, and blocking choice before materialization | `existing_non_empty_path`, `existing_workspace_file`, `existing_local_root`, `duplicate_clone_target`, `policy_blocked_destination` |
+| `post_entry_handoff_card` | `schemas/ui/m5-post-entry-handoff-card.schema.json` | Post-clone, post-import, post-restore, managed resume, template/prebuild entry | Opened object, pending setup/trust tasks, intentionally-not-done work, recommended next action, `Set up later`, `Open minimal`, follow-up state, export/share state, admission checkpoint ref, and first useful work route | `setup_later`, `non_durable_staging`, `open_minimal_available`, `review_before_trust`, `compare_before_restore` |
 | `admission_checkpoint_card` | `schemas/ui/m5-admission-checkpoint-card.schema.json` | Shell admission, project doctor, attention inbox, CLI/headless, support export | Admission class, blocked-vs-optional buckets, ordinary editing availability | `policy_blocked`, `missing_prerequisite`, `needs_repair` |
 | `archetype_readiness_row` | `schemas/ui/m5-archetype-readiness-row.schema.json` | Admission checkpoint, first-useful-work router, docs/help | Archetype class, setup location, readiness bucket, blocked/optional reason | `missing_prerequisite`, `restricted`, `mixed` |
 
@@ -122,6 +122,39 @@ restore, and trust widening are either disclosed or blocked as hidden work.
 Failed attempts preserve typed retained-input refs, redacted error context,
 repair actions, and retry posture so users can fix the attempt without
 re-entering the target, destination, auth posture, or resulting-mode choices.
+
+## Destination Collision Sheet Truth
+
+`destination_collision_sheet` rows distinguish why the collision exists before
+any clone, import, restore, or scope-widening write lands. The
+`collision_source_class` values are `existing_local_root`,
+`prior_workspace_state`, `duplicate_clone_target`, `existing_local_path`, and
+`policy_blocked_destination`. A conforming row carries an opaque existing-target
+identity ref, a redaction-safe existing-target label, `blocks_until_choice =
+true`, and `overwrite_or_retry_copy_forbidden = true`.
+
+The safe action set uses one vocabulary across local, remote, import, template,
+prebuild, and restore flows: `reuse_existing`,
+`add_existing_to_workspace`, `clone_elsewhere`,
+`reveal_in_filesystem`, `inspect_only`, and `cancel_no_change`. A collision
+sheet must never collapse those into generic overwrite, retry, or start copy.
+
+## Post-Entry Handoff Card Truth
+
+`post_entry_handoff_card` rows state what Aureline opened or staged and what it
+intentionally did not do yet. A conforming card includes `opened_object_ref`,
+`opened_object_label`, pending setup/trust task labels, intentionally-not-done
+labels, `recommended_next_action`, `set_up_later_available = true`,
+`open_minimal_available = true`, `follow_up_state_class`, and
+`export_or_share_state`.
+
+The follow-up state vocabulary is shared by deferred setup, inspect-only or
+non-durable staging, safe reuse/add/clone-elsewhere, and plain editing:
+`setup_deferred_durable`, `non_durable_staging`,
+`safe_reuse_available`, `safe_add_existing_available`,
+`safe_clone_elsewhere_available`, and `open_minimal_available`. These states
+keep the later setup path recoverable while allowing ordinary editing or
+inspect-only mode immediately.
 
 ## Evidence Expectations
 

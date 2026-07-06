@@ -25,6 +25,29 @@ pub const M5_PROJECT_ENTRY_COMPONENT_PACKET_ID: &str = "m5-project-entry-compone
 pub const M5_PROJECT_ENTRY_COMPONENT_FIXTURE_REF: &str =
     "fixtures/ui/m5-project-entry-components/component_matrix.json";
 
+/// One follow-up vocabulary shared by deferred setup, non-durable staging, and
+/// safe reuse/add/clone-elsewhere paths across local, remote, template,
+/// prebuild, and import flows (M05-840).
+pub const M5_FOLLOW_UP_STATE_VOCABULARY: &[&str] = &[
+    "setup_deferred_durable",
+    "non_durable_staging",
+    "safe_reuse_available",
+    "safe_add_existing_available",
+    "safe_clone_elsewhere_available",
+    "open_minimal_available",
+];
+
+/// Safe destination-collision actions offered instead of generic overwrite or
+/// retry copy (M05-840).
+pub const M5_COLLISION_SAFE_ACTION_VOCABULARY: &[&str] = &[
+    "reuse_existing",
+    "add_existing_to_workspace",
+    "clone_elsewhere",
+    "reveal_in_filesystem",
+    "inspect_only",
+    "cancel_no_change",
+];
+
 /// Embedded checked-in fixture JSON.
 pub const M5_PROJECT_ENTRY_COMPONENT_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -66,6 +89,8 @@ pub fn validate_m5_project_entry_component_matrix(packet: &Value) -> Result<(), 
     validate_no_generic_get_started(components, &mut errors);
     validate_entry_chooser_rows(components, &mut errors);
     validate_entry_review_sheets(components, &mut errors);
+    validate_destination_collision_sheets(components, &mut errors);
+    validate_post_entry_handoff_cards(components, &mut errors);
 
     if errors.is_empty() {
         Ok(())
@@ -186,6 +211,146 @@ fn validate_entry_review_sheets(components: &[Value], errors: &mut Vec<String>) 
         require_side_effect_truth(sheet, &id, errors);
         require_retained_input_diagnostics(sheet, &id, errors);
         require_write_and_remote_truth(sheet, &id, errors);
+    }
+}
+
+fn validate_destination_collision_sheets(components: &[Value], errors: &mut Vec<String>) {
+    let sheets: Vec<&Value> = components
+        .iter()
+        .filter(|component| {
+            component.get("component_family").and_then(Value::as_str)
+                == Some("destination_collision_sheet")
+        })
+        .collect();
+
+    let sources = sheets
+        .iter()
+        .filter_map(|sheet| sheet.get("collision_source_class").and_then(Value::as_str))
+        .collect::<BTreeSet<_>>();
+    for required in ["existing_local_root", "prior_workspace_state", "duplicate_clone_target"] {
+        if !sources.contains(required) {
+            errors.push(format!(
+                "destination collision sheets do not distinguish {required}"
+            ));
+        }
+    }
+
+    for sheet in sheets {
+        let id = component_id(sheet);
+        for field in [
+            "collision_class",
+            "collision_source_class",
+            "existing_target_identity_ref",
+            "existing_target_label",
+        ] {
+            require_non_empty_string(sheet, field, &id, errors);
+        }
+        require_non_empty_array(sheet, "safe_actions", &id, errors);
+        require_non_empty_array(sheet, "safe_action_labels", &id, errors);
+
+        if sheet.get("blocks_until_choice").and_then(Value::as_bool) != Some(true) {
+            errors.push(format!("{id} does not block until an explicit choice"));
+        }
+        if sheet
+            .get("overwrite_or_retry_copy_forbidden")
+            .and_then(Value::as_bool)
+            != Some(true)
+        {
+            errors.push(format!(
+                "{id} can fall back to generic overwrite or retry copy"
+            ));
+        }
+
+        let safe_actions = string_set(sheet, "safe_actions");
+        for action in &safe_actions {
+            if !M5_COLLISION_SAFE_ACTION_VOCABULARY.contains(&action.as_str()) {
+                errors.push(format!(
+                    "{id} offers non-canonical collision action {action}"
+                ));
+            }
+        }
+        let source = sheet
+            .get("collision_source_class")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        if source != "policy_blocked_destination" {
+            if !safe_actions.iter().any(|action| {
+                matches!(
+                    action.as_str(),
+                    "reuse_existing" | "add_existing_to_workspace" | "clone_elsewhere"
+                )
+            }) {
+                errors.push(format!(
+                    "{id} offers no safe reuse, add-existing, or clone-elsewhere choice"
+                ));
+            }
+            if !safe_actions.contains("reveal_in_filesystem") {
+                errors.push(format!("{id} does not offer reveal in filesystem"));
+            }
+        }
+    }
+}
+
+fn validate_post_entry_handoff_cards(components: &[Value], errors: &mut Vec<String>) {
+    let cards: Vec<&Value> = components
+        .iter()
+        .filter(|component| {
+            component.get("component_family").and_then(Value::as_str)
+                == Some("post_entry_handoff_card")
+        })
+        .collect();
+
+    let follow_up_states = cards
+        .iter()
+        .filter_map(|card| card.get("follow_up_state_class").and_then(Value::as_str))
+        .collect::<BTreeSet<_>>();
+    for required in ["setup_deferred_durable", "non_durable_staging", "open_minimal_available"] {
+        if !follow_up_states.contains(required) {
+            errors.push(format!(
+                "post-entry handoff cards do not cover follow-up state {required}"
+            ));
+        }
+    }
+
+    for card in cards {
+        let id = component_id(card);
+        for field in [
+            "entry_verb",
+            "opened_object_ref",
+            "opened_object_label",
+            "recommended_next_action",
+            "follow_up_state_class",
+            "export_or_share_state",
+        ] {
+            require_non_empty_string(card, field, &id, errors);
+        }
+        require_non_empty_array(card, "pending_setup_or_trust_tasks", &id, errors);
+        require_non_empty_array(card, "intentionally_not_done", &id, errors);
+        require_non_empty_array(card, "handoff_actions", &id, errors);
+
+        if card.get("set_up_later_available").and_then(Value::as_bool) != Some(true) {
+            errors.push(format!("{id} does not keep set-up-later available"));
+        }
+        if card.get("open_minimal_available").and_then(Value::as_bool) != Some(true) {
+            errors.push(format!("{id} does not keep open-minimal available"));
+        }
+
+        let follow_up = card
+            .get("follow_up_state_class")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        if !follow_up.is_empty() && !M5_FOLLOW_UP_STATE_VOCABULARY.contains(&follow_up) {
+            errors.push(format!(
+                "{id} uses non-canonical follow-up state {follow_up}"
+            ));
+        }
+
+        let handoff_actions = string_set(card, "handoff_actions");
+        for required in ["set_up_later", "open_minimal"] {
+            if !handoff_actions.contains(required) {
+                errors.push(format!("{id} handoff actions do not offer {required}"));
+            }
+        }
     }
 }
 
@@ -334,6 +499,19 @@ fn require_non_empty_array(row: &Value, field: &str, id: &str, errors: &mut Vec<
     {
         errors.push(format!("{id} is missing {field}"));
     }
+}
+
+fn string_set(row: &Value, field: &str) -> BTreeSet<String> {
+    row.get(field)
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect::<BTreeSet<String>>()
+        })
+        .unwrap_or_default()
 }
 
 fn component_id(component: &Value) -> String {
