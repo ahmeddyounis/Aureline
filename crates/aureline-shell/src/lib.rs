@@ -200,6 +200,7 @@ pub mod m5_reproduction_packets;
 pub mod m5_responsive_collapse;
 pub mod m5_resume_breadcrumbs;
 pub mod m5_rollout_governance;
+pub mod m5_runtime_boundary_component_certification;
 pub mod m5_safety_critical_string_catalog;
 pub mod m5_shell_primitive_release_proof;
 pub mod m5_shell_zone_occupancy;
