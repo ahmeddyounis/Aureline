@@ -29,6 +29,7 @@ pub mod harden_keymap_theme_settings_snippet_task_and_launch;
 pub mod history;
 pub mod implement_the_m5_bundle_detail_pages_and_install_update_review_sheets;
 pub mod implement_the_m5_bundle_drift_banners_and_local_override_rows;
+pub mod implement_the_m5_bundle_rollback_remove_cards_and_asset_removal_truth;
 pub mod implement_the_m5_start_center_bundle_cards_and_certified_archetype_badge_groups;
 pub mod lifecycle;
 pub mod local_history_export_replay_lineage;
@@ -247,6 +248,21 @@ pub use implement_the_m5_bundle_drift_banners_and_local_override_rows::{
     M5_BUNDLE_DRIFT_COMPONENT_MATRIX_REF, M5_BUNDLE_DRIFT_CSV_REF, M5_BUNDLE_DRIFT_DOC_REF,
     M5_BUNDLE_DRIFT_FIXTURE_DIR, M5_BUNDLE_DRIFT_RECORD_KIND, M5_BUNDLE_DRIFT_REPORT_REF,
     M5_BUNDLE_DRIFT_SCHEMA_REF, M5_BUNDLE_DRIFT_SCHEMA_VERSION,
+};
+
+pub use implement_the_m5_bundle_rollback_remove_cards_and_asset_removal_truth::{
+    current_stable_m5_bundle_rollback_remove_export, resolve_bundle_removal,
+    seeded_m5_bundle_rollback_remove_packet, M5BundleRemovalArtifactError, M5BundleRemovalCase,
+    M5BundleRemovalConsumerProjection, M5BundleRemovalExportField,
+    M5BundleRemovalGovernanceReview, M5BundleRemovalInput, M5BundleRemovalReleasePosture,
+    M5BundleRemovalResolutionError, M5BundleRemovalSurfaceFamily, M5BundleRemovalSurfaceRow,
+    M5BundleRemovalViolation, M5BundleRemovalVocabularySet, M5BundleRollbackRemovePacket,
+    M5BundleRollbackRemovePacketInput, M5ExportBeforeRemove, M5RemovalAsset, M5RemovalAssetOrigin,
+    M5RemovalDisposition, M5ResolvedAssetInventory, M5ResolvedBundleRemoval, M5ResolvedRemovalCard,
+    M5ResolvedRestorePath, M5SafeToRemoveClass, M5_BUNDLE_REMOVAL_ARTIFACT_REF,
+    M5_BUNDLE_REMOVAL_COMPONENT_MATRIX_REF, M5_BUNDLE_REMOVAL_CSV_REF, M5_BUNDLE_REMOVAL_DOC_REF,
+    M5_BUNDLE_REMOVAL_FIXTURE_DIR, M5_BUNDLE_REMOVAL_RECORD_KIND, M5_BUNDLE_REMOVAL_REPORT_REF,
+    M5_BUNDLE_REMOVAL_SCHEMA_REF, M5_BUNDLE_REMOVAL_SCHEMA_VERSION,
 };
 
 pub use implement_the_m5_start_center_bundle_cards_and_certified_archetype_badge_groups::{
