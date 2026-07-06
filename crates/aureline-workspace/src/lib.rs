@@ -28,6 +28,7 @@ pub mod generated_projects;
 pub mod harden_keymap_theme_settings_snippet_task_and_launch;
 pub mod history;
 pub mod implement_the_m5_bundle_detail_pages_and_install_update_review_sheets;
+pub mod implement_the_m5_bundle_drift_banners_and_local_override_rows;
 pub mod implement_the_m5_start_center_bundle_cards_and_certified_archetype_badge_groups;
 pub mod lifecycle;
 pub mod local_history_export_replay_lineage;
@@ -231,6 +232,21 @@ pub use implement_the_m5_bundle_detail_pages_and_install_update_review_sheets::{
     M5_BUNDLE_REVIEW_COMPONENT_MATRIX_REF, M5_BUNDLE_REVIEW_CSV_REF, M5_BUNDLE_REVIEW_DOC_REF,
     M5_BUNDLE_REVIEW_FIXTURE_DIR, M5_BUNDLE_REVIEW_RECORD_KIND, M5_BUNDLE_REVIEW_REPORT_REF,
     M5_BUNDLE_REVIEW_SCHEMA_REF, M5_BUNDLE_REVIEW_SCHEMA_VERSION,
+};
+
+pub use implement_the_m5_bundle_drift_banners_and_local_override_rows::{
+    current_stable_m5_bundle_drift_override_export, resolve_bundle_drift,
+    seeded_m5_bundle_drift_override_packet, M5BundleDriftArtifactError, M5BundleDriftCase,
+    M5BundleDriftConsumerProjection, M5BundleDriftExportField, M5BundleDriftGovernanceReview,
+    M5BundleDriftInput, M5BundleDriftOverridePacket, M5BundleDriftOverridePacketInput,
+    M5BundleDriftReleasePosture, M5BundleDriftResolutionError, M5BundleDriftSurfaceFamily,
+    M5BundleDriftSurfaceRow, M5BundleDriftViolation, M5BundleDriftVocabularySet,
+    M5BundleLocalOverride, M5DriftGranularity, M5DriftKind, M5DriftSignificance, M5MissingArtifact,
+    M5ResolvedBundleDrift, M5ResolvedDriftBanner, M5ResolvedLocalOverrideList,
+    M5ResolvedRollbackRemoveCard, M5_BUNDLE_DRIFT_ARTIFACT_REF,
+    M5_BUNDLE_DRIFT_COMPONENT_MATRIX_REF, M5_BUNDLE_DRIFT_CSV_REF, M5_BUNDLE_DRIFT_DOC_REF,
+    M5_BUNDLE_DRIFT_FIXTURE_DIR, M5_BUNDLE_DRIFT_RECORD_KIND, M5_BUNDLE_DRIFT_REPORT_REF,
+    M5_BUNDLE_DRIFT_SCHEMA_REF, M5_BUNDLE_DRIFT_SCHEMA_VERSION,
 };
 
 pub use implement_the_m5_start_center_bundle_cards_and_certified_archetype_badge_groups::{
