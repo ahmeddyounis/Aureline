@@ -27,6 +27,7 @@ pub mod generated_artifacts;
 pub mod generated_projects;
 pub mod harden_keymap_theme_settings_snippet_task_and_launch;
 pub mod history;
+pub mod implement_the_m5_bundle_detail_pages_and_install_update_review_sheets;
 pub mod implement_the_m5_start_center_bundle_cards_and_certified_archetype_badge_groups;
 pub mod lifecycle;
 pub mod local_history_export_replay_lineage;
@@ -215,6 +216,21 @@ pub use finalize_workflow_bundle_lifecycle_drift_and_overrides::{
     BUNDLE_LIFECYCLE_CONSUMER_SURFACES, BUNDLE_LIFECYCLE_FINALIZATION_RECORD_KIND,
     BUNDLE_LIFECYCLE_FINALIZATION_SCHEMA_REF, BUNDLE_LIFECYCLE_FINALIZATION_SCHEMA_VERSION,
     BUNDLE_LIFECYCLE_OPERATIONS, CHANGE_SEVERITY_CLASSES, TRUST_EGRESS_CHANGE_CLASSES,
+};
+
+pub use implement_the_m5_bundle_detail_pages_and_install_update_review_sheets::{
+    current_stable_m5_bundle_detail_review_export, resolve_bundle_review,
+    seeded_m5_bundle_detail_review_packet, M5BundleComponentSummary, M5BundleDependencyMarker,
+    M5BundleDetailReviewPacket, M5BundleDetailReviewPacketInput, M5BundleReviewArtifactError,
+    M5BundleReviewCase, M5BundleReviewConsumerProjection, M5BundleReviewExportField,
+    M5BundleReviewGovernanceReview, M5BundleReviewInput, M5BundleReviewPosture,
+    M5BundleReviewReleasePosture, M5BundleReviewResolutionError, M5BundleReviewSurfaceFamily,
+    M5BundleReviewSurfaceRow, M5BundleReviewViolation, M5BundleReviewVocabularySet,
+    M5BundleSideEffectClass, M5ResolvedBundleDetailPage, M5ResolvedBundleReview,
+    M5ResolvedInstallUpdateReviewSheet, M5_BUNDLE_REVIEW_ARTIFACT_REF,
+    M5_BUNDLE_REVIEW_COMPONENT_MATRIX_REF, M5_BUNDLE_REVIEW_CSV_REF, M5_BUNDLE_REVIEW_DOC_REF,
+    M5_BUNDLE_REVIEW_FIXTURE_DIR, M5_BUNDLE_REVIEW_RECORD_KIND, M5_BUNDLE_REVIEW_REPORT_REF,
+    M5_BUNDLE_REVIEW_SCHEMA_REF, M5_BUNDLE_REVIEW_SCHEMA_VERSION,
 };
 
 pub use implement_the_m5_start_center_bundle_cards_and_certified_archetype_badge_groups::{
