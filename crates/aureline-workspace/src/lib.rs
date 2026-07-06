@@ -27,6 +27,7 @@ pub mod generated_artifacts;
 pub mod generated_projects;
 pub mod harden_keymap_theme_settings_snippet_task_and_launch;
 pub mod history;
+pub mod implement_the_m5_start_center_bundle_cards_and_certified_archetype_badge_groups;
 pub mod lifecycle;
 pub mod local_history_export_replay_lineage;
 pub mod m5_admission_and_routing;
@@ -214,6 +215,22 @@ pub use finalize_workflow_bundle_lifecycle_drift_and_overrides::{
     BUNDLE_LIFECYCLE_CONSUMER_SURFACES, BUNDLE_LIFECYCLE_FINALIZATION_RECORD_KIND,
     BUNDLE_LIFECYCLE_FINALIZATION_SCHEMA_REF, BUNDLE_LIFECYCLE_FINALIZATION_SCHEMA_VERSION,
     BUNDLE_LIFECYCLE_OPERATIONS, CHANGE_SEVERITY_CLASSES, TRUST_EGRESS_CHANGE_CLASSES,
+};
+
+pub use implement_the_m5_start_center_bundle_cards_and_certified_archetype_badge_groups::{
+    current_stable_m5_start_center_launch_wedge_export, resolve_launch_wedge,
+    seeded_m5_start_center_launch_wedge_packet, M5ArchetypeBadgeDowngradeState,
+    M5EntryAssuranceTier, M5LaunchWedgeArtifactError, M5LaunchWedgeCase,
+    M5LaunchWedgeConsumerProjection, M5LaunchWedgeExportField, M5LaunchWedgeGovernanceReview,
+    M5LaunchWedgeInput, M5LaunchWedgeReleasePosture, M5LaunchWedgeResolutionError,
+    M5LaunchWedgeSurfaceFamily, M5LaunchWedgeSurfaceRow, M5LaunchWedgeViolation,
+    M5LaunchWedgeVocabularySet, M5ResolvedCertifiedArchetypeBadgeGroup, M5ResolvedLaunchWedge,
+    M5ResolvedStartCenterBundleCard, M5StartCenterLaunchWedgePacket,
+    M5StartCenterLaunchWedgePacketInput, M5_START_CENTER_WEDGE_ARTIFACT_REF,
+    M5_START_CENTER_WEDGE_COMPONENT_MATRIX_REF, M5_START_CENTER_WEDGE_CSV_REF,
+    M5_START_CENTER_WEDGE_DOC_REF, M5_START_CENTER_WEDGE_FIXTURE_DIR,
+    M5_START_CENTER_WEDGE_RECORD_KIND, M5_START_CENTER_WEDGE_REPORT_REF,
+    M5_START_CENTER_WEDGE_SCHEMA_REF, M5_START_CENTER_WEDGE_SCHEMA_VERSION,
 };
 
 pub use m5_admission_and_routing::{
