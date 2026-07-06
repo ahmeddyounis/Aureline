@@ -37,6 +37,7 @@ pub mod accessibility;
 pub mod activity_center;
 pub mod activity_timeline;
 pub mod add_drag_and_drop_verb_disclosure_insertion_indicators_cross_window_detach_and_long_transf;
+pub mod add_shared_start_center_system_open_deep_link_and_cli_headless_project_entry_component_consumers;
 pub mod admin_alpha;
 pub mod admin_audit_export_beta;
 pub mod ai_context_inspector;

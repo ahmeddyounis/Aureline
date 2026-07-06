@@ -131,6 +131,19 @@ checkpoint cards, and archetype-readiness rows must use the schema refs under
 `schemas/ui/m5-*-*.schema.json` instead of inventing local target-kind,
 restore, trust, or setup-urgency wording.
 
+Every consumer of those components — Start Center, `Open recent`, the command
+palette, system-open / file-association intake, protocol / deep-link and
+browser / mobile handoff, CLI / headless entry, and support / diagnostics
+exports — reuses the same schemas and the same `command_id` per entry verb, so
+`Open`, `Clone`, `Import`, `Restore`, and `Resume` never fork by client,
+trigger, or platform. Deep-link and system-open flows keep the literal target
+and resulting mode explicit without special-case copy, and support bundles
+carry an opaque entry-object ref so support can reconstruct exactly which entry
+path a user took. That adoption is contracted in
+`docs/opening-projects/m5_project_entry_component_consumer_contract.md` and
+certified by
+`artifacts/release/m5-project-entry-component-consumer-proof/support_export.json`.
+
 ## Inspecting the packet
 
 ```sh
