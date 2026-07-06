@@ -27,6 +27,7 @@ pub mod generated_artifacts;
 pub mod generated_projects;
 pub mod harden_keymap_theme_settings_snippet_task_and_launch;
 pub mod history;
+pub mod implement_the_m5_bundle_class_disclosure_cards_and_claim_narrowing_rows;
 pub mod implement_the_m5_bundle_detail_pages_and_install_update_review_sheets;
 pub mod implement_the_m5_bundle_drift_banners_and_local_override_rows;
 pub mod implement_the_m5_bundle_rollback_remove_cards_and_asset_removal_truth;
@@ -218,6 +219,24 @@ pub use finalize_workflow_bundle_lifecycle_drift_and_overrides::{
     BUNDLE_LIFECYCLE_CONSUMER_SURFACES, BUNDLE_LIFECYCLE_FINALIZATION_RECORD_KIND,
     BUNDLE_LIFECYCLE_FINALIZATION_SCHEMA_REF, BUNDLE_LIFECYCLE_FINALIZATION_SCHEMA_VERSION,
     BUNDLE_LIFECYCLE_OPERATIONS, CHANGE_SEVERITY_CLASSES, TRUST_EGRESS_CHANGE_CLASSES,
+};
+
+pub use implement_the_m5_bundle_class_disclosure_cards_and_claim_narrowing_rows::{
+    current_stable_m5_bundle_class_disclosure_export, resolve_bundle_class_disclosure,
+    seeded_m5_bundle_class_disclosure_packet, M5BundleClassDisclosureCase,
+    M5BundleClassDisclosureInput, M5BundleClassDisclosurePacket,
+    M5BundleClassDisclosurePacketInput, M5BundleClassDisclosureResolutionError,
+    M5BundleDependencyDisclosure, M5BundleDisclosureArtifactError, M5BundleDisclosureClass,
+    M5BundleDisclosureConsumerProjection, M5BundleDisclosureExportField,
+    M5BundleDisclosureGovernanceReview, M5BundleDisclosureReleasePosture,
+    M5BundleDisclosureSurfaceFamily, M5BundleDisclosureSurfaceRow, M5BundleDisclosureViolation,
+    M5BundleDisclosureVocabularySet, M5CapabilityConfidence, M5ResolvedBundleClassDisclosure,
+    M5ResolvedClaimNarrowingRow, M5ResolvedClassDisclosureCard,
+    M5_BUNDLE_CLASS_DISCLOSURE_ARTIFACT_REF, M5_BUNDLE_CLASS_DISCLOSURE_COMPONENT_MATRIX_REF,
+    M5_BUNDLE_CLASS_DISCLOSURE_CSV_REF, M5_BUNDLE_CLASS_DISCLOSURE_DOC_REF,
+    M5_BUNDLE_CLASS_DISCLOSURE_FIXTURE_DIR, M5_BUNDLE_CLASS_DISCLOSURE_RECORD_KIND,
+    M5_BUNDLE_CLASS_DISCLOSURE_REPORT_REF, M5_BUNDLE_CLASS_DISCLOSURE_SCHEMA_REF,
+    M5_BUNDLE_CLASS_DISCLOSURE_SCHEMA_VERSION,
 };
 
 pub use implement_the_m5_bundle_detail_pages_and_install_update_review_sheets::{
