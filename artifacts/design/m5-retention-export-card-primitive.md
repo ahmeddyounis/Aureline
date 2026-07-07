@@ -1,0 +1,55 @@
+# M5 Retention/Export-Card & History-Export-Manifest Primitive
+
+- Packet: `m5-retention-export-card-primitive:stable:0001`
+- Label: `M5 retention/export-card & history-export-manifest primitive: cross-baseline compare (current-versus-snapshot, snapshot-versus-disk, snapshot-versus-Git HEAD), retention posture, export redaction, survival/expiry/metadata-only truth, actor-lineage and scope preservation, and bounded inspect/review/compare/export/request actions with no export defaulting to raw sensitive bodies`
+- Compare / export consumers: 6 (6 stable)
+- Card postures: fully_shareable, metadata_only_survives, purge_scheduled, policy_restricted, nothing_retained, export_blocked
+- Manifest dispositions: full_evidence, redacted_share, policy_restricted, lineage_incomplete, raw_body_withheld, export_blocked
+- Compare baselines: current_vs_snapshot, snapshot_vs_disk, snapshot_vs_git_head, snapshot_vs_snapshot
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Compare / export consumers
+
+- **Local History Timeline**: `stable`
+  - Owner: Local history timeline owner
+  - Scope: The local-history timeline renders the shared retention/export card and history-export manifest so a workspace-retained checkpoint reads as fully shareable with current-versus-snapshot, snapshot-versus-disk, and snapshot-versus-Git comparisons all explicit, a session-only checkpoint reads honestly as metadata-only survives, and an audit-trail manifest exports as full evidence with actor lineage, checkpoint identity, and scope intact
+  - Worked cards: 2
+    - `history card: main.rs snapshot` (`workspace_retained`) → `fully_shareable` (export `true`, compare `true`, redaction `full_metadata`)
+    - `history card: scratch buffer snapshot` (`session_only`) → `metadata_only_survives` (export `true`, compare `true`, redaction `bodies_omitted`)
+  - Worked manifests: 1
+    - `history manifest: session audit trail` (`audit_trail`) → `full_evidence` (shareable `true`, baseline `current_vs_snapshot`, redaction `full_metadata`)
+- **Refactor Evidence**: `stable`
+  - Owner: Refactor evidence owner
+  - Scope: The refactor-evidence surface renders the shared card and manifest so a purge-pending refactor checkpoint reads as purge-scheduled, offers a retention extension before it purges, and exports a paths-redacted redacted-share manifest whose snapshot-versus-disk baseline stays explicit
+  - Worked cards: 1
+    - `refactor card: extract-module transaction` (`purge_pending`) → `purge_scheduled` (export `true`, compare `true`, redaction `paths_redacted`)
+  - Worked manifests: 1
+    - `refactor manifest: extract-module evidence` (`redacted_share`) → `redacted_share` (shareable `true`, baseline `snapshot_vs_disk`, redaction `paths_redacted`)
+- **Import/Migration Session**: `stable`
+  - Owner: Import/migration session owner
+  - Scope: The import/migration-session surface renders the shared card and manifest so an account-synced import reads as policy-restricted, and a migration-session manifest measured against snapshot-versus-Git HEAD stays held behind policy with an explicit unredacted-export request rather than a silent share
+  - Worked cards: 1
+    - `import card: synced settings snapshot` (`account_synced`) → `policy_restricted` (export `true`, compare `true`, redaction `policy_restricted`)
+  - Worked manifests: 1
+    - `import manifest: migration session bundle` (`migration_session`) → `policy_restricted` (shareable `false`, baseline `snapshot_vs_git_head`, redaction `policy_restricted`)
+- **AI Apply Evidence**: `stable`
+  - Owner: AI apply evidence owner
+  - Scope: The AI-apply evidence surface renders the shared card and manifest so a policy-pinned checkpoint whose redaction posture blocks export reads honestly as export-blocked, and a recovery-evidence manifest that would carry raw content bodies is held back as raw-body-withheld with an unredacted-export request rather than defaulting to a raw sensitive body
+  - Worked cards: 1
+    - `ai apply card: agent run checkpoint` (`policy_pinned`) → `export_blocked` (export `false`, compare `false`, redaction `export_blocked`)
+  - Worked manifests: 1
+    - `ai apply manifest: agent run evidence` (`recovery_evidence`) → `raw_body_withheld` (shareable `false`, baseline `current_vs_snapshot`, redaction `full_metadata`)
+- **Recovery Center**: `stable`
+  - Owner: Recovery center owner
+  - Scope: The recovery-center surface renders the shared card and manifest so an expired-and-purged checkpoint reads as nothing-retained yet still exposes a snapshot-versus-Git comparison and a retention-extension request, and a recovery-evidence manifest whose actor lineage is not fully preserved is held back as lineage-incomplete rather than shared as full evidence
+  - Worked cards: 1
+    - `recovery card: purged checkpoint` (`expired_purged`) → `nothing_retained` (export `false`, compare `true`, redaction `full_metadata`)
+  - Worked manifests: 1
+    - `recovery manifest: partial-lineage evidence` (`recovery_evidence`) → `lineage_incomplete` (shareable `false`, baseline `snapshot_vs_git_head`, redaction `full_metadata`)
+- **Support Export Desk**: `stable`
+  - Owner: Support export desk owner
+  - Scope: The support export desk renders the shared card and manifest so a workspace-retained checkpoint whose credentials are scrubbed still reads as fully shareable over a snapshot-versus-disk comparison, and a support-bundle manifest whose export path is unavailable reads as export-blocked rather than presenting a false download
+  - Worked cards: 1
+    - `support card: scrubbed workspace snapshot` (`workspace_retained`) → `fully_shareable` (export `true`, compare `true`, redaction `credentials_scrubbed`)
+  - Worked manifests: 1
+    - `support manifest: offline support bundle` (`support_bundle`) → `export_blocked` (shareable `false`, baseline `current_vs_snapshot`, redaction `export_blocked`)
