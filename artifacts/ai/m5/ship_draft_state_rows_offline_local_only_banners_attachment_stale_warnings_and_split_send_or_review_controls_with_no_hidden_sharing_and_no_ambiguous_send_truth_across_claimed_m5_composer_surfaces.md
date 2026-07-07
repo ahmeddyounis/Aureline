@@ -1,0 +1,72 @@
+# M5 Draft-State-Row, Attachment-Stale-Banner, and Send-Review-Control Primitive
+
+- Packet: `m5-draft-state-row-stale-banner-send-review-control-primitive:stable:0001`
+- Label: `M5 draft-state row, attachment-stale banner, and send-review control primitive: draft locality and retention posture, shared-or-retained disclosure, sync / policy notes, clear / delete behavior, offline-local-only and attachment-stale banner postures with preserved-draft and refresh / local-safe alternatives, and split explain-only / review / mutating send paths with no single unqualified send on widened authority`
+- Send-capable consumers: 5 (5 stable)
+- Retention postures: local_only_ephemeral, local_only_persisted, workspace_retained, account_retained, shared_to_thread, purge_pending
+- Banner postures: fresh, offline_local_only, stale_refreshable, stale_superseded_review, stale_source_gone, stale_access_revoked
+- Send paths: explain_only, review_then_send, direct_send
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Send-capable consumers
+
+- **Inline Composer**: `stable`
+  - Owner: Inline composer owner
+  - Scope: The inline composer renders the shared draft-state row, attachment-stale banner, and send-review control so a persisted local-only draft and an ephemeral unsaved draft each name their retention posture and clear / save behavior, a fresh attachment and an offline-local-only route each keep the current draft and offer refresh or a local-safe alternative, a plain non-widening send stays a single qualified send, and a route that requires an attachment review opens review before send
+  - Worked drafts: 2
+    - `draft.inline.local` → `local_only_persisted` (leaves device `false`, discloses `true`)
+    - `draft.inline.ephemeral` → `local_only_ephemeral` (leaves device `false`, discloses `true`)
+  - Worked banners: 2
+    - `stale.inline.fresh` → `fresh` (draft preserved `true`, resolution path `false`)
+    - `stale.inline.offline` → `offline_local_only` (draft preserved `true`, resolution path `true`)
+  - Worked send controls: 2
+    - `send.inline.ready` → `ready_to_send` (split `false`, no ambiguous send `true`, review `false`)
+    - `send.inline.review` → `review_before_send` (split `true`, no ambiguous send `true`, review `true`)
+- **Side Panel**: `stable`
+  - Owner: Side panel owner
+  - Scope: The side panel renders the same draft-state row, attachment-stale banner, and send-review control so a workspace-synced draft and an account-synced draft each disclose their sync exception instead of reading as local-only, an edited and a moved attachment each stay refreshable while the draft is preserved, an on-device-to-managed route that widens authority splits into explain-only / review / mutating paths, and an over-budget send is blocked until the budget is resolved
+  - Worked drafts: 2
+    - `draft.side.workspace` → `workspace_retained` (leaves device `true`, discloses `true`)
+    - `draft.side.account` → `account_retained` (leaves device `true`, discloses `true`)
+  - Worked banners: 2
+    - `stale.side.edited` → `stale_refreshable` (draft preserved `true`, resolution path `true`)
+    - `stale.side.moved` → `stale_refreshable` (draft preserved `true`, resolution path `true`)
+  - Worked send controls: 2
+    - `send.side.split` → `split_send_review` (split `true`, no ambiguous send `true`, review `true`)
+    - `send.side.overbudget` → `over_budget_blocked` (split `false`, no ambiguous send `true`, review `false`)
+- **Patch Draft**: `stable`
+  - Owner: Patch draft owner
+  - Scope: The patch draft renders the same draft-state row, attachment-stale banner, and send-review control so a shared-thread draft discloses its sharing and offers stop-sharing, a purge-pending draft names its retention note, a superseded attachment offers a review of the newer revision, a deleted source reads as gone with a detach and a local-safe alternative while the draft is preserved, and a policy-blocked or taint-blocked send refuses to leave the shell until the blocker is resolved
+  - Worked drafts: 2
+    - `draft.patch.shared` → `shared_to_thread` (leaves device `true`, discloses `true`)
+    - `draft.patch.purge` → `purge_pending` (leaves device `true`, discloses `true`)
+  - Worked banners: 2
+    - `stale.patch.superseded` → `stale_superseded_review` (draft preserved `true`, resolution path `true`)
+    - `stale.patch.deleted` → `stale_source_gone` (draft preserved `true`, resolution path `true`)
+  - Worked send controls: 2
+    - `send.patch.policy` → `policy_blocked` (split `false`, no ambiguous send `true`, review `false`)
+    - `send.patch.taint` → `taint_blocked` (split `false`, no ambiguous send `true`, review `false`)
+- **CLI / Headless**: `stable`
+  - Owner: CLI / headless owner
+  - Scope: The CLI / headless surface renders the same draft-state row, attachment-stale banner, and send-review control so a clearable-and-deletable local draft and a workspace-synced draft each name their retention and clear / delete behavior, a permission-revoked attachment reads as access-revoked with a detach and a local-safe alternative and a reindexed attachment stays refreshable, a widened route splits into explain-only / review / mutating paths behind a budget ack, and a taint-ack review runs before send — the same truth a headless reviewer reads elsewhere
+  - Worked drafts: 2
+    - `draft.cli.local` → `local_only_persisted` (leaves device `false`, discloses `true`)
+    - `draft.cli.workspace` → `workspace_retained` (leaves device `true`, discloses `true`)
+  - Worked banners: 2
+    - `stale.cli.revoked` → `stale_access_revoked` (draft preserved `true`, resolution path `true`)
+    - `stale.cli.reindexed` → `stale_refreshable` (draft preserved `true`, resolution path `true`)
+  - Worked send controls: 2
+    - `send.cli.split` → `split_send_review` (split `true`, no ambiguous send `true`, review `true`)
+    - `send.cli.review` → `review_before_send` (split `true`, no ambiguous send `true`, review `true`)
+- **Support Export**: `stable`
+  - Owner: Support export owner
+  - Scope: The support export renders the same draft-state row, attachment-stale banner, and send-review control so an ephemeral unsaved draft's local-only posture and a shared-thread draft's disclosed sharing are reconstructable from the export alone, an offline-local-only route with only a local-safe alternative preserves the draft, a fresh attachment reads as fresh, a mutating ready send still offers an explain-only path beside its direct send, and a widened route stays split into explain-only / review / mutating paths
+  - Worked drafts: 2
+    - `draft.support.ephemeral` → `local_only_ephemeral` (leaves device `false`, discloses `true`)
+    - `draft.support.shared` → `shared_to_thread` (leaves device `true`, discloses `true`)
+  - Worked banners: 2
+    - `stale.support.offline` → `offline_local_only` (draft preserved `true`, resolution path `true`)
+    - `stale.support.fresh` → `fresh` (draft preserved `true`, resolution path `false`)
+  - Worked send controls: 2
+    - `send.support.ready` → `ready_to_send` (split `true`, no ambiguous send `true`, review `false`)
+    - `send.support.split` → `split_send_review` (split `true`, no ambiguous send `true`, review `true`)
