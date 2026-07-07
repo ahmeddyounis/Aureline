@@ -1,0 +1,58 @@
+# M5 AI High-Friction Approval-Sheet and Tool-Call-Timeline-Row Primitive
+
+- Packet: `m5-ai-high-friction-approval-sheet-tool-call-timeline-row-primitive:stable:0001`
+- Label: `M5 AI high-friction approval sheet and tool-call timeline row primitive: requested action, scope, side effect, boundary, rollback/checkpoint, effective approval gate, explicit approve-once/deny/open-plan controls, and governed open-output/remove-from-context/view-provenance follow-up actions`
+- Tool lanes: 5 (5 stable)
+- Action scopes: single_file, workspace_subtree, whole_workspace, external_resource, cross_tenant, host_system
+- Rollback postures: checkpoint_backed, reversible_in_place, forward_fix_only, irreversible_external, no_rollback
+- Approval controls: approve_once, deny, open_plan, review_rollback_checkpoint, escalate_second_reviewer
+- Follow-up actions: open_output, remove_from_context, view_provenance, replay_in_sandbox, renew_approval
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Tool lanes
+
+- **Read-Only Tool Invocation**: `stable`
+  - Owner: Read-only tool lane owner
+  - Scope: The read-only tool invocation lane renders the shared approval sheet and timeline row so a read-only single-file query stays auto-approved while still naming its scope, side effect, boundary, and rollback posture, and every read-only tool-call row keeps its provenance and remove-from-context controls visible instead of burying them in a raw log
+  - Worked approval sheets: 2
+    - `read repository file` over `single_file` → gate `auto_approved` (review-first `false`, reversible `true`)
+    - `list workspace subtree` over `workspace_subtree` → gate `notify_only` (review-first `false`, reversible `false`)
+  - Worked tool-call rows: 2
+    - `tool.repo-read` at `in_process` → observed `read_only` (escalated `false`, follow-ups 3)
+    - `tool.sandbox-grep` at `local_sandbox` → observed `read_only` (escalated `false`, follow-ups 1)
+- **Mutating Tool Run**: `stable`
+  - Owner: Mutating tool lane owner
+  - Scope: The mutating tool run lane renders the shared approval sheet and timeline row so a destructive whole-workspace write is held review-first at a typed high-friction gate with a restorable checkpoint, an irreversible host-system action escalates to a two-person review, and a tool call whose observed side effect escalates past its predicted class is flagged rather than shown as read-only
+  - Worked approval sheets: 2
+    - `rewrite all workspace manifests` over `whole_workspace` → gate `high_friction_typed` (review-first `true`, reversible `true`)
+    - `reset host service state` over `host_system` → gate `two_person_review` (review-first `true`, reversible `false`)
+  - Worked tool-call rows: 2
+    - `tool.workspace-rewrite` at `local_shell` → observed `destructive` (escalated `true`, follow-ups 5)
+    - `tool.host-process` at `host_delegated` → observed `process_spawn` (escalated `false`, follow-ups 3)
+- **Test-Generation Validation**: `stable`
+  - Owner: Test-generation validation lane owner
+  - Scope: The test-generation validation lane renders the shared approval sheet and timeline row so a sandboxed generated-test write is held at a one-click confirm backed by a checkpoint, a policy-mandated review escalates even a read-only validation to a two-person review, and each validation tool-call row keeps its follow-up and provenance controls explicit
+  - Worked approval sheets: 2
+    - `write generated test files` over `workspace_subtree` → gate `one_click_confirm` (review-first `true`, reversible `true`)
+    - `validate coverage under policy hold` over `single_file` → gate `two_person_review` (review-first `true`, reversible `false`)
+  - Worked tool-call rows: 2
+    - `tool.testgen-write` at `local_sandbox` → observed `file_write` (escalated `false`, follow-ups 5)
+    - `tool.coverage-probe` at `in_process` → observed `state_mutation` (escalated `true`, follow-ups 4)
+- **Branch-Agent Checkpoint**: `stable`
+  - Owner: Branch-agent checkpoint lane owner
+  - Scope: The branch-agent checkpoint lane renders the shared approval sheet and timeline row so an external-resource state mutation at a checkpoint is held at a one-click confirm, a cross-tenant credentialed network call is held review-first at a typed high-friction gate, and each remote or external tool-call row surfaces its boundary, observed effect, and governed follow-up actions
+  - Worked approval sheets: 2
+    - `sync external resource state` over `external_resource` → gate `one_click_confirm` (review-first `true`, reversible `true`)
+    - `call cross-tenant credentialed api` over `cross_tenant` → gate `high_friction_typed` (review-first `true`, reversible `false`)
+  - Worked tool-call rows: 2
+    - `tool.remote-sync` at `remote_connector` → observed `network_call` (escalated `false`, follow-ups 4)
+    - `tool.external-api` at `external_service` → observed `network_call` (escalated `true`, follow-ups 5)
+- **CLI / Support Export**: `stable`
+  - Owner: CLI / support export lane owner
+  - Scope: The CLI / support export lane renders the shared approval sheet and timeline row so a policy-blocked mutating action offers deny and open-plan but never an approve-once affordance, a read-only export action stays low-friction, and every approval and tool-call record — its scope, side effect, boundary, rollback posture, effective gate, and follow-up actions — is reconstructable from the support export alone
+  - Worked approval sheets: 2
+    - `publish blocked mutation` over `workspace_subtree` → gate `policy_blocked` (review-first `true`, reversible `true`)
+    - `export read-only support bundle` over `single_file` → gate `auto_approved` (review-first `false`, reversible `true`)
+  - Worked tool-call rows: 2
+    - `tool.support-export` at `in_process` → observed `read_only` (escalated `false`, follow-ups 3)
+    - `tool.cli-apply` at `local_shell` → observed `state_mutation` (escalated `false`, follow-ups 4)
