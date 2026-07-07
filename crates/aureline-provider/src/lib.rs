@@ -19,6 +19,7 @@ pub mod account_scope;
 pub mod approval_tickets;
 pub mod browser_handoff;
 pub mod event_ingestion;
+pub mod freeze_the_m5_provider_account_row_project_or_board_mapping_row_sync_behavior_row_offline_capture_row_and_privacy_redaction_row_component_matrix;
 pub mod infrastructure_intelligence;
 pub mod object_model;
 pub mod project_mapping;
