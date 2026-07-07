@@ -1,0 +1,57 @@
+# M5 Prompt-Composer-Header and Context-Attachment-Pill Primitive
+
+- Packet: `m5-prompt-composer-header-context-attachment-pill-primitive:stable:0001`
+- Label: `M5 prompt composer header and context attachment pill primitive: mode, scope, route/provider/model, budget band, header posture, attachment identity, kind, trust state, freshness, pill posture, and bounded open/remove/refresh/review/reveal actions`
+- Composition consumers: 5 (5 stable)
+- Header postures: ready_composing, local_only_composing, review_before_send, budget_constrained, route_blocked, budget_blocked
+- Pill postures: fresh_trusted, stale, unverified, tainted, redacted, out_of_scope
+- Pill actions: open, remove, refresh, review_trust, reveal_scope
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Composition consumers
+
+- **Inline Assistant**: `stable`
+  - Owner: Inline assistant owner
+  - Scope: The inline assistant renders the shared composer header and attachment pill so a ready managed-route chat header names its mode, scope, route, provider/model, and budget band, a local-only inline-edit header discloses that the request stays on device, and each attachment pill names its exact object identity and freshness/trust state — a fresh-trusted file that is openable and removable, and a tainted external paste that reads as tainted with review-trust and remove before send
+  - Worked headers: 2
+    - `chat_ask` / `active_file` on `managed_route` → `ready_composing` (sendable `true`, local `false`)
+    - `inline_edit` / `selection` on `local_model` → `local_only_composing` (sendable `true`, local `true`)
+  - Worked pills: 2
+    - `attach.file.readme` (`file`) → `fresh_trusted` (openable `true`, review `false`)
+    - `attach.paste.stacktrace` (`external_paste`) → `tainted` (openable `true`, review `true`)
+- **Side Panel**: `stable`
+  - Owner: Side panel owner
+  - Scope: The side panel renders the shared composer header and attachment pill so a review-first workspace header requires review before send, an over-budget repository header reads as budget-constrained rather than plainly ready, a trusted-but-stale symbol pill reads as stale with a refresh action, and an unverified URL-reference pill reads as unverified with review-trust before send
+  - Worked headers: 2
+    - `review_first` / `workspace` on `byok_direct` → `review_before_send` (sendable `true`, local `false`)
+    - `chat_ask` / `repository` on `managed_route` → `budget_constrained` (sendable `true`, local `false`)
+  - Worked pills: 2
+    - `attach.symbol.parse_config` (`symbol`) → `stale` (openable `true`, review `false`)
+    - `attach.url.rfc` (`url_reference`) → `unverified` (openable `true`, review `true`)
+- **Patch Draft**: `stable`
+  - Owner: Patch draft owner
+  - Scope: The patch draft renders the shared composer header and attachment pill so a policy-pinned guided-patch header reads as route-blocked rather than ready, a hard-ceiling header reads as budget-blocked, a redacted selection pill reads as redacted with a reveal-scope action, and a deleted-source evidence pill reads as out-of-scope, is no longer openable, but still offers remove before send
+  - Worked headers: 2
+    - `guided_patch` / `active_file` on `policy_pinned_route` → `route_blocked` (sendable `false`, local `false`)
+    - `guided_patch` / `open_files` on `managed_route` → `budget_blocked` (sendable `false`, local `false`)
+  - Worked pills: 2
+    - `attach.selection.range-1` (`selection_range`) → `redacted` (openable `true`, review `false`)
+    - `attach.evidence.deleted-run` (`evidence_packet`) → `out_of_scope` (openable `false`, review `false`)
+- **Handoff Surface**: `stable`
+  - Owner: Handoff surface owner
+  - Scope: The handoff surface renders the shared composer header and attachment pill without changing meaning, so a self-hosted background-agent header reads as ready on a route that leaves the shell, a local-only headless-automation header discloses that the request stays on device, a fresh-trusted evidence pill is openable and removable, and a moved-source file pill reads as stale with a refresh action
+  - Worked headers: 2
+    - `background_agent` / `workspace` on `self_hosted_route` → `ready_composing` (sendable `true`, local `false`)
+    - `headless_automation` / `repository` on `local_model` → `local_only_composing` (sendable `true`, local `true`)
+  - Worked pills: 2
+    - `attach.evidence.run-42` (`evidence_packet`) → `fresh_trusted` (openable `true`, review `false`)
+    - `attach.file.moved-mod` (`file`) → `stale` (openable `true`, review `false`)
+- **CLI / Support Export**: `stable`
+  - Owner: CLI / support export owner
+  - Scope: The CLI / support export renders the shared composer header and attachment pill so a near-limit managed-org header reads as budget-constrained, a ready mirrored-route header keeps its route explicit, and each attachment pill's identity, kind, trust state, freshness, and remove/open behavior are reconstructable from the support export alone
+  - Worked headers: 2
+    - `chat_ask` / `managed_org` on `managed_route` → `budget_constrained` (sendable `true`, local `false`)
+    - `inline_edit` / `active_file` on `mirrored_route` → `ready_composing` (sendable `true`, local `false`)
+  - Worked pills: 2
+    - `attach.paste.snippet` (`external_paste`) → `unverified` (openable `true`, review `true`)
+    - `attach.symbol.out-of-scope` (`symbol`) → `out_of_scope` (openable `true`, review `false`)
