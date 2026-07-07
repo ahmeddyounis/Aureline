@@ -1,0 +1,58 @@
+# M5 Unsafe-Fix-Blocked-Note / Approved-Repair-Guidance Primitive
+
+- Packet: `m5-support-unsafe-fix-blocked-note-approved-repair-guidance-primitive:stable:0001`
+- Label: `M5 unsafe-fix-blocked-note / approved-repair-guidance primitive: blocked action, block reason, scenario code, finding lineage, recommended safer repair, preserved rollback / evidence posture, and case disposition for the blocked note; repair class, blast radius, changed / unchanged classes, reversibility, and decline continuity for the approved-repair guidance`
+- Doctor / support consumers: 5 (5 stable)
+- Note postures: no_safe_alternative, irreversible_blocked, approval_required_blocked, policy_blocked, evidence_or_scope_blocked
+- Guidance postures: no_repair_available, irreversible_repair, partially_reversible_repair, broad_reversible_repair, scoped_reviewed_repair
+- Block reasons: approval_required, irreversible_change, out_of_scope_repair, insufficient_evidence, policy_blocked, unsupported_scenario
+- Approved repair classes: cache_rebuild, index_repair, settings_repair, state_migration, targeted_reset, no_safe_repair
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Doctor / support consumers
+
+- **Doctor Repair Review**: `stable`
+  - Owner: Doctor repair review owner
+  - Scope: The Project Doctor suggested-repair review renders the shared unsafe-fix blocked note so an irreversible "delete the workspace and reset to a clean checkout" action is blocked for a crash-recovery scenario with a startup-health finding lineage — recommending a reviewed cache rebuild instead and preserving the rollback and evidence posture — while an approval-required index reset is blocked in favour of an index repair; its approved-repair guidance keeps a scoped, reviewed, reversible cache rebuild distinct from a device-wide irreversible reset
+  - Worked blocked notes: 2
+    - `note:doctor-review:workspace-delete` (`irreversible_change`) → `irreversible_blocked` (safer `true`, rollback `true`, evidence `true`)
+    - `note:doctor-review:index-reset` (`approval_required`) → `approval_required_blocked` (safer `true`, rollback `true`, evidence `true`)
+  - Worked repair guidance: 2
+    - `guidance:doctor-review:cache-rebuild` (`cache_rebuild`) → `scoped_reviewed_repair` (reviewed `true`, decline-keeps-evidence `true`)
+    - `guidance:doctor-review:device-reset` (`targeted_reset`) → `irreversible_repair` (reviewed `false`, decline-keeps-evidence `true`)
+- **Support Center Unsafe-Fix Desk**: `stable`
+  - Owner: Support center unsafe-fix desk owner
+  - Scope: The support-center unsafe-fix desk renders the shared unsafe-fix blocked note so a policy-blocked "purge every extension and its stored state" action is blocked for an extension-conflict scenario — recommending a settings repair instead — while an "erase the workspace database" action blocked for insufficient evidence recommends a reviewed state migration and keeps the evidence a user retains if they decline; its approved-repair guidance keeps a workspace-scoped reviewed settings repair distinct from a profile-scoped partially reversible state migration
+  - Worked blocked notes: 2
+    - `note:support-center:extension-purge` (`policy_blocked`) → `policy_blocked` (safer `true`, rollback `true`, evidence `true`)
+    - `note:support-center:data-wipe` (`insufficient_evidence`) → `evidence_or_scope_blocked` (safer `true`, rollback `true`, evidence `true`)
+  - Worked repair guidance: 2
+    - `guidance:support-center:settings-repair` (`settings_repair`) → `scoped_reviewed_repair` (reviewed `true`, decline-keeps-evidence `true`)
+    - `guidance:support-center:state-migration` (`state_migration`) → `partially_reversible_repair` (reviewed `false`, decline-keeps-evidence `true`)
+- **Recovery Center Repair Guidance**: `stable`
+  - Owner: Recovery center repair guidance owner
+  - Scope: The recovery-center repair guidance renders the shared unsafe-fix blocked note so an out-of-scope "reset the remote service credentials" action is blocked for a connectivity-sync scenario — recommending a targeted reset instead — while an unsupported-scenario "apply the community auto-fix macro" action names that no safe repair is available and still preserves the evidence a user keeps; its approved-repair guidance keeps a profile-scoped broad-but-reversible index repair distinct from a no-change card that offers no safe repair
+  - Worked blocked notes: 2
+    - `note:recovery-center:remote-credential-reset` (`out_of_scope_repair`) → `evidence_or_scope_blocked` (safer `true`, rollback `true`, evidence `true`)
+    - `note:recovery-center:auto-fix-macro` (`unsupported_scenario`) → `no_safe_alternative` (safer `false`, rollback `true`, evidence `true`)
+  - Worked repair guidance: 2
+    - `guidance:recovery-center:index-repair` (`index_repair`) → `broad_reversible_repair` (reviewed `true`, decline-keeps-evidence `true`)
+    - `guidance:recovery-center:no-repair` (`no_safe_repair`) → `no_repair_available` (reviewed `false`, decline-keeps-evidence `true`)
+- **Headless / CLI Repair Review**: `stable`
+  - Owner: Headless CLI repair review owner
+  - Scope: The headless / CLI repair review renders the shared unsafe-fix blocked note so an irreversible "wipe every generated artifact and workspace checkpoint" action names that no safe repair is available without a desktop UI, while an approval-required "clear all settings to defaults" action is blocked in favour of a settings repair; its approved-repair guidance keeps a single-artifact reviewed cache rebuild distinct from a workspace-scoped partially reversible state migration
+  - Worked blocked notes: 2
+    - `note:headless-cli:artifact-wipe` (`irreversible_change`) → `no_safe_alternative` (safer `false`, rollback `true`, evidence `true`)
+    - `note:headless-cli:settings-clear` (`approval_required`) → `approval_required_blocked` (safer `true`, rollback `true`, evidence `true`)
+  - Worked repair guidance: 2
+    - `guidance:headless-cli:cache-rebuild` (`cache_rebuild`) → `scoped_reviewed_repair` (reviewed `true`, decline-keeps-evidence `true`)
+    - `guidance:headless-cli:state-migration` (`state_migration`) → `partially_reversible_repair` (reviewed `false`, decline-keeps-evidence `true`)
+- **Support Repair Export**: `stable`
+  - Owner: Support repair export owner
+  - Scope: The support repair export renders the shared unsafe-fix blocked note so a policy-blocked "factory-reset the device profile" action is blocked for a data-integrity scenario with an index-integrity and sync-connectivity finding lineage — recommending an index repair — while an insufficient-evidence "migrate every workspace in place" action recommends a reviewed state migration and preserves the evidence another surface reads; its approved-repair guidance keeps a workspace-scoped reviewed settings repair distinct from a device-wide irreversible reset
+  - Worked blocked notes: 2
+    - `note:support-export:factory-reset` (`policy_blocked`) → `policy_blocked` (safer `true`, rollback `true`, evidence `true`)
+    - `note:support-export:in-place-migration` (`insufficient_evidence`) → `evidence_or_scope_blocked` (safer `true`, rollback `true`, evidence `true`)
+  - Worked repair guidance: 2
+    - `guidance:support-export:settings-repair` (`settings_repair`) → `scoped_reviewed_repair` (reviewed `true`, decline-keeps-evidence `true`)
+    - `guidance:support-export:device-reset` (`targeted_reset`) → `irreversible_repair` (reviewed `false`, decline-keeps-evidence `true`)
