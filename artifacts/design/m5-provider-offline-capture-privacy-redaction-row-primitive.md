@@ -1,0 +1,57 @@
+# M5 Provider Offline-Capture / Privacy-Redaction Row Primitive
+
+- Packet: `m5-provider-offline-capture-privacy-redaction-row-primitive:stable:0001`
+- Label: `M5 provider offline-capture / privacy-redaction row primitive: offline-capture state (captured/queued/deferred/conflict/discard/synced), capture kind (bug report/task update/blocked-work note), packet destination (routed/local-bundle/unrouted), queued-draft count, redaction default, publish-later behavior, and export/clear actions, plus redaction class, export boundary, policy source, telemetry limit, support-bundle treatment, copied/exported and withheld field classes, and bounded reveal/adjust/export/reviewed-escalation actions with a metadata-safe boundary`
+- Provider-surface consumers: 5 (5 stable)
+- Capture states: captured_local, queued_for_publish, publish_deferred, conflict_held, discard_pending, synced_cleared
+- Publish-later behaviors: held_locally_until_publish, publishes_when_reachable, held_by_user_choice, held_pending_conflict, will_discard_on_confirm, already_published
+- Redaction classes: full_body_visible, metadata_only, redacted_share, policy_restricted, raw_withheld, no_export
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Provider-surface consumers
+
+- **Offline-Capture Panel**: `stable`
+  - Owner: Offline-capture panel owner
+  - Scope: The offline-capture panel renders the shared offline row so a queued bug report reads as publishes-when-reachable with its destination and three-draft queue in view and a defer action, and an already-synced task update reads as already-published with a cleared queue and no clear action — never a silent default destination; the same panel's privacy row keeps a metadata-only and a full-body reveal both metadata-safe
+  - Offline-capture rows:
+    - `capture:acme-eng:bug:queued-1` (`queued_for_publish` / `bug_report`) → `queued_for_publish_row` (dest `routed_to_provider`, queued `3`, publish `publishes_when_reachable`)
+    - `capture:acme-eng:task:synced-1` (`synced_cleared` / `task_update`) → `synced_cleared_row` (dest `routed_to_provider`, queued `0`, publish `already_published`)
+  - Privacy / redaction rows:
+    - `redaction:acme-eng:metadata:1` (`metadata_only` / `metadata_safe`) → `metadata_only_row` (bundle `metadata_only_in_bundle`, export `true`, escalation-reviewed `true`)
+    - `redaction:acme-eng:fullbody:1` (`full_body_visible` / `metadata_safe`) → `full_body_visible_row` (bundle `includes_full_body`, export `true`, escalation-reviewed `true`)
+- **Privacy / Redaction Panel**: `stable`
+  - Owner: Privacy/redaction panel owner
+  - Scope: The privacy/redaction panel renders both rows so a captured blocked-work note reads as held-locally with a local-bundle destination and a redacted share names exactly which fields it copies out, while a policy-restricted row states its org-policy source and offers no local adjust — every row withholds credentials and endpoints and offers a reviewed escalation before anything leaves the device
+  - Offline-capture rows:
+    - `capture:acme-eng:note:local-1` (`captured_local` / `blocked_work_note`) → `captured_locally_row` (dest `local_bundle_only`, queued `1`, publish `held_locally_until_publish`)
+    - `capture:acme-eng:task:deferred-1` (`publish_deferred` / `task_update`) → `publish_deferred_row` (dest `routed_to_provider`, queued `2`, publish `held_by_user_choice`)
+  - Privacy / redaction rows:
+    - `redaction:acme-eng:redacted:1` (`redacted_share` / `body_excluded`) → `redacted_share_row` (bundle `redacted_in_bundle`, export `true`, escalation-reviewed `true`)
+    - `redaction:acme-eng:policy:1` (`policy_restricted` / `full_disclosure_blocked`) → `policy_restricted_row` (bundle `redacted_in_bundle`, export `true`, escalation-reviewed `true`)
+- **Provider Status Bar**: `stable`
+  - Owner: Provider status bar owner
+  - Scope: The provider status bar renders both rows so a conflict-held bug report reads as held-pending-conflict with a retry action and an unrouted discard-pending note flags itself unrouted rather than defaulting, while a raw-withheld row names its regulatory policy and a no-export row offers no export at all — a user can tell destination, queue, and boundary from the bar alone
+  - Offline-capture rows:
+    - `capture:acme-eng:bug:conflict-1` (`conflict_held` / `bug_report`) → `conflict_held_row` (dest `routed_to_provider`, queued `1`, publish `held_pending_conflict`)
+    - `capture:acme-eng:note:discard-1` (`discard_pending` / `blocked_work_note`) → `discard_pending_row` (dest `unrouted_pending`, queued `1`, publish `will_discard_on_confirm`)
+  - Privacy / redaction rows:
+    - `redaction:acme-eng:raw:1` (`raw_withheld` / `credentials_scrubbed`) → `raw_withheld_row` (bundle `excluded_from_bundle`, export `true`, escalation-reviewed `true`)
+    - `redaction:acme-eng:noexport:1` (`no_export` / `local_only`) → `no_export_row` (bundle `blocked_from_bundle`, export `false`, escalation-reviewed `true`)
+- **Headless / CLI Capture**: `stable`
+  - Owner: Headless CLI capture owner
+  - Scope: The headless / CLI capture surface renders both rows so a queued task update reads as publishes-when-reachable with its five-draft queue in view and a locally captured bug report reads as held-locally on a local bundle — proving the same offline/privacy grammar works headless with every field copied/exported stated and credentials/endpoints withheld
+  - Offline-capture rows:
+    - `capture:acme-infra:task:queued-1` (`queued_for_publish` / `task_update`) → `queued_for_publish_row` (dest `routed_to_provider`, queued `5`, publish `publishes_when_reachable`)
+    - `capture:acme-infra:bug:local-1` (`captured_local` / `bug_report`) → `captured_locally_row` (dest `local_bundle_only`, queued `1`, publish `held_locally_until_publish`)
+  - Privacy / redaction rows:
+    - `redaction:acme-infra:metadata:1` (`metadata_only` / `endpoints_masked`) → `metadata_only_row` (bundle `metadata_only_in_bundle`, export `true`, escalation-reviewed `true`)
+    - `redaction:acme-infra:redacted:1` (`redacted_share` / `body_excluded`) → `redacted_share_row` (bundle `redacted_in_bundle`, export `true`, escalation-reviewed `true`)
+- **Support Privacy Export**: `stable`
+  - Owner: Support privacy export owner
+  - Scope: The support privacy export renders both rows so an already-synced task update exports as already-published with a cleared queue and a deferred blocked-work note exports as held-by-user on a local bundle, while a metadata-only export stays metadata-safe and a policy-restricted row states its org policy — the same rows a support agent reads elsewhere, with raw bodies, credentials, and endpoints withheld
+  - Offline-capture rows:
+    - `capture:acme-eng:task:synced-2` (`synced_cleared` / `task_update`) → `synced_cleared_row` (dest `routed_to_provider`, queued `0`, publish `already_published`)
+    - `capture:acme-eng:note:deferred-1` (`publish_deferred` / `blocked_work_note`) → `publish_deferred_row` (dest `local_bundle_only`, queued `2`, publish `held_by_user_choice`)
+  - Privacy / redaction rows:
+    - `redaction:acme-eng:metadata:2` (`metadata_only` / `metadata_safe`) → `metadata_only_row` (bundle `metadata_only_in_bundle`, export `true`, escalation-reviewed `true`)
+    - `redaction:acme-eng:policy:2` (`policy_restricted` / `full_disclosure_blocked`) → `policy_restricted_row` (bundle `redacted_in_bundle`, export `true`, escalation-reviewed `true`)
