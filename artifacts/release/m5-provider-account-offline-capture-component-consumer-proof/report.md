@@ -1,0 +1,76 @@
+# M5 Provider-Account / Offline-Capture Component Consumer Parity
+
+- Packet: `m5-provider-account-offline-capture-component-consumer:stable:0001`
+- Label: `M5 provider-account / offline-capture component consumers: work-item detail, status-transition review, issue intake, Help / docs, the export desk, and browser handoff keep account, mapping, sync, queue, and redaction parity`
+- Provider consumers: 6 (6 stable)
+- Component families: provider_account_row, project_or_board_mapping_row, sync_behavior_row, offline_capture_row, privacy_redaction_row
+- Descriptors: account_state, destination_mapping, queued_draft_state, redaction_posture
+- Parity-health modes: full_parity, scope_limited_narrowed, session_stale_narrowed, mapping_policy_locked_narrowed, packet_local_only_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Provider consumers
+
+- **Work-Item Detail**: `stable`
+  - Owner: Work-item detail surface owner
+  - Scope: Work-item detail adopts the provider-account row and project/board mapping row at full parity, pointing at the canonical component schemas so account state, destination mapping, queued-draft state, and redaction posture match what status-transition review, issue intake, Help / docs, the export desk, and browser handoff read; the sync-behavior row auto-narrows while provider scope is limited
+  - Adopted families: 3
+    - `provider_account_row` → `schemas/ui/m5-provider-account-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `project_or_board_mapping_row` → `schemas/ui/m5-provider-mapping-sync-behavior-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `sync_behavior_row` → `schemas/ui/m5-provider-mapping-sync-behavior-row.schema.json` (1 worked binding(s))
+      - `scope_limited_narrowed` → `claims_auto_narrowed` (banner `provider_scope_limited`)
+- **Status-Transition Review**: `stable`
+  - Owner: Status-transition review surface owner
+  - Scope: Status-transition review adopts the sync-behavior row at full parity, the provider-account row auto-narrowed by a stale session so the read is not shown as provider-committed, and the project/board mapping row auto-narrowed because the mapping is policy-locked, keeping account state, destination mapping, queued-draft state, and redaction posture explicit so a transition never publishes into an unstated destination
+  - Adopted families: 3
+    - `provider_account_row` → `schemas/ui/m5-provider-account-row.schema.json` (1 worked binding(s))
+      - `session_stale_narrowed` → `claims_auto_narrowed` (banner `session_stale`)
+    - `sync_behavior_row` → `schemas/ui/m5-provider-mapping-sync-behavior-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `project_or_board_mapping_row` → `schemas/ui/m5-provider-mapping-sync-behavior-row.schema.json` (1 worked binding(s))
+      - `mapping_policy_locked_narrowed` → `claims_auto_narrowed` (banner `mapping_policy_locked`)
+- **Issue Intake**: `stable`
+  - Owner: Issue-intake surface owner
+  - Scope: Issue intake adopts the provider-account row and project/board mapping row at full parity, and the offline-capture row auto-narrowed because the captured packet remains local-only, keeping account state, destination mapping, queued-draft state, and redaction posture disclosed so a locally-captured issue never masquerades as a provider-committed one
+  - Adopted families: 3
+    - `provider_account_row` → `schemas/ui/m5-provider-account-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `project_or_board_mapping_row` → `schemas/ui/m5-provider-mapping-sync-behavior-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `offline_capture_row` → `schemas/ui/m5-provider-offline-capture-privacy-redaction-row.schema.json` (1 worked binding(s))
+      - `packet_local_only_narrowed` → `claims_auto_narrowed` (banner `packet_local_only`)
+- **Help / Docs**: `stable`
+  - Owner: Help / docs surface owner
+  - Scope: Help / docs adopt the provider-account row, privacy/redaction row, and sync-behavior row at full parity, referencing the canonical component schemas so account state, destination mapping, queued-draft state, and redaction posture stay one truth across every claimed provider surface rather than being re-worded in prose
+  - Adopted families: 3
+    - `provider_account_row` → `schemas/ui/m5-provider-account-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `privacy_redaction_row` → `schemas/ui/m5-provider-offline-capture-privacy-redaction-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `sync_behavior_row` → `schemas/ui/m5-provider-mapping-sync-behavior-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Support / Export Desk**: `stable`
+  - Owner: Support / export desk surface owner
+  - Scope: The support / export desk adopts the provider-account row, project/board mapping row, sync-behavior row, offline-capture row, and privacy/redaction row, referencing the canonical component schemas so its prose can never drift from the product truth and keeping account state, destination mapping, queued-draft state, and redaction posture exact in every exported case
+  - Adopted families: 5
+    - `provider_account_row` → `schemas/ui/m5-provider-account-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `project_or_board_mapping_row` → `schemas/ui/m5-provider-mapping-sync-behavior-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `sync_behavior_row` → `schemas/ui/m5-provider-mapping-sync-behavior-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `offline_capture_row` → `schemas/ui/m5-provider-offline-capture-privacy-redaction-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `privacy_redaction_row` → `schemas/ui/m5-provider-offline-capture-privacy-redaction-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Browser Handoff**: `stable`
+  - Owner: Browser-handoff surface owner
+  - Scope: Browser handoff adopts the privacy/redaction row at full parity, the provider-account row auto-narrowed by a stale session mid-handoff, and the offline-capture row auto-narrowed because captured drafts stay local-only until the handoff completes, keeping account state, destination mapping, queued-draft state, and redaction posture explicit so a mid-handoff cached read never masquerades as provider-committed state
+  - Adopted families: 3
+    - `provider_account_row` → `schemas/ui/m5-provider-account-row.schema.json` (1 worked binding(s))
+      - `session_stale_narrowed` → `claims_auto_narrowed` (banner `session_stale`)
+    - `offline_capture_row` → `schemas/ui/m5-provider-offline-capture-privacy-redaction-row.schema.json` (1 worked binding(s))
+      - `packet_local_only_narrowed` → `claims_auto_narrowed` (banner `packet_local_only`)
+    - `privacy_redaction_row` → `schemas/ui/m5-provider-offline-capture-privacy-redaction-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)

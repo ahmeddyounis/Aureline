@@ -16,6 +16,7 @@
 pub use aureline_auth::{KeyMode, RegionMode, ResidencyMode};
 
 pub mod account_scope;
+pub mod add_shared_work_item_status_transition_help_support_and_export_consumers_so_provider_account_and_offline_capture_components_keep_account_mapping_sync_and_redaction_language_aligned_across_claimed_m5_profiles;
 pub mod approval_tickets;
 pub mod browser_handoff;
 pub mod event_ingestion;
