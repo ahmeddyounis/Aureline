@@ -1,0 +1,57 @@
+# M5 Write-Scope-Preview-Tree Primitive
+
+- Packet: `m5-write-scope-preview-tree-primitive:stable:0001`
+- Label: `M5 write-scope-preview-tree primitive: file-count buckets, workspace-root grouping, write-scope class, change type, actor provenance, generated/read-only/conflict/exclusion truth, selectable and narrowable scope, and diff-jump affordances with bounded inspect/expand/jump/narrow/exclude/apply/resolve and view-provenance/jump/toggle/reason/resolve actions`
+- Multi-file change consumers: 6 (6 stable)
+- Tree postures: focused_scope, broad_scope, generated_managed_scope, out_of_workspace_scope, conflict_scope, blocked_scope
+- File-count buckets: empty, single, small, medium, large, sweeping
+- Node dispositions: included_in_scope, binary_included, generated_excludable, read_only_excluded, conflict_held, policy_blocked_excluded
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Multi-file change consumers
+
+- **Rename Preview**: `stable`
+  - Owner: Rename preview owner
+  - Scope: The rename preview renders the shared write-scope tree and file nodes so a focused single-file rename reads as a focused scope with a single-file bucket, and a cross-package rename reads honestly as a broad scope over its full file count with narrowing on offer — every node naming its change type and human actor, and a read-only target disclosing exactly why it is held out of the apply
+  - Worked trees: 2
+    - `rename scope: widget.rs` (`single_file`) → `focused_scope` (bucket `single`, apply `true`, narrow `false`, managed `false`)
+    - `rename scope: Widget across crate (12 files)` (`cross_package`) → `broad_scope` (bucket `medium`, apply `true`, narrow `true`, managed `false`)
+  - Worked nodes: 2
+    - `src/widget.rs` (`renamed`) → `included_in_scope` (included `true`, reason `none`, actor `human_edit`)
+    - `vendor/lib/widget.rs` (`renamed`) → `read_only_excluded` (included `false`, reason `read_only_protected`, actor `human_edit`)
+- **Refactor Preview**: `stable`
+  - Owner: Refactor preview owner
+  - Scope: The refactor preview renders the shared write-scope tree and file nodes so a refactor that regenerates a managed tree reads as a generated/managed scope, offers exclude-generated, and keeps every generated file visible with an explicit opted-out reason rather than silently rewriting or dropping it
+  - Worked trees: 1
+    - `refactor scope: regenerate api (8 files)` (`generated_tree`) → `generated_managed_scope` (bucket `medium`, apply `true`, narrow `true`, managed `true`)
+  - Worked nodes: 1
+    - `gen/api_bindings.rs` (`modified`) → `generated_excludable` (included `false`, reason `generated_opted_out`, actor `refactor_engine`)
+- **Search/Replace Preview**: `stable`
+  - Owner: Search/replace preview owner
+  - Scope: The search/replace preview renders the shared write-scope tree and file nodes so a whole-directory replace across many files reads honestly as a broad scope in a large file-count bucket with narrowing on offer, and a binary match stays visible in the preview as a binary-included node even when no textual diff jump is available
+  - Worked trees: 1
+    - `replace scope: rename symbol (60 files)` (`whole_directory`) → `broad_scope` (bucket `large`, apply `true`, narrow `true`, managed `false`)
+  - Worked nodes: 1
+    - `assets/logo.bin` (`modified`) → `binary_included` (included `true`, reason `none`, actor `human_edit`)
+- **Import Preview**: `stable`
+  - Owner: Import preview owner
+  - Scope: The import preview renders the shared write-scope tree and file nodes so a sync that would write outside the workspace root reads as an out-of-workspace scope, the out-of-workspace file is opted out with its explicit reason, and a metadata-only rename stays visible and in scope rather than being dropped as ineligible
+  - Worked trees: 1
+    - `import scope: sync settings (4 files)` (`out_of_workspace`) → `out_of_workspace_scope` (bucket `small`, apply `true`, narrow `true`, managed `false`)
+  - Worked nodes: 2
+    - `external/home_config.toml` (`created`) → `included_in_scope` (included `false`, reason `out_of_workspace`, actor `import_bridge`)
+    - `config/app.toml` (`renamed`) → `included_in_scope` (included `true`, reason `none`, actor `import_bridge`)
+- **AI Apply Preview**: `stable`
+  - Owner: AI apply preview owner
+  - Scope: The AI apply preview renders the shared write-scope tree and file nodes so an apply blocked behind a pending conflict reads as a conflict scope, offers resolve-conflict rather than a false apply, and the conflicted file node is held out with an explicit conflict reason and its AI-agent provenance intact
+  - Worked trees: 1
+    - `ai apply scope: extract module (5 files)` (`multi_file`) → `conflict_scope` (bucket `small`, apply `false`, narrow `true`, managed `false`)
+  - Worked nodes: 1
+    - `src/module.rs` (`modified`) → `conflict_held` (included `false`, reason `conflict_pending`, actor `ai_agent`)
+- **Repair Preview**: `stable`
+  - Owner: Repair preview owner
+  - Scope: The repair preview renders the shared write-scope tree and file nodes so a repair whose apply path is unavailable reads as a blocked scope that only inspects and expands, and a policy-blocked file stays visible in the preview with an explicit policy-blocked reason rather than vanishing from the change list
+  - Worked trees: 1
+    - `repair scope: restore transaction (3 files)` (`multi_file`) → `blocked_scope` (bucket `small`, apply `false`, narrow `false`, managed `false`)
+  - Worked nodes: 1
+    - `src/legacy.rs` (`deleted`) → `policy_blocked_excluded` (included `false`, reason `policy_blocked`, actor `repair_engine`)
