@@ -13,6 +13,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-history/0.0.0")]
 
 pub mod checkpoints;
+pub mod freeze_the_m5_local_history_row_checkpoint_group_card_restore_preview_card_retention_export_card_and_write_scope_preview_tree_component_matrix;
 pub mod local_history;
 pub mod mutation_journal;
 pub mod voice_groups;
