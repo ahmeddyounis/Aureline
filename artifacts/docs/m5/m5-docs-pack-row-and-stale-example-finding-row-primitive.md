@@ -1,0 +1,53 @@
+# M5 Docs-Pack Row & Stale-Example Finding-Row Primitive
+
+- Packet: `m5-docs-pack-row-and-stale-example-finding-row-primitive:stable:0001`
+- Label: `M5 docs-pack row and stale-example finding row primitive: pack lifecycle, verification, trust posture, example drift, version-drift context, and pin/offline/refresh/quarantine/update/remove actions`
+- Pack/finding consumers: 5 (5 stable)
+- Trust postures: pinned_current, tracking_current, mirror_served_not_live, offline_only, update_overdue, stale_needs_refresh, quarantined_untrusted, verification_unverified
+- Drift postures: example_verified_current, example_current_pending_reverify, signature_drift_actionable, deprecated_symbol_actionable, broken_reference_actionable, version_mismatch_actionable, unverified_needs_check
+- Pack actions: pin_pack, unpin_pack, refresh_pack, take_offline, review_quarantine, update_pack, remove_pack, export_pack_manifest
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-06T00:00:00Z)
+
+## Pack/finding consumers
+
+- **Docs-Pack Manager**: `stable`
+  - Owner: Docs-pack manager owner
+  - Scope: The docs-pack manager renders the shared pack row so a pinned first-party pack reads as pinned-current while a mirror-served vendor pack reads as mirror-served-not-live, and the shared finding row so an API-signature drift becomes an actionable, version-anchored row rather than a vague hint
+  - Worked pack rows: 2
+    - `aureline-core-docs` → trust `pinned_current` (pack `pinned_pack`, verification `signature_verified`, live `true`)
+    - `widgetkit-vendor-docs` → trust `mirror_served_not_live` (pack `mirrored_pack`, verification `signature_verified`, live `false`)
+  - Worked stale-example findings: 2
+    - `Quickstart snippet still current` on `examples/quickstart.rs#L10-L24` → drift `example_verified_current` (anchor `code_snippet`, current `true`, version-drift `false`)
+    - `Client::send signature drifted` on `src/client.rs#Client::send` → drift `signature_drift_actionable` (anchor `api_signature`, current `false`, version-drift `true`)
+- **Help Pack Panel**: `stable`
+  - Owner: Help pack panel owner
+  - Scope: The help pack panel renders the shared primitives so an unpinned API pack reads as tracking-current while an offline community pack reads as offline-only, and a config example claiming current with stale freshness is held for reverification rather than shown as verified
+  - Worked pack rows: 2
+    - `api-reference-pack` → trust `tracking_current` (pack `unpinned_tracking`, verification `checksum_only`, live `true`)
+    - `community-plugins-pack` → trust `offline_only` (pack `offline_pack`, verification `checksum_only`, live `false`)
+  - Worked stale-example findings: 2
+    - `Config example needs reverify` on `docs/config/logging.toml` → drift `example_current_pending_reverify` (anchor `config_shape`, current `false`, version-drift `false`)
+    - `Vendor deprecated symbol used` on `src/vendor/auth.rs#legacy_login` → drift `deprecated_symbol_actionable` (anchor `code_snippet`, current `false`, version-drift `true`)
+- **Onboarding Pack Step**: `stable`
+  - Owner: Onboarding pack step owner
+  - Scope: The onboarding pack step renders the shared primitives so an update-available pack reads as update-overdue and a stale bundled guide pack reads as stale-needs-refresh — distinct states, never one generic warning — and a broken example link becomes an actionable finding
+  - Worked pack rows: 2
+    - `getting-started-pack` → trust `update_overdue` (pack `update_available`, verification `signature_verified`, live `false`)
+    - `tutorials-pack` → trust `stale_needs_refresh` (pack `pinned_pack`, verification `signature_verified`, live `false`)
+  - Worked stale-example findings: 1
+    - `Release-notes link broken` on `docs/release/1.4.md#upgrade` → drift `broken_reference_actionable` (anchor `link_target`, current `false`, version-drift `false`)
+- **AI Pack Context**: `stable`
+  - Owner: AI pack-context owner
+  - Scope: The AI pack-context panel renders the shared primitives so a quarantined community pack reads as quarantined-untrusted and is never cited as trusted, and a version-mismatched CLI example becomes an actionable finding with the documented and current versions on the row
+  - Worked pack rows: 1
+    - `unreviewed-community-pack` → trust `quarantined_untrusted` (pack `quarantined_pack`, verification `unverified`, live `false`)
+  - Worked stale-example findings: 2
+    - `CLI example version mismatch` on `docs/cli/deploy.md#example` → drift `version_mismatch_actionable` (anchor `shell_command`, current `false`, version-drift `true`)
+    - `Unverified config example` on `docs/config/plugins.toml` → drift `unverified_needs_check` (anchor `config_shape`, current `false`, version-drift `false`)
+- **Support Pack Evidence**: `stable`
+  - Owner: Support pack evidence owner
+  - Scope: The support pack evidence view renders the shared primitives so a pinned pack that failed verification reads as verification-unverified — never trusted — and every finding keeps its concrete anchor and source descriptors so identity survives the support/AI evidence path
+  - Worked pack rows: 1
+    - `codebase-symbols-pack` → trust `verification_unverified` (pack `pinned_pack`, verification `verification_failed`, live `false`)
+  - Worked stale-example findings: 1
+    - `Deprecated helper in support snippet` on `support/snippets/retry.rs#retry_backoff` → drift `deprecated_symbol_actionable` (anchor `code_snippet`, current `false`, version-drift `true`)
