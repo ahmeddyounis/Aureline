@@ -30,6 +30,7 @@ pub mod reconciliation;
 pub mod registry;
 pub mod route_resolution;
 pub mod scope_review;
+pub mod ship_project_or_board_mapping_rows_and_sync_behavior_rows_with_inherited_local_policy_scope_read_only_comment_transition_sync_modes_and_change_reset_parity_across_claimed_m5_provider_lanes;
 pub mod stabilize_provider_account_install_grant_registry;
 pub mod work_item_sync;
 pub mod work_items;

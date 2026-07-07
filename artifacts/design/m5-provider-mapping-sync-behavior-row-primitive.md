@@ -1,0 +1,57 @@
+# M5 Provider Mapping / Sync-Behavior Row Primitive
+
+- Packet: `m5-provider-mapping-sync-behavior-row-primitive:stable:0001`
+- Label: `M5 provider mapping / sync-behavior row primitive: project/board mapping origin (explicit/inherited/auto/imported/policy/unmapped), inherited/local/policy/unmapped scope, target kind, lock note, and change/reset actions, plus sync mode, effective write scope, derived read-only-metadata/comment-link/status-transition/full-bidirectional/offline-capture-only/paused behavior class, visible queued-draft state, and bounded reveal/change/view-queue/retry/export actions`
+- Provider-surface consumers: 5 (5 stable)
+- Mapping scopes: inherited_scope, local_scope, policy_scope, unmapped_scope
+- Sync-behavior classes: full_bidirectional_sync, comment_link_sync, status_transition_sync, read_only_metadata, offline_capture_only, sync_paused
+- Sync modes: live_bidirectional, read_only_mirror, manual_push, scheduled_sync, paused_sync, offline_only
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Provider-surface consumers
+
+- **Mapping Picker Panel**: `stable`
+  - Owner: Mapping picker panel owner
+  - Scope: The mapping-picker panel renders the shared mapping row so a user's explicit issue-tracker choice reads as a local-scope row offering change and reset, and an admin-pinned kanban board reads as a policy-locked row that blocks change and shows its lock note — never a silent default destination; the same panel's sync row separates a live full-write sync from a read-only mirror
+  - Mapping rows:
+    - `mapping:acme-eng:issues:explicit` (`explicit_user_choice` / `issue_tracker_project`) → `explicit_user_choice_row` (scope `local_scope`, explicit `true`, locked `false`)
+    - `mapping:acme-eng:board:policy` (`policy_pinned` / `kanban_board`) → `policy_pinned_row` (scope `policy_scope`, explicit `true`, locked `true`)
+  - Sync rows:
+    - `sync:acme-eng:live-full` (`live_bidirectional` / `full_write`) → `full_bidirectional_sync` (write-live `true`, pending `true`, draft `queued_publish`)
+    - `sync:acme-eng:read-mirror` (`read_only_mirror` / `read_only`) → `read_only_metadata` (write-live `false`, pending `false`, draft `no_local_draft`)
+- **Sync-Behavior Panel**: `stable`
+  - Owner: Sync-behavior panel owner
+  - Scope: The sync-behavior panel renders the shared sync row so a manual comment-only push with a pending draft reads as a comment/link sync with a visible queue, and a scheduled status-only sync whose publish failed reads as a status-transition sync offering retry — never one ambiguous synced label; the same panel's mapping row separates an inherited default repository from an auto-matched milestone
+  - Mapping rows:
+    - `mapping:acme-eng:repo:inherited` (`inherited_default` / `repository`) → `inherited_default_row` (scope `inherited_scope`, explicit `true`, locked `false`)
+    - `mapping:acme-eng:milestone:auto` (`auto_matched` / `milestone`) → `auto_matched_row` (scope `inherited_scope`, explicit `true`, locked `false`)
+  - Sync rows:
+    - `sync:acme-eng:comment-push` (`manual_push` / `comment_only`) → `comment_link_sync` (write-live `true`, pending `true`, draft `draft_pending`)
+    - `sync:acme-eng:status-sched` (`scheduled_sync` / `status_only`) → `status_transition_sync` (write-live `true`, pending `true`, draft `publish_failed`)
+- **Provider Status Bar**: `stable`
+  - Owner: Provider status bar owner
+  - Scope: The provider status bar renders both rows so an imported-config label set reads as an inherited-scope row that can be changed or reset, an unmapped target reads as an unmapped row that never resolves to a silent default, an offline-only queue reads as offline-capture-only, and a paused sync with a blocked publish reads as paused with a visible queue — so a user can tell destination and sync behavior from the bar alone
+  - Mapping rows:
+    - `mapping:acme-eng:labels:imported` (`imported_config` / `label_set`) → `imported_config_row` (scope `inherited_scope`, explicit `true`, locked `false`)
+    - `mapping:acme-eng:unmapped:slot-1` (`unmapped_origin` / `unmapped_target`) → `unmapped_row` (scope `unmapped_scope`, explicit `false`, locked `false`)
+  - Sync rows:
+    - `sync:acme-eng:offline-only` (`offline_only` / `no_write`) → `offline_capture_only` (write-live `false`, pending `true`, draft `queued_publish`)
+    - `sync:acme-eng:paused` (`paused_sync` / `scope_unknown`) → `sync_paused` (write-live `false`, pending `true`, draft `publish_blocked`)
+- **Headless / CLI Mappings**: `stable`
+  - Owner: Headless CLI mappings owner
+  - Scope: The headless / CLI mappings surface renders both rows so a policy-pinned repository reads as a policy-locked row that blocks change, an explicit user-chosen board reads as a local-scope row offering change and reset, a reconciled live status sync reads as a status-transition sync, and a clean scheduled full-write sync reads as full bidirectional — proving the same mapping/sync grammar works headless
+  - Mapping rows:
+    - `mapping:acme-infra:repo:policy` (`policy_pinned` / `repository`) → `policy_pinned_row` (scope `policy_scope`, explicit `true`, locked `true`)
+    - `mapping:acme-infra:board:explicit` (`explicit_user_choice` / `kanban_board`) → `explicit_user_choice_row` (scope `local_scope`, explicit `true`, locked `false`)
+  - Sync rows:
+    - `sync:acme-infra:status-live` (`live_bidirectional` / `status_only`) → `status_transition_sync` (write-live `true`, pending `false`, draft `published_reconciled`)
+    - `sync:acme-infra:full-sched` (`scheduled_sync` / `full_write`) → `full_bidirectional_sync` (write-live `true`, pending `false`, draft `no_local_draft`)
+- **Support Mapping Export**: `stable`
+  - Owner: Support mapping export owner
+  - Scope: The support mapping export renders both rows so an inherited-default issue-tracker project and an imported-config repository export as inherited-scope rows without leaking endpoints, a reconciled read-only mirror exports as read-only metadata, and a queued manual comment push exports as a comment/link sync with a visible queue — the same rows a support agent reads elsewhere
+  - Mapping rows:
+    - `mapping:acme-eng:issues:inherited` (`inherited_default` / `issue_tracker_project`) → `inherited_default_row` (scope `inherited_scope`, explicit `true`, locked `false`)
+    - `mapping:acme-eng:repo:imported` (`imported_config` / `repository`) → `imported_config_row` (scope `inherited_scope`, explicit `true`, locked `false`)
+  - Sync rows:
+    - `sync:acme-eng:read-mirror-2` (`read_only_mirror` / `read_only`) → `read_only_metadata` (write-live `false`, pending `false`, draft `published_reconciled`)
+    - `sync:acme-eng:comment-push-2` (`manual_push` / `comment_only`) → `comment_link_sync` (write-live `true`, pending `true`, draft `queued_publish`)
