@@ -384,6 +384,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-support/0.0.0")]
 
+pub mod add_shared_doctor_safe_mode_bisect_support_center_docs_help_and_export_consumers_so_support_intake_components_keep_scenario_code_repair_lineage_and_redaction_parity_across_claimed_m5_profiles;
 pub mod advisory_baseline;
 pub mod bundle;
 pub mod capabilities;

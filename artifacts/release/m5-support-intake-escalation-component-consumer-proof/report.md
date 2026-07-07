@@ -1,0 +1,76 @@
+# M5 Support-Intake / Escalation Component Consumer Parity
+
+- Packet: `m5-support-intake-escalation-component-consumer:stable:0001`
+- Label: `M5 support-intake / escalation component consumers: Project Doctor, safe mode, bisect, the support center, Help / docs, and the export desk keep scenario code, packet id, redaction class, and approved-repair parity`
+- Support consumers: 6 (6 stable)
+- Component families: support_scenario_picker_row, issue_report_builder_step, escalation_packet_summary, handoff_timeline_row, unsafe_fix_blocked_note
+- Descriptors: scenario_code, packet_id, redaction_class, approved_repair
+- Parity-health modes: full_parity, scenario_uncertain_narrowed, evidence_incomplete_narrowed, destination_unavailable_narrowed, redaction_pending_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Support consumers
+
+- **Project Doctor Results**: `stable`
+  - Owner: Project Doctor surface owner
+  - Scope: Project Doctor results adopt the support-scenario picker row and unsafe-fix blocked note at full parity, pointing at the canonical component schemas so scenario code, packet id, redaction class, and approved-repair guidance match what safe mode, bisect, the support center, Help / docs, and the export desk read; the escalation-packet summary auto-narrows while the scenario classification is uncertain
+  - Adopted families: 3
+    - `support_scenario_picker_row` → `schemas/ui/m5-support-scenario-picker-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `unsafe_fix_blocked_note` → `schemas/ui/m5-support-unsafe-fix-blocked-note.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `escalation_packet_summary` → `schemas/ui/m5-support-escalation-packet-summary.schema.json` (1 worked binding(s))
+      - `scenario_uncertain_narrowed` → `claims_auto_narrowed` (banner `scenario_classification_uncertain`)
+- **Safe-Mode Recovery**: `stable`
+  - Owner: Safe-mode recovery surface owner
+  - Scope: The safe-mode recovery flow adopts the support-scenario picker row, handoff-timeline row, and unsafe-fix blocked note at full parity, keeping scenario code, packet id, redaction class, and approved-repair guidance explicit so a reduced-capability recovery lane never re-words the case truth
+  - Adopted families: 3
+    - `support_scenario_picker_row` → `schemas/ui/m5-support-scenario-picker-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `handoff_timeline_row` → `schemas/ui/m5-support-escalation-packet-summary.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `unsafe_fix_blocked_note` → `schemas/ui/m5-support-unsafe-fix-blocked-note.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Extension Bisect**: `stable`
+  - Owner: Extension-bisect recovery surface owner
+  - Scope: The extension-bisect recovery flow adopts the support-scenario picker row and handoff-timeline row at full parity, and the issue-report builder step auto-narrowed because the evidence classes gathered mid-bisect are incomplete, keeping scenario code, packet id, redaction class, and approved-repair guidance disclosed so a partial bisect report narrows visibly instead of inheriting a completed report's label
+  - Adopted families: 3
+    - `support_scenario_picker_row` → `schemas/ui/m5-support-scenario-picker-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `issue_report_builder_step` → `schemas/ui/m5-support-issue-report-builder-step.schema.json` (1 worked binding(s))
+      - `evidence_incomplete_narrowed` → `claims_auto_narrowed` (banner `evidence_classes_incomplete`)
+    - `handoff_timeline_row` → `schemas/ui/m5-support-escalation-packet-summary.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Support Center**: `stable`
+  - Owner: Support-center surface owner
+  - Scope: The support center adopts the issue-report builder step, escalation-packet summary, handoff-timeline row, and unsafe-fix blocked note at full parity, referencing the canonical component schemas so scenario code, packet id, redaction class, and approved-repair guidance stay one truth across every claimed support surface
+  - Adopted families: 4
+    - `issue_report_builder_step` → `schemas/ui/m5-support-issue-report-builder-step.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `escalation_packet_summary` → `schemas/ui/m5-support-escalation-packet-summary.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `handoff_timeline_row` → `schemas/ui/m5-support-escalation-packet-summary.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `unsafe_fix_blocked_note` → `schemas/ui/m5-support-unsafe-fix-blocked-note.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Help / Docs**: `stable`
+  - Owner: Help / docs surface owner
+  - Scope: Help / docs adopt the support-scenario picker row and issue-report builder step at full parity, and the escalation-packet summary auto-narrowed because the packet destination is unavailable under current policy, keeping scenario code, packet id, redaction class, and approved-repair guidance explicit so documentation degrades to local export instead of inheriting a healthier profile's escalation language
+  - Adopted families: 3
+    - `support_scenario_picker_row` → `schemas/ui/m5-support-scenario-picker-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `issue_report_builder_step` → `schemas/ui/m5-support-issue-report-builder-step.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `escalation_packet_summary` → `schemas/ui/m5-support-escalation-packet-summary.schema.json` (1 worked binding(s))
+      - `destination_unavailable_narrowed` → `claims_auto_narrowed` (banner `packet_destination_unavailable`)
+- **Support / Export Desk**: `stable`
+  - Owner: Support / export desk surface owner
+  - Scope: The support / export desk adopts the escalation-packet summary, handoff-timeline row, issue-report builder step, and unsafe-fix blocked note, referencing the canonical component schemas so its prose can never drift from the product truth, and the escalation-packet summary auto-narrowed because redaction review is still pending, keeping scenario code, packet id, redaction class, and approved-repair guidance exact
+  - Adopted families: 4
+    - `escalation_packet_summary` → `schemas/ui/m5-support-escalation-packet-summary.schema.json` (1 worked binding(s))
+      - `redaction_pending_narrowed` → `claims_auto_narrowed` (banner `redaction_review_required`)
+    - `handoff_timeline_row` → `schemas/ui/m5-support-escalation-packet-summary.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `issue_report_builder_step` → `schemas/ui/m5-support-issue-report-builder-step.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `unsafe_fix_blocked_note` → `schemas/ui/m5-support-unsafe-fix-blocked-note.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
