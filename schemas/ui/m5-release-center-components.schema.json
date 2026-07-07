@@ -1,0 +1,444 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-release-center-components.schema.json",
+  "title": "Aureline M5 release-candidate-card, version-bump-row, publish-target-row, artifact-provenance-bundle-card, and promotion-timeline component matrix",
+  "description": "Export-safe packet freezing Aureline's reusable release-center and publication components. The packet names every component family M5 claims that still drifts too easily by release pipeline or admin page — release candidate cards, version-bump rows, publish target rows/review sheets, artifact provenance bundle cards, promotion timeline steps, and rollback/revocation rows — and binds each to the claimed M5 publication surface families that render it, the deployment lines it keeps the same truth across, and the mandatory labels it must show. Each component declares the controlled vocabularies it carries: candidate scope classes and blocker states, version-bump classes and compatibility impacts, publish-target visibilities/mutabilities/auth-sources/dry-run availabilities, signature/attestation/SBOM statuses and digest-lineage states, rollout rings and promotion stage states, and rollback blast radii and revocation scopes. Hard invariants forbid masking a target auth source or mutability, conflating signed with unsigned provenance, inventing a private release-status grammar, and overstating rollback reversibility or dropping evidence-freshness truth. This matrix layers on top of the already-claimed artifact graph, promotion pipeline, and mirror transport rather than re-architecting them. Raw URLs, raw signing keys, raw tokens, and credentials never cross this boundary. The Rust validator in crates/aureline-release is the authoritative gate; this schema documents the shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "matrix_label",
+    "component_rows",
+    "vocabulary_set",
+    "governance_review",
+    "consumer_projection",
+    "proof_freshness",
+    "release_posture",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "freeze_m5_release_candidate_card_version_bump_row_publish_target_row_artifact_provenance_bundle_card_and_promotion_timeline_component_matrix"
+    },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "matrix_label": { "$ref": "#/$defs/non_empty_string" },
+    "component_rows": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/component_row" }
+    },
+    "vocabulary_set": { "type": "object" },
+    "governance_review": {
+      "type": "object",
+      "description": "Every flag is a hard invariant and must be true."
+    },
+    "consumer_projection": {
+      "type": "object",
+      "description": "Every flag is a hard invariant and must be true."
+    },
+    "proof_freshness": {
+      "type": "object",
+      "required": ["proof_freshness_slo_hours", "last_proof_refresh", "auto_narrow_on_stale"],
+      "properties": {
+        "proof_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_proof_refresh": { "$ref": "#/$defs/non_empty_string" },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    },
+    "release_posture": {
+      "type": "object",
+      "required": [
+        "release_packet_ref",
+        "release_center_audit_ref",
+        "support_export_parity_required",
+        "accessibility_parity_required"
+      ]
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "component_family": {
+      "enum": [
+        "release_candidate_card",
+        "version_bump_row",
+        "publish_target_row",
+        "artifact_provenance_bundle_card",
+        "promotion_timeline_step",
+        "rollback_revocation_row"
+      ]
+    },
+    "qualification": {
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable", "held"]
+    },
+    "candidate_scope_class": {
+      "enum": [
+        "single_family_candidate",
+        "multi_family_candidate",
+        "full_train_candidate",
+        "hotfix_candidate",
+        "backport_line_candidate",
+        "preview_channel_candidate"
+      ]
+    },
+    "candidate_blocker_state": {
+      "enum": [
+        "no_blockers",
+        "soft_blockers_only",
+        "hard_blocker_open",
+        "blocker_waived",
+        "blocker_resolved_pending_reverify",
+        "blocker_state_unknown"
+      ]
+    },
+    "version_bump_class": {
+      "enum": [
+        "major",
+        "minor",
+        "patch",
+        "prerelease",
+        "build_metadata_only",
+        "republish_no_version_change"
+      ]
+    },
+    "compatibility_impact": {
+      "enum": [
+        "backward_compatible",
+        "breaking_change",
+        "forward_incompatible",
+        "runtime_behavior_only",
+        "schema_migration_required"
+      ]
+    },
+    "target_visibility": {
+      "enum": [
+        "public_listed",
+        "public_unlisted",
+        "private_tenant",
+        "internal_only",
+        "mirror_replicated"
+      ]
+    },
+    "target_mutability": {
+      "enum": [
+        "immutable_once_published",
+        "mutable_tag_repointable",
+        "overwrite_allowed",
+        "retraction_allowed",
+        "append_only"
+      ]
+    },
+    "target_auth_source": {
+      "enum": [
+        "ci_federated_identity",
+        "maintainer_key",
+        "org_managed_identity",
+        "hardware_token_signer",
+        "delegated_bot_identity",
+        "unauthenticated_mirror"
+      ]
+    },
+    "dry_run_availability": {
+      "enum": [
+        "dry_run_supported",
+        "dry_run_partial",
+        "dry_run_unavailable",
+        "dry_run_required_before_publish"
+      ]
+    },
+    "signature_status": {
+      "enum": [
+        "signed_verified",
+        "signed_unverified_key",
+        "unsigned",
+        "signature_broken",
+        "signature_pending"
+      ]
+    },
+    "attestation_status": {
+      "enum": [
+        "attested_verified",
+        "attested_unverified",
+        "no_attestation",
+        "attestation_expired",
+        "attestation_pending"
+      ]
+    },
+    "sbom_status": {
+      "enum": ["sbom_complete", "sbom_partial", "sbom_missing", "sbom_stale", "sbom_generating"]
+    },
+    "digest_lineage_state": {
+      "enum": [
+        "immutable_digest_pinned",
+        "digest_lineage_continuous",
+        "digest_lineage_broken",
+        "digest_unverified",
+        "rebuild_digest_matched"
+      ]
+    },
+    "rollout_ring": {
+      "enum": [
+        "canary_ring",
+        "pilot_ring",
+        "early_access_ring",
+        "broad_ring",
+        "general_availability",
+        "held_not_promoted"
+      ]
+    },
+    "promotion_stage_state": {
+      "enum": [
+        "stage_pending",
+        "stage_in_progress",
+        "stage_promoted",
+        "stage_blocked",
+        "stage_rolled_back"
+      ]
+    },
+    "rollback_blast_radius": {
+      "enum": [
+        "single_artifact",
+        "family_scoped",
+        "train_scoped",
+        "cross_train_scoped",
+        "fleet_wide"
+      ]
+    },
+    "revocation_scope": {
+      "enum": [
+        "no_revocation",
+        "tag_repoint_only",
+        "artifact_revoked",
+        "signing_key_revoked",
+        "trust_root_rotated"
+      ]
+    },
+    "publication_surface_family": {
+      "enum": [
+        "release_center",
+        "update_center",
+        "registry_publication",
+        "mirror_publication",
+        "enterprise_evaluation",
+        "support_desk",
+        "docs_help",
+        "admin_review"
+      ]
+    },
+    "deployment_line": {
+      "enum": ["local_oss", "self_hosted", "managed", "air_gapped", "mirror_offline"]
+    },
+    "consumer_surface": {
+      "enum": [
+        "release_center_ui",
+        "help_about",
+        "service_health",
+        "docs_portal",
+        "admin_console",
+        "evaluation_pack",
+        "mirror_console",
+        "support_export",
+        "cli_inspect",
+        "product_ui"
+      ]
+    },
+    "accessibility_route": {
+      "enum": [
+        "keyboard_focusable",
+        "screen_reader_announced",
+        "non_hover_reachable",
+        "pointer_optional",
+        "high_contrast_safe",
+        "support_exportable"
+      ]
+    },
+    "required_label": {
+      "enum": [
+        "identity",
+        "state",
+        "keyboard_route",
+        "evidence_freshness",
+        "auth_source",
+        "rollback_vocabulary"
+      ]
+    },
+    "downgrade_trigger": {
+      "enum": [
+        "candidate_scope_unstated",
+        "blocker_freshness_hidden",
+        "version_bump_impact_unstated",
+        "target_auth_source_masked",
+        "target_mutability_hidden",
+        "dry_run_availability_unstated",
+        "signature_or_attestation_overclaimed",
+        "sbom_completeness_overstated",
+        "digest_lineage_broken_hidden",
+        "rollout_ring_unstated",
+        "rollback_blast_radius_understated",
+        "proof_stale"
+      ]
+    },
+    "component_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_family",
+        "qualification",
+        "owner_role",
+        "scope_summary",
+        "surface_families",
+        "deployment_lines",
+        "required_labels",
+        "candidate_scope_classes",
+        "candidate_blocker_states",
+        "version_bump_classes",
+        "compatibility_impacts",
+        "target_visibilities",
+        "target_mutabilities",
+        "target_auth_sources",
+        "dry_run_availabilities",
+        "signature_statuses",
+        "attestation_statuses",
+        "sbom_statuses",
+        "digest_lineage_states",
+        "rollout_rings",
+        "promotion_stage_states",
+        "rollback_blast_radii",
+        "revocation_scopes",
+        "accessibility_routes",
+        "consumer_surfaces",
+        "downgrade_triggers",
+        "required_proof_packet_refs",
+        "source_contract_refs",
+        "masks_target_auth_source_or_mutability",
+        "conflates_signed_and_unsigned_provenance",
+        "invents_private_release_status_grammar",
+        "overstates_rollback_reversibility_or_drops_evidence_freshness"
+      ],
+      "properties": {
+        "component_family": { "$ref": "#/$defs/component_family" },
+        "qualification": { "$ref": "#/$defs/qualification" },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "scope_summary": { "$ref": "#/$defs/non_empty_string" },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/publication_surface_family" }
+        },
+        "deployment_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_line" }
+        },
+        "required_labels": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/required_label" }
+        },
+        "candidate_scope_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/candidate_scope_class" }
+        },
+        "candidate_blocker_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/candidate_blocker_state" }
+        },
+        "version_bump_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/version_bump_class" }
+        },
+        "compatibility_impacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/compatibility_impact" }
+        },
+        "target_visibilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/target_visibility" }
+        },
+        "target_mutabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/target_mutability" }
+        },
+        "target_auth_sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/target_auth_source" }
+        },
+        "dry_run_availabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dry_run_availability" }
+        },
+        "signature_statuses": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/signature_status" }
+        },
+        "attestation_statuses": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/attestation_status" }
+        },
+        "sbom_statuses": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sbom_status" }
+        },
+        "digest_lineage_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/digest_lineage_state" }
+        },
+        "rollout_rings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rollout_ring" }
+        },
+        "promotion_stage_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/promotion_stage_state" }
+        },
+        "rollback_blast_radii": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rollback_blast_radius" }
+        },
+        "revocation_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/revocation_scope" }
+        },
+        "accessibility_routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/accessibility_route" }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "downgrade_triggers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/downgrade_trigger" }
+        },
+        "required_proof_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "source_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "masks_target_auth_source_or_mutability": { "const": false },
+        "conflates_signed_and_unsigned_provenance": { "const": false },
+        "invents_private_release_status_grammar": { "const": false },
+        "overstates_rollback_reversibility_or_drops_evidence_freshness": { "const": false }
+      }
+    }
+  }
+}
