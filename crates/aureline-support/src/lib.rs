@@ -398,6 +398,7 @@ pub mod field_readiness;
 pub mod finalize_support_center_surfaces_performance_inspector_language_service;
 pub mod finalize_typed_repair_transaction_preview_checkpoint_rollback_and;
 pub mod fitness;
+pub mod freeze_the_m5_support_scenario_picker_row_issue_report_builder_step_escalation_packet_summary_handoff_timeline_row_and_unsafe_fix_blocked_note_component_matrix;
 pub mod generated_doctor;
 pub mod generated_lineage;
 pub mod graph_drift;
