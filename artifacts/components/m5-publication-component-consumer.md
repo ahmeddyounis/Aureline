@@ -1,0 +1,60 @@
+# M5 Publication-Component Consumer Parity
+
+- Packet: `m5-publication-component-consumer:stable:0001`
+- Label: `M5 publication-component consumers: release center, update center, About/help, docs, enterprise evaluation, and support keep provenance, freshness, qualification, and client-scope parity`
+- Publication-component consumers: 6 (6 stable)
+- Component families: release_candidate_card, version_bump_publish_target, artifact_provenance_bundle, promotion_rollback_history
+- Descriptors: provenance, freshness, qualification, client_scope
+- Client-scope modes: full_client_scope, narrowed_client_scope, mirror_offline_scope, browser_companion_handoff
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-06T00:00:00Z)
+
+## Publication-component consumers
+
+- **Release Center**: `stable`
+  - Owner: Release-center surface owner
+  - Scope: The release center adopts the release-candidate card and version-bump / publish-target primitives at full client scope, pointing at their canonical schemas so provenance, freshness, qualification, and client-scope descriptors stay identical to what the update center, docs, evaluation packet, and support export read
+  - Adopted families: 2
+    - `release_candidate_card` → `schemas/ui/m5-release-candidate-card.schema.json` (1 worked binding(s))
+      - `full_client_scope` → `descriptors_preserved` (banner `full`)
+    - `version_bump_publish_target` → `schemas/ui/m5-publish-target-review-sheet.schema.json` (1 worked binding(s))
+      - `full_client_scope` → `descriptors_preserved` (banner `full`)
+- **Update Center**: `stable`
+  - Owner: Update-center surface owner
+  - Scope: The update center adopts the release-candidate card under a narrowed client scope (a client-limited view) and the promotion / rollback history at full scope, disclosing the narrowing with a self-contained banner while keeping the same descriptor vocabulary the release center uses
+  - Adopted families: 2
+    - `release_candidate_card` → `schemas/ui/m5-release-candidate-card.schema.json` (1 worked binding(s))
+      - `narrowed_client_scope` → `descriptors_disclosed_narrowed` (banner `client_narrowed`)
+    - `promotion_rollback_history` → `schemas/ui/m5-promotion-timeline-step.schema.json` (1 worked binding(s))
+      - `full_client_scope` → `descriptors_preserved` (banner `full`)
+- **About / Help**: `stable`
+  - Owner: About / help surface owner
+  - Scope: The About/help surface adopts the artifact provenance bundle under a browser / companion handoff and the release-candidate card at full scope, referencing the canonical component schemas so its prose can never drift from the product truth and preserving the browser handoff caveat
+  - Adopted families: 2
+    - `artifact_provenance_bundle` → `schemas/ui/m5-artifact-provenance-bundle-card.schema.json` (1 worked binding(s))
+      - `browser_companion_handoff` → `descriptors_disclosed_narrowed` (banner `browser_companion_handoff`)
+    - `release_candidate_card` → `schemas/ui/m5-release-candidate-card.schema.json` (1 worked binding(s))
+      - `full_client_scope` → `descriptors_preserved` (banner `full`)
+- **Docs Portal**: `stable`
+  - Owner: Docs-portal surface owner
+  - Scope: The docs portal adopts the promotion / rollback history from a mirror / offline snapshot and the provenance bundle at full scope, referencing the canonical component schemas and preserving the mirror-replication-lag and offline-snapshot caveats when the history renders outside the release center
+  - Adopted families: 2
+    - `promotion_rollback_history` → `schemas/ui/m5-promotion-timeline-step.schema.json` (1 worked binding(s))
+      - `mirror_offline_scope` → `descriptors_disclosed_narrowed` (banner `mirror_offline`)
+    - `artifact_provenance_bundle` → `schemas/ui/m5-artifact-provenance-bundle-card.schema.json` (1 worked binding(s))
+      - `full_client_scope` → `descriptors_preserved` (banner `full`)
+- **Enterprise Evaluation**: `stable`
+  - Owner: Enterprise-evaluation packet owner
+  - Scope: The enterprise-evaluation packet adopts the artifact provenance bundle and the version-bump / publish-target review at full scope, reading the same provenance, freshness, qualification, and client-scope descriptors so an evaluation reviewer sees identical facts to the product UI
+  - Adopted families: 2
+    - `artifact_provenance_bundle` → `schemas/ui/m5-artifact-provenance-bundle-card.schema.json` (1 worked binding(s))
+      - `full_client_scope` → `descriptors_preserved` (banner `full`)
+    - `version_bump_publish_target` → `schemas/ui/m5-publish-target-review-sheet.schema.json` (1 worked binding(s))
+      - `full_client_scope` → `descriptors_preserved` (banner `full`)
+- **Support Export**: `stable`
+  - Owner: Support-export owner
+  - Scope: The support export adopts the version-bump / publish-target review and the promotion / rollback history at full scope, reconstructing consumer parity from the shared model so a support reviewer reads the same descriptor vocabulary that every product surface shows
+  - Adopted families: 2
+    - `version_bump_publish_target` → `schemas/ui/m5-publish-target-review-sheet.schema.json` (1 worked binding(s))
+      - `full_client_scope` → `descriptors_preserved` (banner `full`)
+    - `promotion_rollback_history` → `schemas/ui/m5-promotion-timeline-step.schema.json` (1 worked binding(s))
+      - `full_client_scope` → `descriptors_preserved` (banner `full`)
