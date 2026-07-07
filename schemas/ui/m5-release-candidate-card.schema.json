@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-release-candidate-card.schema.json",
+  "title": "Aureline M5 release-candidate card and promotion-blocked-banner primitive",
+  "description": "Export-safe packet for the reusable M5 release-candidate-card / promotion-blocked-banner primitive. It narrows the release_candidate_card family frozen in schemas/ui/m5-release-center-components.schema.json into one resolver plus a parity matrix, so a user can tell — from the card and its blocked-state banner alone — what candidate is under review, what artifacts it covers, what evidence is stale or missing, what is known to be broken, and how rollback would work, before promotion. Each candidate row binds one claimed release-candidate consumer (the release-center card, the update-center card, the CLI release inspect, the admin release report, and the support/evaluation export) to the shared card anatomy, channel families, candidate scope classes and blocker states, evidence-freshness states, known-issue classes, promotability postures, rollback-path readinesses, promotion-block reasons, next actions, export fields, and non-visual accessibility routes, plus worked resolution cases that must reproduce the resolver output exactly. Hard invariants forbid inferring candidate scope from the semantic version alone, showing stale or missing evidence as clear, emitting a generic 'cannot promote' banner, and overstating rollback reversibility. Raw URLs, raw signing keys, raw tokens, credentials, and user text bodies never cross this boundary. The Rust validator in crates/aureline-release is the authoritative gate; this schema documents the shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "matrix_label",
+    "candidate_rows",
+    "vocabulary_set",
+    "governance_review",
+    "consumer_projection",
+    "proof_freshness",
+    "release_posture",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "implement_m5_release_candidate_cards_and_promotion_blocked_banners_across_claimed_m5_release_center_surfaces"
+    },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "matrix_label": { "$ref": "#/$defs/non_empty_string" },
+    "candidate_rows": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/candidate_row" }
+    },
+    "vocabulary_set": { "type": "object" },
+    "governance_review": {
+      "type": "object",
+      "description": "Every flag is a hard invariant and must be true."
+    },
+    "consumer_projection": {
+      "type": "object",
+      "description": "Every flag is a hard invariant and must be true."
+    },
+    "proof_freshness": {
+      "type": "object",
+      "required": ["proof_freshness_slo_hours", "last_proof_refresh", "auto_narrow_on_stale"],
+      "properties": {
+        "proof_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_proof_refresh": { "$ref": "#/$defs/non_empty_string" },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    },
+    "release_posture": { "type": "object" },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "consumer_surface": {
+      "enum": [
+        "release_center_card",
+        "update_center_card",
+        "cli_release_inspect",
+        "admin_release_report",
+        "support_evaluation_export"
+      ]
+    },
+    "promotability": {
+      "enum": [
+        "promotable",
+        "promotable_with_reservations",
+        "promotable_under_waiver",
+        "narrowed_pending_reverify",
+        "narrowed_rollback_undefined",
+        "blocked_hard_blocker",
+        "blocked_stale_evidence",
+        "blocked_missing_evidence",
+        "blocked_unknown_state"
+      ]
+    },
+    "block_reason": {
+      "enum": [
+        "hard_blocker_open",
+        "evidence_stale",
+        "evidence_missing",
+        "candidate_state_unknown",
+        "blocker_pending_reverify",
+        "rollback_target_undefined"
+      ]
+    },
+    "rollback_path_readiness": {
+      "enum": [
+        "rollback_target_pinned",
+        "no_prior_to_roll_back_to",
+        "rollback_target_undefined"
+      ]
+    },
+    "candidate_row": {
+      "type": "object",
+      "required": [
+        "consumer_surface",
+        "qualification",
+        "owner_role",
+        "scope_summary",
+        "anatomy_parts",
+        "channel_families",
+        "promotability_postures",
+        "evidence_freshness_states",
+        "rollback_path_readinesses",
+        "block_reasons",
+        "next_actions",
+        "export_fields",
+        "accessibility_routes",
+        "example_resolutions"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "qualification": {
+          "enum": ["stable", "beta", "preview", "experimental", "unavailable", "held"]
+        },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "scope_summary": { "$ref": "#/$defs/non_empty_string" },
+        "anatomy_parts": { "type": "array", "minItems": 1 },
+        "channel_families": { "type": "array", "minItems": 1 },
+        "promotability_postures": { "type": "array", "minItems": 1 },
+        "evidence_freshness_states": { "type": "array", "minItems": 1 },
+        "rollback_path_readinesses": { "type": "array", "minItems": 1 },
+        "block_reasons": { "type": "array", "minItems": 1 },
+        "next_actions": { "type": "array", "minItems": 1 },
+        "export_fields": { "type": "array", "minItems": 1 },
+        "accessibility_routes": { "type": "array", "minItems": 1 },
+        "example_resolutions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/resolution_case" }
+        },
+        "infers_scope_from_semver_alone": { "const": false },
+        "shows_stale_or_missing_evidence_as_clear": { "const": false },
+        "emits_generic_cannot_promote_banner": { "const": false },
+        "overstates_rollback_reversibility": { "const": false }
+      }
+    },
+    "resolution_case": {
+      "type": "object",
+      "required": ["input", "resolved"],
+      "properties": {
+        "input": { "type": "object" },
+        "resolved": {
+          "type": "object",
+          "required": [
+            "candidate_label",
+            "version_repr",
+            "channel_family",
+            "scope_class",
+            "artifact_set",
+            "promotability",
+            "rollback_path_readiness"
+          ],
+          "properties": {
+            "artifact_set": { "type": "array", "minItems": 1 },
+            "promotability": { "$ref": "#/$defs/promotability" },
+            "rollback_path_readiness": { "$ref": "#/$defs/rollback_path_readiness" },
+            "promotion_banner": {
+              "oneOf": [
+                { "type": "null" },
+                {
+                  "type": "object",
+                  "required": ["reason", "next_action", "blocked_scope_class", "blocked_artifact_set", "headline"],
+                  "properties": {
+                    "reason": { "$ref": "#/$defs/block_reason" },
+                    "blocked_artifact_set": { "type": "array", "minItems": 1 },
+                    "headline": { "$ref": "#/$defs/non_empty_string" }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
