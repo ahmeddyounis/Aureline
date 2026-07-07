@@ -1,0 +1,73 @@
+# M5 AI Rerun-Review Sheet, Incomplete-Replay Banner, and Agent-Status Card Primitive
+
+- Packet: `m5-ai-rerun-review-sheet-incomplete-replay-banner-agent-status-card-primitive:stable:0001`
+- Label: `M5 AI rerun-review sheet, incomplete-replay banner, and agent-status card primitive: original-vs-current lineage compare, named drift dimensions, rerun reason and approval-reuse verdict, retained-versus-missing replay segments, and honest agent lifecycle, blast radius, checkpoint, and safe continue-manually / restart / takeover options`
+- Background-agent surfaces: 5 (5 stable)
+- Continue options: continue_manually, restart_from_checkpoint, restart_clean, abort_with_checkpoint, review_checkpoint, escalate_to_owner
+- Rerun admissions: admit_with_approval_reuse, admit_after_re_review, blocked_pending_approval, blocked_on_provider_drift
+- Replay completeness: fully_replayable, partially_replayable, incomplete_replay, non_deterministic, missing_inputs, provider_drifted
+- Agent lifecycle states: running, paused, blocked_on_approval, awaiting_takeover, handed_off, completed, abandoned
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Background-agent surfaces
+
+- **Rerun-Review**: `stable`
+  - Owner: Rerun-review surface owner
+  - Scope: The rerun-review surface renders the shared rerun-review sheet, incomplete-replay banner, and agent-status card so one canonical run id anchors the original-vs-current lineage compare, the drifted dimensions, the rerun reason, the approval-reuse verdict, and the safe takeover path, and a model-or-provider drift blocks the rerun rather than rerunning silently
+  - Worked rerun-review sheets: 2
+    - `run-2026-07-06-0007` → reason `model_version_changed` admission `blocked_on_provider_drift` (reuse `false`)
+    - `run-2026-07-06-0008` → reason `tool_contract_changed` admission `blocked_pending_approval` (reuse `false`)
+  - Worked incomplete-replay banners: 2
+    - `replay-0007-a` → completeness `incomplete_replay` (missing 2, reapprove `true`)
+    - `replay-0007-b` → completeness `partially_replayable` (missing 1, reapprove `true`)
+  - Worked agent-status cards: 2
+    - `agent-0007-a` → lifecycle `paused` blast `worktree_local` (alive `false`, options 5)
+    - `agent-0007-b` → lifecycle `blocked_on_approval` blast `branch_scoped` (alive `false`, options 5)
+- **Branch-Agent Console**: `stable`
+  - Owner: Branch-agent console surface owner
+  - Scope: The branch-agent console renders the shared components so a branch/worktree agent shows its lifecycle state, checkpoint, current blast radius, last successful step, pending writes, and safe continue-manually or restart options, and an awaiting-takeover agent never appears alive or safe to resume by implication
+  - Worked rerun-review sheets: 2
+    - `run-2026-07-06-0009` → reason `input_context_changed` admission `admit_after_re_review` (reuse `true`)
+    - `run-2026-07-06-0010` → reason `no_re_review_required` admission `admit_with_approval_reuse` (reuse `true`)
+  - Worked incomplete-replay banners: 2
+    - `replay-0009-a` → completeness `non_deterministic` (missing 1, reapprove `true`)
+    - `replay-0009-b` → completeness `missing_inputs` (missing 2, reapprove `true`)
+  - Worked agent-status cards: 2
+    - `agent-0009-a` → lifecycle `awaiting_takeover` blast `workspace_wide` (alive `false`, options 5)
+    - `agent-0009-b` → lifecycle `running` blast `no_writes` (alive `true`, options 4)
+- **Run-History**: `stable`
+  - Owner: Run-history surface owner
+  - Scope: The run-history surface renders the shared components so a prior run's rerun-review sheet, incomplete-replay banner, and agent-status card stay openable with the same run lineage, and a provider-drifted replay is never presented as fully replayable
+  - Worked rerun-review sheets: 2
+    - `run-2026-07-06-0011` → reason `route_or_provider_changed` admission `blocked_on_provider_drift` (reuse `false`)
+    - `run-2026-07-06-0012` → reason `no_re_review_required` admission `admit_with_approval_reuse` (reuse `true`)
+  - Worked incomplete-replay banners: 2
+    - `replay-0011-a` → completeness `provider_drifted` (missing 1, reapprove `true`)
+    - `replay-0011-b` → completeness `fully_replayable` (missing 0, reapprove `false`)
+  - Worked agent-status cards: 2
+    - `agent-0011-a` → lifecycle `handed_off` blast `branch_scoped` (alive `false`, options 5)
+    - `agent-0011-b` → lifecycle `completed` blast `external_side_effects` (alive `false`, options 3)
+- **Support Desk**: `stable`
+  - Owner: Support-desk surface owner
+  - Scope: The support-desk surface renders the shared components so a support reviewer reconstructs the run lineage, the rerun-review verdict, the retained-versus-missing replay segments, and the agent's safe takeover path from the export alone, without inferring liveness or approval reuse
+  - Worked rerun-review sheets: 2
+    - `run-2026-07-06-0013` → reason `policy_changed` admission `blocked_pending_approval` (reuse `false`)
+    - `run-2026-07-06-0014` → reason `tool_contract_changed` admission `blocked_pending_approval` (reuse `false`)
+  - Worked incomplete-replay banners: 2
+    - `replay-0013-a` → completeness `incomplete_replay` (missing 1, reapprove `true`)
+    - `replay-0013-b` → completeness `partially_replayable` (missing 2, reapprove `true`)
+  - Worked agent-status cards: 2
+    - `agent-0013-a` → lifecycle `abandoned` blast `worktree_local` (alive `false`, options 4)
+    - `agent-0013-b` → lifecycle `blocked_on_approval` blast `workspace_wide` (alive `false`, options 5)
+- **CLI Inspect**: `stable`
+  - Owner: CLI / headless surface owner
+  - Scope: The CLI inspect surface renders the shared components so a headless operator reads the same rerun-review verdict, replay completeness, and agent lifecycle / takeover truth as the UI, with every field present in the export packet
+  - Worked rerun-review sheets: 2
+    - `run-2026-07-06-0015` → reason `model_version_changed` admission `blocked_on_provider_drift` (reuse `false`)
+    - `run-2026-07-06-0016` → reason `input_context_changed` admission `admit_after_re_review` (reuse `true`)
+  - Worked incomplete-replay banners: 2
+    - `replay-0015-a` → completeness `non_deterministic` (missing 1, reapprove `true`)
+    - `replay-0015-b` → completeness `missing_inputs` (missing 2, reapprove `true`)
+  - Worked agent-status cards: 2
+    - `agent-0015-a` → lifecycle `paused` blast `branch_scoped` (alive `false`, options 5)
+    - `agent-0015-b` → lifecycle `running` blast `no_writes` (alive `true`, options 4)
