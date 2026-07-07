@@ -450,7 +450,10 @@ impl M5AiRerunAdmission {
 
     /// True when a rerun in this admission class may proceed (with or without re-review).
     pub const fn is_admitted(self) -> bool {
-        matches!(self, Self::AdmitWithApprovalReuse | Self::AdmitAfterReReview)
+        matches!(
+            self,
+            Self::AdmitWithApprovalReuse | Self::AdmitAfterReReview
+        )
     }
 }
 
@@ -538,7 +541,10 @@ impl M5AiAgentBlastRadius {
 
     /// True when the blast radius is contained to the agent's own worktree or branch.
     pub const fn is_contained(self) -> bool {
-        matches!(self, Self::NoWrites | Self::WorktreeLocal | Self::BranchScoped)
+        matches!(
+            self,
+            Self::NoWrites | Self::WorktreeLocal | Self::BranchScoped
+        )
     }
 }
 
@@ -882,7 +888,8 @@ pub fn resolve_rerun_review_sheet(
     if input.canonical_run_id.trim().is_empty() {
         return Err(M5AiRerunReviewResolutionError::EmptyRunId);
     }
-    if input.original_lineage_label.trim().is_empty() || input.current_lineage_label.trim().is_empty()
+    if input.original_lineage_label.trim().is_empty()
+        || input.current_lineage_label.trim().is_empty()
     {
         return Err(M5AiRerunReviewResolutionError::EmptyLineage);
     }
@@ -949,16 +956,25 @@ pub fn resolve_rerun_review_sheet(
 /// Derives the rerun-review reason with a fixed precedence so the most approval-relevant
 /// drift is named first and an undrifted rerun reads as needing no re-review.
 fn derive_rerun_review_reason(changed: &[M5AiRerunDriftDimension]) -> M5AiRerunReviewReason {
-    if changed.iter().any(|d| *d == M5AiRerunDriftDimension::ModelVersion) {
+    if changed
+        .iter()
+        .any(|d| *d == M5AiRerunDriftDimension::ModelVersion)
+    {
         M5AiRerunReviewReason::ModelVersionChanged
-    } else if changed.iter().any(|d| *d == M5AiRerunDriftDimension::ToolContract) {
+    } else if changed
+        .iter()
+        .any(|d| *d == M5AiRerunDriftDimension::ToolContract)
+    {
         M5AiRerunReviewReason::ToolContractChanged
     } else if changed
         .iter()
         .any(|d| *d == M5AiRerunDriftDimension::ProviderRoute)
     {
         M5AiRerunReviewReason::RouteOrProviderChanged
-    } else if changed.iter().any(|d| *d == M5AiRerunDriftDimension::PolicyEpoch) {
+    } else if changed
+        .iter()
+        .any(|d| *d == M5AiRerunDriftDimension::PolicyEpoch)
+    {
         M5AiRerunReviewReason::PolicyChanged
     } else if changed.is_empty() {
         M5AiRerunReviewReason::NoReReviewRequired
@@ -2191,28 +2207,32 @@ fn validate_rows(
             violations.push(M5AiBackgroundAgentReplayPrimitiveViolation::RowIncomplete);
         }
         if !row.declares_mandatory_rerun_anatomy() {
-            violations.push(M5AiBackgroundAgentReplayPrimitiveViolation::MandatoryRerunAnatomyMissing);
+            violations
+                .push(M5AiBackgroundAgentReplayPrimitiveViolation::MandatoryRerunAnatomyMissing);
         }
         if !row.declares_mandatory_replay_anatomy() {
             violations
                 .push(M5AiBackgroundAgentReplayPrimitiveViolation::MandatoryReplayAnatomyMissing);
         }
         if !row.declares_mandatory_agent_anatomy() {
-            violations.push(M5AiBackgroundAgentReplayPrimitiveViolation::MandatoryAgentAnatomyMissing);
+            violations
+                .push(M5AiBackgroundAgentReplayPrimitiveViolation::MandatoryAgentAnatomyMissing);
         }
         if !row.declares_mandatory_continue_options() {
             violations
                 .push(M5AiBackgroundAgentReplayPrimitiveViolation::MandatoryContinueOptionMissing);
         }
         if !row.declares_mandatory_rerun_export() {
-            violations.push(M5AiBackgroundAgentReplayPrimitiveViolation::MandatoryRerunExportMissing);
+            violations
+                .push(M5AiBackgroundAgentReplayPrimitiveViolation::MandatoryRerunExportMissing);
         }
         if !row.declares_mandatory_replay_export() {
             violations
                 .push(M5AiBackgroundAgentReplayPrimitiveViolation::MandatoryReplayExportMissing);
         }
         if !row.declares_mandatory_agent_export() {
-            violations.push(M5AiBackgroundAgentReplayPrimitiveViolation::MandatoryAgentExportMissing);
+            violations
+                .push(M5AiBackgroundAgentReplayPrimitiveViolation::MandatoryAgentExportMissing);
         }
         if row.accessibility_routes.is_empty()
             || !row
@@ -2325,7 +2345,8 @@ fn validate_interrupted_agent_honesty(
         })
     });
     if !proven {
-        violations.push(M5AiBackgroundAgentReplayPrimitiveViolation::InterruptedAgentHonestyUnproven);
+        violations
+            .push(M5AiBackgroundAgentReplayPrimitiveViolation::InterruptedAgentHonestyUnproven);
     }
 }
 
@@ -2371,7 +2392,8 @@ fn validate_governance_review(
         review.descriptors_stable_across_ui_export_support,
     ] {
         if !ok {
-            violations.push(M5AiBackgroundAgentReplayPrimitiveViolation::GovernanceReviewIncomplete);
+            violations
+                .push(M5AiBackgroundAgentReplayPrimitiveViolation::GovernanceReviewIncomplete);
             return;
         }
     }
@@ -2390,7 +2412,8 @@ fn validate_consumer_projection(
         projection.agent_liveness_reads_single_source,
     ] {
         if !ok {
-            violations.push(M5AiBackgroundAgentReplayPrimitiveViolation::ConsumerProjectionIncomplete);
+            violations
+                .push(M5AiBackgroundAgentReplayPrimitiveViolation::ConsumerProjectionIncomplete);
             return;
         }
     }

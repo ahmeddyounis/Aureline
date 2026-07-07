@@ -288,7 +288,11 @@ fn seeded_packet_names_every_tool_lane() {
     let packet = seeded_m5_ai_approval_tool_call_primitive_packet();
     let present: std::collections::BTreeSet<_> = packet.rows.iter().map(|r| r.tool_lane).collect();
     for lane in M5AiToolLaneSurface::ALL {
-        assert!(present.contains(&lane), "missing tool lane {}", lane.as_str());
+        assert!(
+            present.contains(&lane),
+            "missing tool lane {}",
+            lane.as_str()
+        );
     }
     assert_eq!(packet.rows.len(), M5AiToolLaneSurface::ALL.len());
 }
@@ -470,7 +474,9 @@ fn mandatory_follow_up_missing_fails() {
 #[test]
 fn example_resolution_drift_fails() {
     let mut packet = seeded_m5_ai_approval_tool_call_primitive_packet();
-    packet.rows[0].approval_examples[0].resolved.requires_review_sheet = true;
+    packet.rows[0].approval_examples[0]
+        .resolved
+        .requires_review_sheet = true;
     assert!(packet
         .validate()
         .contains(&M5AiApprovalToolCallPrimitiveViolation::ExampleResolutionDrift));
@@ -491,8 +497,7 @@ fn mutating_review_first_unproven_fails() {
     // Replace every approval example with a benign read-only one so no example proves a
     // mutating action held review-first at a high-friction gate.
     for row in &mut packet.rows {
-        row.approval_examples =
-            vec![M5AiApprovalSheetResolutionCase::resolved(benign_read_only())];
+        row.approval_examples = vec![M5AiApprovalSheetResolutionCase::resolved(benign_read_only())];
     }
     assert!(packet
         .validate()
@@ -562,7 +567,9 @@ fn missing_source_contracts_fails() {
 #[test]
 fn governance_review_incomplete_fails() {
     let mut packet = seeded_m5_ai_approval_tool_call_primitive_packet();
-    packet.governance_review.provenance_and_removal_always_visible = false;
+    packet
+        .governance_review
+        .provenance_and_removal_always_visible = false;
     assert!(packet
         .validate()
         .contains(&M5AiApprovalToolCallPrimitiveViolation::GovernanceReviewIncomplete));

@@ -69,8 +69,7 @@ mod tests;
 pub use seed::{
     seeded_m5_ai_approval_tool_call_primitive_branch_agent_checkpoint_beta_narrowed,
     seeded_m5_ai_approval_tool_call_primitive_mutating_tool_run_preview_narrowed,
-    seeded_m5_ai_approval_tool_call_primitive_packet,
-    M5_AI_APPROVAL_TOOL_CALL_PRIMITIVE_PACKET_ID,
+    seeded_m5_ai_approval_tool_call_primitive_packet, M5_AI_APPROVAL_TOOL_CALL_PRIMITIVE_PACKET_ID,
 };
 
 // The approval gate, friction reason, tool boundary, side-effect class, run outcome,
@@ -791,8 +790,8 @@ pub fn resolve_approval_sheet(
     }
 
     let is_mutating = side_effect_is_mutating(input.side_effect_class);
-    let boundary_crossing = input.action_scope.is_boundary_crossing()
-        || tool_boundary_is_crossing(input.tool_boundary);
+    let boundary_crossing =
+        input.action_scope.is_boundary_crossing() || tool_boundary_is_crossing(input.tool_boundary);
     let is_mutating_or_boundary_crossing = is_mutating || boundary_crossing;
 
     // A mutating or boundary-crossing action must never be declared as an ordinary
@@ -888,9 +887,7 @@ fn friction_floor(
     }
     // Any other mutation, external egress, or boundary crossing forces at least a
     // one-click confirm.
-    if is_mutating
-        || boundary_crossing
-        || friction_reasons.contains(&Reason::ExternalNetworkEgress)
+    if is_mutating || boundary_crossing || friction_reasons.contains(&Reason::ExternalNetworkEgress)
     {
         return M5AiApprovalGate::OneClickConfirm;
     }
@@ -1556,7 +1553,9 @@ impl M5AiApprovalToolCallPrimitivePacket {
             .filter(|row| row.qualification.is_stable())
             .count();
         let mut out = String::new();
-        out.push_str("# M5 AI High-Friction Approval-Sheet and Tool-Call-Timeline-Row Primitive\n\n");
+        out.push_str(
+            "# M5 AI High-Friction Approval-Sheet and Tool-Call-Timeline-Row Primitive\n\n",
+        );
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
         out.push_str(&format!("- Label: `{}`\n", self.matrix_label));
         out.push_str(&format!(
@@ -1849,10 +1848,12 @@ fn validate_rows(
             violations.push(M5AiApprovalToolCallPrimitiveViolation::RowIncomplete);
         }
         if !row.declares_mandatory_approval_anatomy() {
-            violations.push(M5AiApprovalToolCallPrimitiveViolation::MandatoryApprovalAnatomyMissing);
+            violations
+                .push(M5AiApprovalToolCallPrimitiveViolation::MandatoryApprovalAnatomyMissing);
         }
         if !row.declares_mandatory_tool_call_anatomy() {
-            violations.push(M5AiApprovalToolCallPrimitiveViolation::MandatoryToolCallAnatomyMissing);
+            violations
+                .push(M5AiApprovalToolCallPrimitiveViolation::MandatoryToolCallAnatomyMissing);
         }
         if !row.declares_mandatory_approval_export() {
             violations.push(M5AiApprovalToolCallPrimitiveViolation::MandatoryApprovalExportMissing);

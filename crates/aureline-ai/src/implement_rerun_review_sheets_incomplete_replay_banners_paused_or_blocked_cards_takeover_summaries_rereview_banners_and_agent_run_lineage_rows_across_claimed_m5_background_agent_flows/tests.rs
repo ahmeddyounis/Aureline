@@ -51,7 +51,10 @@ fn rerun_undrifted_reuses_approvals() {
     );
     assert!(resolved.approval_reuse_allowed);
     assert!(!resolved.requires_re_review);
-    assert_eq!(resolved.admission, M5AiRerunAdmission::AdmitWithApprovalReuse);
+    assert_eq!(
+        resolved.admission,
+        M5AiRerunAdmission::AdmitWithApprovalReuse
+    );
 }
 
 #[test]
@@ -70,7 +73,10 @@ fn rerun_provider_drift_blocks_and_names_reason() {
     );
     assert!(!resolved.approval_reuse_allowed);
     assert!(resolved.requires_re_review);
-    assert_eq!(resolved.admission, M5AiRerunAdmission::BlockedOnProviderDrift);
+    assert_eq!(
+        resolved.admission,
+        M5AiRerunAdmission::BlockedOnProviderDrift
+    );
 }
 
 #[test]
@@ -85,7 +91,10 @@ fn rerun_policy_drift_blocks_pending_approval() {
         M5AiRerunReviewReason::PolicyChanged
     );
     assert!(!resolved.approval_reuse_allowed);
-    assert_eq!(resolved.admission, M5AiRerunAdmission::BlockedPendingApproval);
+    assert_eq!(
+        resolved.admission,
+        M5AiRerunAdmission::BlockedPendingApproval
+    );
 }
 
 #[test]
@@ -409,8 +418,10 @@ fn every_derived_state_is_exercised_by_some_example() {
     }
     for segment in M5AiReplaySegment::ALL {
         assert!(
-            replays.iter().any(|c| c.resolved.retained_segments.contains(&segment)
-                || c.resolved.missing_segments.contains(&segment)),
+            replays
+                .iter()
+                .any(|c| c.resolved.retained_segments.contains(&segment)
+                    || c.resolved.missing_segments.contains(&segment)),
             "no replay example names segment {}",
             segment.as_str()
         );
@@ -580,19 +591,18 @@ fn incomplete_replay_reapproval_unproven_fails() {
     // Replace every replay example with a fully-replayable one so none proves an incomplete
     // replay requiring new approvals.
     for row in &mut packet.rows {
-        row.incomplete_replay_examples =
-            vec![M5AiIncompleteReplayResolutionCase::resolved(
-                M5AiIncompleteReplayResolutionInput {
-                    replay_completeness: M5AiReplayCompleteness::FullyReplayable,
-                    retained_segments: vec![M5AiReplaySegment::PromptTranscript],
-                    missing_segments: vec![],
-                    ..base_replay()
-                },
-            )];
+        row.incomplete_replay_examples = vec![M5AiIncompleteReplayResolutionCase::resolved(
+            M5AiIncompleteReplayResolutionInput {
+                replay_completeness: M5AiReplayCompleteness::FullyReplayable,
+                retained_segments: vec![M5AiReplaySegment::PromptTranscript],
+                missing_segments: vec![],
+                ..base_replay()
+            },
+        )];
     }
-    assert!(packet
-        .validate()
-        .contains(&M5AiBackgroundAgentReplayPrimitiveViolation::IncompleteReplayReapprovalUnproven));
+    assert!(packet.validate().contains(
+        &M5AiBackgroundAgentReplayPrimitiveViolation::IncompleteReplayReapprovalUnproven
+    ));
 }
 
 #[test]
@@ -636,7 +646,9 @@ fn governance_review_incomplete_fails() {
 #[test]
 fn consumer_projection_incomplete_fails() {
     let mut packet = seeded_m5_ai_background_agent_replay_primitive_packet();
-    packet.consumer_projection.agent_liveness_reads_single_source = false;
+    packet
+        .consumer_projection
+        .agent_liveness_reads_single_source = false;
     assert!(packet
         .validate()
         .contains(&M5AiBackgroundAgentReplayPrimitiveViolation::ConsumerProjectionIncomplete));

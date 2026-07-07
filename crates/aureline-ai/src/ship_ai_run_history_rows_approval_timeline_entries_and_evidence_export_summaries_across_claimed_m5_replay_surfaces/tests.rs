@@ -563,14 +563,13 @@ fn redaction_support_continuity_unproven_fails() {
     // Replace every evidence example with an unlinked, unredacted one so none proves a
     // shareable, support-linked summary.
     for row in &mut packet.rows {
-        row.evidence_summary_examples =
-            vec![M5AiEvidenceSummaryResolutionCase::resolved(
-                M5AiEvidenceSummaryResolutionInput {
-                    redaction_posture: M5AiRedactionPosture::Unredacted,
-                    support_linkage: M5AiSupportLinkage::NotLinked,
-                    ..base_evidence()
-                },
-            )];
+        row.evidence_summary_examples = vec![M5AiEvidenceSummaryResolutionCase::resolved(
+            M5AiEvidenceSummaryResolutionInput {
+                redaction_posture: M5AiRedactionPosture::Unredacted,
+                support_linkage: M5AiSupportLinkage::NotLinked,
+                ..base_evidence()
+            },
+        )];
     }
     assert!(packet
         .validate()
@@ -618,9 +617,7 @@ fn governance_review_incomplete_fails() {
 #[test]
 fn consumer_projection_incomplete_fails() {
     let mut packet = seeded_m5_ai_run_history_export_primitive_packet();
-    packet
-        .consumer_projection
-        .run_identity_reads_single_source = false;
+    packet.consumer_projection.run_identity_reads_single_source = false;
     assert!(packet
         .validate()
         .contains(&M5AiRunHistoryExportPrimitiveViolation::ConsumerProjectionIncomplete));

@@ -166,9 +166,9 @@ fn base_row(
 fn rows() -> Vec<M5AiBackgroundAgentReplayRow> {
     use M5AiAgentBlastRadius as Blast;
     use M5AiAgentLifecycleState as Life;
-    use M5AiRerunDriftDimension as Drift;
     use M5AiReplayCompleteness as Complete;
     use M5AiReplaySegment as Seg;
+    use M5AiRerunDriftDimension as Drift;
     use M5AiTakeoverPath as Takeover;
 
     vec![
@@ -602,8 +602,8 @@ fn source_contract_refs() -> Vec<String> {
 
 /// Builds the canonical M5 AI rerun-review / incomplete-replay / agent-status primitive
 /// packet.
-pub fn seeded_m5_ai_background_agent_replay_primitive_packet() -> M5AiBackgroundAgentReplayPrimitivePacket
-{
+pub fn seeded_m5_ai_background_agent_replay_primitive_packet(
+) -> M5AiBackgroundAgentReplayPrimitivePacket {
     M5AiBackgroundAgentReplayPrimitivePacket::new(M5AiBackgroundAgentReplayPrimitivePacketInput {
         packet_id: M5_AI_BACKGROUND_AGENT_REPLAY_PRIMITIVE_PACKET_ID.to_owned(),
         matrix_label:

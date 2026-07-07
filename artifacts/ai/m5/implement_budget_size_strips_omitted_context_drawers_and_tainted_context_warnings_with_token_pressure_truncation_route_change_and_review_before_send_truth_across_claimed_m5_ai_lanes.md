@@ -1,0 +1,57 @@
+# M5 Budget-Size-Strip and Tainted-Context-Warning Primitive
+
+- Packet: `m5-budget-size-strip-tainted-context-warning-primitive:stable:0001`
+- Label: `M5 budget-size strip and tainted-context warning primitive: included and omitted context classes, budget posture, token/size pressure band, truncation reason, route-switch consequence, taint source, taint severity, warning posture, data-treatment, review path, and bounded inspect/adjust/review/reduce/proceed and review/quarantine/remove/acknowledge/proceed actions`
+- Send-capable consumers: 5 (5 stable)
+- Budget postures: within_budget, near_limit, over_budget, truncation_pending, hard_blocked, unmetered_local
+- Route-switch consequences: unchanged, locality_changed, reach_widened, reach_narrowed, provider_changed
+- Warning postures: no_taint_trusted, flagged_as_data, elevated_review_required, quarantine_held, injection_blocked, acknowledged_proceedable
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Send-capable consumers
+
+- **Inline Composer**: `stable`
+  - Owner: Inline composer owner
+  - Scope: The inline composer renders the shared budget strip and tainted-context warning so a within-budget request shows every included context class with nothing omitted, a near-limit request names the retrieved snippets it truncated for size and offers an inspect-omitted path before send, a pasted-external injection-suspected input is blocked before a side-effecting route runs, and a pasted-external informational input is flagged as data rather than trusted instruction
+  - Worked strips: 2
+    - `strip.inline.within` → `within_budget` (band `nominal`, omitted `false`, route `unchanged`, review `false`)
+    - `strip.inline.near` → `near_limit` (band `watch`, omitted `true`, route `unchanged`, review `true`)
+  - Worked warnings: 2
+    - `warn.inline.injection` (`pasted_external_text`) → `injection_blocked` (blocks send `true`, review `true`)
+    - `warn.inline.info` (`pasted_external_text`) → `flagged_as_data` (blocks send `false`, review `true`)
+- **Side Panel**: `stable`
+  - Owner: Side panel owner
+  - Scope: The side panel renders the same budget strip and tainted-context warning so an over-budget request names the conversation history it capped and the retrieved snippets it truncated and makes the on-device-to-managed route change explicit, a truncation-pending request names the attached objects it trimmed and the provider-class route change, a promoted tool-output quarantine-required input is held before a side-effecting route runs, and a promoted tool-output elevated input requires review before send
+  - Worked strips: 2
+    - `strip.side.over` → `over_budget` (band `critical`, omitted `true`, route `locality_changed`, review `true`)
+    - `strip.side.truncating` → `truncation_pending` (band `critical`, omitted `true`, route `provider_changed`, review `true`)
+  - Worked warnings: 2
+    - `warn.side.quarantine` (`tool_output`) → `quarantine_held` (blocks send `true`, review `true`)
+    - `warn.side.elevated` (`tool_output`) → `elevated_review_required` (blocks send `true`, review `true`)
+- **Patch Draft**: `stable`
+  - Owner: Patch draft owner
+  - Scope: The patch draft renders the same budget strip and tainted-context warning so a hard-blocked request names the conversation history it policy-excluded and refuses to send, an unmetered local request shows nothing omitted on an unchanged on-device route, a fetched-url elevated input can be acknowledged as data and proceed, and an untainted prior-model-output context reads as trusted with a proceed path
+  - Worked strips: 2
+    - `strip.patch.hard` → `hard_blocked` (band `exhausted`, omitted `true`, route `unchanged`, review `true`)
+    - `strip.patch.local` → `unmetered_local` (band `unmetered`, omitted `false`, route `unchanged`, review `false`)
+  - Worked warnings: 2
+    - `warn.patch.ack` (`fetched_url_content`) → `acknowledged_proceedable` (blocks send `false`, review `false`)
+    - `warn.patch.trusted` (`prior_model_output`) → `no_taint_trusted` (blocks send `false`, review `false`)
+- **CLI / Headless**: `stable`
+  - Owner: CLI / headless owner
+  - Scope: The CLI / headless surface renders the same budget strip and tainted-context warning so a within-budget request names the duplicate tool output it collapsed and the on-device-to-self-hosted route change, a near-limit request names the stale active selection it dropped and the widened self-hosted-to-byok reach, an untrusted-file injection-suspected input is blocked, and a third-party-connector informational input can be acknowledged and proceed — the same truth a headless reviewer reads elsewhere
+  - Worked strips: 2
+    - `strip.cli.dedup` → `within_budget` (band `nominal`, omitted `true`, route `locality_changed`, review `true`)
+    - `strip.cli.stale` → `near_limit` (band `watch`, omitted `true`, route `reach_widened`, review `true`)
+  - Worked warnings: 2
+    - `warn.cli.injection` (`untrusted_file`) → `injection_blocked` (blocks send `true`, review `true`)
+    - `warn.cli.connector` (`third_party_connector`) → `acknowledged_proceedable` (blocks send `false`, review `false`)
+- **Support Export**: `stable`
+  - Owner: Support export owner
+  - Scope: The support export renders the same budget strip and tainted-context warning so an over-budget request's excluded instructions, truncated retrieved snippets, and narrowed byok-to-self-hosted route are reconstructable from the export alone, a truncation-pending request names the retrieved snippets it budget-capped, a prior-model-output elevated input requires review, and a fetched-url quarantine-required input is held before a side-effecting route runs
+  - Worked strips: 2
+    - `strip.support.over` → `over_budget` (band `critical`, omitted `true`, route `reach_narrowed`, review `true`)
+    - `strip.support.capped` → `truncation_pending` (band `critical`, omitted `true`, route `unchanged`, review `true`)
+  - Worked warnings: 2
+    - `warn.support.elevated` (`prior_model_output`) → `elevated_review_required` (blocks send `false`, review `true`)
+    - `warn.support.quarantine` (`fetched_url_content`) → `quarantine_held` (blocks send `true`, review `true`)

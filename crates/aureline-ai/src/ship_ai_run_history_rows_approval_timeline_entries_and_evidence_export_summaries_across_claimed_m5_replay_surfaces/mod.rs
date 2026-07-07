@@ -968,7 +968,11 @@ impl M5AiRunHistoryResolutionError {
 
 impl fmt::Display for M5AiRunHistoryResolutionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "ai run history resolution error: {}", self.as_str())
+        write!(
+            formatter,
+            "ai run history resolution error: {}",
+            self.as_str()
+        )
     }
 }
 
@@ -1562,8 +1566,11 @@ impl M5AiRunHistoryExportRow {
 
     /// True when the row declares every mandatory evidence-summary anatomy part.
     fn declares_mandatory_evidence_anatomy(&self) -> bool {
-        let present: BTreeSet<M5AiEvidenceSummaryAnatomyPart> =
-            self.evidence_summary_anatomy_parts.iter().copied().collect();
+        let present: BTreeSet<M5AiEvidenceSummaryAnatomyPart> = self
+            .evidence_summary_anatomy_parts
+            .iter()
+            .copied()
+            .collect();
         M5AiEvidenceSummaryAnatomyPart::MANDATORY
             .iter()
             .all(|part| present.contains(part))
@@ -1601,8 +1608,11 @@ impl M5AiRunHistoryExportRow {
 
     /// True when the row declares every mandatory evidence-summary export field.
     fn declares_mandatory_evidence_export(&self) -> bool {
-        let present: BTreeSet<M5AiEvidenceSummaryExportField> =
-            self.evidence_summary_export_fields.iter().copied().collect();
+        let present: BTreeSet<M5AiEvidenceSummaryExportField> = self
+            .evidence_summary_export_fields
+            .iter()
+            .copied()
+            .collect();
         M5AiEvidenceSummaryExportField::MANDATORY
             .iter()
             .all(|field| present.contains(field))
@@ -2274,10 +2284,12 @@ fn validate_rows(
                 .push(M5AiRunHistoryExportPrimitiveViolation::MandatoryRunHistoryAnatomyMissing);
         }
         if !row.declares_mandatory_approval_anatomy() {
-            violations.push(M5AiRunHistoryExportPrimitiveViolation::MandatoryApprovalAnatomyMissing);
+            violations
+                .push(M5AiRunHistoryExportPrimitiveViolation::MandatoryApprovalAnatomyMissing);
         }
         if !row.declares_mandatory_evidence_anatomy() {
-            violations.push(M5AiRunHistoryExportPrimitiveViolation::MandatoryEvidenceAnatomyMissing);
+            violations
+                .push(M5AiRunHistoryExportPrimitiveViolation::MandatoryEvidenceAnatomyMissing);
         }
         if !row.declares_mandatory_entry_points() {
             violations.push(M5AiRunHistoryExportPrimitiveViolation::MandatoryEntryPointMissing);

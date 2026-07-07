@@ -57,7 +57,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
         Some("fixture-mutating-tool-run-preview-narrowed") => {
-            let packet = seeded_m5_ai_approval_tool_call_primitive_mutating_tool_run_preview_narrowed();
+            let packet =
+                seeded_m5_ai_approval_tool_call_primitive_mutating_tool_run_preview_narrowed();
             assert_valid(&packet)?;
             println!("{}", packet.export_safe_json());
         }
