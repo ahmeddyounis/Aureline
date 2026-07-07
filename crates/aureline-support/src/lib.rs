@@ -388,6 +388,7 @@ pub mod add_shared_doctor_safe_mode_bisect_support_center_docs_help_and_export_c
 pub mod advisory_baseline;
 pub mod bundle;
 pub mod capabilities;
+pub mod certify_support_scenario_picker_row_issue_report_builder_step_escalation_packet_summary_handoff_timeline_row_and_unsafe_fix_blocked_note_truth_on_every_claimed_m5_support_surface;
 pub mod crash_loop_and_restore_fidelity;
 pub mod crash_loop_center;
 pub mod crash_store;
