@@ -1,0 +1,57 @@
+# M5 Mention-Resolver and Slash-Command-Row Primitive
+
+- Packet: `m5-mention-resolver-slash-command-row-primitive:stable:0001`
+- Label: `M5 mention resolver and slash-command row primitive: mention token, resolution, exact-target preview, scope note, candidate count, command id, capability class, help path, availability state, row posture, approval semantics, disabled-state explanation, and bounded open/choose/edit/remove/reveal and invoke/request-approval/open-help/view-canonical/explain-disabled actions`
+- Composer consumers: 5 (5 stable)
+- Mention resolutions: resolved_unique, resolved_pinned, ambiguous_candidates, unresolved_missing, out_of_scope_denied, deferred_pending
+- Slash row postures: ready_invocable, approval_gated, disabled_explained, deprecated_redirect, policy_hidden, unknown_rejected
+- Capability classes: read_only_query, scoped_mutation, repository_mutation, external_side_effect, privileged_admin, meta_help
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Composer consumers
+
+- **Inline Composer**: `stable`
+  - Owner: Inline composer owner
+  - Scope: The inline composer renders the shared mention resolver and slash-command row so an `@`-mention that matches an exact stable symbol binds uniquely with its exact-target preview, an ambiguous file mention blocks send and offers a choose-candidate review instead of binding to the wrong target, a read-only query command reads as ready-invocable, and an external-side-effect command reads as approval-gated with a request-approval action
+  - Worked mentions: 2
+    - `@parse_config` → `resolved_unique` (bound `true`, blocks send `false`, review `false`)
+    - `@config` → `ambiguous_candidates` (bound `false`, blocks send `true`, review `true`)
+  - Worked commands: 2
+    - `cmd.ai.explain` (`read_only_query`) → `ready_invocable` (invocable `true`, approval `false`)
+    - `cmd.ai.publish-review` (`external_side_effect`) → `approval_gated` (invocable `false`, approval `true`)
+- **Command Palette**: `stable`
+  - Owner: Command palette owner
+  - Scope: The command palette renders the same mention resolver and slash-command row so a pinned `@`-mention binds to its pinned object with its exact-target preview, an unresolved mention reads as unresolved-missing and blocks send with an edit action, a disabled scoped-mutation command names its unmet-precondition reason, and a deprecated command redirects to its canonical id — the same availability, authority, and disabled reasons the palette shows for non-AI commands
+  - Worked mentions: 2
+    - `@pinned-runbook` → `resolved_pinned` (bound `true`, blocks send `false`, review `false`)
+    - `@does-not-exist` → `unresolved_missing` (bound `false`, blocks send `true`, review `true`)
+  - Worked commands: 2
+    - `cmd.workspace.rename-symbol` (`scoped_mutation`) → `disabled_explained` (invocable `false`, approval `false`)
+    - `cmd.help.legacy-index` (`meta_help`) → `deprecated_redirect` (invocable `true`, approval `false`)
+- **Automation Recipe**: `stable`
+  - Owner: Automation recipe owner
+  - Scope: The automation recipe renders the same mention resolver and slash-command row so an `@`-mention outside the recipe scope reads as out-of-scope-denied with a reveal-scope action, a deferred mention reads as deferred-pending and blocks send, a privileged-admin command hidden by policy reads as policy-hidden with its reason, and an unknown command reads as unknown-rejected rather than silently binding or invoking
+  - Worked mentions: 2
+    - `@other-tenant-file` → `out_of_scope_denied` (bound `false`, blocks send `true`, review `false`)
+    - `@indexing-target` → `deferred_pending` (bound `false`, blocks send `true`, review `false`)
+  - Worked commands: 2
+    - `cmd.admin.rotate-tenant-keys` (`privileged_admin`) → `policy_hidden` (invocable `false`, approval `false`)
+    - `cmd.unknown.legacy` (`read_only_query`) → `unknown_rejected` (invocable `false`, approval `false`)
+- **CLI / Headless**: `stable`
+  - Owner: CLI / headless owner
+  - Scope: The CLI / headless surface renders the same mention resolver and slash-command row so a single-candidate `@`-mention binds uniquely with its exact-target preview, an ambiguous mention blocks send and needs explicit review, an available repository-mutation command that still requires approval reads as approval-gated rather than plainly ready, and a scoped-mutation command reads as ready-invocable — the same postures a headless reviewer reads elsewhere
+  - Worked mentions: 2
+    - `@main.rs` → `resolved_unique` (bound `true`, blocks send `false`, review `false`)
+    - `@handler` → `ambiguous_candidates` (bound `false`, blocks send `true`, review `true`)
+  - Worked commands: 2
+    - `cmd.repo.apply-migration` (`repository_mutation`) → `approval_gated` (invocable `false`, approval `true`)
+    - `cmd.workspace.format` (`scoped_mutation`) → `ready_invocable` (invocable `true`, approval `false`)
+- **Support Export**: `stable`
+  - Owner: Support export owner
+  - Scope: The support export renders the same mention resolver and slash-command row so a resolved mention's stable target id, exact-target preview, and scope note are reconstructable from the export alone, an unresolved mention reads as unresolved-missing, a disabled repository-mutation command carries its explanation, and a meta/help command reads as ready-invocable with its help path
+  - Worked mentions: 2
+    - `@evidence-run-42` → `resolved_unique` (bound `true`, blocks send `false`, review `false`)
+    - `@ghost-symbol` → `unresolved_missing` (bound `false`, blocks send `true`, review `true`)
+  - Worked commands: 2
+    - `cmd.repo.rewrite-history` (`repository_mutation`) → `disabled_explained` (invocable `false`, approval `false`)
+    - `cmd.help.index` (`meta_help`) → `ready_invocable` (invocable `true`, approval `false`)
