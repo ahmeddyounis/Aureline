@@ -16,6 +16,7 @@
 pub mod certify_m5_learnability_onboarding_truth;
 pub mod educational_ai_and_contextual_cards;
 pub mod freeze_m5_learnability_lane;
+pub mod freeze_the_m5_contextual_tip_card_migration_bridge_card_sequence_help_strip_why_unavailable_explanation_row_and_source_language_fallback_component_matrix;
 pub mod guided_exercise_rails;
 pub mod learning_mode_profiles;
 pub mod learning_state_export_and_reset;
