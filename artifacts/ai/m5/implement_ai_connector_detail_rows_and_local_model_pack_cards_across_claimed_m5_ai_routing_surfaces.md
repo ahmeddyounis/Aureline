@@ -1,0 +1,58 @@
+# M5 AI Connector-Detail-Row and Local-Model-Pack-Card Primitive
+
+- Packet: `m5-ai-connector-detail-row-local-model-pack-card-primitive:stable:0001`
+- Label: `M5 AI connector detail row and local model pack card primitive: canonical id, publisher, execution locus, capabilities, auth posture, warm/cold/unavailable/policy-blocked readiness, model identity, digest, disk cost, hardware fit, offline posture, and bounded select/verify/remove actions`
+- Routing consumers: 5 (5 stable)
+- Execution loci: in_process_local, local_subprocess, local_container, remote_managed_service, third_party_cloud, on_prem_bridge
+- Connector readinesses: warm, cold, unavailable, policy_blocked
+- Model pack readinesses: ready_selectable, mirrored_ready, offline_ready, update_pending, hardware_blocked, verification_held
+- Offline postures: runs_fully_offline, mirror_served, requires_network_fetch, local_cached
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Routing consumers
+
+- **AI Settings**: `stable`
+  - Owner: AI settings owner
+  - Scope: The AI settings surface renders the shared connector row and model card so a warm in-process read-only connector reads as invocable without an authority grant, a local-subprocess shell/file connector reads as cold and dependent on a managed credential before invocation, and a local model pack shows its digest, disk cost, hardware fit, and offline posture rather than a bare installed state
+  - Worked connector rows: 2
+    - `connector.local-fs-read` at `in_process_local` → `warm` (auth `unauthenticated`, authority-before-invocation `false`)
+    - `connector.shell-runner` at `local_subprocess` → `cold` (auth `managed_credential`, authority-before-invocation `true`)
+  - Worked model cards: 2
+    - `model.small-instruct` (4200 MB) → `ready_selectable` (fit `fits`, offline `local_cached`)
+    - `model.mirror-pack` (8100 MB) → `mirrored_ready` (fit `fits`, offline `mirror_served`)
+- **Model Picker**: `stable`
+  - Owner: Model picker owner
+  - Scope: The model picker renders the shared connector row and model card so a warm remote managed connector reads as invocable behind an OAuth-delegated grant, a policy-blocked third-party cloud connector reads as blocked rather than ready, and each model pack shows its offline posture and hardware fit — an offline-only pack that fits only with swap and an update-pending pack that still requires a network fetch
+  - Worked connector rows: 2
+    - `connector.code-search` at `remote_managed_service` → `warm` (auth `oauth_delegated`, authority-before-invocation `true`)
+    - `connector.cloud-deploy` at `third_party_cloud` → `policy_blocked` (auth `byok_scoped`, authority-before-invocation `true`)
+  - Worked model cards: 2
+    - `model.offline-only` (15000 MB) → `offline_ready` (fit `fits_with_swap`, offline `runs_fully_offline`)
+    - `model.update-ready` (9000 MB) → `update_pending` (fit `fits`, offline `requires_network_fetch`)
+- **Route Inspector**: `stable`
+  - Owner: Route inspector owner
+  - Scope: The route inspector renders the shared connector row and model card so an unreachable local-container connector reads as unavailable, a warm on-prem bridge connector reads as invocable behind a token-scoped credential, and a model that exceeds memory or needs a missing accelerator reads as hardware-blocked with run-fit-check and remove actions rather than a bare installed state
+  - Worked connector rows: 2
+    - `connector.container-run` at `local_container` → `unavailable` (auth `service_account`, authority-before-invocation `true`)
+    - `connector.onprem-db` at `on_prem_bridge` → `warm` (auth `token_scoped`, authority-before-invocation `true`)
+  - Worked model cards: 2
+    - `model.too-big` (40000 MB) → `hardware_blocked` (fit `exceeds_memory`, offline `local_cached`)
+    - `model.needs-gpu` (22000 MB) → `hardware_blocked` (fit `requires_accelerator`, offline `local_cached`)
+- **Evidence View**: `stable`
+  - Owner: Evidence view owner
+  - Scope: The evidence view renders the shared connector row and model card so a cold in-process read-only connector reads as invocable without authority, a warm third-party egress connector reads as invocable behind a token-scoped credential, and a quarantined or provenance-unverified model reads as verification-held with verify and remove actions rather than as installed
+  - Worked connector rows: 2
+    - `connector.readonly-metrics` at `in_process_local` → `cold` (auth `unauthenticated`, authority-before-invocation `false`)
+    - `connector.egress-fetch` at `third_party_cloud` → `warm` (auth `token_scoped`, authority-before-invocation `true`)
+  - Worked model cards: 2
+    - `model.quarantined` (7000 MB) → `verification_held` (fit `fits`, offline `local_cached`)
+    - `model.unverified-prov` (6500 MB) → `verification_held` (fit `fits`, offline `local_cached`)
+- **CLI / Support Export**: `stable`
+  - Owner: CLI / support export owner
+  - Scope: The CLI / support export renders the shared connector row and model card so an unreachable local-subprocess file connector reads as unavailable, a policy-blocked remote external-service connector reads as blocked, and each model pack's digest, disk cost, hardware fit, and offline posture are reconstructable from the support export alone
+  - Worked connector rows: 2
+    - `connector.file-writer` at `local_subprocess` → `unavailable` (auth `service_account`, authority-before-invocation `true`)
+    - `connector.external-api` at `remote_managed_service` → `policy_blocked` (auth `oauth_delegated`, authority-before-invocation `true`)
+  - Worked model cards: 2
+    - `model.hw-unfit-state` (30000 MB) → `hardware_blocked` (fit `fits`, offline `local_cached`)
+    - `model.installed-cached` (5000 MB) → `ready_selectable` (fit `fits`, offline `requires_network_fetch`)
