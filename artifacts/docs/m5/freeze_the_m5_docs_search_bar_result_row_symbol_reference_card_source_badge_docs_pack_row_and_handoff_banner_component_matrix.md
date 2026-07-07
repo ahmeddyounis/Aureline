@@ -1,0 +1,51 @@
+# M5 Docs-Search-Bar, Docs-Scope-Switcher, Docs-Result-Row, Symbol-Linked-Reference-Card, Docs-Source-Version-Badge, Docs-Pack-Row, Stale-Example-Finding-Row, and Handoff-Banner Component Matrix
+
+- Packet: `m5-docs-browser-components:stable:0001`
+- Label: `M5 docs-search-bar, docs-scope-switcher, docs-result-row, symbol-linked-reference-card, docs-source-version-badge, docs-pack-row, stale-example-finding-row, and docs-handoff-banner component matrix`
+- Component families: 8 (8 stable)
+- Corpus classes: first_party_docs, api_reference, guide_tutorial, codebase_symbol, community_contributed, vendor_dependency, release_notes_changelog
+- Handoff reasons: no_local_corpus, interactive_content_required, auth_gated_source, dynamic_rendering_required, external_canonical_source, user_requested_browser
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-06T00:00:00Z)
+
+## Component families
+
+- **docs_search_bar**: `stable`
+  - Owner: Docs-search component owner
+  - Scope: One docs-search-bar model naming every corpus it can search — first-party docs, API reference, guides, codebase symbols, community, vendor, or changelog — and the source provider behind each, so a search never leaves the corpus or the origin implicit
+  - Required labels: identity, state, keyboard_route, corpus_class, source_provider
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **docs_scope_switcher**: `stable`
+  - Owner: Docs-scope component owner
+  - Scope: One docs-scope-switcher model naming the version / package scope in effect — exact, nearby, project-specific, latest-stable, pinned-range, or unversioned — so a user always knows which version of the docs they are reading
+  - Required labels: identity, state, keyboard_route, freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **docs_result_row**: `stable`
+  - Owner: Docs-result component owner
+  - Scope: One docs-result-row model naming its match state — exact, nearby, project-specific, mirrored, cached, or stale — and why a project doc outranked vendor docs, so a nearby or cached hit is never presented as an exact live one and reordering is never silent
+  - Required labels: identity, state, keyboard_route, corpus_class, source_provider, freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **symbol_linked_reference_card**: `stable`
+  - Owner: Symbol-reference component owner
+  - Scope: One symbol-linked-reference-card model naming the code entity it anchors — function, type, module, field/method, macro, or an unresolved anchor — so a reference card never shows an unresolved or drifted anchor as a resolved deep link
+  - Required labels: identity, state, keyboard_route, corpus_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **docs_source_version_badge**: `stable`
+  - Owner: Docs-source-badge component owner
+  - Scope: One docs-source-version-badge model naming the source provider — bundled-local, mirrored-registry, first-party-hosted, third-party-hosted, offline-import, or AI-derived — and the freshness of the content, so mirrored or cached documentation is never shown as live first-party truth
+  - Required labels: identity, state, keyboard_route, source_provider, freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **docs_pack_row**: `stable`
+  - Owner: Docs-pack component owner
+  - Scope: One docs-pack-row model naming whether the pack is pinned, mirrored, offline, quarantined, tracking upstream, or has an update available, so a quarantined or offline pack is never presented as a freely trusted, up-to-date source
+  - Required labels: identity, state, keyboard_route, source_provider, freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **stale_example_finding_row**: `stable`
+  - Owner: Stale-example component owner
+  - Scope: One stale-example-finding-row model naming the integrity of a documented example — current, API-signature-drifted, deprecated-symbol, broken-link, version-mismatch, or unverified — so a drifted or broken example is never shown as current, runnable guidance
+  - Required labels: identity, state, keyboard_route, freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **docs_handoff_banner**: `stable`
+  - Owner: Docs-handoff component owner
+  - Scope: One docs-handoff-banner model naming exactly why Aureline had to hand a docs task off to a browser — no local corpus, interactive content, auth-gated source, dynamic rendering, external canonical source, or an explicit user request — so a handoff is never a silent dead-end
+  - Required labels: identity, state, keyboard_route, source_provider
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
