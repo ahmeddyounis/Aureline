@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-artifact-provenance-bundle-card.schema.json",
+  "title": "Aureline M5 artifact-provenance-bundle card and attestation/SBOM status-row primitive",
+  "description": "Export-safe packet for the reusable M5 artifact-provenance-bundle-card / attestation-or-SBOM status-row primitive. It narrows the artifact_provenance_bundle_card family frozen in schemas/ui/m5-release-center-components.schema.json into one resolver plus a parity matrix, so a user can tell — from the card and its status rows alone — exactly what an artifact's provenance actually proves, without unpacking raw archives or reaching for external tooling first, and so the mere presence of an SBOM or an attestation never reads like a stronger security or licensing guarantee than the component proves. Each provenance row binds one claimed provenance consumer (the release-center provenance card, the enterprise-evaluation provenance sheet, the CLI provenance inspect, the admin provenance report, and the support provenance export) to the shared card anatomy, signature / attestation / SBOM / digest-lineage vocabulary, inventory formats, scopes, freshnesses, and export availabilities, trust postures, block reasons, next actions, export fields, and non-visual accessibility routes, plus worked resolution cases that must reproduce the resolver output exactly. Each worked resolution carries attestation, SBOM, and notice status rows whose format, generator version, scope, freshness, and export availability are kept explicitly separate from signature verification, and a compare/export binding that keeps the artifact identity, its digest, and its mirror provenance intact. Explicit `not_provided` and `partial` states are preserved wherever evidence is missing or scoped. Hard invariants forbid deriving trust from inventory presence, conflating signed and unsigned provenance, overstating SBOM completeness, and dropping the artifact or mirror binding on a compare or export. Raw URLs, raw signing keys, raw tokens, credentials, and user text bodies never cross this boundary. The Rust validator in crates/aureline-release is the authoritative gate; this schema documents the shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "matrix_label",
+    "provenance_rows",
+    "vocabulary_set",
+    "governance_review",
+    "consumer_projection",
+    "proof_freshness",
+    "release_posture",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "implement_m5_artifact_provenance_bundle_cards_and_attestation_or_sbom_status_rows_across_claimed_m5_release_evaluation_support_surfaces"
+    },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "matrix_label": { "$ref": "#/$defs/non_empty_string" },
+    "provenance_rows": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/provenance_row" }
+    },
+    "vocabulary_set": { "type": "object" },
+    "governance_review": {
+      "type": "object",
+      "description": "Every flag is a hard invariant and must be true."
+    },
+    "consumer_projection": {
+      "type": "object",
+      "description": "Every flag is a hard invariant and must be true."
+    },
+    "proof_freshness": {
+      "type": "object",
+      "required": ["proof_freshness_slo_hours", "last_proof_refresh", "auto_narrow_on_stale"],
+      "properties": {
+        "proof_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_proof_refresh": { "$ref": "#/$defs/non_empty_string" },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    },
+    "release_posture": { "type": "object" },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "consumer_surface": {
+      "enum": [
+        "release_center_provenance_card",
+        "evaluation_provenance_sheet",
+        "cli_provenance_inspect",
+        "admin_provenance_report",
+        "support_provenance_export"
+      ]
+    },
+    "trust_posture": {
+      "enum": [
+        "trust_proven_exact",
+        "trust_signed_not_attested",
+        "narrowed_signature_unverified",
+        "narrowed_attestation_unverified",
+        "narrowed_inventory_incomplete",
+        "blocked_signature_broken",
+        "blocked_digest_lineage_broken",
+        "blocked_provenance_unknown"
+      ]
+    },
+    "block_reason": {
+      "enum": [
+        "signature_broken",
+        "digest_lineage_broken",
+        "provenance_state_unknown",
+        "signature_unverified",
+        "attestation_unverified",
+        "inventory_incomplete"
+      ]
+    },
+    "inventory_scope": {
+      "enum": [
+        "full_closure",
+        "direct_dependencies_only",
+        "runtime_closure_only",
+        "partial_scope",
+        "not_provided_scope"
+      ]
+    },
+    "status_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "status_token",
+        "format",
+        "generator_version_repr",
+        "scope",
+        "freshness",
+        "export_availability",
+        "presence_does_not_imply_security"
+      ],
+      "properties": {
+        "kind": { "enum": ["attestation", "sbom", "notice"] },
+        "status_token": { "type": "string" },
+        "format": {
+          "enum": [
+            "spdx_sbom",
+            "cyclone_dx_sbom",
+            "in_toto_attestation",
+            "slsa_provenance",
+            "notice_manifest",
+            "not_provided_format"
+          ]
+        },
+        "generator_version_repr": { "type": "string" },
+        "scope": { "$ref": "#/$defs/inventory_scope" },
+        "freshness": {
+          "enum": [
+            "inventory_fresh",
+            "inventory_aging",
+            "inventory_stale",
+            "inventory_regenerating",
+            "inventory_not_provided"
+          ]
+        },
+        "export_availability": {
+          "enum": [
+            "export_available_offline",
+            "export_available_online_only",
+            "export_on_request",
+            "export_unavailable"
+          ]
+        },
+        "presence_does_not_imply_security": { "const": true }
+      }
+    },
+    "compare_export_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compare_available",
+        "export_available",
+        "digest_bound",
+        "mirror_provenance_preserved",
+        "binding_intact"
+      ],
+      "properties": {
+        "compare_available": { "type": "boolean" },
+        "export_available": { "type": "boolean" },
+        "digest_bound": { "type": "boolean" },
+        "mirror_provenance_preserved": { "type": "boolean" },
+        "binding_intact": { "type": "boolean" }
+      }
+    },
+    "resolved": {
+      "type": "object",
+      "required": [
+        "artifact_identity_repr",
+        "digest_set",
+        "signature_status",
+        "attestation_status",
+        "sbom_status",
+        "digest_lineage_state",
+        "status_rows",
+        "mirror_refs",
+        "compare_export_binding",
+        "trust_posture",
+        "is_proven",
+        "is_blocked",
+        "is_narrowed"
+      ],
+      "properties": {
+        "artifact_identity_repr": { "$ref": "#/$defs/non_empty_string" },
+        "digest_set": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/non_empty_string" } },
+        "status_rows": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/status_row" } },
+        "mirror_refs": { "type": "array", "items": { "type": "string" } },
+        "compare_export_binding": { "$ref": "#/$defs/compare_export_binding" },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "is_proven": { "type": "boolean" },
+        "is_blocked": { "type": "boolean" },
+        "is_narrowed": { "type": "boolean" },
+        "provenance_banner": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["reason", "next_action", "artifact_identity_repr", "bound_digest_repr", "trust_posture", "headline"],
+              "properties": {
+                "reason": { "$ref": "#/$defs/block_reason" },
+                "headline": { "$ref": "#/$defs/non_empty_string" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "example_resolution": {
+      "type": "object",
+      "required": ["input", "resolved"],
+      "properties": {
+        "input": { "type": "object" },
+        "resolved": { "$ref": "#/$defs/resolved" }
+      }
+    },
+    "provenance_row": {
+      "type": "object",
+      "required": [
+        "consumer_surface",
+        "qualification",
+        "owner_role",
+        "scope_summary",
+        "anatomy_parts",
+        "signature_statuses",
+        "trust_postures",
+        "inventory_formats",
+        "inventory_scopes",
+        "block_reasons",
+        "next_actions",
+        "export_fields",
+        "accessibility_routes",
+        "example_resolutions"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "qualification": {
+          "enum": ["stable", "beta", "preview", "experimental", "unavailable", "held"]
+        },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "scope_summary": { "$ref": "#/$defs/non_empty_string" },
+        "trust_postures": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/trust_posture" } },
+        "inventory_scopes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/inventory_scope" } },
+        "block_reasons": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/block_reason" } },
+        "example_resolutions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/example_resolution" } }
+      }
+    }
+  }
+}
