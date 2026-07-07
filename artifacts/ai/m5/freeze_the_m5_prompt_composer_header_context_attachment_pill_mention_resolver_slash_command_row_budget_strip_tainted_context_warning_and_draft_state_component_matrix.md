@@ -1,0 +1,56 @@
+# M5 Prompt-Composer-Header, Context-Attachment-Pill, Mention-Resolver, Slash-Command-Row, Budget-Strip, Tainted-Context-Warning, Draft-State-Row, Attachment-Stale-Banner, and Send-Review-Control Component Matrix
+
+- Packet: `m5-prompt-composer-components:stable:0001`
+- Label: `M5 prompt-composer-header, context-attachment-pill, mention-resolver, slash-command-row, budget-strip, tainted-context-warning, draft-state-row, attachment-stale-banner, and send-review-control component matrix`
+- Component families: 9 (9 stable)
+- Composer modes: chat_ask, inline_edit, guided_patch, background_agent, review_first, headless_automation
+- Send postures: ready_to_send, split_send_review, review_before_send, policy_blocked, over_budget_blocked, taint_blocked
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Component families
+
+- **prompt_composer_header**: `stable`
+  - Owner: Prompt-composer header owner
+  - Scope: One prompt-composer-header model naming the intent mode — chat/ask, inline edit, guided patch, background agent, review-first, or headless — the scope the request reaches, and the route/provider/model it will run under, so a user never has to infer what will be sent, how wide it reaches, or whether the request stays local or crosses a managed boundary
+  - Required labels: identity, state, keyboard_route, composer_mode, route_provider_model
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **context_attachment_pill**: `stable`
+  - Owner: Context-attachment pill owner
+  - Scope: One context-attachment-pill model naming which object is attached — a file, symbol, selection range, evidence packet, external paste, or URL reference — and its trust state, so a stale, unverified, tainted, redacted, or out-of-scope attachment is never shown as trusted and fresh
+  - Required labels: identity, state, keyboard_route, trust_or_taint
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **mention_resolver**: `stable`
+  - Owner: Mention-resolver owner
+  - Scope: One mention-resolver model naming whether an @-mention resolved to a unique or pinned object, is ambiguous across candidates, is unresolved / missing, was denied as out-of-scope, or is deferred pending resolution, so an unresolved or ambiguous mention is never sent as if it bound cleanly
+  - Required labels: identity, state, keyboard_route, trust_or_taint
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **slash_command_row**: `stable`
+  - Owner: Slash-command row owner
+  - Scope: One slash-command-row model naming whether a command is available, disabled by an unmet precondition, requires approval, is deprecated / aliased, is hidden by policy, or is unknown, so a disabled, approval-gated, or policy-hidden command is never shown as a plain ready action
+  - Required labels: identity, state, keyboard_route
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **budget_size_strip**: `stable`
+  - Owner: Budget-strip owner
+  - Scope: One budget-or-size-strip model naming whether the request is within budget, near the limit, over budget, pending truncation, hard-blocked, or unmetered-local, and why any context was omitted or truncated, so an over-budget request or silently dropped context is never presented as a clean within-budget send
+  - Required labels: identity, state, keyboard_route, route_provider_model
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **tainted_context_warning**: `stable`
+  - Owner: Tainted-context warning owner
+  - Scope: One tainted-context-warning model naming where untrusted context came from — pasted external text, tool output, fetched URL content, an untrusted file, a third-party connector, or prior model output — and how severe the taint is, so injection-suspected or quarantine-required context is never shown as trusted before send
+  - Required labels: identity, state, keyboard_route, trust_or_taint
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **draft_state_row**: `stable`
+  - Owner: Draft-state row owner
+  - Scope: One draft-state-row model naming whether a composer draft is local-only, workspace-synced, account-synced, shared to a thread, ephemeral / unsaved, or retained pending purge, so a local-only draft is never shown as synced and a retained draft is never shown as purged before send
+  - Required labels: identity, state, keyboard_route
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **attachment_stale_banner**: `stable`
+  - Owner: Attachment-stale banner owner
+  - Scope: One attachment-stale-banner model naming why an attachment is stale — the source was edited, moved, or deleted, a newer revision superseded it, permission was revoked, or the index was rebuilt — so a moved, deleted, or permission-revoked attachment is never left silently attached before send
+  - Required labels: identity, state, keyboard_route, trust_or_taint
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **send_review_control**: `stable`
+  - Owner: Send-review control owner
+  - Scope: One split-send / review-before-send control model naming whether a request is ready to send, needs a split-send review, needs review before send, or is blocked by policy, budget, or taint, and which acknowledgement it demands first, so a request that needs review or is blocked never sends as a plain ready action
+  - Required labels: identity, state, keyboard_route, composer_mode, route_provider_model
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
