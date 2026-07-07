@@ -1,0 +1,58 @@
+# M5 Escalation-Packet-Summary / Handoff-Timeline-Row Primitive
+
+- Packet: `m5-support-escalation-packet-summary-handoff-timeline-row-primitive:stable:0001`
+- Label: `M5 escalation-packet-summary / handoff-timeline-row primitive: packet id, scenario code, related finding / crash lineage, repair attempts, redaction posture, build / profile identity, destination class, and confirm / cancel actions for the escalation summary; event identity, owner, related evidence, current owner, and next expected step for the handoff-timeline row`
+- Escalation / handoff consumers: 5 (5 stable)
+- Summary postures: escalation_blocked, lineage_incomplete, redaction_review_required, local_only_ready, ready_to_escalate
+- Row postures: awaiting_human, ownership_transferred, repair_underway, case_assembling, local_diagnosis
+- Destinations: local_only_bundle, self_serve_export, vendor_support_case, enterprise_admin, community_forum, blocked_destination
+- Next human steps: run_doctor, apply_approved_repair, gather_more_evidence, export_bundle, contact_vendor, wait_for_response
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Escalation / handoff consumers
+
+- **Support Center Escalation Desk**: `stable`
+  - Owner: Support center escalation desk owner
+  - Scope: The support-center escalation desk renders the shared escalation-packet summary so a crash-recovery packet with a startup-health and index-integrity finding lineage, a cache-rebuild attempt, and credentials scrubbed is ready to escalate to a vendor case, while a performance-health packet bound for the enterprise admin queue under a full-metadata posture forces a redaction review before anything leaves the device; its handoff-timeline rows keep a locally owned diagnosis-started event and a suggested-repair event legible with their owner, evidence, and next step
+  - Worked escalation summaries: 2
+    - `packet:support-center:crash-recovery` (`crash_recovery`) → `ready_to_escalate` (leaves `true`, review `false`, lineage `true`)
+    - `packet:support-center:performance-health` (`performance_health`) → `redaction_review_required` (leaves `false`, review `true`, lineage `true`)
+  - Worked handoff rows: 2
+    - `event:support-center:diagnosis-open` (`diagnosis_started`) → `local_diagnosis` (transferred `false`, next `run_doctor`)
+    - `event:support-center:repair-suggested` (`repair_suggested`) → `repair_underway` (transferred `false`, next `apply_approved_repair`)
+- **Recovery Center Handoff**: `stable`
+  - Owner: Recovery center handoff owner
+  - Scope: The recovery-center handoff renders the shared escalation-packet summary so an extension-conflict packet kept as a local-only bundle stays on the device with its extension-fault finding lineage and settings-repair attempt legible, while a data-integrity packet with an index-integrity finding lineage and a state-migration attempt is ready for a self-serve export; its handoff-timeline rows keep a repair-attempted event and a case-built event legible with their owner, evidence, and next step so a reviewer can reconstruct what was tried
+  - Worked escalation summaries: 2
+    - `packet:recovery-center:extension-conflict` (`extension_conflict`) → `local_only_ready` (leaves `false`, review `false`, lineage `true`)
+    - `packet:recovery-center:data-integrity` (`data_integrity`) → `ready_to_escalate` (leaves `true`, review `false`, lineage `true`)
+  - Worked handoff rows: 2
+    - `event:recovery-center:repair-attempted` (`repair_attempted`) → `repair_underway` (transferred `false`, next `gather_more_evidence`)
+    - `event:recovery-center:case-built` (`case_built`) → `case_assembling` (transferred `false`, next `export_bundle`)
+- **Doctor Handoff Timeline**: `stable`
+  - Owner: Doctor handoff timeline owner
+  - Scope: The Project Doctor handoff timeline renders the shared escalation-packet summary so a connectivity-sync packet with a sync-connectivity finding lineage and no safe repair is ready to escalate to a community forum, while an uncategorized packet with only an uncategorized finding is held lineage-incomplete until its scenario is committed; its handoff-timeline rows keep a handed-off event whose ownership moved to a vendor owner and an awaiting-human event legible with their current owner and next expected step so a human handoff consumer never restarts the case
+  - Worked escalation summaries: 2
+    - `packet:doctor-handoff:connectivity-sync` (`connectivity_sync`) → `ready_to_escalate` (leaves `true`, review `false`, lineage `true`)
+    - `packet:doctor-handoff:uncategorized` (`uncategorized_scenario`) → `lineage_incomplete` (leaves `false`, review `false`, lineage `false`)
+  - Worked handoff rows: 2
+    - `event:doctor-handoff:handed-off` (`handed_off`) → `ownership_transferred` (transferred `true`, next `contact_vendor`)
+    - `event:doctor-handoff:awaiting-human` (`awaiting_human`) → `awaiting_human` (transferred `false`, next `wait_for_response`)
+- **Headless / CLI Escalation**: `stable`
+  - Owner: Headless CLI escalation owner
+  - Scope: The headless / CLI escalation surface renders the shared escalation-packet summary so a crash-recovery packet whose export is blocked still names its escalation-blocked posture and keeps its startup-health lineage and targeted-reset attempt legible without a desktop UI, while a performance-health packet bound for a blocked destination stays escalation-blocked; its handoff-timeline rows keep a headless diagnosis-started event and a CLI handoff whose ownership moved to an admin queue owner legible with their next expected step
+  - Worked escalation summaries: 2
+    - `packet:headless-cli:crash-recovery` (`crash_recovery`) → `escalation_blocked` (leaves `false`, review `false`, lineage `true`)
+    - `packet:headless-cli:performance-health` (`performance_health`) → `escalation_blocked` (leaves `false`, review `false`, lineage `true`)
+  - Worked handoff rows: 2
+    - `event:headless-cli:diagnosis-open` (`diagnosis_started`) → `local_diagnosis` (transferred `false`, next `run_doctor`)
+    - `event:headless-cli:handed-off` (`handed_off`) → `ownership_transferred` (transferred `true`, next `contact_vendor`)
+- **Support Packet Export**: `stable`
+  - Owner: Support packet export owner
+  - Scope: The support-packet export surface renders the shared escalation-packet summary so a data-integrity packet whose share was not requested is held local-only-ready even though the enterprise admin destination leaves the device — with its index-integrity and sync-connectivity lineage and its state-migration and settings-repair attempts legible — while an extension-conflict packet bound for a vendor case under a full-metadata posture forces a redaction review; its handoff-timeline rows keep an export case-built event and an ownership transfer to the escalation desk legible so a support reviewer reconstructs the same lineage another surface reads
+  - Worked escalation summaries: 2
+    - `packet:support-export:data-integrity` (`data_integrity`) → `local_only_ready` (leaves `false`, review `false`, lineage `true`)
+    - `packet:support-export:extension-conflict` (`extension_conflict`) → `redaction_review_required` (leaves `false`, review `true`, lineage `true`)
+  - Worked handoff rows: 2
+    - `event:support-export:case-built` (`case_built`) → `case_assembling` (transferred `false`, next `export_bundle`)
+    - `event:support-export:ownership-moved` (`repair_attempted`) → `ownership_transferred` (transferred `true`, next `gather_more_evidence`)
