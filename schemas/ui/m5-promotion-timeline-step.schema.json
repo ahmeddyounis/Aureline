@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-promotion-timeline-step.schema.json",
+  "title": "Aureline M5 promotion-timeline-step and rollback/revocation-row primitive",
+  "description": "Export-safe packet for the reusable M5 promotion-timeline-step / rollback-or-revocation-row primitive. It narrows the promotion_timeline_step and rollback_revocation_row families frozen in schemas/ui/m5-release-center-components.schema.json into one resolver plus a parity matrix, so a user or a support team can reconstruct — from the timeline itself — exactly what changed and why: which stage moved to which stage, under which digest and evidence joins, approved by whom, inside which reversible window, and — for a rollback or a revocation — which nodes it affected, how far the blast radius reached, which last-known-good it restored, and whether trust material was revoked. Each history row binds one claimed release-history consumer (the release-center timeline, the update-center history, the CLI history inspect, the admin history report, and the support history export) to the shared step/row anatomy, the promotion-stage / rollout-ring / blast-radius / revocation-scope vocabulary, the reversible windows, node targetings, break-glass postures, history postures, block reasons, next actions, export fields, and non-visual accessibility routes, plus worked resolution cases that must reproduce the resolver output exactly. Break-glass attribution and partial-scope node targeting stay explicit; an emergency operation stays visible in the same history model rather than disappearing into CI-only metadata; and a rollback or revocation never reads like a generic status change when its blast radius or its unaffected nodes matter. Raw URLs, raw signing keys, raw tokens, credentials, and user text bodies never cross this boundary. The Rust validator in crates/aureline-release is the authoritative gate; this schema documents the shape. See schemas/ui/m5-rollback-revocation-row.schema.json for the rollback/revocation event shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "matrix_label",
+    "history_rows",
+    "vocabulary_set",
+    "governance_review",
+    "consumer_projection",
+    "proof_freshness",
+    "release_posture",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "implement_m5_promotion_timeline_steps_and_rollback_or_revocation_rows_across_claimed_m5_release_histories"
+    },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "matrix_label": { "$ref": "#/$defs/non_empty_string" },
+    "history_rows": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/history_row" }
+    },
+    "vocabulary_set": { "type": "object" },
+    "governance_review": {
+      "type": "object",
+      "description": "Every flag is a hard invariant and must be true."
+    },
+    "consumer_projection": {
+      "type": "object",
+      "description": "Every flag is a hard invariant and must be true."
+    },
+    "proof_freshness": {
+      "type": "object",
+      "required": ["proof_freshness_slo_hours", "last_proof_refresh", "auto_narrow_on_stale"],
+      "properties": {
+        "proof_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_proof_refresh": { "$ref": "#/$defs/non_empty_string" },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    },
+    "release_posture": { "type": "object" },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "consumer_surface": {
+      "enum": [
+        "release_center_timeline",
+        "update_center_history",
+        "cli_history_inspect",
+        "admin_history_report",
+        "support_history_export"
+      ]
+    },
+    "event_kind": {
+      "enum": ["promotion_step", "rollback_revocation_row"]
+    },
+    "history_posture": {
+      "enum": [
+        "promotion_recorded_reversible",
+        "promotion_recorded_irreversible",
+        "promotion_in_progress",
+        "promotion_blocked",
+        "rollback_recorded_bounded",
+        "revocation_recorded",
+        "emergency_break_glass_recorded",
+        "history_blocked_unattributed",
+        "history_blocked_missing_last_known_good",
+        "history_blocked_missing_digest_join"
+      ]
+    },
+    "block_reason": {
+      "enum": [
+        "stage_promotion_blocked",
+        "emergency_action_unattributed",
+        "missing_last_known_good_target",
+        "missing_immutable_digest_join"
+      ]
+    },
+    "reversible_window": {
+      "enum": [
+        "reversible_within_window",
+        "reversible_window_closing",
+        "reversible_window_expired",
+        "irreversible_by_design",
+        "not_applicable_window"
+      ]
+    },
+    "break_glass_posture": {
+      "enum": [
+        "standard_change_control",
+        "break_glass_attributed",
+        "break_glass_pending_review",
+        "break_glass_unattributed"
+      ]
+    },
+    "node_targeting": {
+      "enum": [
+        "all_nodes",
+        "partial_node_set_explicit",
+        "single_node_targeted",
+        "not_applicable_targeting"
+      ]
+    },
+    "promotion_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_stage_repr",
+        "destination_stage_repr",
+        "stage_state",
+        "reversible_window",
+        "reversible"
+      ],
+      "properties": {
+        "source_stage_repr": { "type": "string" },
+        "destination_stage_repr": { "type": "string" },
+        "stage_state": {
+          "enum": [
+            "stage_pending",
+            "stage_in_progress",
+            "stage_promoted",
+            "stage_blocked",
+            "stage_rolled_back"
+          ]
+        },
+        "reversible_window": { "$ref": "#/$defs/reversible_window" },
+        "reversible": { "type": "boolean" }
+      }
+    },
+    "rollback_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected_node_set",
+        "affected_node_count",
+        "blast_radius",
+        "node_targeting",
+        "last_known_good_target_repr",
+        "continuity_note_repr",
+        "revocation_scope",
+        "revokes_trust_material"
+      ],
+      "properties": {
+        "affected_node_set": { "type": "array", "items": { "type": "string" } },
+        "affected_node_count": { "type": "integer", "minimum": 0 },
+        "blast_radius": {
+          "enum": ["single_artifact", "family_scoped", "train_scoped", "cross_train_scoped", "fleet_wide"]
+        },
+        "node_targeting": { "$ref": "#/$defs/node_targeting" },
+        "last_known_good_target_repr": { "type": "string" },
+        "continuity_note_repr": { "type": "string" },
+        "revocation_scope": {
+          "enum": ["no_revocation", "tag_repoint_only", "artifact_revoked", "signing_key_revoked", "trust_root_rotated"]
+        },
+        "revokes_trust_material": { "type": "boolean" }
+      }
+    },
+    "resolved": {
+      "type": "object",
+      "required": [
+        "event_identity_repr",
+        "event_kind",
+        "digest_refs",
+        "approving_actors",
+        "effective_time_repr",
+        "rollout_ring",
+        "node_targeting",
+        "break_glass_posture",
+        "emergency_visible_in_history",
+        "reconstruction",
+        "history_posture",
+        "is_recorded",
+        "is_blocked",
+        "is_emergency"
+      ],
+      "properties": {
+        "event_identity_repr": { "$ref": "#/$defs/non_empty_string" },
+        "event_kind": { "$ref": "#/$defs/event_kind" },
+        "digest_refs": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "approving_actors": { "type": "array", "items": { "type": "string" } },
+        "effective_time_repr": { "$ref": "#/$defs/non_empty_string" },
+        "node_targeting": { "$ref": "#/$defs/node_targeting" },
+        "break_glass_posture": { "$ref": "#/$defs/break_glass_posture" },
+        "emergency_visible_in_history": { "type": "boolean" },
+        "promotion_view": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/promotion_view" }] },
+        "rollback_view": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/rollback_view" }] },
+        "reconstruction": {
+          "type": "object",
+          "required": ["has_actors", "has_digest_refs", "has_evidence_refs", "has_effective_time", "is_reconstructable"]
+        },
+        "history_posture": { "$ref": "#/$defs/history_posture" },
+        "is_recorded": { "type": "boolean" },
+        "is_blocked": { "type": "boolean" },
+        "is_emergency": { "type": "boolean" },
+        "history_banner": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["reason", "next_action", "event_identity_repr", "bound_digest_repr", "history_posture", "headline"],
+              "properties": {
+                "reason": { "$ref": "#/$defs/block_reason" },
+                "headline": { "$ref": "#/$defs/non_empty_string" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "example_resolution": {
+      "type": "object",
+      "required": ["input", "resolved"],
+      "properties": {
+        "input": { "type": "object" },
+        "resolved": { "$ref": "#/$defs/resolved" }
+      }
+    },
+    "history_row": {
+      "type": "object",
+      "required": [
+        "consumer_surface",
+        "qualification",
+        "owner_role",
+        "scope_summary",
+        "anatomy_parts",
+        "event_kinds",
+        "history_postures",
+        "blast_radii",
+        "revocation_scopes",
+        "break_glass_postures",
+        "block_reasons",
+        "next_actions",
+        "export_fields",
+        "accessibility_routes",
+        "example_resolutions",
+        "reads_rollback_as_generic_status",
+        "drops_break_glass_attribution",
+        "hides_blast_radius_or_unaffected_nodes",
+        "lets_emergency_disappear_into_ci_only_metadata"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "qualification": {
+          "enum": ["stable", "beta", "preview", "experimental", "unavailable", "held"]
+        },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "scope_summary": { "$ref": "#/$defs/non_empty_string" },
+        "event_kinds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/event_kind" } },
+        "history_postures": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/history_posture" } },
+        "block_reasons": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/block_reason" } },
+        "example_resolutions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/example_resolution" } },
+        "reads_rollback_as_generic_status": { "const": false },
+        "drops_break_glass_attribution": { "const": false },
+        "hides_blast_radius_or_unaffected_nodes": { "const": false },
+        "lets_emergency_disappear_into_ci_only_metadata": { "const": false }
+      }
+    }
+  }
+}
