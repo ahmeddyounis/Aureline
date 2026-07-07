@@ -1,0 +1,74 @@
+# M5 Prompt-Composer-Component Consumer Parity
+
+- Packet: `m5-prompt-composer-component-consumer:stable:0001`
+- Label: `M5 prompt-composer-component consumers: inline / panel composer, patch review, branch-agent console, docs/help, and companion composer keep locality, route, approval, and taint parity`
+- Composer-component consumers: 5 (5 stable)
+- Component families: prompt_composer_header, context_attachment_pill, mention_resolver, slash_command_row, budget_size_strip, tainted_context_warning, draft_state_row, attachment_stale_banner, send_review_control
+- Descriptors: locality, route, approval, taint
+- Parity-health modes: full_parity, review_only_narrowed, handoff_only_narrowed, offline_mirror_narrowed, companion_scope_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Composer-component consumers
+
+- **Inline / Panel Composer**: `stable`
+  - Owner: Inline / panel composer surface owner
+  - Scope: The inline / panel composer adopts the prompt-composer header, context-attachment pill, mention resolver, and split-send review control at full parity, pointing at the canonical component schemas so locality, route/provider/model, approval, and taint language matches what patch review, the branch-agent console, docs/help, and the companion composer read
+  - Adopted families: 4
+    - `prompt_composer_header` → `schemas/ai/m5-prompt-composer-header-and-context-attachment-pill.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `context_attachment_pill` → `schemas/ai/m5-prompt-composer-header-and-context-attachment-pill.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `mention_resolver` → `schemas/ai/m5-mention-resolver-and-slash-command-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `send_review_control` → `schemas/ai/m5-draft-state-row-attachment-stale-banner-and-send-review-control.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Patch Review**: `stable`
+  - Owner: Patch-review surface owner
+  - Scope: Patch review adopts the prompt-composer header, context-attachment pill, and budget / size strip at full parity, and the split-send review control auto-narrowed because the workflow is review-only, keeping locality, route, approval, and taint explicit so a review-only surface never inherits the live composer's send label
+  - Adopted families: 4
+    - `prompt_composer_header` → `schemas/ai/m5-prompt-composer-header-and-context-attachment-pill.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `context_attachment_pill` → `schemas/ai/m5-prompt-composer-header-and-context-attachment-pill.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `budget_size_strip` → `schemas/ai/m5-budget-size-strip-and-tainted-context-warning.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `send_review_control` → `schemas/ai/m5-draft-state-row-attachment-stale-banner-and-send-review-control.schema.json` (1 worked binding(s))
+      - `review_only_narrowed` → `claims_auto_narrowed` (banner `review_only_workflow`)
+- **Branch-Agent Console**: `stable`
+  - Owner: Branch-agent console surface owner
+  - Scope: The branch-agent console adopts the prompt-composer header, slash-command row, and split-send review control at full parity, and the draft-state row auto-narrowed under a handoff-only workflow, keeping the originating-composer path and draft locality explicit so a handed-off draft never appears live-editable by implication
+  - Adopted families: 4
+    - `prompt_composer_header` → `schemas/ai/m5-prompt-composer-header-and-context-attachment-pill.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `slash_command_row` → `schemas/ai/m5-mention-resolver-and-slash-command-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `draft_state_row` → `schemas/ai/m5-draft-state-row-attachment-stale-banner-and-send-review-control.schema.json` (1 worked binding(s))
+      - `handoff_only_narrowed` → `claims_auto_narrowed` (banner `handoff_only_workflow`)
+    - `send_review_control` → `schemas/ai/m5-draft-state-row-attachment-stale-banner-and-send-review-control.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Docs / Help**: `stable`
+  - Owner: Docs/help surface owner
+  - Scope: The docs/help surface adopts the mention resolver, slash-command row, tainted-context warning, and attachment-stale banner at full parity, referencing the canonical component schemas so its prose can never drift from the product truth and taint, locality, route, and approval language stays exact
+  - Adopted families: 4
+    - `mention_resolver` → `schemas/ai/m5-mention-resolver-and-slash-command-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `slash_command_row` → `schemas/ai/m5-mention-resolver-and-slash-command-row.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `tainted_context_warning` → `schemas/ai/m5-budget-size-strip-and-tainted-context-warning.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `attachment_stale_banner` → `schemas/ai/m5-draft-state-row-attachment-stale-banner-and-send-review-control.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Companion Composer**: `stable`
+  - Owner: Companion composer surface owner
+  - Scope: The companion composer adopts the context-attachment pill, tainted-context warning, and draft-state row at full parity, the budget / size strip auto-narrowed under an offline / mirrored scope, and the attachment-stale banner auto-narrowed under a companion-scope limit, keeping locality, route, approval, and taint disclosed so a reduced companion surface narrows visibly instead of borrowing the full composer's labels
+  - Adopted families: 5
+    - `context_attachment_pill` → `schemas/ai/m5-prompt-composer-header-and-context-attachment-pill.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `budget_size_strip` → `schemas/ai/m5-budget-size-strip-and-tainted-context-warning.schema.json` (1 worked binding(s))
+      - `offline_mirror_narrowed` → `claims_auto_narrowed` (banner `offline_or_mirror_scope`)
+    - `tainted_context_warning` → `schemas/ai/m5-budget-size-strip-and-tainted-context-warning.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `draft_state_row` → `schemas/ai/m5-draft-state-row-attachment-stale-banner-and-send-review-control.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `attachment_stale_banner` → `schemas/ai/m5-draft-state-row-attachment-stale-banner-and-send-review-control.schema.json` (1 worked binding(s))
+      - `companion_scope_narrowed` → `claims_auto_narrowed` (banner `companion_scope_limited`)
