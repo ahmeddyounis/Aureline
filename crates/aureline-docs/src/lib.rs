@@ -9,6 +9,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-docs/0.0.0")]
 
+pub mod add_browser_handoff_banners_and_shared_docs_browser_onboarding_glossary_ai_and_support_consumers;
 pub mod add_browser_lite_light_remote_edit_surfaces_with_narrow_scope_stale_state_honesty_and_no_hidden_authority_expa;
 pub mod add_docs_source_precedence_and_ranking_parity_across_search_hover_onboarding_and_ai_context;
 pub mod add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_cited_evidence_and_confidence_labels;
