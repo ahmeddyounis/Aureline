@@ -1,0 +1,88 @@
+# M5 Local-History / Write-Scope Component Consumer Parity
+
+- Packet: `m5-local-history-write-scope-component-consumer:stable:0001`
+- Label: `M5 local-history / write-scope component consumers: editor rename / refactor, replace-in-files, import / migration, repair, generated-artifact, AI review, and the support / export desk keep checkpoint, rollback, restore, and export parity`
+- Mutation / recovery consumers: 7 (7 stable)
+- Component families: local_history_row, checkpoint_group_card, restore_preview_card, retention_export_card, write_scope_preview_tree, restore_granularity_selector, history_export_manifest
+- Descriptors: checkpoint, rollback, restore, export
+- Parity-health modes: full_parity, preview_only_narrowed, external_drift_narrowed, generated_managed_narrowed, export_redacted_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Mutation / recovery consumers
+
+- **Editor Rename / Refactor**: `stable`
+  - Owner: Editor rename / refactor surface owner
+  - Scope: The editor rename / refactor transaction adopts the write-scope preview tree, local-history row, checkpoint-group card, and restore-preview card at full parity, pointing at the canonical component schemas so checkpoint, rollback, restore, and export language matches what replace-in-files, import / migration, repair, generated-artifact, AI-review, and the support / export desk read
+  - Adopted families: 4
+    - `write_scope_preview_tree` → `schemas/ui/m5-write-scope-preview-tree.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `local_history_row` → `schemas/ui/m5-local-history-row-and-checkpoint-group-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `checkpoint_group_card` → `schemas/ui/m5-local-history-row-and-checkpoint-group-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `restore_preview_card` → `schemas/ui/m5-restore-preview-card-and-restore-granularity-selector.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Replace In Files**: `stable`
+  - Owner: Replace-in-files surface owner
+  - Scope: Replace-in-files adopts the write-scope preview tree and checkpoint-group card at full parity, and the restore-granularity selector auto-narrowed because external drift on disk is unreconciled, keeping checkpoint, rollback, restore, and export explicit so a drifted apply scope never inherits the editor's clean-scope label
+  - Adopted families: 3
+    - `write_scope_preview_tree` → `schemas/ui/m5-write-scope-preview-tree.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `checkpoint_group_card` → `schemas/ui/m5-local-history-row-and-checkpoint-group-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `restore_granularity_selector` → `schemas/ui/m5-restore-preview-card-and-restore-granularity-selector.schema.json` (1 worked binding(s))
+      - `external_drift_narrowed` → `claims_auto_narrowed` (banner `external_drift_unreconciled`)
+- **Import / Migration Session**: `stable`
+  - Owner: Import / migration-session surface owner
+  - Scope: The import / migration session adopts the local-history row and write-scope preview tree at full parity, and the restore-granularity selector auto-narrowed under unreconciled external drift, keeping checkpoint, rollback, restore, and export disclosed so an imported migration scope narrows visibly instead of borrowing a clean recovery lane's labels
+  - Adopted families: 3
+    - `local_history_row` → `schemas/ui/m5-local-history-row-and-checkpoint-group-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `write_scope_preview_tree` → `schemas/ui/m5-write-scope-preview-tree.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `restore_granularity_selector` → `schemas/ui/m5-restore-preview-card-and-restore-granularity-selector.schema.json` (1 worked binding(s))
+      - `external_drift_narrowed` → `claims_auto_narrowed` (banner `external_drift_unreconciled`)
+- **Repair Transaction**: `stable`
+  - Owner: Repair-transaction surface owner
+  - Scope: The repair transaction adopts the checkpoint-group card and restore-granularity selector at full parity, and the restore-preview card auto-narrowed because the repair review is preview-only, keeping checkpoint, rollback, restore, and export explicit so a preview-only repair never inherits a committed-restore label
+  - Adopted families: 3
+    - `checkpoint_group_card` → `schemas/ui/m5-local-history-row-and-checkpoint-group-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `restore_granularity_selector` → `schemas/ui/m5-restore-preview-card-and-restore-granularity-selector.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `restore_preview_card` → `schemas/ui/m5-restore-preview-card-and-restore-granularity-selector.schema.json` (1 worked binding(s))
+      - `preview_only_narrowed` → `claims_auto_narrowed` (banner `preview_only_workflow`)
+- **Generated-Artifact Provenance**: `stable`
+  - Owner: Generated-artifact provenance surface owner
+  - Scope: The generated-artifact provenance surface adopts the local-history row and retention / export card at full parity, and the write-scope preview tree auto-narrowed because the scope is generated / managed, keeping checkpoint, rollback, restore, and export explicit so a generated file's restore is caveated rather than inheriting a source-file's authoritative-restore label
+  - Adopted families: 3
+    - `local_history_row` → `schemas/ui/m5-local-history-row-and-checkpoint-group-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `retention_export_card` → `schemas/ui/m5-retention-export-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `write_scope_preview_tree` → `schemas/ui/m5-write-scope-preview-tree.schema.json` (1 worked binding(s))
+      - `generated_managed_narrowed` → `claims_auto_narrowed` (banner `generated_or_managed_scope`)
+- **AI Apply / Review**: `stable`
+  - Owner: AI apply / review surface owner
+  - Scope: The AI apply / review surface adopts the checkpoint-group card and write-scope preview tree at full parity, the restore-preview card auto-narrowed to preview-only, and the history-export manifest auto-narrowed by an applied export redaction, keeping checkpoint, rollback, restore, and export disclosed so an AI-reviewed apply narrows visibly instead of inheriting a committed, full-evidence label
+  - Adopted families: 4
+    - `checkpoint_group_card` → `schemas/ui/m5-local-history-row-and-checkpoint-group-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `write_scope_preview_tree` → `schemas/ui/m5-write-scope-preview-tree.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `restore_preview_card` → `schemas/ui/m5-restore-preview-card-and-restore-granularity-selector.schema.json` (1 worked binding(s))
+      - `preview_only_narrowed` → `claims_auto_narrowed` (banner `preview_only_workflow`)
+    - `history_export_manifest` → `schemas/ui/m5-history-export-manifest.schema.json` (1 worked binding(s))
+      - `export_redacted_narrowed` → `claims_auto_narrowed` (banner `export_redaction_applied`)
+- **Support / Export Desk**: `stable`
+  - Owner: Support / export desk surface owner
+  - Scope: The support / export desk adopts the retention / export card, history-export manifest, local-history row, and restore-preview card, referencing the canonical component schemas so its prose can never drift from the product truth, and the history-export manifest auto-narrowed by an applied export redaction, keeping checkpoint, rollback, restore, and export language exact
+  - Adopted families: 4
+    - `retention_export_card` → `schemas/ui/m5-retention-export-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `history_export_manifest` → `schemas/ui/m5-history-export-manifest.schema.json` (1 worked binding(s))
+      - `export_redacted_narrowed` → `claims_auto_narrowed` (banner `export_redaction_applied`)
+    - `local_history_row` → `schemas/ui/m5-local-history-row-and-checkpoint-group-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `restore_preview_card` → `schemas/ui/m5-restore-preview-card-and-restore-granularity-selector.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
