@@ -1,0 +1,51 @@
+# M5 AI Action-State-Banner, Connector-Detail-Row, Local-Model-Pack-Card, Approval-Sheet, Tool-Call-Timeline-Row, Run-History-Row, Replay-Review, and Agent-Status Component Matrix
+
+- Packet: `m5-ai-execution-replay-components:stable:0001`
+- Label: `M5 AI action-state-banner, connector-detail-row, local-model-pack-card, approval-sheet, tool-call-timeline-row, run-history-row, replay-review, and agent-status component matrix`
+- Component families: 8 (8 stable)
+- Execution modes: foreground_assistant, guided_patch, background_branch_agent, review_first_placement, headless_automation
+- Replay completeness: fully_replayable, partially_replayable, incomplete_replay, non_deterministic, missing_inputs, provider_drifted
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-06T00:00:00Z)
+
+## Component families
+
+- **ai_action_state_banner**: `stable`
+  - Owner: AI action-state component owner
+  - Scope: One AI-action-state-banner model naming the live action state — idle, composing, streaming, tool-running, awaiting-approval, paused, boundary-blocked, completed, or failed — and the execution mode behind it, so a user never has to infer whether an assistant, guided-patch, or background branch agent is active or blocked
+  - Required labels: identity, state, keyboard_route, execution_mode, route
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **connector_detail_row**: `stable`
+  - Owner: Connector component owner
+  - Scope: One connector-detail-row model naming the capability class an external connector or tool server exposes — read-only query, file mutation, network egress, shell execution, external service call, or credential-scoped access — and its auth posture, so a connector never hides what it can do or how it authenticates
+  - Required labels: identity, state, keyboard_route, route
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **local_model_pack_card**: `stable`
+  - Owner: Local-model component owner
+  - Scope: One local-model-pack-card model naming whether a pack is installed, mirrored, offline-only, quarantined, hardware-unfit, update-available, or provenance-unverified, so a quarantined or provenance-unverified model pack is never presented as freely ready to route
+  - Required labels: identity, state, keyboard_route, route
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **approval_sheet**: `stable`
+  - Owner: Approval component owner
+  - Scope: One approval-sheet model naming the approval gate in effect — auto-approved, notify-only, one-click, high-friction-typed, two-person-review, or policy-blocked — and why the friction applies, so a high-friction or blocked action is never presented as a quiet auto-approval
+  - Required labels: identity, state, keyboard_route, approval_gate
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **tool_call_timeline_row**: `stable`
+  - Owner: Tool-call component owner
+  - Scope: One tool-call-timeline-row model naming where a tool ran — in-process, local sandbox, local shell, remote connector, external service, or host-delegated — and its side-effect class, so a destructive or network tool call is never shown as a benign in-process read
+  - Required labels: identity, state, keyboard_route, approval_gate
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **run_history_row**: `stable`
+  - Owner: Run-history component owner
+  - Scope: One run-history-row model naming the outcome of a recorded AI run — succeeded, failed, cancelled, superseded, partially-applied, or awaiting-review — alongside the route and mode it ran in, so a partially-applied or superseded run is never listed as a clean success
+  - Required labels: identity, state, keyboard_route, execution_mode, route
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **replay_review**: `stable`
+  - Owner: Replay-review component owner
+  - Scope: One replay-review model naming how completely a run can be replayed — fully-replayable, partially-replayable, incomplete, non-deterministic, missing-inputs, or provider-drifted — and why a rerun requires re-review, so an incomplete or drifted replay is never shown as a faithful re-run
+  - Required labels: identity, state, keyboard_route, execution_mode, route
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **agent_status**: `stable`
+  - Owner: Agent-status component owner
+  - Scope: One agent-status model naming the lifecycle state of a branch / worktree agent — running, paused, blocked-on-approval, awaiting-takeover, handed-off, completed, or abandoned — and the manual-takeover path offered, so an interrupted agent always names how a user can safely take it over
+  - Required labels: identity, state, keyboard_route, execution_mode, approval_gate
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
