@@ -404,6 +404,7 @@ pub mod generated_lineage;
 pub mod graph_drift;
 pub mod harden_recovery_ladder_flows_for_cache_rebuild_settings_repair_state_migration_repair_and_targeted_resets;
 pub mod harden_the_safe_mode_runtime_profile_retained_capabilities;
+pub mod implement_support_scenario_picker_rows_and_seeded_symptom_scope_cues_with_start_diagnosis_parity_across_claimed_m5_support_intake_surfaces;
 pub mod incident_workspace;
 pub mod incident_workspace_beta;
 pub mod local_history_timeline;
