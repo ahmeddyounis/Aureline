@@ -1,0 +1,73 @@
+# M5 AI Run-History Row, Approval-Timeline Entry, and Evidence-Export Summary Primitive
+
+- Packet: `m5-ai-run-history-row-approval-timeline-entry-evidence-export-summary-primitive:stable:0001`
+- Label: `M5 AI run-history row, approval-timeline entry, and evidence-export summary primitive: canonical run id, task label, time, provider/model route, outcome, stable open/replay/export entry points, distinct actor/scope/policy-epoch/expiry approval grants, and packet-id/artifact-class/redaction/support-linkage/export-format summaries`
+- Replay surfaces: 5 (5 stable)
+- Entry points: open_run, replay_run, export_evidence, view_support_packet, inspect_approvals
+- Approval expiry states: active, expiring_soon, expired, revoked, single_use_consumed, no_expiry
+- Redaction postures: fully_redacted, credentials_redacted, pii_redacted, redaction_pending, unredacted, redaction_failed
+- Export formats: json_bundle, markdown_report, csv_table, signed_archive, redacted_pdf
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Replay surfaces
+
+- **Run-History**: `stable`
+  - Owner: Run-history surface owner
+  - Scope: The run-history surface renders the shared run-history row, approval-timeline entry, and evidence-export summary so one canonical run id, task label, time, provider/model route, and outcome stay visible with stable open/replay/export entry points, and the same run identity anchors its approval-timeline and evidence summaries
+  - Worked run-history rows: 2
+    - `run-2026-07-06-0007` → route `provider.managed-a / model.opus-4` outcome `succeeded` (entry points 5)
+    - `run-2026-07-06-0008` → route `provider.local-oss / model.local-mixtral` outcome `failed` (entry points 3)
+  - Worked approval-timeline entries: 2
+    - `appr-0007-a` by `workspace_owner` over `workspace` → expiry `active` (effective `true`)
+    - `appr-0007-b` by `delegated_reviewer` over `task` → expiry `expiring_soon` (effective `true`)
+  - Worked evidence-export summaries: 2
+    - `evp-0007-a` → redaction `credentials_redacted` linkage `linked_open_ticket` (shareable `true`)
+    - `evp-0007-b` → redaction `fully_redacted` linkage `linked_resolved_ticket` (shareable `true`)
+- **Evidence Packet**: `stable`
+  - Owner: Evidence-packet surface owner
+  - Scope: The evidence-packet surface renders the shared components so an evidence packet keeps the run identity, discloses its included artifact classes and redaction posture, preserves support-packet linkage, and shows expired or revoked approval grants as no longer effective rather than a vague approved badge
+  - Worked run-history rows: 2
+    - `run-2026-07-06-0009` → route `provider.managed-b / model.sonnet-4` outcome `superseded` (entry points 4)
+    - `run-2026-07-06-0010` → route `provider.self-hosted / model.internal-7b` outcome `awaiting_review` (entry points 4)
+  - Worked approval-timeline entries: 2
+    - `appr-0009-a` by `security_reviewer` over `tenant` → expiry `expired` (effective `false`)
+    - `appr-0009-b` by `policy_engine` over `global` → expiry `revoked` (effective `false`)
+  - Worked evidence-export summaries: 2
+    - `evp-0009-a` → redaction `pii_redacted` linkage `linked_internal_case` (shareable `true`)
+    - `evp-0009-b` → redaction `redaction_pending` linkage `linkage_pending_consent` (shareable `false`)
+- **Export**: `stable`
+  - Owner: Export surface owner
+  - Scope: The export surface renders the shared components so an export summary lists the packet id, every included artifact class, its redaction posture, support linkage, and supported export formats, keeps an unredacted or redaction-failed packet out of the shareable state, and never collapses to a raw-file download link
+  - Worked run-history rows: 2
+    - `run-2026-07-06-0011` → route `provider.managed-a / model.haiku-4` outcome `partially_applied` (entry points 5)
+    - `run-2026-07-06-0012` → route `provider.managed-a / model.opus-4` outcome `cancelled` (entry points 3)
+  - Worked approval-timeline entries: 2
+    - `appr-0011-a` by `automation_agent` over `single_action` → expiry `single_use_consumed` (effective `false`)
+    - `appr-0011-b` by `workspace_owner` over `session` → expiry `no_expiry` (effective `true`)
+  - Worked evidence-export summaries: 2
+    - `evp-0011-a` → redaction `unredacted` linkage `not_linked` (shareable `false`)
+    - `evp-0011-b` → redaction `redaction_failed` linkage `linked_open_ticket` (shareable `false`)
+- **Support Desk**: `stable`
+  - Owner: Support-desk surface owner
+  - Scope: The support-desk surface renders the shared components so a support reviewer reconstructs the run identity, its approvals, and its evidence summary — packet id, artifact classes, redaction posture, and support linkage — from the export alone, with redaction and support-continuity state preserved rather than a raw file download
+  - Worked run-history rows: 2
+    - `run-2026-07-06-0013` → route `provider.managed-b / model.sonnet-4` outcome `succeeded` (entry points 5)
+    - `run-2026-07-06-0014` → route `provider.local-oss / model.local-mixtral` outcome `failed` (entry points 4)
+  - Worked approval-timeline entries: 2
+    - `appr-0013-a` by `delegated_reviewer` over `workspace` → expiry `active` (effective `true`)
+    - `appr-0013-b` by `security_reviewer` over `tenant` → expiry `expiring_soon` (effective `true`)
+  - Worked evidence-export summaries: 2
+    - `evp-0013-a` → redaction `fully_redacted` linkage `linked_resolved_ticket` (shareable `true`)
+    - `evp-0013-b` → redaction `credentials_redacted` linkage `linked_internal_case` (shareable `true`)
+- **Replay / Rerun-Review**: `stable`
+  - Owner: Replay / rerun-review surface owner
+  - Scope: The replay/rerun-review surface renders the shared components so a rerun keeps the same run identity, replays through the stable entry points, and shows which approvals still apply — an expired or revoked grant is never presented as still effective when the run is re-reviewed
+  - Worked run-history rows: 2
+    - `run-2026-07-06-0015` → route `provider.self-hosted / model.internal-7b` outcome `superseded` (entry points 4)
+    - `run-2026-07-06-0016` → route `provider.managed-a / model.haiku-4` outcome `awaiting_review` (entry points 5)
+  - Worked approval-timeline entries: 2
+    - `appr-0015-a` by `policy_engine` over `global` → expiry `revoked` (effective `false`)
+    - `appr-0015-b` by `automation_agent` over `task` → expiry `expired` (effective `false`)
+  - Worked evidence-export summaries: 2
+    - `evp-0015-a` → redaction `pii_redacted` linkage `linked_open_ticket` (shareable `true`)
+    - `evp-0015-b` → redaction `fully_redacted` linkage `linkage_pending_consent` (shareable `true`)
