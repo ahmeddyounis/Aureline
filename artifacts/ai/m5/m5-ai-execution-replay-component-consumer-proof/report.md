@@ -1,0 +1,72 @@
+# M5 AI Execution/Replay-Component Consumer Parity
+
+- Packet: `m5-ai-execution-replay-component-consumer:stable:0001`
+- Label: `M5 AI execution/replay-component consumers: patch review, evidence inspector, branch/worktree queue, support export, and docs/help keep route, approval, checkpoint-lineage, and replay-completeness parity`
+- Execution/replay-component consumers: 5 (5 stable)
+- Component families: ai_action_state_banner, connector_detail_row, local_model_pack_card, approval_sheet, tool_call_timeline_row, run_history_row, replay_review, agent_status
+- Descriptors: route, approval_gate, checkpoint_lineage, replay_completeness
+- Replay-health modes: full_replay, route_provider_model_drift, missing_connector_output, redaction_fenced, stale_approval
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Execution/replay-component consumers
+
+- **Patch Review**: `stable`
+  - Owner: Patch-review surface owner
+  - Scope: Patch review adopts the action-state banner, approval sheet, and tool-call timeline row at full replay, and the replay / rerun-review sheet auto-narrowed under route/provider/model drift, pointing at the canonical component schemas so route, approval, checkpoint, and replay-completeness language matches what the evidence inspector, branch queue, support export, and docs/help read
+  - Adopted families: 4
+    - `ai_action_state_banner` → `schemas/ai/m5-ai-action-state-banner.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `approval_sheet` → `schemas/ai/m5-ai-high-friction-approval-sheet-and-tool-call-timeline-row.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `tool_call_timeline_row` → `schemas/ai/m5-ai-high-friction-approval-sheet-and-tool-call-timeline-row.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `replay_review` → `schemas/ai/m5-ai-rerun-review-sheet-incomplete-replay-banner-and-agent-status-card.schema.json` (1 worked binding(s))
+      - `route_provider_model_drift` → `claims_auto_narrowed` (banner `route_provider_model_drift`)
+- **Evidence Inspector**: `stable`
+  - Owner: Evidence-inspector surface owner
+  - Scope: The evidence inspector adopts the connector detail row auto-narrowed under a missing connector output, and the run-history row, replay / rerun-review sheet, and local-model pack card at full replay, referencing the canonical schemas so missing evidence narrows the claim instead of inheriting full replay language from healthier runs
+  - Adopted families: 4
+    - `connector_detail_row` → `schemas/ai/m5-ai-connector-detail-row-and-local-model-pack-card.schema.json` (1 worked binding(s))
+      - `missing_connector_output` → `claims_auto_narrowed` (banner `missing_connector_output`)
+    - `run_history_row` → `schemas/ai/m5-ai-run-history-row-approval-timeline-entry-and-evidence-export-summary.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `replay_review` → `schemas/ai/m5-ai-rerun-review-sheet-incomplete-replay-banner-and-agent-status-card.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `local_model_pack_card` → `schemas/ai/m5-ai-connector-detail-row-and-local-model-pack-card.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+- **Branch / Worktree Queue**: `stable`
+  - Owner: Branch/worktree-queue surface owner
+  - Scope: The branch/worktree agent queue adopts the agent-status card, action-state banner, and run-history row at full replay, and the approval sheet auto-narrowed under a stale approval, keeping the manual-takeover path and drift reason explicit so an interrupted background agent never appears reusable by implication
+  - Adopted families: 4
+    - `agent_status` → `schemas/ai/m5-ai-rerun-review-sheet-incomplete-replay-banner-and-agent-status-card.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `ai_action_state_banner` → `schemas/ai/m5-ai-action-state-banner.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `approval_sheet` → `schemas/ai/m5-ai-high-friction-approval-sheet-and-tool-call-timeline-row.schema.json` (1 worked binding(s))
+      - `stale_approval` → `claims_auto_narrowed` (banner `stale_approval`)
+    - `run_history_row` → `schemas/ai/m5-ai-run-history-row-approval-timeline-entry-and-evidence-export-summary.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+- **Support Export**: `stable`
+  - Owner: Support-export owner
+  - Scope: The support export adopts the run-history row, replay / rerun-review sheet, agent-status card, and tool-call timeline row at full replay, reconstructing consumer parity from the shared model so a support reviewer reads the same run IDs, route truth, and drift reasons every product surface shows
+  - Adopted families: 4
+    - `run_history_row` → `schemas/ai/m5-ai-run-history-row-approval-timeline-entry-and-evidence-export-summary.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `replay_review` → `schemas/ai/m5-ai-rerun-review-sheet-incomplete-replay-banner-and-agent-status-card.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `agent_status` → `schemas/ai/m5-ai-rerun-review-sheet-incomplete-replay-banner-and-agent-status-card.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `tool_call_timeline_row` → `schemas/ai/m5-ai-high-friction-approval-sheet-and-tool-call-timeline-row.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+- **Docs / Help**: `stable`
+  - Owner: Docs/help surface owner
+  - Scope: The docs/help surface adopts the connector detail row, action-state banner, and agent-status card at full replay, and the local-model pack card auto-narrowed behind a redaction fence, referencing the canonical component schemas so its prose can never drift from the product truth and the redaction caveat stays disclosed
+  - Adopted families: 4
+    - `connector_detail_row` → `schemas/ai/m5-ai-connector-detail-row-and-local-model-pack-card.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `ai_action_state_banner` → `schemas/ai/m5-ai-action-state-banner.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `agent_status` → `schemas/ai/m5-ai-rerun-review-sheet-incomplete-replay-banner-and-agent-status-card.schema.json` (1 worked binding(s))
+      - `full_replay` → `claims_preserved` (banner `full`)
+    - `local_model_pack_card` → `schemas/ai/m5-ai-connector-detail-row-and-local-model-pack-card.schema.json` (1 worked binding(s))
+      - `redaction_fenced` → `claims_auto_narrowed` (banner `redaction_fence`)
