@@ -34,6 +34,7 @@ pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
 pub mod implement_durable_review_workspace_headers_local_ci_parity_and_stable_anchor_rehydration;
 pub mod implement_normalized_pipeline_run_rows_log_viewers_artifact_browsers_and_safe_preview_trust_classes;
 pub mod implement_preview_diagnostics_device_or_viewport_states_and_return_to_source_actions_across_framework_packs;
+pub mod implement_review_request_rows_with_provider_base_head_freshness_scope_and_local_versus_provider_truth;
 pub mod infrastructure_intelligence;
 pub mod landing;
 pub mod review_pack_dsl;
@@ -384,6 +385,19 @@ pub use implement_normalized_pipeline_run_rows_log_viewers_artifact_browsers_and
     PIPELINE_VIEWER_RUN_CONTROL_CONTRACT_REF, PIPELINE_VIEWER_SCHEMA_REF,
     PIPELINE_VIEWER_SCHEMA_VERSION, PIPELINE_VIEWER_SUMMARY_REF,
     PIPELINE_VIEWER_TRUST_CLASS_CONTRACT_REF,
+};
+pub use implement_review_request_rows_with_provider_base_head_freshness_scope_and_local_versus_provider_truth::{
+    current_review_request_row_export, resolve_review_request_row_disclosure, BaseHeadFreshness,
+    ReviewRequestAction, ReviewRequestBackingKind, ReviewRequestDisclosure, ReviewRequestRow,
+    ReviewRequestRowArtifactError, ReviewRequestRowConsumerProjection,
+    ReviewRequestRowConsumerSurface, ReviewRequestRowDowngradeTrigger, ReviewRequestRowPacket,
+    ReviewRequestRowPacketInput, ReviewRequestRowProofFreshness, ReviewRequestRowTrustReview,
+    ReviewRequestRowViolation, ReviewRequestScope, ReviewRequestStackRelation,
+    REVIEW_REQUEST_ROW_ARTIFACT_REF, REVIEW_REQUEST_ROW_CHANGE_LINEAGE_CONTRACT_REF,
+    REVIEW_REQUEST_ROW_COMPONENT_MATRIX_CONTRACT_REF, REVIEW_REQUEST_ROW_DOC_REF,
+    REVIEW_REQUEST_ROW_FIXTURE_DIR, REVIEW_REQUEST_ROW_MERGE_QUEUE_CONTRACT_REF,
+    REVIEW_REQUEST_ROW_RECORD_KIND, REVIEW_REQUEST_ROW_REVIEW_WORKSPACE_CONTRACT_REF,
+    REVIEW_REQUEST_ROW_SCHEMA_REF, REVIEW_REQUEST_ROW_SCHEMA_VERSION, REVIEW_REQUEST_ROW_SUMMARY_REF,
 };
 pub use infrastructure_intelligence::{
     project_infrastructure_relationships_for_review, InfrastructureIntelligenceAlphaPage,
