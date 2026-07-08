@@ -22,6 +22,7 @@ pub mod diff;
 pub mod finalize_git_and_review_support_export_packets_timeline;
 pub mod finalize_issue_and_work_item_linkage_with_branch;
 pub mod finalize_migration_rollback_checkpoints_diff_review_and_retained;
+pub mod freeze_the_m5_review_request_check_and_merge_queue_component_matrix;
 pub mod freeze_the_m5_review_workspace_merge_queue_and_pipeline_viewer_maturity_matrix;
 pub mod freeze_the_m5_work_item_provider_link_acting_identity_and_publish_later_continuity_matrix;
 pub mod git_history_review;
@@ -233,6 +234,27 @@ pub use freeze_the_m5_work_item_provider_link_acting_identity_and_publish_later_
     M5_PROVIDER_WORKITEM_PROVIDER_LINK_CONTRACT_REF,
     M5_PROVIDER_WORKITEM_PUBLISH_LATER_CONTRACT_REF,
     M5_PROVIDER_WORKITEM_TRANSITION_CONTRACT_REF,
+};
+pub use freeze_the_m5_review_request_check_and_merge_queue_component_matrix::{
+    current_stable_m5_review_component_matrix_export, M5ReviewComponent,
+    M5ReviewComponentConsumerSurface, M5ReviewComponentDowngradeTrigger,
+    M5ReviewComponentEvidenceRequirement, M5ReviewComponentMatrixArtifactError,
+    M5ReviewComponentMatrixConsumerProjection, M5ReviewComponentMatrixPacket,
+    M5ReviewComponentMatrixPacketInput, M5ReviewComponentMatrixProofFreshness,
+    M5ReviewComponentMatrixRow, M5ReviewComponentMatrixTrustReview,
+    M5ReviewComponentMatrixViolation, M5ReviewComponentMaturityClass,
+    M5ReviewComponentRollbackPosture, M5ReviewComponentStaleProviderState,
+    M5_REVIEW_COMPONENT_MATRIX_APPROVAL_INVALIDATION_CONTRACT_REF,
+    M5_REVIEW_COMPONENT_MATRIX_ARTIFACT_REF, M5_REVIEW_COMPONENT_MATRIX_CHECKS_SUMMARY_CONTRACT_REF,
+    M5_REVIEW_COMPONENT_MATRIX_DOC_REF, M5_REVIEW_COMPONENT_MATRIX_FIXTURE_DIR,
+    M5_REVIEW_COMPONENT_MATRIX_MERGE_QUEUE_CONTRACT_REF,
+    M5_REVIEW_COMPONENT_MATRIX_MERGE_READINESS_CONTRACT_REF,
+    M5_REVIEW_COMPONENT_MATRIX_PENDING_TRAY_CONTRACT_REF,
+    M5_REVIEW_COMPONENT_MATRIX_RECORD_KIND,
+    M5_REVIEW_COMPONENT_MATRIX_REVIEW_REQUEST_CONTRACT_REF,
+    M5_REVIEW_COMPONENT_MATRIX_SCHEMA_REF, M5_REVIEW_COMPONENT_MATRIX_SCHEMA_VERSION,
+    M5_REVIEW_COMPONENT_MATRIX_STACK_DEPENDENCY_CONTRACT_REF,
+    M5_REVIEW_COMPONENT_MATRIX_SUMMARY_REF,
 };
 pub use freeze_the_m5_review_workspace_merge_queue_and_pipeline_viewer_maturity_matrix::{
     current_stable_m5_review_ci_preview_matrix_export, M5ReviewCiPreviewConsumerSurface,
