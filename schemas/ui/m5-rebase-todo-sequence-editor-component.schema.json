@@ -1,0 +1,518 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-rebase-todo-sequence-editor-component.schema.json",
+  "title": "Aureline M5 rebase todo rows and sequence-editor headers with original order, commit identity, resulting operation, unresolved blockers, and checkpoint state",
+  "description": "Export-safe packet implementing the two sequence-edit components frozen in the M5 Git-history component matrix: rebase todo rows and sequence-editor headers. A rebase todo row answers, from itself alone, which commit it operates on (short id, subject, author), which rebase operation it applies (pick, reword, edit, squash, fixup, or drop), where the commit sat in the original sequence versus where it sits now, whether it is reordered / squashed / dropped, which blockers are unresolved, and whether a recovery checkpoint is available — and its raw `pick <sha> <subject>`-style todo line stays meaning-equivalent with the structured card. A sequence-editor header frames the whole interactive-rebase session: its onto/base ref, the original pre-rebase tip that anchors recovery, how many commits were reordered / squashed / dropped, and that the session confirms as a full sequence rewrite rather than one ambiguous confirm. Raw patch bytes, raw object bodies, raw provider payloads, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "todo_rows",
+    "sequence_headers",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "git_rebase_sequence_edit_component_truth"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "surface_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "todo_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/todo_row"
+      }
+    },
+    "sequence_headers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/sequence_header_row"
+      }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/downgrade_state"
+      }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_surface"
+      }
+    },
+    "trust_review": {
+      "$ref": "#/$defs/trust_review"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "pick",
+        "reword",
+        "edit",
+        "squash",
+        "fixup",
+        "drop"
+      ]
+    },
+    "plan_state": {
+      "type": "string",
+      "enum": [
+        "unchanged",
+        "reordered",
+        "squashed_into_previous",
+        "dropped"
+      ]
+    },
+    "blocker_kind": {
+      "type": "string",
+      "enum": [
+        "conflict_at_step",
+        "missing_squash_message",
+        "orphaned_fixup_target",
+        "empty_commit_after_edit",
+        "signature_required"
+      ]
+    },
+    "checkpoint_state": {
+      "type": "string",
+      "enum": [
+        "captured",
+        "per_step_captured",
+        "reflog_fallback_only",
+        "unavailable"
+      ]
+    },
+    "review_class": {
+      "type": "string",
+      "enum": [
+        "display_only_no_mutation",
+        "explicit_verb_confirm",
+        "sequence_rewrite_confirm",
+        "stash_restore_confirm",
+        "patch_apply_confirm",
+        "force_push_confirm"
+      ]
+    },
+    "downgrade_state": {
+      "type": "string",
+      "enum": [
+        "stale_provider_overlay",
+        "detached_or_missing_ref",
+        "dirty_or_conflicted_worktree",
+        "shallow_or_partial_topology",
+        "reflog_only_fallback",
+        "approval_invalidated",
+        "offline_local_only"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review",
+        "shell",
+        "help",
+        "support",
+        "support_export",
+        "provider_overlay",
+        "cli",
+        "ai_context"
+      ]
+    },
+    "todo_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "component",
+        "original_index",
+        "display_index",
+        "commit_short_id",
+        "commit_subject",
+        "commit_author",
+        "operation",
+        "plan_state",
+        "unresolved_blockers",
+        "blocker_disclosure",
+        "checkpoint_state",
+        "checkpoint_disclosure",
+        "raw_todo_line",
+        "downgrade_vocab",
+        "fields_shown",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "row_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "component": {
+          "const": "rebase_todo_row"
+        },
+        "original_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "display_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "commit_short_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "commit_subject": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "commit_author": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "operation": {
+          "$ref": "#/$defs/operation"
+        },
+        "plan_state": {
+          "$ref": "#/$defs/plan_state"
+        },
+        "unresolved_blockers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/blocker_kind"
+          }
+        },
+        "blocker_disclosure": {
+          "type": "string"
+        },
+        "checkpoint_state": {
+          "$ref": "#/$defs/checkpoint_state"
+        },
+        "checkpoint_disclosure": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "raw_todo_line": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "downgrade_vocab": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/downgrade_state"
+          }
+        },
+        "fields_shown": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "drop"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "plan_state": {
+                "const": "dropped"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "squash",
+                  "fixup"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "plan_state": {
+                "const": "squashed_into_previous"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "sequence_header_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "component",
+        "session_label",
+        "onto_ref",
+        "original_tip_ref",
+        "total_commits",
+        "reordered_count",
+        "squashed_count",
+        "dropped_count",
+        "unresolved_blocker_count",
+        "checkpoint_state",
+        "checkpoint_disclosure",
+        "review_class",
+        "original_order_note",
+        "downgrade_vocab",
+        "fields_shown",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "row_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "component": {
+          "const": "sequence_editor_header"
+        },
+        "session_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "onto_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "original_tip_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "total_commits": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reordered_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "squashed_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dropped_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unresolved_blocker_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "checkpoint_state": {
+          "$ref": "#/$defs/checkpoint_state"
+        },
+        "checkpoint_disclosure": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "review_class": {
+          "const": "sequence_rewrite_confirm"
+        },
+        "original_order_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "downgrade_vocab": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/downgrade_state"
+          }
+        },
+        "fields_shown": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_identity_always_explicit",
+        "original_order_always_preserved",
+        "plan_state_never_misrepresented",
+        "operations_stay_distinct",
+        "unresolved_blockers_always_disclosed",
+        "checkpoint_reachable_after_rewrite",
+        "raw_and_structured_meaning_equivalent",
+        "sequence_rewrite_confirm_never_collapsed",
+        "local_only_recovery_stays_explicit",
+        "one_component_contract_no_hidden_meaning",
+        "downgrade_narrows_instead_of_hides",
+        "stale_or_underqualified_blocks_promotion"
+      ],
+      "properties": {
+        "commit_identity_always_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "original_order_always_preserved": {
+          "type": "boolean",
+          "const": true
+        },
+        "plan_state_never_misrepresented": {
+          "type": "boolean",
+          "const": true
+        },
+        "operations_stay_distinct": {
+          "type": "boolean",
+          "const": true
+        },
+        "unresolved_blockers_always_disclosed": {
+          "type": "boolean",
+          "const": true
+        },
+        "checkpoint_reachable_after_rewrite": {
+          "type": "boolean",
+          "const": true
+        },
+        "raw_and_structured_meaning_equivalent": {
+          "type": "boolean",
+          "const": true
+        },
+        "sequence_rewrite_confirm_never_collapsed": {
+          "type": "boolean",
+          "const": true
+        },
+        "local_only_recovery_stays_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "one_component_contract_no_hidden_meaning": {
+          "type": "boolean",
+          "const": true
+        },
+        "downgrade_narrows_instead_of_hides": {
+          "type": "boolean",
+          "const": true
+        },
+        "stale_or_underqualified_blocks_promotion": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "git_history_reuses_one_contract",
+        "review_reuses_one_contract",
+        "help_support_reuses_one_contract",
+        "support_export_reuses_one_contract",
+        "raw_fallback_equivalent_across_surfaces",
+        "cli_headless_shows_truth",
+        "provider_overlay_shows_truth",
+        "ai_context_shows_truth"
+      ],
+      "properties": {
+        "git_history_reuses_one_contract": {
+          "type": "boolean",
+          "const": true
+        },
+        "review_reuses_one_contract": {
+          "type": "boolean",
+          "const": true
+        },
+        "help_support_reuses_one_contract": {
+          "type": "boolean",
+          "const": true
+        },
+        "support_export_reuses_one_contract": {
+          "type": "boolean",
+          "const": true
+        },
+        "raw_fallback_equivalent_across_surfaces": {
+          "type": "boolean",
+          "const": true
+        },
+        "cli_headless_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "provider_overlay_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "ai_context_shows_truth": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
