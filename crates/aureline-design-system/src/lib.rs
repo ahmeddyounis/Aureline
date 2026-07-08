@@ -10,6 +10,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 pub mod appearance_session;
+pub mod freeze_the_m5_shared_component_state_taxonomy_interactive_state_selection_or_lock_state_and_degraded_state_application_component_matrix;
 pub mod m5_component_manifest;
 pub mod m5_design_system_contract;
 pub mod m5_evidence_pack;
