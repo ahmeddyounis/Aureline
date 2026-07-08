@@ -34,6 +34,7 @@ pub mod git_topology_review;
 pub mod harden_browser_handoff_and_in_product_review_boundaries;
 pub mod harden_merge_queue_ci_status_and_browser_handoff;
 pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
+pub mod implement_artifact_identity_bars_and_diff_mode_switchers_with_artifact_class_canonical_source_parser_schema_and_compare_only_truth;
 pub mod implement_durable_review_workspace_headers_local_ci_parity_and_stable_anchor_rehydration;
 pub mod implement_keyboard_screen_reader_cli_export_parity_and_automatic_narrowing_when_provider_freshness_queue_authority_or_approval_lineage_is_stale_or_missing_across_claimed_m5_review_components;
 pub mod implement_normalized_pipeline_run_rows_log_viewers_artifact_browsers_and_safe_preview_trust_classes;
@@ -437,6 +438,19 @@ pub use harden_merge_rebase_cherry_pick_revert_and_reset::{
     REWRITE_FLOW_INSPECTION_RECORD_KIND, REWRITE_FLOW_INVALIDATION_REASONS,
     REWRITE_FLOW_OPERATION_KINDS, REWRITE_FLOW_RECORD_KIND, REWRITE_FLOW_STATES,
     REWRITE_FLOW_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+};
+pub use implement_artifact_identity_bars_and_diff_mode_switchers_with_artifact_class_canonical_source_parser_schema_and_compare_only_truth::{
+    current_artifact_review_controls_export, resolve_artifact_identity_disclosure,
+    ArtifactIdentityBar, ArtifactIdentityDisclosure, ArtifactOriginClass,
+    ArtifactReviewControlsArtifactError, ArtifactReviewControlsConsumerProjection,
+    ArtifactReviewControlsConsumerSurface, ArtifactReviewControlsDowngradeTrigger,
+    ArtifactReviewControlsPacket, ArtifactReviewControlsPacketInput,
+    ArtifactReviewControlsProofFreshness, ArtifactReviewControlsTrustReview,
+    ArtifactReviewControlsViolation, DiffLensAvailability, DiffModeOption, DiffModeSwitcher,
+    DiffReviewLens, ARTIFACT_REVIEW_CONTROLS_ARTIFACT_REF, ARTIFACT_REVIEW_CONTROLS_DOC_REF,
+    ARTIFACT_REVIEW_CONTROLS_FIXTURE_DIR, ARTIFACT_REVIEW_CONTROLS_RECORD_KIND,
+    ARTIFACT_REVIEW_CONTROLS_SCHEMA_REF, ARTIFACT_REVIEW_CONTROLS_SCHEMA_VERSION,
+    ARTIFACT_REVIEW_CONTROLS_SUMMARY_REF,
 };
 pub use implement_durable_review_workspace_headers_local_ci_parity_and_stable_anchor_rehydration::{
     current_durable_review_header_export, AnchorRehydrationRow, AnchorRehydrationState,
