@@ -10,6 +10,7 @@
 
 pub mod add_shared_history_sidebar_review_workspace_command_help_support_and_export_consumers_so_git_history_components_keep_ref_worktree_recovery_language_aligned;
 pub mod branches;
+pub mod certify_git_history_component_truth_on_every_claimed_m5_git_history_surface;
 pub mod certify_m5_git_topology_history_recovery_and_provider_parity_rows;
 pub mod change_objects;
 pub mod commit;
