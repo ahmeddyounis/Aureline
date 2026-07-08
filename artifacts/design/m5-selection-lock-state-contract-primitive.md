@@ -1,0 +1,54 @@
+# M5 Selection-or-Lock-State Contract Primitive
+
+- Packet: `m5-selection-or-lock-state-contract-primitive:stable:0001`
+- Label: `M5 selection-or-lock-state contract primitive: item kind, selection-or-lock state (selected/current/disabled/read-only/locked), derived presentation posture, required non-color cues, required disclosures (state cause / owner / block reason / recovery action), lock owner class, and the selected-vs-current / read-only-vs-disabled / locked-vs-disabled distinctness and owner-reason-recovery guarantees`
+- Items: 7 (7 stable)
+- Presentations: selected_treatment, current_treatment, disabled_treatment, read_only_treatment, locked_treatment
+- Non-color cues: selection_marker, current_location_indicator, disabled_dim_with_reason, read_only_glyph_inspectable, lock_glyph_with_owner, recovery_affordance
+- Selection-or-lock states: selected, current, disabled, read_only, locked
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-08T00:00:00Z)
+
+## Items
+
+- **Tab**: `stable`
+  - Owner: Tab strip owner
+  - Scope: The tab renders the shared selection-or-lock-state contract so a durably selected tab and the actively current tab stay distinct — the selection is carried by a selection marker and the current tab by a distinct current-location indicator, never by a color-only swap that would collapse the two
+  - Worked states: 2
+    - `item:editor-tabs.readme` (`selected`) → `selected_treatment` (non-color cues 1, lock-owner `no_lock`, explainable `false`, recovery `false`)
+    - `item:editor-tabs.active-file` (`current`) → `current_treatment` (non-color cues 1, lock-owner `no_lock`, explainable `false`, recovery `false`)
+- **Tree Item**: `stable`
+  - Owner: Navigation tree owner
+  - Scope: The tree item renders the shared selection-or-lock-state contract so a selected node stays distinct from the current one and a policy-locked node surfaces its policy owner, its cause, and its recovery path — a lock glyph with its owner, never a silent disabled dimming that would hide why the node cannot be changed
+  - Worked states: 2
+    - `item:explorer-tree.src-folder` (`selected`) → `selected_treatment` (non-color cues 1, lock-owner `no_lock`, explainable `false`, recovery `false`)
+    - `item:explorer-tree.protected-config` (`locked`) → `locked_treatment` (non-color cues 2, lock-owner `policy_lock`, explainable `true`, recovery `true`)
+- **Dense List Row**: `stable`
+  - Owner: Dense list owner
+  - Scope: The dense list row renders the shared selection-or-lock-state contract so the current row is distinct and a disabled row names why it is unavailable and how to recover — a dimmed treatment with an explicit reason, never a bare color change and never a hidden lock owner that should instead be modeled as locked
+  - Worked states: 2
+    - `item:results-list.current-match` (`current`) → `current_treatment` (non-color cues 1, lock-owner `no_lock`, explainable `false`, recovery `false`)
+    - `item:results-list.unmet-prerequisite-row` (`disabled`) → `disabled_treatment` (non-color cues 2, lock-owner `no_lock`, explainable `true`, recovery `true`)
+- **Grid / Table Row**: `stable`
+  - Owner: Grid / table owner
+  - Scope: The grid/table row renders the shared selection-or-lock-state contract so a source-of-truth derived cell stays read-only-inspectable and a trust-blocked cell surfaces its trust owner, its cause, and its review path — legible in high-contrast, a read-only glyph or a lock glyph with its owner, never a disabled treatment that would drop inspectability or hide the trust lock
+  - Worked states: 2
+    - `item:result-grid.derived-column` (`read_only`) → `read_only_treatment` (non-color cues 2, lock-owner `source_lock`, explainable `true`, recovery `true`)
+    - `item:result-grid.unverified-source-cell` (`locked`) → `locked_treatment` (non-color cues 2, lock-owner `trust_lock`, explainable `true`, recovery `true`)
+- **Badge**: `stable`
+  - Owner: Status badge owner
+  - Scope: The badge renders the shared selection-or-lock-state contract so a permission-locked badge surfaces its permission owner and the request-access path while a disabled badge names its connectivity cause and the reconnect path — a lock glyph with its owner or a dimmed treatment with its reason, never a color-only badge that hides which is which
+  - Worked states: 2
+    - `item:status-badges.write-scope-badge` (`locked`) → `locked_treatment` (non-color cues 2, lock-owner `permission_lock`, explainable `true`, recovery `true`)
+    - `item:status-badges.offline-badge` (`disabled`) → `disabled_treatment` (non-color cues 2, lock-owner `no_lock`, explainable `true`, recovery `true`)
+- **Settings Row**: `stable`
+  - Owner: Settings sheet owner
+  - Scope: The settings row renders the shared selection-or-lock-state contract so a managed read-only setting stays inspectable and an ownership-locked setting surfaces the workspace owner, its cause, and the escalation path — a read-only glyph or a lock glyph with its owner, never a disabled row that would hide who owns the setting or whether it can still be inspected
+  - Worked states: 2
+    - `item:settings.managed-telemetry-toggle` (`read_only`) → `read_only_treatment` (non-color cues 2, lock-owner `no_lock`, explainable `true`, recovery `true`)
+    - `item:settings.workspace-name-field` (`locked`) → `locked_treatment` (non-color cues 2, lock-owner `ownership_lock`, explainable `true`, recovery `true`)
+- **Inspector Entry**: `stable`
+  - Owner: Inspector owner
+  - Scope: The inspector entry renders the shared selection-or-lock-state contract so a source-of-truth computed property stays read-only-inspectable and a no-selection entry names its cause and the recovery path — a read-only glyph or a dimmed treatment with its reason, never a disabled entry that would drop inspectability or leave the user guessing why the field is inert
+  - Worked states: 2
+    - `item:inspector.computed-bounds` (`read_only`) → `read_only_treatment` (non-color cues 2, lock-owner `source_lock`, explainable `true`, recovery `true`)
+    - `item:inspector.no-selection-row` (`disabled`) → `disabled_treatment` (non-color cues 2, lock-owner `no_lock`, explainable `true`, recovery `true`)
