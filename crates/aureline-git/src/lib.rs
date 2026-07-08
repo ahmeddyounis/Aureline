@@ -8,6 +8,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-git/0.0.0")]
 
+pub mod add_shared_history_sidebar_review_workspace_command_help_support_and_export_consumers_so_git_history_components_keep_ref_worktree_recovery_language_aligned;
 pub mod branches;
 pub mod certify_m5_git_topology_history_recovery_and_provider_parity_rows;
 pub mod change_objects;
@@ -33,6 +34,28 @@ pub mod status;
 pub mod topology;
 pub mod topology_actions;
 
+pub use add_shared_history_sidebar_review_workspace_command_help_support_and_export_consumers_so_git_history_components_keep_ref_worktree_recovery_language_aligned::{
+    component_canonical_schema_ref, current_git_history_component_consumer_export,
+    resolve_git_history_component_render_disclosure, GitHistoryComponentConsumer,
+    GitHistoryComponentConsumerArtifactError, GitHistoryComponentConsumerBinding,
+    GitHistoryComponentConsumerDowngradeTrigger, GitHistoryComponentConsumerPacket,
+    GitHistoryComponentConsumerPacketInput, GitHistoryComponentConsumerProjection,
+    GitHistoryComponentConsumerProofFreshness, GitHistoryComponentConsumerTrustReview,
+    GitHistoryComponentConsumerViolation, GitHistoryComponentParityFacet,
+    GitHistoryComponentParityFacetValues, GitHistoryComponentParityState,
+    GitHistoryComponentRenderDisclosure, GitHistoryNarrowBanner, GitHistoryNarrowNextAction,
+    GitHistoryNarrowReason, GitHistoryRenderCondition, GitHistoryRenderMode, parity_state_for_mode,
+    GIT_HISTORY_COMPONENT_CONSUMER_ARTIFACT_REF,
+    GIT_HISTORY_COMPONENT_CONSUMER_COMPONENT_MATRIX_CONTRACT_REF,
+    GIT_HISTORY_COMPONENT_CONSUMER_DOC_REF, GIT_HISTORY_COMPONENT_CONSUMER_FIXTURE_DIR,
+    GIT_HISTORY_COMPONENT_CONSUMER_IDENTITY_CONTRACT_REF,
+    GIT_HISTORY_COMPONENT_CONSUMER_MUTATION_REVIEW_CONTRACT_REF,
+    GIT_HISTORY_COMPONENT_CONSUMER_RECORD_KIND, GIT_HISTORY_COMPONENT_CONSUMER_SCHEMA_REF,
+    GIT_HISTORY_COMPONENT_CONSUMER_SCHEMA_VERSION,
+    GIT_HISTORY_COMPONENT_CONSUMER_SEQUENCE_EDIT_CONTRACT_REF,
+    GIT_HISTORY_COMPONENT_CONSUMER_STASH_RECOVERY_CONTRACT_REF,
+    GIT_HISTORY_COMPONENT_CONSUMER_SUMMARY_REF,
+};
 pub use branches::{
     GitBranchActivityRecord, GitBranchActorRef, GitBranchBackend, GitBranchBackendError,
     GitBranchCommandOutput, GitBranchCurrentWorkReview, GitBranchJournalRecord,
