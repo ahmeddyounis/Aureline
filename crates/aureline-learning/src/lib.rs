@@ -13,6 +13,7 @@
     clippy::vec_init_then_push
 )]
 
+pub mod add_shared_onboarding_help_importer_keybinding_modal_command_doc_consumers_so_contextual_teaching_components_keep_mapping_enablement_source_language_truth_aligned_across_claimed_m5_profiles;
 pub mod certify_m5_learnability_onboarding_truth;
 pub mod educational_ai_and_contextual_cards;
 pub mod freeze_m5_learnability_lane;

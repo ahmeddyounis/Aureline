@@ -1,0 +1,72 @@
+# M5 Contextual-Teaching Component Consumer Parity
+
+- Packet: `m5-contextual-teaching-component-consumer:stable:0001`
+- Label: `M5 contextual-teaching component consumers: first-run onboarding, the migration importer, keybinding / leader help, command docs, the Help pane, and the localized support packet keep command, mapping, blocked-action, and source-language parity`
+- Teaching consumers: 6 (6 stable)
+- Component families: contextual_tip_card, migration_bridge_card, sequence_help_strip, why_unavailable_explanation_row, source_language_fallback
+- Descriptors: command_binding, migration_mapping, blocked_action_explanation, source_language_citation
+- Parity-health modes: full_parity, imported_behavior_partial_narrowed, sequence_unsupported_narrowed, blocked_owner_changed_narrowed, localized_fallback_stale_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Teaching consumers
+
+- **First-Run Onboarding**: `stable`
+  - Owner: First-run onboarding surface owner
+  - Scope: First-run onboarding adopts the contextual-tip card and sequence-help strip at full parity, referencing the canonical component schemas so the same command binding, migration mapping, blocked-action explanation, and source-language citation appear here as in the importer, keybinding help, command docs, the Help pane, and the localized support packet
+  - Adopted families: 2
+    - `contextual_tip_card` → `schemas/ui/m5-contextual-tip-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `sequence_help_strip` → `schemas/ui/m5-sequence-help-strip.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Migration Importer**: `stable`
+  - Owner: Migration importer surface owner
+  - Scope: The migration importer adopts the contextual-tip card at full parity, the migration-bridge card auto-narrowed because imported behavior is only partially mapped, and the why-unavailable explanation row auto-narrowed because the blocked-action owner changed, keeping command binding, migration mapping, blocked-action explanation, and source-language citation explicit so a partial import never reads as an exact native equivalent
+  - Adopted families: 3
+    - `contextual_tip_card` → `schemas/ui/m5-contextual-tip-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `migration_bridge_card` → `schemas/ui/m5-migration-bridge-card.schema.json` (1 worked binding(s))
+      - `imported_behavior_partial_narrowed` → `claims_auto_narrowed` (banner `imported_behavior_partial`)
+    - `why_unavailable_explanation_row` → `schemas/ui/m5-why-unavailable-source-language.schema.json` (1 worked binding(s))
+      - `blocked_owner_changed_narrowed` → `claims_auto_narrowed` (banner `blocked_action_owner_changed`)
+- **Keybinding / Leader Help**: `stable`
+  - Owner: Keybinding / leader-help surface owner
+  - Scope: Keybinding / leader help adopts the migration-bridge card at full parity for old-keybinding-to-new-command mapping, and the sequence-help strip auto-narrowed because the command-language sequence is unsupported here, keeping command binding, migration mapping, blocked-action explanation, and source-language citation explicit so an unsupported sequence never claims a backing command it lacks
+  - Adopted families: 2
+    - `migration_bridge_card` → `schemas/ui/m5-migration-bridge-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `sequence_help_strip` → `schemas/ui/m5-sequence-help-strip.schema.json` (1 worked binding(s))
+      - `sequence_unsupported_narrowed` → `claims_auto_narrowed` (banner `sequence_unsupported`)
+- **Command Docs**: `stable`
+  - Owner: Command-docs surface owner
+  - Scope: Command docs adopt the contextual-tip card, why-unavailable explanation row, and source-language fallback surface at full parity, referencing the canonical component schemas so command binding, migration mapping, blocked-action explanation, and source-language citation stay one truth across every claimed teaching surface rather than being re-worded in prose
+  - Adopted families: 3
+    - `contextual_tip_card` → `schemas/ui/m5-contextual-tip-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `why_unavailable_explanation_row` → `schemas/ui/m5-why-unavailable-source-language.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `source_language_fallback` → `schemas/ui/m5-why-unavailable-source-language.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Help Pane**: `stable`
+  - Owner: Help-pane surface owner
+  - Scope: The Help pane adopts the sequence-help strip at full parity, the why-unavailable explanation row auto-narrowed by a changed blocked-action owner, and the source-language fallback surface auto-narrowed because the localized content is stale or policy-limited, keeping command binding, migration mapping, blocked-action explanation, and source-language citation explicit so a stale translation never severs its canonical citation
+  - Adopted families: 3
+    - `sequence_help_strip` → `schemas/ui/m5-sequence-help-strip.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `why_unavailable_explanation_row` → `schemas/ui/m5-why-unavailable-source-language.schema.json` (1 worked binding(s))
+      - `blocked_owner_changed_narrowed` → `claims_auto_narrowed` (banner `blocked_action_owner_changed`)
+    - `source_language_fallback` → `schemas/ui/m5-why-unavailable-source-language.schema.json` (1 worked binding(s))
+      - `localized_fallback_stale_narrowed` → `claims_auto_narrowed` (banner `localized_fallback_stale_or_policy_limited`)
+- **Localized Support Packet**: `stable`
+  - Owner: Localized support-packet surface owner
+  - Scope: The localized support packet adopts the contextual-tip card, migration-bridge card, sequence-help strip, why-unavailable explanation row, and source-language fallback surface, referencing the canonical component schemas so its prose can never drift from the product truth and keeping command binding, migration mapping, blocked-action explanation, and source-language citation exact in every exported case
+  - Adopted families: 5
+    - `contextual_tip_card` → `schemas/ui/m5-contextual-tip-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `migration_bridge_card` → `schemas/ui/m5-migration-bridge-card.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `sequence_help_strip` → `schemas/ui/m5-sequence-help-strip.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `why_unavailable_explanation_row` → `schemas/ui/m5-why-unavailable-source-language.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `source_language_fallback` → `schemas/ui/m5-why-unavailable-source-language.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
