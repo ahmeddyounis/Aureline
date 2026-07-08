@@ -43,6 +43,7 @@ pub mod review_pack_parity_harness;
 pub mod ship_ai_review_evidence_finding_cards_and_review_pack_integration_with_change_objects;
 pub mod ship_attributable_rerun_or_cancel_actions_with_execution_context_reuse_and_side_effect_review;
 pub mod ship_browser_provider_handoff_continuity_for_review_ci_logs_and_artifact_deep_links;
+pub mod ship_checks_summary_cards_with_check_class_truth_and_log_artifact_annotation_continuity;
 pub mod ship_deferred_publish_queue_recovery_packets;
 pub mod ship_work_item_detail_headers_status_transition_sheets_comment_publish_review_and_offline_handoff_packets_with_side_effect_previews;
 pub mod stabilize_provider_linked_object_models_snapshot_freshness_and;
@@ -487,6 +488,21 @@ pub use ship_attributable_rerun_or_cancel_actions_with_execution_context_reuse_a
     RERUN_CANCEL_FIXTURE_DIR, RERUN_CANCEL_PIPELINE_RUN_CONTRACT_REF, RERUN_CANCEL_RECORD_KIND,
     RERUN_CANCEL_RUN_CONTROL_CONTRACT_REF, RERUN_CANCEL_SCHEMA_REF, RERUN_CANCEL_SCHEMA_VERSION,
     RERUN_CANCEL_SUMMARY_REF, RERUN_CANCEL_TRUST_CLASS_CONTRACT_REF,
+};
+pub use ship_checks_summary_cards_with_check_class_truth_and_log_artifact_annotation_continuity::{
+    current_checks_summary_card_export, resolve_checks_summary_card_disclosure, CheckClass,
+    CheckEntry, CheckEvidenceKind, CheckEvidenceLink, ChecksSummaryAction, ChecksSummaryCard,
+    ChecksSummaryCardArtifactError, ChecksSummaryCardConsumerProjection,
+    ChecksSummaryCardConsumerSurface, ChecksSummaryCardDisclosure,
+    ChecksSummaryCardDowngradeTrigger, ChecksSummaryCardPacket, ChecksSummaryCardPacketInput,
+    ChecksSummaryCardProofFreshness, ChecksSummaryCardTrustReview, ChecksSummaryCardViolation,
+    CHECKS_SUMMARY_CARD_ANNOTATION_CONTRACT_REF, CHECKS_SUMMARY_CARD_ARTIFACT_CARD_CONTRACT_REF,
+    CHECKS_SUMMARY_CARD_ARTIFACT_REF, CHECKS_SUMMARY_CARD_COMPONENT_MATRIX_CONTRACT_REF,
+    CHECKS_SUMMARY_CARD_DOC_REF, CHECKS_SUMMARY_CARD_FIXTURE_DIR,
+    CHECKS_SUMMARY_CARD_LOG_VIEW_CONTRACT_REF, CHECKS_SUMMARY_CARD_PIPELINE_RUN_CONTRACT_REF,
+    CHECKS_SUMMARY_CARD_RECORD_KIND, CHECKS_SUMMARY_CARD_REVIEW_WORKSPACE_CONTRACT_REF,
+    CHECKS_SUMMARY_CARD_SCHEMA_REF, CHECKS_SUMMARY_CARD_SCHEMA_VERSION,
+    CHECKS_SUMMARY_CARD_SUMMARY_REF,
 };
 pub use ship_deferred_publish_queue_recovery_packets::{
     canonical_deferred_publish_queue_recovery_packet,

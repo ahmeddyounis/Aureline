@@ -1,0 +1,449 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-checks-summary-card.schema.json",
+  "title": "Aureline M5 checks-summary cards with check-class truth and log/artifact/annotation continuity",
+  "description": "Export-safe packet implementing the reusable M5 checks-summary card contract. Each card summarizes the checks for one review and answers, from the card alone, which review and provider own the checks, how fresh that provider truth is, and — for each check — whether it is required, optional, skipped, suppressed, timed out, stale, or not-evaluated-here. A card with richer per-check evidence never collapses into one pass/fail number, every anomalous check carries an explicit reason, and every log/artifact/annotation link preserves the originating review and check identity. Provider outage and stale-sync degradations preserve a local-continue path and, when unreachable, an explicit browser-handoff boundary, so one card degrades without collapsing the whole review lane. Raw check logs, raw artifact bytes, raw annotation payloads, credentials, and live provider responses never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "cards",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "checks_summary_card_check_class_and_evidence_continuity"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "surface_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/checks_summary_card"
+      }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/downgrade_trigger"
+      }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_surface"
+      }
+    },
+    "trust_review": {
+      "$ref": "#/$defs/trust_review"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "check_class": {
+      "type": "string",
+      "enum": [
+        "required",
+        "optional",
+        "skipped",
+        "suppressed",
+        "timed_out",
+        "stale",
+        "not_evaluated_here"
+      ]
+    },
+    "evidence_kind": {
+      "type": "string",
+      "enum": [
+        "log",
+        "artifact",
+        "annotation"
+      ]
+    },
+    "provider_freshness": {
+      "type": "string",
+      "enum": [
+        "provider_fresh",
+        "provider_refreshing",
+        "provider_stale",
+        "provider_unreachable",
+        "provider_conflict",
+        "local_only_continuation"
+      ]
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "open_log",
+        "open_artifact",
+        "open_annotation",
+        "rerun_check",
+        "cancel_check",
+        "continue_local_review",
+        "open_provider_in_browser",
+        "export_check_evidence"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_freshness_stale",
+        "check_timed_out",
+        "check_evaluation_suppressed",
+        "browser_handoff_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace",
+        "review_list",
+        "companion_queue",
+        "handoff_packet",
+        "cli_headless",
+        "support_export",
+        "diagnostics",
+        "help_about",
+        "checks_summary_drawer"
+      ]
+    },
+    "evidence_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "label",
+        "review_id_ref",
+        "check_id_ref"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/evidence_kind"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "review_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "check_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "check_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "check_id",
+        "check_name_label",
+        "check_class",
+        "evaluation_reason",
+        "evidence_links",
+        "actions"
+      ],
+      "properties": {
+        "check_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "check_name_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "check_class": {
+          "$ref": "#/$defs/check_class"
+        },
+        "evaluation_reason": {
+          "type": "string"
+        },
+        "evidence_links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence_link"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "check_class": {
+                "enum": [
+                  "skipped",
+                  "suppressed",
+                  "timed_out",
+                  "stale",
+                  "not_evaluated_here"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evaluation_reason": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "checks_summary_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "card_id",
+        "review_id_label",
+        "provider_identity_label",
+        "provider_freshness",
+        "presents_single_verdict",
+        "headline_verdict_label",
+        "checks",
+        "browser_handoff_boundary",
+        "local_continue_fallback",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "card_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "review_id_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "provider_identity_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "provider_freshness": {
+          "$ref": "#/$defs/provider_freshness"
+        },
+        "presents_single_verdict": {
+          "type": "boolean"
+        },
+        "headline_verdict_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/check_entry"
+          }
+        },
+        "browser_handoff_boundary": {
+          "type": "string"
+        },
+        "local_continue_fallback": {
+          "type": "string"
+        },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_optional_distinct",
+        "anomalous_check_states_distinct",
+        "checks_never_flattened_when_richer_evidence",
+        "log_artifact_annotation_identity_preserved",
+        "provider_outage_preserves_local_continuation",
+        "stale_sync_never_collapses_review_lane",
+        "rerun_cancel_only_where_allowed",
+        "no_forced_raw_provider_navigation_for_triage",
+        "not_evaluated_or_stale_never_shown_as_pass",
+        "one_card_contract_no_hidden_provider_meaning",
+        "downgrade_narrows_instead_of_hides",
+        "stale_or_underqualified_blocks_promotion"
+      ],
+      "properties": {
+        "required_optional_distinct": {
+          "type": "boolean",
+          "const": true
+        },
+        "anomalous_check_states_distinct": {
+          "type": "boolean",
+          "const": true
+        },
+        "checks_never_flattened_when_richer_evidence": {
+          "type": "boolean",
+          "const": true
+        },
+        "log_artifact_annotation_identity_preserved": {
+          "type": "boolean",
+          "const": true
+        },
+        "provider_outage_preserves_local_continuation": {
+          "type": "boolean",
+          "const": true
+        },
+        "stale_sync_never_collapses_review_lane": {
+          "type": "boolean",
+          "const": true
+        },
+        "rerun_cancel_only_where_allowed": {
+          "type": "boolean",
+          "const": true
+        },
+        "no_forced_raw_provider_navigation_for_triage": {
+          "type": "boolean",
+          "const": true
+        },
+        "not_evaluated_or_stale_never_shown_as_pass": {
+          "type": "boolean",
+          "const": true
+        },
+        "one_card_contract_no_hidden_provider_meaning": {
+          "type": "boolean",
+          "const": true
+        },
+        "downgrade_narrows_instead_of_hides": {
+          "type": "boolean",
+          "const": true
+        },
+        "stale_or_underqualified_blocks_promotion": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_workspace_reuses_one_card_contract",
+        "review_list_reuses_one_card_contract",
+        "companion_queue_reuses_one_card_contract",
+        "card_distinguishes_all_check_classes",
+        "evidence_links_preserve_review_and_check_identity",
+        "cli_headless_shows_truth",
+        "support_export_shows_truth",
+        "diagnostics_shows_truth",
+        "help_about_shows_truth",
+        "export_preserves_check_identity"
+      ],
+      "properties": {
+        "review_workspace_reuses_one_card_contract": {
+          "type": "boolean",
+          "const": true
+        },
+        "review_list_reuses_one_card_contract": {
+          "type": "boolean",
+          "const": true
+        },
+        "companion_queue_reuses_one_card_contract": {
+          "type": "boolean",
+          "const": true
+        },
+        "card_distinguishes_all_check_classes": {
+          "type": "boolean",
+          "const": true
+        },
+        "evidence_links_preserve_review_and_check_identity": {
+          "type": "boolean",
+          "const": true
+        },
+        "cli_headless_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "support_export_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "diagnostics_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "help_about_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "export_preserves_check_identity": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
