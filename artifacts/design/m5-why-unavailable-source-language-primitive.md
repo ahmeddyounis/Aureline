@@ -1,0 +1,57 @@
+# M5 Why-Unavailable / Source-Language Primitive
+
+- Packet: `m5-why-unavailable-source-language-primitive:stable:0001`
+- Label: `M5 why-unavailable / source-language primitive: blocked-action owner, unavailable reason, next-safe-action, failure domain, and deeper-docs path (why-unavailable) plus source-language class, fallback-state, stable ID, and citation-preserving link (source-language), with derived why-unavailable postures (blocked-by-policy/missing-permission/precondition-unmet/feature-disabled/offline-unavailable/unsupported-target), localization postures, and bounded actions`
+- Blocked-action / localized consumers: 5 (5 stable)
+- Why-unavailable postures: blocked_by_policy, missing_permission, precondition_unmet, feature_disabled, offline_unavailable, unsupported_target
+- Source-language postures: fully_localized, showing_source_language, partially_localized, stale_localization, citation_preserved_fallback, no_localization
+- Failure domains: policy, trust, context, runtime
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Blocked-action / localized consumers
+
+- **Command-Help Row**: `stable`
+  - Owner: Command-help row owner
+  - Scope: The command-help row renders both shared surfaces so a policy-blocked command names the policy owner, the exact reason, and a request-access next step, a permission-gated command names the workspace admin and the same safe next step, and a localized help string either reads as fully localized or falls back to the source language with its stable ID and canonical citation intact — never a generic disabled state and never an unsourced paraphrase
+  - Worked why-unavailable rows: 2
+    - `why:command-help:rotate-tokens-policy` (`policy_blocked`) → `blocked_by_policy` / domain `policy` (next-safe `request_access`, owner `policy_owner`)
+    - `why:command-help:project-delete-permission` (`missing_permission`) → `missing_permission` / domain `trust` (next-safe `request_access`, owner `workspace_admin`)
+  - Worked source-language surfaces: 2
+    - `loc:command-help:run-command-localized` (`authored_locale` / `localized_current`) → `fully_localized` (source shown `false`, requires source text `false`)
+    - `loc:command-help:open-settings-fallback` (`fallback_to_source` / `source_language_shown`) → `showing_source_language` (source shown `true`, requires source text `true`)
+- **Menu-and-Action Row**: `stable`
+  - Owner: Menu-and-action row owner
+  - Scope: The menu-and-action row renders both shared surfaces so an unmet-precondition action names the precondition, offers a satisfy-precondition next step, and can retry when it clears, a feature-disabled action points to settings, a partial translation is shown honestly as partial with its source text, and a stale translation is shown as stale with its canonical citation intact
+  - Worked why-unavailable rows: 2
+    - `why:menu-action:merge-precondition` (`unmet_precondition`) → `precondition_unmet` / domain `context` (next-safe `satisfy_precondition`, owner `current_user_scope`)
+    - `why:menu-action:ai-feature-off` (`feature_flag_off`) → `feature_disabled` / domain `context` (next-safe `open_settings`, owner `workspace_admin`)
+  - Worked source-language surfaces: 2
+    - `loc:menu-action:commit-partial` (`mixed_locale` / `partial_translation`) → `partially_localized` (source shown `false`, requires source text `true`)
+    - `loc:menu-action:push-stale` (`translated_locale` / `stale_translation`) → `stale_localization` (source shown `false`, requires source text `true`)
+- **Inline-Status Row**: `stable`
+  - Owner: Inline-status row owner
+  - Scope: The inline-status row renders both shared surfaces so an offline-unavailable action names the provider-service boundary, offers a switch-context next step, and can retry once back online, an unsupported target points to docs, a citation-preserved fallback keeps its canonical link, and a fully untranslated surface shows the source text with a request-localization path
+  - Worked why-unavailable rows: 2
+    - `why:inline-status:sync-pull-offline` (`offline_unavailable`) → `offline_unavailable` / domain `runtime` (next-safe `switch_context`, owner `provider_service`)
+    - `why:inline-status:preview-unsupported` (`unsupported_target`) → `unsupported_target` / domain `runtime` (next-safe `read_docs`, owner `upstream_dependency`)
+  - Worked source-language surfaces: 2
+    - `loc:inline-status:conflict-citation-fallback` (`fallback_to_source` / `citation_preserved_fallback`) → `citation_preserved_fallback` (source shown `true`, requires source text `true`)
+    - `loc:inline-status:lint-no-localization` (`untranslated_source` / `no_localization`) → `no_localization` (source shown `true`, requires source text `true`)
+- **Settings-and-Docs Row**: `stable`
+  - Owner: Settings-and-docs row owner
+  - Scope: The settings-and-docs row renders both shared surfaces so a feature-disabled setting points to settings, a policy-blocked action with no safe next step is named honestly as having none (never a false promise), a machine-translated string is shown honestly as partial with its source, and a fully localized current string reads as current — every block names its owner and reason and every localized surface keeps its canonical citation
+  - Worked why-unavailable rows: 2
+    - `why:settings-docs:telemetry-feature-off` (`feature_flag_off`) → `feature_disabled` / domain `context` (next-safe `open_settings`, owner `policy_owner`)
+    - `why:settings-docs:export-no-safe-action` (`policy_blocked`) → `blocked_by_policy` / domain `policy` (next-safe `no_safe_action`, owner `unknown_owner`)
+  - Worked source-language surfaces: 2
+    - `loc:settings-docs:keybindings-machine-partial` (`machine_translated` / `partial_translation`) → `partially_localized` (source shown `false`, requires source text `true`)
+    - `loc:settings-docs:appearance-localized` (`translated_locale` / `localized_current`) → `fully_localized` (source shown `false`, requires source text `false`)
+- **Support Explanation Export**: `stable`
+  - Owner: Support explanation export owner
+  - Scope: The support explanation export renders both shared surfaces so support can reconstruct exactly why an action was blocked — its owner, reason, and next safe action (or that there is none) — and exactly what localization state a help surface was in, with the source-language text, stable ID, and canonical citation intact and no raw error dump, stack trace, or endpoint crossing the boundary
+  - Worked why-unavailable rows: 2
+    - `why:support-export:billing-permission` (`missing_permission`) → `missing_permission` / domain `trust` (next-safe `request_access`, owner `provider_service`)
+    - `why:support-export:legacy-import-no-safe-action` (`unsupported_target`) → `unsupported_target` / domain `runtime` (next-safe `no_safe_action`, owner `unknown_owner`)
+  - Worked source-language surfaces: 2
+    - `loc:support-export:bundle-notes-source-shown` (`untranslated_source` / `source_language_shown`) → `showing_source_language` (source shown `true`, requires source text `true`)
+    - `loc:support-export:redaction-no-localization` (`untranslated_source` / `no_localization`) → `no_localization` (source shown `true`, requires source text `true`)
