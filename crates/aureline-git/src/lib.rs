@@ -21,6 +21,7 @@ pub mod history_rewrite;
 pub mod history_sessions;
 pub mod history_surgery_review;
 pub mod implement_commit_graph_headers_history_graph_rows_branch_comparison_chips_and_worktree_rows;
+pub mod implement_stash_entries_and_reflog_recovery_banners;
 pub mod mutations;
 pub mod publish;
 pub mod stabilize_repository_topology_truth;
