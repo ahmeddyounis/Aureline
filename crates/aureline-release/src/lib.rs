@@ -436,6 +436,7 @@ pub mod implement_release_candidate_cards_and_promotion_blocked_banners_across_c
 pub mod implement_release_candidate_objects_blocker_evidence_freshness_rows_and_scoped_artifact_bundle_cards_for_every_new_m5_family;
 pub mod implement_rollback_revocation_records_blast_radius_minimizing_node_set_targeting_mirror_offline_parity_and_emergency_disable_advisory_routing_across_m5_artifact_graphs;
 pub mod implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces;
+pub mod implement_support_class_and_evidence_freshness_badges_across_claimed_m5_onboarding_help_marketplace_and_diagnostics_surfaces;
 pub mod m5_assurance_center;
 pub mod m5_assurance_certification;
 pub mod m5_assurance_claim_reducer;
@@ -649,6 +650,20 @@ pub use implement_support_bundle_schema_expansion_feature_family_export_packets_
     SurfaceState as FieldReadinessSurfaceState, TrustTier as FieldReadinessTrustTier,
     FIELD_READINESS_JSON, FIELD_READINESS_PATH, FIELD_READINESS_RECORD_KIND,
     FIELD_READINESS_SCHEMA_VERSION,
+};
+
+pub use implement_support_class_and_evidence_freshness_badges_across_claimed_m5_onboarding_help_marketplace_and_diagnostics_surfaces::{
+    current_stable_m5_badge_claim_primitive_export, resolve_badge_claim, M5BadgeClaimAnatomyPart,
+    M5BadgeClaimConsumerProjection, M5BadgeClaimConsumerSurface, M5BadgeClaimError,
+    M5BadgeClaimExportField, M5BadgeClaimGovernanceReview, M5BadgeClaimInput,
+    M5BadgeClaimPrimitiveArtifactError, M5BadgeClaimPrimitivePacket,
+    M5BadgeClaimPrimitivePacketInput, M5BadgeClaimPrimitiveViolation, M5BadgeClaimProofFreshness,
+    M5BadgeClaimReleasePosture, M5BadgeClaimResolutionCase, M5BadgeClaimRow,
+    M5BadgeClaimVocabularySet, M5BadgeNextAction, M5ClaimNarrowingNote, M5EffectiveClaimPosture,
+    M5EvidenceFreshnessValue, M5FreshnessReducesClaimReason, M5ResolvedBadgeClaim,
+    M5SupportClassBadgeValue, M5_BADGE_CLAIM_ARTIFACT_REF, M5_BADGE_CLAIM_CSV_REF,
+    M5_BADGE_CLAIM_DOC_REF, M5_BADGE_CLAIM_FIXTURE_DIR, M5_BADGE_CLAIM_PRIMITIVE_PACKET_ID,
+    M5_BADGE_CLAIM_PRIMITIVE_RECORD_KIND, M5_BADGE_CLAIM_REPORT_REF, M5_BADGE_CLAIM_SCHEMA_REF,
 };
 
 pub use ship_generated_artifact_lineage_surfaces_for_scaffolded_ai_generated_notebook_derived_and_preview_derived_outputs::{
