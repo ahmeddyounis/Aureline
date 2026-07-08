@@ -20,6 +20,7 @@ pub mod harden_conflict_resolution_external_change_reconciliation_and_merge;
 pub mod history_rewrite;
 pub mod history_sessions;
 pub mod history_surgery_review;
+pub mod implement_commit_graph_headers_history_graph_rows_branch_comparison_chips_and_worktree_rows;
 pub mod mutations;
 pub mod publish;
 pub mod stabilize_repository_topology_truth;
@@ -202,6 +203,20 @@ pub use history_surgery_review::{
     HISTORY_SURGERY_REVIEW_SCHEMA_REF, HISTORY_SURGERY_REVIEW_SCHEMA_VERSION,
     HISTORY_SURGERY_REVIEW_SHEET_RECORD_KIND, HISTORY_SURGERY_REVIEW_SUPPORT_EXPORT_RECORD_KIND,
     HISTORY_SURGERY_TARGET_KINDS,
+};
+pub use implement_commit_graph_headers_history_graph_rows_branch_comparison_chips_and_worktree_rows::{
+    current_git_history_identity_export, DivergenceState, GitHistoryIdentityArtifactError,
+    GitHistoryIdentityConsumerProjection, GitHistoryIdentityDisclosure, GitHistoryIdentityPacket,
+    GitHistoryIdentityPacketInput, GitHistoryIdentityProofFreshness, GitHistoryIdentityRow,
+    GitHistoryIdentityTrustReview, GitHistoryIdentityViolation, GitWorkingContextTarget,
+    IdentityComponentAction, TopologyCompleteness, WorktreeDirtyState,
+    resolve_git_history_identity_disclosure, GIT_HISTORY_IDENTITY_ARTIFACT_REF,
+    GIT_HISTORY_IDENTITY_COMMIT_HISTORY_CONTRACT_REF,
+    GIT_HISTORY_IDENTITY_COMPONENTS, GIT_HISTORY_IDENTITY_COMPONENT_MATRIX_CONTRACT_REF,
+    GIT_HISTORY_IDENTITY_DOC_REF, GIT_HISTORY_IDENTITY_FIXTURE_DIR,
+    GIT_HISTORY_IDENTITY_RECORD_KIND, GIT_HISTORY_IDENTITY_RECOVERY_CHECKPOINT_CONTRACT_REF,
+    GIT_HISTORY_IDENTITY_SCHEMA_REF, GIT_HISTORY_IDENTITY_SCHEMA_VERSION,
+    GIT_HISTORY_IDENTITY_SUMMARY_REF, GIT_HISTORY_IDENTITY_TOPOLOGY_CONTRACT_REF,
 };
 pub use mutations::{
     GitMutationActivityRecord, GitMutationActorRef, GitMutationBackend, GitMutationBackendError,
