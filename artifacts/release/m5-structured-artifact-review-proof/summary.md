@@ -1,0 +1,72 @@
+# M5 Structured-Artifact Review Component Matrix
+
+- Packet: `m5-artifact-component-matrix:stable:0001`
+- Label: `M5 Structured-Artifact Review Component Matrix`
+- Components: 9 (7 stable)
+- Proof freshness SLO: 168 hours (last refresh: 2026-07-08T00:00:00Z)
+
+## Components
+
+- **artifact_identity_bar**: `stable`
+  - Scope: Artifact identity bar naming artifact class, canonical source, and parser/schema state at the top of every structured or media-like compare surface
+  - Canonical source: Names the artifact class and the canonical source of truth (working-tree path, generated-from origin, or imported snapshot) and never presents an adjunct capture as the source
+  - Compare/write-back safety: Identity bar is read-only and never offers write-back; it only labels whether the underlying artifact is compare-only or writable
+  - Render trust: States whether the identity was parsed from a trusted structured header or inferred, so an inferred class is never shown as confirmed
+  - Generated-from relation: When the artifact is generated it names the generating source of truth rather than treating the generated file as authoritative
+  - Rollback: read_only_no_mutation
+- **diff_mode_switcher**: `stable`
+  - Scope: Diff-mode switcher exposing the available structured diff modes (structured, cell-aware, rendered, raw) and the active mode without silently collapsing to raw
+  - Canonical source: Names the canonical artifact being diffed and which side is base versus compare so the mode never obscures what is compared
+  - Compare/write-back safety: Switching modes is a view-only operation that never writes back; it only changes how the compare is rendered
+  - Render trust: Labels each mode's render trust so a rendered mode is marked untrusted rather than presented as an authoritative structured diff
+  - Generated-from relation: When one side is a generated artifact the switcher marks it generated so a diff is never read as a hand-authored change
+  - Rollback: read_only_no_mutation
+- **structure_row**: `stable`
+  - Scope: Structure row showing one structured path (cell, node, key, or symbol) and its change class so nested structure is never flattened into opaque line noise
+  - Canonical source: Names the structured path against its canonical artifact so a row maps back to a real location rather than a synthetic index
+  - Compare/write-back safety: Structure rows are read-only anchors; selecting one navigates without mutating the artifact
+  - Render trust: Marks whether the structure was parsed faithfully or partially so a partial parse is never presented as complete structure
+  - Generated-from relation: When a structure row belongs to a generated artifact it inherits the generated-from marker from the identity bar rather than hiding it
+  - Rollback: read_only_no_mutation
+- **merge_decision_row**: `stable`
+  - Scope: Merge-decision row picking base, ours, or theirs for one structured conflict with the resulting write-back safety always explicit
+  - Canonical source: Names the conflicting structured path and the base/ours/theirs lineage so a decision is never applied to an ambiguous target
+  - Compare/write-back safety: The row states whether resolving writes back to a writable artifact or stays compare-only, and a compare-only artifact is never silently promoted to writable
+  - Render trust: Marks whether the merged preview is a trusted structured merge or a raw fallback so an untrusted merge is never applied blindly
+  - Generated-from relation: When a side is generated the row surfaces the generated-from relation so a merge decision never overwrites a regenerable artifact by hand
+  - Rollback: write_back_attributable
+- **generated_artifact_notice**: `stable`
+  - Scope: Generated-artifact notice naming the generating source of truth and regeneration path so a generated file is never edited as if it were authoritative
+  - Canonical source: Names the generated-from source of truth and marks the artifact non-authoritative, never presenting the generated output as the canonical source
+  - Compare/write-back safety: Marks the artifact regenerate-only so manual write-back is blocked in favor of regenerating from source
+  - Render trust: States whether the generation lineage was verified fresh or is stale so a stale generated artifact is labeled rather than trusted
+  - Generated-from relation: This is the primary carrier of the generated-from relation and never hides it behind generic file chrome
+  - Rollback: regenerate_only_no_manual_edit
+- **rendered_compare_viewer**: `beta`
+  - Scope: Rendered compare viewer showing two structured or media-like artifacts side by side with the render-trust class always explicit
+  - Canonical source: Names both compared artifacts and their canonical sources so a rendered comparison is anchored to real inputs
+  - Compare/write-back safety: The viewer is strictly compare-only and never writes back to either rendered artifact
+  - Render trust: This is the primary carrier of render-trust class; an untrusted render is labeled untrusted and offers an export-safe raw fallback
+  - Generated-from relation: When a rendered side is generated the viewer surfaces the generated-from relation so a render is never mistaken for the source of truth
+  - Rollback: compare_only_no_write_back
+- **media_metadata_rail**: `preview`
+  - Scope: Media-metadata rail exposing dimensions, encoding, and provenance metadata for media-like artifacts so metadata visibility is never dropped from a preview
+  - Canonical source: Names the media artifact and its canonical source, distinguishing captured metadata from inferred metadata
+  - Compare/write-back safety: The rail is read-only and never writes back to the media artifact or its metadata
+  - Render trust: Marks whether metadata was extracted from a trusted decoder or is unavailable so missing metadata is shown as missing rather than blank
+  - Generated-from relation: When media is generated (a rendered snapshot or export) the rail names the generated-from relation rather than treating it as an original capture
+  - Rollback: read_only_no_mutation
+- **redaction_or_trust_badge_set**: `stable`
+  - Scope: Redaction or trust badge set naming redaction, export, and safe-preview posture so a redacted or untrusted artifact is never presented as fully visible or fully trusted
+  - Canonical source: Names the artifact and its redaction/trust class so the badge maps to a real posture rather than a decorative label
+  - Compare/write-back safety: The badge set is read-only; it annotates safety and never itself mutates the artifact
+  - Render trust: This is the primary carrier of trust/safe-preview class and marks an untrusted preview so it is never opened as trusted
+  - Generated-from relation: When a badge covers a generated artifact it preserves the generated-from marker so trust posture and lineage stay together
+  - Rollback: read_only_no_mutation
+- **compare_summary_card**: `stable`
+  - Scope: Compare-summary card rolling up an artifact comparison (added/removed/changed structure, render trust, safety) without flattening distinct classes into a single verdict
+  - Canonical source: Names the compared artifacts and their canonical sources so the summary is attributable to real inputs
+  - Compare/write-back safety: The card summarizes safety but is read-only and never itself writes back or promotes a compare-only artifact
+  - Render trust: Rolls up per-side render trust so an untrusted render is visible in the summary rather than averaged away
+  - Generated-from relation: Surfaces when either side is generated so a summary never hides that a change is regenerable rather than hand-authored
+  - Rollback: read_only_no_mutation

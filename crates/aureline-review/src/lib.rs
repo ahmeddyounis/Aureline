@@ -26,6 +26,7 @@ pub mod finalize_issue_and_work_item_linkage_with_branch;
 pub mod finalize_migration_rollback_checkpoints_diff_review_and_retained;
 pub mod freeze_the_m5_review_request_check_and_merge_queue_component_matrix;
 pub mod freeze_the_m5_review_workspace_merge_queue_and_pipeline_viewer_maturity_matrix;
+pub mod freeze_the_m5_structured_artifact_review_component_matrix;
 pub mod freeze_the_m5_work_item_provider_link_acting_identity_and_publish_later_continuity_matrix;
 pub mod git_history_review;
 pub mod git_stash_recovery_review;
@@ -332,6 +333,30 @@ pub use freeze_the_m5_review_workspace_merge_queue_and_pipeline_viewer_maturity_
     M5_REVIEW_CI_PREVIEW_MATRIX_REVIEW_WORKSPACE_CONTRACT_REF,
     M5_REVIEW_CI_PREVIEW_MATRIX_SCHEMA_REF, M5_REVIEW_CI_PREVIEW_MATRIX_SCHEMA_VERSION,
     M5_REVIEW_CI_PREVIEW_MATRIX_SUMMARY_REF,
+};
+pub use freeze_the_m5_structured_artifact_review_component_matrix::{
+    current_stable_m5_artifact_component_matrix_export, M5ArtifactComponent,
+    M5ArtifactComponentConsumerSurface, M5ArtifactComponentDowngradeTrigger,
+    M5ArtifactComponentEvidenceRequirement, M5ArtifactComponentMatrixArtifactError,
+    M5ArtifactComponentMatrixConsumerProjection, M5ArtifactComponentMatrixPacket,
+    M5ArtifactComponentMatrixPacketInput, M5ArtifactComponentMatrixProofFreshness,
+    M5ArtifactComponentMatrixRow, M5ArtifactComponentMatrixTrustReview,
+    M5ArtifactComponentMatrixViolation, M5ArtifactComponentMaturityClass,
+    M5ArtifactComponentRollbackPosture, M5ArtifactFidelityState,
+    M5_ARTIFACT_COMPONENT_MATRIX_ARTIFACT_REF,
+    M5_ARTIFACT_COMPONENT_MATRIX_COMPARE_SUMMARY_CONTRACT_REF,
+    M5_ARTIFACT_COMPONENT_MATRIX_DIFF_MODE_CONTRACT_REF, M5_ARTIFACT_COMPONENT_MATRIX_DOC_REF,
+    M5_ARTIFACT_COMPONENT_MATRIX_FIXTURE_DIR,
+    M5_ARTIFACT_COMPONENT_MATRIX_GENERATED_NOTICE_CONTRACT_REF,
+    M5_ARTIFACT_COMPONENT_MATRIX_IDENTITY_BAR_CONTRACT_REF,
+    M5_ARTIFACT_COMPONENT_MATRIX_MEDIA_RAIL_CONTRACT_REF,
+    M5_ARTIFACT_COMPONENT_MATRIX_MERGE_DECISION_CONTRACT_REF,
+    M5_ARTIFACT_COMPONENT_MATRIX_RECORD_KIND,
+    M5_ARTIFACT_COMPONENT_MATRIX_REDACTION_BADGE_CONTRACT_REF,
+    M5_ARTIFACT_COMPONENT_MATRIX_RENDERED_VIEWER_CONTRACT_REF,
+    M5_ARTIFACT_COMPONENT_MATRIX_SCHEMA_REF, M5_ARTIFACT_COMPONENT_MATRIX_SCHEMA_VERSION,
+    M5_ARTIFACT_COMPONENT_MATRIX_STRUCTURE_ROW_CONTRACT_REF,
+    M5_ARTIFACT_COMPONENT_MATRIX_SUMMARY_REF,
 };
 pub use git_history_review::{
     current_git_history_review_packet, GitHistoryReviewError, GitHistoryReviewPacket,
