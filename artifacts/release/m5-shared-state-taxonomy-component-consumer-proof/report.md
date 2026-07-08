@@ -1,0 +1,80 @@
+# M5 Shared-State-Taxonomy Component Consumer Parity
+
+- Packet: `m5-shared-state-taxonomy-component-consumer:stable:0001`
+- Label: `M5 shared-state-taxonomy component consumers: shell chrome, command/help, search/dense collections, review/work-item, settings/capability, provider/offline-capture, test/watch, and support/recovery keep state-semantics, cause, consequence/recovery, and accessibility parity`
+- Consumers: 8 (8 stable)
+- Component families: shared_component_state_taxonomy, interactive_state, selection_or_lock_state, degraded_state_application
+- Descriptors: state_semantics, state_cause, consequence_and_recovery, accessibility_label
+- Parity-health modes: full_parity, state_cause_unresolved_narrowed, recovery_unavailable_narrowed, lock_owner_unresolved_narrowed, accessibility_route_reduced_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-07T00:00:00Z)
+
+## Consumers
+
+- **Shell Chrome**: `stable`
+  - Owner: Shell chrome surface owner
+  - Scope: Shell chrome adopts the interactive-state contract and the degraded-state-application contract at full parity, referencing the canonical contract schemas so the same state semantics, state cause, consequence/recovery, and accessibility label appear here as in command/help, search, review, settings, provider, test, and support surfaces
+  - Adopted families: 2
+    - `interactive_state` → `schemas/ui/m5-interactive-state-contract.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `degraded_state_application` → `schemas/ui/m5-loading-pending-degraded-state-contract.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Command / Help**: `stable`
+  - Owner: Command / help surface owner
+  - Scope: Command and help surfaces adopt the shared component-state taxonomy and the interactive-state contract at full parity, referencing the canonical schemas so state semantics, state cause, consequence/recovery, and accessibility label stay one truth rather than being re-worded in prose
+  - Adopted families: 2
+    - `shared_component_state_taxonomy` → `schemas/ui/m5-shared-component-state-taxonomy-component-matrix.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `interactive_state` → `schemas/ui/m5-interactive-state-contract.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Search / Dense Collection**: `stable`
+  - Owner: Search / dense-collection surface owner
+  - Scope: Search and dense collections adopt the selection-or-lock-state contract at full parity and the interactive-state contract auto-narrowed because a non-visual accessibility route is reduced here, keeping state semantics, state cause, consequence/recovery, and accessibility label explicit so a reduced route never becomes a color-only cue
+  - Adopted families: 2
+    - `selection_or_lock_state` → `schemas/ui/m5-selection-lock-state-contract.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `interactive_state` → `schemas/ui/m5-interactive-state-contract.schema.json` (1 worked binding(s))
+      - `accessibility_route_reduced_narrowed` → `claims_auto_narrowed` (banner `accessibility_route_reduced`)
+- **Review / Work-Item**: `stable`
+  - Owner: Review / work-item surface owner
+  - Scope: Review and work-item flows adopt the selection-or-lock-state contract at full parity and the degraded-state-application contract auto-narrowed because a state cause is not yet resolved, keeping state semantics, state cause, consequence/recovery, and accessibility label explicit so an unexplained state never reads as a settled, exact state
+  - Adopted families: 2
+    - `selection_or_lock_state` → `schemas/ui/m5-selection-lock-state-contract.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `degraded_state_application` → `schemas/ui/m5-loading-pending-degraded-state-contract.schema.json` (1 worked binding(s))
+      - `state_cause_unresolved_narrowed` → `claims_auto_narrowed` (banner `state_cause_unresolved`)
+- **Settings / Capability**: `stable`
+  - Owner: Settings / capability surface owner
+  - Scope: Settings and capability prompts adopt the selection-or-lock-state contract auto-narrowed because a lock / block owner is re-resolved, and the degraded-state-application contract at full parity, keeping state semantics, state cause, consequence/recovery, and accessibility label explicit so a locked capability names its owner rather than masking as a plain disabled control
+  - Adopted families: 2
+    - `selection_or_lock_state` → `schemas/ui/m5-selection-lock-state-contract.schema.json` (1 worked binding(s))
+      - `lock_owner_unresolved_narrowed` → `claims_auto_narrowed` (banner `lock_owner_unresolved`)
+    - `degraded_state_application` → `schemas/ui/m5-loading-pending-degraded-state-contract.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Provider / Offline-Capture**: `stable`
+  - Owner: Provider / offline-capture surface owner
+  - Scope: Provider and offline-capture rows adopt the selection-or-lock-state contract at full parity and the degraded-state-application contract auto-narrowed because no recovery path is available, keeping state semantics, state cause, consequence/recovery, and accessibility label explicit so a degraded row names its reduced capability rather than a healthy exact state
+  - Adopted families: 2
+    - `selection_or_lock_state` → `schemas/ui/m5-selection-lock-state-contract.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `degraded_state_application` → `schemas/ui/m5-loading-pending-degraded-state-contract.schema.json` (1 worked binding(s))
+      - `recovery_unavailable_narrowed` → `claims_auto_narrowed` (banner `recovery_unavailable`)
+- **Test / Watch**: `stable`
+  - Owner: Test / watch surface owner
+  - Scope: Test and watch surfaces adopt the degraded-state-application contract and the interactive-state contract at full parity, referencing the canonical schemas so state semantics, state cause, consequence/recovery, and accessibility label stay one truth across every claimed surface
+  - Adopted families: 2
+    - `degraded_state_application` → `schemas/ui/m5-loading-pending-degraded-state-contract.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `interactive_state` → `schemas/ui/m5-interactive-state-contract.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Support / Recovery**: `stable`
+  - Owner: Support / recovery surface owner
+  - Scope: The support / recovery lane adopts the shared component-state taxonomy, the interactive-state contract, the selection-or-lock-state contract, and the degraded-state-application contract, referencing the canonical schemas so its exported prose can never drift from the product truth and keeping state semantics, state cause, consequence/recovery, and accessibility label exact in every exported case
+  - Adopted families: 4
+    - `shared_component_state_taxonomy` → `schemas/ui/m5-shared-component-state-taxonomy-component-matrix.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `interactive_state` → `schemas/ui/m5-interactive-state-contract.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `selection_or_lock_state` → `schemas/ui/m5-selection-lock-state-contract.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `degraded_state_application` → `schemas/ui/m5-loading-pending-degraded-state-contract.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
