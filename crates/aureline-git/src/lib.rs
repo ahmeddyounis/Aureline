@@ -14,6 +14,7 @@ pub mod change_objects;
 pub mod commit;
 pub mod conflicts;
 pub mod finalize_sequence_edit_conflict_session_stash_entry_and_ref_update_truth;
+pub mod freeze_the_m5_git_history_sequence_component_matrix;
 pub mod freeze_the_m5_repository_topology_worktree_scope_history_surgery_and_checkpoint_recovery_matrix;
 pub mod harden_conflict_resolution_external_change_reconciliation_and_merge;
 pub mod history_rewrite;
@@ -104,6 +105,28 @@ pub use finalize_sequence_edit_conflict_session_stash_entry_and_ref_update_truth
     RISKY_VCS_SUPPORT_EXPORT_RECORD_KIND, RISKY_VCS_TARGET_SELECTION_STATES,
     RISKY_VCS_TODO_VERSION_STATES, RISKY_VCS_TRUTH_PACKET_RECORD_KIND,
     RISKY_VCS_TRUTH_SCHEMA_VERSION, RISKY_VCS_UNTRACKED_STATE_POSTURES,
+};
+pub use freeze_the_m5_git_history_sequence_component_matrix::{
+    current_stable_m5_git_history_component_matrix_export, ComponentConsumerSurface,
+    ComponentMaturityPosture, ComponentRow, DowngradeStateRow, GitHistoryDowngradeState,
+    M5GitHistoryComponent, M5GitHistoryComponentMatrixArtifactError,
+    M5GitHistoryComponentMatrixPacket, M5GitHistoryComponentMatrixPacketInput,
+    M5GitHistoryComponentMatrixViolation, MatrixConsumerParity as GitHistoryMatrixConsumerParity,
+    MatrixFreezePosture as GitHistoryMatrixFreezePosture,
+    MatrixGovernanceReview as GitHistoryMatrixGovernanceReview, MutationReviewClass,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_ARTIFACT_REF,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_COMMIT_HISTORY_CONTRACT_REF,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_CONFLICT_SESSION_CONTRACT_REF,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_DOC_REF, M5_GIT_HISTORY_COMPONENT_MATRIX_FIXTURE_DIR,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_HISTORY_SURGERY_CONTRACT_REF,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_RECORD_KIND,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_RECOVERY_CHECKPOINT_CONTRACT_REF,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_REF_UPDATE_CONTRACT_REF,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_SCHEMA_REF, M5_GIT_HISTORY_COMPONENT_MATRIX_SCHEMA_VERSION,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_SEQUENCE_EDIT_CONTRACT_REF,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_STASH_CONTRACT_REF,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_SUMMARY_REF,
+    M5_GIT_HISTORY_COMPONENT_MATRIX_TOPOLOGY_CONTRACT_REF,
 };
 pub use freeze_the_m5_repository_topology_worktree_scope_history_surgery_and_checkpoint_recovery_matrix::{
     current_stable_m5_git_topology_history_matrix_export, DegradedStateRow, DegradedTopologyState,
