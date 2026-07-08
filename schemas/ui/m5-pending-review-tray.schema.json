@@ -1,0 +1,611 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-pending-review-tray.schema.json",
+  "title": "Aureline M5 pending-review trays and approval-invalidation banners with reviewer-scope, restack/rebase drift, publish-later continuity, and reopen-safe follow-up truth",
+  "description": "Export-safe packet implementing the reusable M5 pending-review tray and approval-invalidation banner contracts. A pending-review tray preserves who still owes action: it names the reviewer scope, lists requested reviewers and their review state, counts unresolved threads, keeps local draft comments and publish-later packets visible, and states the exact next-action verb. An approval-invalidation banner preserves when prior approval or readiness truth became invalid: it names the specific invalidation cause (stale base, rebased stack, rewritten series, changed queue state, or policy drift), preserves the prior approval state that was reset, and offers compare, re-review, reopen, and export actions. Approval invalidation is kept separate from generic warning and queue-block banners: an invalidating banner must present as approval invalidation carrying its cause and required actions, and may never be collapsed into a generic warning or queue-block pill, nor a non-invalidating banner masquerade as approval invalidation. Local draft comments and offline follow-up packets remain visible even when provider freshness is degraded or unavailable; a degraded provider preserves a local-continue path and, when unreachable, an explicit browser-handoff boundary, so one tray or banner degrades without collapsing the whole review lane. Raw provider responses, credentials, and live provider payloads never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "pending_trays",
+    "approval_banners",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "pending_review_tray_and_approval_invalidation_banner_truth"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "surface_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "pending_trays": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/pending_review_tray"
+      }
+    },
+    "approval_banners": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/approval_invalidation_banner"
+      }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/downgrade_trigger"
+      }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_surface"
+      }
+    },
+    "trust_review": {
+      "$ref": "#/$defs/trust_review"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "provider_freshness": {
+      "type": "string",
+      "enum": [
+        "provider_fresh",
+        "provider_refreshing",
+        "provider_stale",
+        "provider_unreachable",
+        "provider_conflict",
+        "local_only_continuation"
+      ]
+    },
+    "reviewer_scope": {
+      "type": "string",
+      "enum": [
+        "awaiting_my_review",
+        "awaiting_other_reviewers",
+        "awaiting_author_revision",
+        "changes_requested",
+        "ready_none_outstanding"
+      ]
+    },
+    "reviewer_review_state": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "approved",
+        "changes_requested",
+        "commented",
+        "dismissed"
+      ]
+    },
+    "next_action": {
+      "type": "string",
+      "enum": [
+        "submit_your_review",
+        "publish_draft_comments",
+        "resolve_threads",
+        "request_re_review",
+        "address_changes_requested",
+        "await_reviewers",
+        "publish_follow_up_packet"
+      ]
+    },
+    "banner_kind": {
+      "type": "string",
+      "enum": [
+        "approval_invalidation",
+        "generic_warning",
+        "queue_block"
+      ]
+    },
+    "invalidation_cause": {
+      "type": "string",
+      "enum": [
+        "stale_base",
+        "rebased_stack",
+        "rewritten_series",
+        "changed_queue_state",
+        "policy_drift"
+      ]
+    },
+    "banner_action": {
+      "type": "string",
+      "enum": [
+        "compare_invalidating_change",
+        "request_re_review",
+        "reopen_follow_up",
+        "export_invalidation_packet",
+        "continue_local_review",
+        "open_provider_in_browser"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_freshness_stale",
+        "stale_base_unlabeled",
+        "approval_invalidation_pending",
+        "rewritten_series_unlabeled",
+        "reviewer_scope_unresolved",
+        "browser_handoff_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace",
+        "review_list",
+        "companion_queue",
+        "handoff_packet",
+        "cli_headless",
+        "support_export",
+        "diagnostics",
+        "help_about",
+        "notifications_inbox"
+      ]
+    },
+    "requested_reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewer_id",
+        "reviewer_label",
+        "review_state",
+        "is_required"
+      ],
+      "properties": {
+        "reviewer_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "reviewer_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "review_state": {
+          "$ref": "#/$defs/reviewer_review_state"
+        },
+        "is_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "local_draft_comment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "draft_id",
+        "thread_label",
+        "preview_label",
+        "is_local_only"
+      ],
+      "properties": {
+        "draft_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "thread_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "preview_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "is_local_only": {
+          "type": "boolean"
+        }
+      }
+    },
+    "publish_later_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_ref_id",
+        "packet_label",
+        "item_count",
+        "is_offline_captured"
+      ],
+      "properties": {
+        "packet_ref_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "packet_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "item_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "is_offline_captured": {
+          "type": "boolean"
+        }
+      }
+    },
+    "pending_review_tray": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tray_id",
+        "review_id_label",
+        "provider_freshness",
+        "reviewer_scope",
+        "scope_summary_label",
+        "requested_reviewers",
+        "unresolved_thread_count",
+        "local_draft_comments",
+        "publish_later_packets",
+        "local_evidence_visible",
+        "next_action",
+        "next_action_label",
+        "local_continue_note",
+        "browser_handoff_boundary",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "tray_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "review_id_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "provider_freshness": {
+          "$ref": "#/$defs/provider_freshness"
+        },
+        "reviewer_scope": {
+          "$ref": "#/$defs/reviewer_scope"
+        },
+        "scope_summary_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "requested_reviewers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/requested_reviewer"
+          }
+        },
+        "unresolved_thread_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "local_draft_comments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/local_draft_comment"
+          }
+        },
+        "publish_later_packets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/publish_later_packet"
+          }
+        },
+        "local_evidence_visible": {
+          "type": "boolean"
+        },
+        "next_action": {
+          "$ref": "#/$defs/next_action"
+        },
+        "next_action_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "local_continue_note": {
+          "type": "string"
+        },
+        "browser_handoff_boundary": {
+          "type": "string"
+        },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "approval_invalidation_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "banner_id",
+        "review_id_label",
+        "banner_kind",
+        "approvals_were_invalidated",
+        "invalidation_cause",
+        "headline_label",
+        "cause_detail",
+        "prior_approval_state_label",
+        "reopen_safe",
+        "reopen_note",
+        "provider_freshness",
+        "actions",
+        "local_continue_note",
+        "browser_handoff_boundary",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "banner_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "review_id_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "banner_kind": {
+          "$ref": "#/$defs/banner_kind"
+        },
+        "approvals_were_invalidated": {
+          "type": "boolean"
+        },
+        "invalidation_cause": {
+          "$ref": "#/$defs/invalidation_cause"
+        },
+        "headline_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "cause_detail": {
+          "type": "string"
+        },
+        "prior_approval_state_label": {
+          "type": "string"
+        },
+        "reopen_safe": {
+          "type": "boolean"
+        },
+        "reopen_note": {
+          "type": "string"
+        },
+        "provider_freshness": {
+          "$ref": "#/$defs/provider_freshness"
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/banner_action"
+          }
+        },
+        "local_continue_note": {
+          "type": "string"
+        },
+        "browser_handoff_boundary": {
+          "type": "string"
+        },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "approvals_were_invalidated": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "banner_kind": {
+                "const": "approval_invalidation"
+              },
+              "cause_detail": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "prior_approval_state_label": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reopen_safe": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reopen_note": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_invalidation_kept_separate",
+        "generic_warning_never_masks_invalidation",
+        "queue_block_never_masks_invalidation",
+        "reviewer_scope_always_explicit",
+        "next_action_verb_always_explicit",
+        "local_drafts_visible_under_degraded_provider",
+        "publish_later_packets_visible_under_degraded_provider",
+        "prior_approval_state_preserved_on_invalidation",
+        "reopen_safe_follow_up_preserved",
+        "no_forced_raw_provider_navigation_for_triage",
+        "downgrade_narrows_instead_of_hides",
+        "stale_or_underqualified_blocks_promotion"
+      ],
+      "properties": {
+        "approval_invalidation_kept_separate": {
+          "type": "boolean",
+          "const": true
+        },
+        "generic_warning_never_masks_invalidation": {
+          "type": "boolean",
+          "const": true
+        },
+        "queue_block_never_masks_invalidation": {
+          "type": "boolean",
+          "const": true
+        },
+        "reviewer_scope_always_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "next_action_verb_always_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "local_drafts_visible_under_degraded_provider": {
+          "type": "boolean",
+          "const": true
+        },
+        "publish_later_packets_visible_under_degraded_provider": {
+          "type": "boolean",
+          "const": true
+        },
+        "prior_approval_state_preserved_on_invalidation": {
+          "type": "boolean",
+          "const": true
+        },
+        "reopen_safe_follow_up_preserved": {
+          "type": "boolean",
+          "const": true
+        },
+        "no_forced_raw_provider_navigation_for_triage": {
+          "type": "boolean",
+          "const": true
+        },
+        "downgrade_narrows_instead_of_hides": {
+          "type": "boolean",
+          "const": true
+        },
+        "stale_or_underqualified_blocks_promotion": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_workspace_reuses_one_contract",
+        "review_list_reuses_one_contract",
+        "companion_queue_reuses_one_contract",
+        "tray_distinguishes_reviewer_scope",
+        "banner_distinguishes_invalidation_cause",
+        "cli_headless_shows_truth",
+        "support_export_shows_truth",
+        "diagnostics_shows_truth",
+        "help_about_shows_truth",
+        "export_preserves_reviewer_and_invalidation_identity"
+      ],
+      "properties": {
+        "review_workspace_reuses_one_contract": {
+          "type": "boolean",
+          "const": true
+        },
+        "review_list_reuses_one_contract": {
+          "type": "boolean",
+          "const": true
+        },
+        "companion_queue_reuses_one_contract": {
+          "type": "boolean",
+          "const": true
+        },
+        "tray_distinguishes_reviewer_scope": {
+          "type": "boolean",
+          "const": true
+        },
+        "banner_distinguishes_invalidation_cause": {
+          "type": "boolean",
+          "const": true
+        },
+        "cli_headless_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "support_export_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "diagnostics_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "help_about_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "export_preserves_reviewer_and_invalidation_identity": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
