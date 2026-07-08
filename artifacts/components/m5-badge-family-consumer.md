@@ -1,0 +1,76 @@
+# M5 Badge-Family Consumer Parity
+
+- Packet: `m5-badge-family-consumer:stable:0001`
+- Label: `M5 badge-family consumers: marketplace, Help/About, settings, onboarding, diagnostics, support export, runtime, and workspace keep label, explanation, and downgrade parity`
+- Badge consumers: 8 (8 stable)
+- Badge families: support_class, evidence_freshness, lifecycle, channel, deployment_scope, compatibility_state
+- Parity facets: label, explanation, downgrade_reason, filter_key
+- Render modes: full_claim_scope, freshness_narrowed, scope_narrowed, export_projection
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-08T00:00:00Z)
+
+## Badge consumers
+
+- **Marketplace / Install**: `stable`
+  - Owner: Marketplace surface owner
+  - Scope: The marketplace/install surface adopts the support-class and lifecycle badges at full claim scope, pointing at their canonical badge schemas so the label, explanation drawer, and downgrade reason stay identical to what Help/About, settings, onboarding, diagnostics, the support export, runtime cards, and the workspace surface show
+  - Adopted families: 2
+    - `support_class` → `schemas/ui/m5-support-class-and-evidence-freshness-badge.schema.json` (1 worked binding(s))
+      - `full_claim_scope` → `facets_preserved` (banner `full`)
+    - `lifecycle` → `schemas/ui/m5-lifecycle-and-channel-badge.schema.json` (1 worked binding(s))
+      - `full_claim_scope` → `facets_preserved` (banner `full`)
+- **Help / About**: `stable`
+  - Owner: Help / About surface owner
+  - Scope: The Help/About surface adopts the evidence-freshness and support-class badges at full claim scope, referencing the canonical badge schemas so its prose can never drift from the live badge label, explanation, and downgrade reason
+  - Adopted families: 2
+    - `evidence_freshness` → `schemas/ui/m5-support-class-and-evidence-freshness-badge.schema.json` (1 worked binding(s))
+      - `full_claim_scope` → `facets_preserved` (banner `full`)
+    - `support_class` → `schemas/ui/m5-support-class-and-evidence-freshness-badge.schema.json` (1 worked binding(s))
+      - `full_claim_scope` → `facets_preserved` (banner `full`)
+- **Settings / Policy**: `stable`
+  - Owner: Settings / policy surface owner
+  - Scope: The settings/policy-explainer surface adopts the deployment-scope and channel badges at full claim scope, reading the same label, explanation, and downgrade reason so a policy explainer never re-words a badge axis locally
+  - Adopted families: 2
+    - `deployment_scope` → `schemas/ui/m5-deployment-scope-badge.schema.json` (1 worked binding(s))
+      - `full_claim_scope` → `facets_preserved` (banner `full`)
+    - `channel` → `schemas/ui/m5-lifecycle-and-channel-badge.schema.json` (1 worked binding(s))
+      - `full_claim_scope` → `facets_preserved` (banner `full`)
+- **Onboarding / Start Center**: `stable`
+  - Owner: Onboarding / start-center surface owner
+  - Scope: The onboarding/start-center surface adopts the lifecycle badge at full claim scope and the evidence-freshness badge auto-narrowed when its evidence goes stale, disclosing the narrowing with a self-contained banner while keeping the same parity vocabulary every surface uses
+  - Adopted families: 2
+    - `lifecycle` → `schemas/ui/m5-lifecycle-and-channel-badge.schema.json` (1 worked binding(s))
+      - `full_claim_scope` → `facets_preserved` (banner `full`)
+    - `evidence_freshness` → `schemas/ui/m5-support-class-and-evidence-freshness-badge.schema.json` (1 worked binding(s))
+      - `freshness_narrowed` → `facets_disclosed_narrowed` (banner `evidence_stale`)
+- **Diagnostics**: `stable`
+  - Owner: Diagnostics surface owner
+  - Scope: The diagnostics surface adopts the evidence-freshness badge auto-narrowed on stale proof and the compatibility-state badge auto-narrowed when its scope reduces, preserving the label, explanation, and downgrade reason and naming the exact downgrade reason on a self-contained banner
+  - Adopted families: 2
+    - `evidence_freshness` → `schemas/ui/m5-support-class-and-evidence-freshness-badge.schema.json` (1 worked binding(s))
+      - `freshness_narrowed` → `facets_disclosed_narrowed` (banner `evidence_stale`)
+    - `compatibility_state` → `schemas/ui/m5-compatibility-state-badge.schema.json` (1 worked binding(s))
+      - `scope_narrowed` → `facets_disclosed_narrowed` (banner `scope_reduced`)
+- **Support Export**: `stable`
+  - Owner: Support-export owner
+  - Scope: The support export adopts the support-class and compatibility-state badges from an export snapshot, reconstructing consumer parity from the shared model so a support reviewer reads the same label, explanation, and downgrade reason every product surface shows
+  - Adopted families: 2
+    - `support_class` → `schemas/ui/m5-support-class-and-evidence-freshness-badge.schema.json` (1 worked binding(s))
+      - `export_projection` → `facets_disclosed_narrowed` (banner `export_snapshot`)
+    - `compatibility_state` → `schemas/ui/m5-compatibility-state-badge.schema.json` (1 worked binding(s))
+      - `export_projection` → `facets_disclosed_narrowed` (banner `export_snapshot`)
+- **Runtime / Deployment**: `stable`
+  - Owner: Runtime / deployment surface owner
+  - Scope: The runtime/deployment-card surface adopts the deployment-scope badge auto-narrowed when its scope reduces and the channel badge at full claim scope, keeping the same parity vocabulary and disclosing the narrowing with a self-contained banner
+  - Adopted families: 2
+    - `deployment_scope` → `schemas/ui/m5-deployment-scope-badge.schema.json` (1 worked binding(s))
+      - `scope_narrowed` → `facets_disclosed_narrowed` (banner `scope_reduced`)
+    - `channel` → `schemas/ui/m5-lifecycle-and-channel-badge.schema.json` (1 worked binding(s))
+      - `full_claim_scope` → `facets_preserved` (banner `full`)
+- **Workspace / Archetype**: `stable`
+  - Owner: Workspace / archetype surface owner
+  - Scope: The workspace/archetype-qualification surface adopts the compatibility-state and deployment-scope badges at full claim scope, reading the same label, explanation, and downgrade reason so an archetype qualification never reinterprets a badge axis locally
+  - Adopted families: 2
+    - `compatibility_state` → `schemas/ui/m5-compatibility-state-badge.schema.json` (1 worked binding(s))
+      - `full_claim_scope` → `facets_preserved` (banner `full`)
+    - `deployment_scope` → `schemas/ui/m5-deployment-scope-badge.schema.json` (1 worked binding(s))
+      - `full_claim_scope` → `facets_preserved` (banner `full`)
