@@ -1,0 +1,471 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-companion-degraded-state-continuity-controls.schema.json",
+  "title": "Aureline M5 companion degraded-state continuity controls",
+  "description": "Export-safe packet governing the degraded states of every reusable M5 companion component across claimed notification and handoff surfaces. Each surface binds one governed component family, the object it references, a preserved last-known object summary, a stable object identity, its client scope, and one controlled availability state (live, cached, offline, auth-blocked, policy-blocked, loading, or deleted-object). Its data-trust class and its next-safe-action are derived from that availability state, so a cached, offline, or stale surface can never read as live and the copy that tells the user what to do next is never invented per surface. A surface whose primary path is broken (offline, loading) or over-privileged (auth-blocked, policy-blocked) carries an explicit desktop-fallback note and offers a resolvable desktop handoff, so a tap never silently fails or over-reaches; a surface whose object was deleted preserves its summary and stops routing. No control invents an alternate state label, implies a desktop-required action is companion-safe, routes to a generic activity page, or routes blindly into a broken or over-privileged path; raw object payloads, log bodies, secret values, and private endpoints never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "surfaces",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "glance_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "companion_degraded_state_continuity_controls" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "surface_label": { "$ref": "#/$defs/non_empty_string" },
+    "surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/degraded_surface" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/downgrade_trigger" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "glance_review": { "$ref": "#/$defs/glance_review" },
+    "consumer_projection": { "$ref": "#/$defs/consumer_projection" },
+    "proof_freshness": { "$ref": "#/$defs/proof_freshness" },
+    "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "component_family": {
+      "type": "string",
+      "enum": [
+        "notification_row",
+        "mobile_review_card",
+        "ci_status_card",
+        "session_follow_tile",
+        "incident_snapshot_card",
+        "desktop_handoff_sheet"
+      ]
+    },
+    "object_kind": {
+      "type": "string",
+      "enum": [
+        "notification_event",
+        "review_item",
+        "ci_run",
+        "followed_session",
+        "incident_record",
+        "handoff_intent"
+      ]
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "workspace_scoped",
+        "repo_scoped",
+        "org_scoped",
+        "device_scoped",
+        "account_global",
+        "unscoped"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached",
+        "stale",
+        "offline_held",
+        "expired_snapshot",
+        "unknown_freshness"
+      ]
+    },
+    "availability_state": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached",
+        "offline",
+        "auth_blocked",
+        "policy_blocked",
+        "loading",
+        "deleted_object"
+      ]
+    },
+    "trust_class": {
+      "type": "string",
+      "enum": [
+        "live_trusted",
+        "cached_reduced",
+        "offline_stale",
+        "blocked",
+        "loading",
+        "gone"
+      ]
+    },
+    "next_safe_action": {
+      "type": "string",
+      "enum": [
+        "proceed_in_companion",
+        "refresh_for_latest",
+        "retry_when_online",
+        "reauth_on_desktop",
+        "open_on_desktop_read_only",
+        "wait_for_load",
+        "view_cached_summary_only"
+      ]
+    },
+    "safe_verb": {
+      "type": "string",
+      "enum": ["open", "view_summary", "refresh", "handoff_to_desktop", "copy_reference", "dismiss"]
+    },
+    "handoff_target": {
+      "type": "string",
+      "enum": [
+        "file_location",
+        "review_panel",
+        "ci_pipeline_run",
+        "incident_workspace",
+        "agent_session",
+        "no_handoff"
+      ]
+    },
+    "degraded_reason": {
+      "type": "string",
+      "enum": [
+        "relay_unavailable",
+        "proof_stale",
+        "host_session_inactive",
+        "trust_narrowed",
+        "upstream_matrix_narrowed",
+        "handoff_target_unresolved"
+      ]
+    },
+    "required_label": {
+      "type": "string",
+      "enum": [
+        "identity",
+        "state",
+        "keyboard_route",
+        "scope_and_freshness",
+        "capability_boundary",
+        "severity_and_handoff_target"
+      ]
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "browser_companion",
+        "mobile_companion",
+        "desktop_panel",
+        "diagnostics",
+        "support_export",
+        "help_about"
+      ]
+    },
+    "deployment_line": {
+      "type": "string",
+      "enum": ["local_oss", "self_hosted", "managed", "air_gapped", "mirror_offline"]
+    },
+    "accessibility_route": {
+      "type": "string",
+      "enum": [
+        "keyboard_focusable",
+        "screen_reader_announced",
+        "non_hover_reachable",
+        "pointer_optional",
+        "high_contrast_safe",
+        "support_exportable"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "notification_triage_ui",
+        "review_queue_ui",
+        "ci_status_ui",
+        "session_follow_ui",
+        "incident_awareness_ui",
+        "desktop_handoff_ui",
+        "support_export",
+        "status_bar_ui",
+        "product_ui"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "object_identity_unstated",
+        "client_scope_unstated",
+        "freshness_hidden",
+        "capability_boundary_unstated",
+        "severity_unstated",
+        "handoff_target_unresolved",
+        "disposition_unstated",
+        "alternate_state_label_invented",
+        "generic_companion_wording_used",
+        "stale_shown_as_live",
+        "desktop_required_action_offered_inline",
+        "proof_stale"
+      ]
+    },
+    "degraded_reason_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/degraded_reason" }
+    },
+    "required_label_array": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "$ref": "#/$defs/required_label" },
+      "allOf": [
+        { "contains": { "const": "identity" } },
+        { "contains": { "const": "state" } },
+        { "contains": { "const": "keyboard_route" } }
+      ]
+    },
+    "accessibility_route_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/accessibility_route" },
+      "contains": { "const": "keyboard_focusable" }
+    },
+    "degraded_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "surface_id",
+        "surface_title",
+        "object_kind",
+        "object_label",
+        "object_summary_note",
+        "object_landing_ref",
+        "stable_object_ref",
+        "client_scope",
+        "scope_label",
+        "availability_state",
+        "trust_class",
+        "claims_live_data",
+        "freshness",
+        "scope_and_freshness_note",
+        "state_explanation_note",
+        "next_safe_action",
+        "next_safe_action_note",
+        "desktop_fallback_note",
+        "handoff_target",
+        "handoff_label",
+        "safe_verbs",
+        "degraded_reasons",
+        "required_labels",
+        "surface_families",
+        "deployment_lines",
+        "accessibility_routes",
+        "consumer_surfaces",
+        "fields_shown",
+        "source_contract_refs",
+        "masks_scope_or_freshness",
+        "hides_capability_boundary",
+        "invents_alternate_state_label",
+        "implies_desktop_action_is_companion_safe",
+        "routes_to_generic_activity_page",
+        "routes_blindly_into_broken_or_overprivileged_path"
+      ],
+      "properties": {
+        "component": { "$ref": "#/$defs/component_family" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_title": { "$ref": "#/$defs/non_empty_string" },
+        "object_kind": { "$ref": "#/$defs/object_kind" },
+        "object_label": { "$ref": "#/$defs/non_empty_string" },
+        "object_summary_note": { "$ref": "#/$defs/non_empty_string" },
+        "object_landing_ref": { "$ref": "#/$defs/non_empty_string" },
+        "stable_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "scope_label": { "$ref": "#/$defs/non_empty_string" },
+        "availability_state": { "$ref": "#/$defs/availability_state" },
+        "trust_class": { "$ref": "#/$defs/trust_class" },
+        "claims_live_data": { "type": "boolean" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "scope_and_freshness_note": { "$ref": "#/$defs/non_empty_string" },
+        "state_explanation_note": { "type": "string" },
+        "next_safe_action": { "$ref": "#/$defs/next_safe_action" },
+        "next_safe_action_note": { "$ref": "#/$defs/non_empty_string" },
+        "desktop_fallback_note": { "type": "string" },
+        "handoff_target": { "$ref": "#/$defs/handoff_target" },
+        "handoff_label": { "$ref": "#/$defs/non_empty_string" },
+        "safe_verbs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safe_verb" },
+          "contains": { "const": "open" }
+        },
+        "degraded_reasons": { "$ref": "#/$defs/degraded_reason_array" },
+        "required_labels": { "$ref": "#/$defs/required_label_array" },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_family" }
+        },
+        "deployment_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_line" }
+        },
+        "accessibility_routes": { "$ref": "#/$defs/accessibility_route_array" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "fields_shown": { "$ref": "#/$defs/non_empty_string_array" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+        "masks_scope_or_freshness": { "const": false },
+        "hides_capability_boundary": { "const": false },
+        "invents_alternate_state_label": { "const": false },
+        "implies_desktop_action_is_companion_safe": { "const": false },
+        "routes_to_generic_activity_page": { "const": false },
+        "routes_blindly_into_broken_or_overprivileged_path": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "availability_state": { "const": "live" } },
+            "required": ["availability_state"]
+          },
+          "then": {
+            "properties": { "claims_live_data": { "const": true } },
+            "required": ["claims_live_data"]
+          },
+          "else": {
+            "properties": {
+              "claims_live_data": { "const": false },
+              "state_explanation_note": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["claims_live_data"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "availability_state": {
+                "enum": ["offline", "auth_blocked", "policy_blocked", "loading"]
+              }
+            },
+            "required": ["availability_state"]
+          },
+          "then": {
+            "properties": {
+              "desktop_fallback_note": { "$ref": "#/$defs/non_empty_string" },
+              "safe_verbs": { "contains": { "const": "handoff_to_desktop" } },
+              "handoff_target": { "not": { "const": "no_handoff" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "availability_state": { "const": "deleted_object" } },
+            "required": ["availability_state"]
+          },
+          "then": {
+            "properties": {
+              "handoff_target": { "const": "no_handoff" },
+              "safe_verbs": { "not": { "contains": { "const": "handoff_to_desktop" } } }
+            }
+          }
+        }
+      ]
+    },
+    "glance_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_surface_names_object_summary_and_identity",
+        "every_surface_states_its_freshness",
+        "every_surface_states_next_safe_action",
+        "degraded_state_is_explicit_before_action",
+        "live_cached_offline_blocked_distinguishable",
+        "cached_or_stale_never_shown_as_live",
+        "trust_class_derived_never_asserted",
+        "safe_triage_verbs_preserved_when_detail_unavailable",
+        "blocked_publish_path_routes_to_desktop",
+        "no_surface_routes_blindly_into_broken_or_overprivileged_path",
+        "deleted_object_preserves_summary_and_stops_routing",
+        "every_broken_or_overprivileged_state_names_desktop_fallback",
+        "object_identity_always_explicit",
+        "client_scope_always_explicit",
+        "no_surface_invents_alternate_state_label",
+        "controls_stable_across_deployment_lines",
+        "copy_and_export_safe",
+        "downgrade_narrows_instead_of_hides"
+      ],
+      "properties": {
+        "every_surface_names_object_summary_and_identity": { "const": true },
+        "every_surface_states_its_freshness": { "const": true },
+        "every_surface_states_next_safe_action": { "const": true },
+        "degraded_state_is_explicit_before_action": { "const": true },
+        "live_cached_offline_blocked_distinguishable": { "const": true },
+        "cached_or_stale_never_shown_as_live": { "const": true },
+        "trust_class_derived_never_asserted": { "const": true },
+        "safe_triage_verbs_preserved_when_detail_unavailable": { "const": true },
+        "blocked_publish_path_routes_to_desktop": { "const": true },
+        "no_surface_routes_blindly_into_broken_or_overprivileged_path": { "const": true },
+        "deleted_object_preserves_summary_and_stops_routing": { "const": true },
+        "every_broken_or_overprivileged_state_names_desktop_fallback": { "const": true },
+        "object_identity_always_explicit": { "const": true },
+        "client_scope_always_explicit": { "const": true },
+        "no_surface_invents_alternate_state_label": { "const": true },
+        "controls_stable_across_deployment_lines": { "const": true },
+        "copy_and_export_safe": { "const": true },
+        "downgrade_narrows_instead_of_hides": { "const": true }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notification_surfaces_read_single_source",
+        "handoff_surfaces_read_single_source",
+        "first_glance_names_state_scope_and_freshness",
+        "next_safe_action_visible_before_tap",
+        "support_export_shows_control_truth",
+        "help_about_shows_control_truth"
+      ],
+      "properties": {
+        "notification_surfaces_read_single_source": { "const": true },
+        "handoff_surfaces_read_single_source": { "const": true },
+        "first_glance_names_state_scope_and_freshness": { "const": true },
+        "next_safe_action_visible_before_tap": { "const": true },
+        "support_export_shows_control_truth": { "const": true },
+        "help_about_shows_control_truth": { "const": true }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_freshness_slo_hours", "last_proof_refresh", "auto_narrow_on_stale"],
+      "properties": {
+        "proof_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_proof_refresh": { "type": "string", "format": "date-time" },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    }
+  }
+}

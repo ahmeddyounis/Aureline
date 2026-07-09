@@ -189,6 +189,19 @@
 //! derived from the frozen handoff target so a sheet with no resolvable target degrades to an
 //! explicit not-openable state instead of implying a desktop client will open the intended
 //! object without user archaeology.
+//!
+//! Capping the component lane, it owns the companion degraded-state continuity controls in
+//! [`ship_cached_offline_auth_blocked_and_policy_blocked_companion_states_with_summary_first_object_continuity_safe_triage_verbs_and_no_blind_tap_routing`],
+//! which governs the degraded states of all six frozen components across the notification and
+//! handoff surfaces. Every surface binds one controlled availability state — live, cached,
+//! offline, auth-blocked, policy-blocked, loading, or deleted-object — and derives its data-trust
+//! class and its next-safe-action from that state, so a cached, offline, or stale surface never
+//! reads as live and the copy that tells the user what to do next is never invented per surface.
+//! Every surface preserves its object summary, its stable identity, and its safe triage verbs even
+//! when full detail cannot be fetched or a publish path is no longer allowed; a surface whose path
+//! is broken or over-privileged names an explicit desktop fallback and offers a resolvable desktop
+//! handoff rather than routing blindly, and a surface whose object was deleted preserves its
+//! summary and stops routing instead of opening a target that no longer exists.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
@@ -204,6 +217,7 @@ pub mod implement_incident_snapshot_cards_and_desktop_handoff_sheets_with_servic
 pub mod implement_notification_rows_and_mobile_review_cards_with_object_identity_client_scope_freshness_severity_unread_and_desktop_handoff_truth;
 pub mod implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth;
 pub mod implement_usage_export_and_offboarding_packages_grace_window_state_org_switch_semantics_and_deletion_export_ho;
+pub mod ship_cached_offline_auth_blocked_and_policy_blocked_companion_states_with_summary_first_object_continuity_safe_triage_verbs_and_no_blind_tap_routing;
 pub mod ship_companion_safe_redaction_local_core_continuity_and_offline_packet_flows_across_support_and_incident_lanes;
 pub mod ship_managed_sync_maturity_with_snapshot_classes_conflict_review_device_registry_and_end_to_end_encrypted_storage;
 pub mod ship_session_follow_and_incident_awareness_surfaces_with_bounded_read_write_scope_and_stale_state_honesty;
