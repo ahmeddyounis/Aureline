@@ -148,6 +148,18 @@
 //! a component from masking its scope or freshness, hiding its companion-versus-desktop
 //! capability boundary, inventing an alternate state label, or implying a desktop-required
 //! action is companion-safe, and stale state is always labeled rather than shown as live.
+//!
+//! Implementing the first two of those frozen components, it owns the notification-row
+//! and mobile-review-card controls in
+//! [`implement_notification_rows_and_mobile_review_cards_with_object_identity_client_scope_freshness_severity_unread_and_desktop_handoff_truth`],
+//! which narrows the frozen `notification_row` and `mobile_review_card` into one
+//! export-safe packet with two co-equal control vectors so the first glance at a
+//! companion event or review item is trustworthy. A notification row's delivery class
+//! is derived from its freshness so a stale notification never reads as live, a review
+//! card's capability class is derived from its disposition so a desktop-required or
+//! policy-blocked review never reads as companion-completable, every quick triage verb
+//! lands on one stable object rather than a generic activity page, and every widening
+//! verb names one exact desktop-handoff target.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
@@ -158,6 +170,7 @@ pub mod certify_companion_incident_sync_residency_encryption_and_offboarding_lan
 pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
 pub mod freeze_the_m5_companion_component_matrix;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
+pub mod implement_notification_rows_and_mobile_review_cards_with_object_identity_client_scope_freshness_severity_unread_and_desktop_handoff_truth;
 pub mod implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth;
 pub mod implement_usage_export_and_offboarding_packages_grace_window_state_org_switch_semantics_and_deletion_export_ho;
 pub mod ship_companion_safe_redaction_local_core_continuity_and_offline_packet_flows_across_support_and_incident_lanes;
