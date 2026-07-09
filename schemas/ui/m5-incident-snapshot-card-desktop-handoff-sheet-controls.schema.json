@@ -1,0 +1,625 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-incident-snapshot-card-desktop-handoff-sheet-controls.schema.json",
+  "title": "Aureline M5 incident-snapshot cards and desktop-handoff sheets",
+  "description": "Export-safe packet implementing the reusable M5 incident-snapshot-card and desktop-handoff-sheet components in two co-equal control vectors. Each incident-snapshot card names its service/source class, its stable service and run identity, the object it references, its exact object landing reference, its client scope, its severity, and its latest status; its awareness class is derived from the incident status, so a stale incident status can never read as a live incident, and the card stays awareness-only rather than overpromising remediation depth. Each desktop-handoff sheet names its target object, its stable target identity, the object it references, its exact object landing reference, its client scope, exactly what opens on desktop, and — where relevant — an auth or tenant reminder; its open class is derived from the frozen handoff target, so a sheet with no resolvable target degrades to an explicit not-openable state instead of implying a desktop client will open the intended object, and it never offers an ambiguous open-on-desktop into a target it cannot resolve. No control invents an alternate state label, implies a desktop-required action is companion-safe, or routes to a generic activity page; raw incident payloads, log bodies, secret values, and private endpoints never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "incident_snapshot_cards",
+    "desktop_handoff_sheets",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "glance_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "incident_snapshot_card_desktop_handoff_sheet_controls" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "surface_label": { "$ref": "#/$defs/non_empty_string" },
+    "incident_snapshot_cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/incident_snapshot_card" }
+    },
+    "desktop_handoff_sheets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/desktop_handoff_sheet" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/downgrade_trigger" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "glance_review": { "$ref": "#/$defs/glance_review" },
+    "consumer_projection": { "$ref": "#/$defs/consumer_projection" },
+    "proof_freshness": { "$ref": "#/$defs/proof_freshness" },
+    "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "object_kind": {
+      "type": "string",
+      "enum": [
+        "notification_event",
+        "review_item",
+        "ci_run",
+        "followed_session",
+        "incident_record",
+        "handoff_intent"
+      ]
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "workspace_scoped",
+        "repo_scoped",
+        "org_scoped",
+        "device_scoped",
+        "account_global",
+        "unscoped"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached",
+        "stale",
+        "offline_held",
+        "expired_snapshot",
+        "unknown_freshness"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "moderate", "low", "informational", "unspecified"]
+    },
+    "incident_service_class": {
+      "type": "string",
+      "enum": [
+        "local_core_service",
+        "hosted_service",
+        "self_hosted_service",
+        "mirrored_snapshot",
+        "aggregated_source",
+        "unknown_source"
+      ]
+    },
+    "incident_status": {
+      "type": "string",
+      "enum": [
+        "firing",
+        "acknowledged",
+        "investigating",
+        "mitigating",
+        "resolved",
+        "stale"
+      ]
+    },
+    "awareness_class": {
+      "type": "string",
+      "enum": [
+        "active_unacknowledged",
+        "active_acknowledged",
+        "mitigating",
+        "resolved",
+        "stale_unknown"
+      ]
+    },
+    "incident_verb": {
+      "type": "string",
+      "enum": ["open", "acknowledge", "view_timeline", "follow", "handoff_to_desktop", "dismiss"]
+    },
+    "handoff_target": {
+      "type": "string",
+      "enum": [
+        "file_location",
+        "review_panel",
+        "ci_pipeline_run",
+        "incident_workspace",
+        "agent_session",
+        "no_handoff"
+      ]
+    },
+    "handoff_open_class": {
+      "type": "string",
+      "enum": ["opens_exact_location", "opens_exact_panel", "opens_exact_workspace", "not_openable"]
+    },
+    "handoff_auth_context": {
+      "type": "string",
+      "enum": [
+        "same_auth_no_reminder",
+        "reauth_required",
+        "tenant_switch_required",
+        "account_mismatch_warning",
+        "scope_elevation_required"
+      ]
+    },
+    "desktop_handoff_verb": {
+      "type": "string",
+      "enum": ["open", "open_on_desktop", "copy_reference", "share", "preview_target", "dismiss"]
+    },
+    "degraded_reason": {
+      "type": "string",
+      "enum": [
+        "relay_unavailable",
+        "proof_stale",
+        "host_session_inactive",
+        "trust_narrowed",
+        "upstream_matrix_narrowed",
+        "handoff_target_unresolved"
+      ]
+    },
+    "required_label": {
+      "type": "string",
+      "enum": [
+        "identity",
+        "state",
+        "keyboard_route",
+        "scope_and_freshness",
+        "capability_boundary",
+        "severity_and_handoff_target"
+      ]
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "browser_companion",
+        "mobile_companion",
+        "desktop_panel",
+        "diagnostics",
+        "support_export",
+        "help_about"
+      ]
+    },
+    "deployment_line": {
+      "type": "string",
+      "enum": ["local_oss", "self_hosted", "managed", "air_gapped", "mirror_offline"]
+    },
+    "accessibility_route": {
+      "type": "string",
+      "enum": [
+        "keyboard_focusable",
+        "screen_reader_announced",
+        "non_hover_reachable",
+        "pointer_optional",
+        "high_contrast_safe",
+        "support_exportable"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "notification_triage_ui",
+        "review_queue_ui",
+        "ci_status_ui",
+        "session_follow_ui",
+        "incident_awareness_ui",
+        "desktop_handoff_ui",
+        "support_export",
+        "status_bar_ui",
+        "product_ui"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "object_identity_unstated",
+        "client_scope_unstated",
+        "freshness_hidden",
+        "capability_boundary_unstated",
+        "severity_unstated",
+        "handoff_target_unresolved",
+        "disposition_unstated",
+        "alternate_state_label_invented",
+        "generic_companion_wording_used",
+        "stale_shown_as_live",
+        "desktop_required_action_offered_inline",
+        "proof_stale"
+      ]
+    },
+    "degraded_reason_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/degraded_reason" }
+    },
+    "required_label_array": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "$ref": "#/$defs/required_label" },
+      "allOf": [
+        { "contains": { "const": "identity" } },
+        { "contains": { "const": "state" } },
+        { "contains": { "const": "keyboard_route" } }
+      ]
+    },
+    "accessibility_route_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/accessibility_route" },
+      "contains": { "const": "keyboard_focusable" }
+    },
+    "incident_snapshot_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "card_id",
+        "incident_label",
+        "object_kind",
+        "object_label",
+        "object_landing_ref",
+        "service_ref",
+        "run_ref",
+        "client_scope",
+        "scope_label",
+        "service_class",
+        "service_label",
+        "severity",
+        "severity_label",
+        "incident_status",
+        "awareness_class",
+        "claims_live_status",
+        "freshness",
+        "stale_note",
+        "awareness_note",
+        "scope_and_freshness_note",
+        "handoff_target",
+        "handoff_label",
+        "status_verbs",
+        "degraded_reasons",
+        "required_labels",
+        "surface_families",
+        "deployment_lines",
+        "accessibility_routes",
+        "consumer_surfaces",
+        "fields_shown",
+        "source_contract_refs",
+        "masks_scope_or_freshness",
+        "hides_capability_boundary",
+        "invents_alternate_state_label",
+        "implies_desktop_action_is_companion_safe",
+        "routes_to_generic_activity_page",
+        "implies_companion_remediation"
+      ],
+      "properties": {
+        "component": { "const": "incident_snapshot_card" },
+        "card_id": { "$ref": "#/$defs/non_empty_string" },
+        "incident_label": { "$ref": "#/$defs/non_empty_string" },
+        "object_kind": { "$ref": "#/$defs/object_kind" },
+        "object_label": { "$ref": "#/$defs/non_empty_string" },
+        "object_landing_ref": { "$ref": "#/$defs/non_empty_string" },
+        "service_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_ref": { "$ref": "#/$defs/non_empty_string" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "scope_label": { "$ref": "#/$defs/non_empty_string" },
+        "service_class": { "$ref": "#/$defs/incident_service_class" },
+        "service_label": { "$ref": "#/$defs/non_empty_string" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "severity_label": { "$ref": "#/$defs/non_empty_string" },
+        "incident_status": { "$ref": "#/$defs/incident_status" },
+        "awareness_class": { "$ref": "#/$defs/awareness_class" },
+        "claims_live_status": { "type": "boolean" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "stale_note": { "type": "string" },
+        "awareness_note": { "type": "string" },
+        "scope_and_freshness_note": { "$ref": "#/$defs/non_empty_string" },
+        "handoff_target": { "$ref": "#/$defs/handoff_target" },
+        "handoff_label": { "$ref": "#/$defs/non_empty_string" },
+        "status_verbs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/incident_verb" },
+          "contains": { "const": "open" }
+        },
+        "degraded_reasons": { "$ref": "#/$defs/degraded_reason_array" },
+        "required_labels": { "$ref": "#/$defs/required_label_array" },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_family" }
+        },
+        "deployment_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_line" }
+        },
+        "accessibility_routes": { "$ref": "#/$defs/accessibility_route_array" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "fields_shown": { "$ref": "#/$defs/non_empty_string_array" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+        "masks_scope_or_freshness": { "const": false },
+        "hides_capability_boundary": { "const": false },
+        "invents_alternate_state_label": { "const": false },
+        "implies_desktop_action_is_companion_safe": { "const": false },
+        "routes_to_generic_activity_page": { "const": false },
+        "implies_companion_remediation": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "awareness_class": { "const": "stale_unknown" } },
+            "required": ["awareness_class"]
+          },
+          "then": {
+            "properties": {
+              "stale_note": { "$ref": "#/$defs/non_empty_string" },
+              "claims_live_status": { "const": false }
+            },
+            "required": ["claims_live_status"]
+          },
+          "else": {
+            "properties": { "claims_live_status": { "const": true } },
+            "required": ["claims_live_status"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "awareness_class": {
+                "enum": ["active_unacknowledged", "active_acknowledged", "mitigating"]
+              }
+            },
+            "required": ["awareness_class"]
+          },
+          "then": {
+            "properties": { "awareness_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "handoff_target": { "const": "no_handoff" } },
+            "required": ["handoff_target"]
+          },
+          "then": {
+            "properties": {
+              "status_verbs": {
+                "not": { "contains": { "const": "handoff_to_desktop" } }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "desktop_handoff_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "sheet_id",
+        "handoff_title",
+        "object_kind",
+        "object_label",
+        "object_landing_ref",
+        "target_ref",
+        "target_object_label",
+        "client_scope",
+        "scope_label",
+        "handoff_target",
+        "open_class",
+        "claims_openable",
+        "freshness",
+        "opens_on_desktop_note",
+        "not_openable_note",
+        "auth_context",
+        "auth_tenant_reminder_note",
+        "scope_and_freshness_note",
+        "handoff_label",
+        "handoff_verbs",
+        "degraded_reasons",
+        "required_labels",
+        "surface_families",
+        "deployment_lines",
+        "accessibility_routes",
+        "consumer_surfaces",
+        "fields_shown",
+        "source_contract_refs",
+        "masks_scope_or_freshness",
+        "hides_capability_boundary",
+        "invents_alternate_state_label",
+        "implies_desktop_action_is_companion_safe",
+        "routes_to_generic_activity_page"
+      ],
+      "properties": {
+        "component": { "const": "desktop_handoff_sheet" },
+        "sheet_id": { "$ref": "#/$defs/non_empty_string" },
+        "handoff_title": { "$ref": "#/$defs/non_empty_string" },
+        "object_kind": { "$ref": "#/$defs/object_kind" },
+        "object_label": { "$ref": "#/$defs/non_empty_string" },
+        "object_landing_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_object_label": { "$ref": "#/$defs/non_empty_string" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "scope_label": { "$ref": "#/$defs/non_empty_string" },
+        "handoff_target": { "$ref": "#/$defs/handoff_target" },
+        "open_class": { "$ref": "#/$defs/handoff_open_class" },
+        "claims_openable": { "type": "boolean" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "opens_on_desktop_note": { "$ref": "#/$defs/non_empty_string" },
+        "not_openable_note": { "type": "string" },
+        "auth_context": { "$ref": "#/$defs/handoff_auth_context" },
+        "auth_tenant_reminder_note": { "type": "string" },
+        "scope_and_freshness_note": { "$ref": "#/$defs/non_empty_string" },
+        "handoff_label": { "$ref": "#/$defs/non_empty_string" },
+        "handoff_verbs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/desktop_handoff_verb" },
+          "contains": { "const": "open" }
+        },
+        "degraded_reasons": { "$ref": "#/$defs/degraded_reason_array" },
+        "required_labels": { "$ref": "#/$defs/required_label_array" },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_family" }
+        },
+        "deployment_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_line" }
+        },
+        "accessibility_routes": { "$ref": "#/$defs/accessibility_route_array" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "fields_shown": { "$ref": "#/$defs/non_empty_string_array" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+        "masks_scope_or_freshness": { "const": false },
+        "hides_capability_boundary": { "const": false },
+        "invents_alternate_state_label": { "const": false },
+        "implies_desktop_action_is_companion_safe": { "const": false },
+        "routes_to_generic_activity_page": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "open_class": { "const": "not_openable" } },
+            "required": ["open_class"]
+          },
+          "then": {
+            "properties": {
+              "not_openable_note": { "$ref": "#/$defs/non_empty_string" },
+              "claims_openable": { "const": false },
+              "handoff_verbs": {
+                "not": { "contains": { "const": "open_on_desktop" } }
+              }
+            },
+            "required": ["claims_openable"]
+          },
+          "else": {
+            "properties": { "claims_openable": { "const": true } },
+            "required": ["claims_openable"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "auth_context": {
+                "enum": [
+                  "reauth_required",
+                  "tenant_switch_required",
+                  "account_mismatch_warning",
+                  "scope_elevation_required"
+                ]
+              }
+            },
+            "required": ["auth_context"]
+          },
+          "then": {
+            "properties": { "auth_tenant_reminder_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        }
+      ]
+    },
+    "glance_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "incident_card_shows_service_and_run_identity",
+        "incident_card_shows_severity",
+        "incident_card_states_latest_status",
+        "incident_card_stays_awareness_only",
+        "handoff_sheet_shows_target_object_and_identity",
+        "handoff_sheet_states_what_opens_on_desktop",
+        "handoff_sheet_shows_auth_or_tenant_reminder",
+        "object_identity_always_explicit",
+        "client_scope_always_explicit",
+        "freshness_always_explicit",
+        "awareness_and_openability_derived_never_asserted",
+        "stale_never_shown_as_live",
+        "every_verb_traces_to_one_object",
+        "every_handoff_names_exact_target",
+        "desktop_only_action_never_implied_companion_safe",
+        "no_surface_invents_alternate_state_label",
+        "controls_stable_across_deployment_lines",
+        "copy_and_export_safe",
+        "downgrade_narrows_instead_of_hides"
+      ],
+      "properties": {
+        "incident_card_shows_service_and_run_identity": { "const": true },
+        "incident_card_shows_severity": { "const": true },
+        "incident_card_states_latest_status": { "const": true },
+        "incident_card_stays_awareness_only": { "const": true },
+        "handoff_sheet_shows_target_object_and_identity": { "const": true },
+        "handoff_sheet_states_what_opens_on_desktop": { "const": true },
+        "handoff_sheet_shows_auth_or_tenant_reminder": { "const": true },
+        "object_identity_always_explicit": { "const": true },
+        "client_scope_always_explicit": { "const": true },
+        "freshness_always_explicit": { "const": true },
+        "awareness_and_openability_derived_never_asserted": { "const": true },
+        "stale_never_shown_as_live": { "const": true },
+        "every_verb_traces_to_one_object": { "const": true },
+        "every_handoff_names_exact_target": { "const": true },
+        "desktop_only_action_never_implied_companion_safe": { "const": true },
+        "no_surface_invents_alternate_state_label": { "const": true },
+        "controls_stable_across_deployment_lines": { "const": true },
+        "copy_and_export_safe": { "const": true },
+        "downgrade_narrows_instead_of_hides": { "const": true }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "incident_awareness_ui_reads_single_source",
+        "desktop_handoff_ui_reads_single_source",
+        "first_glance_names_object_scope_and_freshness",
+        "remediation_and_open_posture_visible_before_tap",
+        "support_export_shows_control_truth",
+        "help_about_shows_control_truth"
+      ],
+      "properties": {
+        "incident_awareness_ui_reads_single_source": { "const": true },
+        "desktop_handoff_ui_reads_single_source": { "const": true },
+        "first_glance_names_object_scope_and_freshness": { "const": true },
+        "remediation_and_open_posture_visible_before_tap": { "const": true },
+        "support_export_shows_control_truth": { "const": true },
+        "help_about_shows_control_truth": { "const": true }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_proof_refresh": { "type": "string", "format": "date-time" },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    }
+  }
+}

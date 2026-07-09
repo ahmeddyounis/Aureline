@@ -174,6 +174,21 @@
 //! stale, host-inactive, or ended session degrades to an explicit read-only or not-joinable
 //! state instead of an ambiguous empty card and never offers an ambiguous join into an
 //! expired or narrowed session.
+//!
+//! Implementing the last two of those frozen components, it owns the incident-snapshot-card
+//! and desktop-handoff-sheet controls in
+//! [`implement_incident_snapshot_cards_and_desktop_handoff_sheets_with_service_run_identity_severity_status_target_identity_auth_tenant_reminder_and_open_on_desktop_truth`],
+//! which narrows the frozen `incident_snapshot_card` and `desktop_handoff_sheet` into one
+//! export-safe packet with two co-equal control vectors so exact incident and escalation
+//! context is preserved when the task exceeds companion scope. An incident-snapshot card names
+//! its service/source class, its stable service and run identity, its severity, and its latest
+//! status, and its awareness class is derived from that status so a stale incident never reads
+//! as a live one and the card stays awareness-only rather than overpromising remediation depth.
+//! A desktop-handoff sheet names its target object, its stable target identity, exactly what
+//! opens on desktop, and — where relevant — an auth or tenant reminder, and its open class is
+//! derived from the frozen handoff target so a sheet with no resolvable target degrades to an
+//! explicit not-openable state instead of implying a desktop client will open the intended
+//! object without user archaeology.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
@@ -185,6 +200,7 @@ pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_des
 pub mod freeze_the_m5_companion_component_matrix;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
 pub mod implement_ci_status_cards_and_session_follow_tiles_with_provider_source_run_or_session_identity_stale_state_labeling_and_follow_or_handoff_continuity;
+pub mod implement_incident_snapshot_cards_and_desktop_handoff_sheets_with_service_run_identity_severity_status_target_identity_auth_tenant_reminder_and_open_on_desktop_truth;
 pub mod implement_notification_rows_and_mobile_review_cards_with_object_identity_client_scope_freshness_severity_unread_and_desktop_handoff_truth;
 pub mod implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth;
 pub mod implement_usage_export_and_offboarding_packages_grace_window_state_org_switch_semantics_and_deletion_export_ho;
