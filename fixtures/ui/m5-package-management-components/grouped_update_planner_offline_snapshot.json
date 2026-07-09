@@ -1,0 +1,349 @@
+{
+  "record_kind": "freeze_m5_package_management_component_matrix",
+  "schema_version": 1,
+  "packet_id": "m5-package-component-matrix:fixture:grouped-update-offline-snapshot",
+  "matrix_label": "M5 Package-Management Component Matrix",
+  "component_rows": [
+    {
+      "component": "package_explorer_row",
+      "maturity": "stable",
+      "scope_summary": "Package explorer row naming one package, its owning manifest, and its direct/transitive/workspace-local relation while browsing a package set",
+      "manifest_scope_disclosure": "Names the owning manifest and whether the package is a direct, transitive, or workspace-local dependency rather than presenting a flat unscoped list",
+      "registry_source_disclosure": "Names the registry, mirror, or offline snapshot the resolved identity came from so a mirror answer is never shown as an upstream fact",
+      "auth_posture_disclosure": "Marks whether the row's resolution needed authentication and whether it was satisfied, never hiding an auth-required state behind a blank version",
+      "script_native_build_disclosure": "Carries no mutation itself but surfaces whether the package is known to run install scripts or a native build when a mutation is proposed from the row",
+      "lockfile_churn_disclosure": "Reflects whether the package is exactly pinned by the lockfile or only range-governed so an unpinned dependency is never read as fixed",
+      "rollback_checkpoint_disclosure": "Read-only browse row; it references the durable operation history entry that would carry any rollback rather than implying an inline revert",
+      "degradation_narrowing_vocab": [
+        "resolved_exact",
+        "manifest_range_only",
+        "mirror_backed",
+        "unknown_or_stale"
+      ],
+      "evidence_requirement": "required",
+      "required_evidence_packet_refs": [
+        "evidence:package-explorer-row-manifest-and-relation:m5",
+        "evidence:package-explorer-row-source-and-pin-state:m5"
+      ],
+      "downgrade_triggers": [
+        "proof_stale",
+        "mirror_backed_only",
+        "registry_unreachable",
+        "upstream_dependency_narrowed"
+      ],
+      "rollback_posture": "read_only_no_mutation",
+      "source_contract_refs": [
+        "schemas/ui/m5-dependency-row.schema.json"
+      ],
+      "consumer_surfaces": [
+        "package_workspace",
+        "dependency_explorer",
+        "cli_headless",
+        "support_export"
+      ]
+    },
+    {
+      "component": "manifest_scope_switcher",
+      "maturity": "stable",
+      "scope_summary": "Manifest-scope switcher selecting the target manifest (whole workspace, selected manifest, workset slice, or workspace member) before a mutation leaves review",
+      "manifest_scope_disclosure": "This is the primary carrier of manifest-scope truth; it names the exact target manifest and requires explicit confirmation before a whole-workspace mutation",
+      "registry_source_disclosure": "Names the registry/mirror the selected scope resolves against so switching scope never silently changes the source of truth",
+      "auth_posture_disclosure": "Surfaces whether the selected scope requires auth that is not yet satisfied so a member switch never masks an auth-required target",
+      "script_native_build_disclosure": "Marks whether the selected scope contains packages known to run scripts or native builds so scope selection carries the risk forward",
+      "lockfile_churn_disclosure": "Names whether the scope shares a lockfile with siblings so a member operation can never silently widen lockfile churn to the wrong manifest",
+      "rollback_checkpoint_disclosure": "Selecting scope is not a mutation; it references the checkpoint the eventual mutation on this scope would create rather than reverting anything",
+      "degradation_narrowing_vocab": [
+        "resolved_exact",
+        "manifest_range_only",
+        "auth_required_unsatisfied",
+        "unknown_or_stale"
+      ],
+      "evidence_requirement": "required",
+      "required_evidence_packet_refs": [
+        "evidence:manifest-scope-switcher-target-and-confirmation:m5"
+      ],
+      "downgrade_triggers": [
+        "proof_stale",
+        "scope_expansion_unqualified",
+        "auth_required",
+        "policy_blocked"
+      ],
+      "rollback_posture": "read_only_no_mutation",
+      "source_contract_refs": [
+        "schemas/runtime/manifest_scope_alpha.schema.json"
+      ],
+      "consumer_surfaces": [
+        "package_workspace",
+        "install_update_review",
+        "cli_headless",
+        "support_export"
+      ]
+    },
+    {
+      "component": "install_review_sheet",
+      "maturity": "stable",
+      "scope_summary": "Install-review sheet previewing one install, update, remove, or regenerate with manifest scope, script risk, resolver identity, and lockfile churn explicit before commit",
+      "manifest_scope_disclosure": "Names the exact target manifest and whether the change adds a direct, transitive, or workspace-local dependency so an install is never applied to an ambiguous target",
+      "registry_source_disclosure": "Names the registry or mirror the packages resolve from and marks an offline-snapshot resolution so review never overstates upstream freshness",
+      "auth_posture_disclosure": "States whether the resolve/publish path needs auth and whether it is satisfied so the commit gate blocks while an auth-required state holds",
+      "script_native_build_disclosure": "Surfaces the script/native-build label (no scripts, known install scripts, native build required, unknown hook risk, or policy blocked) so a one-click install never hides code execution",
+      "lockfile_churn_disclosure": "Shows the lockfile diff class and quantified blast radius so a broad regeneration is never presented as a small pin change",
+      "rollback_checkpoint_disclosure": "Pins the durable rollback checkpoint the commit will create so a failed or partial mutation leaves a recorded receipt rather than a transient toast",
+      "degradation_narrowing_vocab": [
+        "resolved_exact",
+        "manifest_range_only",
+        "offline_snapshot_only",
+        "auth_required_unsatisfied"
+      ],
+      "evidence_requirement": "required",
+      "required_evidence_packet_refs": [
+        "evidence:install-review-sheet-scope-and-script-risk:m5",
+        "evidence:install-review-sheet-lockfile-churn-and-rollback:m5"
+      ],
+      "downgrade_triggers": [
+        "proof_stale",
+        "script_or_native_build_risk",
+        "lockfile_divergent",
+        "auth_required"
+      ],
+      "rollback_posture": "write_back_checkpointed",
+      "source_contract_refs": [
+        "schemas/ecosystem/m5-install-review.schema.json"
+      ],
+      "consumer_surfaces": [
+        "install_update_review",
+        "package_workspace",
+        "cli_headless",
+        "support_export"
+      ]
+    },
+    {
+      "component": "registry_or_mirror_row",
+      "maturity": "stable",
+      "scope_summary": "Registry or mirror row naming the source a package resolves from (public registry, private registry, enterprise mirror, cache, or offline snapshot) and the auth posture used to reach it",
+      "manifest_scope_disclosure": "Names which manifests and scopes route through this source so a mirror is never applied to a manifest the user did not intend",
+      "registry_source_disclosure": "This is the primary carrier of registry-source truth; it distinguishes public, private, mirror, cache-only, and offline-snapshot sources and never collapses them into a generic connected state",
+      "auth_posture_disclosure": "This is the primary carrier of auth posture; it names the credential mode (anonymous, OS-store, token, browser/device sign-in, or policy) and marks an auth-required-unsatisfied state without ever showing a token body or private URL",
+      "script_native_build_disclosure": "Source selection carries no script execution itself, and the row states that install-script risk is disclosed on the install-review sheet, not masked here",
+      "lockfile_churn_disclosure": "Notes whether switching source can change resolved identities and therefore lockfile churn so a mirror swap never silently rewrites the lockfile",
+      "rollback_checkpoint_disclosure": "Read-only source posture row; it references the auth-flow revoke/switch-account recovery rather than a lockfile rollback",
+      "degradation_narrowing_vocab": [
+        "resolved_exact",
+        "mirror_backed",
+        "offline_snapshot_only",
+        "auth_required_unsatisfied"
+      ],
+      "evidence_requirement": "required",
+      "required_evidence_packet_refs": [
+        "evidence:registry-or-mirror-row-source-and-auth:m5"
+      ],
+      "downgrade_triggers": [
+        "proof_stale",
+        "mirror_backed_only",
+        "offline_snapshot_only",
+        "auth_required"
+      ],
+      "rollback_posture": "read_only_no_mutation",
+      "source_contract_refs": [
+        "schemas/ui/m5-mirror-offline-artifact-row.schema.json"
+      ],
+      "consumer_surfaces": [
+        "registry_auth_workspace",
+        "install_update_review",
+        "support_export",
+        "help_about"
+      ]
+    },
+    {
+      "component": "script_risk_notice",
+      "maturity": "beta",
+      "scope_summary": "Script-risk notice naming whether a proposed mutation may run install/post-install scripts or a native build so code execution is disclosed before, not after, install",
+      "manifest_scope_disclosure": "Names which manifest and packages carry the script or native-build risk so the notice maps to a real target rather than a blanket warning",
+      "registry_source_disclosure": "Notes the source of the risky package so a mirror-provided package's post-install behavior is attributed to its real origin",
+      "auth_posture_disclosure": "States that disclosing script risk never requires or reveals credentials; auth posture is inherited from the registry row rather than duplicated here",
+      "script_native_build_disclosure": "This is the primary carrier of script/native-build risk; it keeps no-scripts, known install scripts, native build required, unknown hook risk, and policy-blocked distinct and never downgrades unknown risk to none",
+      "lockfile_churn_disclosure": "Notes that running a build or script does not itself change the lockfile, keeping execution risk and dependency churn as separate facts",
+      "rollback_checkpoint_disclosure": "States that side effects of scripts or native builds may be only compensating-reversible, so the notice names when a checkpoint cannot fully undo execution",
+      "degradation_narrowing_vocab": [
+        "resolved_exact",
+        "mirror_backed",
+        "unknown_or_stale",
+        "offline_snapshot_only"
+      ],
+      "evidence_requirement": "required",
+      "required_evidence_packet_refs": [
+        "evidence:script-risk-notice-execution-disclosure:m5"
+      ],
+      "downgrade_triggers": [
+        "proof_stale",
+        "script_or_native_build_risk",
+        "policy_blocked",
+        "scope_expansion_unqualified"
+      ],
+      "rollback_posture": "compensating_only_no_clean_revert",
+      "source_contract_refs": [
+        "schemas/governance/post_install_disclosure.schema.json"
+      ],
+      "consumer_surfaces": [
+        "install_update_review",
+        "package_workspace",
+        "support_export",
+        "help_about"
+      ]
+    },
+    {
+      "component": "lockfile_impact_card",
+      "maturity": "stable",
+      "scope_summary": "Lockfile-impact card quantifying the lockfile diff (added/removed/changed resolutions and blast radius) for a proposed mutation without understating churn",
+      "manifest_scope_disclosure": "Names which manifest's lockfile is affected and whether siblings share it so a member change never hides workspace-wide lockfile impact",
+      "registry_source_disclosure": "Marks whether the new resolutions came from upstream, a mirror, or an offline snapshot so lockfile churn is attributed to a real source",
+      "auth_posture_disclosure": "Notes when a divergent or blocked auth state prevented a full resolution so an incomplete lockfile diff is never shown as complete",
+      "script_native_build_disclosure": "Cross-references the script-risk notice for any newly added package rather than presenting lockfile churn as risk-free",
+      "lockfile_churn_disclosure": "This is the primary carrier of lockfile-churn truth; it quantifies added/removed/changed resolutions and marks a broad regeneration explicitly rather than as a single-line change",
+      "rollback_checkpoint_disclosure": "Names the manifest/lockfile checkpoint that a revert would restore so lockfile impact and its rollback stay bound together",
+      "degradation_narrowing_vocab": [
+        "resolved_exact",
+        "manifest_range_only",
+        "offline_snapshot_only",
+        "unknown_or_stale"
+      ],
+      "evidence_requirement": "required",
+      "required_evidence_packet_refs": [
+        "evidence:lockfile-impact-card-churn-quantified:m5"
+      ],
+      "downgrade_triggers": [
+        "proof_stale",
+        "broad_lockfile_regeneration",
+        "lockfile_divergent",
+        "upstream_dependency_narrowed"
+      ],
+      "rollback_posture": "regenerate_only_no_manual_edit",
+      "source_contract_refs": [
+        "schemas/runtime/lockfile_impact_alpha.schema.json"
+      ],
+      "consumer_surfaces": [
+        "install_update_review",
+        "dependency_explorer",
+        "cli_headless",
+        "support_export"
+      ]
+    },
+    {
+      "component": "grouped_update_planner",
+      "maturity": "preview",
+      "scope_summary": "Grouped-update planner naming the grouped-update reason (security, major, minor/patch, pinned, deduped, or workspace-aligned) with constraint and conflict cards before any batch update applies",
+      "manifest_scope_disclosure": "Names every manifest the grouped plan touches so a batch update never widens beyond the manifests the user reviewed",
+      "registry_source_disclosure": "Names the registry/mirror each grouped candidate resolves from so a grouped plan never mixes upstream and mirror answers silently",
+      "auth_posture_disclosure": "Marks any grouped candidate whose source needs unsatisfied auth so the plan cannot claim readiness it cannot reach",
+      "script_native_build_disclosure": "Aggregates the script/native-build risk across grouped candidates so a batch update never hides that some members run code on install",
+      "lockfile_churn_disclosure": "Rolls up per-candidate lockfile churn into the plan's total blast radius without averaging away a single large regeneration",
+      "rollback_checkpoint_disclosure": "Binds the grouped plan to a single durable rollback checkpoint with revert, open-diff, and export-patch recovery so a partial batch failure stays recoverable",
+      "degradation_narrowing_vocab": [
+        "offline_snapshot_only",
+        "unknown_or_stale"
+      ],
+      "evidence_requirement": "required",
+      "required_evidence_packet_refs": [
+        "evidence:grouped-update-planner-reason-and-constraints:m5"
+      ],
+      "downgrade_triggers": [
+        "proof_stale",
+        "broad_lockfile_regeneration",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed"
+      ],
+      "rollback_posture": "write_back_checkpointed",
+      "source_contract_refs": [
+        "schemas/deps/grouped-update-and-rollback-review.schema.json"
+      ],
+      "consumer_surfaces": [
+        "install_update_review",
+        "package_workspace",
+        "cli_headless",
+        "support_export"
+      ]
+    },
+    {
+      "component": "rollback_checkpoint_strip",
+      "maturity": "stable",
+      "scope_summary": "Rollback / checkpoint strip naming the durable checkpoint identity for a completed or in-flight package mutation with revert, open-diff, and export-patch recovery actions",
+      "manifest_scope_disclosure": "Names the exact manifest and scope the checkpoint would restore so a revert never silently touches manifests outside the recorded operation",
+      "registry_source_disclosure": "Records the source the mutation resolved from so a revert against a stale mirror is disclosed rather than assumed clean",
+      "auth_posture_disclosure": "Notes when re-resolving during a revert would need auth so an unreachable rollback is disclosed instead of implied instant",
+      "script_native_build_disclosure": "Marks when the original mutation ran scripts or a native build so the strip states that reverting the manifest may not undo those side effects",
+      "lockfile_churn_disclosure": "Names the manifest/lockfile identity before and after as redacted digests so the exact lockfile the checkpoint restores is unambiguous",
+      "rollback_checkpoint_disclosure": "This is the primary carrier of rollback/checkpoint identity; it keeps the checkpoint id, reachability, and recovery actions explicit and never reduces to a generic undo",
+      "degradation_narrowing_vocab": [
+        "resolved_exact",
+        "offline_snapshot_only",
+        "auth_required_unsatisfied",
+        "unknown_or_stale"
+      ],
+      "evidence_requirement": "required",
+      "required_evidence_packet_refs": [
+        "evidence:rollback-checkpoint-strip-identity-and-recovery:m5"
+      ],
+      "downgrade_triggers": [
+        "proof_stale",
+        "rollback_unavailable",
+        "policy_blocked",
+        "scope_expansion_unqualified"
+      ],
+      "rollback_posture": "write_back_checkpointed",
+      "source_contract_refs": [
+        "schemas/ui/m5-bundle-rollback-remove-primitive.schema.json"
+      ],
+      "consumer_surfaces": [
+        "rollback_recovery",
+        "install_update_review",
+        "cli_headless",
+        "support_export"
+      ]
+    }
+  ],
+  "trust_review": {
+    "manifest_scope_always_explicit": true,
+    "direct_transitive_state_explicit": true,
+    "registry_source_always_explicit": true,
+    "auth_posture_never_hidden": true,
+    "script_native_build_risk_explicit": true,
+    "lockfile_churn_never_understated": true,
+    "grouped_update_reason_explicit": true,
+    "rollback_checkpoint_identity_explicit": true,
+    "mirror_offline_continuity_explicit": true,
+    "one_click_never_conceals_scope_or_risk": true,
+    "downgrade_narrows_instead_of_hides": true,
+    "stale_or_underqualified_blocks_promotion": true
+  },
+  "consumer_projection": {
+    "package_explorer_row_shows_manifest_and_relation": true,
+    "manifest_scope_switcher_shows_target_and_confirmation": true,
+    "install_review_sheet_shows_scope_script_and_lockfile": true,
+    "registry_or_mirror_row_shows_source_and_auth": true,
+    "script_risk_notice_shows_script_native_build_risk": true,
+    "lockfile_impact_card_shows_churn_without_understating": true,
+    "grouped_update_planner_shows_reason_and_constraints": true,
+    "rollback_checkpoint_strip_shows_checkpoint_identity": true,
+    "cli_headless_shows_component_truth": true,
+    "support_export_shows_component_truth": true
+  },
+  "proof_freshness": {
+    "proof_freshness_slo_hours": 168,
+    "last_proof_refresh": "2026-07-08T00:00:00Z",
+    "auto_narrow_on_stale": true
+  },
+  "source_contract_refs": [
+    "schemas/ui/m5-package-management-component-matrix.schema.json",
+    "docs/deps/m5/freeze_the_m5_package_management_component_matrix.md",
+    "schemas/ui/m5-dependency-row.schema.json",
+    "schemas/runtime/manifest_scope_alpha.schema.json",
+    "schemas/ecosystem/m5-install-review.schema.json",
+    "schemas/ui/m5-mirror-offline-artifact-row.schema.json",
+    "schemas/governance/post_install_disclosure.schema.json",
+    "schemas/runtime/lockfile_impact_alpha.schema.json",
+    "schemas/deps/grouped-update-and-rollback-review.schema.json",
+    "schemas/ui/m5-bundle-rollback-remove-primitive.schema.json"
+  ],
+  "redaction_class_token": "metadata_safe_default",
+  "minted_at": "2026-07-08T00:00:00Z"
+}

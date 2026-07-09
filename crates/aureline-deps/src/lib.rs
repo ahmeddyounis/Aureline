@@ -57,6 +57,18 @@
 //! class, and review state stay stable across desktop reopen, browser handoff,
 //! and companion follow-up.
 //!
+//! The module [`freeze_the_m5_package_management_component_matrix`] freezes the
+//! reusable M5 package-management component vocabulary — package explorer rows,
+//! manifest-scope switchers, install-review sheets, registry/mirror rows,
+//! script-risk notices, lockfile-impact cards, grouped-update planners, and
+//! rollback/checkpoint strips — into one canonical component matrix. Each row
+//! binds a component to its maturity class, the manifest-scope, registry-source,
+//! auth-posture, script/native-build, lockfile-churn, and rollback/checkpoint
+//! disclosures it must preserve, its registry-degradation narrowing vocabulary,
+//! required evidence refs, downgrade triggers, and consumer surfaces, so new
+//! package surfaces reuse governed components instead of inventing local scope,
+//! auth, or risk chrome.
+//!
 //! The module
 //! [`freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix`]
 //! freezes the cross-ecosystem package-state vocabulary the whole mutation lane
@@ -182,6 +194,7 @@ pub mod automation_governance;
 pub mod dependency_security_compliance_export_truth;
 pub mod ecosystem_qualification_certification;
 pub mod export_safe_dependency_reports;
+pub mod freeze_the_m5_package_management_component_matrix;
 pub mod freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix;
 pub mod grouped_update_and_rollback_review;
 pub mod manifest_scope_and_source_review;
@@ -287,6 +300,20 @@ pub use ecosystem_qualification_certification::{
     QualificationLane, QualificationRow, ECOSYSTEM_QUALIFICATION_CERTIFICATION_JSON,
     ECOSYSTEM_QUALIFICATION_CERTIFICATION_PATH, ECOSYSTEM_QUALIFICATION_CERTIFICATION_RECORD_KIND,
     ECOSYSTEM_QUALIFICATION_CERTIFICATION_SCHEMA_VERSION,
+};
+pub use freeze_the_m5_package_management_component_matrix::{
+    current_stable_m5_package_component_matrix_export, M5PackageComponent,
+    M5PackageComponentConsumerSurface, M5PackageComponentDegradationState,
+    M5PackageComponentDowngradeTrigger, M5PackageComponentEvidenceRequirement,
+    M5PackageComponentMaturityClass, M5PackageComponentMatrixArtifactError,
+    M5PackageComponentMatrixConsumerProjection, M5PackageComponentMatrixPacket,
+    M5PackageComponentMatrixPacketInput, M5PackageComponentMatrixProofFreshness,
+    M5PackageComponentMatrixRow, M5PackageComponentMatrixTrustReview,
+    M5PackageComponentMatrixViolation, M5PackageComponentRollbackPosture,
+    M5_PACKAGE_COMPONENT_MATRIX_ARTIFACT_REF, M5_PACKAGE_COMPONENT_MATRIX_DOC_REF,
+    M5_PACKAGE_COMPONENT_MATRIX_FIXTURE_DIR, M5_PACKAGE_COMPONENT_MATRIX_RECORD_KIND,
+    M5_PACKAGE_COMPONENT_MATRIX_SCHEMA_REF, M5_PACKAGE_COMPONENT_MATRIX_SCHEMA_VERSION,
+    M5_PACKAGE_COMPONENT_MATRIX_SUMMARY_REF,
 };
 pub use freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix::{
     current_m5_package_state_matrix, AuthMode, IdentitySide, LockfileAuthority,

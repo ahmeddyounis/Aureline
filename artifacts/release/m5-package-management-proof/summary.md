@@ -1,0 +1,81 @@
+# M5 Package-Management Component Matrix
+
+- Packet: `m5-package-component-matrix:stable:0001`
+- Label: `M5 Package-Management Component Matrix`
+- Components: 8 (6 stable)
+- Proof freshness SLO: 168 hours (last refresh: 2026-07-08T00:00:00Z)
+
+## Components
+
+- **package_explorer_row**: `stable`
+  - Scope: Package explorer row naming one package, its owning manifest, and its direct/transitive/workspace-local relation while browsing a package set
+  - Manifest scope: Names the owning manifest and whether the package is a direct, transitive, or workspace-local dependency rather than presenting a flat unscoped list
+  - Registry source: Names the registry, mirror, or offline snapshot the resolved identity came from so a mirror answer is never shown as an upstream fact
+  - Auth posture: Marks whether the row's resolution needed authentication and whether it was satisfied, never hiding an auth-required state behind a blank version
+  - Script/native-build risk: Carries no mutation itself but surfaces whether the package is known to run install scripts or a native build when a mutation is proposed from the row
+  - Lockfile churn: Reflects whether the package is exactly pinned by the lockfile or only range-governed so an unpinned dependency is never read as fixed
+  - Rollback/checkpoint: Read-only browse row; it references the durable operation history entry that would carry any rollback rather than implying an inline revert
+  - Rollback posture: read_only_no_mutation
+- **manifest_scope_switcher**: `stable`
+  - Scope: Manifest-scope switcher selecting the target manifest (whole workspace, selected manifest, workset slice, or workspace member) before a mutation leaves review
+  - Manifest scope: This is the primary carrier of manifest-scope truth; it names the exact target manifest and requires explicit confirmation before a whole-workspace mutation
+  - Registry source: Names the registry/mirror the selected scope resolves against so switching scope never silently changes the source of truth
+  - Auth posture: Surfaces whether the selected scope requires auth that is not yet satisfied so a member switch never masks an auth-required target
+  - Script/native-build risk: Marks whether the selected scope contains packages known to run scripts or native builds so scope selection carries the risk forward
+  - Lockfile churn: Names whether the scope shares a lockfile with siblings so a member operation can never silently widen lockfile churn to the wrong manifest
+  - Rollback/checkpoint: Selecting scope is not a mutation; it references the checkpoint the eventual mutation on this scope would create rather than reverting anything
+  - Rollback posture: read_only_no_mutation
+- **install_review_sheet**: `stable`
+  - Scope: Install-review sheet previewing one install, update, remove, or regenerate with manifest scope, script risk, resolver identity, and lockfile churn explicit before commit
+  - Manifest scope: Names the exact target manifest and whether the change adds a direct, transitive, or workspace-local dependency so an install is never applied to an ambiguous target
+  - Registry source: Names the registry or mirror the packages resolve from and marks an offline-snapshot resolution so review never overstates upstream freshness
+  - Auth posture: States whether the resolve/publish path needs auth and whether it is satisfied so the commit gate blocks while an auth-required state holds
+  - Script/native-build risk: Surfaces the script/native-build label (no scripts, known install scripts, native build required, unknown hook risk, or policy blocked) so a one-click install never hides code execution
+  - Lockfile churn: Shows the lockfile diff class and quantified blast radius so a broad regeneration is never presented as a small pin change
+  - Rollback/checkpoint: Pins the durable rollback checkpoint the commit will create so a failed or partial mutation leaves a recorded receipt rather than a transient toast
+  - Rollback posture: write_back_checkpointed
+- **registry_or_mirror_row**: `stable`
+  - Scope: Registry or mirror row naming the source a package resolves from (public registry, private registry, enterprise mirror, cache, or offline snapshot) and the auth posture used to reach it
+  - Manifest scope: Names which manifests and scopes route through this source so a mirror is never applied to a manifest the user did not intend
+  - Registry source: This is the primary carrier of registry-source truth; it distinguishes public, private, mirror, cache-only, and offline-snapshot sources and never collapses them into a generic connected state
+  - Auth posture: This is the primary carrier of auth posture; it names the credential mode (anonymous, OS-store, token, browser/device sign-in, or policy) and marks an auth-required-unsatisfied state without ever showing a token body or private URL
+  - Script/native-build risk: Source selection carries no script execution itself, and the row states that install-script risk is disclosed on the install-review sheet, not masked here
+  - Lockfile churn: Notes whether switching source can change resolved identities and therefore lockfile churn so a mirror swap never silently rewrites the lockfile
+  - Rollback/checkpoint: Read-only source posture row; it references the auth-flow revoke/switch-account recovery rather than a lockfile rollback
+  - Rollback posture: read_only_no_mutation
+- **script_risk_notice**: `beta`
+  - Scope: Script-risk notice naming whether a proposed mutation may run install/post-install scripts or a native build so code execution is disclosed before, not after, install
+  - Manifest scope: Names which manifest and packages carry the script or native-build risk so the notice maps to a real target rather than a blanket warning
+  - Registry source: Notes the source of the risky package so a mirror-provided package's post-install behavior is attributed to its real origin
+  - Auth posture: States that disclosing script risk never requires or reveals credentials; auth posture is inherited from the registry row rather than duplicated here
+  - Script/native-build risk: This is the primary carrier of script/native-build risk; it keeps no-scripts, known install scripts, native build required, unknown hook risk, and policy-blocked distinct and never downgrades unknown risk to none
+  - Lockfile churn: Notes that running a build or script does not itself change the lockfile, keeping execution risk and dependency churn as separate facts
+  - Rollback/checkpoint: States that side effects of scripts or native builds may be only compensating-reversible, so the notice names when a checkpoint cannot fully undo execution
+  - Rollback posture: compensating_only_no_clean_revert
+- **lockfile_impact_card**: `stable`
+  - Scope: Lockfile-impact card quantifying the lockfile diff (added/removed/changed resolutions and blast radius) for a proposed mutation without understating churn
+  - Manifest scope: Names which manifest's lockfile is affected and whether siblings share it so a member change never hides workspace-wide lockfile impact
+  - Registry source: Marks whether the new resolutions came from upstream, a mirror, or an offline snapshot so lockfile churn is attributed to a real source
+  - Auth posture: Notes when a divergent or blocked auth state prevented a full resolution so an incomplete lockfile diff is never shown as complete
+  - Script/native-build risk: Cross-references the script-risk notice for any newly added package rather than presenting lockfile churn as risk-free
+  - Lockfile churn: This is the primary carrier of lockfile-churn truth; it quantifies added/removed/changed resolutions and marks a broad regeneration explicitly rather than as a single-line change
+  - Rollback/checkpoint: Names the manifest/lockfile checkpoint that a revert would restore so lockfile impact and its rollback stay bound together
+  - Rollback posture: regenerate_only_no_manual_edit
+- **grouped_update_planner**: `preview`
+  - Scope: Grouped-update planner naming the grouped-update reason (security, major, minor/patch, pinned, deduped, or workspace-aligned) with constraint and conflict cards before any batch update applies
+  - Manifest scope: Names every manifest the grouped plan touches so a batch update never widens beyond the manifests the user reviewed
+  - Registry source: Names the registry/mirror each grouped candidate resolves from so a grouped plan never mixes upstream and mirror answers silently
+  - Auth posture: Marks any grouped candidate whose source needs unsatisfied auth so the plan cannot claim readiness it cannot reach
+  - Script/native-build risk: Aggregates the script/native-build risk across grouped candidates so a batch update never hides that some members run code on install
+  - Lockfile churn: Rolls up per-candidate lockfile churn into the plan's total blast radius without averaging away a single large regeneration
+  - Rollback/checkpoint: Binds the grouped plan to a single durable rollback checkpoint with revert, open-diff, and export-patch recovery so a partial batch failure stays recoverable
+  - Rollback posture: write_back_checkpointed
+- **rollback_checkpoint_strip**: `stable`
+  - Scope: Rollback / checkpoint strip naming the durable checkpoint identity for a completed or in-flight package mutation with revert, open-diff, and export-patch recovery actions
+  - Manifest scope: Names the exact manifest and scope the checkpoint would restore so a revert never silently touches manifests outside the recorded operation
+  - Registry source: Records the source the mutation resolved from so a revert against a stale mirror is disclosed rather than assumed clean
+  - Auth posture: Notes when re-resolving during a revert would need auth so an unreachable rollback is disclosed instead of implied instant
+  - Script/native-build risk: Marks when the original mutation ran scripts or a native build so the strip states that reverting the manifest may not undo those side effects
+  - Lockfile churn: Names the manifest/lockfile identity before and after as redacted digests so the exact lockfile the checkpoint restores is unambiguous
+  - Rollback/checkpoint: This is the primary carrier of rollback/checkpoint identity; it keeps the checkpoint id, reachability, and recovery actions explicit and never reduces to a generic undo
+  - Rollback posture: write_back_checkpointed
