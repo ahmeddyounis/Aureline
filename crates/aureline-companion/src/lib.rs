@@ -216,6 +216,22 @@
 //! policy-blocked rendering auto-narrows the claim behind a self-contained banner naming the
 //! exact reason and recovery action, and a stale, desktop-required, or policy-blocked component
 //! never masquerades as a live, companion-safe one.
+//!
+//! Capping the component lane with an accessibility and auto-narrowing certification, it owns the
+//! companion component accessibility parity capstone in
+//! [`implement_keyboard_screen_reader_share_export_parity_and_automatic_narrowing_when_object_freshness_companion_authority_tenant_scope_or_handoff_validity_is_stale_limited_or_revoked_across_claimed_m5_companion_components`],
+//! which certifies — per component family — that companion claims stay keyboard-complete,
+//! screen-reader-reachable, and share/export-safe rather than presenting a stale object, a limited
+//! companion authority, a narrowed tenant scope, or a revoked handoff as a still live, in-authority,
+//! companion-safe surface. Every family reaches the same canonical object identity, client scope,
+//! freshness, capability boundary, severity, and handoff target through a non-visual and headless
+//! path; a hierarchy-heavy family (the incident-snapshot card) also binds its nested lineage to a
+//! flat list / textual path; and when object freshness is stale, companion authority is limited,
+//! tenant scope has narrowed, or handoff validity is revoked, the component's claim auto-narrows
+//! from live-companion-safe / cached-continuity-safe to a stale-freshness / limited-authority /
+//! narrowed-tenant / revoked-handoff projection that discloses the narrowing with a precise trigger
+//! and binding dimension and preserves the canonical object lineage. A stale, limited, or revoked
+//! state can never keep a live-companion-safe claim.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
@@ -229,6 +245,7 @@ pub mod freeze_the_m5_companion_component_matrix;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
 pub mod implement_ci_status_cards_and_session_follow_tiles_with_provider_source_run_or_session_identity_stale_state_labeling_and_follow_or_handoff_continuity;
 pub mod implement_incident_snapshot_cards_and_desktop_handoff_sheets_with_service_run_identity_severity_status_target_identity_auth_tenant_reminder_and_open_on_desktop_truth;
+pub mod implement_keyboard_screen_reader_share_export_parity_and_automatic_narrowing_when_object_freshness_companion_authority_tenant_scope_or_handoff_validity_is_stale_limited_or_revoked_across_claimed_m5_companion_components;
 pub mod implement_notification_rows_and_mobile_review_cards_with_object_identity_client_scope_freshness_severity_unread_and_desktop_handoff_truth;
 pub mod implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth;
 pub mod implement_usage_export_and_offboarding_packages_grace_window_state_org_switch_semantics_and_deletion_export_ho;
