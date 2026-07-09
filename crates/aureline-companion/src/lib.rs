@@ -202,12 +202,27 @@
 //! is broken or over-privileged names an explicit desktop fallback and offers a resolvable desktop
 //! handoff rather than routing blindly, and a surface whose object was deleted preserves its
 //! summary and stops routing instead of opening a target that no longer exists.
+//!
+//! Closing the component lane, it owns the shared companion component-consumer adoption lane in
+//! [`add_shared_inbox_review_ci_session_follow_incident_advisory_and_browser_or_desktop_handoff_consumers_so_companion_components_keep_scope_freshness_and_desktop_required_language_aligned_across_claimed_m5_profiles`],
+//! which proves the six frozen components are reusable by binding every claimed M5 companion
+//! consumer — the notification inbox, the review queue, CI status, session follow, incident
+//! awareness, the advisory center, Help / docs, the support / export desk, the desktop-handoff
+//! surface, and the export packet — to the same canonical component schemas and one shared
+//! descriptor vocabulary (object identity, client scope, freshness, capability boundary,
+//! severity, handoff target). Each consumer points at the primitive's canonical schema and
+//! support-export artifact rather than re-wording those facts in local prose, every one of the
+//! six families is adopted by at least two consumers, a cached / stale / desktop-required /
+//! policy-blocked rendering auto-narrows the claim behind a self-contained banner naming the
+//! exact reason and recovery action, and a stale, desktop-required, or policy-blocked component
+//! never masquerades as a live, companion-safe one.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
 pub mod add_customer_managed_key_or_storage_selection_flows_region_or_residency_cues_and_degraded_managed_service_cont;
 pub mod add_incident_workspace_headers_evidence_timelines_resource_slices_and_runbook_packets;
 pub mod add_remote_preview_or_session_handoff_light_remote_edit_and_scoped_collaboration_follow_continuity_on_companio;
+pub mod add_shared_inbox_review_ci_session_follow_incident_advisory_and_browser_or_desktop_handoff_consumers_so_companion_components_keep_scope_freshness_and_desktop_required_language_aligned_across_claimed_m5_profiles;
 pub mod certify_companion_incident_sync_residency_encryption_and_offboarding_lanes_on_every_marketed_m5_profile;
 pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
 pub mod freeze_the_m5_companion_component_matrix;

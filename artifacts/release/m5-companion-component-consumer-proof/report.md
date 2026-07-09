@@ -1,0 +1,104 @@
+# M5 Companion Component Consumer Parity
+
+- Packet: `m5-companion-component-consumer:stable:0001`
+- Label: `M5 companion component consumers: the notification inbox, the review queue, CI status, session follow, incident awareness, the advisory center, Help / docs, the support / export desk, the desktop-handoff surface, and the export packet keep scope, freshness, and desktop-required parity`
+- Companion consumers: 10 (10 stable)
+- Component families: notification_row, mobile_review_card, ci_status_card, session_follow_tile, incident_snapshot_card, desktop_handoff_sheet
+- Descriptors: object_identity, client_scope, freshness, capability_boundary, severity, handoff_target
+- Parity-health modes: full_parity, cached_narrowed, stale_narrowed, desktop_required_narrowed, policy_blocked_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-09T00:00:00Z)
+
+## Companion consumers
+
+- **Notification Inbox**: `stable`
+  - Owner: Notification-inbox surface owner
+  - Scope: The notification inbox adopts the notification row at full parity and the mobile review card auto-narrowed to a cached value, pointing at the canonical component schemas so object identity, workspace/repo client scope, freshness, the companion-versus-desktop capability boundary, severity, and the exact desktop-handoff target match what the review queue, CI, session-follow, incident, advisory, Help / docs, the support / export desk, the desktop-handoff surface, and the export packet read
+  - Adopted families: 2
+    - `notification_row` -> `schemas/ui/m5-notification-row-mobile-review-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `mobile_review_card` -> `schemas/ui/m5-notification-row-mobile-review-card-controls.schema.json` (1 worked binding(s))
+      - `cached_narrowed` -> `claims_auto_narrowed` (banner `showing_cached_value`)
+- **Review Queue**: `stable`
+  - Owner: Review-queue surface owner
+  - Scope: The review queue adopts the mobile review card at full parity and the desktop-handoff sheet auto-narrowed because completing the review is desktop-required, keeping object identity, client scope, freshness, capability boundary, severity, and handoff target explicit so a desktop-required action is never implied companion-safe
+  - Adopted families: 2
+    - `mobile_review_card` -> `schemas/ui/m5-notification-row-mobile-review-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `desktop_handoff_sheet` -> `schemas/ui/m5-incident-snapshot-card-desktop-handoff-sheet-controls.schema.json` (1 worked binding(s))
+      - `desktop_required_narrowed` -> `claims_auto_narrowed` (banner `desktop_required_action`)
+- **CI Status**: `stable`
+  - Owner: CI-status surface owner
+  - Scope: The CI-status surface adopts the CI-status card at full parity and the notification row auto-narrowed because a CI notification is stale beyond its freshness window, keeping object identity, client scope, freshness, capability boundary, severity, and handoff target explicit so a stale status never reads as a live pass or fail
+  - Adopted families: 2
+    - `ci_status_card` -> `schemas/ui/m5-ci-status-card-session-follow-tile-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `notification_row` -> `schemas/ui/m5-notification-row-mobile-review-card-controls.schema.json` (1 worked binding(s))
+      - `stale_narrowed` -> `claims_auto_narrowed` (banner `stale_beyond_window`)
+- **Session Follow**: `stable`
+  - Owner: Session-follow surface owner
+  - Scope: The session-follow surface adopts the session-follow tile at full parity and the CI-status card auto-narrowed to a cached value because a followed session's CI is not live-refreshing, keeping object identity, client scope, freshness, capability boundary, severity, and handoff target explicit so a cached tile never reads as a live-following one
+  - Adopted families: 2
+    - `session_follow_tile` -> `schemas/ui/m5-ci-status-card-session-follow-tile-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `ci_status_card` -> `schemas/ui/m5-ci-status-card-session-follow-tile-controls.schema.json` (1 worked binding(s))
+      - `cached_narrowed` -> `claims_auto_narrowed` (banner `showing_cached_value`)
+- **Incident Awareness**: `stable`
+  - Owner: Incident-awareness surface owner
+  - Scope: The incident-awareness surface adopts the incident-snapshot card and desktop-handoff sheet at full parity, referencing the canonical component schemas so an incident's severity, latest status, freshness, and the exact object that opens on desktop stay one truth and a stale incident is never shown as live
+  - Adopted families: 2
+    - `incident_snapshot_card` -> `schemas/ui/m5-incident-snapshot-card-desktop-handoff-sheet-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `desktop_handoff_sheet` -> `schemas/ui/m5-incident-snapshot-card-desktop-handoff-sheet-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+- **Advisory Center**: `stable`
+  - Owner: Advisory-center surface owner
+  - Scope: The advisory center adopts the notification row at full parity and the incident-snapshot card auto-narrowed because acting on the advisory is blocked by policy on the companion, keeping object identity, client scope, freshness, capability boundary, severity, and handoff target explicit so a policy-blocked path never reads as companion-safe
+  - Adopted families: 2
+    - `notification_row` -> `schemas/ui/m5-notification-row-mobile-review-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `incident_snapshot_card` -> `schemas/ui/m5-incident-snapshot-card-desktop-handoff-sheet-controls.schema.json` (1 worked binding(s))
+      - `policy_blocked_narrowed` -> `claims_auto_narrowed` (banner `policy_blocked_on_companion`)
+- **Help / Docs**: `stable`
+  - Owner: Help / docs surface owner
+  - Scope: Help / docs adopt the notification row, mobile review card, and CI-status card at full parity, referencing the canonical component schemas so object identity, client scope, freshness, capability boundary, severity, and handoff target stay one truth across every claimed companion surface rather than being re-worded in prose
+  - Adopted families: 3
+    - `notification_row` -> `schemas/ui/m5-notification-row-mobile-review-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `mobile_review_card` -> `schemas/ui/m5-notification-row-mobile-review-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `ci_status_card` -> `schemas/ui/m5-ci-status-card-session-follow-tile-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+- **Support / Export Desk**: `stable`
+  - Owner: Support / export desk surface owner
+  - Scope: The support / export desk adopts the notification row, mobile review card, CI-status card, session-follow tile, incident-snapshot card, and desktop-handoff sheet, referencing the canonical component schemas so its prose can never drift from the product truth and keeping object identity, client scope, freshness, capability boundary, severity, and handoff target exact in every exported case
+  - Adopted families: 6
+    - `notification_row` -> `schemas/ui/m5-notification-row-mobile-review-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `mobile_review_card` -> `schemas/ui/m5-notification-row-mobile-review-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `ci_status_card` -> `schemas/ui/m5-ci-status-card-session-follow-tile-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `session_follow_tile` -> `schemas/ui/m5-ci-status-card-session-follow-tile-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `incident_snapshot_card` -> `schemas/ui/m5-incident-snapshot-card-desktop-handoff-sheet-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `desktop_handoff_sheet` -> `schemas/ui/m5-incident-snapshot-card-desktop-handoff-sheet-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+- **Desktop Handoff**: `stable`
+  - Owner: Desktop-handoff surface owner
+  - Scope: The desktop-handoff surface adopts the desktop-handoff sheet and session-follow tile at full parity, keeping object identity, client scope, freshness, capability boundary, severity, and handoff target explicit so a handoff always names the exact object that opens on desktop rather than a generic activity page
+  - Adopted families: 2
+    - `desktop_handoff_sheet` -> `schemas/ui/m5-incident-snapshot-card-desktop-handoff-sheet-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `session_follow_tile` -> `schemas/ui/m5-ci-status-card-session-follow-tile-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+- **Export Packet**: `stable`
+  - Owner: Export packet surface owner
+  - Scope: The export packet adopts the desktop-handoff sheet, incident-snapshot card, and CI-status card at full parity, keeping object identity, client scope, freshness, capability boundary, severity, and handoff target explicit so an exported packet always states the exact desktop target and never implies a stale card is live
+  - Adopted families: 3
+    - `desktop_handoff_sheet` -> `schemas/ui/m5-incident-snapshot-card-desktop-handoff-sheet-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `incident_snapshot_card` -> `schemas/ui/m5-incident-snapshot-card-desktop-handoff-sheet-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
+    - `ci_status_card` -> `schemas/ui/m5-ci-status-card-session-follow-tile-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_preserved` (banner `full`)
