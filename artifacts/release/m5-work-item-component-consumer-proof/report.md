@@ -1,0 +1,92 @@
+# M5 Work-Item Component Consumer Parity
+
+- Packet: `m5-work-item-component-consumer:stable:0001`
+- Label: `M5 work-item component consumers: the issue inbox, work-item detail, review workspace, incident workspace, Help / docs, the support / export desk, and the offline export packet keep provider, freshness, and offline-handoff parity`
+- Work-item consumers: 7 (7 stable)
+- Component families: work_item_row, provider_chip_group, relation_strip, sync_pending_pill, work_item_detail_header, status_transition_sheet, related_evidence_card, offline_handoff_packet_card
+- Descriptors: canonical_identity, provider_authority, local_versus_provider_state, linked_engineering_context, side_effect_preview, publish_later_continuity
+- Parity-health modes: full_parity, provider_scope_limited_narrowed, sync_pending_narrowed, offline_handoff_narrowed, linked_context_stale_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-09T00:00:00Z)
+
+## Work-item consumers
+
+- **Issue Inbox**: `stable`
+  - Owner: Issue-inbox surface owner
+  - Scope: The issue inbox adopts the work-item row and provider-chip group at full parity, pointing at the canonical component schemas so canonical identity, provider authority, local-versus-provider state, linked context, the side-effect preview, and publish-later continuity match what detail, review, incident, Help / docs, the support / export desk, and the offline export packet read; the sync-pending pill auto-narrows while a change is still queued locally
+  - Adopted families: 3
+    - `work_item_row` → `schemas/ui/m5-work-item-row-provider-chip-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `provider_chip_group` → `schemas/ui/m5-work-item-row-provider-chip-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `sync_pending_pill` → `schemas/ui/m5-relation-strip-sync-pending-controls.schema.json` (1 worked binding(s))
+      - `sync_pending_narrowed` → `claims_auto_narrowed` (banner `sync_pending`)
+- **Work-Item Detail**: `stable`
+  - Owner: Work-item detail surface owner
+  - Scope: The work-item detail adopts the detail header and work-item row at full parity, and the relation strip auto-narrowed because a linked branch/review/test relation is stale, keeping canonical identity, provider authority, local-versus-provider state, linked context, the side-effect preview, and publish-later continuity explicit so a stale relation never reads as current provider context
+  - Adopted families: 3
+    - `work_item_detail_header` → `schemas/ui/m5-work-item-detail-header-status-transition-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `work_item_row` → `schemas/ui/m5-work-item-row-provider-chip-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `relation_strip` → `schemas/ui/m5-relation-strip-sync-pending-controls.schema.json` (1 worked binding(s))
+      - `linked_context_stale_narrowed` → `claims_auto_narrowed` (banner `linked_context_stale`)
+- **Review Workspace**: `stable`
+  - Owner: Review-workspace surface owner
+  - Scope: The review workspace adopts the relation strip and related-evidence card at full parity, and the status-transition sheet auto-narrowed because provider write scope is limited here, keeping canonical identity, provider authority, local-versus-provider state, linked context, the side-effect preview, and publish-later continuity disclosed so a transition never publishes beyond the scope Aureline actually holds
+  - Adopted families: 3
+    - `relation_strip` → `schemas/ui/m5-relation-strip-sync-pending-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `related_evidence_card` → `schemas/ui/m5-related-evidence-offline-handoff-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `status_transition_sheet` → `schemas/ui/m5-work-item-detail-header-status-transition-controls.schema.json` (1 worked binding(s))
+      - `provider_scope_limited_narrowed` → `claims_auto_narrowed` (banner `provider_scope_limited`)
+- **Incident Workspace**: `stable`
+  - Owner: Incident-workspace surface owner
+  - Scope: The incident workspace adopts the related-evidence card at full parity, the sync-pending pill auto-narrowed by a still-queued change, and the offline-handoff-packet card auto-narrowed because the packet stays local-only until exported or published, keeping canonical identity, provider authority, local-versus-provider state, linked context, the side-effect preview, and publish-later continuity explicit so a locally-held incident update never masquerades as a provider-committed one
+  - Adopted families: 3
+    - `related_evidence_card` → `schemas/ui/m5-related-evidence-offline-handoff-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `sync_pending_pill` → `schemas/ui/m5-relation-strip-sync-pending-controls.schema.json` (1 worked binding(s))
+      - `sync_pending_narrowed` → `claims_auto_narrowed` (banner `sync_pending`)
+    - `offline_handoff_packet_card` → `schemas/ui/m5-related-evidence-offline-handoff-controls.schema.json` (1 worked binding(s))
+      - `offline_handoff_narrowed` → `claims_auto_narrowed` (banner `offline_handoff_local_only`)
+- **Help / Docs**: `stable`
+  - Owner: Help / docs surface owner
+  - Scope: Help / docs adopt the work-item row, detail header, and status-transition sheet at full parity, referencing the canonical component schemas so canonical identity, provider authority, local-versus-provider state, linked context, the side-effect preview, and publish-later continuity stay one truth across every claimed work-item surface rather than being re-worded in prose
+  - Adopted families: 3
+    - `work_item_row` → `schemas/ui/m5-work-item-row-provider-chip-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `work_item_detail_header` → `schemas/ui/m5-work-item-detail-header-status-transition-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `status_transition_sheet` → `schemas/ui/m5-work-item-detail-header-status-transition-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Support / Export Desk**: `stable`
+  - Owner: Support / export desk surface owner
+  - Scope: The support / export desk adopts the work-item row, provider-chip group, relation strip, sync-pending pill, detail header, status-transition sheet, related-evidence card, and offline-handoff-packet card, referencing the canonical component schemas so its prose can never drift from the product truth and keeping canonical identity, provider authority, local-versus-provider state, linked context, the side-effect preview, and publish-later continuity exact in every exported case
+  - Adopted families: 8
+    - `work_item_row` → `schemas/ui/m5-work-item-row-provider-chip-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `provider_chip_group` → `schemas/ui/m5-work-item-row-provider-chip-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `relation_strip` → `schemas/ui/m5-relation-strip-sync-pending-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `sync_pending_pill` → `schemas/ui/m5-relation-strip-sync-pending-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `work_item_detail_header` → `schemas/ui/m5-work-item-detail-header-status-transition-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `status_transition_sheet` → `schemas/ui/m5-work-item-detail-header-status-transition-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `related_evidence_card` → `schemas/ui/m5-related-evidence-offline-handoff-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `offline_handoff_packet_card` → `schemas/ui/m5-related-evidence-offline-handoff-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Offline Export Packet**: `stable`
+  - Owner: Offline export packet surface owner
+  - Scope: The offline export packet adopts the provider-chip group and related-evidence card at full parity, and the offline-handoff-packet card auto-narrowed because the exported packet stays local-only until published, keeping canonical identity, provider authority, local-versus-provider state, linked context, the side-effect preview, and publish-later continuity explicit so an exported packet never implies provider acceptance
+  - Adopted families: 3
+    - `provider_chip_group` → `schemas/ui/m5-work-item-row-provider-chip-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `related_evidence_card` → `schemas/ui/m5-related-evidence-offline-handoff-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `offline_handoff_packet_card` → `schemas/ui/m5-related-evidence-offline-handoff-controls.schema.json` (1 worked binding(s))
+      - `offline_handoff_narrowed` → `claims_auto_narrowed` (banner `offline_handoff_local_only`)
