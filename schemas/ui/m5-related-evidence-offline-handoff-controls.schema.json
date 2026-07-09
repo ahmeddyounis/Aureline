@@ -1,0 +1,473 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-related-evidence-offline-handoff-controls.schema.json",
+  "title": "Aureline M5 related-evidence cards and offline-handoff packet cards",
+  "description": "Export-safe packet implementing the reusable M5 related-evidence-card and offline-handoff-packet-card components in two co-equal control vectors. Each related-evidence card summarizes one linked engineering context — a review, a branch/worktree change, a failing/passing test, a CI check, an incident/runbook, or a docs/ADR reference — leading with a summary and an open-detail action rather than dumping raw artifacts; its freshness class is derived from whether the reference is current, whether freshness is known, and whether the evidence is provider-backed, so stale or local-only evidence never reads as current provider truth. Each offline-handoff packet card shows the packet type, the included metadata/evidence, the redaction state (export boundary), and the publish-later target (handoff destination); its acceptance class is derived from the destination, the local-versus-provider state, and whether a prior publish failed, so a held, queued, or failed packet never implies the provider accepted it, and the packet stays visible, retryable, and exportable after failure rather than collapsing into a generic error banner. Generic ticket/task wording never conceals provenance, destination, or boundary; raw work-item bodies, pasted paths, credentials, and private endpoints never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "related_evidence_cards",
+    "offline_handoff_packet_cards",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "related_evidence_offline_handoff_controls" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "surface_label": { "$ref": "#/$defs/non_empty_string" },
+    "related_evidence_cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/related_evidence_card" }
+    },
+    "offline_handoff_packet_cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/offline_handoff_packet_card" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/downgrade_trigger" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "trust_review": { "$ref": "#/$defs/trust_review" },
+    "consumer_projection": { "$ref": "#/$defs/consumer_projection" },
+    "proof_freshness": { "$ref": "#/$defs/proof_freshness" },
+    "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "local_state": {
+      "type": "string",
+      "enum": [
+        "synced_with_provider",
+        "local_only_draft",
+        "queued_for_publish",
+        "publish_deferred",
+        "publish_failed",
+        "conflict_held"
+      ]
+    },
+    "evidence_kind": {
+      "type": "string",
+      "enum": [
+        "test_result",
+        "ci_check",
+        "review_thread",
+        "linked_change",
+        "attached_artifact",
+        "external_reference"
+      ]
+    },
+    "evidence_outcome_class": {
+      "type": "string",
+      "enum": ["passing", "failing", "informational", "unknown_outcome"]
+    },
+    "evidence_freshness_class": {
+      "type": "string",
+      "enum": [
+        "current_evidence",
+        "stale_evidence",
+        "local_only_evidence",
+        "unknown_freshness"
+      ]
+    },
+    "evidence_card_action": {
+      "type": "string",
+      "enum": ["open_detail", "copy_reference", "reveal_provenance", "export_evidence"]
+    },
+    "handoff_destination": {
+      "type": "string",
+      "enum": [
+        "local_queue",
+        "provider_publish",
+        "exported_packet",
+        "support_bundle",
+        "another_device",
+        "discard_after_review"
+      ]
+    },
+    "export_boundary": {
+      "type": "string",
+      "enum": [
+        "metadata_safe",
+        "body_excluded",
+        "identifiers_masked",
+        "credentials_scrubbed",
+        "local_only",
+        "full_disclosure_blocked"
+      ]
+    },
+    "packet_acceptance_class": {
+      "type": "string",
+      "enum": [
+        "held_local_only",
+        "queued_not_yet_accepted",
+        "publish_failed_retryable",
+        "exported_for_handoff",
+        "provider_accepted"
+      ]
+    },
+    "packet_card_action": {
+      "type": "string",
+      "enum": [
+        "copy_packet",
+        "export_packet",
+        "retry_publish",
+        "open_in_provider",
+        "discard_packet"
+      ]
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "issue_inbox",
+        "work_item_detail",
+        "review_workspace",
+        "incident_workspace",
+        "support_workflow",
+        "cli_work_item"
+      ]
+    },
+    "deployment_line": {
+      "type": "string",
+      "enum": ["local_oss", "self_hosted", "managed", "air_gapped", "mirror_offline"]
+    },
+    "accessibility_route": {
+      "type": "string",
+      "enum": [
+        "keyboard_focusable",
+        "screen_reader_announced",
+        "non_hover_reachable",
+        "pointer_optional",
+        "high_contrast_safe",
+        "support_exportable"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "inbox_ui",
+        "detail_ui",
+        "relation_panel_ui",
+        "sync_status_ui",
+        "transition_sheet_ui",
+        "evidence_panel_ui",
+        "support_export",
+        "cli_inspect",
+        "product_ui"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "identity_unstated",
+        "provider_authority_unstated",
+        "local_versus_provider_state_hidden",
+        "linked_context_unstated",
+        "side_effect_preview_hidden",
+        "publish_later_continuity_hidden",
+        "sync_pending_state_hidden",
+        "evidence_provenance_unstated",
+        "handoff_destination_unstated",
+        "export_boundary_hidden",
+        "alternate_state_label_invented",
+        "generic_ticket_wording_used",
+        "proof_stale"
+      ]
+    },
+    "accessibility_route_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/accessibility_route" },
+      "contains": { "const": "keyboard_focusable" }
+    },
+    "related_evidence_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "card_id",
+        "canonical_id",
+        "evidence_kind",
+        "evidence_outcome",
+        "summary_label",
+        "source_label",
+        "is_reference_current",
+        "is_freshness_known",
+        "is_provider_backed",
+        "freshness_class",
+        "freshness_note",
+        "failure_note",
+        "leads_with_summary",
+        "actions",
+        "surface_families",
+        "deployment_lines",
+        "accessibility_routes",
+        "consumer_surfaces",
+        "fields_shown",
+        "source_contract_refs",
+        "uses_generic_ticket_wording"
+      ],
+      "properties": {
+        "component": { "const": "related_evidence_card" },
+        "card_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_id": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_kind": { "$ref": "#/$defs/evidence_kind" },
+        "evidence_outcome": { "$ref": "#/$defs/evidence_outcome_class" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" },
+        "source_label": { "$ref": "#/$defs/non_empty_string" },
+        "is_reference_current": { "type": "boolean" },
+        "is_freshness_known": { "type": "boolean" },
+        "is_provider_backed": { "type": "boolean" },
+        "freshness_class": { "$ref": "#/$defs/evidence_freshness_class" },
+        "freshness_note": { "type": "string" },
+        "failure_note": { "type": "string" },
+        "leads_with_summary": { "const": true },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_card_action" },
+          "allOf": [
+            { "contains": { "const": "open_detail" } },
+            { "contains": { "const": "copy_reference" } }
+          ]
+        },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_family" }
+        },
+        "deployment_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_line" }
+        },
+        "accessibility_routes": { "$ref": "#/$defs/accessibility_route_array" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "fields_shown": { "$ref": "#/$defs/non_empty_string_array" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+        "uses_generic_ticket_wording": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "freshness_class": { "const": "current_evidence" } },
+            "required": ["freshness_class"]
+          },
+          "else": {
+            "properties": { "freshness_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "evidence_outcome": { "const": "failing" } },
+            "required": ["evidence_outcome"]
+          },
+          "then": {
+            "properties": { "failure_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        }
+      ]
+    },
+    "offline_handoff_packet_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "card_id",
+        "canonical_id",
+        "packet_type_label",
+        "handoff_destination",
+        "publish_later_target_label",
+        "local_state",
+        "has_publish_failed",
+        "acceptance_class",
+        "implies_provider_accepted",
+        "included_content_summary",
+        "export_boundary",
+        "redaction_state_note",
+        "failure_recovery_note",
+        "remains_visible_after_failure",
+        "collapses_into_error_banner",
+        "actions",
+        "surface_families",
+        "deployment_lines",
+        "accessibility_routes",
+        "consumer_surfaces",
+        "fields_shown",
+        "source_contract_refs",
+        "uses_generic_ticket_wording"
+      ],
+      "properties": {
+        "component": { "const": "offline_handoff_packet_card" },
+        "card_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_id": { "$ref": "#/$defs/non_empty_string" },
+        "packet_type_label": { "$ref": "#/$defs/non_empty_string" },
+        "handoff_destination": { "$ref": "#/$defs/handoff_destination" },
+        "publish_later_target_label": { "$ref": "#/$defs/non_empty_string" },
+        "local_state": { "$ref": "#/$defs/local_state" },
+        "has_publish_failed": { "type": "boolean" },
+        "acceptance_class": { "$ref": "#/$defs/packet_acceptance_class" },
+        "implies_provider_accepted": { "type": "boolean" },
+        "included_content_summary": { "$ref": "#/$defs/non_empty_string" },
+        "export_boundary": { "$ref": "#/$defs/export_boundary" },
+        "redaction_state_note": { "$ref": "#/$defs/non_empty_string" },
+        "failure_recovery_note": { "type": "string" },
+        "remains_visible_after_failure": { "const": true },
+        "collapses_into_error_banner": { "const": false },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/packet_card_action" },
+          "allOf": [
+            { "contains": { "const": "copy_packet" } },
+            { "contains": { "const": "export_packet" } }
+          ]
+        },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_family" }
+        },
+        "deployment_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_line" }
+        },
+        "accessibility_routes": { "$ref": "#/$defs/accessibility_route_array" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "fields_shown": { "$ref": "#/$defs/non_empty_string_array" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+        "uses_generic_ticket_wording": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "acceptance_class": { "const": "provider_accepted" } },
+            "required": ["acceptance_class"]
+          },
+          "then": {
+            "properties": { "implies_provider_accepted": { "const": true } }
+          },
+          "else": {
+            "properties": { "implies_provider_accepted": { "const": false } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "acceptance_class": { "const": "publish_failed_retryable" } },
+            "required": ["acceptance_class"]
+          },
+          "then": {
+            "properties": {
+              "failure_recovery_note": { "$ref": "#/$defs/non_empty_string" },
+              "actions": { "contains": { "const": "retry_publish" } }
+            }
+          }
+        }
+      ]
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_card_leads_with_summary",
+        "evidence_freshness_derived",
+        "evidence_names_provenance",
+        "evidence_offers_open_detail",
+        "packet_names_type_and_target",
+        "packet_discloses_redaction_state",
+        "offline_packet_never_implies_acceptance",
+        "offline_packet_retryable_after_failure",
+        "offline_packet_exportable_after_failure",
+        "offline_packet_stays_visible_not_error_banner",
+        "no_generic_ticket_wording_conceals_truth",
+        "controls_stable_across_deployment_lines",
+        "copy_and_export_safe",
+        "downgrade_narrows_instead_of_hides"
+      ],
+      "properties": {
+        "evidence_card_leads_with_summary": { "const": true },
+        "evidence_freshness_derived": { "const": true },
+        "evidence_names_provenance": { "const": true },
+        "evidence_offers_open_detail": { "const": true },
+        "packet_names_type_and_target": { "const": true },
+        "packet_discloses_redaction_state": { "const": true },
+        "offline_packet_never_implies_acceptance": { "const": true },
+        "offline_packet_retryable_after_failure": { "const": true },
+        "offline_packet_exportable_after_failure": { "const": true },
+        "offline_packet_stays_visible_not_error_banner": { "const": true },
+        "no_generic_ticket_wording_conceals_truth": { "const": true },
+        "controls_stable_across_deployment_lines": { "const": true },
+        "copy_and_export_safe": { "const": true },
+        "downgrade_narrows_instead_of_hides": { "const": true }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "detail_surface_renders_summary_first_evidence",
+        "offline_surface_keeps_packet_visible_and_retryable",
+        "copy_export_retry_reachable_headless",
+        "cli_headless_shows_control_truth",
+        "support_export_shows_control_truth",
+        "help_about_shows_control_truth"
+      ],
+      "properties": {
+        "detail_surface_renders_summary_first_evidence": { "const": true },
+        "offline_surface_keeps_packet_visible_and_retryable": { "const": true },
+        "copy_export_retry_reachable_headless": { "const": true },
+        "cli_headless_shows_control_truth": { "const": true },
+        "support_export_shows_control_truth": { "const": true },
+        "help_about_shows_control_truth": { "const": true }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_proof_refresh": { "type": "string", "format": "date-time" },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    }
+  }
+}
