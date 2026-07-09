@@ -160,6 +160,20 @@
 //! policy-blocked review never reads as companion-completable, every quick triage verb
 //! lands on one stable object rather than a generic activity page, and every widening
 //! verb names one exact desktop-handoff target.
+//!
+//! Implementing the next two of those frozen components, it owns the CI-status-card and
+//! session-follow-tile controls in
+//! [`implement_ci_status_cards_and_session_follow_tiles_with_provider_source_run_or_session_identity_stale_state_labeling_and_follow_or_handoff_continuity`],
+//! which narrows the frozen `ci_status_card` and `session_follow_tile` into one export-safe
+//! packet with two co-equal control vectors so the companion stays honest about live versus
+//! stale context. A CI-status card names its provider/source class and its stable run and
+//! commit identity, and its result class is derived from the frozen CI status so a stale
+//! status never reads as a live pass or fail and a desktop-only rerun is never implied
+//! companion-safe. A session-follow tile preserves its presenter and session identity, and
+//! its joinability class is derived from the frozen session-follow state so a diverged,
+//! stale, host-inactive, or ended session degrades to an explicit read-only or not-joinable
+//! state instead of an ambiguous empty card and never offers an ambiguous join into an
+//! expired or narrowed session.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
@@ -170,6 +184,7 @@ pub mod certify_companion_incident_sync_residency_encryption_and_offboarding_lan
 pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
 pub mod freeze_the_m5_companion_component_matrix;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
+pub mod implement_ci_status_cards_and_session_follow_tiles_with_provider_source_run_or_session_identity_stale_state_labeling_and_follow_or_handoff_continuity;
 pub mod implement_notification_rows_and_mobile_review_cards_with_object_identity_client_scope_freshness_severity_unread_and_desktop_handoff_truth;
 pub mod implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth;
 pub mod implement_usage_export_and_offboarding_packages_grace_window_state_org_switch_semantics_and_deletion_export_ho;
