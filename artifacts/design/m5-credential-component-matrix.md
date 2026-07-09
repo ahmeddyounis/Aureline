@@ -1,0 +1,59 @@
+# M5 Credential-State-Row, Secret-Access-Prompt-Sheet, Vault-or-Keychain-Picker, Credential-Store-Capability-Row, Browser-Device-Code-Handoff-Card, Delegated-Credential-Row, Rotation-Revoke-Event-Row, and Export-Safety-Banner Component Matrix
+
+- Packet: `m5-credential-components:stable:0001`
+- Label: `M5 credential-state-row, secret-access-prompt-sheet, vault-or-keychain-picker, credential-store-capability-row, browser-device-code-handoff-card, delegated-credential-row, rotation-revoke-event-row, and export-safety-banner component matrix`
+- Component families: 8 (8 stable)
+- Storage modes: os_keychain, encrypted_vault, secret_broker_handle, session_memory_only, external_reference, no_secret_stored
+- Export-safety classes: raw_secret_excluded, metadata_only, handle_reference_only, redacted_share, endpoints_masked, export_blocked
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-09T00:00:00Z)
+
+## Component families
+
+- **credential_state_row**: `stable`
+  - Owner: Credential-state row owner
+  - Canonical schema: `schemas/ui/m5-credential-state-row.schema.json`
+  - Scope: One credential-state-row model naming where a secret is stored (os keychain, encrypted vault, secret broker handle, session memory only, external reference, or no secret stored), which credential class it holds, whether a handle-only path exists or a raw reveal is possible, and its expiry / rotation / revoke lifecycle state, so a user never has to infer where a secret lives or whether it can be shown right now
+  - Required labels: identity, state, keyboard_route, storage_and_reveal_posture, expiry_and_export_boundary
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **secret_access_prompt_sheet**: `stable`
+  - Owner: Secret-access-prompt sheet owner
+  - Canonical schema: `schemas/ui/m5-secret-access-prompt-sheet.schema.json`
+  - Scope: One secret-access-prompt-sheet model naming which credential class is being requested, the reveal posture it honours (handle only, masked, reveal on demand, clipboard scoped, never revealed, or policy blocked), and the auth-handoff class it will complete (system browser redirect, device code poll, embedded prompt, passkey step up, delegated forward, or offline deferred), so a prompt never conceals whether a raw secret will be exposed or how the handoff completes
+  - Required labels: identity, state, keyboard_route, storage_and_reveal_posture
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **vault_or_keychain_picker**: `stable`
+  - Owner: Vault/keychain picker owner
+  - Canonical schema: `schemas/ui/m5-vault-keychain-picker.schema.json`
+  - Scope: One vault-or-keychain-picker model naming the storage mode a secret will be written to and the store's capability (persist across restart, os locked at rest, sync across devices, hardware backed, export blocked by store, or session only), so a user always sees where a secret will land and what that store can and cannot guarantee before it is written
+  - Required labels: identity, state, keyboard_route, storage_and_reveal_posture
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **credential_store_capability_row**: `stable`
+  - Owner: Credential-store-capability row owner
+  - Canonical schema: `schemas/ui/m5-credential-store-capability-row.schema.json`
+  - Scope: One credential-store-capability-row model naming the storage mode of a configured store and the exact capabilities it offers alongside its degraded state, so a user never has to infer whether a store persists, is locked at rest, syncs, is hardware backed, blocks export, or is session only — and whether it is fully available, limited, stale, offline, policy blocked, or unavailable
+  - Required labels: identity, state, keyboard_route, storage_and_reveal_posture
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **browser_device_code_handoff_card**: `stable`
+  - Owner: Browser/device-code handoff card owner
+  - Canonical schema: `schemas/ui/m5-browser-device-code-handoff-card.schema.json`
+  - Scope: One browser-device-code-handoff-card model naming the auth-handoff class currently in flight — a system browser redirect, a device code poll, an embedded prompt, a passkey step up, a delegated forward, or an offline-deferred handoff — and which identity it carries, so a user always knows how authentication will complete and never has to infer whether a browser or device-code flow is under way
+  - Required labels: identity, state, keyboard_route, identity_and_delegation
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **delegated_credential_row**: `stable`
+  - Owner: Delegated-credential row owner
+  - Canonical schema: `schemas/ui/m5-delegated-credential-row.schema.json`
+  - Scope: One delegated-credential-row model naming which identity is acting — a local identity, a forwarded identity, a delegated-on-behalf identity, an impersonation-scoped identity, a service account, or a revoked delegation — and the credential class behind it, so a user never has to infer whether the identity being forwarded or delegated is their own and no friendly wording conceals a delegated principal
+  - Required labels: identity, state, keyboard_route, identity_and_delegation
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **rotation_revoke_event_row**: `stable`
+  - Owner: Rotation/revoke-event row owner
+  - Canonical schema: `schemas/ui/m5-rotation-revoke-event-row.schema.json`
+  - Scope: One rotation-revoke-event-row model naming the credential lifecycle state — active current, refresh needed, rotation due, revoked, expired, or superseded — so a user always sees what rotation or revoke will impact and a pending rotation or revoke is never shown as active or silently dropped
+  - Required labels: identity, state, keyboard_route, expiry_and_export_boundary
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **export_safety_banner**: `stable`
+  - Owner: Export-safety banner owner
+  - Canonical schema: `schemas/ui/m5-export-safety-banner.schema.json`
+  - Scope: One export-safety-banner model naming what an export will and will not reveal — raw secret excluded, metadata only, handle reference only, redacted share, endpoints masked, or export blocked — alongside the reveal posture it honours, so no support or export flow ever implies a raw secret is export-safe and every export names its boundary before it runs
+  - Required labels: identity, state, keyboard_route, expiry_and_export_boundary
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
