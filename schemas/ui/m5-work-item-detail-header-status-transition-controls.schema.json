@@ -1,0 +1,517 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-work-item-detail-header-status-transition-controls.schema.json",
+  "title": "Aureline M5 work-item detail headers and status-transition sheets",
+  "description": "Export-safe packet implementing the reusable M5 work-item-detail-header and status-transition-sheet components in two co-equal control vectors. Each detail header states the provider/project space, canonical id, title, work-item kind, current state, assignee/owner, and an open-external escape hatch; its write scope and freshness class are derived from provider authority and local-versus-provider state, so a local draft never reads as a provider-backed object and a stale snapshot never reads as live. Each status-transition sheet previews, before any publish, what will change (comment/state/assignment/link/field mutations), the linked branch/review context, the notification side effects, and the permission scope that can authorize the change; its publish class is derived from the transition effect and a policy-block flag, so a local-only transition never implies external mutation before confirmation, and confirm/export/cancel behavior with a metadata-safe export fallback is always offered. Generic ticket/task wording never conceals authority, side effects, or scope; raw work-item bodies, pasted paths, credentials, and private endpoints never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "detail_headers",
+    "status_transition_sheets",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "detail_header_status_transition_controls" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "surface_label": { "$ref": "#/$defs/non_empty_string" },
+    "detail_headers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/detail_header" }
+    },
+    "status_transition_sheets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/status_transition_sheet" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/downgrade_trigger" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "trust_review": { "$ref": "#/$defs/trust_review" },
+    "consumer_projection": { "$ref": "#/$defs/consumer_projection" },
+    "proof_freshness": { "$ref": "#/$defs/proof_freshness" },
+    "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "work_item_kind": {
+      "type": "string",
+      "enum": ["issue", "task", "incident", "change_request", "epic", "unknown_kind"]
+    },
+    "provider_authority": {
+      "type": "string",
+      "enum": [
+        "provider_owned",
+        "local_draft",
+        "mirrored_read_only",
+        "imported_snapshot",
+        "unlinked_local",
+        "policy_pinned"
+      ]
+    },
+    "local_state": {
+      "type": "string",
+      "enum": [
+        "synced_with_provider",
+        "local_only_draft",
+        "queued_for_publish",
+        "publish_deferred",
+        "publish_failed",
+        "conflict_held"
+      ]
+    },
+    "header_write_scope": {
+      "type": "string",
+      "enum": [
+        "provider_writable",
+        "local_draft_only",
+        "read_only_mirror",
+        "policy_blocked_write"
+      ]
+    },
+    "header_freshness_class": {
+      "type": "string",
+      "enum": ["live_synced", "stale_snapshot", "local_only", "unknown_freshness"]
+    },
+    "detail_header_action": {
+      "type": "string",
+      "enum": ["copy_canonical_id", "open_external", "reveal_scope", "export_header"]
+    },
+    "transition_effect": {
+      "type": "string",
+      "enum": [
+        "local_only_transition",
+        "publish_now_transition",
+        "open_in_provider",
+        "comment_side_effect",
+        "status_side_effect",
+        "blocked_transition"
+      ]
+    },
+    "transition_mutation_kind": {
+      "type": "string",
+      "enum": [
+        "comment_mutation",
+        "state_mutation",
+        "assignment_mutation",
+        "link_mutation",
+        "field_mutation"
+      ]
+    },
+    "transition_publish_class": {
+      "type": "string",
+      "enum": [
+        "local_draft_only",
+        "publishes_to_provider",
+        "opens_in_provider",
+        "blocked_needs_permission",
+        "policy_blocked_transition"
+      ]
+    },
+    "permission_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_user_authorized",
+        "needs_elevated_role",
+        "needs_provider_auth",
+        "policy_restricted"
+      ]
+    },
+    "transition_sheet_action": {
+      "type": "string",
+      "enum": ["confirm", "export_packet", "cancel", "open_in_provider", "save_draft"]
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "issue_inbox",
+        "work_item_detail",
+        "review_workspace",
+        "incident_workspace",
+        "support_workflow",
+        "cli_work_item"
+      ]
+    },
+    "deployment_line": {
+      "type": "string",
+      "enum": ["local_oss", "self_hosted", "managed", "air_gapped", "mirror_offline"]
+    },
+    "accessibility_route": {
+      "type": "string",
+      "enum": [
+        "keyboard_focusable",
+        "screen_reader_announced",
+        "non_hover_reachable",
+        "pointer_optional",
+        "high_contrast_safe",
+        "support_exportable"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "inbox_ui",
+        "detail_ui",
+        "relation_panel_ui",
+        "sync_status_ui",
+        "transition_sheet_ui",
+        "evidence_panel_ui",
+        "support_export",
+        "cli_inspect",
+        "product_ui"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "identity_unstated",
+        "provider_authority_unstated",
+        "local_versus_provider_state_hidden",
+        "linked_context_unstated",
+        "side_effect_preview_hidden",
+        "publish_later_continuity_hidden",
+        "sync_pending_state_hidden",
+        "evidence_provenance_unstated",
+        "handoff_destination_unstated",
+        "export_boundary_hidden",
+        "alternate_state_label_invented",
+        "generic_ticket_wording_used",
+        "proof_stale"
+      ]
+    },
+    "accessibility_route_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/accessibility_route" },
+      "contains": { "const": "keyboard_focusable" }
+    },
+    "detail_header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "header_id",
+        "canonical_id",
+        "provider_space_label",
+        "title",
+        "work_item_kind",
+        "state_label",
+        "owner_label",
+        "provider_authority",
+        "local_state",
+        "is_reference_current",
+        "is_freshness_known",
+        "write_scope",
+        "freshness_class",
+        "claims_provider_backed",
+        "write_scope_note",
+        "freshness_note",
+        "policy_block_note",
+        "actions",
+        "surface_families",
+        "deployment_lines",
+        "accessibility_routes",
+        "consumer_surfaces",
+        "fields_shown",
+        "source_contract_refs",
+        "uses_generic_ticket_wording"
+      ],
+      "properties": {
+        "component": { "const": "work_item_detail_header" },
+        "header_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_space_label": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "work_item_kind": { "$ref": "#/$defs/work_item_kind" },
+        "state_label": { "$ref": "#/$defs/non_empty_string" },
+        "owner_label": { "$ref": "#/$defs/non_empty_string" },
+        "provider_authority": { "$ref": "#/$defs/provider_authority" },
+        "local_state": { "$ref": "#/$defs/local_state" },
+        "is_reference_current": { "type": "boolean" },
+        "is_freshness_known": { "type": "boolean" },
+        "write_scope": { "$ref": "#/$defs/header_write_scope" },
+        "freshness_class": { "$ref": "#/$defs/header_freshness_class" },
+        "claims_provider_backed": { "type": "boolean" },
+        "write_scope_note": { "type": "string" },
+        "freshness_note": { "type": "string" },
+        "policy_block_note": { "type": "string" },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/detail_header_action" },
+          "allOf": [
+            { "contains": { "const": "copy_canonical_id" } },
+            { "contains": { "const": "open_external" } }
+          ]
+        },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_family" }
+        },
+        "deployment_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_line" }
+        },
+        "accessibility_routes": { "$ref": "#/$defs/accessibility_route_array" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "fields_shown": { "$ref": "#/$defs/non_empty_string_array" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+        "uses_generic_ticket_wording": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "write_scope": { "const": "provider_writable" } },
+            "required": ["write_scope"]
+          },
+          "else": {
+            "properties": { "write_scope_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "freshness_class": { "const": "live_synced" } },
+            "required": ["freshness_class"]
+          },
+          "else": {
+            "properties": { "freshness_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "write_scope": { "const": "policy_blocked_write" } },
+            "required": ["write_scope"]
+          },
+          "then": {
+            "properties": { "policy_block_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        }
+      ]
+    },
+    "status_transition_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "sheet_id",
+        "canonical_id",
+        "from_status",
+        "to_status",
+        "mutation_kinds",
+        "transition_effects",
+        "primary_transition_effect",
+        "local_state",
+        "is_policy_blocked",
+        "publish_class",
+        "implies_external_mutation",
+        "side_effect_preview_label",
+        "linked_context_note",
+        "notification_side_effect_note",
+        "permission_scope",
+        "permission_scope_note",
+        "actions",
+        "export_fallback_note",
+        "policy_block_note",
+        "surface_families",
+        "deployment_lines",
+        "accessibility_routes",
+        "consumer_surfaces",
+        "fields_shown",
+        "source_contract_refs",
+        "uses_generic_ticket_wording"
+      ],
+      "properties": {
+        "component": { "const": "status_transition_sheet" },
+        "sheet_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_id": { "$ref": "#/$defs/non_empty_string" },
+        "from_status": { "$ref": "#/$defs/non_empty_string" },
+        "to_status": { "$ref": "#/$defs/non_empty_string" },
+        "mutation_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/transition_mutation_kind" }
+        },
+        "transition_effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/transition_effect" }
+        },
+        "primary_transition_effect": { "$ref": "#/$defs/transition_effect" },
+        "local_state": { "$ref": "#/$defs/local_state" },
+        "is_policy_blocked": { "type": "boolean" },
+        "publish_class": { "$ref": "#/$defs/transition_publish_class" },
+        "implies_external_mutation": { "type": "boolean" },
+        "side_effect_preview_label": { "$ref": "#/$defs/non_empty_string" },
+        "linked_context_note": { "$ref": "#/$defs/non_empty_string" },
+        "notification_side_effect_note": { "type": "string" },
+        "permission_scope": { "$ref": "#/$defs/permission_scope_class" },
+        "permission_scope_note": { "$ref": "#/$defs/non_empty_string" },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/transition_sheet_action" },
+          "allOf": [
+            { "contains": { "const": "confirm" } },
+            { "contains": { "const": "export_packet" } },
+            { "contains": { "const": "cancel" } }
+          ]
+        },
+        "export_fallback_note": { "$ref": "#/$defs/non_empty_string" },
+        "policy_block_note": { "type": "string" },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_family" }
+        },
+        "deployment_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_line" }
+        },
+        "accessibility_routes": { "$ref": "#/$defs/accessibility_route_array" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "fields_shown": { "$ref": "#/$defs/non_empty_string_array" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+        "uses_generic_ticket_wording": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "publish_class": {
+                "enum": ["publishes_to_provider", "opens_in_provider"]
+              }
+            },
+            "required": ["publish_class"]
+          },
+          "then": {
+            "properties": {
+              "implies_external_mutation": { "const": true },
+              "notification_side_effect_note": { "$ref": "#/$defs/non_empty_string" }
+            }
+          },
+          "else": {
+            "properties": { "implies_external_mutation": { "const": false } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "publish_class": { "const": "policy_blocked_transition" } },
+            "required": ["publish_class"]
+          },
+          "then": {
+            "properties": { "policy_block_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        }
+      ]
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header_states_identity_and_owner",
+        "header_write_scope_derived",
+        "header_freshness_derived",
+        "local_draft_never_reads_provider_backed",
+        "header_offers_open_external_escape_hatch",
+        "transition_previews_mutations_before_publish",
+        "local_transition_never_implies_external_mutation",
+        "transition_discloses_notification_side_effects",
+        "transition_names_permission_scope",
+        "transition_offers_confirm_export_cancel",
+        "export_fallback_always_available",
+        "no_generic_ticket_wording_conceals_truth",
+        "controls_stable_across_deployment_lines",
+        "copy_and_export_safe",
+        "downgrade_narrows_instead_of_hides"
+      ],
+      "properties": {
+        "header_states_identity_and_owner": { "const": true },
+        "header_write_scope_derived": { "const": true },
+        "header_freshness_derived": { "const": true },
+        "local_draft_never_reads_provider_backed": { "const": true },
+        "header_offers_open_external_escape_hatch": { "const": true },
+        "transition_previews_mutations_before_publish": { "const": true },
+        "local_transition_never_implies_external_mutation": { "const": true },
+        "transition_discloses_notification_side_effects": { "const": true },
+        "transition_names_permission_scope": { "const": true },
+        "transition_offers_confirm_export_cancel": { "const": true },
+        "export_fallback_always_available": { "const": true },
+        "no_generic_ticket_wording_conceals_truth": { "const": true },
+        "controls_stable_across_deployment_lines": { "const": true },
+        "copy_and_export_safe": { "const": true },
+        "downgrade_narrows_instead_of_hides": { "const": true }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "detail_surface_renders_header_boundary",
+        "transition_surface_previews_before_publish",
+        "confirm_export_cancel_reachable_headless",
+        "cli_headless_shows_control_truth",
+        "support_export_shows_control_truth",
+        "help_about_shows_control_truth"
+      ],
+      "properties": {
+        "detail_surface_renders_header_boundary": { "const": true },
+        "transition_surface_previews_before_publish": { "const": true },
+        "confirm_export_cancel_reachable_headless": { "const": true },
+        "cli_headless_shows_control_truth": { "const": true },
+        "support_export_shows_control_truth": { "const": true },
+        "help_about_shows_control_truth": { "const": true }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_proof_refresh": { "type": "string", "format": "date-time" },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    }
+  }
+}
