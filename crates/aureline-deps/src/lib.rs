@@ -200,6 +200,7 @@ pub mod grouped_update_and_rollback_review;
 pub mod implement_install_review_sheets_and_lockfile_impact_cards;
 pub mod implement_manifest_scope_switchers_and_registry_or_mirror_rows;
 pub mod implement_package_explorer_rows_with_scope_relation_registry_and_signal_truth;
+pub mod implement_script_risk_notices_grouped_update_planners_and_rollback_checkpoint_strips;
 pub mod manifest_scope_and_source_review;
 pub mod operation_history;
 pub mod package_mutation_and_registry_review;
@@ -368,6 +369,22 @@ pub use implement_package_explorer_rows_with_scope_relation_registry_and_signal_
     PACKAGE_EXPLORER_ROW_DOC_REF, PACKAGE_EXPLORER_ROW_FIXTURE_DIR,
     PACKAGE_EXPLORER_ROW_RECORD_KIND, PACKAGE_EXPLORER_ROW_SCHEMA_REF,
     PACKAGE_EXPLORER_ROW_SCHEMA_VERSION, PACKAGE_EXPLORER_ROW_SUMMARY_REF,
+};
+pub use implement_script_risk_notices_grouped_update_planners_and_rollback_checkpoint_strips::{
+    current_script_risk_grouped_update_rollback_export, resolve_recovery_posture,
+    resolve_script_risk, resolve_update_plan_class, GroupedUpdatePlanClass, GroupedUpdatePlanner,
+    RecoveryDisclosure, RecoveryPostureClass, RemoveBlockedState, RollbackCheckpointStrip,
+    ScriptExecutionSource, ScriptRiskClass, ScriptRiskDisclosure,
+    ScriptRiskGroupedUpdateRollbackArtifactError, ScriptRiskGroupedUpdateRollbackConsumerProjection,
+    ScriptRiskGroupedUpdateRollbackControlsPacket,
+    ScriptRiskGroupedUpdateRollbackControlsPacketInput,
+    ScriptRiskGroupedUpdateRollbackProofFreshness, ScriptRiskGroupedUpdateRollbackTrustReview,
+    ScriptRiskGroupedUpdateRollbackViolation, ScriptRiskNotice, UpdatePlanDisclosure, UpdateReason,
+    SCRIPT_RISK_GROUPED_UPDATE_ROLLBACK_ARTIFACT_REF, SCRIPT_RISK_GROUPED_UPDATE_ROLLBACK_DOC_REF,
+    SCRIPT_RISK_GROUPED_UPDATE_ROLLBACK_FIXTURE_DIR, SCRIPT_RISK_GROUPED_UPDATE_ROLLBACK_RECORD_KIND,
+    SCRIPT_RISK_GROUPED_UPDATE_ROLLBACK_SCHEMA_REF,
+    SCRIPT_RISK_GROUPED_UPDATE_ROLLBACK_SCHEMA_VERSION,
+    SCRIPT_RISK_GROUPED_UPDATE_ROLLBACK_SUMMARY_REF,
 };
 // `ManifestScopeClass`, `RegistrySourceAuthority`, `AuthMode`,
 // `LockfileAuthority`, `ResolverIdentityClass`, `RollbackClass`,
