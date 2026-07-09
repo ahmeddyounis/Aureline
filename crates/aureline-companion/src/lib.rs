@@ -232,6 +232,23 @@
 //! narrowed-tenant / revoked-handoff projection that discloses the narrowing with a precise trigger
 //! and binding dimension and preserves the canonical object lineage. A stale, limited, or revoked
 //! state can never keep a live-companion-safe claim.
+//!
+//! Closing the component lane with a surface certification, it owns the companion component surface
+//! certification capstone in
+//! [`certify_companion_component_truth_on_every_claimed_m5_companion_and_handoff_surface`],
+//! which certifies — per claimed surface — that the shared companion-component truth holds on every
+//! claimed M5 companion and handoff surface (the notification inbox, the mobile review queue, the
+//! CI-status dashboard, session follow, incident awareness, the desktop handoff, support / export,
+//! and Help / docs) across six truth axes — visual, keyboard, screen-reader, share/export,
+//! degraded-state, and companion-boundary provenance — and auto-narrows any surface that cannot
+//! sustain it. A surface that keeps a live-companion-safe or cached-continuity-safe claim while its
+//! object is stale, its companion authority is limited, its tenant scope has narrowed, or its
+//! handoff validity is revoked is blocked; a surface that discloses the reduction by narrowing its
+//! claim behind a bound reason and a frozen downgrade trigger is honestly yellow and never drops its
+//! object-identity / client-scope / freshness / capability / severity / handoff continuity. The
+//! always-on share/export axis stays certified on every surface so support and automation
+//! reconstruct the same truth from the same object identity, and every certified surface cites the
+//! one canonical companion component proof bundle rather than cloning per-surface evidence.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
@@ -239,6 +256,7 @@ pub mod add_customer_managed_key_or_storage_selection_flows_region_or_residency_
 pub mod add_incident_workspace_headers_evidence_timelines_resource_slices_and_runbook_packets;
 pub mod add_remote_preview_or_session_handoff_light_remote_edit_and_scoped_collaboration_follow_continuity_on_companio;
 pub mod add_shared_inbox_review_ci_session_follow_incident_advisory_and_browser_or_desktop_handoff_consumers_so_companion_components_keep_scope_freshness_and_desktop_required_language_aligned_across_claimed_m5_profiles;
+pub mod certify_companion_component_truth_on_every_claimed_m5_companion_and_handoff_surface;
 pub mod certify_companion_incident_sync_residency_encryption_and_offboarding_lanes_on_every_marketed_m5_profile;
 pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
 pub mod freeze_the_m5_companion_component_matrix;
