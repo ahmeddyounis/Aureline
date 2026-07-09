@@ -1,0 +1,610 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-rotation-revoke-export-safety-controls.schema.json",
+  "title": "Aureline M5 rotation/revoke-event rows and export-safety banners",
+  "description": "Export-safe packet implementing the reusable M5 rotation-revoke-event-row and export-safety-banner components in two co-equal control vectors. Each rotation/revoke-event row names its credential class, its prior and new lifecycle state, the impacted running sessions / queued jobs / remembered decisions, its recovery next step, and its audit event; its continuity class is derived from the new lifecycle state, so a revoked or expired credential can never read as still usable. Each export-safety banner states raw credentials are excluded by default from profiles, support bundles, handoff packets, recipes, and portable workspace exports, and preserves handle-class / source labels where allowed; its redaction posture is derived from the export-safety class, so an export never implies a raw secret is exportable and credential exclusion is never left to implication. Friendly connected wording never conceals the lifecycle state or the export boundary; raw secret values, tokens, passphrases, and private endpoints never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "event_rows",
+    "export_banners",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "rotation_revoke_export_safety_controls" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "surface_label": { "$ref": "#/$defs/non_empty_string" },
+    "event_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/event_row" }
+    },
+    "export_banners": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/export_banner" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/downgrade_trigger" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "trust_review": { "$ref": "#/$defs/trust_review" },
+    "consumer_projection": { "$ref": "#/$defs/consumer_projection" },
+    "proof_freshness": { "$ref": "#/$defs/proof_freshness" },
+    "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "credential_class": {
+      "type": "string",
+      "enum": [
+        "oauth_token",
+        "api_key",
+        "personal_access_token",
+        "ssh_or_signing_key",
+        "client_certificate",
+        "device_code_grant"
+      ]
+    },
+    "reveal_posture": {
+      "type": "string",
+      "enum": [
+        "handle_only",
+        "masked_last_four",
+        "reveal_on_demand",
+        "clipboard_scoped",
+        "never_revealed",
+        "policy_blocked_reveal"
+      ]
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "active_current",
+        "refresh_needed",
+        "rotation_due",
+        "revoked",
+        "expired",
+        "superseded"
+      ]
+    },
+    "continuity_class": {
+      "type": "string",
+      "enum": ["still_active", "action_required", "no_longer_usable", "superseded"]
+    },
+    "impacted_workflow_class": {
+      "type": "string",
+      "enum": [
+        "running_session",
+        "queued_job",
+        "remembered_decision",
+        "scheduled_automation",
+        "delegated_forward",
+        "no_active_impact"
+      ]
+    },
+    "event_row_action": {
+      "type": "string",
+      "enum": [
+        "follow_recovery_step",
+        "view_impacted_workflows",
+        "rotate_now",
+        "revoke_now",
+        "open_audit_event",
+        "export_audit_evidence"
+      ]
+    },
+    "export_safety_class": {
+      "type": "string",
+      "enum": [
+        "raw_secret_excluded",
+        "metadata_only",
+        "handle_reference_only",
+        "redacted_share",
+        "endpoints_masked",
+        "export_blocked"
+      ]
+    },
+    "export_safety_posture": {
+      "type": "string",
+      "enum": [
+        "raw_excluded_labels_preserved",
+        "handle_reference_only",
+        "redacted_or_masked",
+        "fully_blocked"
+      ]
+    },
+    "export_surface_class": {
+      "type": "string",
+      "enum": [
+        "profile",
+        "support_bundle",
+        "handoff_packet",
+        "recipe",
+        "portable_workspace",
+        "audit_log"
+      ]
+    },
+    "banner_action": {
+      "type": "string",
+      "enum": [
+        "view_redaction_policy",
+        "view_excluded_fields",
+        "view_preserved_labels",
+        "export_redacted_copy",
+        "report_unexpected_exposure"
+      ]
+    },
+    "degraded_state": {
+      "type": "string",
+      "enum": [
+        "fully_available",
+        "limited_capability",
+        "stale_needs_reauth",
+        "offline_cached",
+        "policy_blocked",
+        "unavailable"
+      ]
+    },
+    "required_label": {
+      "type": "string",
+      "enum": [
+        "identity",
+        "state",
+        "keyboard_route",
+        "storage_and_reveal_posture",
+        "identity_and_delegation",
+        "expiry_and_export_boundary"
+      ]
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "sign_in_and_auth",
+        "provider_and_registry",
+        "remote_and_database",
+        "package_and_release",
+        "recovery_and_audit",
+        "cli_and_headless"
+      ]
+    },
+    "deployment_line": {
+      "type": "string",
+      "enum": ["local_oss", "self_hosted", "managed", "air_gapped", "mirror_offline"]
+    },
+    "accessibility_route": {
+      "type": "string",
+      "enum": [
+        "keyboard_focusable",
+        "screen_reader_announced",
+        "non_hover_reachable",
+        "pointer_optional",
+        "high_contrast_safe",
+        "support_exportable"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "credential_settings_ui",
+        "secret_prompt_ui",
+        "vault_picker_ui",
+        "device_code_handoff_ui",
+        "delegated_identity_ui",
+        "support_export",
+        "cli_inspect",
+        "status_bar_ui",
+        "product_ui"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "storage_mode_unstated",
+        "reveal_posture_unstated",
+        "credential_class_unstated",
+        "auth_handoff_class_unstated",
+        "delegated_identity_unstated",
+        "lifecycle_state_hidden",
+        "store_capability_unstated",
+        "export_safety_boundary_hidden",
+        "alternate_state_label_invented",
+        "friendly_connected_wording_used",
+        "session_only_fallback_hidden",
+        "proof_stale"
+      ]
+    },
+    "impacted_workflow_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/impacted_workflow_class" }
+    },
+    "degraded_state_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/degraded_state" }
+    },
+    "required_label_array": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "$ref": "#/$defs/required_label" },
+      "allOf": [
+        { "contains": { "const": "identity" } },
+        { "contains": { "const": "state" } },
+        { "contains": { "const": "keyboard_route" } }
+      ]
+    },
+    "accessibility_route_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/accessibility_route" },
+      "contains": { "const": "keyboard_focusable" }
+    },
+    "event_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "row_id",
+        "credential_class",
+        "credential_id_label",
+        "prior_state",
+        "new_state",
+        "prior_state_note",
+        "new_state_note",
+        "continuity_class",
+        "claims_still_usable",
+        "still_active_note",
+        "action_required_note",
+        "no_longer_usable_note",
+        "superseded_note",
+        "impacted_workflows",
+        "impacted_workflows_note",
+        "recovery_next_step_note",
+        "audit_note",
+        "default_actions",
+        "degraded_states",
+        "required_labels",
+        "surface_families",
+        "deployment_lines",
+        "accessibility_routes",
+        "consumer_surfaces",
+        "fields_shown",
+        "source_contract_refs",
+        "masks_impacted_workflows",
+        "implies_raw_secret_exportable",
+        "uses_friendly_connected_wording"
+      ],
+      "properties": {
+        "component": { "const": "rotation_revoke_event_row" },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "credential_class": { "$ref": "#/$defs/credential_class" },
+        "credential_id_label": { "$ref": "#/$defs/non_empty_string" },
+        "prior_state": { "$ref": "#/$defs/lifecycle_state" },
+        "new_state": { "$ref": "#/$defs/lifecycle_state" },
+        "prior_state_note": { "$ref": "#/$defs/non_empty_string" },
+        "new_state_note": { "$ref": "#/$defs/non_empty_string" },
+        "continuity_class": { "$ref": "#/$defs/continuity_class" },
+        "claims_still_usable": { "type": "boolean" },
+        "still_active_note": { "type": "string" },
+        "action_required_note": { "type": "string" },
+        "no_longer_usable_note": { "type": "string" },
+        "superseded_note": { "type": "string" },
+        "impacted_workflows": { "$ref": "#/$defs/impacted_workflow_array" },
+        "impacted_workflows_note": { "$ref": "#/$defs/non_empty_string" },
+        "recovery_next_step_note": { "$ref": "#/$defs/non_empty_string" },
+        "audit_note": { "$ref": "#/$defs/non_empty_string" },
+        "default_actions": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/event_row_action" },
+          "allOf": [
+            { "contains": { "const": "follow_recovery_step" } },
+            { "contains": { "const": "export_audit_evidence" } }
+          ]
+        },
+        "degraded_states": { "$ref": "#/$defs/degraded_state_array" },
+        "required_labels": { "$ref": "#/$defs/required_label_array" },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_family" }
+        },
+        "deployment_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_line" }
+        },
+        "accessibility_routes": { "$ref": "#/$defs/accessibility_route_array" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "fields_shown": { "$ref": "#/$defs/non_empty_string_array" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+        "masks_impacted_workflows": { "const": false },
+        "implies_raw_secret_exportable": { "const": false },
+        "uses_friendly_connected_wording": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "continuity_class": { "const": "still_active" } },
+            "required": ["continuity_class"]
+          },
+          "then": {
+            "properties": { "still_active_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "continuity_class": { "const": "action_required" } },
+            "required": ["continuity_class"]
+          },
+          "then": {
+            "properties": { "action_required_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "continuity_class": { "const": "no_longer_usable" } },
+            "required": ["continuity_class"]
+          },
+          "then": {
+            "properties": { "no_longer_usable_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "continuity_class": { "const": "superseded" } },
+            "required": ["continuity_class"]
+          },
+          "then": {
+            "properties": { "superseded_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "continuity_class": {
+                "enum": ["still_active", "action_required"]
+              }
+            },
+            "required": ["continuity_class"]
+          },
+          "then": {
+            "properties": { "claims_still_usable": { "const": true } },
+            "required": ["claims_still_usable"]
+          },
+          "else": {
+            "properties": { "claims_still_usable": { "const": false } },
+            "required": ["claims_still_usable"]
+          }
+        }
+      ]
+    },
+    "export_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "banner_id",
+        "export_surface_class",
+        "export_surface_note",
+        "export_safety_class",
+        "reveal_posture",
+        "export_safety_posture",
+        "claims_preserves_handle_labels",
+        "raw_secret_excluded_note",
+        "handle_label_note",
+        "redaction_note",
+        "blocked_note",
+        "preserved_labels_note",
+        "reveal_posture_note",
+        "default_actions",
+        "degraded_states",
+        "required_labels",
+        "surface_families",
+        "deployment_lines",
+        "accessibility_routes",
+        "consumer_surfaces",
+        "fields_shown",
+        "source_contract_refs",
+        "implies_raw_secret_exportable",
+        "leaves_exclusion_to_implication",
+        "uses_friendly_connected_wording"
+      ],
+      "properties": {
+        "component": { "const": "export_safety_banner" },
+        "banner_id": { "$ref": "#/$defs/non_empty_string" },
+        "export_surface_class": { "$ref": "#/$defs/export_surface_class" },
+        "export_surface_note": { "$ref": "#/$defs/non_empty_string" },
+        "export_safety_class": { "$ref": "#/$defs/export_safety_class" },
+        "reveal_posture": { "$ref": "#/$defs/reveal_posture" },
+        "export_safety_posture": { "$ref": "#/$defs/export_safety_posture" },
+        "claims_preserves_handle_labels": { "type": "boolean" },
+        "raw_secret_excluded_note": { "$ref": "#/$defs/non_empty_string" },
+        "handle_label_note": { "type": "string" },
+        "redaction_note": { "type": "string" },
+        "blocked_note": { "type": "string" },
+        "preserved_labels_note": { "$ref": "#/$defs/non_empty_string" },
+        "reveal_posture_note": { "$ref": "#/$defs/non_empty_string" },
+        "default_actions": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/banner_action" },
+          "allOf": [
+            { "contains": { "const": "view_redaction_policy" } },
+            { "contains": { "const": "view_excluded_fields" } }
+          ]
+        },
+        "degraded_states": { "$ref": "#/$defs/degraded_state_array" },
+        "required_labels": { "$ref": "#/$defs/required_label_array" },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_family" }
+        },
+        "deployment_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_line" }
+        },
+        "accessibility_routes": { "$ref": "#/$defs/accessibility_route_array" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "fields_shown": { "$ref": "#/$defs/non_empty_string_array" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+        "implies_raw_secret_exportable": { "const": false },
+        "leaves_exclusion_to_implication": { "const": false },
+        "uses_friendly_connected_wording": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "export_safety_posture": {
+                "enum": ["raw_excluded_labels_preserved", "handle_reference_only"]
+              }
+            },
+            "required": ["export_safety_posture"]
+          },
+          "then": {
+            "properties": { "handle_label_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "export_safety_posture": { "const": "redacted_or_masked" } },
+            "required": ["export_safety_posture"]
+          },
+          "then": {
+            "properties": { "redaction_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "export_safety_posture": { "const": "fully_blocked" } },
+            "required": ["export_safety_posture"]
+          },
+          "then": {
+            "properties": { "blocked_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "export_safety_posture": { "const": "fully_blocked" } },
+            "required": ["export_safety_posture"]
+          },
+          "then": {
+            "properties": { "claims_preserves_handle_labels": { "const": false } },
+            "required": ["claims_preserves_handle_labels"]
+          },
+          "else": {
+            "properties": { "claims_preserves_handle_labels": { "const": true } },
+            "required": ["claims_preserves_handle_labels"]
+          }
+        }
+      ]
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_shows_credential_class_and_prior_new_state",
+        "rotation_revoke_impacted_workflows_always_shown",
+        "running_sessions_queued_jobs_remembered_decisions_stay_distinct",
+        "recovery_next_step_always_shown",
+        "revoked_expired_never_reads_as_still_usable",
+        "audit_and_export_actions_present",
+        "banner_states_raw_secret_excluded_by_default",
+        "export_exclusion_never_left_to_implication",
+        "handle_class_and_source_labels_preserved_where_allowed",
+        "export_surface_named_across_all_surfaces",
+        "reveal_posture_always_shown",
+        "raw_secret_handling_never_normalized",
+        "no_friendly_connected_wording",
+        "controls_stable_across_deployment_lines",
+        "copy_and_export_safe",
+        "downgrade_narrows_instead_of_hides"
+      ],
+      "properties": {
+        "row_shows_credential_class_and_prior_new_state": { "const": true },
+        "rotation_revoke_impacted_workflows_always_shown": { "const": true },
+        "running_sessions_queued_jobs_remembered_decisions_stay_distinct": { "const": true },
+        "recovery_next_step_always_shown": { "const": true },
+        "revoked_expired_never_reads_as_still_usable": { "const": true },
+        "audit_and_export_actions_present": { "const": true },
+        "banner_states_raw_secret_excluded_by_default": { "const": true },
+        "export_exclusion_never_left_to_implication": { "const": true },
+        "handle_class_and_source_labels_preserved_where_allowed": { "const": true },
+        "export_surface_named_across_all_surfaces": { "const": true },
+        "reveal_posture_always_shown": { "const": true },
+        "raw_secret_handling_never_normalized": { "const": true },
+        "no_friendly_connected_wording": { "const": true },
+        "controls_stable_across_deployment_lines": { "const": true },
+        "copy_and_export_safe": { "const": true },
+        "downgrade_narrows_instead_of_hides": { "const": true }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_shows_impacted_workflows_and_recovery_without_docs",
+        "revoked_expired_state_visible_before_reuse",
+        "banner_shows_exclusion_posture_inline",
+        "cli_headless_shows_control_truth",
+        "support_export_shows_control_truth",
+        "help_about_shows_control_truth"
+      ],
+      "properties": {
+        "row_shows_impacted_workflows_and_recovery_without_docs": { "const": true },
+        "revoked_expired_state_visible_before_reuse": { "const": true },
+        "banner_shows_exclusion_posture_inline": { "const": true },
+        "cli_headless_shows_control_truth": { "const": true },
+        "support_export_shows_control_truth": { "const": true },
+        "help_about_shows_control_truth": { "const": true }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_freshness_slo_hours", "last_proof_refresh", "auto_narrow_on_stale"],
+      "properties": {
+        "proof_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_proof_refresh": { "type": "string", "format": "date-time" },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    }
+  }
+}
