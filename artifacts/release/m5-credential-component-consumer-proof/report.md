@@ -1,0 +1,112 @@
+# M5 Credential Component Consumer Parity
+
+- Packet: `m5-credential-component-consumer:stable:0001`
+- Label: `M5 credential component consumers: credential settings, the request auth surface, database attach, registry/provider auth, release publish, remote attach, the AI model provider, Help / docs, the support / export desk, and the export packet keep storage, scope, expiry, and export parity`
+- Credential consumers: 10 (10 stable)
+- Component families: credential_state_row, secret_access_prompt_sheet, vault_or_keychain_picker, credential_store_capability_row, browser_device_code_handoff_card, delegated_credential_row, rotation_revoke_event_row, export_safety_banner
+- Descriptors: storage_mode, credential_class, reveal_posture, delegated_identity, expiry_lifecycle, export_safety
+- Parity-health modes: full_parity, handle_only_narrowed, expired_or_revoked_narrowed, delegated_or_forwarded_narrowed, session_only_or_policy_blocked_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-09T00:00:00Z)
+
+## Credential consumers
+
+- **Credential Settings**: `stable`
+  - Owner: Credential-settings surface owner
+  - Scope: Credential settings adopt the credential-state row and vault-or-keychain picker at full parity, pointing at the canonical component schemas so storage mode, credential class, handle-only-versus-raw-reveal posture, forwarded/delegated identity, expiry, and raw-secret-excluded export safety match what request, database, registry, release, remote, AI, Help / docs, the support / export desk, and the export packet read; the rotation/revoke-event row auto-narrows when the credential is expired or revoked
+  - Adopted families: 3
+    - `credential_state_row` → `schemas/ui/m5-credential-state-row-vault-picker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `vault_or_keychain_picker` → `schemas/ui/m5-credential-state-row-vault-picker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `rotation_revoke_event_row` → `schemas/ui/m5-rotation-revoke-export-safety-controls.schema.json` (1 worked binding(s))
+      - `expired_or_revoked_narrowed` → `claims_auto_narrowed` (banner `credential_expired_or_revoked`)
+- **Request Auth Surface**: `stable`
+  - Owner: Request-auth surface owner
+  - Scope: The request auth surface adopts the secret-access-prompt sheet auto-narrowed to a handle-only path because no raw secret is exposed here, and the credential-state row at full parity, keeping storage mode, credential class, reveal posture, forwarded/delegated identity, expiry, and raw-secret-excluded export safety explicit so a handle-only path is never mistaken for a raw-reveal one
+  - Adopted families: 2
+    - `secret_access_prompt_sheet` → `schemas/ui/m5-secret-access-prompt-store-capability-controls.schema.json` (1 worked binding(s))
+      - `handle_only_narrowed` → `claims_auto_narrowed` (banner `handle_only_path`)
+    - `credential_state_row` → `schemas/ui/m5-credential-state-row-vault-picker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Database Attach**: `stable`
+  - Owner: Database-attach surface owner
+  - Scope: The database attach surface adopts the credential-state row at full parity and the delegated-credential row auto-narrowed because the identity is forwarded or delegated from another principal, keeping storage mode, credential class, reveal posture, forwarded/delegated identity, expiry, and raw-secret-excluded export safety explicit so a forwarded identity never reads as a locally stored credential
+  - Adopted families: 2
+    - `credential_state_row` → `schemas/ui/m5-credential-state-row-vault-picker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `delegated_credential_row` → `schemas/ui/m5-browser-device-code-handoff-delegated-credential-controls.schema.json` (1 worked binding(s))
+      - `delegated_or_forwarded_narrowed` → `claims_auto_narrowed` (banner `identity_forwarded_or_delegated`)
+- **Registry / Provider Auth**: `stable`
+  - Owner: Registry-authorization surface owner
+  - Scope: The registry/provider authorization surface adopts the secret-access-prompt sheet and credential-store-capability row at full parity, and the browser/device-code handoff card auto-narrowed because the handoff credential is held only for this session or is policy-blocked, keeping storage mode, credential class, reveal posture, forwarded/delegated identity, expiry, and raw-secret-excluded export safety disclosed so a session-only fallback never reads as durably stored before send, run, or publish
+  - Adopted families: 3
+    - `secret_access_prompt_sheet` → `schemas/ui/m5-secret-access-prompt-store-capability-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `browser_device_code_handoff_card` → `schemas/ui/m5-browser-device-code-handoff-delegated-credential-controls.schema.json` (1 worked binding(s))
+      - `session_only_or_policy_blocked_narrowed` → `claims_auto_narrowed` (banner `session_only_or_policy_blocked`)
+    - `credential_store_capability_row` → `schemas/ui/m5-secret-access-prompt-store-capability-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Release Publish**: `stable`
+  - Owner: Release-publish surface owner
+  - Scope: The release publish surface adopts the rotation/revoke-event row and export-safety banner at full parity, referencing the canonical component schemas so credential lifecycle state and the raw-secret-excluded export boundary stay one truth and a signing credential's expiry or revocation is never left to inference
+  - Adopted families: 2
+    - `rotation_revoke_event_row` → `schemas/ui/m5-rotation-revoke-export-safety-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `export_safety_banner` → `schemas/ui/m5-rotation-revoke-export-safety-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Remote Target Attach**: `stable`
+  - Owner: Remote-target attach surface owner
+  - Scope: The remote-target attach surface adopts the delegated-credential row and browser/device-code handoff card at full parity, keeping storage mode, credential class, reveal posture, forwarded/delegated identity, expiry, and raw-secret-excluded export safety explicit so an attached remote target discloses exactly which identity it forwards and how the handoff completes
+  - Adopted families: 2
+    - `delegated_credential_row` → `schemas/ui/m5-browser-device-code-handoff-delegated-credential-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `browser_device_code_handoff_card` → `schemas/ui/m5-browser-device-code-handoff-delegated-credential-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **AI Model Provider**: `stable`
+  - Owner: AI model-provider surface owner
+  - Scope: The AI model-provider surface adopts the secret-access-prompt sheet at full parity and the credential-state row auto-narrowed to a handle-only path because a model-provider credential is referenced by handle and never raw-copied here, keeping storage mode, credential class, reveal posture, forwarded/delegated identity, expiry, and raw-secret-excluded export safety explicit so a handle-only path is never nudged toward a raw reveal
+  - Adopted families: 2
+    - `secret_access_prompt_sheet` → `schemas/ui/m5-secret-access-prompt-store-capability-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `credential_state_row` → `schemas/ui/m5-credential-state-row-vault-picker-controls.schema.json` (1 worked binding(s))
+      - `handle_only_narrowed` → `claims_auto_narrowed` (banner `handle_only_path`)
+- **Help / Docs**: `stable`
+  - Owner: Help / docs surface owner
+  - Scope: Help / docs adopt the credential-state row, secret-access-prompt sheet, and export-safety banner at full parity, referencing the canonical component schemas so storage mode, credential class, reveal posture, forwarded/delegated identity, expiry, and raw-secret-excluded export safety stay one truth across every claimed credential surface rather than being re-worded in prose
+  - Adopted families: 3
+    - `credential_state_row` → `schemas/ui/m5-credential-state-row-vault-picker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `secret_access_prompt_sheet` → `schemas/ui/m5-secret-access-prompt-store-capability-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `export_safety_banner` → `schemas/ui/m5-rotation-revoke-export-safety-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Support / Export Desk**: `stable`
+  - Owner: Support / export desk surface owner
+  - Scope: The support / export desk adopts the credential-state row, secret-access-prompt sheet, vault-or-keychain picker, credential-store-capability row, browser/device-code handoff card, delegated-credential row, rotation/revoke-event row, and export-safety banner, referencing the canonical component schemas so its prose can never drift from the product truth and keeping storage mode, credential class, reveal posture, forwarded/delegated identity, expiry, and raw-secret-excluded export safety exact in every exported case
+  - Adopted families: 8
+    - `credential_state_row` → `schemas/ui/m5-credential-state-row-vault-picker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `secret_access_prompt_sheet` → `schemas/ui/m5-secret-access-prompt-store-capability-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `vault_or_keychain_picker` → `schemas/ui/m5-credential-state-row-vault-picker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `credential_store_capability_row` → `schemas/ui/m5-secret-access-prompt-store-capability-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `browser_device_code_handoff_card` → `schemas/ui/m5-browser-device-code-handoff-delegated-credential-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `delegated_credential_row` → `schemas/ui/m5-browser-device-code-handoff-delegated-credential-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `rotation_revoke_event_row` → `schemas/ui/m5-rotation-revoke-export-safety-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `export_safety_banner` → `schemas/ui/m5-rotation-revoke-export-safety-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+- **Export Packet**: `stable`
+  - Owner: Export packet surface owner
+  - Scope: The export packet adopts the export-safety banner, credential-store-capability row, and vault-or-keychain picker at full parity, keeping storage mode, credential class, reveal posture, forwarded/delegated identity, expiry, and raw-secret-excluded export safety explicit so an exported packet always states its raw-secret-excluded boundary and never implies a raw secret is exportable
+  - Adopted families: 3
+    - `export_safety_banner` → `schemas/ui/m5-rotation-revoke-export-safety-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `credential_store_capability_row` → `schemas/ui/m5-secret-access-prompt-store-capability-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
+    - `vault_or_keychain_picker` → `schemas/ui/m5-credential-state-row-vault-picker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_preserved` (banner `full`)
