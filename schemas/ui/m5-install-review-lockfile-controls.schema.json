@@ -1,0 +1,681 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-install-review-lockfile-controls.schema.json",
+  "title": "Aureline M5 install-review sheets and lockfile-impact cards",
+  "description": "Export-safe packet implementing the reusable M5 install-review-sheet and lockfile-impact-card components in two co-equal control vectors. Each install-review sheet previews an install, update, or remove before any write: the affected manifests, the version delta, peer/runtime shifts, validation expectations, registry/auth state, and the checkpoint/rollback actions on offer. Its change breadth (small-single, grouped, or broad) is derived from the affected manifest/lockfile counts, the transitive churn, and any peer conflicts, so a broad change can never read as a small isolated one and no generic confirm hides a manifest write, lockfile churn, a peer conflict, or a validation expectation. Each lockfile-impact card names the resolver identity/version, the affected lockfiles, the direct/transitive churn, the platform/tool-version sensitivity, and the regenerate-versus-edit write mode; its rollback posture is derived from the write mode so a regenerate-only lockfile can never claim a manual-edit write-back and churn is never understated. Raw manifest bodies, raw lockfile bodies, registry credentials, private registry URLs, and live registry responses never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "install_review_sheets",
+    "lockfile_impact_cards",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "install_review_lockfile_controls"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "surface_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "install_review_sheets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/install_review_sheet"
+      }
+    },
+    "lockfile_impact_cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/lockfile_impact_card"
+      }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/downgrade_trigger"
+      }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_surface"
+      }
+    },
+    "trust_review": {
+      "$ref": "#/$defs/trust_review"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "install",
+        "update",
+        "remove"
+      ]
+    },
+    "change_breadth": {
+      "type": "string",
+      "enum": [
+        "small_single",
+        "grouped_change",
+        "broad_change"
+      ]
+    },
+    "write_mode": {
+      "type": "string",
+      "enum": [
+        "regenerate_whole_lockfile",
+        "edit_in_place_entries",
+        "no_lockfile_write"
+      ]
+    },
+    "churn_magnitude": {
+      "type": "string",
+      "enum": [
+        "no_churn",
+        "narrow_churn",
+        "moderate_churn",
+        "broad_churn"
+      ]
+    },
+    "degradation_state": {
+      "type": "string",
+      "enum": [
+        "resolved_exact",
+        "manifest_range_only",
+        "mirror_backed",
+        "offline_snapshot_only",
+        "auth_required_unsatisfied",
+        "unknown_or_stale"
+      ]
+    },
+    "rollback_posture": {
+      "type": "string",
+      "enum": [
+        "read_only_no_mutation",
+        "staged_review_no_write",
+        "write_back_checkpointed",
+        "regenerate_only_no_manual_edit",
+        "compensating_only_no_clean_revert",
+        "not_applicable"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "registry_unreachable",
+        "auth_required",
+        "mirror_backed_only",
+        "offline_snapshot_only",
+        "lockfile_divergent",
+        "script_or_native_build_risk",
+        "broad_lockfile_regeneration",
+        "rollback_unavailable",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "package_workspace",
+        "dependency_explorer",
+        "install_update_review",
+        "registry_auth_workspace",
+        "rollback_recovery",
+        "browser_companion",
+        "cli_headless",
+        "support_export",
+        "help_about"
+      ]
+    },
+    "install_review_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "sheet_id",
+        "operation",
+        "package_label",
+        "affected_manifests",
+        "affected_lockfiles",
+        "version_delta",
+        "peer_runtime_shift_note",
+        "peer_conflict_count",
+        "transitive_churn_count",
+        "is_grouped",
+        "change_breadth",
+        "warrants_deeper_inspection",
+        "deeper_inspection_note",
+        "broad_change_note",
+        "validation_tasks",
+        "registry_auth_state_note",
+        "degradation_state",
+        "degradation_note",
+        "checkpoint_action_label",
+        "rollback_action_label",
+        "rollback_posture",
+        "fields_shown",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "component": {
+          "type": "string",
+          "const": "install_review_sheet"
+        },
+        "sheet_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "operation": {
+          "$ref": "#/$defs/operation"
+        },
+        "package_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "affected_manifests": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "affected_lockfiles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "version_delta": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "peer_runtime_shift_note": {
+          "type": "string"
+        },
+        "peer_conflict_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "transitive_churn_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "is_grouped": {
+          "type": "boolean"
+        },
+        "change_breadth": {
+          "$ref": "#/$defs/change_breadth"
+        },
+        "warrants_deeper_inspection": {
+          "type": "boolean"
+        },
+        "deeper_inspection_note": {
+          "type": "string"
+        },
+        "broad_change_note": {
+          "type": "string"
+        },
+        "validation_tasks": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "registry_auth_state_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "degradation_state": {
+          "$ref": "#/$defs/degradation_state"
+        },
+        "degradation_note": {
+          "type": "string"
+        },
+        "checkpoint_action_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "rollback_action_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "rollback_posture": {
+          "$ref": "#/$defs/rollback_posture"
+        },
+        "fields_shown": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "warrants_deeper_inspection": {
+                "const": true
+              }
+            },
+            "required": [
+              "warrants_deeper_inspection"
+            ]
+          },
+          "then": {
+            "properties": {
+              "deeper_inspection_note": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "change_breadth": {
+                "const": "broad_change"
+              }
+            },
+            "required": [
+              "change_breadth"
+            ]
+          },
+          "then": {
+            "properties": {
+              "broad_change_note": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "degradation_state": {
+                "const": "resolved_exact"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "degradation_note": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "rollback_posture": {
+              "enum": [
+                "staged_review_no_write",
+                "write_back_checkpointed"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "lockfile_impact_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "card_id",
+        "resolver_label",
+        "resolver_version",
+        "affected_lockfiles",
+        "direct_change_count",
+        "transitive_churn_count",
+        "churn_magnitude",
+        "churn_note",
+        "platform_sensitive",
+        "tool_version_sensitive",
+        "platform_tool_note",
+        "write_mode",
+        "write_mode_note",
+        "degradation_state",
+        "degradation_note",
+        "rollback_posture",
+        "fields_shown",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "component": {
+          "type": "string",
+          "const": "lockfile_impact_card"
+        },
+        "card_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "resolver_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "resolver_version": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "affected_lockfiles": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "direct_change_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "transitive_churn_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "churn_magnitude": {
+          "$ref": "#/$defs/churn_magnitude"
+        },
+        "churn_note": {
+          "type": "string"
+        },
+        "platform_sensitive": {
+          "type": "boolean"
+        },
+        "tool_version_sensitive": {
+          "type": "boolean"
+        },
+        "platform_tool_note": {
+          "type": "string"
+        },
+        "write_mode": {
+          "$ref": "#/$defs/write_mode"
+        },
+        "write_mode_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "degradation_state": {
+          "$ref": "#/$defs/degradation_state"
+        },
+        "degradation_note": {
+          "type": "string"
+        },
+        "rollback_posture": {
+          "$ref": "#/$defs/rollback_posture"
+        },
+        "fields_shown": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "churn_magnitude": {
+                "const": "no_churn"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "churn_note": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "degradation_state": {
+                "const": "resolved_exact"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "degradation_note": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "write_mode": {
+                "const": "regenerate_whole_lockfile"
+              }
+            },
+            "required": [
+              "write_mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "rollback_posture": {
+                "const": "regenerate_only_no_manual_edit"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "write_mode": {
+                "const": "edit_in_place_entries"
+              }
+            },
+            "required": [
+              "write_mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "rollback_posture": {
+                "const": "write_back_checkpointed"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "write_mode": {
+                "const": "no_lockfile_write"
+              }
+            },
+            "required": [
+              "write_mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "rollback_posture": {
+                "const": "read_only_no_mutation"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest_writes_always_explicit",
+        "lockfile_churn_never_understated",
+        "version_delta_always_explicit",
+        "peer_runtime_shifts_explicit",
+        "validation_expectations_explicit",
+        "registry_auth_state_explicit",
+        "change_breadth_quantified",
+        "resolver_identity_always_named",
+        "platform_tool_sensitivity_explicit",
+        "regenerate_versus_edit_explicit",
+        "rollback_checkpoint_always_offered",
+        "no_generic_confirm_language",
+        "downgrade_narrows_instead_of_hides"
+      ],
+      "properties": {
+        "manifest_writes_always_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "lockfile_churn_never_understated": {
+          "type": "boolean",
+          "const": true
+        },
+        "version_delta_always_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "peer_runtime_shifts_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "validation_expectations_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "registry_auth_state_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "change_breadth_quantified": {
+          "type": "boolean",
+          "const": true
+        },
+        "resolver_identity_always_named": {
+          "type": "boolean",
+          "const": true
+        },
+        "platform_tool_sensitivity_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "regenerate_versus_edit_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "rollback_checkpoint_always_offered": {
+          "type": "boolean",
+          "const": true
+        },
+        "no_generic_confirm_language": {
+          "type": "boolean",
+          "const": true
+        },
+        "downgrade_narrows_instead_of_hides": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "install_review_sheet_shows_scope_and_churn",
+        "version_delta_and_peer_shifts_shown_inline",
+        "validation_and_registry_state_shown_inline",
+        "lockfile_card_shows_resolver_and_churn",
+        "regenerate_versus_edit_shown_inline",
+        "cli_headless_shows_control_truth",
+        "support_export_shows_control_truth",
+        "help_about_shows_control_truth"
+      ],
+      "properties": {
+        "install_review_sheet_shows_scope_and_churn": {
+          "type": "boolean",
+          "const": true
+        },
+        "version_delta_and_peer_shifts_shown_inline": {
+          "type": "boolean",
+          "const": true
+        },
+        "validation_and_registry_state_shown_inline": {
+          "type": "boolean",
+          "const": true
+        },
+        "lockfile_card_shows_resolver_and_churn": {
+          "type": "boolean",
+          "const": true
+        },
+        "regenerate_versus_edit_shown_inline": {
+          "type": "boolean",
+          "const": true
+        },
+        "cli_headless_shows_control_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "support_export_shows_control_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "help_about_shows_control_truth": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -197,6 +197,7 @@ pub mod export_safe_dependency_reports;
 pub mod freeze_the_m5_package_management_component_matrix;
 pub mod freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix;
 pub mod grouped_update_and_rollback_review;
+pub mod implement_install_review_sheets_and_lockfile_impact_cards;
 pub mod implement_manifest_scope_switchers_and_registry_or_mirror_rows;
 pub mod implement_package_explorer_rows_with_scope_relation_registry_and_signal_truth;
 pub mod manifest_scope_and_source_review;
@@ -307,20 +308,32 @@ pub use freeze_the_m5_package_management_component_matrix::{
     current_stable_m5_package_component_matrix_export, M5PackageComponent,
     M5PackageComponentConsumerSurface, M5PackageComponentDegradationState,
     M5PackageComponentDowngradeTrigger, M5PackageComponentEvidenceRequirement,
-    M5PackageComponentMaturityClass, M5PackageComponentMatrixArtifactError,
-    M5PackageComponentMatrixConsumerProjection, M5PackageComponentMatrixPacket,
-    M5PackageComponentMatrixPacketInput, M5PackageComponentMatrixProofFreshness,
-    M5PackageComponentMatrixRow, M5PackageComponentMatrixTrustReview,
-    M5PackageComponentMatrixViolation, M5PackageComponentRollbackPosture,
+    M5PackageComponentMatrixArtifactError, M5PackageComponentMatrixConsumerProjection,
+    M5PackageComponentMatrixPacket, M5PackageComponentMatrixPacketInput,
+    M5PackageComponentMatrixProofFreshness, M5PackageComponentMatrixRow,
+    M5PackageComponentMatrixTrustReview, M5PackageComponentMatrixViolation,
+    M5PackageComponentMaturityClass, M5PackageComponentRollbackPosture,
     M5_PACKAGE_COMPONENT_MATRIX_ARTIFACT_REF, M5_PACKAGE_COMPONENT_MATRIX_DOC_REF,
     M5_PACKAGE_COMPONENT_MATRIX_FIXTURE_DIR, M5_PACKAGE_COMPONENT_MATRIX_RECORD_KIND,
     M5_PACKAGE_COMPONENT_MATRIX_SCHEMA_REF, M5_PACKAGE_COMPONENT_MATRIX_SCHEMA_VERSION,
     M5_PACKAGE_COMPONENT_MATRIX_SUMMARY_REF,
 };
+pub use implement_install_review_sheets_and_lockfile_impact_cards::{
+    current_install_review_lockfile_export, resolve_lockfile_churn, resolve_review_change_breadth,
+    InstallReviewLockfileArtifactError, InstallReviewLockfileConsumerProjection,
+    InstallReviewLockfileControlsPacket, InstallReviewLockfileControlsPacketInput,
+    InstallReviewLockfileProofFreshness, InstallReviewLockfileTrustReview,
+    InstallReviewLockfileViolation, InstallReviewSheet, LockfileChurnDisclosure,
+    LockfileChurnMagnitude, LockfileImpactCard, LockfileWriteMode, MutationOperationClass,
+    ReviewChangeBreadth, ReviewChangeDisclosure, INSTALL_REVIEW_LOCKFILE_ARTIFACT_REF,
+    INSTALL_REVIEW_LOCKFILE_DOC_REF, INSTALL_REVIEW_LOCKFILE_FIXTURE_DIR,
+    INSTALL_REVIEW_LOCKFILE_RECORD_KIND, INSTALL_REVIEW_LOCKFILE_SCHEMA_REF,
+    INSTALL_REVIEW_LOCKFILE_SCHEMA_VERSION, INSTALL_REVIEW_LOCKFILE_SUMMARY_REF,
+};
 pub use implement_manifest_scope_switchers_and_registry_or_mirror_rows::{
     current_manifest_scope_registry_export, resolve_manifest_change_scope,
-    resolve_registry_or_mirror_disclosure, ManifestChangeScopeClass,
-    ManifestChangeScopeDisclosure, ManifestLockfileCoupling, ManifestScopeRegistryArtifactError,
+    resolve_registry_or_mirror_disclosure, ManifestChangeScopeClass, ManifestChangeScopeDisclosure,
+    ManifestLockfileCoupling, ManifestScopeRegistryArtifactError,
     ManifestScopeRegistryConsumerProjection, ManifestScopeRegistryControlsPacket,
     ManifestScopeRegistryControlsPacketInput, ManifestScopeRegistryProofFreshness,
     ManifestScopeRegistryTrustReview, ManifestScopeRegistryViolation, ManifestScopeSwitcher,
@@ -334,18 +347,6 @@ pub use implement_manifest_scope_switchers_and_registry_or_mirror_rows::{
 // with the same-named type from `package_mutation_and_registry_review` above.
 // Reach it via
 // `implement_manifest_scope_switchers_and_registry_or_mirror_rows::RegistryReachabilityState`.
-pub use implement_package_explorer_rows_with_scope_relation_registry_and_signal_truth::{
-    current_package_explorer_row_export, resolve_package_explorer_row_action,
-    PackageAdvisorySignal, PackageChangelogSignal, PackageDependencyRelation,
-    PackageExplorerRow, PackageExplorerRowArtifactError, PackageExplorerRowConsumerProjection,
-    PackageExplorerRowPacket, PackageExplorerRowPacketInput, PackageExplorerRowProofFreshness,
-    PackageExplorerRowTrustReview, PackageExplorerRowViolation, PackageLicenseSignal,
-    PackageLifecycleState, PackageManifestScopeClass, PackageRegistrySourceClass,
-    PackageRowActionClass, PackageRowActionDisclosure, PACKAGE_EXPLORER_ROW_ARTIFACT_REF,
-    PACKAGE_EXPLORER_ROW_DOC_REF, PACKAGE_EXPLORER_ROW_FIXTURE_DIR,
-    PACKAGE_EXPLORER_ROW_RECORD_KIND, PACKAGE_EXPLORER_ROW_SCHEMA_REF,
-    PACKAGE_EXPLORER_ROW_SCHEMA_VERSION, PACKAGE_EXPLORER_ROW_SUMMARY_REF,
-};
 pub use freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix::{
     current_m5_package_state_matrix, AuthMode, IdentitySide, LockfileAuthority,
     M5PackageStateMatrix, M5PackageStateMatrixExportProjection, M5PackageStateMatrixExportRow,
@@ -355,6 +356,18 @@ pub use freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_au
     RetentionRule, RetentionSubject, RollbackClass, SurfaceBinding, SurfaceWriteAuthority,
     M5_PACKAGE_STATE_MATRIX_JSON, M5_PACKAGE_STATE_MATRIX_PATH,
     M5_PACKAGE_STATE_MATRIX_RECORD_KIND, M5_PACKAGE_STATE_MATRIX_SCHEMA_VERSION,
+};
+pub use implement_package_explorer_rows_with_scope_relation_registry_and_signal_truth::{
+    current_package_explorer_row_export, resolve_package_explorer_row_action,
+    PackageAdvisorySignal, PackageChangelogSignal, PackageDependencyRelation, PackageExplorerRow,
+    PackageExplorerRowArtifactError, PackageExplorerRowConsumerProjection,
+    PackageExplorerRowPacket, PackageExplorerRowPacketInput, PackageExplorerRowProofFreshness,
+    PackageExplorerRowTrustReview, PackageExplorerRowViolation, PackageLicenseSignal,
+    PackageLifecycleState, PackageManifestScopeClass, PackageRegistrySourceClass,
+    PackageRowActionClass, PackageRowActionDisclosure, PACKAGE_EXPLORER_ROW_ARTIFACT_REF,
+    PACKAGE_EXPLORER_ROW_DOC_REF, PACKAGE_EXPLORER_ROW_FIXTURE_DIR,
+    PACKAGE_EXPLORER_ROW_RECORD_KIND, PACKAGE_EXPLORER_ROW_SCHEMA_REF,
+    PACKAGE_EXPLORER_ROW_SCHEMA_VERSION, PACKAGE_EXPLORER_ROW_SUMMARY_REF,
 };
 // `ManifestScopeClass`, `RegistrySourceAuthority`, `AuthMode`,
 // `LockfileAuthority`, `ResolverIdentityClass`, `RollbackClass`,
