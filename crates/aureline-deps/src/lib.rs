@@ -190,6 +190,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-deps/0.0.0")]
 
+pub mod add_shared_package_explorer_search_detail_help_support_diagnostics_and_export_consumers_so_package_components_keep_scope_auth_and_lockfile_language_aligned;
 pub mod automation_governance;
 pub mod dependency_security_compliance_export_truth;
 pub mod ecosystem_qualification_certification;
@@ -483,4 +484,27 @@ pub use package_mutation_certification::{
     ParitySurface, ProofDimension, SurfaceParityCell, SurfaceParityExport,
     PACKAGE_MUTATION_CERTIFICATION_JSON, PACKAGE_MUTATION_CERTIFICATION_PATH,
     PACKAGE_MUTATION_CERTIFICATION_RECORD_KIND, PACKAGE_MUTATION_CERTIFICATION_SCHEMA_VERSION,
+};
+// The shared package-management-component consumer lane reuses `M5PackageComponent`,
+// `M5PackageComponentDegradationState`, and `M5PackageComponentDowngradeTrigger` from
+// the frozen matrix above; those are not re-exported again here.
+pub use add_shared_package_explorer_search_detail_help_support_diagnostics_and_export_consumers_so_package_components_keep_scope_auth_and_lockfile_language_aligned::{
+    component_canonical_schema_ref, current_package_component_consumer_export,
+    parity_state_for_mode, resolve_package_component_render_disclosure,
+    PackageComponentConsumer, PackageComponentConsumerArtifactError,
+    PackageComponentConsumerBinding, PackageComponentConsumerPacket,
+    PackageComponentConsumerPacketInput, PackageComponentConsumerProjection,
+    PackageComponentConsumerProofFreshness, PackageComponentConsumerTrustReview,
+    PackageComponentConsumerViolation, PackageComponentNarrowBanner,
+    PackageComponentNarrowNextAction, PackageComponentNarrowReason, PackageComponentParityFacet,
+    PackageComponentParityFacetValues, PackageComponentParityState, PackageComponentRenderDisclosure,
+    PackageComponentRenderMode, PACKAGE_COMPONENT_CONSUMER_ARTIFACT_REF,
+    PACKAGE_COMPONENT_CONSUMER_COMPONENT_MATRIX_CONTRACT_REF, PACKAGE_COMPONENT_CONSUMER_DOC_REF,
+    PACKAGE_COMPONENT_CONSUMER_EXPLORER_ROW_CONTRACT_REF, PACKAGE_COMPONENT_CONSUMER_FIXTURE_DIR,
+    PACKAGE_COMPONENT_CONSUMER_INSTALL_REVIEW_LOCKFILE_CONTRACT_REF,
+    PACKAGE_COMPONENT_CONSUMER_MANIFEST_SCOPE_REGISTRY_CONTRACT_REF,
+    PACKAGE_COMPONENT_CONSUMER_RECORD_KIND,
+    PACKAGE_COMPONENT_CONSUMER_SCHEMA_REF, PACKAGE_COMPONENT_CONSUMER_SCHEMA_VERSION,
+    PACKAGE_COMPONENT_CONSUMER_SCRIPT_RISK_GROUPED_UPDATE_ROLLBACK_CONTRACT_REF,
+    PACKAGE_COMPONENT_CONSUMER_SUMMARY_REF,
 };
