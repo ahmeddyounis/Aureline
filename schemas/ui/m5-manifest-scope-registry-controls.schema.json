@@ -1,0 +1,616 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-manifest-scope-registry-controls.schema.json",
+  "title": "Aureline M5 manifest-scope switchers and registry/mirror rows",
+  "description": "Export-safe packet implementing the reusable M5 manifest-scope-switcher and registry-or-mirror-row components in two co-equal control vectors. Each manifest-scope switcher names the active manifest label and the scope that owns it (root, member package, module, or tool manifest); its change-scope truth is derived from the target scope and the lockfile coupling, so a member change that regenerates the shared root lockfile can never read as an isolated member change and monorepo/multi-root flows never guess the target manifest. Each registry/mirror row names where metadata and artifacts come from (public default, enterprise mirror, self-hosted, offline cache, or a policy-pinned source), the auth mode, the freshness/reachability state, and whether the row is offline/cache-only; offline continuity and policy pinning are derived so an offline or pinned answer never presents as a clean live upstream read. Raw manifest bodies, raw lockfile bodies, registry credentials, private registry URLs, and live registry responses never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "manifest_scope_switchers",
+    "registry_or_mirror_rows",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "manifest_scope_registry_controls"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "surface_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "manifest_scope_switchers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/manifest_scope_switcher"
+      }
+    },
+    "registry_or_mirror_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/registry_or_mirror_row"
+      }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/downgrade_trigger"
+      }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_surface"
+      }
+    },
+    "trust_review": {
+      "$ref": "#/$defs/trust_review"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "target_scope": {
+      "type": "string",
+      "enum": [
+        "root_manifest",
+        "member_package",
+        "module_manifest",
+        "tool_manifest"
+      ]
+    },
+    "lockfile_coupling": {
+      "type": "string",
+      "enum": [
+        "shared_root_lockfile",
+        "member_scoped_lockfile",
+        "no_lockfile_coupling"
+      ]
+    },
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_default",
+        "enterprise_mirror",
+        "self_hosted",
+        "offline_cache",
+        "policy_pinned_source"
+      ]
+    },
+    "auth_mode": {
+      "type": "string",
+      "enum": [
+        "anonymous_public",
+        "token_authenticated",
+        "sso_session",
+        "client_certificate"
+      ]
+    },
+    "reachability": {
+      "type": "string",
+      "enum": [
+        "fresh_reachable",
+        "stale_cached",
+        "offline_cache_only",
+        "unreachable"
+      ]
+    },
+    "degradation_state": {
+      "type": "string",
+      "enum": [
+        "resolved_exact",
+        "manifest_range_only",
+        "mirror_backed",
+        "offline_snapshot_only",
+        "auth_required_unsatisfied",
+        "unknown_or_stale"
+      ]
+    },
+    "rollback_posture": {
+      "type": "string",
+      "enum": [
+        "read_only_no_mutation",
+        "staged_review_no_write",
+        "write_back_checkpointed",
+        "regenerate_only_no_manual_edit",
+        "compensating_only_no_clean_revert",
+        "not_applicable"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "registry_unreachable",
+        "auth_required",
+        "mirror_backed_only",
+        "offline_snapshot_only",
+        "lockfile_divergent",
+        "script_or_native_build_risk",
+        "broad_lockfile_regeneration",
+        "rollback_unavailable",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "package_workspace",
+        "dependency_explorer",
+        "install_update_review",
+        "registry_auth_workspace",
+        "rollback_recovery",
+        "browser_companion",
+        "cli_headless",
+        "support_export",
+        "help_about"
+      ]
+    },
+    "manifest_scope_switcher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "switcher_id",
+        "active_manifest_label",
+        "target_scope",
+        "scope_disclosure",
+        "member_selection_note",
+        "lockfile_coupling",
+        "lockfile_coupling_note",
+        "affects_root_lockfile",
+        "change_scope_action_label",
+        "change_scope_review_note",
+        "rollback_posture",
+        "fields_shown",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "component": {
+          "type": "string",
+          "const": "manifest_scope_switcher"
+        },
+        "switcher_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "active_manifest_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "target_scope": {
+          "$ref": "#/$defs/target_scope"
+        },
+        "scope_disclosure": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "member_selection_note": {
+          "type": "string"
+        },
+        "lockfile_coupling": {
+          "$ref": "#/$defs/lockfile_coupling"
+        },
+        "lockfile_coupling_note": {
+          "type": "string"
+        },
+        "affects_root_lockfile": {
+          "type": "boolean"
+        },
+        "change_scope_action_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "change_scope_review_note": {
+          "type": "string"
+        },
+        "rollback_posture": {
+          "$ref": "#/$defs/rollback_posture"
+        },
+        "fields_shown": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "target_scope": {
+                "enum": [
+                  "member_package",
+                  "module_manifest"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "member_selection_note": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "lockfile_coupling": {
+                "const": "no_lockfile_coupling"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "lockfile_coupling_note": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "lockfile_coupling": {
+                "const": "shared_root_lockfile"
+              }
+            },
+            "required": [
+              "lockfile_coupling"
+            ]
+          },
+          "then": {
+            "properties": {
+              "affects_root_lockfile": {
+                "const": true
+              }
+            }
+          }
+        }
+      ]
+    },
+    "registry_or_mirror_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "row_id",
+        "registry_label",
+        "source_class",
+        "source_disclosure",
+        "auth_mode",
+        "auth_disclosure",
+        "reachability",
+        "reachability_note",
+        "is_policy_pinned",
+        "policy_pin_note",
+        "offline_cache_only",
+        "offline_continuity_note",
+        "degradation_state",
+        "degradation_note",
+        "rollback_posture",
+        "fields_shown",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "component": {
+          "type": "string",
+          "const": "registry_or_mirror_row"
+        },
+        "row_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "registry_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "source_class": {
+          "$ref": "#/$defs/registry_source_class"
+        },
+        "source_disclosure": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "auth_mode": {
+          "$ref": "#/$defs/auth_mode"
+        },
+        "auth_disclosure": {
+          "type": "string"
+        },
+        "reachability": {
+          "$ref": "#/$defs/reachability"
+        },
+        "reachability_note": {
+          "type": "string"
+        },
+        "is_policy_pinned": {
+          "type": "boolean"
+        },
+        "policy_pin_note": {
+          "type": "string"
+        },
+        "offline_cache_only": {
+          "type": "boolean"
+        },
+        "offline_continuity_note": {
+          "type": "string"
+        },
+        "degradation_state": {
+          "$ref": "#/$defs/degradation_state"
+        },
+        "degradation_note": {
+          "type": "string"
+        },
+        "rollback_posture": {
+          "$ref": "#/$defs/rollback_posture"
+        },
+        "fields_shown": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "auth_mode": {
+                "const": "anonymous_public"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "auth_disclosure": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "degradation_state": {
+                "const": "resolved_exact"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "degradation_note": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_class": {
+                "const": "policy_pinned_source"
+              }
+            },
+            "required": [
+              "source_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "is_policy_pinned": {
+                "const": true
+              },
+              "policy_pin_note": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "offline_cache_only": {
+                "const": true
+              }
+            },
+            "required": [
+              "offline_cache_only"
+            ]
+          },
+          "then": {
+            "properties": {
+              "offline_continuity_note": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_manifest_always_named",
+        "target_scope_always_explicit",
+        "lockfile_coupling_always_explicit",
+        "change_scope_matches_scope_and_lockfile",
+        "no_generic_manage_package_language",
+        "registry_source_always_explicit",
+        "auth_mode_always_explicit",
+        "freshness_reachability_always_explicit",
+        "policy_pinning_explicit",
+        "offline_cache_continuity_explicit",
+        "inherited_registry_state_never_hidden",
+        "copy_and_export_safe",
+        "downgrade_narrows_instead_of_hides"
+      ],
+      "properties": {
+        "active_manifest_always_named": {
+          "type": "boolean",
+          "const": true
+        },
+        "target_scope_always_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "lockfile_coupling_always_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "change_scope_matches_scope_and_lockfile": {
+          "type": "boolean",
+          "const": true
+        },
+        "no_generic_manage_package_language": {
+          "type": "boolean",
+          "const": true
+        },
+        "registry_source_always_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "auth_mode_always_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "freshness_reachability_always_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "policy_pinning_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "offline_cache_continuity_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "inherited_registry_state_never_hidden": {
+          "type": "boolean",
+          "const": true
+        },
+        "copy_and_export_safe": {
+          "type": "boolean",
+          "const": true
+        },
+        "downgrade_narrows_instead_of_hides": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "switcher_shows_active_manifest_and_scope",
+        "lockfile_coupling_shown_inline",
+        "change_scope_action_reflects_truth",
+        "registry_row_shows_source_auth_and_reachability",
+        "offline_and_policy_pin_shown_inline",
+        "cli_headless_shows_control_truth",
+        "support_export_shows_control_truth",
+        "help_about_shows_control_truth"
+      ],
+      "properties": {
+        "switcher_shows_active_manifest_and_scope": {
+          "type": "boolean",
+          "const": true
+        },
+        "lockfile_coupling_shown_inline": {
+          "type": "boolean",
+          "const": true
+        },
+        "change_scope_action_reflects_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "registry_row_shows_source_auth_and_reachability": {
+          "type": "boolean",
+          "const": true
+        },
+        "offline_and_policy_pin_shown_inline": {
+          "type": "boolean",
+          "const": true
+        },
+        "cli_headless_shows_control_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "support_export_shows_control_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "help_about_shows_control_truth": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -197,6 +197,7 @@ pub mod export_safe_dependency_reports;
 pub mod freeze_the_m5_package_management_component_matrix;
 pub mod freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix;
 pub mod grouped_update_and_rollback_review;
+pub mod implement_manifest_scope_switchers_and_registry_or_mirror_rows;
 pub mod implement_package_explorer_rows_with_scope_relation_registry_and_signal_truth;
 pub mod manifest_scope_and_source_review;
 pub mod operation_history;
@@ -316,6 +317,23 @@ pub use freeze_the_m5_package_management_component_matrix::{
     M5_PACKAGE_COMPONENT_MATRIX_SCHEMA_REF, M5_PACKAGE_COMPONENT_MATRIX_SCHEMA_VERSION,
     M5_PACKAGE_COMPONENT_MATRIX_SUMMARY_REF,
 };
+pub use implement_manifest_scope_switchers_and_registry_or_mirror_rows::{
+    current_manifest_scope_registry_export, resolve_manifest_change_scope,
+    resolve_registry_or_mirror_disclosure, ManifestChangeScopeClass,
+    ManifestChangeScopeDisclosure, ManifestLockfileCoupling, ManifestScopeRegistryArtifactError,
+    ManifestScopeRegistryConsumerProjection, ManifestScopeRegistryControlsPacket,
+    ManifestScopeRegistryControlsPacketInput, ManifestScopeRegistryProofFreshness,
+    ManifestScopeRegistryTrustReview, ManifestScopeRegistryViolation, ManifestScopeSwitcher,
+    ManifestTargetScope, RegistryAuthMode, RegistryMirrorDisclosure, RegistryMirrorSourceClass,
+    RegistryOrMirrorRow, MANIFEST_SCOPE_REGISTRY_ARTIFACT_REF, MANIFEST_SCOPE_REGISTRY_DOC_REF,
+    MANIFEST_SCOPE_REGISTRY_FIXTURE_DIR, MANIFEST_SCOPE_REGISTRY_RECORD_KIND,
+    MANIFEST_SCOPE_REGISTRY_SCHEMA_REF, MANIFEST_SCOPE_REGISTRY_SCHEMA_VERSION,
+    MANIFEST_SCOPE_REGISTRY_SUMMARY_REF,
+};
+// `RegistryReachabilityState` is intentionally not re-exported here: it collides
+// with the same-named type from `package_mutation_and_registry_review` above.
+// Reach it via
+// `implement_manifest_scope_switchers_and_registry_or_mirror_rows::RegistryReachabilityState`.
 pub use implement_package_explorer_rows_with_scope_relation_registry_and_signal_truth::{
     current_package_explorer_row_export, resolve_package_explorer_row_action,
     PackageAdvisorySignal, PackageChangelogSignal, PackageDependencyRelation,
