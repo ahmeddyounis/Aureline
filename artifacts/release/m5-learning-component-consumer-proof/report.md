@@ -1,0 +1,80 @@
+# M5 Learning Component Consumer Parity
+
+- Packet: `m5-learning-component-consumer:stable:0001`
+- Label: `M5 learning component consumers: onboarding, migration, contextual help, docs / browser, the feature-family tour, the companion handoff, and the support / export packet keep citation, source-class, progress / privacy, and explain-versus-do parity`
+- Learning consumers: 7 (7 stable)
+- Component families: learning_mode_toggle, tip_card, guided_exercise_step, glossary_chip_or_card, safe_explanation_banner, progress_marker
+- Descriptors: citation_source, source_class_freshness, progress_ownership_privacy, explain_versus_do
+- Parity-health modes: full_parity, cached_pack_narrowed, stale_source_narrowed, citation_unavailable_narrowed, progress_local_only_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-09T00:00:00Z)
+
+## Learning consumers
+
+- **First-Run Onboarding**: `stable`
+  - Owner: First-run onboarding surface owner
+  - Scope: First-run onboarding adopts the learning-mode toggle and tip card at full parity, referencing the canonical component schemas so the same citation, source-class, progress / privacy, and explain-versus-do language appears here as in migration, contextual help, docs / browser, the feature-family tour, the companion handoff, and the support / export packet
+  - Adopted families: 2
+    - `learning_mode_toggle` → `schemas/ui/m5-learning-mode-toggle-tip-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `tip_card` → `schemas/ui/m5-learning-mode-toggle-tip-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+- **Migration Onboarding**: `stable`
+  - Owner: Migration-onboarding surface owner
+  - Scope: Migration onboarding adopts the tip card at full parity and the glossary chip / card auto-narrowed because its pack is served from a cached copy, keeping citation, source-class, progress / privacy, and explain-versus-do explicit so cached content never reads as the live pack
+  - Adopted families: 2
+    - `tip_card` → `schemas/ui/m5-learning-mode-toggle-tip-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `glossary_chip_or_card` → `schemas/ui/m5-glossary-chip-card-safe-explanation-banner-controls.schema.json` (1 worked binding(s))
+      - `cached_pack_narrowed` → `claims_auto_narrowed` (banner `cached_pack_served`)
+- **Contextual Help**: `stable`
+  - Owner: Contextual-help surface owner
+  - Scope: Contextual help adopts the tip card, guided-exercise step, and safe-explanation banner at full parity, referencing the canonical component schemas so citation, source-class, progress / privacy, and explain-versus-do stay one truth across every claimed learning surface rather than being re-worded in prose
+  - Adopted families: 3
+    - `tip_card` → `schemas/ui/m5-learning-mode-toggle-tip-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `guided_exercise_step` → `schemas/ui/m5-guided-exercise-step-progress-marker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `safe_explanation_banner` → `schemas/ui/m5-glossary-chip-card-safe-explanation-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+- **Docs / Browser**: `stable`
+  - Owner: Docs / browser surface owner
+  - Scope: The docs / browser surface adopts the glossary chip / card auto-narrowed because its cited source content is stale, and the safe-explanation banner at full parity, keeping citation, source-class, progress / privacy, and explain-versus-do explicit so stale cited content discloses its freshness rather than reading as live
+  - Adopted families: 2
+    - `glossary_chip_or_card` → `schemas/ui/m5-glossary-chip-card-safe-explanation-banner-controls.schema.json` (1 worked binding(s))
+      - `stale_source_narrowed` → `claims_auto_narrowed` (banner `source_content_stale`)
+    - `safe_explanation_banner` → `schemas/ui/m5-glossary-chip-card-safe-explanation-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+- **Feature-Family Tour**: `stable`
+  - Owner: Feature-family tour surface owner
+  - Scope: The feature-family tour adopts the learning-mode toggle and guided-exercise step at full parity, and the progress marker auto-narrowed because progress is local-only, keeping citation, source-class, progress / privacy, and explain-versus-do explicit so progress stays user-owned and default-local unless a supported sync / export path is chosen
+  - Adopted families: 3
+    - `learning_mode_toggle` → `schemas/ui/m5-learning-mode-toggle-tip-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `guided_exercise_step` → `schemas/ui/m5-guided-exercise-step-progress-marker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `progress_marker` → `schemas/ui/m5-guided-exercise-step-progress-marker-controls.schema.json` (1 worked binding(s))
+      - `progress_local_only_narrowed` → `claims_auto_narrowed` (banner `progress_local_only`)
+- **Companion Handoff**: `stable`
+  - Owner: Companion-handoff surface owner
+  - Scope: The companion handoff adopts the safe-explanation banner auto-narrowed because a cited source is unavailable or not installed on the companion, and the progress marker at full parity, keeping citation, source-class, progress / privacy, and explain-versus-do explicit so an unavailable citation never reads as a live, cited source
+  - Adopted families: 2
+    - `safe_explanation_banner` → `schemas/ui/m5-glossary-chip-card-safe-explanation-banner-controls.schema.json` (1 worked binding(s))
+      - `citation_unavailable_narrowed` → `claims_auto_narrowed` (banner `cited_source_unavailable_or_not_installed`)
+    - `progress_marker` → `schemas/ui/m5-guided-exercise-step-progress-marker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+- **Support / Export Packet**: `stable`
+  - Owner: Support / export-packet surface owner
+  - Scope: The support / export packet adopts the learning-mode toggle, tip card, guided-exercise step, glossary chip / card, safe-explanation banner, and progress marker, referencing the canonical component schemas so its prose can never drift from the product truth and keeping citation, source-class, progress / privacy, and explain-versus-do exact in every exported case
+  - Adopted families: 6
+    - `learning_mode_toggle` → `schemas/ui/m5-learning-mode-toggle-tip-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `tip_card` → `schemas/ui/m5-learning-mode-toggle-tip-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `guided_exercise_step` → `schemas/ui/m5-guided-exercise-step-progress-marker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `glossary_chip_or_card` → `schemas/ui/m5-glossary-chip-card-safe-explanation-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `safe_explanation_banner` → `schemas/ui/m5-glossary-chip-card-safe-explanation-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `progress_marker` → `schemas/ui/m5-guided-exercise-step-progress-marker-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
