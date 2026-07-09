@@ -1,0 +1,51 @@
+# M5 Work-Item Component Matrix
+
+- Packet: `m5-work-item-components:stable:0001`
+- Label: `M5 work-item-row, provider-chip-group, relation-strip, sync-pending-pill, work-item-detail-header, status-transition-sheet, related-evidence-card, and offline-handoff-packet-card component matrix`
+- Component families: 8 (8 stable)
+- Provider authorities: provider_owned, local_draft, mirrored_read_only, imported_snapshot, unlinked_local, policy_pinned
+- Local states: synced_with_provider, local_only_draft, queued_for_publish, publish_deferred, publish_failed, conflict_held
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-09T00:00:00Z)
+
+## Component families
+
+- **work_item_row**: `stable`
+  - Owner: Work-item row owner
+  - Scope: One work-item-row model naming the canonical work item — an issue, task, incident, change request, epic, or unknown kind — the provider authority behind it (provider owned, local draft, mirrored read only, imported snapshot, unlinked local, or policy pinned), and its local-versus-provider state (synced, local-only draft, queued for publish, publish deferred, publish failed, or conflict held), so generic ticket wording never conceals who owns the object or what is only local and not yet published
+  - Required labels: identity, state, keyboard_route, provider_authority, local_versus_provider_state, publish_later_continuity
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **provider_chip_group**: `stable`
+  - Owner: Provider-chip group owner
+  - Scope: One provider-chip-group model naming who owns a work item and whether Aureline may write to it — provider owned, local draft, mirrored read only, imported snapshot, unlinked local, or policy pinned — so provider authority is always explicit and never left to generic ticket wording
+  - Required labels: identity, state, keyboard_route, provider_authority
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **relation_strip**: `stable`
+  - Owner: Relation strip owner
+  - Scope: One relation-strip model naming the linked engineering context of a work item — a linked branch, pull request, review, test run, incident, or an unmapped relation — so the branch/review/test context is always explicit and never given an alternate label
+  - Required labels: identity, state, keyboard_route, linked_engineering_context
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **sync_pending_pill**: `stable`
+  - Owner: Sync-pending pill owner
+  - Scope: One sync-pending-pill model naming a work item's local-versus-provider state — synced, local-only draft, queued for publish, publish deferred, publish failed, or conflict held — so a pending publish is never silently dropped or shown as reconciled
+  - Required labels: identity, state, keyboard_route, local_versus_provider_state, publish_later_continuity
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **work_item_detail_header**: `stable`
+  - Owner: Work-item detail header owner
+  - Scope: One work-item-detail-header model naming the canonical work item — issue, task, incident, change request, epic, or unknown kind — and the provider authority behind it, so the header always states identity and who owns the object before any transition or comment
+  - Required labels: identity, state, keyboard_route, provider_authority
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **status_transition_sheet**: `stable`
+  - Owner: Status-transition sheet owner
+  - Scope: One status-transition-sheet model previewing the side effects of a transition before write — a local-only transition, a publish-now transition, open in provider, a comment side effect, a status side effect, or a blocked transition — so a user never has to infer whether a transition is only local or publishes to the provider
+  - Required labels: identity, state, keyboard_route, side_effect_preview, publish_later_continuity
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **related_evidence_card**: `stable`
+  - Owner: Related-evidence card owner
+  - Scope: One related-evidence-card model naming the provenance of linked evidence — a test result, CI check, review thread, linked change, attached artifact, or external reference — so evidence never appears without disclosing what it is
+  - Required labels: identity, state, keyboard_route, linked_engineering_context
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **offline_handoff_packet_card**: `stable`
+  - Owner: Offline-handoff packet card owner
+  - Scope: One offline-handoff-packet-card model naming where a deferred change will land — a local queue, provider publish, exported packet, support bundle, another device, or discard after review — and the metadata-safe export boundary it keeps (metadata safe, body excluded, identifiers masked, credentials scrubbed, local only, or full disclosure blocked), so a handoff destination is never assumed silently and export never reveals more than disclosed
+  - Required labels: identity, state, keyboard_route, publish_later_continuity
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
