@@ -1,0 +1,21 @@
+# M5 Credential Component Accessibility & Auto-Narrowing
+
+- Packet: `m5-credential-component-accessibility-parity:stable:0001`
+- As of: `2026-07-09T00:00:00Z`
+- Families: 8 certified across 8 / 8 frozen families
+- Status: 4 green / 4 yellow / 0 red
+
+## Rows
+
+- **a11y:credential-state-row-auth-expired** (credential_state_row) — family=credential_state_row keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=reachable_and_labeled export=reconstructable_without_screenshot full_claim=verified_brokered effective_claim=expired_auth_projection status=narrowed_disclosed
+  - Auto-narrow: verified_brokered → expired_auth_projection (dimension=auth_posture, trigger=lifecycle_state_hidden) — Auth posture has expired and this credential must be re-authenticated — shown as an expired-auth projection with its canonical ID, storage mode, and reveal posture still preserved, never as a current, usable credential
+- **a11y:secret-access-prompt-sheet-reveal-blocked** (secret_access_prompt_sheet) — family=secret_access_prompt_sheet keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=reachable_and_labeled export=reconstructable_without_screenshot full_claim=verified_brokered effective_claim=reveal_blocked_projection status=narrowed_disclosed
+  - Auto-narrow: verified_brokered → reveal_blocked_projection (dimension=reveal_policy, trigger=reveal_posture_unstated) — Deployment policy blocks the raw reveal and only a handle-only path remains — shown as a reveal-blocked projection that names its reveal posture and policy source, never as an allowed raw reveal
+- **a11y:vault-or-keychain-picker-store-unverified** (vault_or_keychain_picker) — family=vault_or_keychain_picker keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=reachable_and_labeled export=reconstructable_without_screenshot full_claim=verified_brokered effective_claim=unverified_store_projection status=narrowed_disclosed
+  - Auto-narrow: verified_brokered → unverified_store_projection (dimension=store_verification, trigger=store_capability_unstated) — Target store verification is missing and cannot be claimed as securely verified — shown as an unverified-store projection that names its storage mode and verification state, never as a saved-securely store
+- **a11y:credential-store-capability-row** (credential_store_capability_row) — family=credential_store_capability_row keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=reachable_and_labeled export=reconstructable_without_screenshot full_claim=handle_ready_projection effective_claim=handle_ready_projection status=parity
+- **a11y:browser-device-code-handoff-card** (browser_device_code_handoff_card) — family=browser_device_code_handoff_card keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=reachable_and_labeled export=reconstructable_without_screenshot full_claim=verified_brokered effective_claim=verified_brokered status=parity
+- **a11y:delegated-credential-row-scope-drifted** (delegated_credential_row) — family=delegated_credential_row keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=reachable_and_labeled export=reconstructable_without_screenshot full_claim=verified_brokered effective_claim=drifted_delegation_projection status=narrowed_disclosed
+  - Auto-narrow: verified_brokered → drifted_delegation_projection (dimension=delegated_scope, trigger=delegated_identity_unstated) — Delegated scope has drifted from what was granted and must be reconciled — shown as a drifted-delegation projection that names its source identity and target scope, never as an in-scope local identity
+- **a11y:rotation-revoke-event-row** (rotation_revoke_event_row) — family=rotation_revoke_event_row keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=reachable_and_labeled export=reconstructable_without_screenshot full_claim=verified_brokered effective_claim=verified_brokered status=parity
+- **a11y:export-safety-banner** (export_safety_banner) — family=export_safety_banner keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=reachable_and_labeled export=reconstructable_without_screenshot full_claim=handle_ready_projection effective_claim=handle_ready_projection status=parity
