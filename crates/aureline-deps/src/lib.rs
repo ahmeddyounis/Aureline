@@ -197,6 +197,7 @@ pub mod export_safe_dependency_reports;
 pub mod freeze_the_m5_package_management_component_matrix;
 pub mod freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix;
 pub mod grouped_update_and_rollback_review;
+pub mod implement_package_explorer_rows_with_scope_relation_registry_and_signal_truth;
 pub mod manifest_scope_and_source_review;
 pub mod operation_history;
 pub mod package_mutation_and_registry_review;
@@ -314,6 +315,18 @@ pub use freeze_the_m5_package_management_component_matrix::{
     M5_PACKAGE_COMPONENT_MATRIX_FIXTURE_DIR, M5_PACKAGE_COMPONENT_MATRIX_RECORD_KIND,
     M5_PACKAGE_COMPONENT_MATRIX_SCHEMA_REF, M5_PACKAGE_COMPONENT_MATRIX_SCHEMA_VERSION,
     M5_PACKAGE_COMPONENT_MATRIX_SUMMARY_REF,
+};
+pub use implement_package_explorer_rows_with_scope_relation_registry_and_signal_truth::{
+    current_package_explorer_row_export, resolve_package_explorer_row_action,
+    PackageAdvisorySignal, PackageChangelogSignal, PackageDependencyRelation,
+    PackageExplorerRow, PackageExplorerRowArtifactError, PackageExplorerRowConsumerProjection,
+    PackageExplorerRowPacket, PackageExplorerRowPacketInput, PackageExplorerRowProofFreshness,
+    PackageExplorerRowTrustReview, PackageExplorerRowViolation, PackageLicenseSignal,
+    PackageLifecycleState, PackageManifestScopeClass, PackageRegistrySourceClass,
+    PackageRowActionClass, PackageRowActionDisclosure, PACKAGE_EXPLORER_ROW_ARTIFACT_REF,
+    PACKAGE_EXPLORER_ROW_DOC_REF, PACKAGE_EXPLORER_ROW_FIXTURE_DIR,
+    PACKAGE_EXPLORER_ROW_RECORD_KIND, PACKAGE_EXPLORER_ROW_SCHEMA_REF,
+    PACKAGE_EXPLORER_ROW_SCHEMA_VERSION, PACKAGE_EXPLORER_ROW_SUMMARY_REF,
 };
 pub use freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix::{
     current_m5_package_state_matrix, AuthMode, IdentitySide, LockfileAuthority,
