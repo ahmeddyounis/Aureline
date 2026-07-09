@@ -134,6 +134,20 @@
 //! rules narrow rather than hide on stale proof, an unverified residency or
 //! encryption claim, an unavailable provider or admin plane, or a narrowed upstream
 //! matrix lane.
+//!
+//! Opening a new component lane, it owns the frozen companion-component matrix in
+//! [`freeze_the_m5_companion_component_matrix`], which freezes Aureline's reusable
+//! companion-client components — the notification row, the mobile review card, the
+//! CI-status card, the session-follow tile, the incident-snapshot card, and the
+//! desktop-handoff sheet — into one export-safe matrix. Each component binds a stable
+//! object identity, a workspace/repo client scope, a freshness class, one controlled
+//! disposition vocabulary (`review_only`, `comment_capable`, `desktop_required`,
+//! `cached`, `stale`, `policy_blocked`, `handoff_ready`), a severity where it applies,
+//! and — for the desktop-handoff sheet — an exact handoff target, so later companion
+//! rows reuse the matrix instead of feature-local companion chrome. Hard invariants keep
+//! a component from masking its scope or freshness, hiding its companion-versus-desktop
+//! capability boundary, inventing an alternate state label, or implying a desktop-required
+//! action is companion-safe, and stale state is always labeled rather than shown as live.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
@@ -142,6 +156,7 @@ pub mod add_incident_workspace_headers_evidence_timelines_resource_slices_and_ru
 pub mod add_remote_preview_or_session_handoff_light_remote_edit_and_scoped_collaboration_follow_continuity_on_companio;
 pub mod certify_companion_incident_sync_residency_encryption_and_offboarding_lanes_on_every_marketed_m5_profile;
 pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
+pub mod freeze_the_m5_companion_component_matrix;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
 pub mod implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth;
 pub mod implement_usage_export_and_offboarding_packages_grace_window_state_org_switch_semantics_and_deletion_export_ho;
