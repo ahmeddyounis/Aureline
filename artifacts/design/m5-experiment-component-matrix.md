@@ -1,0 +1,58 @@
+# M5 Experiment-Run-Row, Dataset-Provenance-Card, Artifact-Lineage-Panel, Run-Comparison-Table, Environment-Fingerprint-Card, Compare-Guard-Banner, Sensitivity-Sharing-Banner, and Result-Summary-Card Component Matrix
+
+- Packet: `m5-experiment-components:stable:0001`
+- Label: `M5 experiment-run-row, dataset-provenance-card, artifact-lineage-panel, run-comparison-table, environment-fingerprint-card, compare-guard-banner, sensitivity-sharing-banner, and result-summary-card component matrix`
+- Component families: 8 (8 stable)
+- Dispositions: local_run, managed_run, imported_run, manual_attach, reproducible, likely_reproducible, needs_rerun, context_incomplete
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-09T00:00:00Z)
+
+## Component families
+
+- **experiment_run_row**: `stable`
+  - Owner: Experiment run row owner
+  - Scope: One experiment-run-row model naming where a run came from (a notebook cell, a script task, a scheduled task, a manual attach, an imported run, or an unknown origin) and where it stands (queued, running, succeeded, failed, canceled, or stale), so a run never hides its notebook / script / task origin, its code revision, or that a run was imported or manually attached
+  - Dispositions: local_run, managed_run, imported_run, manual_attach
+  - Required labels: identity, state, keyboard_route, run_origin_and_revision
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **dataset_provenance_card**: `stable`
+  - Owner: Dataset provenance card owner
+  - Scope: One dataset-provenance-card model naming what data a run used (a tracked dataset, a local file, a remote snapshot, synthetic data, a redacted sample, or an unknown source) and how completely it is provenanced (complete, partial, missing, version pinned, version drifted, or access restricted), so a card never severs its canonical provenance and never masks a restricted or drifted dataset
+  - Dispositions: imported_run, context_incomplete
+  - Required labels: identity, state, keyboard_route, provenance_and_sensitivity
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **artifact_lineage_panel**: `stable`
+  - Owner: Artifact lineage panel owner
+  - Scope: One artifact-lineage-panel model naming what a generated artifact is (a model checkpoint, a metrics table, a plot or figure, an exported report, a log bundle, or an unknown artifact) and how completely its lineage resolves (complete, partial, broken, derived from a known upstream, derived from an unknown upstream, or regenerated), so a panel never hides a broken or unknown lineage and always names its upstream and downstream
+  - Dispositions: reproducible, needs_rerun
+  - Required labels: identity, state, keyboard_route, run_origin_and_revision
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **run_comparison_table**: `stable`
+  - Owner: Run comparison table owner
+  - Scope: One run-comparison-table model naming along which axis it compares runs (a metric delta, a parameter diff, a dataset diff, an environment diff, a code revision diff, or an artifact diff) and whether two runs are actually comparable (comparable, comparable with caveats, not comparable, confounded, insufficient overlap, or unknown comparability), so a table never implies an apples-to-apples comparison without parity evidence and always discloses confounders
+  - Dispositions: likely_reproducible, needs_rerun, context_incomplete
+  - Required labels: identity, state, keyboard_route, run_origin_and_revision
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **environment_fingerprint_card**: `stable`
+  - Owner: Environment fingerprint card owner
+  - Scope: One environment-fingerprint-card model naming which slice of the environment it captures (the interpreter, the kernel spec, the installed packages, the hardware accelerator, the OS or platform, or the container image) and how completely it was captured (captured complete, captured partial, captured missing, pinned, drifted, or unavailable), so a card never leaves the environment behind a result implicit and never hides a drifted or missing capture
+  - Dispositions: reproducible, likely_reproducible
+  - Required labels: identity, state, keyboard_route, run_origin_and_revision
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **compare_guard_banner**: `stable`
+  - Owner: Compare guard banner owner
+  - Scope: One compare-guard-banner model naming why a comparison is guarded (a dataset mismatch, environment drift, a code revision gap, a metric definition change, a sample size imbalance, or a confounder present) and what the guard permits (comparison permitted, comparison caveated, comparison blocked, guard acknowledged, guard overridden by choice, or guard unavailable), so a banner never silently allows an apples-to-apples comparison the guard should block
+  - Dispositions: needs_rerun, context_incomplete
+  - Required labels: identity, state, keyboard_route, run_origin_and_revision
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **sensitivity_sharing_banner**: `stable`
+  - Owner: Sensitivity sharing banner owner
+  - Scope: One sensitivity-sharing-banner model naming how sensitive a result or dataset is (public-safe, internal, confidential, regulated, production-like, or unknown sensitivity) and what a share will actually include (summary only, summary plus metadata, evidence included, raw payload included, a redacted share, or share blocked), so a banner never leaves sensitivity implicit before a share and never exposes raw production-like data by default
+  - Dispositions: managed_run, local_run
+  - Required labels: identity, state, keyboard_route, provenance_and_sensitivity, export_scope
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **result_summary_card**: `stable`
+  - Owner: Result summary card owner
+  - Scope: One result-summary-card model naming what it is showing (a headline metric, a metric table, a narrative summary, an evidence link, a raw payload reference, or no result) and what scope it exports (summary, metadata, evidence, raw, redacted, or export withheld), so a shared summary never silently widens from summary to raw scope and always names whether it includes evidence or only metadata
+  - Dispositions: reproducible, context_incomplete
+  - Required labels: identity, state, keyboard_route, export_scope
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
