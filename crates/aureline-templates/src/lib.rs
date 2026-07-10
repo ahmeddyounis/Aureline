@@ -165,6 +165,19 @@
 //! recovery boundary — so incomplete readiness evidence never presents a starter as fully qualified,
 //! and the hierarchy-heavy generated-project diff tree always binds a flat list / textual path.
 //!
+//! It also owns the scaffold-component surface-certification packet, which *certifies* that the
+//! shared scaffold-component truth holds on every claimed M5 stack-entry and project-generation
+//! surface — the start center, the template gallery, the scaffold preflight, the generation
+//! diff-review, the workspace handoff, the template-health dashboard, the support / export bundle,
+//! and the CLI / headless surface — scoring each surface across six truth axes (visual, keyboard,
+//! screen-reader, always-on export, degraded-state, and source-side-effect-and-recovery) and either
+//! passing it green, auto-narrowing its `QualifiedStarter` claim to a blocked-prerequisite,
+//! drifted-template, partial-generation, or secret-bound-parameter projection (yellow), or blocking
+//! it (red) when a degraded axis is hidden behind a full claim; every certified surface cites the one
+//! canonical scaffold-component proof bundle, keeps its starter-source / support / side-effect /
+//! generated-versus-user-owned / recovery continuity, never lets a generic `Create` hide a side
+//! effect, and never exposes a secret-bound raw value by default.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -177,6 +190,7 @@ pub mod add_convention_diagnostics_confidence_labels_suppressibility_and_proving
 pub mod add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty;
 pub mod add_richer_framework_packs_for_jupyter_terraform_kubernetes_fastapi_nestjs_rails_laravel_and_flutter;
 pub mod add_shared_start_center_workspace_admission_template_registry_framework_pack_workflow_bundle_and_support_consumers_so_scaffold_components_keep_source_side_effect_and_health_language_aligned_across_claimed_m5_profiles;
+pub mod certify_scaffold_template_card_starter_parameter_row_scaffold_preflight_card_template_health_row_generated_project_diff_card_and_scaffold_handoff_banner_truth_on_every_claimed_m5_stack_entry_and_project_generation_surface;
 pub mod certify_the_template_registry_scaffold_planner_framework_packs_and_archetype_health_bundles_on_every_claimed_m5_profile;
 pub mod freeze_the_m5_scaffold_template_card_starter_parameter_row_scaffold_preflight_card_template_health_row_generated_project_diff_card_and_scaffold_handoff_banner_component_matrix;
 pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_and_execution_context_reuse;
