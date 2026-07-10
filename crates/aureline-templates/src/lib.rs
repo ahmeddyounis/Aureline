@@ -81,6 +81,20 @@
 //! trust, or managed-workspace side effect, never blur the generated-versus-user-owned
 //! boundary, and never invent a parallel scaffold grammar.
 //!
+//! It also owns the scaffold-template-card and starter-parameter-row controls packet, which
+//! implements the first two frozen scaffold-component families as two co-equal control vectors —
+//! binding each template card to its starter source class, template support class, target
+//! runtime and toolchain, host boundary, and setup-task or extension impact, with a derived
+//! source class and support posture so a community, local, mirrored, or unknown starter never
+//! reads as governed first-party and bridge behavior never reads as exact first-party support;
+//! and binding each parameter row to its source-precedence origin class (`Template default`,
+//! `User input`, `Workspace value`, `Policy value`, or `Secret reference`), its frozen source
+//! layer, its action timing, its validation state, and a derived portability class so a
+//! workspace-scoped or policy-managed value never reads as portable user input and a secret
+//! reference never reveals a raw value — so the start-center, template-gallery, parameter-form,
+//! and support surfaces can inspect source, support, host, and precedence posture before a user
+//! commits, and never route creation through a generic Create.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -96,6 +110,7 @@ pub mod certify_the_template_registry_scaffold_planner_framework_packs_and_arche
 pub mod freeze_the_m5_scaffold_template_card_starter_parameter_row_scaffold_preflight_card_template_health_row_generated_project_diff_card_and_scaffold_handoff_banner_component_matrix;
 pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_and_execution_context_reuse;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
+pub mod implement_scaffold_template_cards_and_starter_parameter_rows_with_source_support_host_boundary_and_portability_truth_across_claimed_m5_project_entry_surfaces;
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
 pub mod ship_certified_archetype_health_check_bundles_stack_diagnostics_and_fix_forward_guidance;
 pub mod ship_route_explorers_component_trees_and_app_topology_views_with_authored_generated_runtime_only_truth;
