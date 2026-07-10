@@ -125,6 +125,19 @@
 //! start-center, and support surfaces keep generated output reviewable and recoverable after Aureline
 //! writes files, and never assume the safest next step for the user.
 //!
+//! It also owns the starter-boundary-state controls packet, which implements the cross-cutting
+//! starter boundary state any of the six frozen scaffold components can carry when a scaffold's
+//! source, availability, trust, or durability is not the plain public-registry default — binding
+//! each boundary state to its boundary kind (`public_registry`, `mirror_only`, `offline_cache_only`,
+//! `sign_in_required`, `remote_or_managed_workspace`, or `non_durable_temp_staging`), its
+//! availability state, its owner and freshness cues, its trust-and-install disclosure, and a
+//! delete-generated / reuse-existing / clone-elsewhere / continue-without-starter recovery route,
+//! with a derived access and availability posture so a sign-in-gated, managed-remote, or non-durable
+//! starter never reads as a plain public-registry create and an unavailable or blocked starter never
+//! reads as ready — so the start-center, template-gallery, and scaffold-preflight surfaces can tell
+//! a user what a starter depends on before any silent trust or install step, and always keep an
+//! explicit recovery path once a starter partially materializes output.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -144,5 +157,6 @@ pub mod implement_generated_project_diff_cards_and_scaffold_handoff_banners_with
 pub mod implement_scaffold_template_cards_and_starter_parameter_rows_with_source_support_host_boundary_and_portability_truth_across_claimed_m5_project_entry_surfaces;
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
 pub mod ship_certified_archetype_health_check_bundles_stack_diagnostics_and_fix_forward_guidance;
+pub mod ship_mirror_offline_auth_boundary_and_managed_zone_starter_states_with_no_silent_trust_no_silent_install_and_non_durable_temp_staging_honesty_across_claimed_m5_scaffold_surfaces;
 pub mod ship_route_explorers_component_trees_and_app_topology_views_with_authored_generated_runtime_only_truth;
 pub mod ship_scaffold_preflight_cards_and_template_health_rows_with_generated_file_counts_immediate_versus_deferred_actions_blocked_warning_optional_checks_and_create_empty_parity_across_claimed_m5_bootstrap_lanes;
