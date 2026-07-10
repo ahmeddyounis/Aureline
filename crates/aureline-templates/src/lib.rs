@@ -255,6 +255,22 @@
 //! self-contained banner naming the exact reason and recovery action, a heuristic route never
 //! masquerades as exact, and a generator write or non-local run never presents a plain safe action.
 //!
+//! It also owns the framework-component accessibility-and-auto-narrowing packet, which certifies —
+//! per frozen framework-aware / topology-explorer component family — that the framework pack header,
+//! route / endpoint row, component / service tree node, convention-diagnostic row, generator preview
+//! sheet, run-config scaffold card, and derived-relationship banner stay keyboard-complete,
+//! screen-reader-reachable, CLI/headless-reachable, and export-safe without a raw value, and that
+//! they auto-narrow honestly: when a framework pack's health cannot be proven, a supported version
+//! range cannot be proven for the active project, a proving-source linkage is missing, a relationship
+//! is only heuristically inferred, or a generator-effect truth is only partial, the component's
+//! exactness claim drops from exact framework truth to an unverified-pack, unproven-version-range,
+//! unlinked-source, heuristic-inference, or partial-generator-effect projection that names its
+//! precise trigger and binding dimension and keeps the pack / certainty source, proving-source
+//! linkage, execution boundary, and rollback or regenerate recovery boundary — so incomplete evidence
+//! never invents exact certainty, a heuristic route never reads as exact, a generator never implies a
+//! safe or no-op write, and the hierarchy-heavy component / service tree always binds a flat list /
+//! textual path.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -278,6 +294,7 @@ pub mod implement_framework_pack_headers_and_framework_status_strips_with_pack_i
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
 pub mod implement_generated_project_diff_cards_and_scaffold_handoff_banners_with_create_modify_rename_delete_counts_dependency_task_extension_impact_trust_state_and_run_now_later_review_recovery_truth_across_claimed_m5_generation_flows;
 pub mod implement_generator_preview_sheets_and_run_config_scaffold_cards_with_generator_version_file_effect_classes_dependency_config_impact_rollback_or_regenerate_posture_required_toolchains_and_local_container_ssh_managed_target_truth;
+pub mod implement_keyboard_screen_reader_cli_export_parity_and_automatic_narrowing_when_framework_pack_health_supported_version_range_proving_source_linkage_heuristic_inference_or_generator_effect_truth_is_partial_or_stale_across_claimed_m5_framework_components;
 pub mod implement_keyboard_screen_reader_cli_export_parity_and_automatic_narrowing_when_template_freshness_drifted_prerequisite_health_is_blocked_starter_parameters_are_secret_bound_or_generation_diff_truth_is_partial_across_claimed_m5_scaffold_components;
 pub mod implement_route_endpoint_rows_and_component_service_tree_nodes_with_authored_versus_generated_state_proving_source_files_or_symbols_exact_versus_heuristic_labels_and_open_source_or_open_references_continuity;
 pub mod implement_scaffold_template_cards_and_starter_parameter_rows_with_source_support_host_boundary_and_portability_truth_across_claimed_m5_project_entry_surfaces;
