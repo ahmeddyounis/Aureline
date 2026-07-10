@@ -152,6 +152,19 @@
 //! the exact reason and recovery action, and a side-effect-bearing starter never presents a plain
 //! ready create.
 //!
+//! It also owns the scaffold-component accessibility-and-auto-narrowing packet, which certifies —
+//! per frozen scaffold-component family — that the scaffold template card, starter parameter row,
+//! scaffold preflight card, template health row, generated-project diff card, and scaffold handoff
+//! banner stay keyboard-complete, screen-reader-reachable, CLI/headless-reachable, and export-safe
+//! without a raw value, and that they auto-narrow honestly: when a template's freshness drifts, a
+//! prerequisite health check is blocked, a starter parameter is secret-bound and cannot travel, a
+//! generation diff's truth is partial, or a validation state is cached / not checked, the
+//! component's readiness claim drops from a qualified starter to a secret-bound-parameter,
+//! blocked-prerequisite, drifted-template, partial-generation, or unchecked-validation projection
+//! that names its precise trigger and binding dimension and keeps the starter source / support /
+//! recovery boundary — so incomplete readiness evidence never presents a starter as fully qualified,
+//! and the hierarchy-heavy generated-project diff tree always binds a flat list / textual path.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -169,6 +182,7 @@ pub mod freeze_the_m5_scaffold_template_card_starter_parameter_row_scaffold_pref
 pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_and_execution_context_reuse;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
 pub mod implement_generated_project_diff_cards_and_scaffold_handoff_banners_with_create_modify_rename_delete_counts_dependency_task_extension_impact_trust_state_and_run_now_later_review_recovery_truth_across_claimed_m5_generation_flows;
+pub mod implement_keyboard_screen_reader_cli_export_parity_and_automatic_narrowing_when_template_freshness_drifted_prerequisite_health_is_blocked_starter_parameters_are_secret_bound_or_generation_diff_truth_is_partial_across_claimed_m5_scaffold_components;
 pub mod implement_scaffold_template_cards_and_starter_parameter_rows_with_source_support_host_boundary_and_portability_truth_across_claimed_m5_project_entry_surfaces;
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
 pub mod ship_certified_archetype_health_check_bundles_stack_diagnostics_and_fix_forward_guidance;

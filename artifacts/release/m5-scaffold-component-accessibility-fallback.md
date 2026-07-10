@@ -1,0 +1,20 @@
+# M5 Scaffold-Component Accessibility & Auto-Narrowing
+
+- Packet: `m5-scaffold-component-accessibility-fallback:stable:0001`
+- As of: `2026-07-09T00:00:00Z`
+- Families: 6 certified across 6 / 6 frozen families
+- Status: 1 green / 5 yellow / 0 red
+
+## Rows
+
+- **a11y:scaffold-template-card-verified** (scaffold_template_card) — family=scaffold_template_card keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=reachable_and_labeled export=reconstructable_without_raw_value full_claim=qualified_starter effective_claim=qualified_starter status=parity
+- **a11y:starter-parameter-row-secret-bound** (starter_parameter_row) — family=starter_parameter_row keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=disclosed_reduced_but_reachable export=reconstructable_without_raw_value full_claim=qualified_starter effective_claim=secret_bound_parameter_projection status=narrowed_disclosed
+  - Auto-narrow: qualified_starter → secret_bound_parameter_projection (dimension=parameter_portability, trigger=parameter_source_unstated) — This parameter is bound to a secret reference that cannot travel — shown as a secret-bound-parameter projection that names the parameter and its source layer, never exporting or committing the raw value
+- **a11y:scaffold-preflight-card-blocked** (scaffold_preflight_card) — family=scaffold_preflight_card keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=reachable_and_labeled export=reconstructable_without_raw_value full_claim=qualified_starter effective_claim=blocked_prerequisite_projection status=narrowed_disclosed
+  - Auto-narrow: qualified_starter → blocked_prerequisite_projection (dimension=prerequisite_health, trigger=host_boundary_unstated) — A prerequisite health check is blocked — shown as a blocked-prerequisite projection that names the blocked check and the create-empty or continue-without-starter recovery path, never as a passed preflight
+- **a11y:template-health-row-drifted** (template_health_row) — family=template_health_row keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=reachable_and_labeled export=reconstructable_without_raw_value full_claim=qualified_starter effective_claim=drifted_template_projection status=narrowed_disclosed
+  - Auto-narrow: qualified_starter → drifted_template_projection (dimension=template_freshness, trigger=health_freshness_stale) — This template's freshness has drifted — shown as a drifted-template projection that names the last-known freshness and source, never as a currently-fresh qualified starter
+- **a11y:generated-project-diff-card-partial** (generated_project_diff_card) — family=generated_project_diff_card keyboard=reachable_and_labeled screen_reader=disclosed_reduced_but_reachable cli=reachable_and_labeled export=reconstructable_without_raw_value full_claim=qualified_starter effective_claim=partial_generation_projection status=narrowed_disclosed
+  - Auto-narrow: qualified_starter → partial_generation_projection (dimension=generation_diff_evidence, trigger=generated_boundary_blurred) — This generation diff's truth is only partial — shown as a partial-generation projection that keeps the generated-versus-user-owned boundary and delete-generated recovery path visible, never as a clean applied change
+- **a11y:scaffold-handoff-banner-unchecked** (scaffold_handoff_banner) — family=scaffold_handoff_banner keyboard=reachable_and_labeled screen_reader=reachable_and_labeled cli=reachable_and_labeled export=reconstructable_without_raw_value full_claim=qualified_starter effective_claim=unchecked_validation_projection status=narrowed_disclosed
+  - Auto-narrow: qualified_starter → unchecked_validation_projection (dimension=handoff_validation_clarity, trigger=health_freshness_stale) — This workspace's post-bootstrap validation is cached and not re-checked — shown as an unchecked-validation projection that keeps the last-known validation and the delete-generated or reopen-preflight recovery path visible, never as a freshly-verified qualified starter
