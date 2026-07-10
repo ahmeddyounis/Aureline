@@ -1,0 +1,82 @@
+# M5 Governance-Dashboard Component Consumer Parity
+
+- Packet: `m5-governance-dashboard-component-consumer:stable:0001`
+- Label: `M5 governance-dashboard component consumers: assurance center, release center, operator dashboard, shiproom, support export, About/help, docs, and CLI keep readiness, evidence-freshness, waiver, owner-coverage, and decision-forum parity`
+- Governance-dashboard consumers: 8 (8 stable)
+- Component families: fitness_dashboard_tile, governance_report_row, waiver_expiry_queue_item, release_gate_banner, mitigation_note_card, service_ownership_card, on_call_strip, decision_right_card, milestone_dashboard_row
+- Descriptors: readiness, evidence_freshness, waiver_state, owner_coverage, decision_forum
+- Evidence states: full_truth_fresh, evidence_stale, waiver_expiring_or_expired, owner_coverage_missing, forum_unresolved, not_evaluated_here
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-10T00:00:00Z)
+
+## Governance-dashboard consumers
+
+- **Assurance Center**: `stable`
+  - Owner: Assurance-center surface owner
+  - Scope: The assurance center adopts the fitness dashboard tile and governance report row primitives at full truth, pointing at their canonical controls schemas so readiness, evidence-freshness, waiver, owner-coverage, and decision-forum descriptors stay identical to what the release center, operator dashboard, shiproom, support export, and docs read
+  - Adopted families: 2
+    - `fitness_dashboard_tile` → `schemas/ui/m5-fitness-governance-report-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+    - `governance_report_row` → `schemas/ui/m5-fitness-governance-report-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+- **Release Center**: `stable`
+  - Owner: Release-center surface owner
+  - Scope: The release center adopts the release-gate banner, decision-right card, and milestone dashboard row at full truth, reading the same readiness and decision-forum vocabulary so a ship/no-ship decision never diverges from the shiproom or the support export
+  - Adopted families: 3
+    - `release_gate_banner` → `schemas/ui/m5-waiver-gate-mitigation-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+    - `decision_right_card` → `schemas/ui/m5-decision-right-milestone-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+    - `milestone_dashboard_row` → `schemas/ui/m5-decision-right-milestone-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+- **Operator Dashboard**: `stable`
+  - Owner: Operator-dashboard surface owner
+  - Scope: The operator dashboard adopts the service-ownership card under missing owner coverage and the on-call strip at full truth, disclosing the ownership narrowing with a self-contained banner while keeping the same descriptor vocabulary the assurance center uses so an ownerless lane never reads as resolved
+  - Adopted families: 2
+    - `service_ownership_card` → `schemas/ui/m5-service-ownership-on-call-controls.schema.json` (1 worked binding(s))
+      - `owner_coverage_missing` → `descriptors_disclosed_narrowed` (banner `owner_coverage_missing`)
+    - `on_call_strip` → `schemas/ui/m5-service-ownership-on-call-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+- **Shiproom Summary**: `stable`
+  - Owner: Shiproom-summary owner
+  - Scope: The shiproom summary adopts the milestone dashboard row and release-gate banner at full truth and the decision-right card under an unresolved forum, disclosing the forum narrowing with a self-contained banner so a forumless blocker never appears resolved in a ship packet
+  - Adopted families: 3
+    - `milestone_dashboard_row` → `schemas/ui/m5-decision-right-milestone-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+    - `decision_right_card` → `schemas/ui/m5-decision-right-milestone-controls.schema.json` (1 worked binding(s))
+      - `forum_unresolved` → `descriptors_disclosed_narrowed` (banner `forum_unresolved`)
+    - `release_gate_banner` → `schemas/ui/m5-waiver-gate-mitigation-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+- **Support Export**: `stable`
+  - Owner: Support-export owner
+  - Scope: The support export adopts the waiver-expiry queue item, mitigation note card, and service-ownership card at full truth, reconstructing consumer parity from the shared model so a support reviewer reads the same plain-language mitigation and waiver vocabulary that every product surface shows
+  - Adopted families: 3
+    - `waiver_expiry_queue_item` → `schemas/ui/m5-waiver-gate-mitigation-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+    - `mitigation_note_card` → `schemas/ui/m5-waiver-gate-mitigation-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+    - `service_ownership_card` → `schemas/ui/m5-service-ownership-on-call-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+- **About / Help**: `stable`
+  - Owner: About / help surface owner
+  - Scope: The About/help surface adopts the fitness dashboard tile under a not-evaluated-here context and the mitigation note card at full truth, referencing the canonical component schemas so its prose can never drift from the product truth and disclosing the not-evaluated narrowing rather than implying a clean pass
+  - Adopted families: 2
+    - `fitness_dashboard_tile` → `schemas/ui/m5-fitness-governance-report-controls.schema.json` (1 worked binding(s))
+      - `not_evaluated_here` → `descriptors_disclosed_narrowed` (banner `not_evaluated_here`)
+    - `mitigation_note_card` → `schemas/ui/m5-waiver-gate-mitigation-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+- **Docs Portal**: `stable`
+  - Owner: Docs-portal surface owner
+  - Scope: The docs portal adopts the governance report row from a stale-evidence snapshot and the on-call strip at full truth, referencing the canonical component schemas and disclosing the stale-evidence narrowing with a self-contained banner so a docs reader never mistakes stale evidence for a fresh clean pass
+  - Adopted families: 2
+    - `governance_report_row` → `schemas/ui/m5-fitness-governance-report-controls.schema.json` (1 worked binding(s))
+      - `evidence_stale` → `descriptors_disclosed_narrowed` (banner `evidence_stale`)
+    - `on_call_strip` → `schemas/ui/m5-service-ownership-on-call-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
+- **CLI Inspect**: `stable`
+  - Owner: CLI inspect / headless owner
+  - Scope: The CLI inspect surface adopts the waiver-expiry queue item under an expiring waiver and the fitness dashboard tile at full truth, reading the same readiness and waiver vocabulary in headless output so a scripted reader sees identical blocker, waiver, owner, and forum truth to the GUI
+  - Adopted families: 2
+    - `waiver_expiry_queue_item` → `schemas/ui/m5-waiver-gate-mitigation-controls.schema.json` (1 worked binding(s))
+      - `waiver_expiring_or_expired` → `descriptors_disclosed_narrowed` (banner `waiver_expiring`)
+    - `fitness_dashboard_tile` → `schemas/ui/m5-fitness-governance-report-controls.schema.json` (1 worked binding(s))
+      - `full_truth_fresh` → `descriptors_preserved` (banner `full`)
