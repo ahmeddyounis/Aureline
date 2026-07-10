@@ -271,6 +271,21 @@
 //! safe or no-op write, and the hierarchy-heavy component / service tree always binds a flat list /
 //! textual path.
 //!
+//! It also owns the framework-component surface-certification packet, which *certifies* that the
+//! shared framework-component truth holds on every claimed M5 framework-aware surface — the
+//! framework-pack center, the route explorer, the topology view, the convention-diagnostics center,
+//! the generator-review sheet, the run-config center, the support / export bundle, and the CLI /
+//! headless surface — scoring each surface across six truth axes (visual, keyboard, screen-reader,
+//! always-on export, degraded-state, and source-linkage-and-execution-boundary) and either passing
+//! it green, auto-narrowing its `ExactFrameworkTruth` claim to an unverified-pack,
+//! unproven-version-range, unlinked-source, heuristic-inference, or partial-generator-effect
+//! projection (yellow), or blocking it (red) when a degraded axis is hidden behind a full claim;
+//! every certified surface cites the one canonical framework-component proof bundle, keeps its
+//! pack-identity / support / evidence-certainty / proving-source / execution-boundary / recovery
+//! continuity, never lets a heuristic route masquerade as exact, and never implies a no-op write or
+//! hides the local / container / SSH / managed execution boundary behind framework convenience
+//! language.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -284,6 +299,7 @@ pub mod add_generation_diff_review_rollback_or_delete_generated_recovery_and_man
 pub mod add_richer_framework_packs_for_jupyter_terraform_kubernetes_fastapi_nestjs_rails_laravel_and_flutter;
 pub mod add_shared_preview_runtime_docs_browser_onboarding_template_registry_workflow_bundle_visual_designer_and_support_consumers_so_framework_aware_components_keep_pack_version_evidence_and_boundary_language_aligned_across_claimed_m5_profiles;
 pub mod add_shared_start_center_workspace_admission_template_registry_framework_pack_workflow_bundle_and_support_consumers_so_scaffold_components_keep_source_side_effect_and_health_language_aligned_across_claimed_m5_profiles;
+pub mod certify_framework_pack_header_route_endpoint_row_component_service_tree_node_convention_diagnostic_row_generator_preview_sheet_run_config_scaffold_card_and_derived_relationship_banner_truth_on_every_claimed_m5_framework_aware_surface;
 pub mod certify_scaffold_template_card_starter_parameter_row_scaffold_preflight_card_template_health_row_generated_project_diff_card_and_scaffold_handoff_banner_truth_on_every_claimed_m5_stack_entry_and_project_generation_surface;
 pub mod certify_the_template_registry_scaffold_planner_framework_packs_and_archetype_health_bundles_on_every_claimed_m5_profile;
 pub mod freeze_the_m5_framework_pack_header_route_endpoint_row_component_service_tree_node_convention_diagnostic_row_generator_preview_sheet_run_config_scaffold_card_and_derived_relationship_banner_component_matrix;
