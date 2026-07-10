@@ -1,0 +1,88 @@
+# M5 Experiment Component Consumer Parity
+
+- Packet: `m5-experiment-component-consumer:stable:0001`
+- Label: `M5 experiment component consumers: the notebook run history, tasks / tests / evals, review evidence, the compare view, the companion summary, the CLI / headless export, and the support / export packet keep lineage / provenance, sensitivity, comparability, and export-scope parity`
+- Experiment consumers: 7 (7 stable)
+- Component families: experiment_run_row, dataset_provenance_card, artifact_lineage_panel, run_comparison_table, environment_fingerprint_card, compare_guard_banner, sensitivity_sharing_banner, result_summary_card
+- Descriptors: lineage_provenance, sensitivity_state, comparability, export_scope
+- Parity-health modes: full_parity, provenance_incomplete_narrowed, not_comparable_narrowed, sensitivity_restricted_narrowed, metadata_only_export_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-09T00:00:00Z)
+
+## Experiment consumers
+
+- **Notebook Run History**: `stable`
+  - Owner: Notebook run-history surface owner
+  - Scope: The notebook run history adopts the experiment run row at full parity and the environment fingerprint card auto-narrowed because the run's producing lineage / provenance is incomplete, referencing the canonical component schemas so lineage / provenance, sensitivity, comparability, and export-scope language appears here as in tasks / tests / evals, review evidence, the compare view, the companion summary, the CLI / headless export, and the support / export packet
+  - Adopted families: 2
+    - `experiment_run_row` → `schemas/ui/m5-experiment-run-row-environment-fingerprint-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `environment_fingerprint_card` → `schemas/ui/m5-experiment-run-row-environment-fingerprint-controls.schema.json` (1 worked binding(s))
+      - `provenance_incomplete_narrowed` → `claims_auto_narrowed` (banner `lineage_provenance_incomplete`)
+- **Tasks / Tests / Evals**: `stable`
+  - Owner: Tasks / tests / evals surface owner
+  - Scope: Tasks / tests / evals adopt the experiment run row, dataset provenance card, and run comparison table at full parity, referencing the canonical component schemas so lineage / provenance, sensitivity, comparability, and export-scope stay one truth across every claimed experiment surface rather than being re-worded in prose
+  - Adopted families: 3
+    - `experiment_run_row` → `schemas/ui/m5-experiment-run-row-environment-fingerprint-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `dataset_provenance_card` → `schemas/ui/m5-dataset-provenance-card-sensitivity-sharing-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `run_comparison_table` → `schemas/ui/m5-run-comparison-table-compare-guard-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+- **Review Evidence**: `stable`
+  - Owner: Review-evidence surface owner
+  - Scope: Review evidence adopts the dataset provenance card, artifact lineage panel, and compare guard banner at full parity, and the sensitivity / sharing banner auto-narrowed because the data is sensitive and redacted rather than raw, keeping lineage / provenance, sensitivity, comparability, and export-scope explicit so raw production-like data is never exposed by default
+  - Adopted families: 4
+    - `dataset_provenance_card` → `schemas/ui/m5-dataset-provenance-card-sensitivity-sharing-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `sensitivity_sharing_banner` → `schemas/ui/m5-dataset-provenance-card-sensitivity-sharing-banner-controls.schema.json` (1 worked binding(s))
+      - `sensitivity_restricted_narrowed` → `claims_auto_narrowed` (banner `sensitive_data_restricted`)
+    - `artifact_lineage_panel` → `schemas/ui/m5-artifact-lineage-panel-result-summary-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `compare_guard_banner` → `schemas/ui/m5-run-comparison-table-compare-guard-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+- **Compare View**: `stable`
+  - Owner: Compare-view surface owner
+  - Scope: The compare view adopts the compare guard banner and result summary card at full parity, and the run comparison table auto-narrowed because the comparison lacks parity evidence, keeping lineage / provenance, sensitivity, comparability, and export-scope explicit so a metric delta never implies an apples-to-apples fair baseline
+  - Adopted families: 3
+    - `result_summary_card` → `schemas/ui/m5-artifact-lineage-panel-result-summary-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `run_comparison_table` → `schemas/ui/m5-run-comparison-table-compare-guard-banner-controls.schema.json` (1 worked binding(s))
+      - `not_comparable_narrowed` → `claims_auto_narrowed` (banner `comparability_unproven`)
+    - `compare_guard_banner` → `schemas/ui/m5-run-comparison-table-compare-guard-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+- **Companion Summary**: `stable`
+  - Owner: Companion-summary surface owner
+  - Scope: The companion summary adopts the sensitivity / sharing banner at full parity and the result summary card auto-narrowed because the companion-safe export carries metadata only, keeping lineage / provenance, sensitivity, comparability, and export-scope explicit so a shared summary never implies it includes the raw payload
+  - Adopted families: 2
+    - `sensitivity_sharing_banner` → `schemas/ui/m5-dataset-provenance-card-sensitivity-sharing-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `result_summary_card` → `schemas/ui/m5-artifact-lineage-panel-result-summary-card-controls.schema.json` (1 worked binding(s))
+      - `metadata_only_export_narrowed` → `claims_auto_narrowed` (banner `export_metadata_only`)
+- **CLI / Headless Export**: `stable`
+  - Owner: CLI / headless-export surface owner
+  - Scope: The CLI / headless export adopts the environment fingerprint card and artifact lineage panel at full parity, referencing the canonical component schemas so lineage / provenance, sensitivity, comparability, and export-scope stay one truth across desktop, companion-safe summaries, and headless exports rather than being re-worded per surface
+  - Adopted families: 2
+    - `environment_fingerprint_card` → `schemas/ui/m5-experiment-run-row-environment-fingerprint-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `artifact_lineage_panel` → `schemas/ui/m5-artifact-lineage-panel-result-summary-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+- **Support / Export Packet**: `stable`
+  - Owner: Support / export-packet surface owner
+  - Scope: The support / export packet adopts the experiment run row, dataset provenance card, artifact lineage panel, run comparison table, environment fingerprint card, compare guard banner, sensitivity / sharing banner, and result summary card, referencing the canonical component schemas so its prose can never drift from the product truth and keeping lineage / provenance, sensitivity, comparability, and export-scope exact in every exported case
+  - Adopted families: 8
+    - `experiment_run_row` → `schemas/ui/m5-experiment-run-row-environment-fingerprint-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `dataset_provenance_card` → `schemas/ui/m5-dataset-provenance-card-sensitivity-sharing-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `artifact_lineage_panel` → `schemas/ui/m5-artifact-lineage-panel-result-summary-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `run_comparison_table` → `schemas/ui/m5-run-comparison-table-compare-guard-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `environment_fingerprint_card` → `schemas/ui/m5-experiment-run-row-environment-fingerprint-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `compare_guard_banner` → `schemas/ui/m5-run-comparison-table-compare-guard-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `sensitivity_sharing_banner` → `schemas/ui/m5-dataset-provenance-card-sensitivity-sharing-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
+    - `result_summary_card` → `schemas/ui/m5-artifact-lineage-panel-result-summary-card-controls.schema.json` (1 worked binding(s))
+      - `full_parity` → `claims_aligned` (banner `full`)
