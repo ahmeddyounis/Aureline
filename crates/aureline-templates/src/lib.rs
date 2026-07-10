@@ -226,6 +226,20 @@
 //! its certainty, distinct-class, support-caveat, or proving-source truth, and never invent a parallel
 //! diagnostic or banner grammar.
 //!
+//! It also owns the generator-preview-sheet and run-config-scaffold-card controls packet, which
+//! implements those two frozen generator-review component families as two co-equal control vectors —
+//! binding each generator-preview sheet to its generator identity / version, its parameters, its
+//! created-versus-modified paths, its managed-versus-user-owned files, its dependency / config impact,
+//! and its rollback or regenerate posture, with a derived write-effect posture (no-op preview,
+//! review-required write, reversible applied, or unknown / blocked) so a framework generator never
+//! implies a safe or no-op write when it changes files, dependencies, or config; and binding each
+//! run-config scaffold card to its target kind, its environment / profile, its launch command, its
+//! required toolchain, and its local / container / SSH / managed execution boundary so a user can see
+//! where code will run and which toolchain is required before a convenience action dispatches
+//! execution — so the generator-review, run-config, editor-gutter, CLI, and support surfaces can read a
+//! framework-generated write or launch without losing its write-effect, impact, recovery, or
+//! execution-boundary truth, and never invent a parallel write-effect or recovery grammar.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -247,6 +261,7 @@ pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_an
 pub mod implement_framework_pack_headers_and_framework_status_strips_with_pack_identity_version_support_range_provider_source_freshness_compatibility_and_local_versus_remote_scope_truth;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
 pub mod implement_generated_project_diff_cards_and_scaffold_handoff_banners_with_create_modify_rename_delete_counts_dependency_task_extension_impact_trust_state_and_run_now_later_review_recovery_truth_across_claimed_m5_generation_flows;
+pub mod implement_generator_preview_sheets_and_run_config_scaffold_cards_with_generator_version_file_effect_classes_dependency_config_impact_rollback_or_regenerate_posture_required_toolchains_and_local_container_ssh_managed_target_truth;
 pub mod implement_keyboard_screen_reader_cli_export_parity_and_automatic_narrowing_when_template_freshness_drifted_prerequisite_health_is_blocked_starter_parameters_are_secret_bound_or_generation_diff_truth_is_partial_across_claimed_m5_scaffold_components;
 pub mod implement_route_endpoint_rows_and_component_service_tree_nodes_with_authored_versus_generated_state_proving_source_files_or_symbols_exact_versus_heuristic_labels_and_open_source_or_open_references_continuity;
 pub mod implement_scaffold_template_cards_and_starter_parameter_rows_with_source_support_host_boundary_and_portability_truth_across_claimed_m5_project_entry_surfaces;
