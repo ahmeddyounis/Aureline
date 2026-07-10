@@ -1,0 +1,78 @@
+# M5 Framework Component Consumer Parity
+
+- Packet: `m5-framework-component-consumer:stable:0001`
+- Label: `M5 framework component consumers: the preview runtime, docs / browser, onboarding, the template registry, workflow bundles, the visual designer, and the safe support / export packet keep pack-version / support-class, evidence-source, proving-source, and local-versus-remote execution-boundary parity`
+- Framework consumers: 7 (7 stable)
+- Component families: framework_pack_header, route_endpoint_row, component_service_tree_node, convention_diagnostic_row, generator_preview_sheet, run_config_scaffold_card, derived_relationship_banner
+- Descriptors: pack_identity_and_support, evidence_certainty_and_proving_source, execution_boundary_and_impact, recovery_and_rollback_boundary
+- Parity-health modes: full_parity, pack_or_support_unverified_narrowed, heuristic_evidence_narrowed, execution_boundary_or_write_effect_narrowed, recovery_required_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-10T00:00:00Z)
+
+## Framework consumers
+
+- **Preview Runtime**: `stable`
+  - Owner: Preview-runtime surface owner
+  - Scope: The preview runtime adopts the framework pack header auto-narrowed because the active pack's identity, version, or support class is unverified, and the run-config scaffold card auto-narrowed because a run carries a non-local execution boundary disclosed before dispatch, referencing the canonical component schemas so pack-version / support-class, evidence-source, proving-source, and execution-boundary language appears here as in the docs / browser, onboarding, the template registry, workflow bundles, the visual designer, and the safe support / export packet
+  - Adopted families: 2
+    - `framework_pack_header` -> `schemas/ui/m5-framework-pack-header-status-strip-controls.schema.json` (1 worked binding(s))
+      - `pack_or_support_unverified_narrowed` -> `claims_auto_narrowed` (banner `pack_or_support_unverified`)
+    - `run_config_scaffold_card` -> `schemas/ui/m5-generator-preview-run-config-controls.schema.json` (1 worked binding(s))
+      - `execution_boundary_or_write_effect_narrowed` -> `claims_auto_narrowed` (banner `execution_boundary_or_write_effect_pending`)
+- **Docs / Browser**: `stable`
+  - Owner: Docs / browser surface owner
+  - Scope: The docs / browser adopts the route / endpoint row auto-narrowed because the route is heuristic rather than exact from source, and the component / service tree node at full parity, referencing the canonical component schemas so pack-version / support-class, evidence-source, proving-source, and execution-boundary language stays one truth and a heuristic route never reads as an exact contract fact
+  - Adopted families: 2
+    - `route_endpoint_row` -> `schemas/ui/m5-route-endpoint-component-service-tree-controls.schema.json` (1 worked binding(s))
+      - `heuristic_evidence_narrowed` -> `claims_auto_narrowed` (banner `heuristic_evidence_not_exact`)
+    - `component_service_tree_node` -> `schemas/ui/m5-route-endpoint-component-service-tree-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+- **Onboarding**: `stable`
+  - Owner: Onboarding surface owner
+  - Scope: Onboarding adopts the framework pack header at full parity and the generator preview sheet auto-narrowed because the generator write carries a file / dependency / config write effect disclosed before apply, keeping pack-version / support-class, evidence-source, proving-source, and execution-boundary language explicit so a generator never implies a safe or no-op write
+  - Adopted families: 2
+    - `framework_pack_header` -> `schemas/ui/m5-framework-pack-header-status-strip-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `generator_preview_sheet` -> `schemas/ui/m5-generator-preview-run-config-controls.schema.json` (1 worked binding(s))
+      - `execution_boundary_or_write_effect_narrowed` -> `claims_auto_narrowed` (banner `execution_boundary_or_write_effect_pending`)
+- **Template Registry**: `stable`
+  - Owner: Template-registry surface owner
+  - Scope: The template registry adopts the route / endpoint row at full parity and the convention-diagnostic row auto-narrowed because the diagnostic is a heuristic suspicion rather than an exact contract fact, referencing the canonical component schemas so pack-version / support-class, evidence-source, proving-source, and execution-boundary language stays one truth and a heuristic suspicion never reads as an exact fact
+  - Adopted families: 2
+    - `route_endpoint_row` -> `schemas/ui/m5-route-endpoint-component-service-tree-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `convention_diagnostic_row` -> `schemas/ui/m5-convention-diagnostic-derived-relationship-controls.schema.json` (1 worked binding(s))
+      - `heuristic_evidence_narrowed` -> `claims_auto_narrowed` (banner `heuristic_evidence_not_exact`)
+- **Workflow Bundle**: `stable`
+  - Owner: Workflow-bundle surface owner
+  - Scope: The workflow bundle adopts the generator preview sheet auto-narrowed because a generator applied output requiring rollback or regenerate recovery, and the run-config scaffold card at full parity, keeping pack-version / support-class, evidence-source, proving-source, and execution-boundary language explicit so the generated-versus-user-owned boundary and a rollback or regenerate path are never assumed final
+  - Adopted families: 2
+    - `generator_preview_sheet` -> `schemas/ui/m5-generator-preview-run-config-controls.schema.json` (1 worked binding(s))
+      - `recovery_required_narrowed` -> `claims_auto_narrowed` (banner `recovery_required_after_generator_write`)
+    - `run_config_scaffold_card` -> `schemas/ui/m5-generator-preview-run-config-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+- **Visual Designer**: `stable`
+  - Owner: Visual-designer surface owner
+  - Scope: The visual designer adopts the component / service tree node at full parity and the derived-relationship banner auto-narrowed because the inferred relationship is heuristic rather than exact from source, keeping pack-version / support-class, evidence-source, proving-source, and execution-boundary language explicit so an inferred link never reads as exact and the approximation appears exactly where it is consumed
+  - Adopted families: 2
+    - `component_service_tree_node` -> `schemas/ui/m5-route-endpoint-component-service-tree-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `derived_relationship_banner` -> `schemas/ui/m5-convention-diagnostic-derived-relationship-controls.schema.json` (1 worked binding(s))
+      - `heuristic_evidence_narrowed` -> `claims_auto_narrowed` (banner `heuristic_evidence_not_exact`)
+- **Safe Support / Export Packet**: `stable`
+  - Owner: Safe support / export-packet surface owner
+  - Scope: The safe support / export packet adopts the framework pack header, route / endpoint row, component / service tree node, convention-diagnostic row, generator preview sheet, run-config scaffold card, and derived-relationship banner, referencing the canonical component schemas so its prose can never drift from the product truth and keeping pack-version / support-class, evidence-source, proving-source, and execution-boundary language exact in every exported case
+  - Adopted families: 7
+    - `framework_pack_header` -> `schemas/ui/m5-framework-pack-header-status-strip-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `route_endpoint_row` -> `schemas/ui/m5-route-endpoint-component-service-tree-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `component_service_tree_node` -> `schemas/ui/m5-route-endpoint-component-service-tree-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `convention_diagnostic_row` -> `schemas/ui/m5-convention-diagnostic-derived-relationship-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `generator_preview_sheet` -> `schemas/ui/m5-generator-preview-run-config-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `run_config_scaffold_card` -> `schemas/ui/m5-generator-preview-run-config-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `derived_relationship_banner` -> `schemas/ui/m5-convention-diagnostic-derived-relationship-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)

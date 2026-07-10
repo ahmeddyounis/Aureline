@@ -240,6 +240,21 @@
 //! framework-generated write or launch without losing its write-effect, impact, recovery, or
 //! execution-boundary truth, and never invent a parallel write-effect or recovery grammar.
 //!
+//! It also owns the framework-component consumer-adoption packet, which proves the seven frozen
+//! framework-aware / topology-explorer component families are reusable components — not one
+//! framework-pack page plus a few isolated topology objects — by binding every claimed M5 framework
+//! consumer (the preview runtime, the docs / browser, onboarding, the template registry, workflow
+//! bundles, the visual designer, and the safe support / export packet) to the same canonical
+//! component schemas and the one shared pack-identity-and-support / evidence-certainty-and-proving-
+//! source / execution-boundary-and-impact / recovery-and-rollback descriptor vocabulary, so
+//! pack-version / support-class, evidence-source, proving-source, and local-versus-remote
+//! execution-boundary language stops drifting between framework-pack cards, route / topology
+//! explorers, generator-review sheets, and support artifacts; a weakened parity-health mode (an
+//! unverified pack / support, a heuristic-not-exact evidence class, a pending execution-boundary or
+//! write-effect disclosure, or a recovery-required generator write) auto-narrows the claim with a
+//! self-contained banner naming the exact reason and recovery action, a heuristic route never
+//! masquerades as exact, and a generator write or non-local run never presents a plain safe action.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -251,6 +266,7 @@
 pub mod add_convention_diagnostics_confidence_labels_suppressibility_and_proving_file_disclosure;
 pub mod add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty;
 pub mod add_richer_framework_packs_for_jupyter_terraform_kubernetes_fastapi_nestjs_rails_laravel_and_flutter;
+pub mod add_shared_preview_runtime_docs_browser_onboarding_template_registry_workflow_bundle_visual_designer_and_support_consumers_so_framework_aware_components_keep_pack_version_evidence_and_boundary_language_aligned_across_claimed_m5_profiles;
 pub mod add_shared_start_center_workspace_admission_template_registry_framework_pack_workflow_bundle_and_support_consumers_so_scaffold_components_keep_source_side_effect_and_health_language_aligned_across_claimed_m5_profiles;
 pub mod certify_scaffold_template_card_starter_parameter_row_scaffold_preflight_card_template_health_row_generated_project_diff_card_and_scaffold_handoff_banner_truth_on_every_claimed_m5_stack_entry_and_project_generation_surface;
 pub mod certify_the_template_registry_scaffold_planner_framework_packs_and_archetype_health_bundles_on_every_claimed_m5_profile;
