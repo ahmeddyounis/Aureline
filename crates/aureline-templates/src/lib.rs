@@ -110,6 +110,21 @@
 //! template-health, and support surfaces never let a generic Create hide a side effect and never
 //! let a health row monopolize the plain create-without-starter path.
 //!
+//! It also owns the generated-project-diff-card and scaffold-handoff-banner controls packet, which
+//! implements the last two frozen scaffold-component families as two co-equal control vectors —
+//! binding each generated-project diff card to its created / modified / renamed / deleted counts (the
+//! same create / modify / rename / delete vocabulary Aureline uses for AI patches, importers, and
+//! refactors), its template or generator source, its config / dependency / task / extension impact, a
+//! named checkpoint or rollback / delete-generated path, and a generated-versus-user-owned boundary
+//! cue, with a derived review disposition and boundary posture so a conflict or unavailable diff never
+//! reads as a clean applied change and a user-owned zone never reads as free-to-overwrite generated
+//! output; and binding each scaffold handoff banner to its created-workspace identity, its trust
+//! state, its health summary, its `Run now` / `Run later` / `Review files` / `Open manifest` choices,
+//! and a delete-generated or reopen-preflight recovery route, with a derived outcome posture so a
+//! partial or failed bootstrap never reads as a clean create — so the diff-review, workspace-handoff,
+//! start-center, and support surfaces keep generated output reviewable and recoverable after Aureline
+//! writes files, and never assume the safest next step for the user.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -125,6 +140,7 @@ pub mod certify_the_template_registry_scaffold_planner_framework_packs_and_arche
 pub mod freeze_the_m5_scaffold_template_card_starter_parameter_row_scaffold_preflight_card_template_health_row_generated_project_diff_card_and_scaffold_handoff_banner_component_matrix;
 pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_and_execution_context_reuse;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
+pub mod implement_generated_project_diff_cards_and_scaffold_handoff_banners_with_create_modify_rename_delete_counts_dependency_task_extension_impact_trust_state_and_run_now_later_review_recovery_truth_across_claimed_m5_generation_flows;
 pub mod implement_scaffold_template_cards_and_starter_parameter_rows_with_source_support_host_boundary_and_portability_truth_across_claimed_m5_project_entry_surfaces;
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
 pub mod ship_certified_archetype_health_check_bundles_stack_diagnostics_and_fix_forward_guidance;
