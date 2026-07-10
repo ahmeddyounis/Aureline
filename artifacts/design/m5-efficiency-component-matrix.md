@@ -1,0 +1,59 @@
+# M5 Power-State-Indicator, Throttled-Subsystem-Row, Background-Work-Row, Background-Work-Banner, Per-Workspace-Override-Sheet, Override-Policy-Note-Row, Resume-Summary-Card, and Stale-Result-Continuity-Note Component Matrix
+
+- Packet: `m5-efficiency-components:stable:0001`
+- Label: `M5 power-state-indicator, throttled-subsystem-row, background-work-row, background-work-banner, per-workspace-override-sheet, override-policy-note-row, resume-summary-card, and stale-result-continuity-note component matrix`
+- Component families: 8 (8 stable)
+- Work dispositions: running_full, slowed, paused, policy_blocked, override_available, override_blocked, resuming, stale_result_shown, not_evaluated
+- Pressure sources: ac_power, battery, os_battery_saver, user_low_power_mode, low_battery, critical_battery, thermal_pressure, frame_miss_pressure, policy_cap, pressure_cleared
+- Proof freshness SLO: 168 hours (last refresh: 2026-07-10T00:00:00Z)
+
+## Component families
+
+- **power_state_indicator**: `stable`
+  - Owner: Shell efficiency status owner
+  - Canonical schema: `schemas/ui/m5-power-state-indicator.schema.json`
+  - Scope: One power-state-indicator model naming the source of change (AC power, battery, OS battery saver, user low-power mode, low or critical battery, thermal pressure, frame-miss pressure, policy cap, or pressure cleared) and the active efficiency state, so a user never has to infer why Aureline slowed down and battery saver, thermal pressure, low-power mode, and policy cap are never collapsed into one generic warning
+  - Required labels: identity, state, keyboard_route, source_of_change
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **throttled_subsystem_row**: `stable`
+  - Owner: Shell efficiency status owner
+  - Canonical schema: `schemas/ui/m5-throttled-subsystem-row.schema.json`
+  - Scope: One throttled-subsystem-row model naming exactly which subsystem's work is slowed or paused (AI warmups, prefetch, uploads, non-essential animation, indexing refresh, extension polling, preview refresh, graph enrichment, or remote/session helpers), so a user always knows which work was reduced and what still works
+  - Required labels: identity, state, keyboard_route, source_of_change
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **background_work_row**: `stable`
+  - Owner: Activity-center owner
+  - Canonical schema: `schemas/ui/m5-background-work-row.schema.json`
+  - Scope: One background-work-row model naming a single deferred or slowed job's disposition (running full, slowed, paused, policy-blocked, resuming, or not evaluated), so a paused job is always shown explicitly and slowed-versus-paused work is never ambiguous
+  - Required labels: identity, state, keyboard_route, source_of_change, resume_and_stale_continuity
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **background_work_banner**: `stable`
+  - Owner: Activity-center owner
+  - Canonical schema: `schemas/ui/m5-background-work-banner.schema.json`
+  - Scope: One background-work-banner model naming aggregate paused or slowed work explicitly and never behind toast-only messaging, so a user is never left to infer that background work paused when pressure is active
+  - Required labels: identity, state, keyboard_route, source_of_change
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **per_workspace_override_sheet**: `stable`
+  - Owner: Policy-aware settings owner
+  - Canonical schema: `schemas/ui/m5-efficiency-override-sheet.schema.json`
+  - Scope: One per-workspace-override-sheet model naming whether an adaptation can be overridden and by whom (not overridable, user override for this session, user override persistent, policy blocked, or admin controlled) and the policy owner, so an override never reads as available when policy blocks it
+  - Required labels: identity, state, keyboard_route, override_and_policy_owner
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **override_policy_note_row**: `stable`
+  - Owner: Policy-aware settings owner
+  - Canonical schema: `schemas/ui/m5-override-policy-note-row.schema.json`
+  - Scope: One override-policy-note-row model naming the policy owner behind an adaptation (user controlled, local policy, admin policy, provider policy, or no owner resolved), so the accountable policy owner is never left implicit next to an override
+  - Required labels: identity, state, keyboard_route, override_and_policy_owner
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **resume_summary_card**: `stable`
+  - Owner: Activity-center owner
+  - Canonical schema: `schemas/ui/m5-resume-summary-card.schema.json`
+  - Scope: One resume-summary-card model naming the resumed-work backlog after pressure cleared and the recovery state (not in recovery, staged resume, awaiting user restore power, awaiting reconnect, awaiting admin policy, or recovered), so a user always sees what resumed and what still waits when pressure ends
+  - Required labels: identity, state, keyboard_route, resume_and_stale_continuity
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **stale_result_continuity_note**: `stable`
+  - Owner: Activity-center owner
+  - Canonical schema: `schemas/ui/m5-stale-result-continuity-note.schema.json`
+  - Scope: One stale-result-continuity-note model naming whether a result is fresh, retained-but-stale, refreshing, superseded, or of unknown continuity, so stale-result context is never cleared merely because background work resumed
+  - Required labels: identity, state, keyboard_route, resume_and_stale_continuity
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
