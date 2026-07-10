@@ -193,6 +193,21 @@
 //! whether the current scope is local or remote before a user trusts a framework lens, and never
 //! invent a parallel pack-header grammar.
 //!
+//! It also owns the route-endpoint-row and component-service-tree-node controls packet, which
+//! implements those two frozen topology-explorer component families as two co-equal control
+//! vectors — binding each route / endpoint row to its route / matcher, source file / symbol, HTTP /
+//! UI / runtime kind, owning framework / app, params / guards, freshness, and evidence source, with
+//! a derived certainty posture (exact from source, runtime confirmed, heuristic, or partial /
+//! unresolved) and authorship posture (authored, generated, framework provided, runtime only, or
+//! unknown origin) so a heuristic route never reads as exact and the authored-versus-generated
+//! boundary stays visible at row level; and binding each component / service tree node to its
+//! entity kind, source file / symbol, parent / child or provider / consumer relation, related test
+//! / story / doc links, and partial or derived notes — so the route-explorer, topology-explorer,
+//! editor-gutter, CLI, and support surfaces can inspect a topology row without hiding its evidence
+//! basis, every row and node links back to a canonical proving source rather than acting as a
+//! hidden parallel model, and a runtime-only or unresolved component never fakes a source it does
+//! not have.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -214,6 +229,7 @@ pub mod implement_framework_pack_headers_and_framework_status_strips_with_pack_i
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
 pub mod implement_generated_project_diff_cards_and_scaffold_handoff_banners_with_create_modify_rename_delete_counts_dependency_task_extension_impact_trust_state_and_run_now_later_review_recovery_truth_across_claimed_m5_generation_flows;
 pub mod implement_keyboard_screen_reader_cli_export_parity_and_automatic_narrowing_when_template_freshness_drifted_prerequisite_health_is_blocked_starter_parameters_are_secret_bound_or_generation_diff_truth_is_partial_across_claimed_m5_scaffold_components;
+pub mod implement_route_endpoint_rows_and_component_service_tree_nodes_with_authored_versus_generated_state_proving_source_files_or_symbols_exact_versus_heuristic_labels_and_open_source_or_open_references_continuity;
 pub mod implement_scaffold_template_cards_and_starter_parameter_rows_with_source_support_host_boundary_and_portability_truth_across_claimed_m5_project_entry_surfaces;
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
 pub mod ship_certified_archetype_health_check_bundles_stack_diagnostics_and_fix_forward_guidance;
