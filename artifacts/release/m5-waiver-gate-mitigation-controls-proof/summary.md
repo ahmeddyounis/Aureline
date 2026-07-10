@@ -1,0 +1,57 @@
+# M5 Waiver-Expiry Queue Item, Release-Gate Banner, and Mitigation Note Card Controls
+
+- Packet: `m5-waiver-gate-mitigation-controls:stable:0001`
+- Label: `M5 waiver-expiry queue item, release-gate banner, and mitigation note card controls: owner, expiry, milestone impact, blocked-versus-waived-versus-evidence-stale vocabulary, and user-facing mitigation truth`
+- Governance consumers: 5 (5 stable)
+- Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+- Waiver-expiry states: active_waiver, expiring_soon, expired_waiver, revoked_waiver, no_waiver
+- Mitigation clarities: plain_language, jargon_detected, mitigation_absent
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-10T00:00:00Z)
+
+## Governance consumers
+
+- **Assurance Dashboard**: `stable`
+  - Owner: Assurance-dashboard owner
+  - Scope: The assurance dashboard renders the shared waiver-expiry queue item so an expiring waiver reads as waived with its expiry still visible rather than passing, and the release-gate banner so a go declared over open blockers never stays go while its plain-language mitigation stays understandable
+  - Worked waiver-expiry items: 2
+    - `waiver:accessibility-audit-hold` → `waived` (waiver `expiring_soon`, mitigation `partially_mitigated`, expiry-visible `true`)
+    - `waiver:cold-start-budget-hold` → `waived` (waiver `active_waiver`, mitigation `mitigated`, expiry-visible `true`)
+  - Worked release gates: 2
+    - `gate:m5-assurance-ship` → `passing` (decision `go`, blockers `0`, waived `0`, stale `0`, mitigation `plain_language`)
+    - `gate:m5-assurance-blocked` → `blocked` (decision `no_go`, blockers `2`, waived `0`, stale `0`, mitigation `plain_language`)
+- **Operator Board**: `stable`
+  - Owner: Operator-board owner
+  - Scope: The operator board renders the shared waiver-expiry queue item so an expired or revoked waiver reads as expired_waiver rather than covering its failure, and the release-gate banner so a gate held by waived items reads as conditional and a gate on stale evidence is held pending evidence
+  - Worked waiver-expiry items: 2
+    - `waiver:memory-ceiling-lapsed` → `expired_waiver` (waiver `expired_waiver`, mitigation `partially_mitigated`, expiry-visible `true`)
+    - `waiver:error-budget-revoked` → `expired_waiver` (waiver `revoked_waiver`, mitigation `unmitigated`, expiry-visible `true`)
+  - Worked release gates: 2
+    - `gate:m5-operator-conditional` → `waived` (decision `conditional_go`, blockers `0`, waived `1`, stale `0`, mitigation `plain_language`)
+    - `gate:m5-operator-stale` → `evidence_stale` (decision `held_pending_evidence`, blockers `0`, waived `0`, stale `3`, mitigation `plain_language`)
+- **Shiproom Packet**: `stable`
+  - Owner: Shiproom-packet owner
+  - Scope: The shiproom packet renders the shared waiver-expiry queue item so a fully-mitigated retired exception reads as passing while an unwaived failure blocks, and the release-gate banner so a mitigation that collapsed into internal jargon degrades and a gate with no authorized owner or forum reads as blocked
+  - Worked waiver-expiry items: 2
+    - `waiver:startup-crash-cleared` → `passing` (waiver `no_waiver`, mitigation `mitigated`, expiry-visible `true`)
+    - `waiver:license-compliance-open` → `blocked` (waiver `no_waiver`, mitigation `unmitigated`, expiry-visible `true`)
+  - Worked release gates: 2
+    - `gate:m5-shiproom-jargon` → `warning` (decision `conditional_go`, blockers `0`, waived `0`, stale `0`, mitigation `jargon_detected`)
+    - `gate:m5-shiproom-forumless` → `forum_unresolved` (decision `blocked_by_owner_or_forum`, blockers `0`, waived `0`, stale `0`, mitigation `plain_language`)
+- **CLI Inspect**: `stable`
+  - Owner: CLI-inspect owner
+  - Scope: The CLI inspect surface renders the shared waiver-expiry queue item so a stale-evidence item reads as evidence_stale and a missing-evidence item blocks, and the release-gate banner so a not-yet-evaluated gate reads as not_evaluated and an accepted-risk gate keeps a plain-language mitigation — the same waiver/gate vocabulary a headless reviewer reads elsewhere
+  - Worked waiver-expiry items: 2
+    - `waiver:build-reproducibility-hold` → `evidence_stale` (waiver `active_waiver`, mitigation `partially_mitigated`, expiry-visible `true`)
+    - `waiver:index-freshness-hold` → `blocked` (waiver `active_waiver`, mitigation `partially_mitigated`, expiry-visible `true`)
+  - Worked release gates: 2
+    - `gate:m5-cli-not-run` → `not_evaluated` (decision `held_pending_evidence`, blockers `0`, waived `0`, stale `0`, mitigation `plain_language`)
+    - `gate:m5-cli-risk-accepted` → `warning` (decision `conditional_go`, blockers `0`, waived `0`, stale `0`, mitigation `plain_language`)
+- **Support / Export**: `stable`
+  - Owner: Support / export owner
+  - Scope: The support / export packet renders the shared waiver-expiry queue item so an item with no resolved owner reads as owner_unresolved and an expiring waiver stays waived and visible, and the release-gate banner so a gate with no user-facing mitigation degrades and a clean go still names its fallback — the same waiver/gate vocabulary a support or release reviewer reads elsewhere
+  - Worked waiver-expiry items: 2
+    - `waiver:query-throughput-hold` → `owner_unresolved` (waiver `active_waiver`, mitigation `partially_mitigated`, expiry-visible `true`)
+    - `waiver:crash-rate-expiring` → `waived` (waiver `expiring_soon`, mitigation `mitigated`, expiry-visible `true`)
+  - Worked release gates: 2
+    - `gate:m5-support-absent-note` → `warning` (decision `conditional_go`, blockers `0`, waived `0`, stale `0`, mitigation `mitigation_absent`)
+    - `gate:m5-support-clean` → `passing` (decision `go`, blockers `0`, waived `0`, stale `0`, mitigation `plain_language`)
