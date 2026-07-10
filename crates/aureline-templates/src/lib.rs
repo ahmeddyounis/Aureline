@@ -95,6 +95,21 @@
 //! and support surfaces can inspect source, support, host, and precedence posture before a user
 //! commits, and never route creation through a generic Create.
 //!
+//! It also owns the scaffold-preflight-card and template-health-row controls packet, which
+//! implements the next two frozen scaffold-component families as two co-equal control vectors —
+//! binding each preflight card to its target path and name, its generated file and folder counts,
+//! its dependency / task / extension impact, the concrete side effect it discloses (package
+//! install, dependency restore, remote provisioning, trust prompt, script execution, or extension
+//! install), whether that action runs immediately or is deferred, and a named checkpoint or
+//! delete-generated recovery path, with a derived severity so a blocked prerequisite never reads
+//! as an optional optimization and a not-run or unknown check never reads as passed; and binding
+//! each health row to its check name, status, freshness / source, `Blocker` / `Warning` / `Info`
+//! severity, auto-fix or manual-fix note, and a derived freshness posture so a stale, expired,
+//! never-checked, or unavailable signal never reads as fresh, and it keeps an explicit same-weight
+//! path to `Create empty` or `Continue without starter` — so the start-center, preflight,
+//! template-health, and support surfaces never let a generic Create hide a side effect and never
+//! let a health row monopolize the plain create-without-starter path.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -114,3 +129,4 @@ pub mod implement_scaffold_template_cards_and_starter_parameter_rows_with_source
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
 pub mod ship_certified_archetype_health_check_bundles_stack_diagnostics_and_fix_forward_guidance;
 pub mod ship_route_explorers_component_trees_and_app_topology_views_with_authored_generated_runtime_only_truth;
+pub mod ship_scaffold_preflight_cards_and_template_health_rows_with_generated_file_counts_immediate_versus_deferred_actions_blocked_warning_optional_checks_and_create_empty_parity_across_claimed_m5_bootstrap_lanes;
