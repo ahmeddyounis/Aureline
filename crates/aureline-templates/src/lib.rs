@@ -208,6 +208,24 @@
 //! hidden parallel model, and a runtime-only or unresolved component never fakes a source it does
 //! not have.
 //!
+//! It also owns the convention-diagnostic-row and derived-relationship-banner controls packet, which
+//! implements those two frozen framework-diagnostic component families as two co-equal control
+//! vectors — binding each convention-diagnostic row to its distinct diagnostic class (a hard contract
+//! violation, a pack limitation, a version mismatch, a heuristic suspicion, a deprecation notice, or
+//! an unknown diagnostic), its affected entity / file, its confidence and severity, its detected
+//! source, its suggested fix / open-docs action, and its support-class caveat, with a derived
+//! certainty posture (exact from source, runtime confirmed, heuristic, or partial / unresolved) so a
+//! framework warning never collapses hard contract violations, pack limitations, version mismatches,
+//! and heuristic suspicions into one generic warning state and a heuristic suspicion never reads as an
+//! exact contract fact; and binding each derived-relationship banner to its source of inference, its
+//! last refresh, its exact / partial / heuristic / runtime-confirmed state, its named place of
+//! consumption, and its open-raw-source or open-wider-graph actions so an inferred link never reads as
+//! exact and a banner appears exactly where inferred framework truth is consumed instead of hiding the
+//! approximation in the background — so the convention-diagnostics, editor-gutter, topology-explorer,
+//! CLI, and support surfaces can read a framework warning or an inferred relationship without losing
+//! its certainty, distinct-class, support-caveat, or proving-source truth, and never invent a parallel
+//! diagnostic or banner grammar.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -224,6 +242,7 @@ pub mod certify_scaffold_template_card_starter_parameter_row_scaffold_preflight_
 pub mod certify_the_template_registry_scaffold_planner_framework_packs_and_archetype_health_bundles_on_every_claimed_m5_profile;
 pub mod freeze_the_m5_framework_pack_header_route_endpoint_row_component_service_tree_node_convention_diagnostic_row_generator_preview_sheet_run_config_scaffold_card_and_derived_relationship_banner_component_matrix;
 pub mod freeze_the_m5_scaffold_template_card_starter_parameter_row_scaffold_preflight_card_template_health_row_generated_project_diff_card_and_scaffold_handoff_banner_component_matrix;
+pub mod implement_convention_diagnostic_rows_and_derived_relationship_banners_with_diagnostic_class_affected_entity_or_file_certainty_detected_source_suggested_fix_or_open_docs_actions_support_class_caveats_and_open_raw_source_or_wider_graph_continuity;
 pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_and_execution_context_reuse;
 pub mod implement_framework_pack_headers_and_framework_status_strips_with_pack_identity_version_support_range_provider_source_freshness_compatibility_and_local_versus_remote_scope_truth;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
