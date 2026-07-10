@@ -69,6 +69,18 @@
 //! exact first-party truth without current support-class, origin-truth, health, and
 //! downgrade cues.
 //!
+//! It also owns the frozen M5 scaffold-component matrix, which locks the reusable
+//! scaffold / project-entry components — the scaffold template card, the starter parameter
+//! row, the scaffold preflight card, the template health row, the generated-project diff
+//! card, and the scaffold handoff banner — into one export-safe packet, binding each family
+//! to its starter source class, support class, parameter source layer, immediate-versus-
+//! deferred action timing, preflight check side effects, health freshness,
+//! generated-versus-user-owned boundary, and delete-generated or continue-without-starter
+//! recovery language, so the start-center, gallery, preflight, diff-review, and handoff
+//! surfaces never let a generic Create hide a network, dependency-install, remote-provisioning,
+//! trust, or managed-workspace side effect, never blur the generated-versus-user-owned
+//! boundary, and never invent a parallel scaffold grammar.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -81,6 +93,7 @@ pub mod add_convention_diagnostics_confidence_labels_suppressibility_and_proving
 pub mod add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty;
 pub mod add_richer_framework_packs_for_jupyter_terraform_kubernetes_fastapi_nestjs_rails_laravel_and_flutter;
 pub mod certify_the_template_registry_scaffold_planner_framework_packs_and_archetype_health_bundles_on_every_claimed_m5_profile;
+pub mod freeze_the_m5_scaffold_template_card_starter_parameter_row_scaffold_preflight_card_template_health_row_generated_project_diff_card_and_scaffold_handoff_banner_component_matrix;
 pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_and_execution_context_reuse;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
