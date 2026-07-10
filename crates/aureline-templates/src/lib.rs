@@ -138,6 +138,20 @@
 //! a user what a starter depends on before any silent trust or install step, and always keep an
 //! explicit recovery path once a starter partially materializes output.
 //!
+//! It also owns the scaffold-component consumer-adoption packet, which proves the six frozen
+//! scaffold-component families are reusable components — not one start-center page plus a few
+//! isolated bootstrap objects — by binding every claimed M5 scaffold consumer (the start center,
+//! workspace admission, the template registry, framework packs, workflow bundles, help / support,
+//! and the safe handoff / export packet) to the same canonical component schemas and the one shared
+//! source-and-support / side-effect / health-freshness / recovery-and-ownership descriptor
+//! vocabulary, so starter source / support, side-effect, health-freshness, and
+//! generated-versus-user-owned / recovery language stops drifting between gallery cards, entry review
+//! sheets, workflow-bundle surfaces, and support artifacts; a weakened parity-health mode (an
+//! unverified source / support, a pending side-effect disclosure, a stale health signal, or a
+//! recovery-required partial generation) auto-narrows the claim with a self-contained banner naming
+//! the exact reason and recovery action, and a side-effect-bearing starter never presents a plain
+//! ready create.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -149,6 +163,7 @@
 pub mod add_convention_diagnostics_confidence_labels_suppressibility_and_proving_file_disclosure;
 pub mod add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty;
 pub mod add_richer_framework_packs_for_jupyter_terraform_kubernetes_fastapi_nestjs_rails_laravel_and_flutter;
+pub mod add_shared_start_center_workspace_admission_template_registry_framework_pack_workflow_bundle_and_support_consumers_so_scaffold_components_keep_source_side_effect_and_health_language_aligned_across_claimed_m5_profiles;
 pub mod certify_the_template_registry_scaffold_planner_framework_packs_and_archetype_health_bundles_on_every_claimed_m5_profile;
 pub mod freeze_the_m5_scaffold_template_card_starter_parameter_row_scaffold_preflight_card_template_health_row_generated_project_diff_card_and_scaffold_handoff_banner_component_matrix;
 pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_and_execution_context_reuse;

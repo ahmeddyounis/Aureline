@@ -1,0 +1,76 @@
+# M5 Scaffold Component Consumer Parity
+
+- Packet: `m5-scaffold-component-consumer:stable:0001`
+- Label: `M5 scaffold component consumers: the start center, workspace admission, the template registry, framework packs, workflow bundles, help / support, and the safe handoff / export packet keep starter source / support, side-effect, health-freshness, and generated-versus-user-owned / recovery parity`
+- Scaffold consumers: 7 (7 stable)
+- Component families: scaffold_template_card, starter_parameter_row, scaffold_preflight_card, template_health_row, generated_project_diff_card, scaffold_handoff_banner
+- Descriptors: source_and_support, side_effect_disclosure, health_freshness, recovery_and_ownership_boundary
+- Parity-health modes: full_parity, source_or_support_unverified_narrowed, side_effect_pending_narrowed, health_stale_narrowed, recovery_required_narrowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-09T00:00:00Z)
+
+## Scaffold consumers
+
+- **Start Center**: `stable`
+  - Owner: Start-center surface owner
+  - Scope: The start center adopts the scaffold template card auto-narrowed because the starter's source or support class is unverified, and the starter parameter row at full parity, referencing the canonical component schemas so starter source / support, side-effect, health-freshness, and generated-versus-user-owned / recovery language appears here as in workspace admission, the template registry, framework packs, workflow bundles, help / support, and the safe handoff / export packet
+  - Adopted families: 2
+    - `scaffold_template_card` -> `schemas/ui/m5-scaffold-template-card-starter-parameter-row-controls.schema.json` (1 worked binding(s))
+      - `source_or_support_unverified_narrowed` -> `claims_auto_narrowed` (banner `source_or_support_unverified`)
+    - `starter_parameter_row` -> `schemas/ui/m5-scaffold-template-card-starter-parameter-row-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+- **Workspace Admission**: `stable`
+  - Owner: Workspace-admission surface owner
+  - Scope: Workspace admission adopts the scaffold preflight card at full parity and the scaffold handoff banner auto-narrowed because a partial or failed bootstrap left generated output, keeping starter source / support, side-effect, health-freshness, and recovery language explicit so the generated-versus-user-owned boundary and a delete-generated or continue-without-starter path are never assumed final
+  - Adopted families: 2
+    - `scaffold_preflight_card` -> `schemas/ui/m5-scaffold-preflight-card-template-health-row-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `scaffold_handoff_banner` -> `schemas/ui/m5-generated-project-diff-card-scaffold-handoff-banner-controls.schema.json` (1 worked binding(s))
+      - `recovery_required_narrowed` -> `claims_auto_narrowed` (banner `recovery_required_after_partial_generation`)
+- **Template Registry**: `stable`
+  - Owner: Template-registry surface owner
+  - Scope: The template registry adopts the scaffold template card at full parity and the template health row auto-narrowed because a template-health signal is stale, referencing the canonical component schemas so starter source / support, side-effect, health-freshness, and recovery language stay one truth and a stale signal never reads as current
+  - Adopted families: 2
+    - `scaffold_template_card` -> `schemas/ui/m5-scaffold-template-card-starter-parameter-row-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `template_health_row` -> `schemas/ui/m5-scaffold-preflight-card-template-health-row-controls.schema.json` (1 worked binding(s))
+      - `health_stale_narrowed` -> `claims_auto_narrowed` (banner `health_freshness_stale`)
+- **Framework Pack**: `stable`
+  - Owner: Framework-pack surface owner
+  - Scope: The framework pack adopts the scaffold preflight card auto-narrowed because the pack starter carries a network / dependency-install / remote-provisioning / trust / managed-workspace side effect disclosed before any create, and the template health row at full parity, keeping starter source / support, side-effect, health-freshness, and recovery language explicit so a generic Create never hides a side effect
+  - Adopted families: 2
+    - `scaffold_preflight_card` -> `schemas/ui/m5-scaffold-preflight-card-template-health-row-controls.schema.json` (1 worked binding(s))
+      - `side_effect_pending_narrowed` -> `claims_auto_narrowed` (banner `side_effect_disclosure_pending`)
+    - `template_health_row` -> `schemas/ui/m5-scaffold-preflight-card-template-health-row-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+- **Workflow Bundle**: `stable`
+  - Owner: Workflow-bundle surface owner
+  - Scope: The workflow bundle adopts the starter parameter row and the generated-project diff card at full parity, referencing the canonical component schemas so starter source / support, side-effect, health-freshness, and recovery language stay one truth across desktop entry, workflow-bundle surfaces, and support artifacts rather than being re-worded per surface
+  - Adopted families: 2
+    - `starter_parameter_row` -> `schemas/ui/m5-scaffold-template-card-starter-parameter-row-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `generated_project_diff_card` -> `schemas/ui/m5-generated-project-diff-card-scaffold-handoff-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+- **Help / Support**: `stable`
+  - Owner: Help / support surface owner
+  - Scope: Help / support adopts the generated-project diff card auto-narrowed because a partial or failed bootstrap left generated output requiring recovery, and the scaffold handoff banner at full parity, keeping starter source / support, side-effect, health-freshness, and recovery language explicit so a support flow never blurs the generated-versus-user-owned boundary
+  - Adopted families: 2
+    - `generated_project_diff_card` -> `schemas/ui/m5-generated-project-diff-card-scaffold-handoff-banner-controls.schema.json` (1 worked binding(s))
+      - `recovery_required_narrowed` -> `claims_auto_narrowed` (banner `recovery_required_after_partial_generation`)
+    - `scaffold_handoff_banner` -> `schemas/ui/m5-generated-project-diff-card-scaffold-handoff-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+- **Safe Handoff / Export Packet**: `stable`
+  - Owner: Safe handoff / export-packet surface owner
+  - Scope: The safe handoff / export packet adopts the scaffold template card, starter parameter row, scaffold preflight card, template health row, generated-project diff card, and scaffold handoff banner, referencing the canonical component schemas so its prose can never drift from the product truth and keeping starter source / support, side-effect, health-freshness, and generated-versus-user-owned / recovery language exact in every exported case
+  - Adopted families: 6
+    - `scaffold_template_card` -> `schemas/ui/m5-scaffold-template-card-starter-parameter-row-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `starter_parameter_row` -> `schemas/ui/m5-scaffold-template-card-starter-parameter-row-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `scaffold_preflight_card` -> `schemas/ui/m5-scaffold-preflight-card-template-health-row-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `template_health_row` -> `schemas/ui/m5-scaffold-preflight-card-template-health-row-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `generated_project_diff_card` -> `schemas/ui/m5-generated-project-diff-card-scaffold-handoff-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
+    - `scaffold_handoff_banner` -> `schemas/ui/m5-generated-project-diff-card-scaffold-handoff-banner-controls.schema.json` (1 worked binding(s))
+      - `full_parity` -> `claims_aligned` (banner `full`)
