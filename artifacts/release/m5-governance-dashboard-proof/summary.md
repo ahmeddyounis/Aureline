@@ -1,0 +1,64 @@
+# M5 Fitness-Dashboard-Tile, Governance-Report-Row, Waiver-Expiry-Queue-Item, Release-Gate-Banner, Mitigation-Note-Card, Service-Ownership-Card, On-Call-Strip, Decision-Right-Card, and Milestone-Dashboard-Row Component Matrix
+
+- Packet: `m5-governance-dashboard-components:stable:0001`
+- Label: `M5 fitness-dashboard-tile, governance-report-row, waiver-expiry-queue-item, release-gate-banner, mitigation-note-card, service-ownership-card, on-call-strip, decision-right-card, and milestone-dashboard-row component matrix`
+- Component families: 9 (9 stable)
+- Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-10T00:00:00Z)
+
+## Component families
+
+- **fitness_dashboard_tile**: `stable`
+  - Owner: Fitness-dashboard component owner
+  - Scope: One fitness-dashboard-tile model carrying a fitness-function reading and the corpus/profile provenance behind it — canonical corpus, pinned profile, sampled, synthetic, or unknown — so a passing tile is never shown while its evidence is stale or its provenance is unknown
+  - Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+  - Required labels: identity, state, keyboard_route, evidence_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **governance_report_row**: `stable`
+  - Owner: Governance-report component owner
+  - Scope: One governance-report-row model naming the report scope — service, family, train, fleet, or waiver ledger — and the lane's readiness with its evidence, so a blocked or evidence-stale lane is never summarized as clear
+  - Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+  - Required labels: identity, state, keyboard_route, evidence_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **waiver_expiry_queue_item**: `stable`
+  - Owner: Waiver-ledger component owner
+  - Scope: One waiver-expiry-queue-item model naming the waiver's lifecycle — active, expiring soon, expired, revoked, or none — and when it lapses, so an expired or revoked waiver is never shown as still holding a blocker
+  - Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+  - Required labels: identity, state, keyboard_route, evidence_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **release_gate_banner**: `stable`
+  - Owner: Release-gate component owner
+  - Scope: One release-gate-banner model naming the ship/no-ship decision — go, no-go, conditional, held pending evidence, or blocked by an unresolved owner or forum — with a specific reason, so a held or blocked gate is never shown as a generic go
+  - Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+  - Required labels: identity, state, keyboard_route, evidence_freshness, decision_forum
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **mitigation_note_card**: `stable`
+  - Owner: Mitigation-note component owner
+  - Scope: One mitigation-note-card model carrying user-facing, jargon-free mitigation language and its posture — mitigated, partially mitigated, unmitigated, risk accepted, or unknown — so an unmitigated or merely accepted risk is never shown as resolved and support/export can reuse the text
+  - Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+  - Required labels: identity, state, keyboard_route, evidence_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **service_ownership_card**: `stable`
+  - Owner: Service-ownership component owner
+  - Scope: One service-ownership-card model naming owner coverage — owned with backup, primary only, unresolved, stale, or policy-hidden — and its freshness, so a backup-missing or unresolved owner is never shown as covered
+  - Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+  - Required labels: identity, state, keyboard_route, owner_and_escalation, evidence_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **on_call_strip**: `stable`
+  - Owner: On-call component owner
+  - Scope: One on-call-strip model naming on-call coverage — covered, gap, escalation-only, follow-the-sun, or unknown — and the escalation route, so an on-call gap or a missing escalation path is never shown as covered
+  - Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+  - Required labels: identity, state, keyboard_route, owner_and_escalation, evidence_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **decision_right_card**: `stable`
+  - Owner: Decision-right component owner
+  - Scope: One decision-right-card model naming the forum authorized to approve the next move — release council, service owner, security review board, architecture forum, or none — and its state, so an advisory or unresolved forum is never shown as authoritative
+  - Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+  - Required labels: identity, state, keyboard_route, decision_forum, evidence_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **milestone_dashboard_row**: `stable`
+  - Owner: Milestone-dashboard component owner
+  - Scope: One milestone-dashboard-row model naming the milestone's exit-gate state — met, pending, blocked, waived, or stale — so a blocked, waived, or stale exit gate is never shown as met
+  - Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+  - Required labels: identity, state, keyboard_route, evidence_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
