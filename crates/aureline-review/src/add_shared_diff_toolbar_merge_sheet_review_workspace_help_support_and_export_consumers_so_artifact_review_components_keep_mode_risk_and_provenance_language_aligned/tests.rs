@@ -428,9 +428,8 @@ fn consumer_packet_validates() {
 
 #[test]
 fn render_disclosure_maps_fidelity_to_mode() {
-    let faithful = resolve_artifact_component_render_disclosure(
-        M5ArtifactFidelityState::StructuredFaithful,
-    );
+    let faithful =
+        resolve_artifact_component_render_disclosure(M5ArtifactFidelityState::StructuredFaithful);
     assert_eq!(
         faithful.expected_mode,
         ArtifactReviewComponentRenderMode::FullParity
@@ -487,8 +486,9 @@ fn render_disclosure_maps_fidelity_to_mode() {
 fn parity_drift_across_surfaces_fails() {
     let mut packet = packet();
     // Reword the canonical-source label on one surface for a shared object.
-    packet.consumer_bindings[1].parity_facets.canonical_source_label =
-        "Reworded label for the diff toolbar".to_owned();
+    packet.consumer_bindings[1]
+        .parity_facets
+        .canonical_source_label = "Reworded label for the diff toolbar".to_owned();
     assert!(packet
         .validate()
         .contains(&ArtifactReviewComponentConsumerViolation::ParityDriftAcrossSurfaces));
@@ -712,7 +712,9 @@ fn artifact_labels_reworded_per_surface_fails() {
 #[test]
 fn parity_facet_incomplete_fails() {
     let mut packet = packet();
-    packet.consumer_bindings[0].parity_facets.provenance_relation = String::new();
+    packet.consumer_bindings[0]
+        .parity_facets
+        .provenance_relation = String::new();
     // Rewording one surface also trips drift; assert the incomplete facet is reported.
     assert!(packet
         .validate()
@@ -851,8 +853,8 @@ fn fixture_structured_fidelity_narrowed() -> ArtifactReviewComponentConsumerPack
     ArtifactReviewComponentConsumerPacket::new(ArtifactReviewComponentConsumerPacketInput {
         packet_id: "artifact-review-component-consumer:fixture:structured-fidelity-narrowed"
             .to_owned(),
-        surface_label:
-            "Shared artifact-review-component consumers: structured fidelity narrowed".to_owned(),
+        surface_label: "Shared artifact-review-component consumers: structured fidelity narrowed"
+            .to_owned(),
         consumer_bindings: bindings,
         downgrade_triggers: vec![
             ArtifactReviewComponentConsumerDowngradeTrigger::RenderUntrusted,
@@ -876,8 +878,8 @@ fn fixture_raw_fallback_and_redaction() -> ArtifactReviewComponentConsumerPacket
     ArtifactReviewComponentConsumerPacket::new(ArtifactReviewComponentConsumerPacketInput {
         packet_id: "artifact-review-component-consumer:fixture:raw-fallback-and-redaction"
             .to_owned(),
-        surface_label:
-            "Shared artifact-review-component consumers: raw fallback and redaction".to_owned(),
+        surface_label: "Shared artifact-review-component consumers: raw fallback and redaction"
+            .to_owned(),
         consumer_bindings: bindings,
         downgrade_triggers: vec![
             ArtifactReviewComponentConsumerDowngradeTrigger::SchemaUnrecognized,

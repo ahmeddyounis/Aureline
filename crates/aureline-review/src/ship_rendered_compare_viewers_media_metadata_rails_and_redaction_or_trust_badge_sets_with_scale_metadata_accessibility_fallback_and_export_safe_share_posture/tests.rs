@@ -36,7 +36,7 @@ fn rendered_compare_viewers() -> Vec<RenderedCompareViewer> {
                 "alt_text_fallback".to_owned(),
             ],
             source_contract_refs: vec![
-                M5_ARTIFACT_COMPONENT_MATRIX_RENDERED_VIEWER_CONTRACT_REF.to_owned(),
+                M5_ARTIFACT_COMPONENT_MATRIX_RENDERED_VIEWER_CONTRACT_REF.to_owned()
             ],
         },
         RenderedCompareViewer {
@@ -48,8 +48,8 @@ fn rendered_compare_viewers() -> Vec<RenderedCompareViewer> {
             scale_or_dimension_metadata: "980px wide, fit-to-width".to_owned(),
             alt_text_fallback: "Coverage report: 82% lines, 74% branches covered".to_owned(),
             sandbox_note: "Rendered inside a sandbox with scripting disabled".to_owned(),
-            untrusted_render_note:
-                "The report is untrusted HTML; rendered read-only in a sandbox".to_owned(),
+            untrusted_render_note: "The report is untrusted HTML; rendered read-only in a sandbox"
+                .to_owned(),
             raw_fallback_label: String::new(),
             redaction_note: String::new(),
             available_actions: vec![
@@ -66,7 +66,7 @@ fn rendered_compare_viewers() -> Vec<RenderedCompareViewer> {
                 "alt_text_fallback".to_owned(),
             ],
             source_contract_refs: vec![
-                M5_ARTIFACT_COMPONENT_MATRIX_RENDERED_VIEWER_CONTRACT_REF.to_owned(),
+                M5_ARTIFACT_COMPONENT_MATRIX_RENDERED_VIEWER_CONTRACT_REF.to_owned()
             ],
         },
         RenderedCompareViewer {
@@ -97,7 +97,7 @@ fn rendered_compare_viewers() -> Vec<RenderedCompareViewer> {
                 "alt_text_fallback".to_owned(),
             ],
             source_contract_refs: vec![
-                M5_ARTIFACT_COMPONENT_MATRIX_RENDERED_VIEWER_CONTRACT_REF.to_owned(),
+                M5_ARTIFACT_COMPONENT_MATRIX_RENDERED_VIEWER_CONTRACT_REF.to_owned()
             ],
         },
     ]
@@ -117,7 +117,8 @@ fn media_metadata_rails() -> Vec<MediaMetadataRail> {
             hidden_content_note: String::new(),
             safety_posture: MediaSafetyPosture::ExportSafe,
             share_scope: MediaShareScope::TeamShare,
-            share_guidance: "Export-safe: shareable with the team and in support packets".to_owned(),
+            share_guidance: "Export-safe: shareable with the team and in support packets"
+                .to_owned(),
             schema_fidelity: M5ArtifactFidelityState::StructuredFaithful,
             raw_context_action: "Open the raw snapshot bytes".to_owned(),
             rollback_posture: M5ArtifactComponentRollbackPosture::ReadOnlyNoMutation,
@@ -127,7 +128,7 @@ fn media_metadata_rails() -> Vec<MediaMetadataRail> {
                 "safety_posture".to_owned(),
             ],
             source_contract_refs: vec![
-                M5_ARTIFACT_COMPONENT_MATRIX_MEDIA_RAIL_CONTRACT_REF.to_owned(),
+                M5_ARTIFACT_COMPONENT_MATRIX_MEDIA_RAIL_CONTRACT_REF.to_owned()
             ],
         },
         MediaMetadataRail {
@@ -153,7 +154,7 @@ fn media_metadata_rails() -> Vec<MediaMetadataRail> {
                 "hidden_content_state".to_owned(),
             ],
             source_contract_refs: vec![
-                M5_ARTIFACT_COMPONENT_MATRIX_MEDIA_RAIL_CONTRACT_REF.to_owned(),
+                M5_ARTIFACT_COMPONENT_MATRIX_MEDIA_RAIL_CONTRACT_REF.to_owned()
             ],
         },
         MediaMetadataRail {
@@ -179,7 +180,7 @@ fn media_metadata_rails() -> Vec<MediaMetadataRail> {
                 "hidden_content_state".to_owned(),
             ],
             source_contract_refs: vec![
-                M5_ARTIFACT_COMPONENT_MATRIX_MEDIA_RAIL_CONTRACT_REF.to_owned(),
+                M5_ARTIFACT_COMPONENT_MATRIX_MEDIA_RAIL_CONTRACT_REF.to_owned()
             ],
         },
     ]
@@ -211,7 +212,7 @@ fn redaction_trust_badge_sets() -> Vec<RedactionOrTrustBadgeSet> {
                 "available_badges".to_owned(),
             ],
             source_contract_refs: vec![
-                M5_ARTIFACT_COMPONENT_MATRIX_REDACTION_BADGE_CONTRACT_REF.to_owned(),
+                M5_ARTIFACT_COMPONENT_MATRIX_REDACTION_BADGE_CONTRACT_REF.to_owned()
             ],
         },
         RedactionOrTrustBadgeSet {
@@ -239,7 +240,7 @@ fn redaction_trust_badge_sets() -> Vec<RedactionOrTrustBadgeSet> {
                 "redaction_note".to_owned(),
             ],
             source_contract_refs: vec![
-                M5_ARTIFACT_COMPONENT_MATRIX_REDACTION_BADGE_CONTRACT_REF.to_owned(),
+                M5_ARTIFACT_COMPONENT_MATRIX_REDACTION_BADGE_CONTRACT_REF.to_owned()
             ],
         },
         RedactionOrTrustBadgeSet {
@@ -267,7 +268,7 @@ fn redaction_trust_badge_sets() -> Vec<RedactionOrTrustBadgeSet> {
                 "untrusted_note".to_owned(),
             ],
             source_contract_refs: vec![
-                M5_ARTIFACT_COMPONENT_MATRIX_REDACTION_BADGE_CONTRACT_REF.to_owned(),
+                M5_ARTIFACT_COMPONENT_MATRIX_REDACTION_BADGE_CONTRACT_REF.to_owned()
             ],
         },
     ]
@@ -394,7 +395,8 @@ fn media_rail_resolver_derives_from_state() {
     let none = resolve_media_rail_disclosure(HiddenContentState::NoEmbeddedSensitiveContent);
     assert!(!none.needs_hidden_content_note);
 
-    let present = resolve_media_rail_disclosure(HiddenContentState::EmbeddedSensitiveContentPresent);
+    let present =
+        resolve_media_rail_disclosure(HiddenContentState::EmbeddedSensitiveContentPresent);
     assert!(present.needs_hidden_content_note);
     assert!(!present.needs_unknown_scan_note);
 
@@ -483,8 +485,10 @@ fn viewer_actions_missing_fails() {
 #[test]
 fn open_raw_action_missing_fails() {
     let mut packet = packet();
-    packet.rendered_compare_viewers[0].available_actions =
-        vec![RenderedViewerAction::Export, RenderedViewerAction::ViewTextFallback];
+    packet.rendered_compare_viewers[0].available_actions = vec![
+        RenderedViewerAction::Export,
+        RenderedViewerAction::ViewTextFallback,
+    ];
     assert!(packet
         .validate()
         .contains(&MediaCompareControlsViolation::OpenRawActionMissing));
@@ -493,8 +497,10 @@ fn open_raw_action_missing_fails() {
 #[test]
 fn export_action_missing_fails() {
     let mut packet = packet();
-    packet.rendered_compare_viewers[0].available_actions =
-        vec![RenderedViewerAction::OpenRaw, RenderedViewerAction::ViewTextFallback];
+    packet.rendered_compare_viewers[0].available_actions = vec![
+        RenderedViewerAction::OpenRaw,
+        RenderedViewerAction::ViewTextFallback,
+    ];
     assert!(packet
         .validate()
         .contains(&MediaCompareControlsViolation::ExportActionMissing));
@@ -579,9 +585,9 @@ fn unsanitized_hidden_content_shareable_fails() {
 #[test]
 fn hidden_content_state_coverage_missing_fails() {
     let mut packet = packet();
-    packet
-        .media_metadata_rails
-        .retain(|rail| rail.hidden_content_state != HiddenContentState::EmbeddedSensitiveContentPresent);
+    packet.media_metadata_rails.retain(|rail| {
+        rail.hidden_content_state != HiddenContentState::EmbeddedSensitiveContentPresent
+    });
     assert!(packet
         .validate()
         .contains(&MediaCompareControlsViolation::HiddenContentStateCoverageMissing));
@@ -637,7 +643,9 @@ fn export_posture_not_preserved_fails() {
 #[test]
 fn trust_badges_missing_fails() {
     let mut packet = packet();
-    packet.redaction_trust_badge_sets[0].available_badges.clear();
+    packet.redaction_trust_badge_sets[0]
+        .available_badges
+        .clear();
     assert!(packet
         .validate()
         .contains(&MediaCompareControlsViolation::TrustBadgesMissing));

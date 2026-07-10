@@ -276,7 +276,9 @@ impl ArtifactReviewComponentNarrowReason {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::StructuredFidelityDegraded => "structured_fidelity_degraded",
-            Self::StructuredModeUnavailableRawFallback => "structured_mode_unavailable_raw_fallback",
+            Self::StructuredModeUnavailableRawFallback => {
+                "structured_mode_unavailable_raw_fallback"
+            }
             Self::ContentRedactedOrWithheld => "content_redacted_or_withheld",
         }
     }
@@ -997,11 +999,12 @@ impl ArtifactReviewComponentConsumerViolation {
 /// Reads and validates the checked-in stable artifact-review consumer export.
 pub fn current_artifact_review_component_consumer_export(
 ) -> Result<ArtifactReviewComponentConsumerPacket, ArtifactReviewComponentConsumerArtifactError> {
-    let packet: ArtifactReviewComponentConsumerPacket = serde_json::from_str(include_str!(concat!(
+    let packet: ArtifactReviewComponentConsumerPacket =
+        serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../artifacts/release/m5-structured-artifact-review-consumers-proof/support_export.json"
     )))
-    .map_err(ArtifactReviewComponentConsumerArtifactError::SupportExport)?;
+        .map_err(ArtifactReviewComponentConsumerArtifactError::SupportExport)?;
     let violations = packet.validate();
     if violations.is_empty() {
         Ok(packet)
@@ -1098,8 +1101,9 @@ fn validate_bindings(
                         );
                     }
                     if banner.next_action_label.trim().is_empty() {
-                        violations
-                            .push(ArtifactReviewComponentConsumerViolation::NarrowNextActionMissing);
+                        violations.push(
+                            ArtifactReviewComponentConsumerViolation::NarrowNextActionMissing,
+                        );
                     }
                 }
             }
@@ -1117,7 +1121,8 @@ fn validate_bindings(
 
         // Guardrail row-invariants (each must be false).
         if binding.promotes_compare_only_to_writable_state {
-            violations.push(ArtifactReviewComponentConsumerViolation::CompareOnlyPromotedToWritable);
+            violations
+                .push(ArtifactReviewComponentConsumerViolation::CompareOnlyPromotedToWritable);
         }
         if binding.flattens_structured_mode_without_explanation {
             violations.push(
@@ -1184,7 +1189,8 @@ fn validate_bindings(
     // Reuse: every present component must be adopted by two or more distinct consumers.
     for consumers in component_consumers.values() {
         if consumers.len() < 2 {
-            violations.push(ArtifactReviewComponentConsumerViolation::ArtifactComponentReuseUnproven);
+            violations
+                .push(ArtifactReviewComponentConsumerViolation::ArtifactComponentReuseUnproven);
             break;
         }
     }

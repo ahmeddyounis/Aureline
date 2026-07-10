@@ -557,7 +557,9 @@ pub struct RenderedViewerDisclosure {
 }
 
 /// Resolves the disclosures a rendered compare viewer must carry from its trust class.
-pub fn resolve_rendered_viewer_disclosure(trust_class: RenderTrustClass) -> RenderedViewerDisclosure {
+pub fn resolve_rendered_viewer_disclosure(
+    trust_class: RenderTrustClass,
+) -> RenderedViewerDisclosure {
     RenderedViewerDisclosure {
         needs_sandbox_note: trust_class.is_sandboxed(),
         needs_untrusted_render_note: matches!(trust_class, RenderTrustClass::SandboxedUntrusted),
@@ -1357,7 +1359,8 @@ fn validate_rendered_compare_viewers(
         if disclosure.needs_sandbox_note && viewer.sandbox_note.trim().is_empty() {
             violations.push(MediaCompareControlsViolation::SandboxNoteMissing);
         }
-        if disclosure.needs_untrusted_render_note && viewer.untrusted_render_note.trim().is_empty() {
+        if disclosure.needs_untrusted_render_note && viewer.untrusted_render_note.trim().is_empty()
+        {
             violations.push(MediaCompareControlsViolation::UntrustedRenderNoteMissing);
         }
         if disclosure.needs_raw_fallback_label && viewer.raw_fallback_label.trim().is_empty() {
