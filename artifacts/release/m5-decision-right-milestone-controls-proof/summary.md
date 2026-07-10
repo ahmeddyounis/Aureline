@@ -1,0 +1,57 @@
+# M5 Decision-Right Card and Milestone Dashboard Row Controls
+
+- Packet: `m5-decision-right-milestone-controls:stable:0001`
+- Label: `M5 decision-right card and milestone dashboard row controls: required forum/reason, satisfied/pending state, target milestone, owning team, blocker/waiver counts, gate state, nearest review forum, and next-review continuity across claimed M5 shiproom and operator surfaces`
+- Governance consumers: 5 (5 stable)
+- Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+- Decision-forum classes: release_council, service_owner, security_review_board, architecture_forum, no_authorized_forum
+- Milestone-gate states: exit_gate_met, exit_gate_pending, exit_gate_blocked, exit_gate_waived, exit_gate_stale
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-10T00:00:00Z)
+
+## Governance consumers
+
+- **Shiproom Board**: `stable`
+  - Owner: Shiproom-board owner
+  - Scope: The shiproom board renders the shared decision-right card so a milestone gated on a still-pending release-council review never reads ready while the council can still block it, its required forum and reason stay visible, and the milestone row so an exit gate with open blockers never reads met while its owning team and blocker/waiver counts stay visible
+  - Worked decision cards: 2
+    - `card:shiproom-ga-cut` → `warning` (forum `release_council`, state `authoritative_forum`, satisfaction `review_pending`, review-required `true`, blocking-shown `true`)
+    - `card:shiproom-docs-cut` → `passing` (forum `service_owner`, state `authoritative_forum`, satisfaction `review_satisfied`, review-required `true`, blocking-shown `false`)
+  - Worked milestone rows: 2
+    - `milestone:m5-ga` → `blocked` (owner-accountable `true`, blockers 2, waivers 0, gate `exit_gate_blocked`, nearest forum `release_council`)
+    - `milestone:m5-docs` → `passing` (owner-accountable `true`, blockers 0, waivers 0, gate `exit_gate_met`, nearest forum `service_owner`)
+- **Operator Board**: `stable`
+  - Owner: Operator-board owner
+  - Scope: The operator board reuses the same decision-right card so an advisory-only forum reads warning rather than authoritative and a required review with no authorized forum reads forum_unresolved, and the milestone row so a gate held under a waiver never reads met while its waiver count stays visible — the same model shiproom and support surfaces use
+  - Worked decision cards: 2
+    - `card:operator-arch-advisory` → `warning` (forum `architecture_forum`, state `advisory_only`, satisfaction `review_pending`, review-required `true`, blocking-shown `true`)
+    - `card:operator-no-forum` → `forum_unresolved` (forum `no_authorized_forum`, state `forum_unresolved`, satisfaction `review_pending`, review-required `true`, blocking-shown `true`)
+  - Worked milestone rows: 2
+    - `milestone:m5-waived` → `waived` (owner-accountable `true`, blockers 0, waivers 1, gate `exit_gate_waived`, nearest forum `release_council`)
+    - `milestone:m5-pending` → `warning` (owner-accountable `true`, blockers 0, waivers 0, gate `exit_gate_pending`, nearest forum `service_owner`)
+- **Release Center**: `stable`
+  - Owner: Release-center owner
+  - Scope: The release center renders the shared decision-right card so a decision delegated elsewhere reads warning and a stale-evidence decision reads evidence_stale, and the milestone row so a milestone with no resolved owning team reads owner_unresolved rather than drifting into a summary-only pass and a stale exit gate reads evidence_stale
+  - Worked decision cards: 2
+    - `card:release-delegated` → `warning` (forum `service_owner`, state `delegated_decision`, satisfaction `review_pending`, review-required `true`, blocking-shown `true`)
+    - `card:release-stale-evidence` → `evidence_stale` (forum `release_council`, state `authoritative_forum`, satisfaction `review_satisfied`, review-required `true`, blocking-shown `true`)
+  - Worked milestone rows: 2
+    - `milestone:m5-orphan` → `owner_unresolved` (owner-accountable `false`, blockers 0, waivers 0, gate `exit_gate_pending`, nearest forum `release_council`)
+    - `milestone:m5-stale` → `evidence_stale` (owner-accountable `true`, blockers 0, waivers 0, gate `exit_gate_stale`, nearest forum `release_council`)
+- **Support / Export**: `stable`
+  - Owner: Support / export owner
+  - Scope: The support / export packet reuses the same decision-right card so a waived review reads waived and a not-yet-evaluated decision reads not_evaluated, and the milestone row so missing gate evidence reads evidence_stale and a milestone with no nearest review forum reads forum_unresolved — the same model operator and shiproom surfaces read, reconstructable from the export
+  - Worked decision cards: 2
+    - `card:support-waived-review` → `waived` (forum `security_review_board`, state `authoritative_forum`, satisfaction `review_waived`, review-required `true`, blocking-shown `true`)
+    - `card:support-not-evaluated` → `not_evaluated` (forum `release_council`, state `not_evaluated_here`, satisfaction `review_not_required`, review-required `false`, blocking-shown `true`)
+  - Worked milestone rows: 2
+    - `milestone:m5-missing` → `evidence_stale` (owner-accountable `true`, blockers 0, waivers 0, gate `exit_gate_met`, nearest forum `service_owner`)
+    - `milestone:m5-no-forum` → `forum_unresolved` (owner-accountable `true`, blockers 0, waivers 0, gate `exit_gate_pending`, nearest forum `no_authorized_forum`)
+- **CLI Inspect**: `stable`
+  - Owner: CLI-inspect owner
+  - Scope: The CLI inspect surface renders the shared decision-right card so a decision with no required review reads passing and a decision with missing evidence blocks, and the milestone row so a met gate with zero blockers and zero waivers reads passing and an aging-evidence milestone reads warning — the same decision-right/milestone vocabulary a headless reviewer reads elsewhere
+  - Worked decision cards: 2
+    - `card:cli-clean` → `passing` (forum `service_owner`, state `authoritative_forum`, satisfaction `review_not_required`, review-required `false`, blocking-shown `false`)
+    - `card:cli-missing-evidence` → `blocked` (forum `release_council`, state `authoritative_forum`, satisfaction `review_satisfied`, review-required `true`, blocking-shown `true`)
+  - Worked milestone rows: 2
+    - `milestone:m5-cli-clean` → `passing` (owner-accountable `true`, blockers 0, waivers 0, gate `exit_gate_met`, nearest forum `service_owner`)
+    - `milestone:m5-cli-aging` → `warning` (owner-accountable `true`, blockers 0, waivers 0, gate `exit_gate_met`, nearest forum `service_owner`)
