@@ -1,0 +1,57 @@
+# M5 Protected-Path Governance Component Matrix
+
+- Packet: `m5-protected-path-governance-component-matrix:stable:0001`
+- Label: `M5 Protected-Path Governance Component Matrix`
+- Components: 8 (6 stable)
+- Proof freshness SLO: 168 hours (last refresh: 2026-07-10T00:00:00Z)
+
+## Components
+
+- **protected_path_row**: `stable`
+  - Scope: Protected-path row naming why a file or surface is guarded (owner rule, protected-path policy, public-surface class) so the protection reason is always explicit rather than an anonymous lock icon
+  - Enforcement distinction: Provider-enforced branch protection is labeled provider_authoritative; a local protected-path match is labeled authoritative when the manifest enforces it and advisory when it is only a hint; the local match count is labeled local_estimate and never presented as the provider's final gate
+  - Escalation boundary: Requesting a protected-path exception on the provider or shiproom is an explicit handoff with a labeled return path to the review workspace
+  - Backup-coverage fallback: When provider protection state is stale the row keeps the last-known protection reason labeled stale and continues local protected-path matching without asserting the provider's gate
+  - Rollback: read_only_no_mutation
+- **ownership_card**: `stable`
+  - Scope: Ownership card naming the owner source (CODEOWNERS entry, DRI registry, manifest) and whether the guarded path is covered or has missing backup coverage
+  - Enforcement distinction: Provider-resolved owners are labeled provider_authoritative; owners derived from a local manifest are labeled authoritative when enforced and advisory when a hint; an advisory owner hint never masquerades as provider_authoritative enforcement
+  - Escalation boundary: Requesting an owner or backup assignment on the provider or shiproom is an explicit handoff with a labeled return path to the ownership card
+  - Backup-coverage fallback: When owner backup coverage is missing the card labels the path backup_missing, keeps the primary owner shown, and never presents the path as covered
+  - Rollback: read_only_no_mutation
+- **approver_matrix**: `stable`
+  - Scope: Approver matrix naming which approvers are required per protected path and each approver's state (satisfied, waived, expired, stale) rather than a single approved/blocked pill
+  - Enforcement distinction: Provider-recomputed approval state is labeled provider_authoritative; a local prediction of remaining approvals is labeled local_estimate and never asserted as the provider's decision
+  - Escalation boundary: Re-requesting or waiving an approval on the provider or shiproom is an explicit handoff with a labeled return path to the approver matrix
+  - Backup-coverage fallback: When provider approval state is stale the matrix keeps last-known approver rows labeled stale, marks any expired approvals expired, and continues local review without asserting fresh approval
+  - Rollback: provider_mutation_attributable
+- **review_pack_summary**: `stable`
+  - Scope: Review-pack summary naming review-pack freshness and parity so a stale review pack or a pack that has drifted from the current head is visible rather than presented as fresh
+  - Enforcement distinction: Provider-confirmed review-pack results are labeled provider_authoritative; the locally evaluated review-pack parity is labeled local_estimate and never presented as the provider's confirmed verdict
+  - Escalation boundary: Re-running the review pack on the provider or shiproom is an explicit handoff with a labeled return path to the review-pack summary
+  - Backup-coverage fallback: When the review pack is stale the summary labels it stale, shows the last-known parity result, and offers a local re-run to restore parity without asserting fresh provider truth
+  - Rollback: read_only_no_mutation
+- **public_surface_diff_card**: `stable`
+  - Scope: Public-surface diff card naming the change class (command, schema, SDK, token) and carrying a machine-generated diff so a public-surface change never lands without diff and migration context
+  - Enforcement distinction: Provider-published surface truth is labeled provider_authoritative; the locally generated public-surface diff is labeled local_estimate until the provider confirms it and never presented as the published surface of record
+  - Escalation boundary: Publishing or migrating a public surface on the provider or shiproom is an explicit handoff with a labeled return path to the public-surface diff card
+  - Backup-coverage fallback: When the machine-generated diff is unavailable the card blocks the public-surface claim, labels the diff missing, and never presents the change as a safe no-op
+  - Rollback: evidence_preserved_no_revert
+- **merge_control_banner**: `stable`
+  - Scope: Merge-control banner naming each merge blocker (missing owner backup, expired approval, stale review pack, unreviewed public surface) rather than collapsing them into one generic warning pill
+  - Enforcement distinction: Provider-enforced merge blockers are labeled provider_authoritative; locally predicted blockers are labeled local_estimate and never asserted as the provider's final block
+  - Escalation boundary: Overriding or waiving a merge blocker on the provider or shiproom is an explicit handoff with a labeled return path to the merge-control banner
+  - Backup-coverage fallback: When provider merge-control state is stale the banner keeps last-known blockers labeled stale, names each blocker individually, and never flattens them into a single ready/blocked state
+  - Rollback: return_path_preserved
+- **dri_registry_row**: `beta`
+  - Scope: DRI-registry row naming the directly responsible individual for a guarded surface and whether the DRI has coverage or a gap, so a surface with no DRI is visible rather than silently unowned
+  - Enforcement distinction: A registry-recorded DRI is labeled authoritative; an inferred DRI from recent authorship is labeled advisory and local_estimate and never presented as the registry's authoritative assignment
+  - Escalation boundary: Assigning or reassigning a DRI on the shiproom or governance surface is an explicit handoff with a labeled return path to the DRI registry
+  - Backup-coverage fallback: When the DRI registry has a coverage gap the row labels the surface backup_missing, shows any inferred DRI as advisory, and never presents the surface as covered
+  - Rollback: read_only_no_mutation
+- **merge_readiness_strip**: `preview`
+  - Scope: Merge-readiness strip summarizing blocking state and ownership as a compact strip; blocking reasons stay explicit rather than collapsed into a single ready/not-ready pill
+  - Enforcement distinction: Provider-enforced readiness gates are labeled provider_authoritative; the local readiness estimate is labeled local_estimate and never presented as the provider's final gate
+  - Escalation boundary: Resolving a readiness blocker on the provider or shiproom is an explicit handoff with a labeled return path to the merge-readiness strip
+  - Backup-coverage fallback: When provider readiness state is stale the strip keeps last-known gates labeled stale and continues local readiness estimation without asserting provider approval
+  - Rollback: read_only_no_mutation
