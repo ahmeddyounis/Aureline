@@ -178,6 +178,21 @@
 //! generated-versus-user-owned / recovery continuity, never lets a generic `Create` hide a side
 //! effect, and never exposes a secret-bound raw value by default.
 //!
+//! It also owns the framework-pack-header and framework-status-strip controls packet, which
+//! implements the frozen framework-pack-header component family as two co-equal control vectors —
+//! binding each pack header to its pack identity and version range, its support class, its
+//! provider source, its selected workspace scope, its freshness, its certainty, and its execution
+//! boundary, with a derived support posture, framework-experience class (core native, pack-backed,
+//! bridged, or heuristic), and scope posture (local, container, remote, managed, or unknown) so
+//! bridge or heuristic behavior never reads as exact first-party support and a remote, managed,
+//! container, or unknown scope never reads as local; and binding each compact status strip to its
+//! detected framework and version, its pack health, its compatibility notes, and its
+//! bridge-or-heuristic posture wherever a framework-aware feature is claimed — so the
+//! framework-pack, route / topology, convention-diagnostics, generator-review, CLI, and support
+//! surfaces can tell which pack and version is active, how it is supported, who provides it, and
+//! whether the current scope is local or remote before a user trusts a framework lens, and never
+//! invent a parallel pack-header grammar.
+//!
 //! Finally, it owns the M5 certification packet, which certifies every claimed M5
 //! template, scaffold, framework-pack, and archetype-health *profile* on the
 //! mainline branch — binding each profile to a certification verdict, the upstream
@@ -195,6 +210,7 @@ pub mod certify_the_template_registry_scaffold_planner_framework_packs_and_arche
 pub mod freeze_the_m5_framework_pack_header_route_endpoint_row_component_service_tree_node_convention_diagnostic_row_generator_preview_sheet_run_config_scaffold_card_and_derived_relationship_banner_component_matrix;
 pub mod freeze_the_m5_scaffold_template_card_starter_parameter_row_scaffold_preflight_card_template_health_row_generated_project_diff_card_and_scaffold_handoff_banner_component_matrix;
 pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_and_execution_context_reuse;
+pub mod implement_framework_pack_headers_and_framework_status_strips_with_pack_identity_version_support_range_provider_source_freshness_compatibility_and_local_versus_remote_scope_truth;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
 pub mod implement_generated_project_diff_cards_and_scaffold_handoff_banners_with_create_modify_rename_delete_counts_dependency_task_extension_impact_trust_state_and_run_now_later_review_recovery_truth_across_claimed_m5_generation_flows;
 pub mod implement_keyboard_screen_reader_cli_export_parity_and_automatic_narrowing_when_template_freshness_drifted_prerequisite_health_is_blocked_starter_parameters_are_secret_bound_or_generation_diff_truth_is_partial_across_claimed_m5_scaffold_components;
