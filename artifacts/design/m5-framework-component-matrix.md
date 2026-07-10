@@ -1,0 +1,52 @@
+# M5 Framework-Pack-Header, Route-Endpoint-Row, Component-Service-Tree-Node, Convention-Diagnostic-Row, Generator-Preview-Sheet, Run-Config-Scaffold-Card, and Derived-Relationship-Banner Component Matrix
+
+- Packet: `m5-framework-components:stable:0001`
+- Label: `M5 framework-pack-header, route-endpoint-row, component-service-tree-node, convention-diagnostic-row, generator-preview-sheet, run-config-scaffold-card, and derived-relationship-banner component matrix`
+- Component families: 7 (7 stable)
+- Dispositions: core_native, framework_pack, bridge, heuristic_convention, verified, derived_by_convention, runtime_confirmed, partial
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-09T00:00:00Z)
+
+## Component families
+
+- **framework_pack_header**: `stable`
+  - Owner: Framework pack header owner
+  - Scope: One framework-pack-header model naming which pack and version is active (identified and versioned, version pinned, version drifted, multiple detected, unversioned, or unknown pack) and how it is supported (officially supported, community supported, experimental, bridge only, deprecated, or unsupported), so a header never leaves its pack identity, version, or support class implicit and never presents bridge or heuristic behavior as exact first-party support
+  - Dispositions: core_native, framework_pack, bridge, partial
+  - Required labels: identity, state, keyboard_route, pack_source_and_certainty
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **route_endpoint_row**: `stable`
+  - Owner: Route endpoint row owner
+  - Scope: One route-endpoint-row model naming how a route or endpoint is known (exact from source, a heuristic convention, runtime confirmed, derived by convention, partial evidence, or unresolved) and whether it is authored or generated (authored, generated, generated then edited, framework provided, runtime only, or unknown origin), so a heuristic route never masquerades as an exact one and the authored-versus-generated boundary is always explicit
+  - Dispositions: verified, heuristic_convention, runtime_confirmed, derived_by_convention, partial
+  - Required labels: identity, state, keyboard_route, pack_source_and_certainty, proving_source_and_recovery_boundary
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **component_service_tree_node**: `stable`
+  - Owner: Component service tree node owner
+  - Scope: One component-service-tree-node model naming what the node represents (a component, a service, a module, a dependency edge, an external boundary, or an unknown node) and how the relationship is known (exact from source, heuristic inferred, runtime confirmed, derived by convention, partial evidence, or unresolved), so an inferred component tree never masquerades as an exact one and every node names its proving source
+  - Dispositions: verified, heuristic_convention, runtime_confirmed, derived_by_convention, partial
+  - Required labels: identity, state, keyboard_route, pack_source_and_certainty, proving_source_and_recovery_boundary
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **convention_diagnostic_row**: `stable`
+  - Owner: Convention diagnostic row owner
+  - Scope: One convention-diagnostic-row model naming how confident the diagnostic is (verified, high confidence, a heuristic convention, derived by convention, low confidence, or unknown) and its severity (error, warning, hint, info, suppressed, or stale), so a heuristic convention guess never reads as a verified fact and every diagnostic names the files that prove it
+  - Dispositions: verified, heuristic_convention, derived_by_convention, partial
+  - Required labels: identity, state, keyboard_route, proving_source_and_recovery_boundary
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **generator_preview_sheet**: `stable`
+  - Owner: Generator preview sheet owner
+  - Scope: One generator-preview-sheet model naming what a generator or codemod will change (file write, dependency change, config change, script or task change, no change, or unknown impact) and what it permits (preview ready, review required, apply ready, rollback available, regenerate available, or blocked), so a generator never implies a no-op write when it changes config or dependencies and rollback or regenerate stays explicit
+  - Dispositions: core_native, framework_pack, bridge, partial
+  - Required labels: identity, state, keyboard_route, execution_boundary_and_impact, proving_source_and_recovery_boundary
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **run_config_scaffold_card**: `stable`
+  - Owner: Run-config scaffold card owner
+  - Scope: One run-config-scaffold-card model naming where a framework convenience action will actually run (a local process, a container, an SSH remote, a managed workspace, a cloud remote, or an unknown boundary) and what it writes (creates a config file, edits a config file, adds a dependency, a no-write preview, rollback available, or unknown mutation), so the local, container, SSH, or managed boundary never hides behind framework convenience language and a convenience action never implies a no-op write
+  - Dispositions: core_native, framework_pack, bridge, partial
+  - Required labels: identity, state, keyboard_route, execution_boundary_and_impact, proving_source_and_recovery_boundary
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **derived_relationship_banner**: `stable`
+  - Owner: Derived-relationship banner owner
+  - Scope: One derived-relationship-banner model naming how a relationship is known (exact from source, inferred from runtime, a heuristic link, derived by convention, a partial link, or an unresolved link) and how firmly it links to its proving source (proving source linked, source linked partial, runtime evidence only, convention only, no proving source, or unknown proving), so a derived or inferred link never masquerades as an exact one and every derived state names its proving evidence
+  - Dispositions: verified, runtime_confirmed, heuristic_convention, derived_by_convention, partial
+  - Required labels: identity, state, keyboard_route, proving_source_and_recovery_boundary
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
