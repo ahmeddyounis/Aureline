@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-approver-review-pack-controls.schema.json",
+  "title": "Aureline M5 approver-matrix / review-pack-summary controls",
+  "description": "Boundary contract for the reusable M5 approver matrix and review-pack summary controls: one export-safe packet binding a vector of approver matrix rows and a vector of review-pack summaries to one evaluation-locus, approver-state, and suppression vocabulary. The Rust validator in crates/aureline-review is the authoritative gate; this schema documents the export shape. A CI-only or local-only evaluation never masquerades as provider-authoritative, a not-evaluated-here pack never reads as evaluated, and a waived or expired approval never collapses into generic approved language.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "approver_matrix_rows",
+    "review_pack_summaries",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "implement_approver_matrices_and_review_pack_summaries_with_requirement_source_approval_state_local_versus_provider_evaluation_parity_suppressed_check_visibility_and_freshness_truth"
+    },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "surface_label": { "$ref": "#/$defs/non_empty_string" },
+    "approver_matrix_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/approver_matrix_row" }
+    },
+    "review_pack_summaries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/review_pack_summary" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "review": { "type": "object" },
+    "consumer_projection": { "type": "object" },
+    "proof_freshness": {
+      "type": "object",
+      "required": ["proof_freshness_slo_hours", "last_proof_refresh", "auto_narrow_on_stale"],
+      "properties": {
+        "proof_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_proof_refresh": { "$ref": "#/$defs/non_empty_string" },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "governance_state_vocab": {
+      "enum": [
+        "advisory",
+        "authoritative",
+        "covered",
+        "backup_missing",
+        "waived",
+        "expired",
+        "stale",
+        "provider_authoritative",
+        "local_estimate"
+      ]
+    },
+    "evaluation_locus_source": {
+      "enum": [
+        "provider_enforced_gate",
+        "provider_reported_status",
+        "local_evaluation_only",
+        "ci_reported_only",
+        "not_evaluated_here",
+        "stale_against_base_head"
+      ]
+    },
+    "evaluation_locus_posture": {
+      "enum": [
+        "provider_authoritative",
+        "local_only",
+        "ci_only",
+        "not_evaluated_here",
+        "stale_relative_to_head"
+      ]
+    },
+    "approver_state_source": {
+      "enum": [
+        "required_approval_recorded",
+        "provider_confirmed_approval",
+        "awaiting_required_approval",
+        "changes_requested_pending",
+        "approval_waived_by_policy",
+        "approval_expired"
+      ]
+    },
+    "approver_state_posture": {
+      "enum": ["satisfied", "pending", "waived", "expired"]
+    },
+    "requirement_source_class": {
+      "enum": [
+        "branch_protection_rule",
+        "codeowners_rule",
+        "review_policy_rule",
+        "manual_review_request",
+        "unresolved"
+      ]
+    },
+    "evidence_link_kind": {
+      "enum": [
+        "provider_approval_record",
+        "ci_check_run",
+        "local_evaluation_record",
+        "waiver_record",
+        "no_evidence_link"
+      ]
+    },
+    "pack_capability": {
+      "enum": [
+        "ownership_approval",
+        "protected_path_gate",
+        "public_surface_diff",
+        "ci_status_rollup",
+        "policy_gate"
+      ]
+    },
+    "pack_suppression_class": {
+      "enum": ["waived_approval", "skipped_check", "policy_suppressed", "provider_excluded"]
+    },
+    "suppressed_check": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["check_label", "suppression_class", "reason_label"],
+      "properties": {
+        "check_label": { "$ref": "#/$defs/non_empty_string" },
+        "suppression_class": { "$ref": "#/$defs/pack_suppression_class" },
+        "reason_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "approver_matrix_row": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "component",
+        "row_id",
+        "approver_role_label",
+        "requirement_source_class",
+        "requirement_source_label",
+        "evaluation_locus_source",
+        "derived_evaluation_locus",
+        "approver_state_source",
+        "derived_approver_state",
+        "claims_satisfied",
+        "governance_state_vocab",
+        "evidence_link_kind",
+        "context_note"
+      ],
+      "properties": {
+        "component": { "const": "approver_matrix" },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "approver_role_label": { "$ref": "#/$defs/non_empty_string" },
+        "requirement_source_class": { "$ref": "#/$defs/requirement_source_class" },
+        "requirement_source_label": { "$ref": "#/$defs/non_empty_string" },
+        "evaluation_locus_source": { "$ref": "#/$defs/evaluation_locus_source" },
+        "derived_evaluation_locus": { "$ref": "#/$defs/evaluation_locus_posture" },
+        "claims_provider_authoritative": { "type": "boolean" },
+        "approver_state_source": { "$ref": "#/$defs/approver_state_source" },
+        "derived_approver_state": { "$ref": "#/$defs/approver_state_posture" },
+        "claims_satisfied": { "type": "boolean" },
+        "governance_state_vocab": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/governance_state_vocab" }
+        },
+        "evidence_link_kind": { "$ref": "#/$defs/evidence_link_kind" },
+        "context_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "review_pack_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "component",
+        "summary_id",
+        "pack_digest_label",
+        "base_identity_label",
+        "head_identity_label",
+        "capability_set",
+        "capability_set_label",
+        "evaluation_locus_source",
+        "derived_evaluation_locus",
+        "claims_provider_authoritative",
+        "claims_evaluated_here",
+        "parity_label",
+        "freshness_label",
+        "governance_state_vocab",
+        "suppressed_checks",
+        "suppressed_checks_label",
+        "context_note"
+      ],
+      "properties": {
+        "component": { "const": "review_pack_summary" },
+        "summary_id": { "$ref": "#/$defs/non_empty_string" },
+        "pack_digest_label": { "$ref": "#/$defs/non_empty_string" },
+        "base_identity_label": { "$ref": "#/$defs/non_empty_string" },
+        "head_identity_label": { "$ref": "#/$defs/non_empty_string" },
+        "capability_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/pack_capability" }
+        },
+        "capability_set_label": { "$ref": "#/$defs/non_empty_string" },
+        "evaluation_locus_source": { "$ref": "#/$defs/evaluation_locus_source" },
+        "derived_evaluation_locus": { "$ref": "#/$defs/evaluation_locus_posture" },
+        "claims_provider_authoritative": { "type": "boolean" },
+        "claims_evaluated_here": { "type": "boolean" },
+        "parity_label": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_label": { "$ref": "#/$defs/non_empty_string" },
+        "governance_state_vocab": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/governance_state_vocab" }
+        },
+        "suppressed_checks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppressed_check" }
+        },
+        "suppressed_checks_label": { "$ref": "#/$defs/non_empty_string" },
+        "context_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
