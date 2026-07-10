@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ui/m5-service-ownership-on-call-controls.schema.json",
+  "title": "Aureline M5 service-ownership card and on-call strip controls",
+  "description": "Export-safe packet for the two reusable M5 governance-dashboard primitives implemented as one controls packet: the service-ownership card (service or surface identity, owning role/team, support class, escalation path, owner freshness, and backup-coverage state) and the on-call strip (role alias, current availability state, primary/secondary distinction, escalation route, and export-safe handoff continuity). It narrows the service_ownership_card and on_call_strip families frozen in schemas/ui/m5-governance-dashboard-component-matrix.schema.json into two resolvers plus a parity matrix, so a support agent, operator, or release reviewer can tell — from the card and the strip alone — who actually owns a service or protected surface, what its support class is, whether a backup exists, how fresh the owner record is, who is on call, and how a page escalates. Each controls row binds one claimed M5 governance consumer (the operator board, the release center, the service-health surface, the support export, and the CLI inspect) to the shared anatomy, the frozen readiness-state vocabulary, the ownership-coverage states, the on-call-coverage states, the escalation-route classes, the support classes, the owner-source and freshness readings, degrade reasons, next actions, actions, export fields, and non-visual accessibility routes, plus worked resolution cases that must reproduce the resolver output exactly. Hard invariants forbid rendering an unowned or backup-missing surface as covered, inheriting the last interacting team as the owner, hiding an on-call gap or the escalation route, and inventing an ownership-local status word. Raw URLs, raw tokens, credentials, private endpoints, and user text bodies never cross this boundary; an owner or on-call alias is a role alias, never a personal contact detail. The Rust validator in crates/aureline-release is the authoritative gate; this schema documents the shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "matrix_label",
+    "controls_rows",
+    "vocabulary_set",
+    "governance_review",
+    "consumer_projection",
+    "proof_freshness",
+    "release_posture",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "implement_m5_service_ownership_cards_and_on_call_strips_across_claimed_m5_operator_and_release_surfaces"
+    },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "matrix_label": { "$ref": "#/$defs/non_empty_string" },
+    "controls_rows": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/controls_row" }
+    },
+    "vocabulary_set": { "type": "object" },
+    "governance_review": {
+      "type": "object",
+      "description": "Every flag is a hard invariant and must be true."
+    },
+    "consumer_projection": {
+      "type": "object",
+      "description": "Every flag is a hard invariant and must be true."
+    },
+    "proof_freshness": {
+      "type": "object",
+      "required": ["proof_freshness_slo_hours", "last_proof_refresh", "auto_narrow_on_stale"],
+      "properties": {
+        "proof_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_proof_refresh": { "$ref": "#/$defs/non_empty_string" },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    },
+    "release_posture": { "type": "object" },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "consumer_surface": {
+      "enum": [
+        "operator_board",
+        "release_center",
+        "service_health",
+        "support_export",
+        "cli_inspect"
+      ]
+    },
+    "readiness_state": {
+      "enum": [
+        "passing",
+        "warning",
+        "blocked",
+        "waived",
+        "expired_waiver",
+        "evidence_stale",
+        "owner_unresolved",
+        "forum_unresolved",
+        "not_evaluated"
+      ]
+    },
+    "ownership_coverage_state": {
+      "enum": [
+        "owned_with_backup",
+        "primary_only_no_backup",
+        "owner_unresolved",
+        "owner_stale",
+        "policy_hidden"
+      ]
+    },
+    "owner_source": {
+      "enum": [
+        "authoritative_roster",
+        "declared_owner_role",
+        "last_interacting_team_inference",
+        "owner_unrecorded"
+      ]
+    },
+    "on_call_coverage_state": {
+      "enum": [
+        "on_call_covered",
+        "on_call_gap",
+        "escalation_only",
+        "follow_the_sun",
+        "on_call_unknown"
+      ]
+    },
+    "controls_row": {
+      "type": "object",
+      "required": [
+        "consumer_surface",
+        "qualification",
+        "owner_role",
+        "scope_summary",
+        "anatomy_parts",
+        "readiness_states",
+        "support_classes",
+        "ownership_coverage_states",
+        "on_call_coverage_states",
+        "escalation_route_classes",
+        "card_actions",
+        "strip_actions",
+        "export_fields",
+        "accessibility_routes",
+        "ownership_examples",
+        "on_call_examples"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "qualification": {
+          "enum": ["stable", "beta", "preview", "experimental", "unavailable", "held"]
+        },
+        "owner_role": { "$ref": "#/$defs/non_empty_string" },
+        "scope_summary": { "$ref": "#/$defs/non_empty_string" },
+        "anatomy_parts": { "type": "array", "minItems": 1 },
+        "readiness_states": { "type": "array", "minItems": 1 },
+        "support_classes": { "type": "array", "minItems": 1 },
+        "ownership_coverage_states": { "type": "array", "minItems": 1 },
+        "on_call_coverage_states": { "type": "array", "minItems": 1 },
+        "escalation_route_classes": { "type": "array", "minItems": 1 },
+        "card_actions": { "type": "array", "minItems": 1 },
+        "strip_actions": { "type": "array", "minItems": 2 },
+        "export_fields": { "type": "array", "minItems": 1 },
+        "accessibility_routes": { "type": "array", "minItems": 1 },
+        "ownership_examples": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ownership_case" }
+        },
+        "on_call_examples": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/on_call_case" }
+        },
+        "renders_unowned_or_backup_missing_as_covered": { "const": false },
+        "inherits_last_interacting_team_as_owner": { "const": false },
+        "hides_on_call_gap_or_escalation_route": { "const": false },
+        "invents_ownership_local_status_grammar": { "const": false }
+      }
+    },
+    "ownership_case": {
+      "type": "object",
+      "required": ["input", "resolved"],
+      "properties": {
+        "input": { "type": "object" },
+        "resolved": {
+          "type": "object",
+          "required": [
+            "service_id_repr",
+            "coverage_state",
+            "owner_source",
+            "owner_resolved",
+            "backup_present",
+            "readiness_state",
+            "is_clean_pass",
+            "coverage_visible",
+            "card_actions"
+          ],
+          "properties": {
+            "coverage_state": { "$ref": "#/$defs/ownership_coverage_state" },
+            "owner_source": { "$ref": "#/$defs/owner_source" },
+            "owner_resolved": { "type": "boolean" },
+            "backup_present": { "type": "boolean" },
+            "readiness_state": { "$ref": "#/$defs/readiness_state" },
+            "is_clean_pass": { "type": "boolean" },
+            "coverage_visible": { "const": true },
+            "card_actions": { "type": "array", "minItems": 1 }
+          }
+        }
+      }
+    },
+    "on_call_case": {
+      "type": "object",
+      "required": ["input", "resolved"],
+      "properties": {
+        "input": { "type": "object" },
+        "resolved": {
+          "type": "object",
+          "required": [
+            "strip_id_repr",
+            "coverage_state",
+            "escalation_route_explicit",
+            "readiness_state",
+            "is_clean_pass",
+            "handoff_continuity",
+            "strip_actions"
+          ],
+          "properties": {
+            "coverage_state": { "$ref": "#/$defs/on_call_coverage_state" },
+            "escalation_route_explicit": { "type": "boolean" },
+            "readiness_state": { "$ref": "#/$defs/readiness_state" },
+            "is_clean_pass": { "type": "boolean" },
+            "handoff_continuity": { "const": true },
+            "strip_actions": { "type": "array", "minItems": 2 }
+          }
+        }
+      }
+    }
+  }
+}

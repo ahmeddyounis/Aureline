@@ -1,0 +1,57 @@
+# M5 Service-Ownership Card and On-Call Strip Controls
+
+- Packet: `m5-service-ownership-on-call-controls:stable:0001`
+- Label: `M5 service-ownership card and on-call strip controls: role-based owner/escalation aliases, support class, owner freshness, backup coverage, and export-safe handoff continuity across claimed M5 operator and release surfaces`
+- Governance consumers: 5 (5 stable)
+- Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+- Ownership-coverage states: owned_with_backup, primary_only_no_backup, owner_unresolved, owner_stale, policy_hidden
+- On-call-coverage states: on_call_covered, on_call_gap, escalation_only, follow_the_sun, on_call_unknown
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-10T00:00:00Z)
+
+## Governance consumers
+
+- **Operator Board**: `stable`
+  - Owner: Operator-board owner
+  - Scope: The operator board renders the shared service-ownership card so a protected surface with a primary owner but no named backup reads as a warning with its coverage still visible rather than covered, and the on-call strip so an on-call gap never reads as covered while a fully-covered strip names its primary and escalation route
+  - Worked ownership cards: 2
+    - `service:ingest-gateway` → `warning` (coverage `primary_only_no_backup`, source `declared_owner_role`, backup `false`, covered-visible `true`)
+    - `service:edge-router` → `passing` (coverage `owned_with_backup`, source `authoritative_roster`, backup `true`, covered-visible `true`)
+  - Worked on-call strips: 2
+    - `strip:ingest-gateway-oncall` → `blocked` (coverage `on_call_gap`, availability `no_coverage`, tier `secondary_on_call`, escalation `page_backup`)
+    - `strip:edge-router-oncall` → `passing` (coverage `on_call_covered`, availability `available_now`, tier `primary_on_call`, escalation `page_primary`)
+- **Release Center**: `stable`
+  - Owner: Release-center owner
+  - Scope: The release center reuses the same role-based ownership card so an owner that is only inferred from the last interacting team reads as owner_unresolved rather than inheriting that team as false truth, and the on-call strip so a strip with no escalation path blocks and an escalation-only strip degrades — the same model support and operator surfaces use
+  - Worked ownership cards: 2
+    - `service:release-orchestrator` → `owner_unresolved` (coverage `owner_unresolved`, source `last_interacting_team_inference`, backup `false`, covered-visible `true`)
+    - `service:artifact-store` → `evidence_stale` (coverage `owner_stale`, source `authoritative_roster`, backup `true`, covered-visible `true`)
+  - Worked on-call strips: 2
+    - `strip:release-orchestrator-oncall` → `blocked` (coverage `escalation_only`, availability `available_now`, tier `manager_escalation`, escalation `no_escalation_path`)
+    - `strip:artifact-store-oncall` → `warning` (coverage `escalation_only`, availability `off_shift`, tier `manager_escalation`, escalation `escalate_to_manager`)
+- **Service Health**: `stable`
+  - Owner: Service-health owner
+  - Scope: The service-health surface renders the shared service-ownership card so a missing owner record blocks and policy-hidden ownership warns rather than reading covered, and the on-call strip so a strip with no named responder reads owner_unresolved and a stale roster reads evidence_stale
+  - Worked ownership cards: 2
+    - `service:metrics-pipeline` → `blocked` (coverage `owned_with_backup`, source `authoritative_roster`, backup `true`, covered-visible `true`)
+    - `service:audit-log` → `warning` (coverage `policy_hidden`, source `authoritative_roster`, backup `true`, covered-visible `true`)
+  - Worked on-call strips: 2
+    - `strip:metrics-pipeline-oncall` → `owner_unresolved` (coverage `escalation_only`, availability `available_now`, tier `no_named_responder`, escalation `escalate_to_manager`)
+    - `strip:audit-log-oncall` → `evidence_stale` (coverage `on_call_covered`, availability `available_now`, tier `primary_on_call`, escalation `page_primary`)
+- **Support / Export**: `stable`
+  - Owner: Support / export owner
+  - Scope: The support / export packet reuses the same role-based ownership card so a not-yet-evaluated owner record reads not_evaluated and an aging record warns, and the on-call strip so an unknown posture reads not_evaluated and a pending handoff warns — the same model operator and release surfaces read, reconstructable from the export
+  - Worked ownership cards: 2
+    - `service:query-router` → `not_evaluated` (coverage `owned_with_backup`, source `authoritative_roster`, backup `true`, covered-visible `true`)
+    - `service:search-index` → `warning` (coverage `owned_with_backup`, source `authoritative_roster`, backup `true`, covered-visible `true`)
+  - Worked on-call strips: 2
+    - `strip:query-router-oncall` → `not_evaluated` (coverage `on_call_covered`, availability `availability_unknown`, tier `primary_on_call`, escalation `page_primary`)
+    - `strip:search-index-oncall` → `warning` (coverage `follow_the_sun`, availability `handoff_pending`, tier `primary_on_call`, escalation `incident_bridge`)
+- **CLI Inspect**: `stable`
+  - Owner: CLI-inspect owner
+  - Scope: The CLI inspect surface renders the shared service-ownership card so a fully-owned service reads passing and a backup-missing surface warns, and the on-call strip so a follow-the-sun covered strip reads passing and a not-yet-evaluated strip reads not_evaluated — the same ownership/escalation vocabulary a headless reviewer reads elsewhere
+  - Worked ownership cards: 2
+    - `service:config-service` → `passing` (coverage `owned_with_backup`, source `authoritative_roster`, backup `true`, covered-visible `true`)
+    - `service:notification-hub` → `warning` (coverage `primary_only_no_backup`, source `declared_owner_role`, backup `false`, covered-visible `true`)
+  - Worked on-call strips: 2
+    - `strip:config-service-oncall` → `passing` (coverage `follow_the_sun`, availability `available_now`, tier `primary_on_call`, escalation `page_primary`)
+    - `strip:notification-hub-oncall` → `not_evaluated` (coverage `on_call_unknown`, availability `available_now`, tier `primary_on_call`, escalation `page_primary`)
