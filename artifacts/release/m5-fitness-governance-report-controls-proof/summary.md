@@ -1,0 +1,57 @@
+# M5 Fitness Dashboard Tile and Governance Report Row Controls
+
+- Packet: `m5-fitness-governance-report-controls:stable:0001`
+- Label: `M5 fitness dashboard tile and governance report row controls: protected-metric identity, threshold state, corpus/profile provenance, evidence freshness, owner, and compare-or-open-report continuity`
+- Assurance consumers: 5 (5 stable)
+- Readiness states: passing, warning, blocked, waived, expired_waiver, evidence_stale, owner_unresolved, forum_unresolved, not_evaluated
+- Provenance disclosures: canonical_within_support_class, sampled_disclose_caveat, synthetic_disclose_caveat, profile_pinned_disclose_scope, provenance_undisclosed
+- Evidence-freshness states: evidence_fresh, evidence_aging, evidence_stale, evidence_missing, evidence_unknown
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-10T00:00:00Z)
+
+## Assurance consumers
+
+- **Assurance Dashboard**: `stable`
+  - Owner: Assurance-dashboard owner
+  - Scope: The assurance dashboard renders the shared fitness tile so a green metric whose evidence has gone stale reads as evidence_stale — not passing — and a green metric whose evidence came from a wrong profile reads as warning, while a sampled-corpus governance report is disclosed as not trustable outside its support class before it is trusted
+  - Worked fitness tiles: 2
+    - `fitness:api-p99-latency` → `evidence_stale` (declared `metric_pass`, evidence `evidence_stale`, profile `profile_matched`)
+    - `fitness:cold-start-budget` → `warning` (declared `metric_pass`, evidence `evidence_fresh`, profile `wrong_profile`)
+  - Worked governance reports: 2
+    - `report:fitness-rollup-fleet` → `passing` (provenance `sampled_corpus`, disclosure `sampled_disclose_caveat`, trustable-outside `false`)
+    - `report:release-readiness-train` → `passing` (provenance `canonical_corpus`, disclosure `canonical_within_support_class`, trustable-outside `true`)
+- **Operator Board**: `stable`
+  - Owner: Operator-board owner
+  - Scope: The operator board renders the shared fitness tile so a passing metric with fresh, profile-matched evidence reads as passing, a failed metric that breached its threshold reads as blocked, and a governance report whose corpus/profile provenance is undisclosed degrades to warning rather than reading like a clean pass
+  - Worked fitness tiles: 2
+    - `fitness:error-budget-burn` → `passing` (declared `metric_pass`, evidence `evidence_fresh`, profile `profile_matched`)
+    - `fitness:memory-ceiling` → `blocked` (declared `metric_fail`, evidence `evidence_fresh`, profile `profile_matched`)
+  - Worked governance reports: 2
+    - `report:ownership-coverage-family` → `passing` (provenance `synthetic_corpus`, disclosure `synthetic_disclose_caveat`, trustable-outside `false`)
+    - `report:milestone-exit-service` → `warning` (provenance `provenance_unknown`, disclosure `provenance_undisclosed`, trustable-outside `false`)
+- **Shiproom Packet**: `stable`
+  - Owner: Shiproom-packet owner
+  - Scope: The shiproom packet renders the shared fitness tile so a waived metric reads as waived rather than passing and a not-run metric reads as not_evaluated, while a canonical governance result read outside its support class, and a pinned-profile partial result, each disclose their corpus/profile before they are trusted
+  - Worked fitness tiles: 2
+    - `fitness:startup-crash-rate` → `waived` (declared `metric_waived`, evidence `evidence_fresh`, profile `profile_matched`)
+    - `fitness:accessibility-audit` → `not_evaluated` (declared `metric_not_run`, evidence `evidence_unknown`, profile `profile_match_unknown`)
+  - Worked governance reports: 2
+    - `report:fitness-rollup-service-oob` → `warning` (provenance `canonical_corpus`, disclosure `profile_pinned_disclose_scope`, trustable-outside `false`)
+    - `report:waiver-ledger-partial` → `warning` (provenance `profile_pinned`, disclosure `profile_pinned_disclose_scope`, trustable-outside `false`)
+- **CLI Inspect**: `stable`
+  - Owner: CLI-inspect owner
+  - Scope: The CLI inspect surface renders the shared fitness tile so a metric whose evidence is missing reads as blocked, a metric with no resolved owner reads as owner_unresolved, a failed sampled-corpus report reads as blocked, and a not-run report reads as not_evaluated — the same fitness/governance vocabulary a headless reviewer reads elsewhere
+  - Worked fitness tiles: 2
+    - `fitness:build-reproducibility` → `blocked` (declared `metric_pass`, evidence `evidence_missing`, profile `profile_matched`)
+    - `fitness:license-compliance` → `owner_unresolved` (declared `metric_pass`, evidence `evidence_fresh`, profile `profile_matched`)
+  - Worked governance reports: 2
+    - `report:fitness-rollup-sampled-fail` → `blocked` (provenance `sampled_corpus`, disclosure `sampled_disclose_caveat`, trustable-outside `false`)
+    - `report:release-readiness-not-run` → `not_evaluated` (provenance `canonical_corpus`, disclosure `canonical_within_support_class`, trustable-outside `true`)
+- **Support / Export**: `stable`
+  - Owner: Support / export owner
+  - Scope: The support / export packet renders the shared fitness tile so a metric at warning and a green metric with aging evidence both read as warning rather than clean, and a synthetic-corpus report with aging evidence discloses its corpus/profile — the same fitness/governance vocabulary a support or evaluation reviewer reads elsewhere
+  - Worked fitness tiles: 2
+    - `fitness:query-throughput` → `warning` (declared `metric_warn`, evidence `evidence_fresh`, profile `profile_matched`)
+    - `fitness:index-freshness` → `warning` (declared `metric_pass`, evidence `evidence_aging`, profile `profile_matched`)
+  - Worked governance reports: 2
+    - `report:fitness-rollup-synthetic-aging` → `warning` (provenance `synthetic_corpus`, disclosure `synthetic_disclose_caveat`, trustable-outside `false`)
+    - `report:ownership-coverage-clean` → `passing` (provenance `canonical_corpus`, disclosure `canonical_within_support_class`, trustable-outside `true`)
