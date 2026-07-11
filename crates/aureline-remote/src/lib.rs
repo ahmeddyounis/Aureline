@@ -138,6 +138,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-remote/0.0.0")]
 
 pub mod finalize_qualification_rows_for_desktop_local_remote_helper;
+pub mod freeze_the_m5_adapter_confidence_chip_discovery_diff_card_host_boundary_strip_execution_origin_receipt_row_managed_workspace_lifecycle_card_suspend_resume_rebuild_review_sheet_workspace_expiry_banner_and_local_safe_continuation_card_component_matrix;
 pub mod harden_the_connected_provider_registry_capability_matrix_and;
 pub mod m5_transport_governance_certification;
 pub mod managed_workspace_lifecycle;

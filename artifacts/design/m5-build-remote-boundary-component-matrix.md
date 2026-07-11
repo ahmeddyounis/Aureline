@@ -1,0 +1,59 @@
+# M5 Adapter-Confidence-Chip, Discovery-Diff-Card, Host-Boundary-Strip, Execution-Origin-Receipt-Row, Managed-Workspace-Lifecycle-Card, Suspend-Resume-Rebuild-Review-Sheet, Workspace-Expiry-Banner, and Local-Safe-Continuation-Card Component Matrix
+
+- Packet: `m5-build-remote-boundary-components:stable:0001`
+- Label: `M5 adapter-confidence-chip, discovery-diff-card, host-boundary-strip, execution-origin-receipt-row, managed-workspace-lifecycle-card, suspend-resume-rebuild-review-sheet, workspace-expiry-banner, and local-safe-continuation-card component matrix`
+- Component families: 8 (8 stable)
+- Boundary dispositions: local_execution, ssh_execution, container_execution, devcontainer_execution, managed_workspace, browser_bridge, service_plane, suspended, rebuilt, recreated, expired, local_safe_continuation, not_evaluated
+- Host kinds: local, ssh, container, managed_workspace, browser_bridge, service_plane
+- Proof freshness SLO: 168 hours (last refresh: 2026-07-11T00:00:00Z)
+
+## Component families
+
+- **adapter_confidence_chip**: `stable`
+  - Owner: Build intelligence owner
+  - Canonical schema: `schemas/ui/m5-adapter-confidence-chip.schema.json`
+  - Scope: One adapter-confidence-chip model naming the build/runtime adapter's confidence in the resolved target (verified, high, heuristic, or unverified) and the claim ceiling it permits, so a heuristic guess is never presented with the certainty of a verified target
+  - Required labels: identity, state, keyboard_route, confidence_and_discovery
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **discovery_diff_card**: `stable`
+  - Owner: Target discovery owner
+  - Canonical schema: `schemas/ui/m5-discovery-diff-card.schema.json`
+  - Scope: One discovery-diff-card model naming the discovery confidence (exact, structured, imported, heuristic, or unresolved) and any heuristic-vs-resolved drift, so a lower-confidence rediscovery never silently overwrites a higher-confidence resolved target without an explicit review state
+  - Required labels: identity, state, keyboard_route, confidence_and_discovery
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **host_boundary_strip**: `stable`
+  - Owner: Host boundary owner
+  - Canonical schema: `schemas/ui/m5-host-boundary-strip.schema.json`
+  - Scope: One host-boundary-strip model naming which host kind the work ran on (local, SSH, container, managed workspace, browser bridge, or service plane), so a remote, managed, bridged, or service-plane host is never mistaken for local execution
+  - Required labels: identity, state, keyboard_route, host_and_execution_origin
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **execution_origin_receipt_row**: `stable`
+  - Owner: Execution context owner
+  - Canonical schema: `schemas/ui/m5-execution-origin-receipt-row.schema.json`
+  - Scope: One execution-origin-receipt-row model naming the origin locus where the work actually ran (local, remote, managed, bridged, or service plane) as a receipt-backed fact, so an exported receipt's locus never disagrees with the host the work ran on
+  - Required labels: identity, state, keyboard_route, host_and_execution_origin
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **managed_workspace_lifecycle_card**: `stable`
+  - Owner: Managed workspace owner
+  - Canonical schema: `schemas/ui/m5-managed-workspace-lifecycle-card.schema.json`
+  - Scope: One managed-workspace-lifecycle-card model naming the workspace lifecycle state (provision, warm, ready, suspended, resumed, reconnecting, rebuild-required, recreate-required, expired, or local-safe continuation), so a provisioned workspace's lifecycle is a first-class reviewed fact rather than feature-local status copy
+  - Required labels: identity, state, keyboard_route, lifecycle_and_continuity
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **suspend_resume_rebuild_review_sheet**: `stable`
+  - Owner: Managed workspace owner
+  - Canonical schema: `schemas/ui/m5-suspend-resume-rebuild-review-sheet.schema.json`
+  - Scope: One suspend-resume-rebuild-review-sheet model naming the lifecycle transition, the changed persistence class, and the claimed continuity relative to the prior runtime, so a resume that lands on a rebuilt, recreated, or snapshot-restored runtime never implies exact continuity over a material change
+  - Required labels: identity, state, keyboard_route, lifecycle_and_continuity
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **workspace_expiry_banner**: `stable`
+  - Owner: Managed workspace owner
+  - Canonical schema: `schemas/ui/m5-workspace-expiry-banner.schema.json`
+  - Scope: One workspace-expiry-banner model naming the expiry timing that governs the workspace (no window, idle window, hibernation window, hard deadline, or control-plane outage clock), so a user learns a workspace is about to expire before context is lost
+  - Required labels: identity, state, keyboard_route, lifecycle_and_continuity
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **local_safe_continuation_card**: `stable`
+  - Owner: Continuity owner
+  - Canonical schema: `schemas/ui/m5-local-safe-continuation-card.schema.json`
+  - Scope: One local-safe-continuation-card model naming the continuity class offered when managed continuity is unavailable (exact, material change, fresh no-continuity, or local-safe only) and keeping local-safe continuation and companion handoff first-class, so the escape hatch is never hidden behind overflow-only affordances
+  - Required labels: identity, state, keyboard_route, lifecycle_and_continuity
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
