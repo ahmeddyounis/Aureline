@@ -350,6 +350,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-notebook/0.0.0")]
 
+pub mod add_large_output_virtualization_collapsed_output_summaries_keyboard_screen_reader_high_zoom_reduced_motion_export_parity_and_automatic_claim_narrowing_when_kernel_debug_parity_or_output_trust_evidence_weakens;
 pub mod add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation;
 pub mod add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity;
 pub mod add_notebook_result_comparison_baseline_selection_and_confounder_visibility;
