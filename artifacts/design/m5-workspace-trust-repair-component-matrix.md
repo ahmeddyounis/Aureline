@@ -1,0 +1,59 @@
+# M5 Workspace-Trust-Banner, Trust-Fact-Grid, Trust-Elevation-Sheet, Restricted-Capability-Row, Root-Trust-Strip, Repair-Transaction-Preview-Card, Rollback-Class-Strip, and Repair-Result-Receipt-Row Component Matrix
+
+- Packet: `m5-workspace-trust-repair-components:stable:0001`
+- Label: `M5 workspace-trust-banner, trust-fact-grid, trust-elevation-sheet, restricted-capability-row, root-trust-strip, repair-transaction-preview-card, rollback-class-strip, and repair-result-receipt-row component matrix`
+- Component families: 8 (8 stable)
+- Trust / repair dispositions: trusted, restricted, mixed_root, policy_blocked, reduced_mode, preview_ready, checkpoint_missing, exact_reversal, compensate, regenerate, manual_follow_up, audit_only
+- Reversal classes: exact_reversal, compensating_reversal, regenerate_reversal, manual_follow_up, audit_only, reversal_unknown
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-11T00:00:00Z)
+
+## Component families
+
+- **workspace_trust_banner**: `stable`
+  - Owner: Workspace trust owner
+  - Canonical schema: `schemas/ui/m5-workspace-trust-banner.schema.json`
+  - Scope: One workspace-trust-banner model naming whether the workspace is trusted, restricted, or mixed-root, who granted the trust (user, inherited parent, policy, workspace config, or first-party default), and what capability is narrowed, so a restricted or mixed-root workspace never reads as blanket trust across roots
+  - Required labels: identity, state, keyboard_route, grant_source_and_scope, capability_and_root_scope
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **trust_fact_grid**: `stable`
+  - Owner: Workspace trust owner
+  - Canonical schema: `schemas/ui/m5-trust-fact-grid.schema.json`
+  - Scope: One trust-fact-grid model naming grant source and policy epoch, trusted object and root scope, narrowed capability, and per-root trust together in one place, so a user can read every trust fact about a workspace without hunting through menus
+  - Required labels: identity, state, keyboard_route, grant_source_and_scope, capability_and_root_scope
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **trust_elevation_sheet**: `stable`
+  - Owner: Workspace trust owner
+  - Canonical schema: `schemas/ui/m5-trust-elevation-sheet.schema.json`
+  - Scope: One trust-elevation-sheet model naming exactly what a trust elevation grants, its grant source and the scope it changes (workspace or single root), and that the elevation never implies blanket approval across every root or route
+  - Required labels: identity, state, keyboard_route, grant_source_and_scope
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **restricted_capability_row**: `stable`
+  - Owner: Restricted mode owner
+  - Canonical schema: `schemas/ui/m5-restricted-capability-row.schema.json`
+  - Scope: One restricted-capability-row model naming exactly which capability is narrowed (reduced mode, a blocked task, blocked execution, or a blocked extension) and the trust scope that narrowed it, so a narrowed capability is always named rather than left as a vague reduced experience
+  - Required labels: identity, state, keyboard_route, capability_and_root_scope
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **root_trust_strip**: `stable`
+  - Owner: Workspace trust owner
+  - Canonical schema: `schemas/ui/m5-root-trust-strip.schema.json`
+  - Scope: One root-trust-strip model naming the trust of each root in a multi-root workspace (trusted, restricted, inherited, policy-blocked, or mixed children) plus the grant source, so mixed-root trust never collapses into one uniform trust badge
+  - Required labels: identity, state, keyboard_route, grant_source_and_scope, capability_and_root_scope
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **repair_transaction_preview_card**: `stable`
+  - Owner: Guided repair owner
+  - Canonical schema: `schemas/ui/m5-repair-transaction-preview-card.schema.json`
+  - Scope: One repair-transaction-preview-card model naming the repair candidate ids that will be mutated, checkpoint availability, and the reversal class before anything is applied, so a repair preview never hides checkpoint absence and a user always reviews what a repair will mutate and how it reverses
+  - Required labels: identity, state, keyboard_route, reversal_and_checkpoint
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **rollback_class_strip**: `stable`
+  - Owner: Guided repair owner
+  - Canonical schema: `schemas/ui/m5-rollback-class-strip.schema.json`
+  - Scope: One rollback-class-strip model naming the reversal class (exact, compensate, regenerate, manual follow-up, or audit-only) and checkpoint availability, so exact and compensating and regenerating and manual and audit-only reversals never collapse into one generic undo
+  - Required labels: identity, state, keyboard_route, reversal_and_checkpoint
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **repair_result_receipt_row**: `stable`
+  - Owner: Guided repair owner
+  - Canonical schema: `schemas/ui/m5-repair-result-receipt-row.schema.json`
+  - Scope: One repair-result-receipt-row model naming the applied outcome (applied exact, compensated, regenerated, partial success, manual required, or failed), the reversal class, and any manual follow-up, so a partial success is never shown as a complete success
+  - Required labels: identity, state, keyboard_route, reversal_and_checkpoint
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
