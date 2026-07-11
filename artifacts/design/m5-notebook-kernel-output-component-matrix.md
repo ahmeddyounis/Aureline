@@ -1,0 +1,58 @@
+# M5 Notebook-Document-Header, Kernel-State-Strip, Kernel-Picker-Row, Kernel-Origin-Pill, Output-Trust-Banner, Output-Provenance-Chip-Group, Restart-Consequence-Card, and Kernel-Recovery-Card Component Matrix
+
+- Packet: `m5-notebook-kernel-output-components:stable:0001`
+- Label: `M5 notebook-document-header, kernel-state-strip, kernel-picker-row, kernel-origin-pill, output-trust-banner, output-provenance-chip-group, restart-consequence-card, and kernel-recovery-card component matrix`
+- Component families: 8 (8 stable)
+- Dispositions: no_kernel, queued, busy, ready, disconnected, managed, remote, stale_output, sanitized, active, reconnect, restart_clean, choose_another_kernel
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-11T00:00:00Z)
+
+## Component families
+
+- **notebook_document_header**: `stable`
+  - Owner: Notebook document header owner
+  - Scope: One notebook-document-header model naming where a notebook came from (a local, remote, managed-workspace, imported, scratch/untitled, or unknown-source .ipynb) and where its canonical identity stands (saved clean, unsaved changes, autosaved, conflicted, read-only, or recovered), so a header never leaves a notebook's canonical .ipynb identity or its local / remote / managed source implicit
+  - Dispositions: managed, remote
+  - Required labels: identity, state, keyboard_route, kernel_origin_and_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **kernel_state_strip**: `stable`
+  - Owner: Kernel state strip owner
+  - Scope: One kernel-state-strip model naming where a kernel stands in execution (idle ready, queued pending, busy running, interrupted, dead / no kernel, or disconnected / reconnecting) and how it is connected (connected local, connected remote, reconnecting, disconnected, connection lost, or never connected), so a strip never leaves no-kernel, busy, disconnected, or reconnecting execution state implicit
+  - Dispositions: no_kernel, queued, busy, ready, disconnected
+  - Required labels: identity, state, keyboard_route, kernel_origin_and_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **kernel_picker_row**: `stable`
+  - Owner: Kernel picker row owner
+  - Scope: One kernel-picker-row model naming what kind of kernel a candidate is (a local interpreter, a virtual env, a conda env, a container kernel, a remote kernel, or a managed kernel) and where its selection stands (selected, available, recommended, incompatible, unavailable, or needs install), so a picker never collapses kernel kinds into one badge and always offers choose-another-kernel recovery
+  - Dispositions: choose_another_kernel, ready
+  - Required labels: identity, state, keyboard_route, kernel_origin_and_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **kernel_origin_pill**: `stable`
+  - Owner: Kernel origin pill owner
+  - Scope: One kernel-origin-pill model naming where a kernel physically runs (a local host, an SSH remote, a container, a devcontainer, a managed workspace, or a browser bridge) and how trusted that origin is (trusted, first-party, third-party, unverified, restricted, or unknown), so a pill never collapses local, SSH, container, managed, or browser-bridge kernels into one unlabeled badge
+  - Dispositions: managed, remote
+  - Required labels: identity, state, keyboard_route, kernel_origin_and_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **output_trust_banner**: `stable`
+  - Owner: Output trust banner owner
+  - Scope: One output-trust-banner model naming an output's trust class (trusted, sanitized, sandboxed, raw / active, blocked, or unknown) and its freshness (live, stale, cached, cleared, superseded, or no output), so a banner never presents stale output as live and never hides its raw / sanitized / active trust class behind a hover-only affordance
+  - Dispositions: stale_output, sanitized, active
+  - Required labels: identity, state, keyboard_route, output_trust_and_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **output_provenance_chip_group**: `stable`
+  - Owner: Output provenance chip group owner
+  - Scope: One output-provenance-chip-group model naming what produced an output (a cell, a run, an imported output, a restored output, an external output, or an unknown provenance) and how completely its execution lineage resolves (provenance complete, partial, missing, execution count pinned, execution count drifted, or provenance stale), so a chip group never severs an output's canonical provenance or hides a drifted execution count
+  - Dispositions: active, stale_output
+  - Required labels: identity, state, keyboard_route, output_trust_and_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **restart_consequence_card**: `stable`
+  - Owner: Restart consequence card owner
+  - Scope: One restart-consequence-card model naming which restart / interrupt action it describes (restart kernel, restart and run all, interrupt kernel, shutdown kernel, reconnect kernel, or clear outputs) and what survives it (state preserved, state lost, variables cleared, outputs retained, outputs cleared, or no consequence), so a card never leaves restart / reconnect consequences or preserved-versus-lost state implicit
+  - Dispositions: restart_clean, reconnect
+  - Required labels: identity, state, keyboard_route, restart_and_recovery
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **kernel_recovery_card**: `stable`
+  - Owner: Kernel recovery card owner
+  - Scope: One kernel-recovery-card model naming which recovery action it offers (reconnect, restart clean, choose another kernel, reattach session, start local fallback, or wait for managed) and where recovery stands (recoverable, reconnect available, restart required, no kernel available, recovery blocked, or recovered), so a card offers reconnect / restart-clean / choose-another-kernel recovery without ever implying a rerun
+  - Dispositions: reconnect, restart_clean, choose_another_kernel
+  - Required labels: identity, state, keyboard_route, restart_and_recovery
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
