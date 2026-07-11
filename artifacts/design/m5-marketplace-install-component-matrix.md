@@ -1,0 +1,59 @@
+# M5 Marketplace-Result-Row, Marketplace-Detail-Fact-Grid, Compatibility-Label-Strip, Permission-Manifest-Summary, Activation-Budget-Band, Install/Update/Disable/Rollback Review-Sheet, Publisher-Continuity-Row, and Installed-State-Diagnostics-Card Component Matrix
+
+- Packet: `m5-marketplace-install-components:stable:0001`
+- Label: `M5 marketplace-result-row, marketplace-detail-fact-grid, compatibility-label-strip, permission-manifest-summary, activation-budget-band, install/update/disable/rollback review-sheet, publisher-continuity-row, and installed-state-diagnostics-card component matrix`
+- Component families: 8 (8 stable)
+- Marketplace / install dispositions: public, mirrored, enterprise, side_load, verified, transferred, deprecated, limited, incompatible, over_budget, throttled, quarantined, disable_scope, rollback_compatibility
+- Registry source classes: public_registry, mirrored_registry, enterprise_registry, side_loaded, verified_partner, source_unknown
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-11T00:00:00Z)
+
+## Component families
+
+- **marketplace_result_row**: `stable`
+  - Owner: Marketplace catalog owner
+  - Canonical schema: `schemas/ui/m5-marketplace-result-row.schema.json`
+  - Scope: One marketplace-result-row model naming the registry source class (public, mirrored, enterprise, side-load, or verified partner), the compatibility state, and the publisher continuity for one listed artifact, so a mirrored or side-loaded artifact never reads with the same authority as a verified public listing
+  - Required labels: identity, state, keyboard_route, compatibility_and_host, publisher_and_source_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **marketplace_detail_fact_grid**: `stable`
+  - Owner: Marketplace catalog owner
+  - Canonical schema: `schemas/ui/m5-marketplace-detail-fact-grid.schema.json`
+  - Scope: One marketplace-detail-fact-grid model naming registry source class, compatibility and host/runtime model, permission posture, activation-budget band, and publisher continuity together in one place, so a user can read every governable marketplace fact about an artifact without hunting through disconnected surfaces
+  - Required labels: identity, state, keyboard_route, compatibility_and_host, permission_and_budget, publisher_and_source_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **compatibility_label_strip**: `stable`
+  - Owner: Extension runtime owner
+  - Canonical schema: `schemas/ui/m5-compatibility-label-strip.schema.json`
+  - Scope: One compatibility-label-strip model naming the compatibility range and the runtime/host model (in-process, sandboxed, remote, web-worker, or native), so an incompatible, degraded-host, or unsupported-runtime artifact is never presented as freely installable
+  - Required labels: identity, state, keyboard_route, compatibility_and_host
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **permission_manifest_summary**: `stable`
+  - Owner: Extension security owner
+  - Canonical schema: `schemas/ui/m5-permission-manifest-summary.schema.json`
+  - Scope: One permission-manifest-summary model naming the permission posture (minimal, standard, elevated, or policy-restricted) and any transitive widening introduced through dependencies, so permission widening is always named rather than hidden behind compact install chrome
+  - Required labels: identity, state, keyboard_route, permission_and_budget
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **activation_budget_band**: `stable`
+  - Owner: Extension runtime owner
+  - Canonical schema: `schemas/ui/m5-activation-budget-band.schema.json`
+  - Scope: One activation-budget-band model naming whether the artifact is within, near, or over its activation budget, or throttled or suspended for exceeding it, so an over-budget or throttled artifact never reads as cost-free
+  - Required labels: identity, state, keyboard_route, permission_and_budget
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **install_update_disable_rollback_review_sheet**: `stable`
+  - Owner: Install review owner
+  - Canonical schema: `schemas/ui/m5-install-update-disable-rollback-review-sheet.schema.json`
+  - Scope: One install/update/disable/rollback-review-sheet model naming the disable scope (workspace, global, profile, keep-data, or full uninstall) and the rollback-compatibility class before any mutation, so a workspace-only disable is never mistaken for a blanket removal and a rollback with data loss or no prior version is never implied to be a clean revert
+  - Required labels: identity, state, keyboard_route, publisher_and_source_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **publisher_continuity_row**: `stable`
+  - Owner: Registry integrity owner
+  - Canonical schema: `schemas/ui/m5-publisher-continuity-row.schema.json`
+  - Scope: One publisher-continuity-row model naming publisher continuity (continuous, transferred, deprecated, abandoned, or verified) plus the registry source class, so a transferred, deprecated, or abandoned publisher is never presented as continuous and a publisher transfer never stays implicit
+  - Required labels: identity, state, keyboard_route, publisher_and_source_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **installed_state_diagnostics_card**: `stable`
+  - Owner: Extension runtime owner
+  - Canonical schema: `schemas/ui/m5-installed-state-diagnostics-card.schema.json`
+  - Scope: One installed-state-diagnostics-card model naming quarantine history, the activation-budget band, and the compatibility state of an installed artifact, so quarantine history is never hidden behind an otherwise healthy card and an over-budget or incompatible installed artifact is never presented as ready
+  - Required labels: identity, state, keyboard_route, compatibility_and_host, permission_and_budget
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
