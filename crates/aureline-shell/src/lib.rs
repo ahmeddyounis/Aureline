@@ -56,6 +56,7 @@ pub mod bootstrap;
 pub mod breadcrumbs;
 pub mod build_intelligence_beta;
 pub mod certify_keyboard_first_modal_parity_clipboard_drop_safety_grouped_history_honesty_and_orie;
+pub mod certify_power_state_indicator_throttled_subsystem_row_background_work_row_and_banner_override_sheet_policy_note_resume_summary_and_stale_result_continuity_component_truth_on_every_claimed_m5_adaptive_efficiency_surface;
 pub mod change_object_inspector;
 pub mod chrome;
 pub mod clone;
