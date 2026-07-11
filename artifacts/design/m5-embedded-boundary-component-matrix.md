@@ -1,0 +1,59 @@
+# M5 Docs-Pane-Header, Embedded-Origin-Bar, Boundary-Fact-Grid, Marketplace-Account-Boundary-Card, Auth-Handoff-Card, Remote-Service-Dashboard-Header, Open-In-Browser-Handoff-Row, and Embedded-State-Panel Component Matrix
+
+- Packet: `m5-embedded-boundary-components:stable:0001`
+- Label: `M5 docs-pane-header, embedded-origin-bar, boundary-fact-grid, marketplace-account-boundary-card, auth-handoff-card, remote-service-dashboard-header, open-in-browser-handoff-row, and embedded-state-panel component matrix`
+- Component families: 8 (8 stable)
+- Boundary dispositions: live_first_party_local, live_first_party_hosted, live_provider_owned, stale_snapshot, offline_snapshot, provider_blocked, browser_handoff_only, capability_limited, not_evaluated
+- Owner classes: extension_owned, provider_owned, first_party_embedded, unknown_untrusted
+- Proof freshness SLO: 168 hours (last refresh: 2026-07-10T00:00:00Z)
+
+## Component families
+
+- **docs_pane_header**: `stable`
+  - Owner: Docs / help pane owner
+  - Canonical schema: `schemas/ui/m5-docs-pane-header.schema.json`
+  - Scope: One docs-pane-header model naming whose documentation is shown (first-party, first-party hosted, or connected-provider docs) plus the source, version, last-updated, and freshness, so a user never mistakes a stale or provider-owned docs pane for fresh first-party local help
+  - Required labels: identity, state, keyboard_route, owner_and_origin, freshness_and_capability_limits
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **embedded_origin_bar**: `stable`
+  - Owner: Embedded webview owner
+  - Canonical schema: `schemas/ui/m5-embedded-origin-bar.schema.json`
+  - Scope: One embedded-origin-bar model naming who owns the embedded content (extension, provider, first-party embedded, or unknown/untrusted) and the capability limits the embedded surface has relative to native trusted chrome, so an embedded webview can never impersonate native trust UI
+  - Required labels: identity, state, keyboard_route, owner_and_origin, freshness_and_capability_limits
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **boundary_fact_grid**: `stable`
+  - Owner: Embedded boundary owner
+  - Canonical schema: `schemas/ui/m5-boundary-fact-grid.schema.json`
+  - Scope: One boundary-fact-grid model naming owner/origin, the data boundary that governs what leaves the product, and the freshness in one place, so a user can read every boundary fact about a surface without hunting through menus
+  - Required labels: identity, state, keyboard_route, owner_and_origin, data_boundary_and_fallback, freshness_and_capability_limits
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **marketplace_account_boundary_card**: `stable`
+  - Owner: Marketplace / account owner
+  - Canonical schema: `schemas/ui/m5-marketplace-account-boundary-card.schema.json`
+  - Scope: One marketplace-account-boundary-card model naming the account scope (no account local, personal, org workspace, managed tenant, or unknown) and the data boundary, so marketplace and account content never hides whose account it is scoped to
+  - Required labels: identity, state, keyboard_route, owner_and_origin, data_boundary_and_fallback
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **auth_handoff_card**: `stable`
+  - Owner: Auth boundary owner
+  - Canonical schema: `schemas/ui/m5-auth-handoff-card.schema.json`
+  - Scope: One auth-handoff-card model naming the browser fallback for a sign-in (system browser, device code, provider content, or vendor link), the data boundary, and the account scope, so authentication that leaves native chrome is always explicit and never imitates a native approval sheet
+  - Required labels: identity, state, keyboard_route, data_boundary_and_fallback
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **remote_service_dashboard_header**: `stable`
+  - Owner: Remote / service dashboard owner
+  - Canonical schema: `schemas/ui/m5-remote-service-dashboard-header.schema.json`
+  - Scope: One remote-service-dashboard-header model naming who owns the dashboard, the data boundary, the provider health, and the freshness, so a remote or service dashboard never renders a stale, offline, or provider-blocked view as fresh first-party local truth
+  - Required labels: identity, state, keyboard_route, owner_and_origin, freshness_and_capability_limits
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **open_in_browser_handoff_row**: `stable`
+  - Owner: Browser handoff owner
+  - Canonical schema: `schemas/ui/m5-open-in-browser-handoff-row.schema.json`
+  - Scope: One open-in-browser-handoff-row model naming the browser fallback for a surface (provider content or vendor link) and the data boundary, so the escape hatch into the real browser is always a first-class row and never hidden behind menus only
+  - Required labels: identity, state, keyboard_route, data_boundary_and_fallback
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
+- **embedded_state_panel**: `stable`
+  - Owner: Embedded boundary owner
+  - Canonical schema: `schemas/ui/m5-embedded-state-panel.schema.json`
+  - Scope: One embedded-state-panel model naming whether an embedded surface is live-first-party, stale, offline, provider-blocked, or capability-limited, plus who owns it and its capability limits, so a stale, offline, or blocked pane is always shown explicitly and never as fresh first-party local truth
+  - Required labels: identity, state, keyboard_route, owner_and_origin, freshness_and_capability_limits
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, non_hover_reachable, pointer_optional, high_contrast_safe, support_exportable
