@@ -28,6 +28,7 @@ pub mod m5_diff_view_and_review_thread_anchor_durability_and_review_state;
 pub mod m5_editor_assist;
 pub mod m5_editor_inline_accessibility_parity_and_narrowing_when_evidence_truth_is_stale;
 pub mod m5_editor_inline_component_matrix;
+pub mod m5_editor_inline_component_surface_certification;
 pub mod m5_editor_inline_shared_consumers_one_vocabulary_across_surfaces;
 pub mod m5_editor_tab_and_gutter_state_and_marker_layering;
 pub mod m5_hover_peek;
