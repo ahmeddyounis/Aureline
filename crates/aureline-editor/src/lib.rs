@@ -23,6 +23,7 @@ pub mod m5_assist_support;
 pub mod m5_completion_rows;
 pub mod m5_constrained_assist;
 pub mod m5_diagnostic_decoration_and_code_action_chip_state_and_fix_posture;
+pub mod m5_diff_view_and_review_thread_anchor_durability_and_review_state;
 pub mod m5_editor_assist;
 pub mod m5_editor_inline_component_matrix;
 pub mod m5_editor_tab_and_gutter_state_and_marker_layering;
