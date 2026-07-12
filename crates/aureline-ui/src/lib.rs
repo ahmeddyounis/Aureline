@@ -198,6 +198,7 @@ pub mod m5_security_finding_cards;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
 pub mod m5_staged_review_sheets;
 pub mod m5_structured_input_and_staged_review;
+pub mod m5_text_field_and_search_field_labels_validation_and_privacy;
 pub mod motion;
 pub mod themes;
 pub mod tokens;
