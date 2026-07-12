@@ -171,6 +171,20 @@
 //! export-safe fields for review, package, health, companion, support, and
 //! release surfaces.
 //!
+//! [`m5_decision_feedback_component_matrix::M5DecisionFeedbackComponentMatrixPacket`]
+//! freezes the reusable badge-chip-pill, popover, dialog-sheet,
+//! banner-inline-notice, toast, empty-state, loading-state, and
+//! consequence-block decision/feedback primitives into one export-safe matrix.
+//! It binds every primitive to one shared state taxonomy (info, success,
+//! warning, blocked, pending, degraded, acknowledged, dismissed) and to the
+//! family-specific badge, popover, dialog, notice, toast, empty-state,
+//! loading, and consequence vocabularies, so badge meaning never depends on
+//! color alone, popovers never carry the only critical instruction, high-risk
+//! dialogs never use generic Yes/No copy, toasts never become the only durable
+//! truth, useful panes are never blanked during loading, and full-screen
+//! spinners never replace partial capability across the shell, entry, trust,
+//! review, repair, and notification surfaces.
+//!
 //! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
 //! validates the first-consumer proof across the five component families and
 //! checks that review panes, package centers, project-health centers, companion
@@ -189,6 +203,7 @@ pub mod m5_core_action_input_accessibility_parity_and_narrowing_when_control_tru
 pub mod m5_core_action_input_component_matrix;
 pub mod m5_core_action_input_component_surface_certification;
 pub mod m5_core_action_input_shared_consumers_one_vocabulary_across_surfaces;
+pub mod m5_decision_feedback_component_matrix;
 pub mod m5_dependency_rows;
 pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;

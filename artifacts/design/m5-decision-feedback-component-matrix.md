@@ -1,0 +1,59 @@
+# M5 Badge-Chip-Pill, Popover, Dialog-Sheet, Banner-Inline-Notice, Toast, Empty-State, Loading-State, and Consequence-Block Component Matrix
+
+- Packet: `m5-decision-feedback-components:stable:0001`
+- Label: `M5 badge-chip-pill, popover, dialog-sheet, banner-inline-notice, toast, empty-state, loading-state, and consequence-block component matrix`
+- Primitive families: 8 (8 stable)
+- Feedback states: info, success, warning, blocked, pending, degraded, acknowledged, dismissed
+- Badge expressions: text_label, icon_with_text, count_with_label, status_word, removable_chip, color_only_disallowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-12T00:00:00Z)
+
+## Primitive families
+
+- **badge_chip_pill**: `stable`
+  - Owner: Design-system feedback owner
+  - Canonical schema: `schemas/ui/m5-badge-chip-pill.schema.json`
+  - Scope: One badge / chip / pill model that always expands into plain language (text label, icon-with-text, count-with-label, status word, removable chip) so badge and status meaning is never conveyed by color alone
+  - Required labels: identity, state, keyboard_route, rationale
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **popover**: `stable`
+  - Owner: Design-system feedback owner
+  - Canonical schema: `schemas/ui/m5-popover.schema.json`
+  - Scope: One popover model naming how it dismisses and returns focus (outside-click, escape, explicit close, focus-returns-to-trigger, non-modal secondary) so a popover stays a lightweight secondary control and never carries the only critical workflow instruction
+  - Required labels: identity, state, keyboard_route, recovery_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **dialog_sheet**: `stable`
+  - Owner: Shell surface owner
+  - Canonical schema: `schemas/ui/m5-dialog-sheet.schema.json`
+  - Scope: One dialog / sheet model naming its rationale, scope, and explicit named actions (named-specific-actions, primary-and-cancel, destructive-confirm-named, rationale-and-scope-stated, dismissible-safe) so a high-risk dialog never uses generic Yes/No copy
+  - Required labels: identity, state, keyboard_route, rationale, scope, recovery_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **banner_inline_notice**: `stable`
+  - Owner: Notification surface owner
+  - Canonical schema: `schemas/ui/m5-banner-inline-notice.schema.json`
+  - Scope: One banner / inline-notice model naming its scope and next step (page-scoped, section-scoped, field-inline, global-system, actionable-with-next-step) so a notice stays scoped and actionable and never relies on color alone
+  - Required labels: identity, state, keyboard_route, scope, recovery_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **toast**: `stable`
+  - Owner: Notification surface owner
+  - Canonical schema: `schemas/ui/m5-toast.schema.json`
+  - Scope: One toast model naming its durability (transient acknowledgment, mirrored-to-activity-center, dismissible, auto-dismiss, action-retained-elsewhere) so a toast acknowledges work without becoming the only durable truth for long-running or reviewable work
+  - Required labels: identity, state, keyboard_route, recovery_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **empty_state**: `stable`
+  - Owner: Shell surface owner
+  - Canonical schema: `schemas/ui/m5-empty-state.schema.json`
+  - Scope: One empty-state model naming what it explains (purpose, current emptiness, next action, first-run guidance, filtered-no-results) so a pane never renders blank with no explanation
+  - Required labels: identity, state, keyboard_route, rationale, recovery_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **loading_state**: `stable`
+  - Owner: Shell surface owner
+  - Canonical schema: `schemas/ui/m5-loading-state.schema.json`
+  - Scope: One loading-state model naming its representation (skeleton-preserves-layout, partial-data-retained, inline-progress-scoped, determinate progress, indeterminate spinner scoped) so useful panes are never blanked and a full-screen spinner is never used where partial capability exists
+  - Required labels: identity, state, keyboard_route, rationale
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **consequence_block**: `stable`
+  - Owner: Repair surface owner
+  - Canonical schema: `schemas/ui/m5-consequence-block.schema.json`
+  - Scope: One consequence-block model naming its blast radius and rollback / help posture (named-blast-radius, rollback-available, rollback-unavailable-stated, help-path-present, explicit-named-actions) so a risky action never reduces to generic Yes/No ambiguity
+  - Required labels: identity, state, keyboard_route, scope, recovery_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
