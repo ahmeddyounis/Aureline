@@ -1,0 +1,59 @@
+# M5 Button, Icon-Button, Split-Button, Text-Field, Search-Field, Combobox, Toggle-Control, and Segmented-Control Component Matrix
+
+- Packet: `m5-core-action-input-components:stable:0001`
+- Label: `M5 button, icon-button, split-button, text-field, search-field, combobox, toggle-control, and segmented-control component matrix`
+- Control families: 8 (8 stable)
+- Interaction states: default, hover, focus_visible, pressed, loading, disabled, locked, read_only, degraded
+- Button emphases: primary, secondary, quiet, destructive, ghost, link
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-12T00:00:00Z)
+
+## Control families
+
+- **button**: `stable`
+  - Owner: Design-system control owner
+  - Canonical schema: `schemas/ui/m5-button.schema.json`
+  - Scope: One text-button model naming a permanent label, a stable emphasis (primary, secondary, quiet, destructive, ghost, link), and the shared interaction state (default, hover, focus-visible, pressed, loading, disabled), so a loading button never relabels the action or loses attribution and emphasis is never encoded by color alone
+  - Required labels: identity, state, keyboard_route, command_binding
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **icon_button**: `stable`
+  - Owner: Design-system control owner
+  - Canonical schema: `schemas/ui/m5-icon-button.schema.json`
+  - Scope: One icon-button model naming how an icon-only control carries its accessible name (labeled-visible, accessible-name-only, tooltip-labeled, text-with-icon) and its emphasis, so an icon-only destructive action is never left unlabeled and a decorative glyph is never mistaken for a control
+  - Required labels: identity, state, keyboard_route, command_binding
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **split_button**: `stable`
+  - Owner: Design-system control owner
+  - Canonical schema: `schemas/ui/m5-split-button.schema.json`
+  - Scope: One split-button model naming the default (primary-click) posture (primary-default-safe, explicit-alternate, confirm-required, destructive-guarded, all-disabled) and the emphasis, so a split button never defaults to a riskier alternate and a guarded destructive alternate stays behind a distinct labeled step
+  - Required labels: identity, state, keyboard_route, command_binding
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **text_field**: `stable`
+  - Owner: Forms surface owner
+  - Canonical schema: `schemas/ui/m5-text-field.schema.json`
+  - Scope: One text-field model naming a permanent label mode (persistent, floating, label-plus-placeholder, aria-label-only) and the validation truth (valid, invalid-blocking, warning, pending-async, not-validated), so placeholder text never replaces the label and an invalid or unvalidated value never reads as valid
+  - Required labels: identity, state, keyboard_route, value_source, validation_and_constraints
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **search_field**: `stable`
+  - Owner: Search surface owner
+  - Canonical schema: `schemas/ui/m5-search-field.schema.json`
+  - Scope: One search-field model naming a permanent label mode and the clear / submit / privacy affordances (clearable, submit-explicit, submit-as-you-type, history-private, scoped-search), so a search field never hides whether it clears, how it submits, or whether its history is private
+  - Required labels: identity, state, keyboard_route, value_source
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **combobox**: `stable`
+  - Owner: Forms surface owner
+  - Canonical schema: `schemas/ui/m5-combobox.schema.json`
+  - Scope: One combobox model naming a permanent label mode, the validation truth, and the source of the committed value (canonical-option, filtered-subset, free-text-allowed, remote-backed, custom-unverified), so a free-text or unverified value is never presented as a canonical option and filterability stays honest
+  - Required labels: identity, state, keyboard_route, value_source, validation_and_constraints
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **toggle_control**: `stable`
+  - Owner: Design-system control owner
+  - Canonical schema: `schemas/ui/m5-toggle-control.schema.json`
+  - Scope: One checkbox / radio / switch model naming which boolean control it actually is (checkbox-immediate, checkbox-deferred, radio-exclusive, switch-immediate, tristate-indeterminate) and whether its change is immediate or deferred, so a switch is never blurred with a deferred checkbox and a radio's exclusivity is never lost
+  - Required labels: identity, state, keyboard_route, command_binding, value_source
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **segmented_control**: `stable`
+  - Owner: Design-system control owner
+  - Canonical schema: `schemas/ui/m5-segmented-control.schema.json`
+  - Scope: One segmented-control model naming what it does (mode-toggle, view-switch, single-select-small-set, exclusive-options, not-navigation), so a segmented control stays a small mode / view toggle and is never used as stealth top-level navigation
+  - Required labels: identity, state, keyboard_route, command_binding
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
