@@ -24,6 +24,7 @@ pub mod m5_completion_rows;
 pub mod m5_constrained_assist;
 pub mod m5_editor_assist;
 pub mod m5_editor_inline_component_matrix;
+pub mod m5_editor_tab_and_gutter_state_and_marker_layering;
 pub mod m5_hover_peek;
 pub mod m5_signature_snippet;
 pub mod modes;
