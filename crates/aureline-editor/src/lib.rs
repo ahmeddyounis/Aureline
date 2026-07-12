@@ -17,6 +17,7 @@ pub mod large_file;
 pub mod large_file_mode;
 pub mod large_file_posture;
 pub mod m5_advanced_editing;
+pub mod m5_ai_message_card_and_evidence_timeline_source_confidence_and_evidence_lineage;
 pub mod m5_assist_descriptors;
 pub mod m5_assist_qualification;
 pub mod m5_assist_support;
