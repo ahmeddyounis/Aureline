@@ -183,6 +183,7 @@ pub mod components;
 pub mod density;
 pub mod m5_accessibility_and_continuity;
 pub mod m5_annotation_rows;
+pub mod m5_button_and_icon_button_state_and_command_attribution;
 pub mod m5_core_action_input_component_matrix;
 pub mod m5_dependency_rows;
 pub mod m5_draft_state_and_autosave;
