@@ -186,6 +186,7 @@ pub mod m5_annotation_rows;
 pub mod m5_button_and_icon_button_state_and_command_attribution;
 pub mod m5_combobox_and_checkbox_radio_switch_value_source_and_toggle_semantics;
 pub mod m5_core_action_input_component_matrix;
+pub mod m5_core_action_input_shared_consumers_one_vocabulary_across_surfaces;
 pub mod m5_dependency_rows;
 pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;
