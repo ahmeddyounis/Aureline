@@ -1,0 +1,59 @@
+# M5 Editor-Tab, Gutter, Diagnostic-Decoration, Code-Action-Chip, Diff-View, Review-Thread, AI-Message-Card, and Evidence-Timeline Component Matrix
+
+- Packet: `m5-editor-inline-components:stable:0001`
+- Label: `M5 editor-tab, gutter, diagnostic-decoration, code-action-chip, diff-view, review-thread, AI-message-card, and evidence-timeline component matrix`
+- Component families: 8 (8 stable)
+- Inline dispositions: modified, preview, pinned, read_only, shared, generated, remote, exact_fix, inferred_fix, outdated, resolved, re_anchored, blocked_by_policy, streaming, review_required, applied, reverted, failed, export_safe_evidence
+- Fix postures: exact_fix, inferred_fix, heuristic_suggestion, multiple_candidates, not_applicable, posture_unknown
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-12T00:00:00Z)
+
+## Component families
+
+- **editor_tab**: `stable`
+  - Owner: Editor surface owner
+  - Canonical schema: `schemas/ui/m5-editor-tab.schema.json`
+  - Scope: One editor-tab model naming the open-document context (active-current, background, or unpinned preview) and its per-tab item state (modified, preview, pinned, read-only, shared, generated, remote), so a background or preview tab never reads as the active saved document and state is never encoded by color alone
+  - Required labels: identity, state, keyboard_route, anchor_and_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **gutter**: `stable`
+  - Owner: Editor surface owner
+  - Canonical schema: `schemas/ui/m5-gutter-marker.schema.json`
+  - Scope: One gutter model naming breakpoint, change-marker (added, modified, removed), and fold layering next to the code, plus the diagnostic severity a gutter glyph reflects, so layered gutter state is never encoded by color alone and a change marker is never confused with a breakpoint
+  - Required labels: identity, state, keyboard_route, anchor_and_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **diagnostic_decoration**: `stable`
+  - Owner: Diagnostics surface owner
+  - Canonical schema: `schemas/ui/m5-diagnostic-decoration.schema.json`
+  - Scope: One diagnostic-decoration model naming problem severity (error, warning, info, hint) and freshness (stale-versus-current) anchored to a durable range (anchored-exact, re-anchored, drifted, or outdated), so a stale diagnostic is never presented as current and severity is never encoded by color alone
+  - Required labels: identity, state, keyboard_route, anchor_and_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **code_action_chip**: `stable`
+  - Owner: AI action-state owner
+  - Canonical schema: `schemas/ui/m5-code-action-chip.schema.json`
+  - Scope: One code-action-chip model naming the fix posture (exact, inferred, heuristic, multiple-candidate, or not-applicable) and the applied / reverted / review-required / blocked state, so an inferred fix is never presented as an exact one and a failed apply is never read as clean
+  - Required labels: identity, state, keyboard_route, confidence_and_source
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **diff_view**: `stable`
+  - Owner: Diff / merge governance owner
+  - Canonical schema: `schemas/ui/m5-diff-view.schema.json`
+  - Scope: One diff-view model naming every change kind (added, removed, modified, moved, conflicted, unchanged-context), so an added, removed, modified, moved, or conflicted region is never collapsed into one ambiguous generic change and a generated or remote side is named
+  - Required labels: identity, state, keyboard_route, anchor_and_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **review_thread**: `stable`
+  - Owner: Hosted-review owner
+  - Canonical schema: `schemas/ui/m5-review-thread.schema.json`
+  - Scope: One review-thread model naming comment-anchor durability (anchored-exact, re-anchored, drifted, outdated, or orphaned) and resolution state (outdated-versus-resolved), so a comment anchor never silently drifts and outdated and resolved review state never blur together
+  - Required labels: identity, state, keyboard_route, anchor_and_freshness
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **ai_message_card**: `stable`
+  - Owner: AI action-state owner
+  - Canonical schema: `schemas/ui/m5-ai-message-card.schema.json`
+  - Scope: One AI-message-card model naming source context, confidence (grounded, low, unverified, or streaming), and the available actions, plus the collapsed / expanded / redacted disclosure of its evidence, so an unverified or streaming message is never read as final and evidence pointers never silently drift
+  - Required labels: identity, state, keyboard_route, confidence_and_source, evidence_lineage
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **evidence_timeline**: `stable`
+  - Owner: Support / export owner
+  - Canonical schema: `schemas/ui/m5-evidence-timeline.schema.json`
+  - Scope: One evidence-timeline model naming inspectable, collapsible, export-safe evidence lineage (expanded, collapsed-summary, partially-loaded, redacted, or empty), so an evidence timeline is never hidden in an opaque log and a redacted export is never mistaken for a complete one
+  - Required labels: identity, state, keyboard_route, evidence_lineage
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
