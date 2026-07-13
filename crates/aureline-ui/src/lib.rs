@@ -256,6 +256,7 @@ pub mod m5_decision_feedback_accessibility_parity_and_narrowing_when_decision_fe
 pub mod m5_decision_feedback_component_matrix;
 pub mod m5_decision_feedback_component_surface_certification;
 pub mod m5_decision_feedback_shared_consumers_one_vocabulary_across_surfaces;
+pub mod m5_density_mode_registries;
 pub mod m5_dependency_rows;
 pub mod m5_dialog_sheet_and_consequence_block_rationale_scope_and_rollback_continuity;
 pub mod m5_draft_state_and_autosave;
