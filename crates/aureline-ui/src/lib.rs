@@ -247,6 +247,7 @@ pub mod m5_typography_scale_font_stack_and_overflow_registries;
 pub mod m5_visual_foundation_matrix;
 pub mod m5_visual_foundations_accessibility_parity_and_narrowing_when_visual_foundation_truth_is_stale;
 pub mod m5_visual_foundations_shared_consumers_one_vocabulary_across_surfaces;
+pub mod m5_visual_foundations_surface_certification;
 pub mod motion;
 pub mod themes;
 pub mod tokens;
