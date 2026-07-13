@@ -200,6 +200,21 @@
 //! surface forks local geometry away from the shared foundation across the
 //! shell, editor, review, data, and docs surfaces.
 //!
+//! [`m5_motion_layer_iconography_matrix::M5MotionLayerIconographyMatrixPacket`]
+//! freezes Aureline's motion, overlay, layering, symbol, and illustration
+//! grammar — motion-token and reduced-motion families, opacity / scrim classes,
+//! z-order layer tiers, portal ownership, iconography, and illustration
+//! boundaries — into one export-safe matrix. It binds every governed family to
+//! one shared interaction-role taxonomy (motion, overlay, layer, portal, icon,
+//! illustration, attention) and to the family-specific motion, reduced-motion,
+//! scrim, layer, portal, icon, and illustration vocabularies, and back to the
+//! already-landed design-system foundations and publication packets, so motion
+//! never delays input on protected paths, scrims never erase workspace
+//! orientation or contrast, overlays and portals never bypass the shared z-order
+//! model, uncommon or destructive icons never ship unlabeled, and illustrations
+//! never impersonate trust, severity, or operational truth across the desktop,
+//! dialog, onboarding, notification, and embedded surfaces.
+//!
 //! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
 //! validates the first-consumer proof across the five component families and
 //! checks that review panes, package centers, project-health centers, companion
@@ -232,6 +247,7 @@ pub mod m5_field_control_rows;
 pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_manifest_diff_cards;
+pub mod m5_motion_layer_iconography_matrix;
 pub mod m5_parameter_source_and_precedence;
 pub mod m5_pipeline_dependency_finding_components;
 pub mod m5_pipeline_run_rows;

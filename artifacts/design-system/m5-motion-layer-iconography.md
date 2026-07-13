@@ -1,0 +1,53 @@
+# M5 Motion-Token, Reduced-Motion, Opacity / Scrim, Layer-Order, Portal-Ownership, Iconography, and Illustration-Boundary Visual-Interaction Matrix
+
+- Packet: `m5-motion-layer-iconography:stable:0001`
+- Label: `M5 motion-token, reduced-motion, opacity / scrim, layer-order, portal-ownership, iconography, and illustration-boundary visual-interaction matrix`
+- Interaction families: 7 (7 stable)
+- Interaction roles: motion, overlay, layer, portal, icon, illustration, attention
+- Motion roles: duration_family, easing_family, origin_continuity_cue, completion_cue, respects_input_priority, motion_delays_protected_input_disallowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-13T00:00:00Z)
+
+## Interaction families
+
+- **motion_token**: `stable`
+  - Owner: Design-system foundations owner
+  - Canonical schema: `schemas/design-system/m5-motion-and-reduced-motion.schema.json`
+  - Scope: One motion-token system naming duration and easing families that clarify origin, continuity, and completion without ever delaying input on protected paths like the command palette or typing-critical surfaces
+  - Required labels: identity, semantic_role, token_reference, motion_profile
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **reduced_motion**: `stable`
+  - Owner: Accessibility foundations owner
+  - Canonical schema: `schemas/design-system/m5-motion-and-reduced-motion.schema.json`
+  - Scope: One reduced-motion contract naming the reduced-motion, power-saver, and thermal clamps and the static fallback that preserves the same meaning so no motion ever carries the only cue
+  - Required labels: identity, semantic_role, token_reference, motion_profile
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **opacity_scrim**: `stable`
+  - Owner: Shell surface owner
+  - Canonical schema: `schemas/design-system/m5-opacity-scrim.schema.json`
+  - Scope: One opacity / scrim class set naming scrim layers and opacity levels that preserve workspace orientation and text contrast and always offer a dismiss affordance so an overlay never erases context
+  - Required labels: identity, semantic_role, token_reference, accessible_fallback
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **layer_order**: `stable`
+  - Owner: Shell surface owner
+  - Canonical schema: `schemas/design-system/m5-layer-order-and-portal.schema.json`
+  - Scope: One z-order model naming base-content, overlay, dialog, and notification tiers so every menu, popover, dialog, and toast stacks under a single shared order no private overlay can bypass
+  - Required labels: identity, semantic_role, token_reference, layer_tier
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **portal_ownership**: `stable`
+  - Owner: Shell surface owner
+  - Canonical schema: `schemas/design-system/m5-layer-order-and-portal.schema.json`
+  - Scope: One portal-ownership contract so every portal attaches to its owning surface, contains focus, dismisses with its owner, and stacks under the shared z-order — including extension and embedded overlays
+  - Required labels: identity, semantic_role, token_reference, layer_tier
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **iconography**: `stable`
+  - Owner: Design-system foundations owner
+  - Canonical schema: `schemas/design-system/m5-iconography-and-illustration.schema.json`
+  - Scope: One iconography system naming status, action, and navigation icon categories that stay semantic and always carry a text label for uncommon or destructive actions
+  - Required labels: identity, semantic_role, token_reference, accessible_fallback
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **illustration**: `stable`
+  - Owner: Design-system foundations owner
+  - Canonical schema: `schemas/design-system/m5-iconography-and-illustration.schema.json`
+  - Scope: One illustration-boundary contract keeping empty-state, onboarding, and decorative illustrations secondary to content so an illustration never impersonates operational state, safety approval, or security messaging
+  - Required labels: identity, semantic_role, token_reference, accessible_fallback
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
