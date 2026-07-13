@@ -278,6 +278,7 @@ pub mod m5_dependency_rows;
 pub mod m5_dialog_sheet_and_consequence_block_rationale_scope_and_rollback_continuity;
 pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;
+pub mod m5_file_path_reveal_and_native_window_menu_registries;
 pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_iconography_and_illustration_registries;
