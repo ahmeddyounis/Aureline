@@ -249,6 +249,7 @@ pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_manifest_diff_cards;
 pub mod m5_motion_layer_iconography_matrix;
 pub mod m5_motion_token_and_reduced_motion_registries;
+pub mod m5_opacity_scrim_and_overlay_depth_registries;
 pub mod m5_parameter_source_and_precedence;
 pub mod m5_pipeline_dependency_finding_components;
 pub mod m5_pipeline_run_rows;
