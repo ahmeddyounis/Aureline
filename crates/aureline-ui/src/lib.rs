@@ -253,6 +253,20 @@
 //! theme / contrast changes apply live or explain their fallback, credential-store
 //! wording stays truthful and non-leaky, and input methods never corrupt text or
 //! trust fidelity across macOS, Windows, and Linux.
+//!
+//! [`m5_platform_fit_accessibility_parity_and_narrowing_when_platform_convention_native_affordance_or_input_method_truth_is_stale::PlatformFitAccessibilityPacket`]
+//! is the accessibility-localization-support-export parity and auto-narrowing
+//! capstone over that frozen platform-fit matrix. It certifies, per platform-fit
+//! family, that platform-convention / shortcut / path / appearance /
+//! credential-wording / input-method claims stay keyboard-reachable,
+//! screen-reader-announced, high-zoom-legible, high-contrast-safe,
+//! localization-safe, and CLI/export-safe, exports the active platform profile and
+//! its shortcut / path / appearance / credential / input state into diagnostics and
+//! support bundles without a raw payload, and auto-narrows the affected claim to a
+//! path-terminology-disclosed / appearance-response-unverified /
+//! credential-wording-unverified / input-fidelity-unverified projection whenever the
+//! platform-fit, input-method, or screenshot/help parity evidence is stale, missing,
+//! or failing.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -295,6 +309,7 @@ pub mod m5_opacity_scrim_and_overlay_depth_registries;
 pub mod m5_parameter_source_and_precedence;
 pub mod m5_pipeline_dependency_finding_components;
 pub mod m5_pipeline_run_rows;
+pub mod m5_platform_fit_accessibility_parity_and_narrowing_when_platform_convention_native_affordance_or_input_method_truth_is_stale;
 pub mod m5_platform_fit_matrix;
 pub mod m5_platform_fit_shared_consumers_one_convention_across_surfaces;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
