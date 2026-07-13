@@ -275,6 +275,7 @@ pub mod m5_parameter_source_and_precedence;
 pub mod m5_pipeline_dependency_finding_components;
 pub mod m5_pipeline_run_rows;
 pub mod m5_security_finding_cards;
+pub mod m5_shell_metric_and_minimum_size_registries;
 pub mod m5_shell_metric_density_matrix;
 pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
