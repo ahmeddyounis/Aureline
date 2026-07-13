@@ -280,6 +280,7 @@ pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_shell_metric_and_minimum_size_registries;
 pub mod m5_shell_metric_density_matrix;
+pub mod m5_shell_metric_density_shared_consumers_one_geometry_across_surfaces;
 pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
 pub mod m5_staged_review_sheets;
