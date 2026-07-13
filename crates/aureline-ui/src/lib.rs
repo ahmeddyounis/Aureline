@@ -282,6 +282,7 @@ pub mod m5_file_path_reveal_and_native_window_menu_registries;
 pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_iconography_and_illustration_registries;
+pub mod m5_input_method_and_credential_store_wording_registries;
 pub mod m5_layer_order_and_portal_registries;
 pub mod m5_manifest_diff_cards;
 pub mod m5_monitor_geometry_remap_and_restore_bounds;
