@@ -246,6 +246,7 @@ pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;
 pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
+pub mod m5_layer_order_and_portal_registries;
 pub mod m5_manifest_diff_cards;
 pub mod m5_motion_layer_iconography_matrix;
 pub mod m5_motion_token_and_reduced_motion_registries;
