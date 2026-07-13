@@ -246,6 +246,18 @@
 //! rollout rings keep promotion and rollback evidence across the About, update,
 //! diagnostics, admin, docs, and support surfaces.
 //!
+//! [`m5_install_topology_and_state_root_registries::M5InstallTopologyStateRootRegistriesPacket`]
+//! is the first implement lane over that frozen matrix: it turns the per-user
+//! managed, per-machine managed, and side-by-side install-topology grammar and
+//! the portable-mode / offline-air-gap state-root-boundary grammar into registry
+//! resolvers, so every claimed delivery profile resolves to one stable
+//! install-topology object — install mode, channel, updater owner, binary root,
+//! writable state roots, policy roots, and rollback target — that About, update,
+//! diagnostics, admin, and support / export surfaces inspect without manual
+//! reconstruction, managed-versus-user scopes and side-by-side channels resolve to
+//! explicitly isolated state namespaces, and a profile that cannot explain its
+//! shared-versus-isolated state degrades honestly.
+//!
 //! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
 //! validates the first-consumer proof across the five component families and
 //! checks that review panes, package centers, project-health centers, companion
@@ -312,6 +324,7 @@ pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_iconography_and_illustration_registries;
 pub mod m5_input_method_and_credential_store_wording_registries;
+pub mod m5_install_topology_and_state_root_registries;
 pub mod m5_install_topology_matrix;
 pub mod m5_layer_order_and_portal_registries;
 pub mod m5_manifest_diff_cards;
