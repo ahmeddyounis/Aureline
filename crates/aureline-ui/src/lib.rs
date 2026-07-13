@@ -242,6 +242,7 @@ pub mod m5_structured_input_and_staged_review;
 pub mod m5_syntax_diff_and_chart_token_registries;
 pub mod m5_text_field_and_search_field_labels_validation_and_privacy;
 pub mod m5_toast_and_loading_state_acknowledgement_and_loading_fidelity;
+pub mod m5_typography_scale_font_stack_and_overflow_registries;
 pub mod m5_visual_foundation_matrix;
 pub mod motion;
 pub mod themes;
