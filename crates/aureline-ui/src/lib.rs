@@ -236,6 +236,23 @@
 //! checks that review panes, package centers, project-health centers, companion
 //! clients, support export, and release proof preserve controlled labels and
 //! narrow action authority explicitly.
+//!
+//! [`m5_platform_fit_matrix::M5PlatformFitMatrixPacket`] freezes Aureline's
+//! desktop platform-fit conventions — platform conventions, shortcut notation,
+//! file / path / reveal / save terminology, live theme / contrast / accent /
+//! text-scale response, credential-store wording, and IME / dead-key / AltGr /
+//! dictation / emoji / layout-switch behavior — into one export-safe matrix. It
+//! binds every governed family to one shared platform-fit-role taxonomy
+//! (shortcut, window_menu, path_terminology, appearance, credential_wording,
+//! input_fidelity, command_stability) and to the family-specific
+//! platform-convention, shortcut-notation, file-path-reveal, theme-contrast,
+//! credential-wording, and input-method vocabularies, and back to the
+//! already-landed native-desktop matrix, so command IDs stay stable while
+//! platform labels and shortcut notation adapt, primary actions are never hidden
+//! in OS chrome alone, file / path / reveal / save terminology matches the host,
+//! theme / contrast changes apply live or explain their fallback, credential-store
+//! wording stays truthful and non-leaky, and input methods never corrupt text or
+//! trust fidelity across macOS, Windows, and Linux.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -276,6 +293,7 @@ pub mod m5_opacity_scrim_and_overlay_depth_registries;
 pub mod m5_parameter_source_and_precedence;
 pub mod m5_pipeline_dependency_finding_components;
 pub mod m5_pipeline_run_rows;
+pub mod m5_platform_fit_matrix;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_shell_metric_and_minimum_size_registries;
