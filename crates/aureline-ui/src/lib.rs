@@ -198,6 +198,7 @@ pub mod density;
 pub mod m5_accessibility_and_continuity;
 pub mod m5_annotation_rows;
 pub mod m5_badge_chip_pill_and_popover_expansion_and_anchored_focus_return;
+pub mod m5_banner_inline_notice_and_empty_state_scoped_cause_and_next_action;
 pub mod m5_button_and_icon_button_state_and_command_attribution;
 pub mod m5_combobox_and_checkbox_radio_switch_value_source_and_toggle_semantics;
 pub mod m5_core_action_input_accessibility_parity_and_narrowing_when_control_truth_is_stale;
