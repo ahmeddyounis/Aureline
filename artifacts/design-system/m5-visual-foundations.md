@@ -1,0 +1,59 @@
+# M5 Color-System, Semantic-Theme-Token, Syntax / Diff / Chart-Token, Typography, and Spacing / Sizing / Radii / Elevation Visual-Foundation Matrix
+
+- Packet: `m5-visual-foundations:stable:0001`
+- Label: `M5 color-system, semantic-theme-token, syntax / diff / chart-token, typography, and spacing / sizing / radii / elevation visual-foundation matrix`
+- Foundation families: 8 (8 stable)
+- Semantic roles: brand, interactive, neutral, status, syntax, diff, chart
+- Color roles: brand_palette, interactive_palette, neutral_palette, status_palette, paired_with_non_color_cue, hue_alone_meaning_disallowed
+- Proof freshness SLO: 720 hours (last refresh: 2026-07-13T00:00:00Z)
+
+## Foundation families
+
+- **color_system**: `stable`
+  - Owner: Design-system foundations owner
+  - Canonical schema: `schemas/design-system/m5-color-system.schema.json`
+  - Scope: One color system with distinct brand, interactive, neutral, and status palettes, each always paired with a non-color cue so status and trust meaning never collapse into hue alone
+  - Required labels: identity, semantic_role, token_reference, contrast_pairing
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **semantic_theme_token**: `stable`
+  - Owner: Design-system foundations owner
+  - Canonical schema: `schemas/design-system/m5-color-system.schema.json`
+  - Scope: One semantic theme-token set whose surface, text, border, and status roles stay stable across a complete dark / light / high-contrast pair, bound to the appearance-session and design-system foundations rather than raw hex
+  - Required labels: identity, semantic_role, token_reference, theme_variant
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **syntax_token**: `stable`
+  - Owner: Editor surface owner
+  - Canonical schema: `schemas/design-system/m5-syntax-diff-chart-tokens.schema.json`
+  - Scope: One syntax-highlighting token set naming keyword, string, comment, and identifier scopes that stay distinct from the diagnostics palette so a syntax color never reads as an error
+  - Required labels: identity, semantic_role, token_reference, contrast_pairing
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **diff_token**: `stable`
+  - Owner: Review surface owner
+  - Canonical schema: `schemas/design-system/m5-syntax-diff-chart-tokens.schema.json`
+  - Scope: One diff token set naming addition, removal, context, and moved regions that stay distinct from the diagnostics palette and always pair color with a glyph so a diff never depends on hue alone
+  - Required labels: identity, semantic_role, token_reference, contrast_pairing
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **chart_token**: `stable`
+  - Owner: Data surface owner
+  - Canonical schema: `schemas/design-system/m5-syntax-diff-chart-tokens.schema.json`
+  - Scope: One chart token set naming categorical, sequential, and diverging scales that always pair color with a shape or label and meet accessible contrast so chart meaning never depends on color alone
+  - Required labels: identity, semantic_role, token_reference, contrast_pairing
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **typography**: `stable`
+  - Owner: Design-system foundations owner
+  - Canonical schema: `schemas/design-system/m5-typography-and-geometry.schema.json`
+  - Scope: One typography system naming display and body scales, code and UI font stacks, and tabular numerals so type scale, line-height, and font stacks stay stable across every surface
+  - Required labels: identity, semantic_role, token_reference, density_context
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **spacing_sizing_radii_elevation**: `stable`
+  - Owner: Design-system foundations owner
+  - Canonical schema: `schemas/design-system/m5-typography-and-geometry.schema.json`
+  - Scope: One geometry system naming spacing, sizing, radius, and elevation steps that stay density-aware and machine-readable so no surface forks its own local spacing or elevation
+  - Required labels: identity, semantic_role, token_reference, density_context
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present
+- **hit_target**: `stable`
+  - Owner: Accessibility foundations owner
+  - Canonical schema: `schemas/design-system/m5-typography-and-geometry.schema.json`
+  - Scope: One hit-target baseline naming comfortable, compact, and coarse-pointer minima and inter-target spacing so an interactive target never shrinks below its supported minimum under compact density
+  - Required labels: identity, semantic_role, token_reference, density_context
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, reduced_motion_safe, cli_exportable, support_packet_present

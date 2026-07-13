@@ -185,6 +185,21 @@
 //! spinners never replace partial capability across the shell, entry, trust,
 //! review, repair, and notification surfaces.
 //!
+//! [`m5_visual_foundation_matrix::M5VisualFoundationMatrixPacket`] freezes
+//! Aureline's concrete visual foundation — color system, semantic theme
+//! tokens, syntax / diff / chart token families, typography, and
+//! spacing / sizing / radii / elevation geometry with minimum hit-target
+//! rules — into one export-safe matrix. It binds every governed family to one
+//! shared semantic-role taxonomy (brand, interactive, neutral, status, syntax,
+//! diff, chart) and to the family-specific color, theme-token, syntax, diff,
+//! chart, typography, geometry, and hit-target vocabularies, and back to the
+//! already-landed design-system foundations and publication packets, so status
+//! and trust meaning never collapse into color-only cues, syntax and diff
+//! palettes never collide with diagnostics, chart meaning never depends on
+//! color alone, hit targets never shrink below supported minima, and no
+//! surface forks local geometry away from the shared foundation across the
+//! shell, editor, review, data, and docs surfaces.
+//!
 //! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
 //! validates the first-consumer proof across the five component families and
 //! checks that review panes, package centers, project-health centers, companion
@@ -225,6 +240,7 @@ pub mod m5_staged_review_sheets;
 pub mod m5_structured_input_and_staged_review;
 pub mod m5_text_field_and_search_field_labels_validation_and_privacy;
 pub mod m5_toast_and_loading_state_acknowledgement_and_loading_fidelity;
+pub mod m5_visual_foundation_matrix;
 pub mod motion;
 pub mod themes;
 pub mod tokens;
