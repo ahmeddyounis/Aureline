@@ -266,6 +266,7 @@ pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_iconography_and_illustration_registries;
 pub mod m5_layer_order_and_portal_registries;
 pub mod m5_manifest_diff_cards;
+pub mod m5_monitor_geometry_remap_and_restore_bounds;
 pub mod m5_motion_layer_iconography_accessibility_parity_and_narrowing_when_motion_layer_or_icon_truth_is_stale;
 pub mod m5_motion_layer_iconography_matrix;
 pub mod m5_motion_layer_iconography_shared_consumers_one_grammar_across_surfaces;
