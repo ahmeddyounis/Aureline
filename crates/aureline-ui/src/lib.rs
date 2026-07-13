@@ -231,6 +231,21 @@
 //! never invent private widths that fracture the shell across the desktop,
 //! editor, review, notebook, and data surfaces.
 //!
+//! [`m5_install_topology_matrix::M5InstallTopologyMatrixPacket`] freezes
+//! Aureline's concrete delivery-topology behavior — per-user managed install,
+//! per-machine managed install, side-by-side stable-plus-preview, portable mode,
+//! and offline / air-gap bundles — into one export-safe matrix. It binds every
+//! governed family to one shared install-topology-role taxonomy (install_mode,
+//! updater_owner, binary_root, writable_state_roots, policy_roots,
+//! rollback_target, rollout_ring) and to the family-specific per-user,
+//! per-machine, side-by-side, portable, and offline / air-gap vocabularies, and
+//! back to the already-landed coexistence / fleet-rollout and native-desktop
+//! packets, so binary placement and updater ownership stay inspectable, portable
+//! mode never spills machine-global durable state, stable and preview channels
+//! never corrupt one another, rollback targets the full artifact graph, and
+//! rollout rings keep promotion and rollback evidence across the About, update,
+//! diagnostics, admin, docs, and support surfaces.
+//!
 //! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
 //! validates the first-consumer proof across the five component families and
 //! checks that review panes, package centers, project-health centers, companion
@@ -297,6 +312,7 @@ pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_iconography_and_illustration_registries;
 pub mod m5_input_method_and_credential_store_wording_registries;
+pub mod m5_install_topology_matrix;
 pub mod m5_layer_order_and_portal_registries;
 pub mod m5_manifest_diff_cards;
 pub mod m5_monitor_geometry_remap_and_restore_bounds;
