@@ -215,6 +215,22 @@
 //! never impersonate trust, severity, or operational truth across the desktop,
 //! dialog, onboarding, notification, and embedded surfaces.
 //!
+//! [`m5_shell_metric_density_matrix::M5ShellMetricDensityMatrixPacket`]
+//! freezes Aureline's concrete shell geometry and density behavior — shell-zone
+//! metrics, minimum sizes and hit targets, density modes, responsive window
+//! classes, and adaptive-collapse priorities — into one export-safe matrix. It
+//! binds every governed family to one shared shell-geometry-role taxonomy
+//! (zone, metric, hit_target, density, responsive, collapse,
+//! workspace_dominance) and to the family-specific shell-metric, minimum-size,
+//! density, responsive, and collapse vocabularies, and back to the
+//! already-landed shell-zone and reusable-shell-primitive packets, so the main
+//! workspace stays dominant, zones honor declared minimum and recommended sizes,
+//! density changes presentation rather than information architecture, responsive
+//! collapse preserves task identity and recovery-critical state, hit targets
+//! never shrink below supported minimums, and extension or embedded surfaces
+//! never invent private widths that fracture the shell across the desktop,
+//! editor, review, notebook, and data surfaces.
+//!
 //! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
 //! validates the first-consumer proof across the five component families and
 //! checks that review panes, package centers, project-health centers, companion
@@ -259,6 +275,7 @@ pub mod m5_parameter_source_and_precedence;
 pub mod m5_pipeline_dependency_finding_components;
 pub mod m5_pipeline_run_rows;
 pub mod m5_security_finding_cards;
+pub mod m5_shell_metric_density_matrix;
 pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
 pub mod m5_staged_review_sheets;
