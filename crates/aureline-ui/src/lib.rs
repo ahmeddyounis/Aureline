@@ -250,6 +250,7 @@ pub mod m5_iconography_and_illustration_registries;
 pub mod m5_layer_order_and_portal_registries;
 pub mod m5_manifest_diff_cards;
 pub mod m5_motion_layer_iconography_matrix;
+pub mod m5_motion_layer_iconography_shared_consumers_one_grammar_across_surfaces;
 pub mod m5_motion_token_and_reduced_motion_registries;
 pub mod m5_opacity_scrim_and_overlay_depth_registries;
 pub mod m5_parameter_source_and_precedence;
