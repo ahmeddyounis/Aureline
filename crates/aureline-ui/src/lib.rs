@@ -316,6 +316,20 @@
 //! state, hides updater ownership, narrows rollback below the full artifact graph, or
 //! outpaces ring evidence degrades honestly rather than silently.
 //!
+//! [`m5_install_topology_accessibility_parity_and_narrowing_when_install_topology_state_root_repair_verify_or_rollout_evidence_is_stale::InstallTopologyAccessibilityPacket`]
+//! is the accessibility-localization-support-export parity and auto-narrowing
+//! capstone over that frozen install-topology matrix. It certifies, per
+//! delivery-topology family, that install-mode / updater-owner / state-root /
+//! repair-verify / rollout-ring / rollback claims stay keyboard-reachable,
+//! screen-reader-announced, high-zoom-legible, high-contrast-safe,
+//! localization-safe, and CLI/export-safe, and auto-narrows a side-by-side family
+//! whose state-boundary proof is only partially disclosed, a portable / offline
+//! family whose repair/verify coverage is unconfirmed, or a family whose
+//! rollout-ring evidence has aged out or is policy-blocked to a
+//! state-boundary-disclosed / repair-verify-unverified / rollout-evidence-unverified
+//! projection, so no claimed delivery profile stays green after its B140 evidence
+//! ages out or becomes policy-blocked.
+//!
 //! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
 //! validates the first-consumer proof across the five component families and
 //! checks that review panes, package centers, project-health centers, companion
@@ -383,6 +397,7 @@ pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_iconography_and_illustration_registries;
 pub mod m5_input_method_and_credential_store_wording_registries;
+pub mod m5_install_topology_accessibility_parity_and_narrowing_when_install_topology_state_root_repair_verify_or_rollout_evidence_is_stale;
 pub mod m5_install_topology_and_state_root_registries;
 pub mod m5_install_topology_matrix;
 pub mod m5_install_topology_shared_consumers_one_registry_across_surfaces;
