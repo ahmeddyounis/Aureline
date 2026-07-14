@@ -277,6 +277,19 @@
 //! workspace that cannot explain which state is shared and which is window-local
 //! degrades honestly.
 //!
+//! [`m5_skeleton_first_restore_and_session_hydration_registries::M5SkeletonFirstRestoreSessionHydrationRegistriesPacket`]
+//! is the skeleton-first / hydrate-second implement lane over that frozen matrix:
+//! it turns the skeleton-first-restore grammar and the no-rerun-session-hydration
+//! grammar into registry resolvers, so every claimed restore rebuilds one stable
+//! restore-skeleton object — the restore-fidelity class, the window shell, the
+//! stable versioned pane-tree structure, the preserved pane roles and placeholder
+//! set, the layout-skeleton root, and the distinct deferred-hydration plan — before
+//! any heavy dependency hydrates, restore is progressively truthful instead of
+//! all-or-nothing, a missing dependency produces a pane-role-preserving placeholder
+//! instead of a silent layout collapse, session-scoped tools never silently rerun or
+//! reacquire broader authority, and support / export can explain which panes came
+//! back live, as placeholders, context-only, or evidence-only.
+//!
 //! [`m5_install_topology_and_state_root_registries::M5InstallTopologyStateRootRegistriesPacket`]
 //! is the first implement lane over that frozen matrix: it turns the per-user
 //! managed, per-machine managed, and side-by-side install-topology grammar and
@@ -474,6 +487,7 @@ pub mod m5_shell_metric_density_matrix;
 pub mod m5_shell_metric_density_shared_consumers_one_geometry_across_surfaces;
 pub mod m5_shell_metric_density_surface_certification;
 pub mod m5_shortcut_notation_and_command_label_registries;
+pub mod m5_skeleton_first_restore_and_session_hydration_registries;
 pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
 pub mod m5_staged_review_sheets;
