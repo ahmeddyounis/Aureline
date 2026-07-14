@@ -330,6 +330,21 @@
 //! projection, so no claimed delivery profile stays green after its B140 evidence
 //! ages out or becomes policy-blocked.
 //!
+//! [`m5_install_topology_surface_certification::InstallTopologyProfileCertificationPacket`]
+//! is the closing B140 surface-certification capstone over that frozen
+//! install-topology matrix. Keyed on the claimed delivery profile — a live
+//! trusted delivery surface, a reviewable delivery structure, a disclosed
+//! state-boundary profile, an unverified repair/verify profile, and an unverified
+//! rollout-evidence profile — it certifies each profile across nine truth axes
+//! (visual, keyboard, screen-reader, high-zoom-reflow, high-contrast,
+//! localization, CLI/export, degraded-state, and install-topology-component-truth)
+//! and either delivers its claim (green) or auto-narrows to a state-boundary-disclosed
+//! / repair-verify-unverified / rollout-evidence-unverified projection (yellow).
+//! Only a live first-party profile may certify a trusted delivery surface,
+//! CLI/export parity must always certify, every B140 hard invariant must hold, and
+//! every row cites the one canonical install-topology proof bundle so release,
+//! docs, and support consume a single delivery-topology certification source.
+//!
 //! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
 //! validates the first-consumer proof across the five component families and
 //! checks that review panes, package centers, project-health centers, companion
@@ -401,6 +416,7 @@ pub mod m5_install_topology_accessibility_parity_and_narrowing_when_install_topo
 pub mod m5_install_topology_and_state_root_registries;
 pub mod m5_install_topology_matrix;
 pub mod m5_install_topology_shared_consumers_one_registry_across_surfaces;
+pub mod m5_install_topology_surface_certification;
 pub mod m5_layer_order_and_portal_registries;
 pub mod m5_managed_deployment_operations_and_policy_bootstrap_injection;
 pub mod m5_manifest_diff_cards;
