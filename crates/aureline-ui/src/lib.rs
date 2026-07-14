@@ -517,6 +517,23 @@
 //! truth the GUI entry and recovery surfaces show, and no claimed entry profile can stay
 //! green after that proof ages out.
 //!
+//! [`m5_repository_bootstrap_surface_certification::RepositoryBootstrapProfileCertificationPacket`]
+//! is the closing surface-certification capstone over that frozen matrix: keyed on the
+//! claimed project-entry profile (a live trusted acquisition surface, a reviewable
+//! acquisition structure, a disclosed checkout-plan profile, an unverified trust-stage
+//! profile, and an unverified bootstrap-evidence profile) rather than the acquisition
+//! family, it certifies each profile across nine truth axes — visual, keyboard,
+//! screen-reader, high-zoom-reflow, high-contrast, localization, CLI/export,
+//! degraded-state, and repository-bootstrap-component-truth behavior — and either passes
+//! (green), auto-narrows its acquisition claim to the weakest supported ceiling (yellow),
+//! or blocks (red) when a degraded axis hides behind a fresh trusted claim, a B142 hard
+//! invariant breaks, CLI/export parity drops, a non-live profile claims a trusted
+//! acquisition surface, or the narrowing is inconsistent. Every row cites the one
+//! canonical repository-bootstrap proof bundle, so release, docs, and support consume a
+//! single repository-bootstrap certification source rather than hand-authored prose, and
+//! no claimed entry profile can advertise full bootstrap continuity once its checkout-plan,
+//! trust-stage, or partial-acquisition evidence goes stale.
+//!
 //! [`m5_source_locator_and_checkout_plan_registries::M5SourceLocatorCheckoutPlanRegistriesPacket`]
 //! is the first implement lane over that frozen matrix: it turns the source-locator
 //! grammar (open-local / open-archive) and the checkout-plan grammar (clone-remote)
@@ -659,6 +676,7 @@ pub mod m5_portable_mode_state_containment_and_diagnostics;
 pub mod m5_repository_bootstrap_accessibility_parity_and_narrowing_when_checkout_plan_trust_stage_mirror_signer_continuity_or_bootstrap_evidence_is_stale_or_partial;
 pub mod m5_repository_bootstrap_matrix;
 pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
+pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_shell_metric_and_minimum_size_registries;
