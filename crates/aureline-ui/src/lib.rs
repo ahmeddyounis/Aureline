@@ -504,6 +504,26 @@
 //! actions never run implicitly during acquisition, and an entry flow that cannot
 //! explain the literal target and checkout posture it chose degrades honestly instead
 //! of reading as a clean pass.
+//!
+//! [`m5_bootstrap_credential_posture_and_fetch_route_registries::M5CredentialPostureFetchRouteRegistriesPacket`]
+//! is the credential-boundary + mirror/trust-route implement lane over that frozen
+//! matrix: it turns the credential-posture grammar (how a bootstrap authenticates and
+//! which trust roots or mirrors it depends on) and the fetch-route grammar (public
+//! upstream fetch, approved mirror fetch, air-gap bundle import, and managed snapshot
+//! resume) into registry resolvers, so every claimed acquisition path resolves to one
+//! stable credential-posture object — the auth-source kind and canonical auth mode, the
+//! auth-source reference, the proxy / mirror route, the host-key or TLS-pin state, the
+//! delegated-token policy, the handle-only secret reference kept out of the export
+//! boundary, and the mirror / signer provenance — and to one fetch-route object — the
+//! route endpoint class, the signer- and digest-continuity references, the
+//! mirror-provenance reference, the recovery language, and the trust-proof reference —
+//! that the acquisition, git, trust, diagnostics, CLI, and support / export surfaces
+//! inspect without manual reconstruction, so a credential posture never embeds a raw
+//! secret or token in a portable manifest, host trust state is disclosed rather than
+//! hidden behind generic connected-state copy, public / mirrored / air-gapped / resumed
+//! fetch routes stay distinct, signer and mirror provenance stay continuous, and an
+//! acquisition path that cannot explain how it authenticated or which trust route it
+//! took degrades honestly instead of reading as a clean pass.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -513,6 +533,7 @@ pub mod m5_accessibility_and_continuity;
 pub mod m5_annotation_rows;
 pub mod m5_badge_chip_pill_and_popover_expansion_and_anchored_focus_return;
 pub mod m5_banner_inline_notice_and_empty_state_scoped_cause_and_next_action;
+pub mod m5_bootstrap_credential_posture_and_fetch_route_registries;
 pub mod m5_button_and_icon_button_state_and_command_attribution;
 pub mod m5_channel_isolation_precedence_review_and_rollback_targets;
 pub mod m5_color_system_and_semantic_theme_token_registries;
