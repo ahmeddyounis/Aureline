@@ -272,6 +272,21 @@
 //! roots, or leaves its diagnostics implicit degrades honestly across the About,
 //! update, diagnostics, admin, docs, and support surfaces.
 //!
+//! [`m5_managed_deployment_operations_and_policy_bootstrap_injection::M5ManagedDeploymentOperationsAndPolicyBootstrapInjectionPacket`]
+//! is the managed-deployment execution lane over that frozen matrix: it makes
+//! *managed deployment* a contract by resolving every claimed managed profile's
+//! silent install, silent uninstall, repair-or-verify, channel-pinning, and
+//! update-deferral operation to one inspectable object — the operation, the
+//! operation-target / receipt / failure-diagnostics roots, the copyable install-ID
+//! / timestamp / failure-summary / repair-verify receipt, and the explicit
+//! admin-versus-user ownership — and every policy-bundle / bootstrap injection to
+//! one published record — policy-bundle source, bootstrap target, applied
+//! settings, admin owner, and deferral window — so a managed installer presented
+//! as user-controlled, a failure that strands the user in an ambiguous ownership
+//! state, or a bootstrap-policy / channel-pinning / repair-verify semantics drift
+//! degrades honestly across the installer, update, diagnostics, admin, docs, and
+//! support surfaces.
+//!
 //! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
 //! validates the first-consumer proof across the five component families and
 //! checks that review panes, package centers, project-health centers, companion
@@ -341,6 +356,7 @@ pub mod m5_input_method_and_credential_store_wording_registries;
 pub mod m5_install_topology_and_state_root_registries;
 pub mod m5_install_topology_matrix;
 pub mod m5_layer_order_and_portal_registries;
+pub mod m5_managed_deployment_operations_and_policy_bootstrap_injection;
 pub mod m5_manifest_diff_cards;
 pub mod m5_monitor_geometry_remap_and_restore_bounds;
 pub mod m5_motion_layer_iconography_accessibility_parity_and_narrowing_when_motion_layer_or_icon_truth_is_stale;
