@@ -546,12 +546,36 @@
 //! what would run, where, and its trust or network consequence, and an acquisition path
 //! that cannot explain its staged trust or post-open queue degrades honestly instead of
 //! reading as a clean pass.
+//!
+//! [`m5_acquisition_evidence_and_partial_recovery_registries::M5AcquisitionEvidencePartialRecoveryRegistriesPacket`]
+//! is the evidence-packet + resumable-acquisition implement lane over that frozen matrix:
+//! it turns the acquisition-evidence grammar (how Aureline records the clone / fetch
+//! transcript, the warnings and retries, the resulting root identity, the
+//! omitted-or-unfetched state, and the current bootstrap checkpoint of an acquisition
+//! path) and the partial-recovery grammar (typed recovery actions that resume an
+//! interrupted acquisition, discard partial state, open the partial root read-only, or
+//! merely report status) into registry resolvers, so every claimed acquisition path
+//! resolves to one stable acquisition-evidence packet — the evidence kind and canonical
+//! evidence mode, the transcript reference, the warnings-and-retries reference, the
+//! resulting-root-identity reference, the omitted-or-unfetched reference, the
+//! bootstrap-checkpoint reference, and the evidence provenance — and to one
+//! partial-recovery object — the recovery-action kind, the recovery site, the state
+//! consequence, the lineage consequence, the explicit-action requirement, and the
+//! attribution reference — that the acquisition, git, trust, diagnostics, CLI, and
+//! support / export surfaces inspect without manual reconstruction, so a partial or
+//! interrupted acquisition stays visible and recoverable instead of reading as missing or
+//! unsupported data, a recovery action never discards partial state or transcript lineage
+//! without an explicit discard or cleanup action, partial content is never presented as a
+//! healthy full checkout, every recovery row identifies exactly what the action would do,
+//! where, and its state or lineage effect, and an acquisition path that cannot explain its
+//! evidence or its recovery choices degrades honestly instead of reading as a clean pass.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
 pub mod components;
 pub mod density;
 pub mod m5_accessibility_and_continuity;
+pub mod m5_acquisition_evidence_and_partial_recovery_registries;
 pub mod m5_annotation_rows;
 pub mod m5_badge_chip_pill_and_popover_expansion_and_anchored_focus_return;
 pub mod m5_banner_inline_notice_and_empty_state_scoped_cause_and_next_action;
