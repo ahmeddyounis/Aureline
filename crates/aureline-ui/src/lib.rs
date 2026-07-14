@@ -258,6 +258,20 @@
 //! explicitly isolated state namespaces, and a profile that cannot explain its
 //! shared-versus-isolated state degrades honestly.
 //!
+//! [`m5_portable_mode_state_containment_and_diagnostics::M5PortableModeStateContainmentAndDiagnosticsPacket`]
+//! is the portable-mode runtime-enforcement lane over that frozen matrix: it
+//! makes *portable* a contract by resolving every claimed portable profile to a
+//! colocated or explicitly named sibling-state layout with a complete durable-root
+//! inventory of settings, secrets, services, and shell hooks, proving hidden
+//! machine-global mutation is absent or explicitly blocked, keeping portable state
+//! distinguishable from ordinary installed state, and publishing discoverable
+//! portable-mode diagnostics — executable root, state roots, log / crash
+//! locations, update posture, and unsupported shell-integration paths — with
+//! documented retained-versus-replaced update continuity, so a portable profile
+//! that spills durable state into a hidden machine-global path, cannot name its
+//! roots, or leaves its diagnostics implicit degrades honestly across the About,
+//! update, diagnostics, admin, docs, and support surfaces.
+//!
 //! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
 //! validates the first-consumer proof across the five component families and
 //! checks that review panes, package centers, project-health centers, companion
@@ -342,6 +356,7 @@ pub mod m5_platform_fit_accessibility_parity_and_narrowing_when_platform_convent
 pub mod m5_platform_fit_matrix;
 pub mod m5_platform_fit_shared_consumers_one_convention_across_surfaces;
 pub mod m5_platform_fit_surface_certification;
+pub mod m5_portable_mode_state_containment_and_diagnostics;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_shell_metric_and_minimum_size_registries;
