@@ -263,6 +263,20 @@
 //! reachable across the shell, recovery, diagnostics, admin, docs, and support
 //! surfaces.
 //!
+//! [`m5_workspace_authority_and_window_topology_registries::M5WorkspaceAuthorityWindowTopologyRegistriesPacket`]
+//! is the first implement lane over that frozen matrix: it turns the shared
+//! workspace-authority grammar and the window-local-topology grammar into registry
+//! resolvers, so every claimed workspace resolves to one stable
+//! workspace-authority object — the authority scope, the windows it backs, the
+//! stable versioned pane-tree IDs, the shared dirty-buffer / save / checkpoint
+//! state, the authoritative workspace state root, and the distinct profile-defaults
+//! reference — that the shell, recovery, diagnostics, admin, and support / export
+//! surfaces inspect without manual reconstruction, multiple windows share one
+//! authority while selection and focus stay window-local without dirty-state drift,
+//! window topology never absorbs shared authority into private window state, and a
+//! workspace that cannot explain which state is shared and which is window-local
+//! degrades honestly.
+//!
 //! [`m5_install_topology_and_state_root_registries::M5InstallTopologyStateRootRegistriesPacket`]
 //! is the first implement lane over that frozen matrix: it turns the per-user
 //! managed, per-machine managed, and side-by-side install-topology grammar and
@@ -474,6 +488,7 @@ pub mod m5_visual_foundations_accessibility_parity_and_narrowing_when_visual_fou
 pub mod m5_visual_foundations_shared_consumers_one_vocabulary_across_surfaces;
 pub mod m5_visual_foundations_surface_certification;
 pub mod m5_window_restore_matrix;
+pub mod m5_workspace_authority_and_window_topology_registries;
 pub mod motion;
 pub mod themes;
 pub mod tokens;
