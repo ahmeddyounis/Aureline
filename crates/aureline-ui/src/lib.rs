@@ -470,6 +470,7 @@ pub mod m5_motion_layer_iconography_matrix;
 pub mod m5_motion_layer_iconography_shared_consumers_one_grammar_across_surfaces;
 pub mod m5_motion_layer_iconography_surface_certification;
 pub mod m5_motion_token_and_reduced_motion_registries;
+pub mod m5_no_rerun_session_recovery_and_authority_replay_fence_registries;
 pub mod m5_opacity_scrim_and_overlay_depth_registries;
 pub mod m5_parameter_source_and_precedence;
 pub mod m5_pipeline_dependency_finding_components;
