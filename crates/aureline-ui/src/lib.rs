@@ -246,6 +246,23 @@
 //! rollout rings keep promotion and rollback evidence across the About, update,
 //! diagnostics, admin, docs, and support surfaces.
 //!
+//! [`m5_window_restore_matrix::M5WindowRestoreMatrixPacket`] freezes Aureline's
+//! concrete multi-window ownership and restore-orchestration behavior — shared
+//! workspace authority backing multiple windows, window-local pane topology,
+//! skeleton-first / hydrate-second restore, no-rerun session hydration, and
+//! display-topology recovery — into one export-safe matrix. It binds every
+//! governed family to one shared window-restore-role taxonomy (workspace_authority,
+//! window_topology, pane_role, layout_skeleton, session_hydration, restore_fidelity,
+//! display_affinity) and to the family-specific shared-authority, window-local,
+//! skeleton-restore, no-rerun, and display-recovery vocabularies, and back to the
+//! already-landed multi-window-parity and monitor-geometry-remap packets, so
+//! workspace authority and window topology stay separately inspectable, selections
+//! and focus stay window-local, restore rebuilds layout skeletons before hydrating
+//! heavy dependencies, session-scoped tools never silently rerun or reacquire
+//! broader authority, and display-topology changes keep every window and dialog
+//! reachable across the shell, recovery, diagnostics, admin, docs, and support
+//! surfaces.
+//!
 //! [`m5_install_topology_and_state_root_registries::M5InstallTopologyStateRootRegistriesPacket`]
 //! is the first implement lane over that frozen matrix: it turns the per-user
 //! managed, per-machine managed, and side-by-side install-topology grammar and
@@ -456,6 +473,7 @@ pub mod m5_visual_foundation_matrix;
 pub mod m5_visual_foundations_accessibility_parity_and_narrowing_when_visual_foundation_truth_is_stale;
 pub mod m5_visual_foundations_shared_consumers_one_vocabulary_across_surfaces;
 pub mod m5_visual_foundations_surface_certification;
+pub mod m5_window_restore_matrix;
 pub mod motion;
 pub mod themes;
 pub mod tokens;
