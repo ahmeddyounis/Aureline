@@ -304,6 +304,24 @@
 //! remap, merges workspace-authority and window-topology into one blob, or overclaims
 //! restore fidelity degrades honestly rather than silently.
 //!
+//! [`m5_window_restore_accessibility_parity_and_narrowing_when_shared_authority_restore_fidelity_display_remap_or_no_rerun_session_truth_is_stale::WindowRestoreAccessibilityPacket`]
+//! is the accessibility-localization-support-export parity and honest auto-narrowing
+//! capstone over that frozen matrix: it certifies, per workspace-restore family,
+//! that workspace authority, window topology, restore-fidelity class,
+//! missing-dependency posture, display-remap history, and no-rerun session state
+//! stay keyboard-reachable, screen-reader-announced, high-zoom-legible,
+//! high-contrast-safe, localization-safe, and CLI/export-safe, and that when a
+//! skeleton-first family's layout-skeleton proof is only partially disclosed, a
+//! no-rerun session-replay fence cannot be confirmed, or a display-remap recovery
+//! evidence has aged out, the family's claim auto-narrows from
+//! trusted_restore_surface / reviewable_restore_surface to a
+//! layout-skeleton-disclosed / session-replay-unverified / display-recovery-unverified
+//! projection that discloses the narrowing with a precise trigger and preserves the
+//! canonical window-restore identity, so a fidelity-overclaimed, evidence-aged, or
+//! policy-blocked state can never keep a trusted, stable restore claim across the
+//! restore-coordinator, shell, workspace, session, diagnostics, docs / help, CLI /
+//! export, support-export, and product surfaces.
+//!
 //! [`m5_install_topology_and_state_root_registries::M5InstallTopologyStateRootRegistriesPacket`]
 //! is the first implement lane over that frozen matrix: it turns the per-user
 //! managed, per-machine managed, and side-by-side install-topology grammar and
@@ -517,6 +535,7 @@ pub mod m5_visual_foundation_matrix;
 pub mod m5_visual_foundations_accessibility_parity_and_narrowing_when_visual_foundation_truth_is_stale;
 pub mod m5_visual_foundations_shared_consumers_one_vocabulary_across_surfaces;
 pub mod m5_visual_foundations_surface_certification;
+pub mod m5_window_restore_accessibility_parity_and_narrowing_when_shared_authority_restore_fidelity_display_remap_or_no_rerun_session_truth_is_stale;
 pub mod m5_window_restore_matrix;
 pub mod m5_window_restore_shared_consumers_one_registry_across_surfaces;
 pub mod m5_workspace_authority_and_window_topology_registries;
