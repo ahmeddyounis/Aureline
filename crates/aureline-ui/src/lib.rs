@@ -287,6 +287,21 @@
 //! degrades honestly across the installer, update, diagnostics, admin, docs, and
 //! support surfaces.
 //!
+//! [`m5_channel_isolation_precedence_review_and_rollback_targets::M5ChannelIsolationPrecedenceReviewAndRollbackTargetsPacket`]
+//! is the side-by-side coexistence-execution lane over that frozen matrix: it makes
+//! *side-by-side channel isolation* a contract by resolving every claimed
+//! side-by-side profile's stable, preview, beta, and LTS channel to one inspectable
+//! object — the channel, the channel / state-namespace / secrets-namespace roots,
+//! the isolated channel-root / state-namespace / secrets-namespace / services-namespace
+//! inventory, and the explicit isolated-versus-governed-handoff containment — and
+//! every file-association / protocol-handler / deep-link / default-open precedence
+//! rule to one published record — owner channel, precedence rank, conflict
+//! resolution, full rollback artifact graph, and inspectable-before-and-after — so a
+//! preview or beta channel that reused the stable state namespace without a governed
+//! handoff, a handler ownership that became a last-writer-wins accident, or a
+//! rollback target narrowed below the full artifact graph degrades honestly across
+//! the installer, update, diagnostics, admin, docs, and support surfaces.
+//!
 //! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
 //! validates the first-consumer proof across the five component families and
 //! checks that review panes, package centers, project-health centers, companion
@@ -333,6 +348,7 @@ pub mod m5_annotation_rows;
 pub mod m5_badge_chip_pill_and_popover_expansion_and_anchored_focus_return;
 pub mod m5_banner_inline_notice_and_empty_state_scoped_cause_and_next_action;
 pub mod m5_button_and_icon_button_state_and_command_attribution;
+pub mod m5_channel_isolation_precedence_review_and_rollback_targets;
 pub mod m5_color_system_and_semantic_theme_token_registries;
 pub mod m5_combobox_and_checkbox_radio_switch_value_source_and_toggle_semantics;
 pub mod m5_core_action_input_accessibility_parity_and_narrowing_when_control_truth_is_stale;
