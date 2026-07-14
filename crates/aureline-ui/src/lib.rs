@@ -302,6 +302,20 @@
 //! rollback target narrowed below the full artifact graph degrades honestly across
 //! the installer, update, diagnostics, admin, docs, and support surfaces.
 //!
+//! [`m5_install_topology_shared_consumers_one_registry_across_surfaces::M5InstallTopologySharedConsumersPacket`]
+//! is the consumer-adoption capstone over that frozen matrix: it binds each of the
+//! five install-topology families to the concrete installer / package-manager,
+//! About / shell, update-center / updater, diagnostics, admin, docs / help, CLI /
+//! export, support-export, and product / fleet-rollout consumers that render it, and
+//! proves — by fixtures, not screenshots — that the same delivery profile presents
+//! the same install-topology-role, family, registry-reference, channel,
+//! surface-context, and ownership-identity grammar wherever it appears, so a family
+//! is adopted by two or more consumers, install mode / channel / updater owner /
+//! state roots / rollback target / rollout ring never drift between surfaces, and a
+//! surface that reuses a stable state namespace, spills machine-global durable
+//! state, hides updater ownership, narrows rollback below the full artifact graph, or
+//! outpaces ring evidence degrades honestly rather than silently.
+//!
 //! [`m5_pipeline_dependency_finding_components::M5PipelineDependencyFindingComponentProof`]
 //! validates the first-consumer proof across the five component families and
 //! checks that review panes, package centers, project-health centers, companion
@@ -371,6 +385,7 @@ pub mod m5_iconography_and_illustration_registries;
 pub mod m5_input_method_and_credential_store_wording_registries;
 pub mod m5_install_topology_and_state_root_registries;
 pub mod m5_install_topology_matrix;
+pub mod m5_install_topology_shared_consumers_one_registry_across_surfaces;
 pub mod m5_layer_order_and_portal_registries;
 pub mod m5_managed_deployment_operations_and_policy_bootstrap_injection;
 pub mod m5_manifest_diff_cards;
