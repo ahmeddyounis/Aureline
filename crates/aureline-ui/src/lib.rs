@@ -524,6 +524,28 @@
 //! fetch routes stay distinct, signer and mirror provenance stay continuous, and an
 //! acquisition path that cannot explain how it authenticated or which trust route it
 //! took degrades honestly instead of reading as a clean pass.
+//!
+//! [`m5_staged_trust_and_post_open_queue_registries::M5StagedTrustPostOpenQueueRegistriesPacket`]
+//! is the staged-trust + post-open-queue implement lane over that frozen matrix:
+//! it turns the staged-trust grammar (how Aureline browses the tree, manifests, and
+//! docs and computes safe metadata before any repo-owned hook, task, extension
+//! recommendation, package restore, submodule init, LFS hydrate, or generator install
+//! can run) and the post-open bootstrap-queue grammar (typed, attributable work objects
+//! that run repo-owned code, hydrate network-backed content, mutate the reviewed
+//! checkout, or merely recommend) into registry resolvers, so every claimed acquisition
+//! path resolves to one stable staged-trust object — the trust-stage kind and canonical
+//! trust mode, the browse-scope reference, the computed-metadata reference, the deferred
+//! repo-owned action set, the trust-prompt policy, the explicit-approval reference, and
+//! the staged-trust provenance — and to one post-open-queue object — the queue-item kind,
+//! the execution site, the trust consequence, the network consequence, the approval
+//! requirement, and the attribution reference — that the acquisition, git, trust,
+//! diagnostics, CLI, and support / export surfaces inspect without manual reconstruction,
+//! so repository open stays useful before any repo-owned action runs, a protected
+//! post-open queue item never auto-executes implicitly during acquisition, trust is never
+//! widened before browse-safe metadata is computed, every queue row identifies exactly
+//! what would run, where, and its trust or network consequence, and an acquisition path
+//! that cannot explain its staged trust or post-open queue degrades honestly instead of
+//! reading as a clean pass.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -595,6 +617,7 @@ pub mod m5_source_locator_and_checkout_plan_registries;
 pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
 pub mod m5_staged_review_sheets;
+pub mod m5_staged_trust_and_post_open_queue_registries;
 pub mod m5_structured_input_and_staged_review;
 pub mod m5_syntax_diff_and_chart_token_registries;
 pub mod m5_system_appearance_live_apply_and_source_provenance_registries;
