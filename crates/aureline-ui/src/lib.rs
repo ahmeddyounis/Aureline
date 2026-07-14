@@ -449,6 +449,7 @@ pub mod m5_decision_feedback_shared_consumers_one_vocabulary_across_surfaces;
 pub mod m5_density_mode_registries;
 pub mod m5_dependency_rows;
 pub mod m5_dialog_sheet_and_consequence_block_rationale_scope_and_rollback_continuity;
+pub mod m5_display_topology_recovery_and_role_continuity_registries;
 pub mod m5_draft_state_and_autosave;
 pub mod m5_field_control_rows;
 pub mod m5_file_path_reveal_and_native_window_menu_registries;
