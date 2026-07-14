@@ -290,6 +290,20 @@
 //! reacquire broader authority, and support / export can explain which panes came
 //! back live, as placeholders, context-only, or evidence-only.
 //!
+//! [`m5_window_restore_shared_consumers_one_registry_across_surfaces::M5WindowRestoreSharedConsumersPacket`]
+//! is the consumer-adoption capstone over that frozen matrix: it binds each of the
+//! five window-restore families to the concrete restore-coordinator, shell,
+//! workspace, session, diagnostics, docs / help, CLI / export, support-export, and
+//! product consumers that render it, and proves — by fixtures, not screenshots —
+//! that the same restore profile presents the same window-restore-role, family,
+//! registry-reference, restore-context, surface-context, and session-continuity
+//! grammar wherever it appears, so a family is adopted by two or more consumers,
+//! restore class / no-rerun semantics / placeholder posture / display affinity never
+//! drift between surfaces, and a surface that reruns session-scoped work, deletes
+//! layout structure silently, strands a window off-screen after a display-topology
+//! remap, merges workspace-authority and window-topology into one blob, or overclaims
+//! restore fidelity degrades honestly rather than silently.
+//!
 //! [`m5_install_topology_and_state_root_registries::M5InstallTopologyStateRootRegistriesPacket`]
 //! is the first implement lane over that frozen matrix: it turns the per-user
 //! managed, per-machine managed, and side-by-side install-topology grammar and
@@ -504,6 +518,7 @@ pub mod m5_visual_foundations_accessibility_parity_and_narrowing_when_visual_fou
 pub mod m5_visual_foundations_shared_consumers_one_vocabulary_across_surfaces;
 pub mod m5_visual_foundations_surface_certification;
 pub mod m5_window_restore_matrix;
+pub mod m5_window_restore_shared_consumers_one_registry_across_surfaces;
 pub mod m5_workspace_authority_and_window_topology_registries;
 pub mod motion;
 pub mod themes;
