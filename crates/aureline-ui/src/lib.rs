@@ -322,6 +322,19 @@
 //! restore-coordinator, shell, workspace, session, diagnostics, docs / help, CLI /
 //! export, support-export, and product surfaces.
 //!
+//! [`m5_window_restore_surface_certification::WindowRestoreProfileCertificationPacket`]
+//! is the closing surface-certification capstone that certifies the shared
+//! window-restore truth holds on every claimed M5 desktop workspace profile — live
+//! trusted restore surface, reviewable restore structure, disclosed layout-skeleton
+//! profile, unverified session-replay profile, and unverified display-recovery
+//! profile — scoring each across nine truth axes (visual, keyboard, screen-reader,
+//! high-zoom-reflow, high-contrast, localization, CLI/export, degraded-state, and
+//! window-restore-component-truth behavior) so a degraded axis auto-narrows the
+//! restore claim to the weakest supported ceiling, only a live first-party profile
+//! certifies a trusted restore surface, CLI/export parity always certifies, and every
+//! B141 hard invariant holds, with every row citing the one canonical window-restore
+//! proof bundle rather than hand-authored release, docs, or support prose.
+//!
 //! [`m5_install_topology_and_state_root_registries::M5InstallTopologyStateRootRegistriesPacket`]
 //! is the first implement lane over that frozen matrix: it turns the per-user
 //! managed, per-machine managed, and side-by-side install-topology grammar and
@@ -538,6 +551,7 @@ pub mod m5_visual_foundations_surface_certification;
 pub mod m5_window_restore_accessibility_parity_and_narrowing_when_shared_authority_restore_fidelity_display_remap_or_no_rerun_session_truth_is_stale;
 pub mod m5_window_restore_matrix;
 pub mod m5_window_restore_shared_consumers_one_registry_across_surfaces;
+pub mod m5_window_restore_surface_certification;
 pub mod m5_workspace_authority_and_window_topology_registries;
 pub mod motion;
 pub mod themes;
