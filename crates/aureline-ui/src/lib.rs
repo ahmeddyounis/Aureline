@@ -487,6 +487,23 @@
 //! acquisition, signer and mirror provenance stay continuous across offline and
 //! mirrored fetches, and interrupted acquisition stays resumable or discardable with
 //! evidence.
+//!
+//! [`m5_source_locator_and_checkout_plan_registries::M5SourceLocatorCheckoutPlanRegistriesPacket`]
+//! is the first implement lane over that frozen matrix: it turns the source-locator
+//! grammar (open-local / open-archive) and the checkout-plan grammar (clone-remote)
+//! into registry resolvers, so every claimed entry flow resolves to one stable
+//! source-locator object — the source-locator kind, the literal target it preserves
+//! verbatim, the resolved checkout root or archive container, the staged-trust
+//! metadata, the disclosed bootstrap credential posture, the signer / mirror
+//! provenance, and the distinct mirror / air-gap hint — and to one checkout-plan
+//! object — the ref selection, full / partial / sparse mode, depth / filter,
+//! submodule mode, LFS posture, destination path, and expected disk / network cost
+//! band — that the shell, entry, diagnostics, admin, and support / export surfaces
+//! inspect without manual reconstruction, so open and clone stay distinct verbs, the
+//! credential posture stays visible before any network or mirror fetch, repo-owned
+//! actions never run implicitly during acquisition, and an entry flow that cannot
+//! explain the literal target and checkout posture it chose degrades honestly instead
+//! of reading as a clean pass.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -553,6 +570,7 @@ pub mod m5_shell_metric_density_shared_consumers_one_geometry_across_surfaces;
 pub mod m5_shell_metric_density_surface_certification;
 pub mod m5_shortcut_notation_and_command_label_registries;
 pub mod m5_skeleton_first_restore_and_session_hydration_registries;
+pub mod m5_source_locator_and_checkout_plan_registries;
 pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
 pub mod m5_staged_review_sheets;
