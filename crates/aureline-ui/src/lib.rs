@@ -503,6 +503,20 @@
 //! mirror provenance, strands partial acquisition, or hides the bootstrap credential
 //! posture is rejected before the packet can be published.
 //!
+//! [`m5_repository_bootstrap_accessibility_parity_and_narrowing_when_checkout_plan_trust_stage_mirror_signer_continuity_or_bootstrap_evidence_is_stale_or_partial::RepositoryBootstrapAccessibilityPacket`]
+//! is the accessibility-localization-support-export parity and honest auto-narrowing
+//! capstone over that frozen matrix: it certifies, per acquisition family, that the
+//! source-locator, checkout-plan, credential-posture, staged-trust, post-open-queue,
+//! partial-acquisition, and bootstrap-evidence truth stays keyboard-reachable,
+//! screen-reader-announced, high-zoom-legible, high-contrast-safe, localization-safe,
+//! and CLI/export-safe, and that the claim auto-narrows from trusted_acquisition_surface
+//! / reviewable_acquisition_surface to a checkout-plan-disclosed / trust-stage-unverified
+//! / bootstrap-evidence-unverified projection whenever the checkout-plan, staged-trust,
+//! mirror/signer-continuity, or bootstrap-evidence proof is stale, partial, or
+//! policy-blocked — so accessibility and CLI/export paths inspect the same acquisition
+//! truth the GUI entry and recovery surfaces show, and no claimed entry profile can stay
+//! green after that proof ages out.
+//!
 //! [`m5_source_locator_and_checkout_plan_registries::M5SourceLocatorCheckoutPlanRegistriesPacket`]
 //! is the first implement lane over that frozen matrix: it turns the source-locator
 //! grammar (open-local / open-archive) and the checkout-plan grammar (clone-remote)
@@ -642,6 +656,7 @@ pub mod m5_platform_fit_matrix;
 pub mod m5_platform_fit_shared_consumers_one_convention_across_surfaces;
 pub mod m5_platform_fit_surface_certification;
 pub mod m5_portable_mode_state_containment_and_diagnostics;
+pub mod m5_repository_bootstrap_accessibility_parity_and_narrowing_when_checkout_plan_trust_stage_mirror_signer_continuity_or_bootstrap_evidence_is_stale_or_partial;
 pub mod m5_repository_bootstrap_matrix;
 pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
