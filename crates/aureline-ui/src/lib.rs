@@ -488,6 +488,21 @@
 //! mirrored fetches, and interrupted acquisition stays resumable or discardable with
 //! evidence.
 //!
+//! [`m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces::M5RepositoryBootstrapSharedConsumersPacket`]
+//! is the consumer-adoption capstone over that frozen matrix: it binds each of the
+//! five repository-bootstrap families to the concrete acquisition-engine, shell,
+//! workspace, git-service, trust-service, diagnostics, docs / help, CLI / export, and
+//! support-export consumers that render it — the start-center, OS-open, CLI / headless,
+//! deep-link, and import entry surfaces — and proves, by fixtures rather than
+//! screenshots, that the same acquisition profile presents the same
+//! repository-bootstrap-role, family, registry-reference, entry-context,
+//! surface-context, and trust-stage-continuity grammar wherever it appears, so a family
+//! is adopted by two or more consumers, entry verbs / trust stages / resumable-partial
+//! behavior never drift between surfaces, and a surface that rewrites clone into open
+//! over an existing checkout, runs repo-owned actions implicitly, loses signer or
+//! mirror provenance, strands partial acquisition, or hides the bootstrap credential
+//! posture is rejected before the packet can be published.
+//!
 //! [`m5_source_locator_and_checkout_plan_registries::M5SourceLocatorCheckoutPlanRegistriesPacket`]
 //! is the first implement lane over that frozen matrix: it turns the source-locator
 //! grammar (open-local / open-archive) and the checkout-plan grammar (clone-remote)
@@ -628,6 +643,7 @@ pub mod m5_platform_fit_shared_consumers_one_convention_across_surfaces;
 pub mod m5_platform_fit_surface_certification;
 pub mod m5_portable_mode_state_containment_and_diagnostics;
 pub mod m5_repository_bootstrap_matrix;
+pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_shell_metric_and_minimum_size_registries;
