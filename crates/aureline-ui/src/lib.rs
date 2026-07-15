@@ -562,6 +562,22 @@
 //! manifest it declared or prove its sidecars converge on one build identity degrades honestly instead of reading
 //! as a clean pass.
 //!
+//! [`m5_clean_room_rebuild_lane_and_artifact_diff_packet_registries::M5CleanRoomRebuildArtifactDiffRegistriesPacket`]
+//! is the clean-room-rebuild and artifact-diff implement lane over that frozen build-lane-trust matrix: it turns
+//! the clean-room-rebuild-lane grammar (how a protected lane replays its inputs without relying on shared
+//! remote-cache state as authority — the rebuild source it classifies, the rebuild-config digest, the replay
+//! receipt, the protected-input ledger, the rebuild authority it is bounded to, the artifact families it expects,
+//! the hermetic-rebuild posture, and the shared-cache isolation rule) and the artifact-diff-packet grammar (how a
+//! release or emergency-hotfix lane emits a deterministic diff comparing rebuild outputs across every claimed
+//! artifact family — binaries, packages, docs packs, schemas, SBOMs, symbols, source maps, and rollback metadata —
+//! so a material divergence or an omitted family is a blocker rather than a warning) into registry resolvers, so
+//! every claimed M5 build lane resolves to one typed clean-room-rebuild-lane object and one artifact-diff-packet
+//! object that the release-center, shiproom, diagnostics, provenance, and support / export surfaces inspect
+//! without manual reconstruction, so a clean-room rebuild can never rely on a shared remote cache as authority, a
+//! material artifact divergence is never treated as a warning-only state, clean-room parity is never overclaimed
+//! on a partial rebuild, and a lane that cannot replay its inputs or prove its artifact diff is deterministic
+//! degrades honestly instead of reading as a clean pass.
+//!
 //! [`m5_setting_capability_lifecycle_and_kill_switch_registries::M5SettingCapabilityLifecycleKillSwitchRegistriesPacket`]
 //! is the capability-lifecycle / kill-switch implement lane over that frozen settings-governance matrix: it turns
 //! the capability-record grammar (how a capability record, Labs enrollment, rollout plan, and dependency marker
@@ -824,6 +840,7 @@ pub mod m5_build_lane_descriptor_and_reproducibility_proof_registries;
 pub mod m5_build_lane_trust_matrix;
 pub mod m5_button_and_icon_button_state_and_command_attribution;
 pub mod m5_channel_isolation_precedence_review_and_rollback_targets;
+pub mod m5_clean_room_rebuild_lane_and_artifact_diff_packet_registries;
 pub mod m5_color_system_and_semantic_theme_token_registries;
 pub mod m5_combobox_and_checkbox_radio_switch_value_source_and_toggle_semantics;
 pub mod m5_core_action_input_accessibility_parity_and_narrowing_when_control_truth_is_stale;
