@@ -506,6 +506,19 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_stable_line_deferral_backlog_and_correction_conversion_registries::M5StableLineDeferralBacklogCorrectionConversionRegistriesPacket`]
+//! turns leftover launch-time "may slip to v1.0.x" caveats into explicit post-stable truth
+//! over that frozen stable-line-protection matrix. It records every bounded launch-era
+//! deferral — bounded-feature, performance-posture, migration-path, compatibility-caveat,
+//! known-limit, and documentation-gap items — in a supported-line *deferral-backlog* grammar
+//! (its affected lines, current correction status, linked claim rows, and required
+//! narrow/defer/ship decision) and drives each item through the *correction-conversion*
+//! grammar (a release-room report distinguishing shipped corrections, explicit defers, and
+//! visible claim narrowings), so an unresolved or overdue "may slip to v1.0.x" item can never
+//! stay invisible: it appears as a shipped correction, an explicit defer, or a visible
+//! narrowing on the affected supported line, and operators can export one report showing which
+//! supported-line claims narrowed because a bounded correction missed its target train.
+//!
 //! [`m5_stable_line_refresh_policy_and_claim_downgrade_registries::M5StableLineRefreshPolicyClaimDowngradeRegistriesPacket`]
 //! makes evidence refresh an ordinary release operation over that frozen
 //! stable-line-protection matrix. It turns the *refresh-policy* grammar (how an active
@@ -1160,6 +1173,7 @@ pub mod m5_skeleton_first_restore_and_session_hydration_registries;
 pub mod m5_source_locator_and_checkout_plan_registries;
 pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
+pub mod m5_stable_line_deferral_backlog_and_correction_conversion_registries;
 pub mod m5_stable_line_protection_matrix;
 pub mod m5_stable_line_protection_plan_and_correction_queue_registries;
 pub mod m5_stable_line_refresh_policy_and_claim_downgrade_registries;
