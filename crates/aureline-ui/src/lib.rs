@@ -506,6 +506,23 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_setting_definition_and_effective_setting_registries::M5SettingDefinitionEffectiveSettingRegistriesPacket`]
+//! is the first implement lane over that frozen settings-governance matrix: it turns the
+//! setting-definition grammar (how a stable setting is declared) and the effective-setting
+//! grammar (how its live value is resolved from the winning scope) into registry
+//! resolvers, so every claimed M5 setting resolves to one stable setting-definition
+//! object — the declared type, the stable setting ID it preserves verbatim and never
+//! recycles, the allowed scopes, the declared default, the migration aliases, the restart
+//! posture, the sensitivity class, and the capability dependencies — and to one
+//! effective-setting object — the resolved value or redacted summary, the shadow chain of
+//! scopes that lost, the lock or constraint state, the validation status, the restart
+//! state, the capability availability, and the last-applied revision — that the settings,
+//! shell, diagnostics, admin, and support / export surfaces inspect without manual
+//! reconstruction, so a stable setting ID is never recycled into a different meaning, the
+//! shadow chain and restart posture stay visible before the resolution is trusted, and a
+//! configuration surface that cannot explain the setting it declared or the scope that won
+//! degrades honestly instead of reading as a clean pass.
+//!
 //! [`m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces::M5RepositoryBootstrapSharedConsumersPacket`]
 //! is the consumer-adoption capstone over that frozen matrix: it binds each of the
 //! five repository-bootstrap families to the concrete acquisition-engine, shell,
@@ -697,6 +714,7 @@ pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_security_finding_cards;
+pub mod m5_setting_definition_and_effective_setting_registries;
 pub mod m5_settings_governance_matrix;
 pub mod m5_shell_metric_and_minimum_size_registries;
 pub mod m5_shell_metric_density_accessibility_parity_and_narrowing_when_shell_metric_density_or_adaptive_geometry_truth_is_stale;
