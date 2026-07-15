@@ -506,6 +506,20 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries::M5StableLineBundleRefreshAuditShippingLineDriftReportRegistriesPacket`]
+//! keeps onboarding and migration promises honest after launch over that frozen
+//! stable-line-protection matrix. It turns the *bundle-refresh-audit* grammar (how an active
+//! shipping line audits each claimed bundle — a launch bundle, an imported-user handoff
+//! bundle, and an org-approved bundle — for freshness, reversibility, missing artifacts, and
+//! unsupported drift, publishing exact bundle age, install topology, rollback / reversibility
+//! target, and retest posture) and the *shipping-line-drift-report* grammar (the drift report
+//! emitted when an audit finds shipping-line drift, recording whether the bundle went stale,
+//! became non-reversible, or drifted into an unsupported / missing-artifact state and naming
+//! the active drift reason) into registry resolvers, so start-center, migration/help,
+//! release/support, and admin/public-proof consumers render bundle drift and retest state
+//! from the audit packet, and a stale, non-reversible, or unsupported bundle narrows its
+//! onboarding / migration / support claim automatically until refreshed.
+//!
 //! [`m5_stable_line_deferral_backlog_and_correction_conversion_registries::M5StableLineDeferralBacklogCorrectionConversionRegistriesPacket`]
 //! turns leftover launch-time "may slip to v1.0.x" caveats into explicit post-stable truth
 //! over that frozen stable-line-protection matrix. It records every bounded launch-era
@@ -1173,6 +1187,7 @@ pub mod m5_skeleton_first_restore_and_session_hydration_registries;
 pub mod m5_source_locator_and_checkout_plan_registries;
 pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
+pub mod m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries;
 pub mod m5_stable_line_deferral_backlog_and_correction_conversion_registries;
 pub mod m5_stable_line_protection_matrix;
 pub mod m5_stable_line_protection_plan_and_correction_queue_registries;
