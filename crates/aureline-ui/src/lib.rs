@@ -612,6 +612,20 @@
 //! kill-switch or policy-disable cause behind generic unavailable copy is rejected before the packet can be
 //! published.
 //!
+//! [`m5_settings_governance_surface_certification::SettingsGovernanceProfileCertificationPacket`]
+//! is the closing surface-certification capstone over that frozen settings-governance matrix: it certifies
+//! that the shared settings-governance truth holds on every claimed M5 configuration-bearing profile (a live
+//! trusted settings surface, a reviewable settings structure, a disclosed write-intent profile, an unverified
+//! sync-conflict profile, and an unverified capability-lifecycle profile) across nine truth axes — visual,
+//! keyboard, screen-reader, high-zoom-reflow, high-contrast, localization, CLI/export, degraded-state, and
+//! settings-governance-component-truth behavior — and either passes (green), auto-narrows a not-current axis
+//! to the weakest supported configuration ceiling (yellow), or blocks (red) when a degraded axis hides behind
+//! a fresh trusted claim, a B143 hard invariant breaks, CLI/export parity drops, or a non-live profile claims
+//! a trusted settings surface. Every row cites the one canonical settings-governance matrix proof bundle, so
+//! release, docs, and support reference a single configuration-runtime certification source and no profile can
+//! advertise full resolver, sync-conflict, or lifecycle continuity when that B143 evidence is stale or
+//! missing.
+//!
 //! [`m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces::M5RepositoryBootstrapSharedConsumersPacket`]
 //! is the consumer-adoption capstone over that frozen matrix: it binds each of the
 //! five repository-bootstrap families to the concrete acquisition-engine, shell,
@@ -810,6 +824,7 @@ pub mod m5_setting_sync_conflict_and_device_action_registries;
 pub mod m5_setting_write_intent_and_policy_constraint_registries;
 pub mod m5_settings_governance_matrix;
 pub mod m5_settings_governance_shared_consumers_one_registry_across_surfaces;
+pub mod m5_settings_governance_surface_certification;
 pub mod m5_shell_metric_and_minimum_size_registries;
 pub mod m5_shell_metric_density_accessibility_parity_and_narrowing_when_shell_metric_density_or_adaptive_geometry_truth_is_stale;
 pub mod m5_shell_metric_density_matrix;
