@@ -552,6 +552,19 @@
 //! can never advance on a claimed lane while a rollback-stop condition is active, and a ring that cannot explain
 //! its progression rule or the stop condition that backs it degrades honestly instead of reading as a clean pass.
 //!
+//! [`m5_regression_asset_and_incident_close_registries::M5RegressionAssetIncidentCloseRegistriesPacket`]
+//! governs incident-close regression-asset requirements over that same frozen launch-control matrix: it turns the
+//! regression-asset grammar (how each Sev-1 / Sev-2 incident or launch-bearing failure links a regression asset —
+//! an automated test, a fixture repository, a recovery drill, a protected-corpus case, a schema/policy guard, or a
+//! monitoring regression check — and preserves the exact build, affected row, cohort/ring, and workaround lineage
+//! on that asset before closure) and the incident-close grammar (how a severe incident records the linked
+//! regression asset, the exact build and affected row, the cohort/ring lineage, and the close-lineage freshness
+//! that keeps it queryable) into registry resolvers, so a severe incident can never close without an attributable
+//! regression asset or an explicit approved exception, regression assets stay linked to the lane / cohort / build
+//! that exposed the defect, incident-close lineage stays queryable without tribal memory, and an incident that
+//! cannot show the regression asset it linked or the lineage that backs it degrades honestly instead of reading as
+//! a clean pass.
+//!
 //! [`m5_build_lane_trust_matrix::M5BuildLaneTrustMatrixPacket`] freezes Aureline's
 //! concrete build-farm trust domains, remote-cache discipline, clean-room rebuild proof,
 //! and exact-build supportability — the contributor / PR lane, the protected-merge lane,
@@ -1010,6 +1023,7 @@ pub mod m5_platform_fit_matrix;
 pub mod m5_platform_fit_shared_consumers_one_convention_across_surfaces;
 pub mod m5_platform_fit_surface_certification;
 pub mod m5_portable_mode_state_containment_and_diagnostics;
+pub mod m5_regression_asset_and_incident_close_registries;
 pub mod m5_remote_cache_integrity_and_cache_bypass_drill_registries;
 pub mod m5_repository_bootstrap_accessibility_parity_and_narrowing_when_checkout_plan_trust_stage_mirror_signer_continuity_or_bootstrap_evidence_is_stale_or_partial;
 pub mod m5_repository_bootstrap_matrix;
