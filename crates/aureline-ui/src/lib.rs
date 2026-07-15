@@ -597,6 +597,22 @@
 //! digest / receipt / hermeticity boundary stays visible before promotion, and a lane that cannot capture its
 //! inputs or prove its cache-bypass drill stays replayable degrades honestly instead of reading as a clean pass.
 //!
+//! [`m5_exact_build_symbolication_and_mirror_offline_parity_registries::M5SymbolicationMirrorParityRegistriesPacket`]
+//! is the exact-build-symbolication and mirror/offline-publication-parity implement lane over that frozen
+//! build-lane-trust matrix: it binds crash packets, symbol / source-map manifests, support bundles, and
+//! symbolication reports to the same exact-build descriptor B144 produces (naming the build-config digest, the
+//! materialized-input receipt, the input provenance ledger, the verification authority, the expected artifact
+//! families, the hermetic-input posture, and the re-materialization rule so a support bundle can explain exact
+//! versus approximate symbolication against one build identity and an unverified input never enters a protected
+//! lane) and proves that mirrored / offline publication preserves the same build identity and freshness
+//! vocabulary as default publication across binaries, packages, docs packs, schemas, SBOMs, symbols, source
+//! maps, and rollback metadata, so a mismatched build ID or an omitted family is a blocker rather than a
+//! warning. Every claimed M5 build lane resolves to one typed exact-build-symbolication object and one
+//! mirror-offline-parity object that the release-center, shiproom, diagnostics, provenance, and support / export
+//! surfaces inspect without manual reconstruction, so support / export or mirror publication fails when
+//! symbolication or build identity cannot be proven exactly and a supportability drill catches mismatched build
+//! IDs before stable promotion instead of reading as a clean pass.
+//!
 //! [`m5_setting_capability_lifecycle_and_kill_switch_registries::M5SettingCapabilityLifecycleKillSwitchRegistriesPacket`]
 //! is the capability-lifecycle / kill-switch implement lane over that frozen settings-governance matrix: it turns
 //! the capability-record grammar (how a capability record, Labs enrollment, rollout plan, and dependency marker
@@ -875,6 +891,7 @@ pub mod m5_dependency_rows;
 pub mod m5_dialog_sheet_and_consequence_block_rationale_scope_and_rollback_continuity;
 pub mod m5_display_topology_recovery_and_role_continuity_registries;
 pub mod m5_draft_state_and_autosave;
+pub mod m5_exact_build_symbolication_and_mirror_offline_parity_registries;
 pub mod m5_field_control_rows;
 pub mod m5_file_path_reveal_and_native_window_menu_registries;
 pub mod m5_form_family_certification;
