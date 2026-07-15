@@ -523,6 +523,22 @@
 //! preserve the exact evidence snapshot and signoff roster, and partner and public support
 //! language never outruns current cohort proof rather than reading as green.
 //!
+//! [`m5_cohort_descriptor_and_evidence_packet_registries::M5CohortDescriptorEvidencePacketRegistriesPacket`]
+//! is the first implement lane over that frozen launch-control matrix: it turns the cohort-descriptor grammar
+//! (how a widening cohort declares the exact repo / archetype rows, bundle IDs, install topology, toolchain
+//! envelope, known limits, rollback target, and diagnostics posture it is auditable by — the dogfood core-team
+//! canary, migration-alpha, extension-author, design-partner-preview, public-preview, and certified-archetype
+//! archetype it classifies) and the cohort-evidence-packet grammar (how a launch-bearing lane proves which
+//! cohort evidence — dogfood-ring telemetry, current rehearsal cadence, or an explicit go/no-go signoff — backs
+//! it, keeping partner / public support language and known-limits packets bound to that proof rather than to
+//! hand-edited prose) into registry resolvers, so every claimed M5 launch-bearing cohort resolves to one typed
+//! cohort-descriptor object and one cohort-evidence-packet object that the shiproom, release-center,
+//! executive-steering, program-governance, and support / export surfaces inspect without manual reconstruction,
+//! so a cohort can never widen without preserving its rollback and diagnostics posture, partner / public support
+//! language never runs ahead of cohort proof, the exact rows / bundles / toolchains / deployment profiles stay
+//! visible before widening, and a cohort that cannot explain the descriptor it declared or the evidence that
+//! backs it degrades honestly instead of reading as a clean pass.
+//!
 //! [`m5_build_lane_trust_matrix::M5BuildLaneTrustMatrixPacket`] freezes Aureline's
 //! concrete build-farm trust domains, remote-cache discipline, clean-room rebuild proof,
 //! and exact-build supportability — the contributor / PR lane, the protected-merge lane,
@@ -933,6 +949,7 @@ pub mod m5_build_lane_trust_surface_certification;
 pub mod m5_button_and_icon_button_state_and_command_attribution;
 pub mod m5_channel_isolation_precedence_review_and_rollback_targets;
 pub mod m5_clean_room_rebuild_lane_and_artifact_diff_packet_registries;
+pub mod m5_cohort_descriptor_and_evidence_packet_registries;
 pub mod m5_color_system_and_semantic_theme_token_registries;
 pub mod m5_combobox_and_checkbox_radio_switch_value_source_and_toggle_semantics;
 pub mod m5_core_action_input_accessibility_parity_and_narrowing_when_control_truth_is_stale;
