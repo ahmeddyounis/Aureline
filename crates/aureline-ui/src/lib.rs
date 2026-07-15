@@ -506,6 +506,27 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_setting_capability_lifecycle_and_kill_switch_registries::M5SettingCapabilityLifecycleKillSwitchRegistriesPacket`]
+//! is the capability-lifecycle / kill-switch implement lane over that frozen settings-governance matrix: it turns
+//! the capability-record grammar (how a capability record, Labs enrollment, rollout plan, and dependency marker
+//! declare the lifecycle state, the owner, the scope, the review / expiry window, the enabled posture, the
+//! artifact dependency marker, the fallback, and the rollback note a capability carries) and the
+//! kill-switch-record grammar (how a kill-switch or policy-disable record names the disabling source, the
+//! disabled timestamp, the preserved user-authored data, the self-explanation, the capability dependency, the
+//! fallback, and the last revision for a kill-switch, policy-disable, dependency-unavailable, review-expired, or
+//! manual-opt-out disable) into registry resolvers, so every claimed M5 capability resolves to one
+//! capability-record object — the lifecycle state it classifies (Labs / Preview / Beta / generally-available /
+//! graduated / deprecated), the owner, the scope, the review / expiry window, the enabled posture, the dependency
+//! marker, the fallback, and the rollback note — and every claimed disable resolves to one kill-switch-record
+//! object — the disabling source, the disabled timestamp, the preserved-data reference, the explanation
+//! reference, the capability dependency, the fallback reference, and the last ledger revision — that the
+//! settings, docs / help, bundle, import-apply, and support / export flows inspect before a claim publishes
+//! without manual reconstruction, so a stable-facing surface never depends on a hidden Labs / Preview capability
+//! without an explicit dependency marker and fallback, a lifecycle or experiment dependency never disappears
+//! behind unpublished markers, a kill switch or policy disable always preserves user-authored data and explains
+//! its cause, and a lifecycle flow that cannot explain a capability state or a disable cause degrades honestly
+//! instead of reading as a clean pass.
+//!
 //! [`m5_setting_definition_and_effective_setting_registries::M5SettingDefinitionEffectiveSettingRegistriesPacket`]
 //! is the first implement lane over that frozen settings-governance matrix: it turns the
 //! setting-definition grammar (how a stable setting is declared) and the effective-setting
@@ -767,6 +788,7 @@ pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_security_finding_cards;
+pub mod m5_setting_capability_lifecycle_and_kill_switch_registries;
 pub mod m5_setting_definition_and_effective_setting_registries;
 pub mod m5_setting_schema_migration_and_compatibility_window_registries;
 pub mod m5_setting_sync_conflict_and_device_action_registries;
