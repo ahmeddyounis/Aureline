@@ -506,6 +506,23 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_build_lane_trust_matrix::M5BuildLaneTrustMatrixPacket`] freezes Aureline's
+//! concrete build-farm trust domains, remote-cache discipline, clean-room rebuild proof,
+//! and exact-build supportability — the contributor / PR lane, the protected-merge lane,
+//! the release lane, and the emergency-hotfix lane — into one export-safe matrix. It
+//! binds every governed lane to one shared build-lane-trust-role taxonomy (cache_posture,
+//! publication_authority, credential_boundary, hermetic_input, reproducibility_proof,
+//! artifact_convergence, support_identity) and to the lane-specific contributor / PR,
+//! protected-merge, release, and emergency-hotfix vocabularies, and back to the
+//! already-landed artifact-publication and reproducible-RC packets, so contributor lanes
+//! read shared caches but never publish release artifacts, protected-merge lanes stay on
+//! controlled credentials and verified caches, release and emergency-hotfix lanes converge
+//! binaries / packages / SBOMs / symbols / docs on one exact build identity, remote-cache
+//! hits are never treated as reproducibility proof, sidecars stay pinned to the binary
+//! build identity, clean-room parity is never overclaimed on partial rebuilds, and
+//! non-hermetic inputs, cache poisoning, and unreplayable artifacts block promotion rather
+//! than hiding behind green publication rows.
+//!
 //! [`m5_setting_capability_lifecycle_and_kill_switch_registries::M5SettingCapabilityLifecycleKillSwitchRegistriesPacket`]
 //! is the capability-lifecycle / kill-switch implement lane over that frozen settings-governance matrix: it turns
 //! the capability-record grammar (how a capability record, Labs enrollment, rollout plan, and dependency marker
@@ -764,6 +781,7 @@ pub mod m5_annotation_rows;
 pub mod m5_badge_chip_pill_and_popover_expansion_and_anchored_focus_return;
 pub mod m5_banner_inline_notice_and_empty_state_scoped_cause_and_next_action;
 pub mod m5_bootstrap_credential_posture_and_fetch_route_registries;
+pub mod m5_build_lane_trust_matrix;
 pub mod m5_button_and_icon_button_state_and_command_attribution;
 pub mod m5_channel_isolation_precedence_review_and_rollback_targets;
 pub mod m5_color_system_and_semantic_theme_token_registries;
