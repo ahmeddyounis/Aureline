@@ -578,6 +578,25 @@
 //! on a partial rebuild, and a lane that cannot replay its inputs or prove its artifact diff is deterministic
 //! degrades honestly instead of reading as a clean pass.
 //!
+//! [`m5_remote_cache_integrity_and_cache_bypass_drill_registries::M5CacheIntegrityBypassRegistriesPacket`]
+//! is the remote-cache-poisoning-detection and cache-bypass-drill implement lane over that frozen
+//! build-lane-trust matrix: it turns the remote-cache-integrity-finding grammar (how a protected lane labels the
+//! origin of each input — a verified trusted cache, a re-materialized-from-source input, a pinned-digest input, an
+//! untrusted shared cache, or a non-hermetic ambient input — and captures the cache-scope digest, the
+//! dependency-capture receipt, the captured-input ledger, the hermeticity authority it is bounded to, the artifact
+//! families it expects, the hermetic-input posture, and the cache-origin trust rule so a poisoned or untrusted
+//! cache hit and an uncaptured non-hermetic input never silently enter a protected lane) and the
+//! cache-bypass-drill grammar (how a release or emergency-hotfix lane rehearses a full-cache-bypass rebuild, a
+//! partial re-materialization replay, or a hermetic-from-scratch drill and proves that binaries, packages, docs
+//! packs, schemas, SBOMs, symbols, source maps, and rollback metadata stay replayable on one exact build identity,
+//! so an unreplayable artifact family or an omitted family is a blocker rather than a warning) into registry
+//! resolvers, so every claimed M5 build lane resolves to one typed remote-cache-integrity-finding object and one
+//! cache-bypass-drill object that the release-center, shiproom, diagnostics, provenance, and support / export
+//! surfaces inspect without manual reconstruction, so a non-hermetic or uncaptured input can never enter a
+//! protected lane, an unreplayable artifact family is never treated as a warning-only state, the cache-scope
+//! digest / receipt / hermeticity boundary stays visible before promotion, and a lane that cannot capture its
+//! inputs or prove its cache-bypass drill stays replayable degrades honestly instead of reading as a clean pass.
+//!
 //! [`m5_setting_capability_lifecycle_and_kill_switch_registries::M5SettingCapabilityLifecycleKillSwitchRegistriesPacket`]
 //! is the capability-lifecycle / kill-switch implement lane over that frozen settings-governance matrix: it turns
 //! the capability-record grammar (how a capability record, Labs enrollment, rollout plan, and dependency marker
@@ -886,6 +905,7 @@ pub mod m5_platform_fit_matrix;
 pub mod m5_platform_fit_shared_consumers_one_convention_across_surfaces;
 pub mod m5_platform_fit_surface_certification;
 pub mod m5_portable_mode_state_containment_and_diagnostics;
+pub mod m5_remote_cache_integrity_and_cache_bypass_drill_registries;
 pub mod m5_repository_bootstrap_accessibility_parity_and_narrowing_when_checkout_plan_trust_stage_mirror_signer_continuity_or_bootstrap_evidence_is_stale_or_partial;
 pub mod m5_repository_bootstrap_matrix;
 pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
