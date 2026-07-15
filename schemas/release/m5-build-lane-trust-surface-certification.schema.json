@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/m5-build-lane-trust-surface-certification.schema.json",
+  "title": "Aureline M5 build-lane-trust surface certification packet",
+  "description": "M05-1211 closing capstone certifying that the frozen M5 build lanes (contributor PR, protected merge, release, emergency hotfix) hold their build-lane-trust truth on every claimed M5 RC / stable / LTS / mirror-offline publication-bearing profile. Keyed on the claimed profile (live exact-build supportable lane, reviewable reproducibility structure, disclosed cache-discipline profile, unverified clean-room-parity profile, unverified exact-build-supportability profile), each row certifies the profile across nine truth axes — visual, keyboard, screen-reader, high-zoom-reflow, high-contrast, localization, CLI/export, degraded-state, and build-lane-trust-component-truth behavior — and either passes (green), auto-narrows its publication claim to the weakest supported ceiling (yellow), or blocks (red) when a degraded axis is hidden behind a fresh trusted claim inherited from a healthier profile. A degraded axis must produce a visible claim narrowing; CLI/export parity must always certify; only a live first-party fully reproducible release lane profile may certify a trusted exact-build supportable lane; and every B144 hard invariant must hold (no PR cache publishes release artifacts; no remote-cache hit is treated as reproducibility proof; no docs / schema / SBOM / symbol sidecar drifts from the binary build identity; clean-room parity is never overclaimed on a partial rebuild; and no non-hermetic inputs, cache poisoning, or unreplayable artifacts are hidden behind green publication rows). Every row cites exactly one canonical build-lane-trust proof bundle. The packet is metadata-only: raw credentials, plaintext secrets, bearer tokens, endpoint URLs, and private-key material never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "as_of",
+    "matrix_ref",
+    "canonical_bundle_ref",
+    "rows",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "record_kind": { "const": "m5_build_lane_trust_surface_certification_packet" },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "matrix_ref": { "type": "string", "minLength": 1 },
+    "canonical_bundle_ref": {
+      "const": "artifacts/release/m5-exact-build-supportability-proof/support_export.json"
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/row" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "certified_profile": {
+      "enum": [
+        "live_exact_build_supportable_lane",
+        "reviewable_reproducibility_structure",
+        "disclosed_cache_discipline_profile",
+        "unverified_clean_room_parity_profile",
+        "unverified_exact_build_supportability_profile"
+      ]
+    },
+    "certification_axis": {
+      "enum": [
+        "visual",
+        "keyboard",
+        "screen_reader",
+        "high_zoom_reflow",
+        "high_contrast",
+        "localization",
+        "cli_export",
+        "degraded_state",
+        "build_lane_trust_component_truth"
+      ]
+    },
+    "build_lane_trust_claim": {
+      "enum": [
+        "trusted_exact_build_supportable_lane",
+        "reviewable_reproducibility_surface",
+        "cache_discipline_disclosed_projection",
+        "clean_room_parity_unverified_projection",
+        "exact_build_supportability_unverified_projection"
+      ]
+    },
+    "axis_state": {
+      "enum": ["certified", "disclosed_narrowed", "undisclosed_drift"]
+    },
+    "profile_status": {
+      "enum": ["green", "yellow", "red"]
+    },
+    "build_lane_family": {
+      "enum": [
+        "contributor_pr",
+        "protected_merge",
+        "release",
+        "emergency_hotfix"
+      ]
+    },
+    "downgrade_trigger": {
+      "enum": [
+        "used_an_untrusted_cache",
+        "treated_a_remote_cache_hit_as_reproducibility_proof",
+        "drifted_a_sidecar_from_the_binary_build_identity",
+        "overclaimed_clean_room_parity_on_partial_rebuild",
+        "hid_non_hermetic_inputs_cache_poisoning_or_unreplayable_artifacts",
+        "published_release_artifacts_from_a_pr_cache",
+        "cache_posture_unstated",
+        "publication_authority_unstated",
+        "build_identity_unstated",
+        "registry_reference_unstated",
+        "clean_room_proof_rule_unstated",
+        "proof_stale"
+      ]
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pr_caches_publish_release_artifacts",
+        "treats_remote_cache_hits_as_reproducibility_proof",
+        "lets_docs_schema_sbom_or_symbol_sidecars_drift_from_binary_build_identity",
+        "overclaims_clean_room_parity_when_only_partial_artifact_classes_were_rebuilt",
+        "hides_non_hermetic_inputs_cache_poisoning_or_unreplayable_artifacts_behind_green_publication_rows"
+      ],
+      "properties": {
+        "pr_caches_publish_release_artifacts": { "const": false },
+        "treats_remote_cache_hits_as_reproducibility_proof": { "const": false },
+        "lets_docs_schema_sbom_or_symbol_sidecars_drift_from_binary_build_identity": { "const": false },
+        "overclaims_clean_room_parity_when_only_partial_artifact_classes_were_rebuilt": { "const": false },
+        "hides_non_hermetic_inputs_cache_poisoning_or_unreplayable_artifacts_behind_green_publication_rows": { "const": false }
+      }
+    },
+    "export_parity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formats", "export_fields", "raw_payload_only_prohibited"],
+      "properties": {
+        "formats": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "export_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "raw_payload_only_prohibited": { "const": true }
+      }
+    },
+    "axis_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axis", "state", "parity_note"],
+      "properties": {
+        "axis": { "$ref": "#/$defs/certification_axis" },
+        "state": { "$ref": "#/$defs/axis_state" },
+        "parity_note": { "type": "string", "minLength": 1 },
+        "narrowing_reason": { "type": "string", "minLength": 1 },
+        "downgrade_trigger": { "$ref": "#/$defs/downgrade_trigger" }
+      }
+    },
+    "claim_auto_narrow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding_axis", "from_claim", "to_claim", "visible_label"],
+      "properties": {
+        "binding_axis": { "$ref": "#/$defs/certification_axis" },
+        "from_claim": { "$ref": "#/$defs/build_lane_trust_claim" },
+        "to_claim": { "$ref": "#/$defs/build_lane_trust_claim" },
+        "visible_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "row_id",
+        "profile",
+        "claimed_claim",
+        "certified_claim",
+        "consumed_families",
+        "axis_outcomes",
+        "guardrails",
+        "canonical_bundle_ref",
+        "derived_status",
+        "export_parity",
+        "compatibility_notes",
+        "observed_at",
+        "evidence_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_build_lane_trust_surface_certification_row" },
+        "schema_version": { "const": 1 },
+        "row_id": { "type": "string", "minLength": 1 },
+        "profile": { "$ref": "#/$defs/certified_profile" },
+        "claimed_claim": { "$ref": "#/$defs/build_lane_trust_claim" },
+        "certified_claim": { "$ref": "#/$defs/build_lane_trust_claim" },
+        "consumed_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/build_lane_family" }
+        },
+        "axis_outcomes": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "items": { "$ref": "#/$defs/axis_outcome" }
+        },
+        "guardrails": { "$ref": "#/$defs/guardrails" },
+        "claim_auto_narrow": { "$ref": "#/$defs/claim_auto_narrow" },
+        "canonical_bundle_ref": {
+          "const": "artifacts/release/m5-exact-build-supportability-proof/support_export.json"
+        },
+        "derived_status": { "$ref": "#/$defs/profile_status" },
+        "export_parity": { "$ref": "#/$defs/export_parity" },
+        "compatibility_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "source_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "observed_at": { "type": "string", "minLength": 1 },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_count",
+        "profile_count",
+        "green_row_count",
+        "yellow_row_count",
+        "red_row_count",
+        "all_profiles_present",
+        "all_families_covered",
+        "all_rows_publishable",
+        "all_status_fresh",
+        "all_rows_cite_canonical_bundle",
+        "all_rows_export_parity_certified",
+        "all_guardrails_held",
+        "every_axis_covered_on_every_row",
+        "narrowed_profile_count",
+        "report_clean"
+      ],
+      "properties": {
+        "row_count": { "type": "integer", "minimum": 0 },
+        "profile_count": { "type": "integer", "minimum": 0 },
+        "green_row_count": { "type": "integer", "minimum": 0 },
+        "yellow_row_count": { "type": "integer", "minimum": 0 },
+        "red_row_count": { "type": "integer", "minimum": 0 },
+        "all_profiles_present": { "type": "boolean" },
+        "all_families_covered": { "type": "boolean" },
+        "all_rows_publishable": { "type": "boolean" },
+        "all_status_fresh": { "type": "boolean" },
+        "all_rows_cite_canonical_bundle": { "type": "boolean" },
+        "all_rows_export_parity_certified": { "type": "boolean" },
+        "all_guardrails_held": { "type": "boolean" },
+        "every_axis_covered_on_every_row": { "type": "boolean" },
+        "narrowed_profile_count": { "type": "integer", "minimum": 0 },
+        "report_clean": { "type": "boolean" }
+      }
+    }
+  }
+}

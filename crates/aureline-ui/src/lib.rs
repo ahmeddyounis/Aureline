@@ -632,6 +632,25 @@
 //! partial rebuild, and stale or contradictory B144 evidence narrows the claim rather than reading as a clean
 //! pass.
 //!
+//! [`m5_build_lane_trust_surface_certification::BuildLaneTrustProfileCertificationPacket`]
+//! is the closing B144 surface-certification capstone over that frozen build-lane-trust matrix: it certifies
+//! that the shared build-lane-trust truth holds on every claimed M5 RC / stable / LTS / mirror-offline
+//! publication-bearing profile — a live exact-build supportable lane, a reviewable reproducibility structure, a
+//! disclosed cache-discipline profile, an unverified clean-room-parity profile, and an unverified
+//! exact-build-supportability profile — scoring each across nine truth axes (visual, keyboard, screen-reader,
+//! high-zoom-reflow, high-contrast, localization, CLI/export, degraded-state, and build-lane-trust-component
+//! truth) and either passing it (green), auto-narrowing its publication claim to the weakest supported ceiling
+//! (yellow), or blocking it (red) when a degraded axis is hidden behind a fresh trusted claim inherited from a
+//! healthier profile. Only a live, first-party fully reproducible release lane may certify a trusted exact-build
+//! supportable lane, the always-on CLI/export axis must always stay certified so support and automation can
+//! reconstruct the build lane, cache posture, publication authority, exact build identity, clean-room rebuild
+//! diff, reproducibility proof, sidecar convergence, support packet, and registry reference, and every B144 hard
+//! invariant is enforced per row — so no publication lane can advertise full exact-build or clean-room
+//! supportability while a PR cache could publish release artifacts, a remote-cache hit is treated as
+//! reproducibility proof, a sidecar drifts from the binary build identity, clean-room parity is overclaimed on a
+//! partial rebuild, or B144 evidence is stale or missing. Every certified profile cites the one canonical
+//! build-lane-trust matrix proof bundle rather than cloning per-profile evidence.
+//!
 //! [`m5_setting_capability_lifecycle_and_kill_switch_registries::M5SettingCapabilityLifecycleKillSwitchRegistriesPacket`]
 //! is the capability-lifecycle / kill-switch implement lane over that frozen settings-governance matrix: it turns
 //! the capability-record grammar (how a capability record, Labs enrollment, rollout plan, and dependency marker
@@ -893,6 +912,7 @@ pub mod m5_bootstrap_credential_posture_and_fetch_route_registries;
 pub mod m5_build_lane_descriptor_and_reproducibility_proof_registries;
 pub mod m5_build_lane_trust_matrix;
 pub mod m5_build_lane_trust_shared_consumers_one_registry_across_surfaces;
+pub mod m5_build_lane_trust_surface_certification;
 pub mod m5_button_and_icon_button_state_and_command_attribution;
 pub mod m5_channel_isolation_precedence_review_and_rollback_targets;
 pub mod m5_clean_room_rebuild_lane_and_artifact_diff_packet_registries;
