@@ -523,6 +523,23 @@
 //! configuration surface that cannot explain the setting it declared or the scope that won
 //! degrades honestly instead of reading as a clean pass.
 //!
+//! [`m5_setting_schema_migration_and_compatibility_window_registries::M5SettingSchemaMigrationCompatibilityWindowRegistriesPacket`]
+//! is the schema-migration + downgrade implement lane over that frozen settings-governance matrix: it turns
+//! the schema-migration-record grammar (how a version change declares the old key / alias, new key, transform,
+//! lossy fidelity, compatibility window, and rollback note) and the compatibility-window grammar (how an
+//! upgrade, import, restore, or downgrade flow discloses whether stored meaning is inside its window, deprecated
+//! but supported, or outside the window) into registry resolvers, so every claimed M5 configuration migration
+//! resolves to one schema-migration-record object — the fidelity label it classifies (exact / compatible /
+//! lossy / manual-review), the old key / alias, the new key, the transform, the compatibility window, the
+//! rollback note, the compare-before-apply reference, and the migration provenance reference — and to one
+//! compatibility-window object — the window source, the supported version range, the deprecation review, the
+//! validation status, the review state, the docs pointer, and the last review revision — that the upgrade,
+//! import, restore, downgrade, and support / export flows inspect before apply without manual reconstruction, so
+//! a migration never implies full fidelity when it is lossy or requires manual review, a schema change never
+//! alters stored meaning without a checked-in migration record and compare surface, a compatibility window
+//! always names its window source and downgrade guidance, and a configuration flow that cannot explain what a
+//! migration changes degrades honestly instead of reading as a clean pass.
+//!
 //! [`m5_setting_write_intent_and_policy_constraint_registries::M5SettingWriteIntentPolicyConstraintRegistriesPacket`]
 //! is the write-pipeline implement lane over that frozen settings-governance matrix: it turns
 //! the setting-write-intent grammar (how a configuration mutation declares the scope, artifact,
@@ -732,6 +749,7 @@ pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_setting_definition_and_effective_setting_registries;
+pub mod m5_setting_schema_migration_and_compatibility_window_registries;
 pub mod m5_setting_write_intent_and_policy_constraint_registries;
 pub mod m5_settings_governance_matrix;
 pub mod m5_shell_metric_and_minimum_size_registries;
