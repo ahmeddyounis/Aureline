@@ -539,6 +539,19 @@
 //! visible before widening, and a cohort that cannot explain the descriptor it declared or the evidence that
 //! backs it degrades honestly instead of reading as a clean pass.
 //!
+//! [`m5_ring_progression_and_rollback_stop_registries::M5RingProgressionRollbackStopRegistriesPacket`]
+//! governs ring widening by explicit stop conditions rather than schedule optimism over that same frozen
+//! launch-control matrix: it turns the ring-progression grammar (how each widening transition — canary, broad
+//! internal dogfood, design-partner preview, public preview, and certified stable — declares its minimum entry
+//! evidence, soak-window expectation, why widening is allowed, its known-limits packet, issue-template linkage,
+//! claim-narrowing action, and the rollback-stop reference that immediately stops it) and the rollback-stop
+//! grammar (how a launch-bearing lane records the rollback-stop condition — a crash / data-loss / trust defect, a
+//! repeated protected-metric regression, or a stale readiness packet — that halts ring progression while it is
+//! active) into registry resolvers, so every ring transition can state why widening is allowed and what
+//! immediately stops it, known-limits and rollback posture stay visible before any ring widens, ring progression
+//! can never advance on a claimed lane while a rollback-stop condition is active, and a ring that cannot explain
+//! its progression rule or the stop condition that backs it degrades honestly instead of reading as a clean pass.
+//!
 //! [`m5_build_lane_trust_matrix::M5BuildLaneTrustMatrixPacket`] freezes Aureline's
 //! concrete build-farm trust domains, remote-cache discipline, clean-room rebuild proof,
 //! and exact-build supportability — the contributor / PR lane, the protected-merge lane,
@@ -1003,6 +1016,7 @@ pub mod m5_repository_bootstrap_matrix;
 pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
+pub mod m5_ring_progression_and_rollback_stop_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_setting_capability_lifecycle_and_kill_switch_registries;
 pub mod m5_setting_definition_and_effective_setting_registries;
