@@ -523,6 +523,25 @@
 //! non-hermetic inputs, cache poisoning, and unreplayable artifacts block promotion rather
 //! than hiding behind green publication rows.
 //!
+//! [`m5_build_lane_descriptor_and_reproducibility_proof_registries::M5BuildLaneDescriptorReproducibilityProofRegistriesPacket`]
+//! is the first implement lane over that frozen build-lane-trust matrix: it turns the build-lane-descriptor
+//! grammar (how a lane declares its allowed cache reads / writes, its controlled credential class, its
+//! publication rights, and the artifact families it is expected to produce) and the reproducibility-proof
+//! grammar (how a release or emergency-hotfix lane proves its inputs came from a verified cache or were
+//! re-materialized and that binaries, packages, SBOMs, symbols, docs, and rollback metadata converge on one
+//! exact build identity) into registry resolvers, so every claimed M5 build lane resolves to one typed
+//! build-lane-descriptor object — the cache posture it classifies, the cache read scope, the cache write
+//! scope, the controlled credential class, the publication rights it is bounded to, the expected artifact
+//! families, the hermetic-input posture, and the clean-room rebuild rule — and to one reproducibility-proof
+//! object — the resolved exact build identity, the verified-versus-re-materialized input-source ledger, the
+//! clean-room rebuild diff reference, the sidecar-convergence state, the attestation state, the
+//! rollback-metadata reference, and the last rebuild revision — that the release-center, shiproom,
+//! diagnostics, provenance, and support / export surfaces inspect without manual reconstruction, so an
+//! untrusted lane can never publish a release artifact, a remote-cache hit is never treated as reproducibility
+//! proof, the cache / credential / publication boundary stays visible before promotion, and a build lane that
+//! cannot explain the descriptor it declared or the build identity it converged on degrades honestly instead
+//! of reading as a clean pass.
+//!
 //! [`m5_setting_capability_lifecycle_and_kill_switch_registries::M5SettingCapabilityLifecycleKillSwitchRegistriesPacket`]
 //! is the capability-lifecycle / kill-switch implement lane over that frozen settings-governance matrix: it turns
 //! the capability-record grammar (how a capability record, Labs enrollment, rollout plan, and dependency marker
@@ -781,6 +800,7 @@ pub mod m5_annotation_rows;
 pub mod m5_badge_chip_pill_and_popover_expansion_and_anchored_focus_return;
 pub mod m5_banner_inline_notice_and_empty_state_scoped_cause_and_next_action;
 pub mod m5_bootstrap_credential_posture_and_fetch_route_registries;
+pub mod m5_build_lane_descriptor_and_reproducibility_proof_registries;
 pub mod m5_build_lane_trust_matrix;
 pub mod m5_button_and_icon_button_state_and_command_attribution;
 pub mod m5_channel_isolation_precedence_review_and_rollback_targets;
