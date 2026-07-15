@@ -523,6 +523,23 @@
 //! configuration surface that cannot explain the setting it declared or the scope that won
 //! degrades honestly instead of reading as a clean pass.
 //!
+//! [`m5_setting_write_intent_and_policy_constraint_registries::M5SettingWriteIntentPolicyConstraintRegistriesPacket`]
+//! is the write-pipeline implement lane over that frozen settings-governance matrix: it turns
+//! the setting-write-intent grammar (how a configuration mutation declares the scope, artifact,
+//! actor, reason, preview class, and recovery evidence it will land) and the policy / constraint
+//! grammar (how a locked or denied write explains itself) into registry resolvers, so every
+//! claimed M5 configuration mutation resolves to one write-intent object — the preview class it
+//! classifies, the target scope and artifact it lands in and never silently widens, the intended
+//! value, the actor, the change reason, the preview reference, and the checkpoint / rollback
+//! recovery reference — and to one policy / constraint object — the lock source, the allowed
+//! override classes, the expiry / review window, the validation status, the review state, the
+//! docs pointer, and the last review revision — that the settings, shell, diagnostics, admin, and
+//! support / export surfaces inspect without manual reconstruction, so a scoped write is never
+//! rewritten into a broader scope or an unintended artifact, a high-risk write always materializes
+//! preview / checkpoint / rollback evidence before it applies, a locked or denied write always
+//! names its cause and fallback, and a configuration route that cannot explain where a mutation
+//! lands or why a write is locked degrades honestly instead of reading as a clean pass.
+//!
 //! [`m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces::M5RepositoryBootstrapSharedConsumersPacket`]
 //! is the consumer-adoption capstone over that frozen matrix: it binds each of the
 //! five repository-bootstrap families to the concrete acquisition-engine, shell,
@@ -715,6 +732,7 @@ pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_setting_definition_and_effective_setting_registries;
+pub mod m5_setting_write_intent_and_policy_constraint_registries;
 pub mod m5_settings_governance_matrix;
 pub mod m5_shell_metric_and_minimum_size_registries;
 pub mod m5_shell_metric_density_accessibility_parity_and_narrowing_when_shell_metric_density_or_adaptive_geometry_truth_is_stale;
