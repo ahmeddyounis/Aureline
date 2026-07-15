@@ -592,6 +592,20 @@
 //! rehearsal state is red or stale, and a lane that cannot show the rehearsal packet it ran or the roster that
 //! covered it degrades honestly instead of reading as a clean pass.
 //!
+//! [`m5_widening_decision_and_ring_history_registries::M5WideningDecisionRingHistoryRegistriesPacket`]
+//! makes every claimed stable-widening event reconstructible after the fact over that same frozen
+//! launch-control matrix: it turns the stable go/no-go decision-record grammar (how each widening event — an
+//! alpha, beta, release-candidate, stable, long-term-support, or correction-reissue widening — records its final
+//! go/no-go decision, its open risks, its narrowed claims, its named on-call and signoff roster, and the exact
+//! evidence snapshot that justified widening) and the ring-history-snapshot grammar (how a launch-bearing lane
+//! preserves the ring history, the prior blockers, and the previous packet freshness — a ring-history, a
+//! prior-blocker, or a packet-freshness snapshot scope — with the preserved evidence snapshot, signoff, and named
+//! on-call roster) into registry resolvers, so every claimed widening event resolves to one durable go/no-go
+//! record tied to exact evidence and roster state, later incident or support review can reconstruct why a lane
+//! widened without reading ad hoc meeting notes, shiproom and correction-line flows consume the same record
+//! rather than duplicating decision state, and a record that has dropped its evidence snapshot, roster, or ring
+//! history degrades honestly instead of reading as a clean pass.
+//!
 //! [`m5_build_lane_trust_matrix::M5BuildLaneTrustMatrixPacket`] freezes Aureline's
 //! concrete build-farm trust domains, remote-cache discipline, clean-room rebuild proof,
 //! and exact-build supportability — the contributor / PR lane, the protected-merge lane,
@@ -1092,6 +1106,7 @@ pub mod m5_visual_foundation_matrix;
 pub mod m5_visual_foundations_accessibility_parity_and_narrowing_when_visual_foundation_truth_is_stale;
 pub mod m5_visual_foundations_shared_consumers_one_vocabulary_across_surfaces;
 pub mod m5_visual_foundations_surface_certification;
+pub mod m5_widening_decision_and_ring_history_registries;
 pub mod m5_window_restore_accessibility_parity_and_narrowing_when_shared_authority_restore_fidelity_display_remap_or_no_rerun_session_truth_is_stale;
 pub mod m5_window_restore_matrix;
 pub mod m5_window_restore_shared_consumers_one_registry_across_surfaces;
