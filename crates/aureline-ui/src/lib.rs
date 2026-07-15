@@ -540,6 +540,25 @@
 //! always names its window source and downgrade guidance, and a configuration flow that cannot explain what a
 //! migration changes degrades honestly instead of reading as a clean pass.
 //!
+//! [`m5_setting_sync_conflict_and_device_action_registries::M5SettingSyncConflictDeviceActionRegistriesPacket`]
+//! is the sync / conflict engine implement lane over that frozen settings-governance matrix: it turns the
+//! sync-conflict-packet grammar (how a sync scope bundle, session, and conflict packet declare which field
+//! diverged, the local and remote revisions, the field-level keep-local / keep-synced options, the compare
+//! surface, and the blocked-state reason a conflict class carries) and the device-action-record grammar (how a
+//! device action ledger records the actor, timestamp, transport and policy state, capability dependency,
+//! attribution, and last revision for a pause, resume, revoke, forget, or token-rotation action) into registry
+//! resolvers, so every claimed M5 sync conflict resolves to one sync-conflict-packet object — the conflict class
+//! it classifies (same-key divergent / policy-locked / missing-capability / machine-only / delete-versus-modify /
+//! stale-remote), the field path, the local and remote revisions, the keep-local option, the keep-synced option,
+//! the compare reference, and the blocked-state reason — and every claimed device action resolves to one
+//! device-action-record object — the actor, the action timestamp, the transport state, the policy state, the
+//! capability dependency, the attribution reference, and the last ledger revision — that the sync-session,
+//! import-apply, outage-recovery, device-review, and support / export flows inspect at the field level before
+//! apply without manual reconstruction, so sync never silently overwrites locked, machine-only, or stale-local
+//! authoritative state, a conflict never collapses into last-writer-wins, a device action ledger always names its
+//! attribution and stays reconstructable, and a sync flow that cannot explain a conflict or a device action
+//! degrades honestly instead of reading as a clean pass.
+//!
 //! [`m5_setting_write_intent_and_policy_constraint_registries::M5SettingWriteIntentPolicyConstraintRegistriesPacket`]
 //! is the write-pipeline implement lane over that frozen settings-governance matrix: it turns
 //! the setting-write-intent grammar (how a configuration mutation declares the scope, artifact,
@@ -750,6 +769,7 @@ pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_setting_definition_and_effective_setting_registries;
 pub mod m5_setting_schema_migration_and_compatibility_window_registries;
+pub mod m5_setting_sync_conflict_and_device_action_registries;
 pub mod m5_setting_write_intent_and_policy_constraint_registries;
 pub mod m5_settings_governance_matrix;
 pub mod m5_shell_metric_and_minimum_size_registries;
