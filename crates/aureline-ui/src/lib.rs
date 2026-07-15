@@ -565,6 +565,19 @@
 //! cannot show the regression asset it linked or the lineage that backs it degrades honestly instead of reading as
 //! a clean pass.
 //!
+//! [`m5_freeze_exception_and_go_no_go_registries::M5FreezeExceptionGoNoGoRegistriesPacket`]
+//! governs phase-level change budgets, freeze-exception packets, and explicit channel-widening go/no-go decisions
+//! over that same frozen launch-control matrix: it turns the freeze-exception grammar (how each governed change
+//! class — phase-allowed, exception-required, api/contract, scope-widening, migration/data, and
+//! dependency/toolchain change — carries its exception scope, rollback/narrowing, docs/support/migration, and
+//! owner/risk capture so a freeze exception can never become undocumented scope widening) and the go/no-go grammar
+//! (how a launch-bearing lane records the go / no-go / conditional-go decision with the preserved evidence
+//! snapshot, ORR signoff, named on-call roster, and authorized widening stage that justified widening) into
+//! registry resolvers, so no item enters committed scope or widening readiness without the required B145 fields,
+//! freeze exceptions stay exportable attributable packets rather than chat-only approvals, milestone accounting can
+//! distinguish integrated work from done work, and a lane that cannot show the change budget it scoped or the
+//! go/no-go evidence that backs it degrades honestly instead of reading as a clean pass.
+//!
 //! [`m5_build_lane_trust_matrix::M5BuildLaneTrustMatrixPacket`] freezes Aureline's
 //! concrete build-farm trust domains, remote-cache discipline, clean-room rebuild proof,
 //! and exact-build supportability — the contributor / PR lane, the protected-merge lane,
@@ -996,6 +1009,7 @@ pub mod m5_field_control_rows;
 pub mod m5_file_path_reveal_and_native_window_menu_registries;
 pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
+pub mod m5_freeze_exception_and_go_no_go_registries;
 pub mod m5_iconography_and_illustration_registries;
 pub mod m5_input_method_and_credential_store_wording_registries;
 pub mod m5_install_topology_accessibility_parity_and_narrowing_when_install_topology_state_root_repair_verify_or_rollout_evidence_is_stale;
