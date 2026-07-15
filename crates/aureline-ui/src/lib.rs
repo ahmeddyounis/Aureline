@@ -542,6 +542,26 @@
 //! cannot explain the descriptor it declared or the build identity it converged on degrades honestly instead
 //! of reading as a clean pass.
 //!
+//! [`m5_verified_input_manifest_and_sidecar_completeness_registries::M5VerifiedInputSidecarCompletenessRegistriesPacket`]
+//! is the input-materialization and sidecar-completeness implement lane over that frozen build-lane-trust matrix:
+//! it turns the verified-input-manifest grammar (how a lane captures the build-config digest, the
+//! materialized-input receipt, the input provenance ledger, the verification authority it is bounded to, the
+//! artifact families it expects, the hermetic-input posture, and the re-materialization rule) and the
+//! sidecar-completeness-manifest grammar (how a release or emergency-hotfix lane proves that binaries, packages,
+//! docs packs, schemas, SBOMs, symbols, source maps, and rollback metadata are all present and bound to one exact
+//! build identity) into registry resolvers, so every claimed M5 build lane resolves to one typed
+//! verified-input-manifest object — the input source it classifies, the build-config digest, the
+//! materialized-input receipt, the input provenance ledger, the verification authority it is bounded to, the
+//! expected artifact families, the hermetic-input posture, and the re-materialization rule — and to one
+//! sidecar-completeness-manifest object — the resolved exact build identity, the claimed artifact families, the
+//! sidecar-family ledger, the binding-identity check, the missing-or-mismatched reference, the attestation state,
+//! and the last convergence revision — that the release-center, shiproom, diagnostics, provenance, and support /
+//! export surfaces inspect without manual reconstruction, so an unverified input can never enter a protected
+//! lane, a missing or mismatched sidecar is never treated as a warning-only state, the build-config-digest /
+//! receipt / verification boundary stays visible before promotion, and a build lane that cannot explain the
+//! manifest it declared or prove its sidecars converge on one build identity degrades honestly instead of reading
+//! as a clean pass.
+//!
 //! [`m5_setting_capability_lifecycle_and_kill_switch_registries::M5SettingCapabilityLifecycleKillSwitchRegistriesPacket`]
 //! is the capability-lifecycle / kill-switch implement lane over that frozen settings-governance matrix: it turns
 //! the capability-record grammar (how a capability record, Labs enrollment, rollout plan, and dependency marker
@@ -881,6 +901,7 @@ pub mod m5_system_appearance_live_apply_and_source_provenance_registries;
 pub mod m5_text_field_and_search_field_labels_validation_and_privacy;
 pub mod m5_toast_and_loading_state_acknowledgement_and_loading_fidelity;
 pub mod m5_typography_scale_font_stack_and_overflow_registries;
+pub mod m5_verified_input_manifest_and_sidecar_completeness_registries;
 pub mod m5_visual_foundation_matrix;
 pub mod m5_visual_foundations_accessibility_parity_and_narrowing_when_visual_foundation_truth_is_stale;
 pub mod m5_visual_foundations_shared_consumers_one_vocabulary_across_surfaces;
