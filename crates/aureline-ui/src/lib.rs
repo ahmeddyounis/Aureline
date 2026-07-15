@@ -506,6 +506,23 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_launch_control_matrix::M5LaunchControlMatrixPacket`] freezes Aureline's
+//! concrete launch-control model — its dogfood-ring / certification-cohort taxonomy
+//! (core-team canary, design-partner preview, extension-author, public preview, and
+//! certified-archetype cohorts), its readiness events, its rehearsal cadence, its
+//! freeze-exception packets, and its explicit go/no-go decisions — into one export-safe
+//! matrix. It binds every governed cohort to one shared launch-control-role taxonomy
+//! (cohort_membership, readiness_event, rehearsal_currency, freeze_exception_authority,
+//! go_no_go_authority, rollback_stop, regression_asset), to the widening stages (alpha,
+//! beta, RC, stable, LTS) each cohort must gate, and back to the already-landed
+//! cohort-scoreboard and freeze-exception packets, so no stable claim skips cohorts, ring
+//! widening depends on current known-limits and rollback-stop rules, Sev-1/Sev-2 incidents
+//! generate a linked regression asset before close-out, ORR / publish-rollback /
+//! mixed-version / advisory-revocation / support-handoff drills stay current, freeze
+//! exceptions stay documented rather than implicit scope widening, go/no-go decisions
+//! preserve the exact evidence snapshot and signoff roster, and partner and public support
+//! language never outruns current cohort proof rather than reading as green.
+//!
 //! [`m5_build_lane_trust_matrix::M5BuildLaneTrustMatrixPacket`] freezes Aureline's
 //! concrete build-farm trust domains, remote-cache discipline, clean-room rebuild proof,
 //! and exact-build supportability — the contributor / PR lane, the protected-merge lane,
@@ -943,6 +960,7 @@ pub mod m5_install_topology_and_state_root_registries;
 pub mod m5_install_topology_matrix;
 pub mod m5_install_topology_shared_consumers_one_registry_across_surfaces;
 pub mod m5_install_topology_surface_certification;
+pub mod m5_launch_control_matrix;
 pub mod m5_layer_order_and_portal_registries;
 pub mod m5_managed_deployment_operations_and_policy_bootstrap_injection;
 pub mod m5_manifest_diff_cards;
