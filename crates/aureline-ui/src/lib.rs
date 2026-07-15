@@ -506,6 +506,22 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_stable_line_refresh_policy_and_claim_downgrade_registries::M5StableLineRefreshPolicyClaimDowngradeRegistriesPacket`]
+//! makes evidence refresh an ordinary release operation over that frozen
+//! stable-line-protection matrix. It turns the *refresh-policy* grammar (how an active
+//! stable line schedules a refresh cadence for each evidence surface it publishes — the
+//! certified-archetype report, compatibility packet, known-limits doc, release/help/About
+//! surface, public-proof surface, and support-export packet, each carrying an exact
+//! last-run identity, next-run identity, next-run owner, last-success state, and freshness
+//! SLO) and the *claim-downgrade packet* grammar (the machine-readable packet emitted when
+//! a surface misses its refresh window, moving the affected claim automatically to
+//! Retest-pending, Evidence-stale, or a narrower support-language claim and naming the
+//! active downgrade reason) into registry resolvers, so release/help/support/public-proof
+//! consumers see refresh age, next-run owner, last-success state, and any active downgrade
+//! reason, a stale surface narrows its claim automatically, and support and shiproom
+//! exports can prove stable-line truth is current or explicitly downgraded rather than
+//! silently stale.
+//!
 //! [`m5_stable_line_protection_plan_and_correction_queue_registries::M5StableLineProtectionPlanCorrectionQueueRegistriesPacket`]
 //! is the first implement lane over that frozen stable-line-protection matrix. It turns the
 //! *protection-plan* grammar (how a supported line binds each protected journey — crash
@@ -1146,6 +1162,7 @@ pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
 pub mod m5_stable_line_protection_matrix;
 pub mod m5_stable_line_protection_plan_and_correction_queue_registries;
+pub mod m5_stable_line_refresh_policy_and_claim_downgrade_registries;
 pub mod m5_staged_review_sheets;
 pub mod m5_staged_trust_and_post_open_queue_registries;
 pub mod m5_structured_input_and_staged_review;
