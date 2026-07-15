@@ -506,6 +506,21 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_stable_line_defect_ledger_and_backport_decision_timer_registries::M5StableLineDefectLedgerBackportDecisionTimerRegistriesPacket`]
+//! turns supported-line servicing into measurable program truth over that frozen
+//! stable-line-protection matrix. It records every supported-line defect in a
+//! *defect-ledger* grammar (its affected line, defect class — crash-recovery,
+//! rollback/update, support-export, migration/import, compatibility-regression, or
+//! security/data-loss — the yes/no/defer backport decision, decision age, rollback
+//! target, correction-packet state, and owning release/support roster) and drives each
+//! defect through a *backport-decision-timer* grammar (the alert scope a defect's
+//! backport decision sits in — a missing backport decision, an overdue backport decision
+//! past its SLA, or a narrowed support claim) so a missing or overdue decision raises a
+//! visible alert that can block promotion or force narrowing of the relevant stable/LTS
+//! support claim, and the first correction-packet exercise ships as a checked-in proof
+//! artifact demonstrating the stable line can service itself before any LTS language
+//! widens.
+//!
 //! [`m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries::M5StableLineBundleRefreshAuditShippingLineDriftReportRegistriesPacket`]
 //! keeps onboarding and migration promises honest after launch over that frozen
 //! stable-line-protection matrix. It turns the *bundle-refresh-audit* grammar (how an active
@@ -1188,6 +1203,7 @@ pub mod m5_source_locator_and_checkout_plan_registries;
 pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
 pub mod m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries;
+pub mod m5_stable_line_defect_ledger_and_backport_decision_timer_registries;
 pub mod m5_stable_line_deferral_backlog_and_correction_conversion_registries;
 pub mod m5_stable_line_protection_matrix;
 pub mod m5_stable_line_protection_plan_and_correction_queue_registries;
