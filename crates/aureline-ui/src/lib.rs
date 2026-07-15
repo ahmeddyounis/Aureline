@@ -506,6 +506,21 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_stable_line_protection_plan_and_correction_queue_registries::M5StableLineProtectionPlanCorrectionQueueRegistriesPacket`]
+//! is the first implement lane over that frozen stable-line-protection matrix. It turns the
+//! *protection-plan* grammar (how a supported line binds each protected journey — crash
+//! recovery, rollback/update, support export, and migration/import, plus other named
+//! launch-bearing flows — to its regression queue, publishing the queued-regression issue
+//! IDs, release line, correction packet, rollback target, and delayed-breadth ledger) and
+//! the *correction-lane queue* grammar (which protected-path regression is queued for
+//! correction and which breadth work is intentionally delayed while it stays open) into
+//! registry resolvers, so release operators can open one stable-line protection view showing
+//! which journeys are guarded, which regressions are queued, and which breadth items are
+//! delayed, exact issue / release-line / correction-packet / rollback linkage stays visible,
+//! and stable-line breadth work can never silently outrank a crash / rollback /
+//! support-export / migration regression without a recorded override or claim-narrowing
+//! action.
+//!
 //! [`m5_stable_line_protection_matrix::M5StableLineProtectionMatrixPacket`] freezes
 //! Aureline's concrete post-stable operating model — its stable-line-protection taxonomy
 //! (the fresh stable line, the evidence-refresh line, the correction/backport line, the
@@ -1130,6 +1145,7 @@ pub mod m5_source_locator_and_checkout_plan_registries;
 pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
 pub mod m5_stable_line_protection_matrix;
+pub mod m5_stable_line_protection_plan_and_correction_queue_registries;
 pub mod m5_staged_review_sheets;
 pub mod m5_staged_trust_and_post_open_queue_registries;
 pub mod m5_structured_input_and_staged_review;
