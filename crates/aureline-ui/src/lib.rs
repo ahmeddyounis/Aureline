@@ -613,6 +613,25 @@
 //! symbolication or build identity cannot be proven exactly and a supportability drill catches mismatched build
 //! IDs before stable promotion instead of reading as a clean pass.
 //!
+//! [`m5_build_lane_trust_shared_consumers_one_registry_across_surfaces::M5BuildLaneTrustSharedConsumersPacket`]
+//! is the consumer-adoption capstone over that frozen build-lane-trust matrix: it binds each of the four
+//! governed build lanes — the contributor / PR lane, the protected-merge lane, the release lane, and the
+//! emergency-hotfix lane — to the concrete About / provenance, Help, service-health, release-center, and
+//! support-export consumers (projected through the build-farm, cache-service, release-center, shiproom,
+//! provenance-service, diagnostics, docs / help, CLI / export, and support-export surfaces) that render it,
+//! and proves by fixtures rather than screenshots that the same build profile presents the same
+//! build-lane-trust-role, family, registry-reference, build-context, surface-context, and replay-continuity
+//! grammar wherever it appears, so build lane, cache posture, clean-room parity, stale-proof state, and
+//! mirror / offline build identity read consistently across every consumer. Each shared lane is adopted by at
+//! least two distinct consumers, the build-lane-trust-role word stays a frozen `M5BuildLaneTrustRole` token so
+//! no surface reinvents `cache_posture`, `publication_authority`, `reproducibility_proof`, or
+//! `artifact_convergence` in its own words, support / export consumers point back at the canonical per-domain
+//! schema and the frozen matrix by id, and narrowing is disclosed through an explicit note rather than hidden —
+//! so a PR cache never publishes release artifacts, a remote-cache hit is never treated as reproducibility
+//! proof, a sidecar never drifts from the binary build identity, clean-room parity is never overclaimed on a
+//! partial rebuild, and stale or contradictory B144 evidence narrows the claim rather than reading as a clean
+//! pass.
+//!
 //! [`m5_setting_capability_lifecycle_and_kill_switch_registries::M5SettingCapabilityLifecycleKillSwitchRegistriesPacket`]
 //! is the capability-lifecycle / kill-switch implement lane over that frozen settings-governance matrix: it turns
 //! the capability-record grammar (how a capability record, Labs enrollment, rollout plan, and dependency marker
@@ -873,6 +892,7 @@ pub mod m5_banner_inline_notice_and_empty_state_scoped_cause_and_next_action;
 pub mod m5_bootstrap_credential_posture_and_fetch_route_registries;
 pub mod m5_build_lane_descriptor_and_reproducibility_proof_registries;
 pub mod m5_build_lane_trust_matrix;
+pub mod m5_build_lane_trust_shared_consumers_one_registry_across_surfaces;
 pub mod m5_button_and_icon_button_state_and_command_attribution;
 pub mod m5_channel_isolation_precedence_review_and_rollback_targets;
 pub mod m5_clean_room_rebuild_lane_and_artifact_diff_packet_registries;
