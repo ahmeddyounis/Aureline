@@ -506,6 +506,23 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_stable_line_protection_matrix::M5StableLineProtectionMatrixPacket`] freezes
+//! Aureline's concrete post-stable operating model — its stable-line-protection taxonomy
+//! (the fresh stable line, the evidence-refresh line, the correction/backport line, the
+//! launch-bundle-currentness line, and the LTS-candidate line), the support windows,
+//! correction-line owners, backport-decision SLAs, evidence-refresh cadences,
+//! bundle-refresh obligations, and LTS-eligibility state each active line must carry —
+//! into one export-safe matrix. It binds every governed line to one shared
+//! stable-line-protection-role taxonomy (support_window, correction_ownership,
+//! evidence_refresh, backport_decision, lts_eligibility, bundle_currentness, defect_ledger),
+//! to the widening stages (alpha, beta, RC, stable, LTS) each line must gate, and back to
+//! the already-landed claim-manifest and release-center packets, so no shipping line drifts
+//! on stale evidence or frozen launch bundles, supported-line defects stay owned and
+//! resolved within SLA, backport decisions stay documented rather than tribal memory,
+//! evidence refresh stays ordinary release ops, LTS remains a checked-in decision packet
+//! backed by current rollback and support evidence, and support language never outruns
+//! current refresh and correction proof rather than reading as green.
+//!
 //! [`m5_launch_control_matrix::M5LaunchControlMatrixPacket`] freezes Aureline's
 //! concrete launch-control model — its dogfood-ring / certification-cohort taxonomy
 //! (core-team canary, design-partner preview, extension-author, public preview, and
@@ -1112,6 +1129,7 @@ pub mod m5_skeleton_first_restore_and_session_hydration_registries;
 pub mod m5_source_locator_and_checkout_plan_registries;
 pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
+pub mod m5_stable_line_protection_matrix;
 pub mod m5_staged_review_sheets;
 pub mod m5_staged_trust_and_post_open_queue_registries;
 pub mod m5_structured_input_and_staged_review;
