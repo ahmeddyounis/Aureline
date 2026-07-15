@@ -597,6 +597,21 @@
 //! names its cause and fallback, and a configuration route that cannot explain where a mutation
 //! lands or why a write is locked degrades honestly instead of reading as a clean pass.
 //!
+//! [`m5_settings_governance_shared_consumers_one_registry_across_surfaces::M5SettingsGovernanceSharedConsumersPacket`]
+//! is the consumer-adoption capstone over that frozen settings-governance matrix: it binds each of the five
+//! settings-governance families to the concrete settings-resolver, shell, sync-service, policy-service,
+//! capability-service, diagnostics, docs / help, CLI / export, and support-export consumers that render it,
+//! and proves, by fixtures rather than screenshots, that the same configuration profile presents the same
+//! settings-governance-role, family, registry-reference, resolution-context, surface-context, and
+//! evidence-continuity grammar wherever it appears, so a family is adopted by two or more consumers,
+//! effective-setting state / write intent / migration posture / sync conflict class / device lineage /
+//! capability lifecycle never drift between the GUI settings, CLI / headless inspect, Project Doctor,
+//! support export, import / export, and policy-explainer surfaces, and a surface that recycles a retired
+//! setting ID, rewrites a scoped write into a broader scope, silently overwrites locked or machine-only
+//! state during sync, hides a lifecycle or experiment dependency behind unpublished markers, or hides a
+//! kill-switch or policy-disable cause behind generic unavailable copy is rejected before the packet can be
+//! published.
+//!
 //! [`m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces::M5RepositoryBootstrapSharedConsumersPacket`]
 //! is the consumer-adoption capstone over that frozen matrix: it binds each of the
 //! five repository-bootstrap families to the concrete acquisition-engine, shell,
@@ -794,6 +809,7 @@ pub mod m5_setting_schema_migration_and_compatibility_window_registries;
 pub mod m5_setting_sync_conflict_and_device_action_registries;
 pub mod m5_setting_write_intent_and_policy_constraint_registries;
 pub mod m5_settings_governance_matrix;
+pub mod m5_settings_governance_shared_consumers_one_registry_across_surfaces;
 pub mod m5_shell_metric_and_minimum_size_registries;
 pub mod m5_shell_metric_density_accessibility_parity_and_narrowing_when_shell_metric_density_or_adaptive_geometry_truth_is_stale;
 pub mod m5_shell_metric_density_matrix;
