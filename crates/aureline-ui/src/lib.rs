@@ -606,6 +606,24 @@
 //! rather than duplicating decision state, and a record that has dropped its evidence snapshot, roster, or ring
 //! history degrades honestly instead of reading as a clean pass.
 //!
+//! [`m5_launch_control_surface_certification::LaunchControlProfileCertificationPacket`]
+//! is the closing B145 surface-certification capstone over that frozen launch-control
+//! matrix: after the 1213–1218 implement lanes resolve the cohort-descriptor, ring-progression,
+//! rollback-stop, regression-asset, incident-close, freeze-exception, go/no-go, ORR-review,
+//! rehearsal-drill, widening-decision, and ring-history registries, it certifies that the shared
+//! launch-control truth holds on every claimed M5 launch-bearing widening profile (a live certified
+//! widening lane, a reviewable launch-control structure, a disclosed freeze-exception profile, an
+//! unverified rehearsal-currency profile, and an unverified regression-asset profile). Each profile
+//! is scored across nine truth axes and either passes (green), auto-narrows its widening claim to the
+//! weakest supported ceiling with a bound reason and frozen downgrade trigger (yellow), or blocks
+//! (red) when a degraded axis hides behind a fresh certified claim, a B145 hard invariant breaks
+//! (widening a stable claim without current cohort and rehearsal evidence, letting a freeze exception
+//! become undocumented scope widening, closing a Sev-1/Sev-2 incident without a regression asset,
+//! implying green while go/no-go or ORR records are stale, or maintaining partner/public support
+//! language that outruns current cohort proof), CLI/export parity drops, or a non-live profile claims
+//! a certified widening lane, so shiproom, docs, support, and public-proof surfaces consume one
+//! launch-control certification source rather than hand-authored prose.
+//!
 //! [`m5_build_lane_trust_matrix::M5BuildLaneTrustMatrixPacket`] freezes Aureline's
 //! concrete build-farm trust domains, remote-cache discipline, clean-room rebuild proof,
 //! and exact-build supportability — the contributor / PR lane, the protected-merge lane,
@@ -1046,6 +1064,7 @@ pub mod m5_install_topology_matrix;
 pub mod m5_install_topology_shared_consumers_one_registry_across_surfaces;
 pub mod m5_install_topology_surface_certification;
 pub mod m5_launch_control_matrix;
+pub mod m5_launch_control_surface_certification;
 pub mod m5_layer_order_and_portal_registries;
 pub mod m5_managed_deployment_operations_and_policy_bootstrap_injection;
 pub mod m5_manifest_diff_cards;
