@@ -578,6 +578,20 @@
 //! distinguish integrated work from done work, and a lane that cannot show the change budget it scoped or the
 //! go/no-go evidence that backs it degrades honestly instead of reading as a clean pass.
 //!
+//! [`m5_orr_review_and_rehearsal_drill_registries::M5OrrReviewRehearsalDrillRegistriesPacket`]
+//! exercises launch-bearing lanes before widening over that same frozen launch-control matrix: it turns the
+//! operational-readiness-review grammar (how each ORR / rehearsal packet kind — monthly ORR, release-candidate
+//! ORR, publish/rollback drill, mixed-version drill, advisory/revocation drill, and support/incident handoff
+//! drill — names its readiness scope, its release / advisory / support-room / docs-comms / backup-signer role
+//! roster, and its rehearsal-freshness expiry so a stable claim can never widen on a stale, skipped, or
+//! contradictory rehearsal packet) and the rehearsal-drill grammar (how a launch-bearing lane records the roster
+//! coverage — full roster, backup roster, or conditional roster — with the preserved ORR signoff, the named
+//! on-call roster, and the rehearsal-freshness state that justified widening) into registry resolvers, so every
+//! claimed launch-bearing lane points at current ORR and rehearsal packets, rehearsal freshness and role coverage
+//! read as first-class shiproom and release blockers, stable/LTS promotion halts automatically when a lane's
+//! rehearsal state is red or stale, and a lane that cannot show the rehearsal packet it ran or the roster that
+//! covered it degrades honestly instead of reading as a clean pass.
+//!
 //! [`m5_build_lane_trust_matrix::M5BuildLaneTrustMatrixPacket`] freezes Aureline's
 //! concrete build-farm trust domains, remote-cache discipline, clean-room rebuild proof,
 //! and exact-build supportability — the contributor / PR lane, the protected-merge lane,
@@ -1029,6 +1043,7 @@ pub mod m5_motion_layer_iconography_surface_certification;
 pub mod m5_motion_token_and_reduced_motion_registries;
 pub mod m5_no_rerun_session_recovery_and_authority_replay_fence_registries;
 pub mod m5_opacity_scrim_and_overlay_depth_registries;
+pub mod m5_orr_review_and_rehearsal_drill_registries;
 pub mod m5_parameter_source_and_precedence;
 pub mod m5_pipeline_dependency_finding_components;
 pub mod m5_pipeline_run_rows;
