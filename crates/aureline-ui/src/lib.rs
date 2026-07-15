@@ -488,6 +488,24 @@
 //! mirrored fetches, and interrupted acquisition stays resumable or discardable with
 //! evidence.
 //!
+//! [`m5_settings_governance_matrix::M5SettingsGovernanceMatrixPacket`] freezes
+//! Aureline's concrete settings-resolver, sync-conflict, and capability-lifecycle
+//! runtime behavior — resolve an effective setting from the winning scope, land a
+//! write intent in the chosen artifact and scope, sync a scope bundle across devices,
+//! migrate a settings schema across versions, and roll out a capability lifecycle —
+//! into one export-safe matrix. It binds every governed family to one shared
+//! settings-governance-role taxonomy (setting_definition, effective_resolution,
+//! write_intent, policy_constraint, sync_conflict, schema_migration,
+//! capability_lifecycle) and to the family-specific resolve-setting, write-setting,
+//! sync-scope, migrate-schema, and rollout-capability vocabularies, and back to the
+//! already-landed effective-setting and capability-lifecycle packets, so stable setting
+//! IDs are never recycled, winning scope / shadowed values / restart posture / lock
+//! source stay inspectable, writes land only in the chosen artifact and scope with
+//! preview / checkpoint / rollback evidence, sync never silently overwrites local
+//! authoritative state during outages, machine-only state never masquerades as
+//! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
+//! themselves.
+//!
 //! [`m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces::M5RepositoryBootstrapSharedConsumersPacket`]
 //! is the consumer-adoption capstone over that frozen matrix: it binds each of the
 //! five repository-bootstrap families to the concrete acquisition-engine, shell,
@@ -679,6 +697,7 @@ pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_security_finding_cards;
+pub mod m5_settings_governance_matrix;
 pub mod m5_shell_metric_and_minimum_size_registries;
 pub mod m5_shell_metric_density_accessibility_parity_and_narrowing_when_shell_metric_density_or_adaptive_geometry_truth_is_stale;
 pub mod m5_shell_metric_density_matrix;
