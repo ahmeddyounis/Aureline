@@ -506,6 +506,20 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_stable_line_correction_report_and_train_comparison_registries::M5StableLineCorrectionReportTrainComparisonRegistriesPacket`]
+//! makes post-launch learning durable over that frozen stable-line-protection matrix. It
+//! publishes a post-launch *correction-report* grammar per release train (one typed report
+//! section per operating signal — adoption blockers, crash/support signals, compatibility-report
+//! freshness deltas, bundle drift, public-truth deltas, and backport exceptions or deferrals —
+//! each linked to its correction packets, supported-line defect-ledger entries, and current claim
+//! rows) and drives each train through a *train-comparison* grammar (the comparison scope an
+//! issue sits in across trains — a corrected issue, a remaining narrowed claim, or an open
+//! exception still needing explicit closure) so operators can compare trains and see which
+//! supported-line issues were corrected, which narrowed claims remain, and which exceptions
+//! still need closure, and the checked-in correction report becomes the export-safe, docs-safe
+//! operating truth release/help/support/public-proof surfaces cite instead of rereading raw
+//! incident tickets.
+//!
 //! [`m5_stable_line_defect_ledger_and_backport_decision_timer_registries::M5StableLineDefectLedgerBackportDecisionTimerRegistriesPacket`]
 //! turns supported-line servicing into measurable program truth over that frozen
 //! stable-line-protection matrix. It records every supported-line defect in a
@@ -1203,6 +1217,7 @@ pub mod m5_source_locator_and_checkout_plan_registries;
 pub mod m5_spacing_sizing_radii_elevation_and_hit_target_registries;
 pub mod m5_split_button_and_segmented_control_safe_default_and_selected_mode;
 pub mod m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries;
+pub mod m5_stable_line_correction_report_and_train_comparison_registries;
 pub mod m5_stable_line_defect_ledger_and_backport_decision_timer_registries;
 pub mod m5_stable_line_deferral_backlog_and_correction_conversion_registries;
 pub mod m5_stable_line_protection_matrix;
