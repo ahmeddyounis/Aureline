@@ -760,6 +760,30 @@
 //! leave public-proof, migration, or history unjoined from exact build and release-line
 //! identity.
 //!
+//! [`m5_retired_state_surface_certification::RetiredStateProfileCertificationPacket`]
+//! is the closing B148 surface-certification capstone over that frozen retired-state matrix.
+//! After the retirement-manifest, impact-report, countdown, review-packet, tombstone,
+//! last-supported-snapshot, and closure-ledger / propagation implement lanes, it certifies that
+//! retired-state truth holds on every claimed M5 supported line and stable-facing surface —
+//! complete retirement manifests, exact-build last-supported snapshots, tombstones and archival
+//! routes, closed support notes, and multi-profile propagation — and auto-narrows any profile that
+//! cannot sustain it. Keyed on the claimed profile (a live, fully closed retired-state closure lane;
+//! a reviewable retirement-record structure; a disclosed archive-partial profile; an unverified
+//! propagation profile; and an unverified closure-ledger profile), each row certifies the profile
+//! across nine truth axes — visual, keyboard, screen-reader, high-zoom-reflow, high-contrast,
+//! localization, CLI/export, degraded-state, and retired-state-truth behavior — and either passes
+//! (green), auto-narrows its closure claim to the weakest supported ceiling (yellow), or blocks (red)
+//! when a degraded axis hides behind a fresh certified claim, a B148 hard invariant breaks,
+//! CLI/export parity drops, or a non-live profile claims a certified retired closure. Only a live,
+//! fully closed retired-state closure lane — one whose manifest, last-supported snapshot, tombstone,
+//! closure ledger, and deployment-profile propagation all converge on one export-safe record — may
+//! certify a certified retired closure, and every row cites the one canonical retired-state matrix
+//! proof bundle, so release, help, docs, support, public-proof, marketplace, and partner/procurement
+//! surfaces consume one retired-state certification source rather than hand-authored prose. No retired
+//! object stays green or actively selectable, no last-supported docs / schemas / evidence are
+//! destroyed before support-note closure, and retirement state stays joined to exact build, line
+//! identity, deployment profile, and migration outcome.
+//!
 //! [`m5_retirement_closure_ledger_and_propagation_blocker_gate_registries::M5RetirementClosureLedgerPropagationBlockerGateRegistriesPacket`]
 //! propagates retirement manifests, tombstones, and last-supported archive refs into mirror
 //! metadata, offline bundle manifests, self-hosted registry / catalog paths, policy bundles, and
@@ -1507,6 +1531,7 @@ pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_retired_state_matrix;
+pub mod m5_retired_state_surface_certification;
 pub mod m5_retirement_closure_ledger_and_propagation_blocker_gate_registries;
 pub mod m5_retirement_countdown_and_safety_gate_registries;
 pub mod m5_retirement_impact_report_and_blocker_gate_registries;
