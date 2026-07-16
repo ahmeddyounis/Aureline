@@ -627,6 +627,23 @@
 //! support-export / migration regression without a recorded override or claim-narrowing
 //! action.
 //!
+//! [`m5_supported_line_public_proof_ledger_and_claim_history_diff_registries::M5SupportedLinePublicProofLedgerClaimHistoryDiffRegistriesPacket`]
+//! makes that durable external-proof object model operable over the frozen
+//! supported-line-transparency matrix. It publishes one line-by-line *public-proof ledger*
+//! per active stable or LTS-candidate line — joining its compatibility report, benchmark /
+//! evidence packet, support-window statement, known-limits set, and deprecation / successor
+//! report to one supported-line identity with its freshness state, last-versus-current diff,
+//! and the exact evidence-packet refs currently backing its public claims — and one
+//! *claim-history diff* per proof change (a freshness change, a scope narrowing, or a
+//! release-line reassociation) so a stale or mismatched compatibility / benchmark /
+//! known-limits / deprecation asset becomes a typed diff event rather than an implicit docs
+//! mismatch. Every registry row binds a consumer surface to resolved ledger and diff entries
+//! that reuse the frozen matrix vocabulary, so docs / help / About and support / procurement
+//! packet builders read one canonical, freshness-checked source that shows current-versus-
+//! previous claim-state history and can never widen a claim because a report once existed or
+//! leave public-proof, migration, or history unjoined from exact build and release-line
+//! identity.
+//!
 //! [`m5_supported_line_transparency_matrix::M5SupportedLineTransparencyMatrixPacket`]
 //! freezes Aureline's durable post-launch external-proof object model — its supported-line
 //! proof taxonomy (the public-proof ledger, the transparency report, the migration
@@ -1280,6 +1297,7 @@ pub mod m5_stable_line_surface_certification;
 pub mod m5_staged_review_sheets;
 pub mod m5_staged_trust_and_post_open_queue_registries;
 pub mod m5_structured_input_and_staged_review;
+pub mod m5_supported_line_public_proof_ledger_and_claim_history_diff_registries;
 pub mod m5_supported_line_transparency_matrix;
 pub mod m5_syntax_diff_and_chart_token_registries;
 pub mod m5_system_appearance_live_apply_and_source_provenance_registries;
