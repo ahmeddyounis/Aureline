@@ -760,6 +760,22 @@
 //! leave public-proof, migration, or history unjoined from exact build and release-line
 //! identity.
 //!
+//! [`m5_last_supported_snapshot_and_archive_export_gate_registries::M5LastSupportedSnapshotArchiveExportGateRegistriesPacket`]
+//! ships last-supported snapshot and retirement archive bundles for a retiring M5 surface over
+//! the frozen retired-state matrix, so migration, audit, procurement, and support can inspect
+//! what was retired without keeping the retired surface live forever. It emits one export-safe
+//! *last-supported snapshot* per retired object — capturing the docs / help truth, the schemas /
+//! contract set, the compatibility report, the known-limits snapshot, the provenance / SBOM
+//! reference, and the support-article links for the final supported build or line state, joined
+//! to its exact-build identity — and one *archive-export gate* per object that blocks a bundle
+//! from being handed off while it still carries a live vendor dependency, would leak a secret or
+//! internal-only detail, or is not bound back to the retirement manifest and review packet. Every
+//! registry row binds a consumer surface to resolved snapshot and archive-export-gate entries
+//! that reuse the frozen matrix vocabulary, so self-hosted, offline, and procurement / support
+//! consumers open one export-safe historical reference that names the final supported version /
+//! channel and the successor path without contradiction and never keeps a live secret while
+//! retaining enough evidence for support, audit, and procurement / reference use.
+//!
 //! [`m5_retirement_tombstone_and_claim_block_gate_registries::M5RetirementTombstoneClaimBlockGateRegistriesPacket`]
 //! adds retired-state tombstones and claim-block logic to the install / update, marketplace,
 //! help / About, CLI / headless inspect, and new-tenant surfaces so a retired M5 line or
@@ -1443,6 +1459,7 @@ pub mod m5_install_topology_and_state_root_registries;
 pub mod m5_install_topology_matrix;
 pub mod m5_install_topology_shared_consumers_one_registry_across_surfaces;
 pub mod m5_install_topology_surface_certification;
+pub mod m5_last_supported_snapshot_and_archive_export_gate_registries;
 pub mod m5_launch_control_matrix;
 pub mod m5_launch_control_surface_certification;
 pub mod m5_layer_order_and_portal_registries;
