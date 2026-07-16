@@ -1,0 +1,53 @@
+# M5 Constrained-File-State, Canonical-Source-Relation, and Write-Target-Review Matrix
+
+- Packet: `m5-constrained-file-state:stable:0001`
+- Label: `M5 constrained-file-state, canonical-source-relation, and write-target-review matrix`
+- Object classes: 6 (6 stable)
+- Constrained-file-state roles: state_badge_classification, blocked_write_reason, canonical_source_relation, exact_write_target, allowed_blocked_action_set, safe_next_step_guidance, export_retain_disclosure
+- Capture-lifecycle stages: constraint_detected, state_classified, canonical_source_resolved, write_target_resolved, safe_action_offered
+- Proof freshness SLO: 720 hours (last audit: 2026-07-14T00:00:00Z)
+
+## Object classes
+
+- **read_only**: `stable` (write_disposition: `read_only_blocked`)
+  - Owner: Read-only object-state owner (backup: Editor-governance backup owner)
+  - Canonical schema: `schemas/program/m5-constrained-file-state.schema.json`
+  - Scope: One read-only current object is shown as read-only, not directly writable: it carries the read-only badge, the blocked-write reason, the canonical owning source, the exact write target a write would touch, an explicit allowed-versus-blocked action set, and a duplicate-to-editable-copy safe next step so no surface lets it look writable by omission
+  - Exact write target: no direct write target; a write would be refused at the read-only object
+  - Required labels: identity, constraint_role, canonical_reference, state_badge
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **generated**: `stable` (write_disposition: `regenerate_only`)
+  - Owner: Generated-artifact object-state owner (backup: Build-governance backup owner)
+  - Canonical schema: `schemas/program/m5-canonical-source-relation.schema.json`
+  - Scope: One generated / derived artifact object names its generator as the canonical source, flags any diverged-from-generator state, states the exact write target, and offers a regenerate-from-source safe next step instead of a silent lossy direct write so edits flow through the generator, never over the artifact
+  - Exact write target: exact write target is the generator source, not the generated artifact
+  - Required labels: identity, constraint_role, canonical_reference, nearest_safe_action
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **policy_locked**: `stable` (write_disposition: `approval_gated`)
+  - Owner: Policy-locked object-state owner (backup: Policy-governance backup owner)
+  - Canonical schema: `schemas/program/m5-constrained-file-state.schema.json`
+  - Scope: One policy-locked object shows its policy-lock badge, names the lock reason and governing policy, names the canonical policy owner, states the exact write target, and offers a request-approval safe next step so a locked write is gated behind an approval rather than a silent override
+  - Exact write target: exact write target is the locked object, gated behind an approval token
+  - Required labels: identity, constraint_role, canonical_reference, nearest_safe_action
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **managed**: `stable` (write_disposition: `approval_gated`)
+  - Owner: Managed object-state owner (backup: Ecosystem-governance backup owner)
+  - Canonical schema: `schemas/program/m5-write-target-review.schema.json`
+  - Scope: One managed, externally-owned object shows its managed badge, names the managing owner as canonical source, states the exact write target for any managed-change request, and offers a request-managed-change safe next step so a local divergent write never silently masquerades as an accepted change
+  - Exact write target: exact write target is a managed-change request against the managing owner
+  - Required labels: identity, constraint_role, canonical_reference, exact_write_target
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **projection**: `stable` (write_disposition: `detach_required`)
+  - Owner: Projection object-state owner (backup: Editor-governance backup owner)
+  - Canonical schema: `schemas/program/m5-canonical-source-relation.schema.json`
+  - Scope: One projection / virtual view object shows its projection badge, names the backing source object as canonical source, resolves the exact write target back to that backing object, and offers a detach-or-overlay safe next step so a write is never silently dropped into a virtual view
+  - Exact write target: exact write target resolves to the backing source object, not the view
+  - Required labels: identity, constraint_role, canonical_reference, exact_write_target
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **captured_snapshot**: `stable` (write_disposition: `restore_only`)
+  - Owner: Captured-snapshot object-state owner (backup: Recovery-governance backup owner)
+  - Canonical schema: `schemas/program/m5-write-target-review.schema.json`
+  - Scope: One captured-snapshot object shows its captured-snapshot badge, names the capture time and source object, names the live target or metadata-only exit, and offers a restore-or-open-live safe next step so a snapshot is restored or handed off, never mutated in place as if it were the current live object
+  - Exact write target: exact write target is a restore into the live object, never the snapshot itself
+  - Required labels: identity, constraint_role, canonical_reference, state_badge
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present

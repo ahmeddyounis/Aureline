@@ -1603,6 +1603,24 @@
 //! healthy full checkout, every recovery row identifies exactly what the action would do,
 //! where, and its state or lineage effect, and an acquisition path that cannot explain its
 //! evidence or its recovery choices degrades honestly instead of reading as a clean pass.
+//!
+//! [`m5_constrained_file_state_matrix::M5ConstrainedFileStateMatrixPacket`] opens B150 by freezing
+//! Aureline's constrained-current-object model — the read-only, generated, policy-locked, managed,
+//! projection, and captured-snapshot objects a write-capable consumer must never treat as an ordinary
+//! directly-writable file — into one export-safe matrix. It binds every governed class to one shared
+//! constrained-file-state role taxonomy (state_badge_classification, blocked_write_reason,
+//! canonical_source_relation, exact_write_target, allowed_blocked_action_set, safe_next_step_guidance,
+//! export_retain_disclosure) and required visible state (state badge, reason, canonical source or live
+//! target, exact write target, allowed actions, blocked actions, and export / retain notes), makes a
+//! write-constrained object mechanically distinct from an ordinary directly-writable one, routes each class
+//! to its canonical constrained-file-state / canonical-source-relation / write-target-review domain schema,
+//! and binds back to the already-landed stable-proof-index and migration-task-row packets, so a constrained
+//! object never looks directly writable by omission, no generated / managed / projection / archived object
+//! silently falls back to a lossy direct write, no AI / automation / import / repair flow bypasses the
+//! constrained-state rules, and the canonical source, exact write target, preserved-versus-lost sync, and
+//! recovery / regenerate path stay explicit across tabs, breadcrumbs, the status bar, the command palette,
+//! editor banners, diff / review headers, write-review sheets, AI / automation mutation paths, and support /
+//! export packets.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1626,6 +1644,7 @@ pub mod m5_clean_room_rebuild_lane_and_artifact_diff_packet_registries;
 pub mod m5_cohort_descriptor_and_evidence_packet_registries;
 pub mod m5_color_system_and_semantic_theme_token_registries;
 pub mod m5_combobox_and_checkbox_radio_switch_value_source_and_toggle_semantics;
+pub mod m5_constrained_file_state_matrix;
 pub mod m5_core_action_input_accessibility_parity_and_narrowing_when_control_truth_is_stale;
 pub mod m5_core_action_input_component_matrix;
 pub mod m5_core_action_input_component_surface_certification;
