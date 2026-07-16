@@ -1780,6 +1780,22 @@
 //! auto-merges, and no local draft is lost or shown as a provider-committed publish. CLI / support / release
 //! exports carry the same scope, destination, and lifecycle labels visible in-product without leaking a raw
 //! payload.
+//!
+//! [`m5_ai_review_assist_surface_certification::AiReviewProfileCertificationPacket`] closes the B151 batch by
+//! *certifying* — per claimed consumer profile rather than per object class — that the shared AI-review truth
+//! holds on every claimed M5 review, AI, provider, pending-review, and support / export surface. Each
+//! [`m5_ai_review_assist_surface_certification::AiReviewProfileCertificationRow`] scores one profile (a
+//! fully-classified AI-review lane, a reviewable AI-review record structure, or a disclosed
+//! provider-freshness-partial / unverified-diff-scope / unverified-publish-target / unverified-finding-lifecycle
+//! profile) across nine truth axes — visual, keyboard, screen-reader, high-zoom-reflow, high-contrast,
+//! localization, always-on CLI/export, degraded-state, and ai-review-truth behavior — and either passes
+//! (green), auto-narrows its AI-review claim to the weakest supported ceiling (yellow), or blocks (red) when a
+//! degraded axis hides behind a fresh certified claim, a B151 hard invariant breaks, CLI/export parity drops,
+//! or a non-lane profile claims a certified AI-review record. A degraded axis must produce a visible claim
+//! narrowing, only a fully-classified AI-review lane may certify a certified AI-review record, and every row
+//! cites the one canonical AI-review-assist matrix proof bundle so support and automation reconstruct the same
+//! finding class, analyzed scope, publish destination, local-versus-provider state, and lifecycle state the
+//! operator saw.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1789,6 +1805,7 @@ pub mod m5_accessibility_and_continuity;
 pub mod m5_acquisition_evidence_and_partial_recovery_registries;
 pub mod m5_ai_review_accessibility_parity_and_narrowing_when_provider_freshness_diff_drift_publish_target_or_finding_lifecycle_state_is_stale;
 pub mod m5_ai_review_assist_matrix;
+pub mod m5_ai_review_assist_surface_certification;
 pub mod m5_ai_review_finding_and_scope_source_registries;
 pub mod m5_ai_review_publish_continuity_and_reconcile_registries;
 pub mod m5_ai_review_publish_sheet_and_scope_decision_registries;

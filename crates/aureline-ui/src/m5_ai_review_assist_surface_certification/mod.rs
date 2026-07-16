@@ -1,0 +1,1776 @@
+//! M05-1273 closing B151 surface certification over the frozen M5 AI-review-assist matrix — the reusable
+//! AI review finding row, review scope selector, publish-to-review sheet, and resolution memory row that a
+//! review, AI, provider, pending-review, or support / export consumer must treat as first-class, durable,
+//! publish-safe review objects rather than ad hoc AI or review chrome.
+//!
+//! Where the freeze matrix ([`crate::m5_ai_review_assist_matrix`]) defines the four governed AI-review object
+//! classes, the M05-1266..1270 implement lanes resolve each AI-review-finding / scope-source, review scope
+//! selector / rerun-freshness, publish-to-review sheet / publish-scope decision, resolution-memory /
+//! finding-lifecycle, and publish-continuity / compare-reconcile registry; this closing capstone *certifies*
+//! that the shared AI-review truth holds on every claimed M5 review, AI, provider, pending-review, and
+//! support / export surface — finding labels, finding class / severity badges, analyzed diff scope, publish
+//! destinations, local-versus-provider state, and outdated / suppressed lifecycle history — and auto-narrows
+//! any profile that cannot sustain it.
+//!
+//! It is keyed on the claimed **profile** a review / diff owner, an AI / automation flow, a provider publish
+//! consumer, or a support / export consumer reads an AI review finding through (a fully-classified AI-review
+//! lane; a reviewable AI-review record structure; a disclosed provider-freshness-partial profile; an
+//! unverified diff-scope profile; an unverified publish-target profile; and an unverified finding-lifecycle
+//! profile), not on the underlying object class or implement lane. Each [`AiReviewProfileCertificationRow`]
+//! certifies one profile across nine truth axes — visual, keyboard, screen-reader, high-zoom-reflow,
+//! high-contrast, localization, CLI/export, degraded-state, and ai-review-truth behavior — and either passes
+//! (green), auto-narrows its AI-review claim to the weakest supported ceiling (yellow), or is blocked (red)
+//! when a degraded axis is hidden behind a fresh certified claim inherited from a healthier profile.
+//!
+//! The invariant is: **a degraded axis must produce a visible claim narrowing**. A profile that keeps a
+//! `CertifiedAiReviewTruth` / `ReviewableAiReviewRecord` claim while one of its truth axes is
+//! not current is over-claiming and blocks; a profile that discloses the reduction by narrowing its claim (with
+//! a bound reason and a frozen downgrade trigger) is honestly yellow. Only a fully-classified AI-review lane
+//! — one whose finding class, analyzed diff scope, publish destination, local-versus-provider state, and
+//! lifecycle state all converge on one export-safe, provider-current, internally consistent AI-review record —
+//! may certify a `CertifiedAiReviewTruth` claim; a reviewable, provider-freshness-partial, unverified-diff-scope,
+//! unverified-publish-target, or unverified-finding-lifecycle profile that keeps a certified claim is
+//! over-reaching and blocks. The always-on CLI/export axis must always stay certified so support and
+//! automation can reconstruct the finding label, finding class, analyzed scope, publish destination,
+//! local-versus-provider state, and lifecycle state from the same AI-review proof the operator saw.
+//!
+//! The B151 hard invariants are enforced per row: no profile may let AI review results publish or merge
+//! implicitly; hide whether output stays local or becomes a provider comment, a suggested patch, or a
+//! provider-specific check annotation; keep stale findings looking current after diff or instruction drift;
+//! lose local drafts or evidence when provider write scope is missing or publish fails; or present an AI
+//! review finding without its analyzed scope, publish destination, or lifecycle state. A profile that
+//! breaches any invariant blocks (red).
+//!
+//! Every row cites exactly one canonical AI-review-assist matrix proof bundle
+//! ([`AI_REVIEW_CERT_CANONICAL_BUNDLE_REF`]) — the frozen AI-review-assist matrix proof —
+//! rather than cloning per-profile evidence. The packet is metadata-only: raw credentials, plaintext secrets,
+//! bearer tokens, endpoint URLs, and private-key material never cross this boundary.
+//!
+//! The boundary schema is
+//! [`schemas/review/m5-ai-review-assist-surface-certification.schema.json`](../../../../schemas/review/m5-ai-review-assist-surface-certification.schema.json).
+//! The contract doc is
+//! [`docs/review/m5-ai-review-assist-surface-certification.md`](../../../../docs/review/m5-ai-review-assist-surface-certification.md).
+
+#[cfg(test)]
+mod tests;
+
+use std::collections::BTreeSet;
+use std::error::Error;
+use std::fmt;
+
+use serde::{Deserialize, Serialize};
+
+use crate::m5_ai_review_assist_matrix as matrix;
+use matrix::{M5AiReviewAssistDowngradeTrigger, M5AiReviewAssistObject};
+
+/// Schema version stamped on the M05-1264 certification packet.
+pub const AI_REVIEW_CERT_SCHEMA_VERSION: u32 = 1;
+
+/// Stable record-kind tag carried by [`AiReviewProfileCertificationPacket`].
+pub const AI_REVIEW_CERT_RECORD_KIND: &str = "m5_ai_review_assist_surface_certification_packet";
+
+/// Stable record-kind tag carried by each [`AiReviewProfileCertificationRow`].
+pub const AI_REVIEW_CERT_ROW_RECORD_KIND: &str = "m5_ai_review_assist_surface_certification_row";
+
+/// Repo-relative path of the boundary schema.
+pub const AI_REVIEW_CERT_SCHEMA_REF: &str =
+    "schemas/review/m5-ai-review-assist-surface-certification.schema.json";
+
+/// Repo-relative path of the contract doc.
+pub const AI_REVIEW_CERT_DOC_REF: &str = "docs/review/m5-ai-review-assist-surface-certification.md";
+
+/// Repo-relative path of the frozen AI-review-assist matrix schema the certified profiles render.
+pub const AI_REVIEW_CERT_MATRIX_REF: &str = matrix::M5_AI_REVIEW_ASSIST_MATRIX_SCHEMA_REF;
+
+/// The one canonical AI-review-assist matrix proof bundle every certified profile cites as its
+/// first-resolved AI-review truth. All five profiles point back to it rather than cloning per-profile
+/// evidence.
+pub const AI_REVIEW_CERT_CANONICAL_BUNDLE_REF: &str = matrix::M5_AI_REVIEW_ASSIST_ARTIFACT_REF;
+
+/// The AI-review-assist-health dashboard the release surfaces consume. Recorded as a supporting evidence
+/// ref on every row so the certification's AI-review truth ties back to the same dashboard consumers
+/// read.
+pub const AI_REVIEW_CERT_CONSUMERS_BUNDLE_REF: &str = matrix::M5_AI_REVIEW_ASSIST_DASHBOARD_REF;
+
+/// Repo-relative path of the checked support-export artifact (the `include_str!` canonical).
+pub const AI_REVIEW_CERT_ARTIFACT_REF: &str =
+    "artifacts/review/m5-ai-review-assist-surface-certification/support_export.json";
+
+/// Repo-relative path of the checked machine-readable matrix CSV.
+pub const AI_REVIEW_CERT_CSV_REF: &str =
+    "artifacts/review/m5-ai-review-assist-surface-certification/matrix.csv";
+
+/// Repo-relative path of the checked Markdown report.
+pub const AI_REVIEW_CERT_REPORT_REF: &str =
+    "artifacts/review/m5-ai-review-assist-surface-certification.md";
+
+/// Repo-relative path of the protected fixture directory.
+pub const AI_REVIEW_CERT_FIXTURE_DIR: &str =
+    "fixtures/review/m5-ai-review-assist-surface-certification";
+
+/// Stable packet id for the checked-in certification bundle.
+pub const AI_REVIEW_CERT_PACKET_ID: &str = "m5-ai-review-assist-surface-certification:stable:0001";
+
+/// The six claimed M5 AI-review consumer profiles this capstone certifies. Keyed on the profile
+/// a review / diff owner, an AI / automation flow, a provider publish consumer, or a support / export consumer
+/// reads an AI review finding through — a fully-classified AI-review lane, a reviewable AI-review record
+/// structure, a disclosed provider-freshness-partial profile, an unverified diff-scope profile, an unverified
+/// publish-target profile, and an unverified finding-lifecycle profile — not on the reusable object class it
+/// renders. Only a fully-classified AI-review lane profile may certify a certified AI-review claim.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5AiReviewCertifiedProfile {
+    /// A fully-classified AI-review lane — an AI review finding whose finding label, finding class / severity,
+    /// analyzed diff scope, repo-instruction / check source, publish destination, local-versus-provider state,
+    /// and lifecycle state all converge on one export-safe, provider-current, internally consistent AI-review
+    /// record that stays identical across every review, AI, provider, pending-review, and support / export
+    /// consumer, certifying the AI-review claim exactly right now.
+    CertifiedAiReviewLane,
+    /// A reviewable AI-review record structure: a self-sufficient, inspectable resolution-memory record
+    /// (a lifecycle / finding-class / analyzed-scope record an operator can review), never itself a
+    /// fully-classified AI-review lane.
+    ReviewableAiReviewRecordStructure,
+    /// A provider-freshness lane whose provider-freshness signal is stale — the provider-side review context the
+    /// finding was produced against has moved on; the claim narrows to a provider-freshness-disclosed projection
+    /// that discloses the last-known freshness and keeps the finding local, never a stale finding silently
+    /// looking current after diff or instruction drift.
+    DisclosedProviderFreshnessPartialProfile,
+    /// A diff-scope lane whose analyzed diff scope (the selected diff, base/head range, or repo-instruction
+    /// source the finding was produced from) has drifted and can no longer be validated; the claim narrows to a
+    /// diff-scope-unverified projection that keeps the last-known analyzed scope and rerun recommendation
+    /// explicit, never a finding presented as current when the diff it was produced against has changed.
+    UnverifiedDiffScopeProfile,
+    /// A publish-target lane whose provider publish target (the provider comment, suggested patch, or check
+    /// annotation destination and its write scope) is unavailable; the claim narrows to a
+    /// publish-target-unverified projection that keeps the local draft, its intended destination, and the
+    /// copy / export fallback explicit, never a local draft lost when provider write scope is missing or publish
+    /// fails.
+    UnverifiedPublishTargetProfile,
+    /// A finding-lifecycle lane whose lifecycle memory (the open / dismissed / suppressed / published / outdated
+    /// history for a finding) can no longer be verified; the claim narrows to a finding-lifecycle-unverified
+    /// projection that keeps the last-known lifecycle state and reopen / rerun path explicit, never a finding
+    /// presented without its lifecycle state.
+    UnverifiedFindingLifecycleProfile,
+}
+
+impl M5AiReviewCertifiedProfile {
+    /// Every certified profile, in declaration order.
+    pub const ALL: [M5AiReviewCertifiedProfile; 6] = [
+        M5AiReviewCertifiedProfile::CertifiedAiReviewLane,
+        M5AiReviewCertifiedProfile::ReviewableAiReviewRecordStructure,
+        M5AiReviewCertifiedProfile::DisclosedProviderFreshnessPartialProfile,
+        M5AiReviewCertifiedProfile::UnverifiedDiffScopeProfile,
+        M5AiReviewCertifiedProfile::UnverifiedPublishTargetProfile,
+        M5AiReviewCertifiedProfile::UnverifiedFindingLifecycleProfile,
+    ];
+
+    /// Stable token recorded in the row.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CertifiedAiReviewLane => "certified_ai_review_lane",
+            Self::ReviewableAiReviewRecordStructure => "reviewable_ai_review_record_structure",
+            Self::DisclosedProviderFreshnessPartialProfile => {
+                "disclosed_provider_freshness_partial_profile"
+            }
+            Self::UnverifiedDiffScopeProfile => "unverified_diff_scope_profile",
+            Self::UnverifiedPublishTargetProfile => "unverified_publish_target_profile",
+            Self::UnverifiedFindingLifecycleProfile => "unverified_finding_lifecycle_profile",
+        }
+    }
+
+    /// True only for the fully-classified AI-review lane profile. A certified AI-review claim
+    /// may be certified on this profile alone; every other profile is at most a reviewable AI-review
+    /// record structure or a narrowed projection.
+    pub const fn is_certified_ai_review_lane(self) -> bool {
+        matches!(self, Self::CertifiedAiReviewLane)
+    }
+}
+
+/// The claim ladder a certified AI-review profile asserts and is certified down to. Minted locally
+/// for this capstone (B151 folds accessibility into the cert): the strongest claim is a fully certified
+/// AI-review record; each weaker tier is a disclosed projection that keeps the last-known provider-freshness,
+/// diff-scope, publish-target, or finding-lifecycle posture explicit rather than overstating it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5AiReviewCertClaim {
+    /// Certified AI-review truth: a fully-classified AI review finding whose finding label, finding class /
+    /// severity, analyzed diff scope, publish destination, local-versus-provider state, and lifecycle state all
+    /// join to one export-safe, provider-current, internally consistent record — the strongest claim, the
+    /// AI-review handling Aureline can present as cleanly-classified and publish-safe across every consumer.
+    CertifiedAiReviewTruth,
+    /// Reviewable AI-review record: a self-sufficient, inspectable resolution-memory record
+    /// (a lifecycle / finding-class / analyzed-scope record an operator can inspect) that is not itself a
+    /// fully-classified AI-review lane.
+    ReviewableAiReviewRecord,
+    /// Provider-freshness-disclosed projection: a finding's provider-freshness signal is stale and can only be
+    /// partially disclosed; the lane stays a provider-freshness-disclosed projection that discloses the
+    /// last-known freshness and keeps the finding local, never a stale finding looking current after diff or
+    /// instruction drift.
+    ProviderFreshnessDisclosedProjection,
+    /// Diff-scope-unverified projection: a finding's analyzed diff scope has drifted and can no longer be
+    /// validated; the lane stays a diff-scope-unverified projection that keeps the last-known analyzed scope and
+    /// rerun recommendation explicit, never a finding presented as current when the diff it was produced against
+    /// has changed.
+    DiffScopeUnverifiedProjection,
+    /// Publish-target-unverified projection: a finding's provider publish target and write scope can no longer
+    /// be resolved; the lane stays a publish-target-unverified projection that keeps the local draft, its
+    /// intended destination, and the copy / export fallback explicit, never a local draft lost when provider
+    /// write scope is missing or publish fails.
+    PublishTargetUnverifiedProjection,
+    /// Finding-lifecycle-unverified projection: a finding's lifecycle memory (its open / dismissed / suppressed /
+    /// published / outdated history) can no longer be verified; the lane stays a finding-lifecycle-unverified
+    /// projection that keeps the last-known lifecycle state and reopen / rerun path explicit, never a finding
+    /// presented without its lifecycle state.
+    FindingLifecycleUnverifiedProjection,
+}
+
+impl M5AiReviewCertClaim {
+    /// Every claim tier, strongest first.
+    pub const ALL: [Self; 6] = [
+        Self::CertifiedAiReviewTruth,
+        Self::ReviewableAiReviewRecord,
+        Self::ProviderFreshnessDisclosedProjection,
+        Self::DiffScopeUnverifiedProjection,
+        Self::PublishTargetUnverifiedProjection,
+        Self::FindingLifecycleUnverifiedProjection,
+    ];
+
+    /// Capability rank; a higher rank asserts a stronger posture. Narrowing lowers rank.
+    pub const fn capability_rank(self) -> u8 {
+        match self {
+            Self::CertifiedAiReviewTruth => 5,
+            Self::ReviewableAiReviewRecord => 4,
+            Self::ProviderFreshnessDisclosedProjection => 3,
+            Self::DiffScopeUnverifiedProjection => 2,
+            Self::PublishTargetUnverifiedProjection => 1,
+            Self::FindingLifecycleUnverifiedProjection => 0,
+        }
+    }
+
+    /// Returns true when this claim asserts a fully-classified, certified AI-review record.
+    pub const fn asserts_certified_ai_review_truth(self) -> bool {
+        matches!(self, Self::CertifiedAiReviewTruth)
+    }
+
+    /// Returns true when this claim asserts a fully self-sufficient (certified or reviewable) surface.
+    pub const fn asserts_self_sufficient_surface(self) -> bool {
+        matches!(
+            self,
+            Self::CertifiedAiReviewTruth | Self::ReviewableAiReviewRecord
+        )
+    }
+
+    /// Stable token recorded in the row.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CertifiedAiReviewTruth => "certified_ai_review_truth",
+            Self::ReviewableAiReviewRecord => "reviewable_ai_review_record",
+            Self::ProviderFreshnessDisclosedProjection => "provider_freshness_disclosed_projection",
+            Self::DiffScopeUnverifiedProjection => "diff_scope_unverified_projection",
+            Self::PublishTargetUnverifiedProjection => "publish_target_unverified_projection",
+            Self::FindingLifecycleUnverifiedProjection => "finding_lifecycle_unverified_projection",
+        }
+    }
+}
+
+/// The nine truth axes a certified profile is scored on. These are exactly the parity dimensions the spec
+/// requires verifying — visual, keyboard, screen-reader, high-zoom reflow, high-contrast, localization,
+/// CLI/export, degraded-state, and ai-review-truth behavior. The CLI/export axis is
+/// always-on and must stay certified for every profile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiReviewCertificationAxis {
+    /// Visual parity: the finding label, finding class / severity, analyzed scope, publish destination,
+    /// local-versus-provider state, and lifecycle state are shown on the primary surface without relying on a
+    /// shell-chrome-only affordance or a mislabeled provider-committed-looking row alone, and no AI review
+    /// finding still reads as auto-approved or auto-merged.
+    Visual,
+    /// Keyboard-reach parity: the same AI-review truth and its bound review operations are reachable and
+    /// operable without a pointer, never hover-only, with stable operation IDs.
+    Keyboard,
+    /// Screen-reader parity: the same truth is announced non-visually, never relying on a shell-chrome-only
+    /// affordance, a mislabeled provider-committed-looking row, or an unlabeled control alone.
+    ScreenReader,
+    /// High-zoom reflow parity: the same truth reflows legibly at 200-400% zoom rather than clipping the
+    /// finding label, finding class, analyzed scope, publish destination, or lifecycle state.
+    HighZoomReflow,
+    /// High-contrast parity: the same truth stays legible and operable in high-contrast mode, never dropping
+    /// the finding class badge, analyzed scope, or publish destination.
+    HighContrast,
+    /// Localization parity: the same truth stays host-correct and faithful across locales, never mislabeling a
+    /// finding class, analyzed scope, publish mode, or lifecycle state when a locale is incomplete.
+    Localization,
+    /// CLI / export parity (always-on): the certified profile state is reconstructable as
+    /// text / JSON / Markdown for support and automation.
+    CliExport,
+    /// Degraded-state parity: a stale provider-freshness signal, a drifted analyzed diff scope, an unavailable
+    /// publish target, or an outdated / suppressed lifecycle state honestly downgrades a
+    /// `CertifiedAiReviewTruth` / `ReviewableAiReviewRecord` claim rather than reading as a
+    /// fresh, provider-current AI-review record.
+    DegradedState,
+    /// AI-review-truth parity: the finding label, finding class / severity, analyzed diff scope,
+    /// repo-instruction / check source, publish destination, local-versus-provider state, publish / export
+    /// fallback, and finding freshness / outdated / suppressed history stay explicit and never let AI review
+    /// results publish or merge implicitly; hide whether output stays local or becomes a provider comment,
+    /// suggested patch, or provider check annotation; keep stale findings looking current after diff or
+    /// instruction drift; lose local drafts or evidence when provider write scope is missing or publish fails;
+    /// or present an AI review finding without its analyzed scope, publish destination, or lifecycle state.
+    AiReviewTruth,
+}
+
+impl AiReviewCertificationAxis {
+    /// Every certification axis, in declaration order.
+    pub const ALL: [AiReviewCertificationAxis; 9] = [
+        AiReviewCertificationAxis::Visual,
+        AiReviewCertificationAxis::Keyboard,
+        AiReviewCertificationAxis::ScreenReader,
+        AiReviewCertificationAxis::HighZoomReflow,
+        AiReviewCertificationAxis::HighContrast,
+        AiReviewCertificationAxis::Localization,
+        AiReviewCertificationAxis::CliExport,
+        AiReviewCertificationAxis::DegradedState,
+        AiReviewCertificationAxis::AiReviewTruth,
+    ];
+
+    /// The always-on CLI/export axis that must stay certified on every row.
+    pub const fn is_always_on(self) -> bool {
+        matches!(self, Self::CliExport)
+    }
+
+    /// Stable token recorded in the row.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Visual => "visual",
+            Self::Keyboard => "keyboard",
+            Self::ScreenReader => "screen_reader",
+            Self::HighZoomReflow => "high_zoom_reflow",
+            Self::HighContrast => "high_contrast",
+            Self::Localization => "localization",
+            Self::CliExport => "cli_export",
+            Self::DegradedState => "degraded_state",
+            Self::AiReviewTruth => "ai_review_truth",
+        }
+    }
+}
+
+/// The certification state of one truth axis on one profile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiReviewAxisCertificationState {
+    /// Green: parity is current; the axis fully certifies.
+    Certified,
+    /// Yellow: parity is not current, but the reduction is disclosed and binds to a visible claim narrowing.
+    DisclosedNarrowed,
+    /// Red: parity is not current and the profile hides it behind a trusted claim inherited from a healthier
+    /// profile.
+    UndisclosedDrift,
+}
+
+impl AiReviewAxisCertificationState {
+    /// Stable token recorded in the row.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Certified => "certified",
+            Self::DisclosedNarrowed => "disclosed_narrowed",
+            Self::UndisclosedDrift => "undisclosed_drift",
+        }
+    }
+}
+
+/// The derived certification verdict for a whole profile. Never asserted by the author — always recomputed
+/// from the axis outcomes, guardrails, and claim narrowing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiReviewProfileClaimStatus {
+    /// Full standing: every axis certified, every invariant held, claimed configuration tier delivered.
+    Green,
+    /// Disclosed narrowing: an axis is not current and the claim narrows visibly.
+    Yellow,
+    /// Blocked: a degraded axis hides behind a full claim, a hard invariant breaks, CLI/export parity drops, a
+    /// non-lane AI-review profile claims a certified AI-review record, or the narrowing is inconsistent.
+    Red,
+}
+
+impl AiReviewProfileClaimStatus {
+    /// Stable token recorded in the row.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Green => "green",
+            Self::Yellow => "yellow",
+            Self::Red => "red",
+        }
+    }
+
+    /// True when the profile is publishable as certified (green or disclosed yellow); red profiles block the
+    /// release.
+    pub const fn is_publishable(self) -> bool {
+        !matches!(self, Self::Red)
+    }
+}
+
+/// The five B151 hard invariants carried on every certified profile. All five must hold — a breach blocks the
+/// profile (red). Each field is `true` only when the profile *breaks* the invariant, so a clean profile
+/// carries all-false. The field names are the frozen matrix's exact hard-invariant vocabulary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiReviewCertGuardrails {
+    /// True if the profile lets AI review results publish or merge implicitly. Must be false.
+    pub lets_ai_review_results_publish_or_merge_implicitly: bool,
+    /// True if the profile hides whether output stays local or becomes a provider comment, a suggested patch, or
+    /// a provider-specific check annotation. Must be false.
+    pub hides_whether_output_stays_local_or_becomes_a_provider_comment_suggested_patch_or_check_annotation:
+        bool,
+    /// True if the profile keeps stale findings looking current after diff or instruction drift. Must be false.
+    pub keeps_stale_findings_looking_current_after_diff_or_instruction_drift: bool,
+    /// True if the profile loses local drafts or evidence when provider write scope is missing or publish fails.
+    /// Must be false.
+    pub loses_local_drafts_or_evidence_when_provider_write_scope_is_missing_or_publish_fails: bool,
+    /// True if the profile presents an AI review finding without its analyzed scope, publish destination, or
+    /// lifecycle state. Must be false.
+    pub presents_an_ai_review_finding_without_its_analyzed_scope_publish_destination_or_lifecycle_state:
+        bool,
+}
+
+impl AiReviewCertGuardrails {
+    /// A clean profile: every invariant held.
+    pub const CLEAN: Self = Self {
+        lets_ai_review_results_publish_or_merge_implicitly: false,
+        hides_whether_output_stays_local_or_becomes_a_provider_comment_suggested_patch_or_check_annotation:
+            false,
+        keeps_stale_findings_looking_current_after_diff_or_instruction_drift:
+            false,
+        loses_local_drafts_or_evidence_when_provider_write_scope_is_missing_or_publish_fails:
+            false,
+        presents_an_ai_review_finding_without_its_analyzed_scope_publish_destination_or_lifecycle_state:
+            false,
+    };
+
+    /// True when every invariant holds (no field is set).
+    pub const fn all_held(&self) -> bool {
+        !self.lets_ai_review_results_publish_or_merge_implicitly
+            && !self.hides_whether_output_stays_local_or_becomes_a_provider_comment_suggested_patch_or_check_annotation
+            && !self.keeps_stale_findings_looking_current_after_diff_or_instruction_drift
+            && !self.loses_local_drafts_or_evidence_when_provider_write_scope_is_missing_or_publish_fails
+            && !self.presents_an_ai_review_finding_without_its_analyzed_scope_publish_destination_or_lifecycle_state
+    }
+}
+
+/// The copy / export parity a certified profile preserves. The CLI/export axis certifies only when this
+/// offers text / JSON / Markdown reconstruction and prohibits a raw-payload-only export.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiReviewCertExportParity {
+    /// The copy formats the profile offers (must include text / json / markdown).
+    #[serde(default)]
+    pub formats: Vec<String>,
+    /// The state-badge / blocked-write-reason / canonical-source / exact-write-target / write-disposition /
+    /// safe-next-step fields the profile preserves in export.
+    #[serde(default)]
+    pub export_fields: Vec<String>,
+    /// True when a raw-payload-only export is prohibited.
+    pub raw_payload_only_prohibited: bool,
+}
+
+impl AiReviewCertExportParity {
+    /// Whether the parity offers text / JSON / Markdown copy and prohibits a raw-payload-only export.
+    pub fn is_complete(&self) -> bool {
+        let has = |f: &str| self.formats.iter().any(|v| v == f);
+        has("text")
+            && has("json")
+            && has("markdown")
+            && !self.export_fields.is_empty()
+            && self.raw_payload_only_prohibited
+    }
+}
+
+/// One axis outcome on one certified profile.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiReviewAxisOutcome {
+    /// The truth axis this outcome scores.
+    pub axis: AiReviewCertificationAxis,
+    /// The certification state of the axis.
+    pub state: AiReviewAxisCertificationState,
+    /// The parity note recorded for this axis (always present).
+    pub parity_note: String,
+    /// The narrowing reason; present iff the axis is not certified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub narrowing_reason: Option<String>,
+    /// The frozen downgrade trigger; present iff the axis is disclosed-narrowed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub downgrade_trigger: Option<M5AiReviewAssistDowngradeTrigger>,
+}
+
+impl AiReviewAxisOutcome {
+    /// Whether the outcome's optional fields are consistent with its state.
+    ///
+    /// - `Certified` carries neither a narrowing reason nor a trigger.
+    /// - `DisclosedNarrowed` carries a non-generic reason *and* a frozen trigger.
+    /// - `UndisclosedDrift` carries a reason describing the hidden drift but no visible trigger (that is
+    ///   exactly what makes it undisclosed).
+    pub fn well_formed(&self) -> bool {
+        if self.parity_note.trim().is_empty() {
+            return false;
+        }
+        match self.state {
+            AiReviewAxisCertificationState::Certified => {
+                self.narrowing_reason.is_none() && self.downgrade_trigger.is_none()
+            }
+            AiReviewAxisCertificationState::DisclosedNarrowed => {
+                let reason_ok = self
+                    .narrowing_reason
+                    .as_deref()
+                    .is_some_and(|r| !r.trim().is_empty() && !label_is_generic(r));
+                reason_ok && self.downgrade_trigger.is_some()
+            }
+            AiReviewAxisCertificationState::UndisclosedDrift => {
+                self.narrowing_reason
+                    .as_deref()
+                    .is_some_and(|r| !r.trim().is_empty())
+                    && self.downgrade_trigger.is_none()
+            }
+        }
+    }
+}
+
+/// The visible claim narrowing a profile applies when a truth axis is not current. Present iff the certified
+/// claim is strictly weaker than the claimed one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiReviewClaimAutoNarrow {
+    /// The axis whose degraded parity forced the narrowing.
+    pub binding_axis: AiReviewCertificationAxis,
+    /// The claim the profile would deliver at full parity.
+    pub from_claim: M5AiReviewCertClaim,
+    /// The weakest supported claim the profile is certified down to.
+    pub to_claim: M5AiReviewCertClaim,
+    /// The visible, non-generic disclosure label.
+    pub visible_label: String,
+}
+
+/// One certified M5 AI-review object-bearing profile.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiReviewProfileCertificationRow {
+    /// Record kind; must equal [`AI_REVIEW_CERT_ROW_RECORD_KIND`].
+    pub record_kind: String,
+    /// Schema version; must equal [`AI_REVIEW_CERT_SCHEMA_VERSION`].
+    pub schema_version: u32,
+    /// Stable row id.
+    pub row_id: String,
+    /// The certified profile.
+    pub profile: M5AiReviewCertifiedProfile,
+    /// The configuration claim ceiling the profile asserts.
+    pub claimed_claim: M5AiReviewCertClaim,
+    /// The weakest supported claim the profile is certified down to. Must be no stronger than `claimed_claim`.
+    pub certified_claim: M5AiReviewCertClaim,
+    /// The frozen AI-review object classes this profile renders (at least one).
+    #[serde(default)]
+    pub consumed_families: Vec<M5AiReviewAssistObject>,
+    /// One outcome per [`AiReviewCertificationAxis`], each axis appearing once.
+    #[serde(default)]
+    pub axis_outcomes: Vec<AiReviewAxisOutcome>,
+    /// The B151 hard invariants; all must hold.
+    pub guardrails: AiReviewCertGuardrails,
+    /// The visible claim narrowing; present iff `certified_claim` is weaker than `claimed_claim`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim_auto_narrow: Option<AiReviewClaimAutoNarrow>,
+    /// The one canonical AI-review-assist matrix proof bundle this profile cites. Must equal
+    /// [`AI_REVIEW_CERT_CANONICAL_BUNDLE_REF`].
+    pub canonical_bundle_ref: String,
+    /// The derived verdict. Recomputed and compared on validation.
+    pub derived_status: AiReviewProfileClaimStatus,
+    /// The copy / export parity of the certified profile state.
+    pub export_parity: AiReviewCertExportParity,
+    /// The compatibility notes captured for this profile.
+    #[serde(default)]
+    pub compatibility_notes: Vec<String>,
+    /// Source contract refs backing this row.
+    #[serde(default)]
+    pub source_refs: Vec<String>,
+    /// ISO 8601 UTC timestamp the certification was observed.
+    pub observed_at: String,
+    /// Evidence packet refs backing this row.
+    #[serde(default)]
+    pub evidence_refs: Vec<String>,
+}
+
+impl AiReviewProfileCertificationRow {
+    /// The outcome for a given axis, if present.
+    pub fn axis(&self, axis: AiReviewCertificationAxis) -> Option<&AiReviewAxisOutcome> {
+        self.axis_outcomes.iter().find(|o| o.axis == axis)
+    }
+
+    /// Whether every axis appears exactly once.
+    pub fn covers_all_axes(&self) -> bool {
+        let seen: BTreeSet<AiReviewCertificationAxis> =
+            self.axis_outcomes.iter().map(|o| o.axis).collect();
+        seen.len() == self.axis_outcomes.len()
+            && AiReviewCertificationAxis::ALL
+                .iter()
+                .all(|a| seen.contains(a))
+    }
+
+    /// Whether every axis outcome is internally well-formed.
+    pub fn axis_outcomes_well_formed(&self) -> bool {
+        self.axis_outcomes
+            .iter()
+            .all(AiReviewAxisOutcome::well_formed)
+    }
+
+    /// True when the profile narrows its configuration claim below what it asserts.
+    pub fn is_claim_narrowed(&self) -> bool {
+        self.certified_claim.capability_rank() < self.claimed_claim.capability_rank()
+    }
+
+    /// The axes disclosed as narrowed (yellow).
+    pub fn narrowed_axes(&self) -> Vec<AiReviewCertificationAxis> {
+        self.axis_outcomes
+            .iter()
+            .filter(|o| o.state == AiReviewAxisCertificationState::DisclosedNarrowed)
+            .map(|o| o.axis)
+            .collect()
+    }
+
+    /// Derives the profile verdict from its axes, invariants, and claim narrowing. This is the heart of the
+    /// capstone: a degraded axis must produce a visible claim narrowing, only a fully-classified AI-review lane
+    /// profile may certify a certified AI-review record, every hard invariant must hold, CLI/export
+    /// parity must always certify, and the narrowing must be consistent.
+    pub fn derive_status(&self) -> AiReviewProfileClaimStatus {
+        // Structural prerequisites: malformed rows can never certify.
+        if !self.covers_all_axes()
+            || !self.axis_outcomes_well_formed()
+            || self.canonical_bundle_ref != AI_REVIEW_CERT_CANONICAL_BUNDLE_REF
+            || self.consumed_families.is_empty()
+            || !self.export_parity.is_complete()
+        {
+            return AiReviewProfileClaimStatus::Red;
+        }
+
+        // Every B151 hard invariant must hold.
+        if !self.guardrails.all_held() {
+            return AiReviewProfileClaimStatus::Red;
+        }
+
+        // Certification may only narrow the claim, never strengthen it.
+        if self.certified_claim.capability_rank() > self.claimed_claim.capability_rank() {
+            return AiReviewProfileClaimStatus::Red;
+        }
+
+        // Only a fully-classified AI-review lane profile may certify a certified AI-review record.
+        if self.certified_claim.asserts_certified_ai_review_truth()
+            && !self.profile.is_certified_ai_review_lane()
+        {
+            return AiReviewProfileClaimStatus::Red;
+        }
+
+        // The always-on CLI/export axis must stay certified.
+        match self.axis(AiReviewCertificationAxis::CliExport) {
+            Some(o) if o.state == AiReviewAxisCertificationState::Certified => {}
+            _ => return AiReviewProfileClaimStatus::Red,
+        }
+
+        // Any undisclosed drift blocks outright.
+        if self
+            .axis_outcomes
+            .iter()
+            .any(|o| o.state == AiReviewAxisCertificationState::UndisclosedDrift)
+        {
+            return AiReviewProfileClaimStatus::Red;
+        }
+
+        let narrowed = self.narrowed_axes();
+        let claim_narrowed = self.is_claim_narrowed();
+
+        match (&self.claim_auto_narrow, claim_narrowed) {
+            // Spurious narrowing structure without a claim reduction.
+            (Some(_), false) => return AiReviewProfileClaimStatus::Red,
+            // A claim reduction with no disclosed narrowing structure.
+            (None, true) => return AiReviewProfileClaimStatus::Red,
+            (Some(narrow), true) => {
+                if narrow.from_claim != self.claimed_claim
+                    || narrow.to_claim != self.certified_claim
+                    || !narrowed.contains(&narrow.binding_axis)
+                    || narrow.binding_axis.is_always_on()
+                    || narrow.visible_label.trim().is_empty()
+                    || label_is_generic(&narrow.visible_label)
+                {
+                    return AiReviewProfileClaimStatus::Red;
+                }
+            }
+            (None, false) => {}
+        }
+
+        if claim_narrowed {
+            // A disclosed, consistently-bound narrowing.
+            return AiReviewProfileClaimStatus::Yellow;
+        }
+
+        // Claim not narrowed: a degraded axis retained behind a full claim is a hidden overclaim inheriting a
+        // healthier profile's truth.
+        if !narrowed.is_empty() {
+            return AiReviewProfileClaimStatus::Red;
+        }
+
+        AiReviewProfileClaimStatus::Green
+    }
+
+    /// Whether the stored `derived_status` matches a fresh recomputation.
+    pub fn status_is_fresh(&self) -> bool {
+        self.derived_status == self.derive_status()
+    }
+
+    /// Whether the row's identity and evidence fields are complete.
+    pub fn is_complete(&self) -> bool {
+        self.record_kind == AI_REVIEW_CERT_ROW_RECORD_KIND
+            && self.schema_version == AI_REVIEW_CERT_SCHEMA_VERSION
+            && !self.row_id.trim().is_empty()
+            && !self.canonical_bundle_ref.trim().is_empty()
+            && !self.consumed_families.is_empty()
+            && !self.observed_at.trim().is_empty()
+            && !self.evidence_refs.is_empty()
+            && self.evidence_refs.iter().all(|r| !r.trim().is_empty())
+            && !self.compatibility_notes.is_empty()
+    }
+
+    /// Deterministic governed chip line for this row.
+    pub fn chip_tokens(&self) -> String {
+        format!(
+            "profile={profile} claimed={claimed} certified={certified} status={status} \
+narrowed_axes={narrowed}",
+            profile = self.profile.as_str(),
+            claimed = self.claimed_claim.as_str(),
+            certified = self.certified_claim.as_str(),
+            status = self.derived_status.as_str(),
+            narrowed = self.narrowed_axes().len(),
+        )
+    }
+}
+
+/// Rolled-up summary of an M05-1264 certification packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiReviewProfileCertificationSummary {
+    pub row_count: usize,
+    pub profile_count: usize,
+    pub green_row_count: usize,
+    pub yellow_row_count: usize,
+    pub red_row_count: usize,
+    pub all_profiles_present: bool,
+    pub all_families_covered: bool,
+    pub all_rows_publishable: bool,
+    pub all_status_fresh: bool,
+    pub all_rows_cite_canonical_bundle: bool,
+    pub all_rows_export_parity_certified: bool,
+    pub all_guardrails_held: bool,
+    pub every_axis_covered_on_every_row: bool,
+    pub narrowed_profile_count: usize,
+    pub report_clean: bool,
+}
+
+/// Constructor input for [`AiReviewProfileCertificationPacket::new`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AiReviewProfileCertificationPacketInput {
+    pub packet_id: String,
+    pub as_of: String,
+    pub matrix_ref: String,
+    pub canonical_bundle_ref: String,
+    pub rows: Vec<AiReviewProfileCertificationRow>,
+}
+
+/// Checked-in M05-1264 certification packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiReviewProfileCertificationPacket {
+    pub schema_version: u32,
+    pub record_kind: String,
+    pub packet_id: String,
+    pub as_of: String,
+    pub matrix_ref: String,
+    pub canonical_bundle_ref: String,
+    #[serde(default)]
+    pub rows: Vec<AiReviewProfileCertificationRow>,
+    pub summary: AiReviewProfileCertificationSummary,
+}
+
+impl AiReviewProfileCertificationPacket {
+    /// Builds a packet, stamping the record kind, schema version, and computed summary.
+    pub fn new(input: AiReviewProfileCertificationPacketInput) -> Self {
+        let mut packet = Self {
+            schema_version: AI_REVIEW_CERT_SCHEMA_VERSION,
+            record_kind: AI_REVIEW_CERT_RECORD_KIND.to_owned(),
+            packet_id: input.packet_id,
+            as_of: input.as_of,
+            matrix_ref: input.matrix_ref,
+            canonical_bundle_ref: input.canonical_bundle_ref,
+            rows: input.rows,
+            summary: AiReviewProfileCertificationSummary {
+                row_count: 0,
+                profile_count: 0,
+                green_row_count: 0,
+                yellow_row_count: 0,
+                red_row_count: 0,
+                all_profiles_present: false,
+                all_families_covered: false,
+                all_rows_publishable: false,
+                all_status_fresh: false,
+                all_rows_cite_canonical_bundle: false,
+                all_rows_export_parity_certified: false,
+                all_guardrails_held: false,
+                every_axis_covered_on_every_row: false,
+                narrowed_profile_count: 0,
+                report_clean: false,
+            },
+        };
+        packet.summary = packet.computed_summary();
+        packet
+    }
+
+    /// Profiles represented by some row in this packet.
+    pub fn represented_profiles(&self) -> BTreeSet<M5AiReviewCertifiedProfile> {
+        self.rows.iter().map(|r| r.profile).collect()
+    }
+
+    /// AI-review object classes rendered by some certified profile in this packet.
+    pub fn represented_families(&self) -> BTreeSet<M5AiReviewAssistObject> {
+        self.rows
+            .iter()
+            .flat_map(|r| r.consumed_families.iter().copied())
+            .collect()
+    }
+
+    /// Whether every certified profile appears exactly once.
+    pub fn all_profiles_present(&self) -> bool {
+        let profiles = self.represented_profiles();
+        profiles.len() == self.rows.len()
+            && M5AiReviewCertifiedProfile::ALL
+                .iter()
+                .all(|s| profiles.contains(s))
+    }
+
+    /// Whether every frozen AI-review object class is certified on at least one profile — proof the
+    /// full matrix runs across the claimed consumers.
+    pub fn all_families_covered(&self) -> bool {
+        let families = self.represented_families();
+        M5AiReviewAssistObject::ALL
+            .iter()
+            .all(|f| families.contains(f))
+    }
+
+    /// Whether a CLI/export axis is certified on every row.
+    pub fn all_rows_export_parity_certified(&self) -> bool {
+        self.rows.iter().all(|r| {
+            r.axis(AiReviewCertificationAxis::CliExport)
+                .is_some_and(|o| o.state == AiReviewAxisCertificationState::Certified)
+                && r.export_parity.is_complete()
+        })
+    }
+
+    /// Computes summary fields from the packet contents.
+    pub fn computed_summary(&self) -> AiReviewProfileCertificationSummary {
+        let profiles = self.represented_profiles();
+        let green = self
+            .rows
+            .iter()
+            .filter(|r| r.derived_status == AiReviewProfileClaimStatus::Green)
+            .count();
+        let yellow = self
+            .rows
+            .iter()
+            .filter(|r| r.derived_status == AiReviewProfileClaimStatus::Yellow)
+            .count();
+        let red = self
+            .rows
+            .iter()
+            .filter(|r| r.derived_status == AiReviewProfileClaimStatus::Red)
+            .count();
+        let all_publishable = self.rows.iter().all(|r| r.derived_status.is_publishable());
+        let all_fresh = self
+            .rows
+            .iter()
+            .all(AiReviewProfileCertificationRow::status_is_fresh);
+        let all_profiles = self.all_profiles_present();
+        let all_families = self.all_families_covered();
+
+        AiReviewProfileCertificationSummary {
+            row_count: self.rows.len(),
+            profile_count: profiles.len(),
+            green_row_count: green,
+            yellow_row_count: yellow,
+            red_row_count: red,
+            all_profiles_present: all_profiles,
+            all_families_covered: all_families,
+            all_rows_publishable: all_publishable,
+            all_status_fresh: all_fresh,
+            all_rows_cite_canonical_bundle: self
+                .rows
+                .iter()
+                .all(|r| r.canonical_bundle_ref == AI_REVIEW_CERT_CANONICAL_BUNDLE_REF),
+            all_rows_export_parity_certified: self.all_rows_export_parity_certified(),
+            all_guardrails_held: self.rows.iter().all(|r| r.guardrails.all_held()),
+            every_axis_covered_on_every_row: self
+                .rows
+                .iter()
+                .all(AiReviewProfileCertificationRow::covers_all_axes),
+            narrowed_profile_count: self.rows.iter().filter(|r| r.is_claim_narrowed()).count(),
+            report_clean: all_publishable && all_fresh && all_profiles && all_families,
+        }
+    }
+
+    /// Validates the packet and returns every contract violation.
+    pub fn validate(&self) -> Vec<AiReviewCertificationViolation> {
+        let mut violations = Vec::new();
+
+        if self.schema_version != AI_REVIEW_CERT_SCHEMA_VERSION {
+            violations.push(AiReviewCertificationViolation::SchemaVersion {
+                expected: AI_REVIEW_CERT_SCHEMA_VERSION,
+                actual: self.schema_version,
+            });
+        }
+        if self.record_kind != AI_REVIEW_CERT_RECORD_KIND {
+            violations.push(AiReviewCertificationViolation::RecordKind {
+                expected: AI_REVIEW_CERT_RECORD_KIND.to_owned(),
+                actual: self.record_kind.clone(),
+            });
+        }
+        if self.packet_id.trim().is_empty()
+            || self.as_of.trim().is_empty()
+            || self.matrix_ref.trim().is_empty()
+        {
+            violations.push(AiReviewCertificationViolation::MissingIdentity);
+        }
+        if self.canonical_bundle_ref != AI_REVIEW_CERT_CANONICAL_BUNDLE_REF {
+            violations.push(AiReviewCertificationViolation::WrongCanonicalBundle);
+        }
+
+        let mut row_ids = BTreeSet::new();
+        for row in &self.rows {
+            if !row_ids.insert(row.row_id.clone()) {
+                violations.push(AiReviewCertificationViolation::DuplicateId {
+                    id: row.row_id.clone(),
+                });
+            }
+
+            if !row.is_complete() {
+                violations.push(AiReviewCertificationViolation::IncompleteRow {
+                    id: row.row_id.clone(),
+                });
+            }
+
+            if !row.covers_all_axes() {
+                violations.push(AiReviewCertificationViolation::AxisCoverageIncomplete {
+                    id: row.row_id.clone(),
+                });
+            }
+
+            if !row.axis_outcomes_well_formed() {
+                violations.push(AiReviewCertificationViolation::MalformedAxisOutcome {
+                    id: row.row_id.clone(),
+                });
+            }
+
+            if row.canonical_bundle_ref != AI_REVIEW_CERT_CANONICAL_BUNDLE_REF {
+                violations.push(AiReviewCertificationViolation::RowMissingCanonicalBundle {
+                    id: row.row_id.clone(),
+                });
+            }
+
+            // Every B151 hard invariant must hold.
+            if !row.guardrails.all_held() {
+                violations.push(AiReviewCertificationViolation::GuardrailViolated {
+                    id: row.row_id.clone(),
+                });
+            }
+
+            // Only a fully-classified AI-review lane profile may certify a certified AI-review record.
+            if row.certified_claim.asserts_certified_ai_review_truth()
+                && !row.profile.is_certified_ai_review_lane()
+            {
+                violations.push(
+                    AiReviewCertificationViolation::NonLaneProfileClaimsCertifiedTruth {
+                        id: row.row_id.clone(),
+                    },
+                );
+            }
+
+            // CLI/export parity is always-on.
+            if !row.export_parity.is_complete()
+                || row
+                    .axis(AiReviewCertificationAxis::CliExport)
+                    .is_none_or_state_not_certified()
+            {
+                violations.push(AiReviewCertificationViolation::ExportParityNotCertified {
+                    id: row.row_id.clone(),
+                });
+            }
+
+            // Certification may never strengthen a claim.
+            if row.certified_claim.capability_rank() > row.claimed_claim.capability_rank() {
+                violations.push(AiReviewCertificationViolation::CertifiedClaimExceedsClaim {
+                    id: row.row_id.clone(),
+                });
+            }
+
+            // The stored verdict must match a fresh recomputation.
+            if !row.status_is_fresh() {
+                violations.push(AiReviewCertificationViolation::StatusDerivationStale {
+                    id: row.row_id.clone(),
+                });
+            }
+
+            // A blocked (red) profile must not ship in a clean packet.
+            if row.derived_status == AiReviewProfileClaimStatus::Red {
+                violations.push(AiReviewCertificationViolation::ProfileBlocked {
+                    id: row.row_id.clone(),
+                });
+            }
+        }
+
+        // Every claimed profile must be certified exactly once.
+        if !self.all_profiles_present() {
+            violations.push(AiReviewCertificationViolation::ProfileCoverageIncomplete);
+        }
+
+        // Every frozen AI-review object class must be certified on some profile.
+        if !self.all_families_covered() {
+            violations.push(AiReviewCertificationViolation::FamilyCoverageIncomplete);
+        }
+
+        if self.summary != self.computed_summary() {
+            violations.push(AiReviewCertificationViolation::SummaryMismatch);
+        }
+
+        if json_contains_forbidden_material(
+            &serde_json::to_value(self).expect("certification packet serializes"),
+        ) {
+            violations.push(AiReviewCertificationViolation::RawAiReviewMaterialInExport);
+        }
+
+        violations
+    }
+
+    /// Deterministic export-safe JSON.
+    ///
+    /// # Panics
+    ///
+    /// Panics only if serializing this metadata-only packet fails.
+    pub fn export_safe_json(&self) -> String {
+        serde_json::to_string_pretty(self).expect("certification packet serializes")
+    }
+
+    /// Deterministic CSV of the certification rows for release / support handoff.
+    pub fn render_matrix_csv(&self) -> String {
+        let mut out = String::from(
+            "row_id,profile,claimed_claim,certified_claim,status,narrowed_axes,binding_axis\n",
+        );
+        for row in &self.rows {
+            let binding = row
+                .claim_auto_narrow
+                .as_ref()
+                .map(|n| n.binding_axis.as_str())
+                .unwrap_or("none");
+            out.push_str(&format!(
+                "{id},{profile},{claimed},{certified},{status},{narrowed},{binding}\n",
+                id = row.row_id,
+                profile = row.profile.as_str(),
+                claimed = row.claimed_claim.as_str(),
+                certified = row.certified_claim.as_str(),
+                status = row.derived_status.as_str(),
+                narrowed = row.narrowed_axes().len(),
+                binding = binding,
+            ));
+        }
+        out
+    }
+
+    /// Deterministic Markdown report for support, docs, or release handoff.
+    pub fn render_markdown_summary(&self) -> String {
+        let mut out = String::new();
+        out.push_str("# M5 AI-Review-Assist Surface Certification\n\n");
+        out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
+        out.push_str(&format!("- As of: `{}`\n", self.as_of));
+        out.push_str(&format!(
+            "- Canonical bundle: `{}`\n",
+            self.canonical_bundle_ref
+        ));
+        out.push_str(&format!(
+            "- Profiles: {} / {} certified ({} green, {} yellow, {} red)\n",
+            self.summary.profile_count,
+            M5AiReviewCertifiedProfile::ALL.len(),
+            self.summary.green_row_count,
+            self.summary.yellow_row_count,
+            self.summary.red_row_count,
+        ));
+        out.push_str(&format!(
+            "- Families covered: {}\n",
+            self.summary.all_families_covered
+        ));
+        out.push_str(&format!(
+            "- Invariants held: {}\n",
+            self.summary.all_guardrails_held
+        ));
+        out.push_str(&format!(
+            "- Auto-narrowed profiles: {}\n",
+            self.summary.narrowed_profile_count,
+        ));
+        out.push_str(&format!("- Report clean: {}\n", self.summary.report_clean));
+        out.push_str("\n## Profiles\n\n");
+        for row in &self.rows {
+            out.push_str(&format!("- **{}** — {}\n", row.row_id, row.chip_tokens()));
+        }
+        out
+    }
+}
+
+/// Reads and validates the checked-in certification export.
+pub fn current_m5_ai_review_assist_surface_certification_export(
+) -> Result<AiReviewProfileCertificationPacket, AiReviewCertificationArtifactError> {
+    let packet: AiReviewProfileCertificationPacket = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../artifacts/review/m5-ai-review-assist-surface-certification/support_export.json"
+    )))
+    .map_err(AiReviewCertificationArtifactError::SupportExport)?;
+    let violations = packet.validate();
+    if violations.is_empty() {
+        Ok(packet)
+    } else {
+        Err(AiReviewCertificationArtifactError::Validation(violations))
+    }
+}
+
+/// Errors emitted when reading the checked-in certification export.
+#[derive(Debug)]
+pub enum AiReviewCertificationArtifactError {
+    /// Support export failed to parse.
+    SupportExport(serde_json::Error),
+    /// Support export failed validation.
+    Validation(Vec<AiReviewCertificationViolation>),
+}
+
+impl fmt::Display for AiReviewCertificationArtifactError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::SupportExport(error) => {
+                write!(f, "certification export parse failed: {error}")
+            }
+            Self::Validation(violations) => {
+                write!(
+                    f,
+                    "certification export failed validation: {} violation(s)",
+                    violations.len()
+                )
+            }
+        }
+    }
+}
+
+impl Error for AiReviewCertificationArtifactError {}
+
+/// Validation failure for M05-1264 certification packets.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AiReviewCertificationViolation {
+    SchemaVersion { expected: u32, actual: u32 },
+    RecordKind { expected: String, actual: String },
+    MissingIdentity,
+    WrongCanonicalBundle,
+    DuplicateId { id: String },
+    IncompleteRow { id: String },
+    AxisCoverageIncomplete { id: String },
+    MalformedAxisOutcome { id: String },
+    RowMissingCanonicalBundle { id: String },
+    GuardrailViolated { id: String },
+    NonLaneProfileClaimsCertifiedTruth { id: String },
+    ExportParityNotCertified { id: String },
+    CertifiedClaimExceedsClaim { id: String },
+    StatusDerivationStale { id: String },
+    ProfileBlocked { id: String },
+    ProfileCoverageIncomplete,
+    FamilyCoverageIncomplete,
+    SummaryMismatch,
+    RawAiReviewMaterialInExport,
+}
+
+impl fmt::Display for AiReviewCertificationViolation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::SchemaVersion { expected, actual } => {
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
+            }
+            Self::RecordKind { expected, actual } => {
+                write!(f, "record kind mismatch: expected {expected}, got {actual}")
+            }
+            Self::MissingIdentity => write!(f, "packet identity fields are missing"),
+            Self::WrongCanonicalBundle => {
+                write!(
+                    f,
+                    "packet does not cite the canonical AI-review-assist matrix proof bundle"
+                )
+            }
+            Self::DuplicateId { id } => write!(f, "duplicate row id: {id}"),
+            Self::IncompleteRow { id } => write!(f, "incomplete certification row: {id}"),
+            Self::AxisCoverageIncomplete { id } => {
+                write!(
+                    f,
+                    "row {id} does not score every certification axis exactly once"
+                )
+            }
+            Self::MalformedAxisOutcome { id } => {
+                write!(
+                    f,
+                    "row {id} has an axis outcome whose disclosure fields disagree with its state"
+                )
+            }
+            Self::RowMissingCanonicalBundle { id } => {
+                write!(
+                    f,
+                    "row {id} does not cite the one canonical AI-review-assist matrix proof bundle"
+                )
+            }
+            Self::GuardrailViolated { id } => {
+                write!(
+                    f,
+                    "row {id} breaks a B151 hard invariant: letting AI review results publish or merge \
+implicitly; hiding whether output stays local or becomes a provider comment, a suggested patch, or a \
+provider-specific check annotation; keeping stale findings looking current after diff or instruction drift; \
+losing local drafts or evidence when provider write scope is missing or publish fails; or presenting an AI \
+review finding without its analyzed scope, publish destination, or lifecycle state"
+                )
+            }
+            Self::NonLaneProfileClaimsCertifiedTruth { id } => {
+                write!(
+                    f,
+                    "row {id} certifies a certified AI-review record on a non-lane profile"
+                )
+            }
+            Self::ExportParityNotCertified { id } => {
+                write!(
+                    f,
+                    "row {id} drops always-on CLI/export parity (text / JSON / Markdown reconstruction)"
+                )
+            }
+            Self::CertifiedClaimExceedsClaim { id } => {
+                write!(
+                    f,
+                    "row {id} certifies a claim stronger than the claimed one"
+                )
+            }
+            Self::StatusDerivationStale { id } => {
+                write!(
+                    f,
+                    "row {id} stored status disagrees with a fresh derivation"
+                )
+            }
+            Self::ProfileBlocked { id } => {
+                write!(
+                    f,
+                    "row {id} is blocked (red): a degraded axis is hidden behind a fresh certified claim, a hard \
+invariant broke, CLI/export parity dropped, a non-lane profile claimed a certified AI-review \
+record, or the narrowing is inconsistent"
+                )
+            }
+            Self::ProfileCoverageIncomplete => {
+                write!(
+                    f,
+                    "not every claimed M5 AI-review profile is certified exactly once"
+                )
+            }
+            Self::FamilyCoverageIncomplete => {
+                write!(
+                    f,
+                    "not every frozen AI-review object class is certified on some profile"
+                )
+            }
+            Self::SummaryMismatch => write!(f, "computed summary does not match stored summary"),
+            Self::RawAiReviewMaterialInExport => {
+                write!(
+                    f,
+                    "export contains a raw credential, plaintext secret, bearer token, endpoint URL, or private-key material"
+                )
+            }
+        }
+    }
+}
+
+impl Error for AiReviewCertificationViolation {}
+
+/// Small extension so the export-parity check reads cleanly.
+trait AxisOutcomeOptionExt {
+    fn is_none_or_state_not_certified(&self) -> bool;
+}
+
+impl AxisOutcomeOptionExt for Option<&AiReviewAxisOutcome> {
+    fn is_none_or_state_not_certified(&self) -> bool {
+        match self {
+            None => true,
+            Some(o) => o.state != AiReviewAxisCertificationState::Certified,
+        }
+    }
+}
+
+/// Whether a label is a generic non-answer rather than a precise disclosure. Includes the AI-review generics
+/// the spec forbids collapsing distinct analyzed-scope, publish-destination, local-versus-provider, and
+/// finding-lifecycle truth into (whole-label matches so a full sentence naming a concrete analyzed scope,
+/// publish destination, or lifecycle state is not flagged).
+fn label_is_generic(label: &str) -> bool {
+    let trimmed = label.trim();
+    if trimmed.is_empty() {
+        return true;
+    }
+    let lower = trimmed.to_lowercase();
+    matches!(
+        lower.as_str(),
+        "unsupported"
+            | "not supported"
+            | "unavailable"
+            | "not available"
+            | "n/a"
+            | "error"
+            | "failed"
+            | "something went wrong"
+            | "degraded"
+            | "narrowed"
+            | "reduced"
+            | "stale"
+            | "unverified"
+            | "offline"
+            | "warning"
+            | "blocked"
+            | "pending"
+            | "loading"
+            | "partial"
+            | "certified"
+            | "reviewable"
+            | "ai review"
+            | "ai review finding"
+            | "finding"
+            | "finding row"
+            | "review"
+            | "review finding"
+            | "local draft"
+            | "local only"
+            | "provider comment"
+            | "suggested patch"
+            | "check annotation"
+            | "published"
+            | "outdated"
+            | "dismissed"
+            | "suppressed"
+            | "reopened"
+            | "open"
+            | "finding class"
+            | "severity"
+            | "confidence"
+            | "analyzed scope"
+            | "diff scope"
+            | "scope"
+            | "publish destination"
+            | "publish target"
+            | "publish mode"
+            | "publish"
+            | "provider"
+            | "provider state"
+            | "local versus provider"
+            | "lifecycle"
+            | "lifecycle state"
+            | "resolution"
+            | "resolution memory"
+            | "rerun"
+            | "reopen"
+            | "export"
+            | "export fallback"
+            | "copy"
+            | "fallback"
+            | "freshness"
+            | "drift"
+            | "mismatch"
+            | "more"
+            | "…"
+            | "..."
+            | "overflow"
+    )
+}
+
+/// Heuristic that rejects obviously forbidden material in export-safe JSON. Mirrors the AI-review-assist
+/// matrix heuristic so the reused [`M5AiReviewAssistDowngradeTrigger`] narrowings
+/// serialize cleanly — the AI-review proof grammar carries only typed class tokens and opaque refs,
+/// never raw secret values or endpoints.
+fn json_contains_forbidden_material(value: &serde_json::Value) -> bool {
+    match value {
+        serde_json::Value::String(s) => {
+            let lower = s.to_lowercase();
+            lower.contains("api_key")
+                || lower.contains("password")
+                || lower.contains("passphrase")
+                || lower.contains("-----begin")
+                || lower.contains("bearer ")
+                || lower.contains("://")
+        }
+        serde_json::Value::Array(arr) => arr.iter().any(json_contains_forbidden_material),
+        serde_json::Value::Object(map) => map.values().any(json_contains_forbidden_material),
+        _ => false,
+    }
+}
+
+// --------------------------------------------------------------------------
+// Seed builder — the one source of truth shared by the tests and the on-disk
+// support export so both stay byte-aligned.
+// --------------------------------------------------------------------------
+
+/// Builds the canonical, checked-in M05-1264 certification packet. Certifies all six claimed M5
+/// AI-review profiles: two deliver their claim (green) and four auto-narrow a not-current truth
+/// axis to a weaker configuration ceiling (yellow). No profile hides drift or breaks a hard invariant (red).
+pub fn seeded_m5_ai_review_assist_surface_certification_packet(
+) -> AiReviewProfileCertificationPacket {
+    AiReviewProfileCertificationPacket::new(AiReviewProfileCertificationPacketInput {
+        packet_id: AI_REVIEW_CERT_PACKET_ID.to_owned(),
+        as_of: "2026-07-16T00:00:00Z".to_owned(),
+        matrix_ref: AI_REVIEW_CERT_MATRIX_REF.to_owned(),
+        canonical_bundle_ref: AI_REVIEW_CERT_CANONICAL_BUNDLE_REF.to_owned(),
+        rows: seeded_rows(),
+    })
+}
+
+fn seed_evidence(id: &str) -> Vec<String> {
+    vec![
+        format!("evidence:ai-review-assist-surface-certification:{id}"),
+        AI_REVIEW_CERT_CONSUMERS_BUNDLE_REF.to_owned(),
+    ]
+}
+
+fn seed_export_parity(fields: &[&str]) -> AiReviewCertExportParity {
+    AiReviewCertExportParity {
+        formats: vec!["text".to_owned(), "json".to_owned(), "markdown".to_owned()],
+        export_fields: fields.iter().map(|f| (*f).to_owned()).collect(),
+        raw_payload_only_prohibited: true,
+    }
+}
+
+fn seed_certified_note(axis: AiReviewCertificationAxis) -> &'static str {
+    match axis {
+        AiReviewCertificationAxis::Visual => {
+            "finding label, finding class / severity, analyzed diff scope, publish destination, local-versus-provider state, and lifecycle state shown on-surface without a shell-chrome-only affordance or a mislabeled provider-committed-looking row alone, and no AI review finding still reads as auto-approved or auto-merged"
+        }
+        AiReviewCertificationAxis::Keyboard => {
+            "the same finding class, analyzed scope, publish destination, and bound review operations are keyboard-reachable with stable operation IDs, never hover-only"
+        }
+        AiReviewCertificationAxis::ScreenReader => {
+            "the same AI-review truth is announced non-visually, never a shell-chrome-only / mislabeled-provider-committed-row / unlabeled-control-only cue"
+        }
+        AiReviewCertificationAxis::HighZoomReflow => {
+            "the same truth reflows legibly at 200-400% zoom without clipping the finding label, finding class, analyzed scope, publish destination, or lifecycle state"
+        }
+        AiReviewCertificationAxis::HighContrast => {
+            "the same truth stays legible and operable in high-contrast mode without dropping the finding class badge, analyzed scope, or publish destination"
+        }
+        AiReviewCertificationAxis::Localization => {
+            "the same truth stays host-correct and faithful across locales without mislabeling a finding class, analyzed scope, publish mode, or lifecycle state"
+        }
+        AiReviewCertificationAxis::CliExport => {
+            "profile state exports as text / JSON / Markdown for support replay"
+        }
+        AiReviewCertificationAxis::DegradedState => {
+            "a stale provider-freshness signal, a drifted analyzed diff scope, an unavailable publish target, or an outdated / suppressed lifecycle state honestly downgrades the CertifiedAiReviewTruth/ReviewableAiReviewRecord claim rather than reading as a fresh, provider-current AI review finding"
+        }
+        AiReviewCertificationAxis::AiReviewTruth => {
+            "finding label, finding class / severity, analyzed diff scope, repo-instruction / check source, publish destination, local-versus-provider state, publish / export fallback, and finding freshness / outdated / suppressed history stay explicit and never let AI review results publish or merge implicitly, hide whether output stays local or becomes a provider comment / suggested patch / provider check annotation, keep stale findings looking current after diff or instruction drift, lose local drafts or evidence when provider write scope is missing or publish fails, or present an AI review finding without its analyzed scope, publish destination, or lifecycle state"
+        }
+    }
+}
+
+fn seed_certified(axis: AiReviewCertificationAxis) -> AiReviewAxisOutcome {
+    AiReviewAxisOutcome {
+        axis,
+        state: AiReviewAxisCertificationState::Certified,
+        parity_note: seed_certified_note(axis).to_owned(),
+        narrowing_reason: None,
+        downgrade_trigger: None,
+    }
+}
+
+fn seed_narrowed(
+    axis: AiReviewCertificationAxis,
+    note: &str,
+    reason: &str,
+    trigger: M5AiReviewAssistDowngradeTrigger,
+) -> AiReviewAxisOutcome {
+    AiReviewAxisOutcome {
+        axis,
+        state: AiReviewAxisCertificationState::DisclosedNarrowed,
+        parity_note: note.to_owned(),
+        narrowing_reason: Some(reason.to_owned()),
+        downgrade_trigger: Some(trigger),
+    }
+}
+
+fn seed_all_certified() -> Vec<AiReviewAxisOutcome> {
+    AiReviewCertificationAxis::ALL
+        .iter()
+        .copied()
+        .map(seed_certified)
+        .collect()
+}
+
+fn seed_certified_except(
+    axis: AiReviewCertificationAxis,
+    outcome: AiReviewAxisOutcome,
+) -> Vec<AiReviewAxisOutcome> {
+    AiReviewCertificationAxis::ALL
+        .iter()
+        .copied()
+        .map(|a| {
+            if a == axis {
+                outcome.clone()
+            } else {
+                seed_certified(a)
+            }
+        })
+        .collect()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn seed_row(
+    row_id: &str,
+    profile: M5AiReviewCertifiedProfile,
+    claimed_claim: M5AiReviewCertClaim,
+    certified_claim: M5AiReviewCertClaim,
+    consumed_families: &[M5AiReviewAssistObject],
+    axis_outcomes: Vec<AiReviewAxisOutcome>,
+    claim_auto_narrow: Option<AiReviewClaimAutoNarrow>,
+    export_fields: &[&str],
+    compatibility_notes: &[&str],
+) -> AiReviewProfileCertificationRow {
+    let mut row = AiReviewProfileCertificationRow {
+        record_kind: AI_REVIEW_CERT_ROW_RECORD_KIND.to_owned(),
+        schema_version: AI_REVIEW_CERT_SCHEMA_VERSION,
+        row_id: row_id.to_owned(),
+        profile,
+        claimed_claim,
+        certified_claim,
+        consumed_families: consumed_families.to_vec(),
+        axis_outcomes,
+        guardrails: AiReviewCertGuardrails::CLEAN,
+        claim_auto_narrow,
+        canonical_bundle_ref: AI_REVIEW_CERT_CANONICAL_BUNDLE_REF.to_owned(),
+        derived_status: AiReviewProfileClaimStatus::Green,
+        export_parity: seed_export_parity(export_fields),
+        compatibility_notes: compatibility_notes
+            .iter()
+            .map(|n| (*n).to_owned())
+            .collect(),
+        source_refs: vec![
+            AI_REVIEW_CERT_MATRIX_REF.to_owned(),
+            AI_REVIEW_CERT_SCHEMA_REF.to_owned(),
+        ],
+        observed_at: "2026-07-16T00:00:00Z".to_owned(),
+        evidence_refs: seed_evidence(row_id),
+    };
+    row.derived_status = row.derive_status();
+    row
+}
+
+fn seed_narrow(
+    binding_axis: AiReviewCertificationAxis,
+    from_claim: M5AiReviewCertClaim,
+    to_claim: M5AiReviewCertClaim,
+    label: &str,
+) -> AiReviewClaimAutoNarrow {
+    AiReviewClaimAutoNarrow {
+        binding_axis,
+        from_claim,
+        to_claim,
+        visible_label: label.to_owned(),
+    }
+}
+
+fn seeded_rows() -> Vec<AiReviewProfileCertificationRow> {
+    use AiReviewCertificationAxis as Ax;
+    use M5AiReviewAssistDowngradeTrigger as Trig;
+    use M5AiReviewAssistObject::*;
+    use M5AiReviewCertClaim::*;
+    use M5AiReviewCertifiedProfile as P;
+
+    vec![
+        // --- Green: full parity, claim delivered ---------------------------
+        seed_row(
+            "cert:certified-ai-review-lane",
+            P::CertifiedAiReviewLane,
+            CertifiedAiReviewTruth,
+            CertifiedAiReviewTruth,
+            &[AiReviewFindingRow],
+            seed_all_certified(),
+            None,
+            &[
+                "profile",
+                "claimed_claim",
+                "certified_claim",
+                "status",
+                "analyzed_scope",
+            ],
+            &[
+                "certified AI-review lane: the finding label, finding class / severity, analyzed diff scope, repo-instruction / check source, publish destination, local-versus-provider state, and lifecycle state all join to one export-safe finding record, never an AI review finding that publishes, requests changes, or merges implicitly",
+                "the certified AI-review finding keeps stable operation IDs while the finding class, analyzed scope, publish destination, local-versus-provider state, and lifecycle state bind to the one AI-review-assist matrix across review-detail / ai-review-panel / finding-row / review-scope-selector / publish-to-review-sheet / pending-review-tray / provider-publish-review / resolution-memory-ledger / support-export surfaces, and no finding reads as provider-committed in one surface and local-only in another",
+                "keyboard / screen-reader / high-zoom / high-contrast / localization reach preserved for the rendered AI-review finding record",
+                "ai-review-truth: a fully-classified AI-review lane with export-safe, provider-current, internally consistent state is the only profile that certifies a certified AI-review record",
+            ],
+        ),
+        seed_row(
+            "cert:reviewable-ai-review-record-structure",
+            P::ReviewableAiReviewRecordStructure,
+            ReviewableAiReviewRecord,
+            ReviewableAiReviewRecord,
+            &[ResolutionMemoryRow],
+            seed_all_certified(),
+            None,
+            &[
+                "profile",
+                "claimed_claim",
+                "certified_claim",
+                "status",
+                "lifecycle_state",
+            ],
+            &[
+                "record-structure class: an export-safe resolution-memory record bound to one finding and inspectable rather than a per-surface description copied by hand, with the open / dismissed / suppressed / published / outdated lifecycle history separated from the live finding body",
+                "the reviewable AI-review record keeps its finding class, analyzed scope, publish destination, and lifecycle state inspectable rather than a shell-chrome-only or mislabeled-provider-committed-row cue",
+                "text / JSON / Markdown reconstruction certified so support can replay the reviewable AI-review record structure",
+                "ai-review-truth: a reviewable AI-review record never certifies a fully-classified-lane claim and never stays green on a stale provider-freshness signal or a drifted analyzed scope",
+            ],
+        ),
+        // --- Yellow: an axis is not current; the claim narrows visibly ------
+        seed_row(
+            "cert:disclosed-provider-freshness-partial-profile",
+            P::DisclosedProviderFreshnessPartialProfile,
+            ReviewableAiReviewRecord,
+            ProviderFreshnessDisclosedProjection,
+            &[AiReviewFindingRow],
+            seed_certified_except(
+                Ax::DegradedState,
+                seed_narrowed(
+                    Ax::DegradedState,
+                    "the finding's provider-freshness signal is stale for this profile so a provider-current AI-review record cannot be certified and the finding stays inspect-only",
+                    "The finding's provider-freshness signal is stale — the provider-side review context it was produced against has moved on — so the ReviewableAiReviewRecord claim narrows to a provider-freshness-disclosed projection and the lane discloses the last-known freshness and keeps the finding local rather than letting a stale finding look current after diff or instruction drift",
+                    Trig::StaleFindingShownAsCurrent,
+                ),
+            ),
+            Some(seed_narrow(
+                Ax::DegradedState,
+                ReviewableAiReviewRecord,
+                ProviderFreshnessDisclosedProjection,
+                "Provider freshness is stale for this finding, so its last-known freshness is disclosed and it never reads as a provider-current, provider-committed finding",
+            )),
+            &[
+                "profile",
+                "claimed_claim",
+                "certified_claim",
+                "status",
+                "binding_axis",
+            ],
+            &[
+                "provider-freshness-partial class: the finding names its analyzed scope, repo-instruction / check source, and last-known provider freshness and marks freshness as disclosed-stale rather than letting a stale finding read as provider-current when its freshness is incomplete",
+                "the provider-freshness-partial surface keeps its analyzed scope and last-known freshness legible while freshness is disclosed as stale",
+                "degraded-state: ReviewableAiReviewRecord narrows to a provider-freshness-disclosed projection (auto-narrowed)",
+                "ai-review-truth: a freshness-stale finding never looks current — its analyzed scope and last-known freshness are preserved and it stays local rather than provider-committed",
+            ],
+        ),
+        seed_row(
+            "cert:unverified-diff-scope-profile",
+            P::UnverifiedDiffScopeProfile,
+            ReviewableAiReviewRecord,
+            DiffScopeUnverifiedProjection,
+            &[ReviewScopeSelector],
+            seed_certified_except(
+                Ax::AiReviewTruth,
+                seed_narrowed(
+                    Ax::AiReviewTruth,
+                    "the finding's analyzed diff scope has drifted from the diff it was produced against so a provider-current AI-review record cannot be certified and the finding stays inspect-only",
+                    "The finding's analyzed diff scope has drifted — the selected diff, base/head range, or repo-instruction source has changed since the finding was produced — so the ReviewableAiReviewRecord claim narrows to a diff-scope-unverified projection and the lane keeps the last-known analyzed scope and rerun recommendation explicit rather than presenting the finding as if it still applied to the current diff",
+                    Trig::AnalyzedScopeUnstated,
+                ),
+            ),
+            Some(seed_narrow(
+                Ax::AiReviewTruth,
+                ReviewableAiReviewRecord,
+                DiffScopeUnverifiedProjection,
+                "The finding's analyzed diff scope has drifted, so the last-known analyzed scope and a rerun recommendation stay explicit and the finding never reads as current for the drifted diff",
+            )),
+            &[
+                "profile",
+                "claimed_claim",
+                "certified_claim",
+                "status",
+                "binding_axis",
+            ],
+            &[
+                "diff-scope class: the scope selector keeps its analyzed diff scope, repo-instruction / check source, and rerun recommendation explicit and marks the analyzed scope as drifted rather than staying green on a matching diff when the diff it was produced against has changed",
+                "the diff-scope surface keeps its analyzed-scope and source binding legible while the analyzed scope is disclosed as drifted",
+                "ai-review-truth: ReviewableAiReviewRecord narrows to a diff-scope-unverified projection (auto-narrowed)",
+                "ai-review-truth: a finding never looks current for a drifted diff — its analyzed scope stays explicit and a rerun is recommended rather than silently reused",
+            ],
+        ),
+        seed_row(
+            "cert:unverified-publish-target-profile",
+            P::UnverifiedPublishTargetProfile,
+            ReviewableAiReviewRecord,
+            PublishTargetUnverifiedProjection,
+            &[PublishToReviewSheet],
+            seed_certified_except(
+                Ax::Localization,
+                seed_narrowed(
+                    Ax::Localization,
+                    "the finding's publish target — the provider comment, suggested patch, or provider-specific check annotation destination — is unavailable so a provider-current AI-review record cannot be certified",
+                    "The finding's publish target is unavailable — the provider write scope, thread, or check-run destination cannot be resolved — so the ReviewableAiReviewRecord claim narrows to a publish-target-unverified projection and the lane keeps the local draft, its intended destination, and the copy / export fallback explicit rather than losing the local draft or evidence when provider write scope is missing or publish fails",
+                    Trig::PublishModeUnstated,
+                ),
+            ),
+            Some(seed_narrow(
+                Ax::Localization,
+                ReviewableAiReviewRecord,
+                PublishTargetUnverifiedProjection,
+                "The finding's publish target is unavailable, so the local draft and its intended destination stay explicit with a copy / export fallback and no local draft is lost",
+            )),
+            &[
+                "profile",
+                "claimed_claim",
+                "certified_claim",
+                "status",
+                "binding_axis",
+            ],
+            &[
+                "publish-target class: the publish-to-review sheet keeps its intended destination, outbound text, local-versus-provider state, and copy / export fallback explicit and marks the publish target as unavailable rather than dropping the local draft when provider write scope is missing",
+                "the publish-target surface keeps its local draft, intended destination, and copy / export fallback legible while the publish target is disclosed as unavailable",
+                "localization: ReviewableAiReviewRecord narrows to a publish-target-unverified projection (auto-narrowed)",
+                "ai-review-truth: an unavailable publish target never publishes or merges implicitly — the local draft, destination, and fallback are preserved and no evidence is lost",
+            ],
+        ),
+        seed_row(
+            "cert:unverified-finding-lifecycle-profile",
+            P::UnverifiedFindingLifecycleProfile,
+            ReviewableAiReviewRecord,
+            FindingLifecycleUnverifiedProjection,
+            &[ResolutionMemoryRow],
+            seed_certified_except(
+                Ax::ScreenReader,
+                seed_narrowed(
+                    Ax::ScreenReader,
+                    "the finding's lifecycle memory — its open / dismissed / suppressed / published / outdated history — can no longer be verified so a provider-current AI-review record cannot be certified",
+                    "The finding's lifecycle memory can no longer be verified — the open / dismissed / suppressed / published / outdated history for this finding is unresolved — so the ReviewableAiReviewRecord claim narrows to a finding-lifecycle-unverified projection and the lane keeps the last-known lifecycle state and reopen / rerun path explicit rather than presenting an AI review finding without its lifecycle state",
+                    Trig::LifecycleStateMissing,
+                ),
+            ),
+            Some(seed_narrow(
+                Ax::ScreenReader,
+                ReviewableAiReviewRecord,
+                FindingLifecycleUnverifiedProjection,
+                "The finding's lifecycle memory is unverified, so the last-known lifecycle state and reopen / rerun path stay explicit and the finding never reads as freshly open or provider-committed",
+            )),
+            &[
+                "profile",
+                "claimed_claim",
+                "certified_claim",
+                "status",
+                "binding_axis",
+            ],
+            &[
+                "finding-lifecycle class: the resolution-memory record keeps its lifecycle state, actor / source, and reopen / rerun path explicit and marks lifecycle memory as unverified rather than presenting a finding without its dismissed / suppressed / outdated history",
+                "the finding-lifecycle surface keeps its last-known lifecycle state and reopen / rerun path legible non-visually while lifecycle memory is disclosed as unverified",
+                "screen-reader: ReviewableAiReviewRecord narrows to a finding-lifecycle-unverified projection (auto-narrowed)",
+                "ai-review-truth: dismissed and suppressed stay distinct and every finding keeps its lifecycle state — no finding is presented without its analyzed scope, publish destination, or lifecycle state",
+            ],
+        ),
+    ]
+}
