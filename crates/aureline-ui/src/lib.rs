@@ -627,6 +627,20 @@
 //! support-export / migration regression without a recorded override or claim-narrowing
 //! action.
 //!
+//! [`m5_supported_line_transparency_report_and_snapshot_diff_registries::M5SupportedLineTransparencyReportSnapshotDiffRegistriesPacket`]
+//! turns maintainer / upstream durability into support-line-safe product truth over the frozen
+//! supported-line-transparency matrix. It publishes one export-safe *transparency report* per
+//! active stable or LTS-candidate line — summarizing critical-upstream status, backup-maintainer
+//! coverage, signer-quorum health, emergency-authority coverage, sustainment / sponsor posture,
+//! and unresolved red-risk dependencies, with public-safe health separated from internal-only
+//! incident / security detail — and one *report snapshot diff* per published snapshot (a
+//! health-status change, a coverage narrowing, or a red-risk drift) so support, procurement, and
+//! OSS-governance reviews see trend and drift against the prior published report rather than
+//! rereading repository-maintenance notes by hand. Every registry row binds a consumer surface to
+//! resolved report and diff entries that reuse the frozen matrix vocabulary, so a red-risk upstream
+//! or signing gap surfaces on the affected line, public-safe and internal-only variants share one
+//! canonical record identity, and no line stays green on stale or opaque upstream health.
+//!
 //! [`m5_supported_line_public_proof_ledger_and_claim_history_diff_registries::M5SupportedLinePublicProofLedgerClaimHistoryDiffRegistriesPacket`]
 //! makes that durable external-proof object model operable over the frozen
 //! supported-line-transparency matrix. It publishes one line-by-line *public-proof ledger*
@@ -1299,6 +1313,7 @@ pub mod m5_staged_trust_and_post_open_queue_registries;
 pub mod m5_structured_input_and_staged_review;
 pub mod m5_supported_line_public_proof_ledger_and_claim_history_diff_registries;
 pub mod m5_supported_line_transparency_matrix;
+pub mod m5_supported_line_transparency_report_and_snapshot_diff_registries;
 pub mod m5_syntax_diff_and_chart_token_registries;
 pub mod m5_system_appearance_live_apply_and_source_provenance_registries;
 pub mod m5_text_field_and_search_field_labels_validation_and_privacy;
