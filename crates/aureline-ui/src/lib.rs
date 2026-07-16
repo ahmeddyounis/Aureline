@@ -1705,6 +1705,18 @@
 //! combinations, so a drill can prove a lossy direct write, a masked second state, a fallback that does not match its
 //! reason, or a grammar that drifts across surfaces is mechanically rejected, and the first seeded support / export
 //! packet can replay a constrained write denial and its chosen fallback path from fixtures.
+//!
+//! [`m5_constrained_state_export_and_review_evidence_packets::M5ConstrainedStateEvidencePacket`] is the B150 support /
+//! export and review-evidence packet lane over that same frozen constrained-file-state matrix. It keeps the
+//! constrained-object loop explainable once it leaves the live UI: a support bundle, a review / export packet, a piece
+//! of local-history / restore evidence, or a docs / help example each preserves the constrained-state class, the
+//! canonical source-of-truth relation, the exact write-target decision, and the chosen reviewed fallback path —
+//! including whether the operator duplicated, detached, overlaid, requested approval, regenerated, or cancelled, and
+//! what sync / regenerate path was preserved versus lost. At least one support bundle and one review / export packet
+//! preserve those decisions in both human-readable and machine-readable form; exported packets stay intelligible
+//! without the live UI and never flatten a generated, managed, projection, policy-locked, or captured-snapshot object
+//! into generic read-only language; and redacted packets keep the omission reason while still preserving the state
+//! class and fallback decision.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1732,6 +1744,7 @@ pub mod m5_combobox_and_checkbox_radio_switch_value_source_and_toggle_semantics;
 pub mod m5_constrained_file_state_matrix;
 pub mod m5_constrained_state_descriptor_and_change_diff_registries;
 pub mod m5_constrained_state_drill_corpus;
+pub mod m5_constrained_state_export_and_review_evidence_packets;
 pub mod m5_core_action_input_accessibility_parity_and_narrowing_when_control_truth_is_stale;
 pub mod m5_core_action_input_component_matrix;
 pub mod m5_core_action_input_component_surface_certification;
