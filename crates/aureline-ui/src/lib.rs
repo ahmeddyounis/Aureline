@@ -860,6 +860,19 @@
 //! expired / removed vocabulary the product UI uses, and keyboard focus and screen-reader announcement are
 //! required to discover the archived state, provenance, and removal / expiry reason.
 //!
+//! [`m5_imported_offline_evidence_lineage_propagation::M5ImportedOfflineLineagePacket`]
+//! is the B149 cross-surface lineage-propagation lane over that frozen historical-reference matrix. It carries the
+//! imported / offline evidence descriptor and its "Showing imported or offline evidence" label into the first
+//! downstream consumers that can ingest archived data — companion cards, browser / export handoffs, support
+//! packets, and AI explanation / evidence consumers — proving a companion / export surface and a support / AI
+//! consumer render the same non-live vocabulary and lineage fields as the primary archive viewer. Every binding
+//! joins its lineage back to a source snapshot descriptor and, when the lineage is joinable, its live-target
+//! handoff packet, otherwise a metadata-only exit; the consumer action set is closed and analysis-only, so a
+//! historical packet can never be ranked, narrated, or summarized as current route, health, or provider truth,
+//! and the descriptor names its joins by controlled id rather than embedding a live route or secret, keeping the
+//! export free of leaked secrets or stale authority. Keyboard focus and screen-reader announcement are required
+//! to discover the non-live boundary, provenance, and lineage join.
+//!
 //! [`m5_retired_state_surface_certification::RetiredStateProfileCertificationPacket`]
 //! is the closing B148 surface-certification capstone over that frozen retired-state matrix.
 //! After the retirement-manifest, impact-report, countdown, review-packet, tombstone,
@@ -1599,6 +1612,7 @@ pub mod m5_historical_reference_matrix;
 pub mod m5_historical_snapshot_descriptor_and_change_diff_registries;
 pub mod m5_historical_versus_live_compare_flow;
 pub mod m5_iconography_and_illustration_registries;
+pub mod m5_imported_offline_evidence_lineage_propagation;
 pub mod m5_input_method_and_credential_store_wording_registries;
 pub mod m5_install_topology_accessibility_parity_and_narrowing_when_install_topology_state_root_repair_verify_or_rollout_evidence_is_stale;
 pub mod m5_install_topology_and_state_root_registries;
