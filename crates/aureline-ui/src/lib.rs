@@ -1753,6 +1753,18 @@
 //! write scope is missing or a publish fails. Review detail, the AI review panel, pending-review trays, provider
 //! publish review, and support / export packets ingest this matrix instead of minting per-surface AI-review
 //! chrome.
+//!
+//! [`m5_ai_review_shared_consumers_one_vocabulary_across_surfaces::M5AiReviewSharedConsumersPacket`] closes the
+//! B151 batch's consumer-adoption arc by binding those four governed AI-review-assist objects to the shared
+//! review-detail, AI-review-panel, finding-row, review-scope-selector, publish-to-review-sheet,
+//! pending-review-tray, provider-publish-review, resolution-memory-ledger, and support / export consumers that
+//! render them, proving — by fixtures — that the same seeded finding presents one identical AI-review-role,
+//! object, registry-reference, publish-state, surface-context, and finding-lifecycle vocabulary wherever it
+//! appears. Narrowing across desktop / compact / remote / exported representations is disclosed rather than
+//! reworded, support / export bindings map every copy / export / open-in-provider payload back to one
+//! canonical contract, and the same hard invariants (no implicit publish or merge, no hidden output
+//! destination, no stale finding shown as current, no lost local drafts, no finding without scope /
+//! destination / lifecycle) are re-asserted per binding.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1766,6 +1778,7 @@ pub mod m5_ai_review_publish_continuity_and_reconcile_registries;
 pub mod m5_ai_review_publish_sheet_and_scope_decision_registries;
 pub mod m5_ai_review_resolution_memory_and_finding_lifecycle_registries;
 pub mod m5_ai_review_scope_selector_and_rerun_state_registries;
+pub mod m5_ai_review_shared_consumers_one_vocabulary_across_surfaces;
 pub mod m5_annotation_rows;
 pub mod m5_archived_object_expiry_removal_state_and_metadata_fallback;
 pub mod m5_archived_snapshot_viewer_and_analysis_only_banner_consumers;
