@@ -888,6 +888,28 @@
 //! non-live grammar and capture-context join, and never dead-links an expired artifact, reopens a live target
 //! implicitly, or presents imported / offline evidence as current live truth.
 //!
+//! [`m5_historical_evidence_surface_certification::HistoricalEvidenceProfileCertificationPacket`]
+//! is the closing B149 surface-certification capstone over that frozen historical-reference matrix. After the
+//! snapshot-descriptor, archived-snapshot viewer, historical-versus-live compare, live-target-handoff,
+//! expiry / removal state, imported / offline lineage-propagation, and drill-corpus implement lanes, it
+//! certifies that the shared non-live-evidence truth holds on every claimed M5 support, retirement, incident,
+//! review, and export surface. It is keyed on the claimed profile a support engineer, release operator,
+//! program-governance owner, or review / incident owner reads a snapshot descriptor, archived packet,
+//! imported / offline evidence, or live-target-handoff surface through — a current, fully-attributed non-live
+//! evidence lane; a reviewable snapshot-record structure; a disclosed imported / offline-partial profile; an
+//! unverified live-target profile; and an unverified expiry / removal-ledger profile — and scores each across
+//! nine truth axes (visual, keyboard, screen-reader, high-zoom-reflow, high-contrast, localization, CLI/export,
+//! degraded-state, and non-live-evidence-truth behavior). A degraded axis must produce a visible claim
+//! narrowing, CLI/export parity must always certify, only a current, fully-attributed non-live-evidence lane
+//! may certify a certified non-live-evidence record, and every B149 hard invariant must hold (no archived or
+//! imported / offline evidence looks live / writable / current by omission, no live target is reopened from a
+//! snapshot without validating identity / trust / route / authority, no expired / removed artifact is
+//! dead-linked when metadata / provenance / cleanup state can be shown, no non-live evidence is left unjoined
+//! to capture time / provenance / retention state / live-target mismatch, and no snapshot or imported / offline
+//! packet is presented as a current live object or reopened through an ambiguous route). Every row cites one
+//! canonical historical-reference matrix proof bundle, so support, docs / help, and release / public-proof
+//! surfaces ingest the same certification result rather than restating it by hand.
+//!
 //! [`m5_retired_state_surface_certification::RetiredStateProfileCertificationPacket`]
 //! is the closing B148 surface-certification capstone over that frozen retired-state matrix.
 //! After the retirement-manifest, impact-report, countdown, review-packet, tombstone,
@@ -1624,6 +1646,7 @@ pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_freeze_exception_and_go_no_go_registries;
 pub mod m5_historical_evidence_drill_corpus;
+pub mod m5_historical_evidence_surface_certification;
 pub mod m5_historical_reference_matrix;
 pub mod m5_historical_snapshot_descriptor_and_change_diff_registries;
 pub mod m5_historical_versus_live_compare_flow;
