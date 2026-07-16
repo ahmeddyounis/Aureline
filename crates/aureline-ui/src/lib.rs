@@ -845,6 +845,21 @@
 //! carries identical historical grammar wherever it appears, and requires keyboard focus and screen-reader
 //! announcement to discover the handoff state, provenance, and open-live-target action.
 //!
+//! [`m5_archived_object_expiry_removal_state_and_metadata_fallback::M5ArchivedEvidenceStatePacket`]
+//! is the B149 expired / removed / retention-ended / missing-live-target state lane over that frozen
+//! historical-reference matrix. It keeps a preserved object honest after its retention window closes, its
+//! content is expired or removed, or its live target disappears: every binding carries an explicit lifecycle
+//! state (preserved-available, expired, removed, retention-window-ended, missing-live-target, or metadata-only)
+//! with a stable label, and every non-available state carries a removal / expiry note naming the reason, a
+//! never-omitted explanation, the preserved-metadata note, and a removal attribution joining the outcome to a
+//! retention / deletion receipt, a retirement closure ledger, and a support packet manifest. When the content
+//! bytes are gone the binding still renders capture time, provenance, and the removal / expiry reason instead of
+//! degrading to a generic dead link; a reviewed remove action appears only where a safe cleanup is appropriate
+//! and the open-current-live-object action only when the archive is preserved with a live target, so an expired
+//! or removed object is never presented as live or current. The support export and matrix CSV preserve the same
+//! expired / removed vocabulary the product UI uses, and keyboard focus and screen-reader announcement are
+//! required to discover the archived state, provenance, and removal / expiry reason.
+//!
 //! [`m5_retired_state_surface_certification::RetiredStateProfileCertificationPacket`]
 //! is the closing B148 surface-certification capstone over that frozen retired-state matrix.
 //! After the retirement-manifest, impact-report, countdown, review-packet, tombstone,
@@ -1546,6 +1561,7 @@ pub mod density;
 pub mod m5_accessibility_and_continuity;
 pub mod m5_acquisition_evidence_and_partial_recovery_registries;
 pub mod m5_annotation_rows;
+pub mod m5_archived_object_expiry_removal_state_and_metadata_fallback;
 pub mod m5_archived_snapshot_viewer_and_analysis_only_banner_consumers;
 pub mod m5_badge_chip_pill_and_popover_expansion_and_anchored_focus_return;
 pub mod m5_banner_inline_notice_and_empty_state_scoped_cause_and_next_action;
