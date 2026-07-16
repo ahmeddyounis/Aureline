@@ -873,6 +873,21 @@
 //! export free of leaked secrets or stale authority. Keyboard focus and screen-reader announcement are required
 //! to discover the non-live boundary, provenance, and lineage join.
 //!
+//! [`m5_historical_evidence_drill_corpus::M5HistoricalEvidenceDrillCorpusPacket`]
+//! is the B149 fixture-corpus + regression-drill lane over that frozen historical-reference matrix. It seeds the
+//! reusable corpus QA, release, and support pull to prove the archived-snapshot, imported / offline evidence, and
+//! live-target handoff loops stay honest under failure: a last-supported retirement snapshot, a captured support /
+//! export evidence bundle, a runbook / incident archived packet, and an imported / offline route packet — each
+//! with known provenance and handoff expectations — exercised by six drills that either clear the live-target
+//! handoff or block it with an exact, named blocker (missing target, trust block, route unavailable, expired
+//! snapshot, or imported / offline evidence only) and fall back to a satisfy-prerequisite or metadata-only exit
+//! rather than a dead end. The corpus covers all six historical-reference states and all four handoff outcomes, so
+//! a drill can distinguish every exact blocker; each blocker maps into the live-target-handoff module's own
+//! [`m5_live_target_handoff_packet_and_route_validation::HandoffBlockerReason`] vocabulary. Every binding binds
+//! back to screenshots, an accessibility check, the CLI / support export, and the health dashboard, keeps the
+//! non-live grammar and capture-context join, and never dead-links an expired artifact, reopens a live target
+//! implicitly, or presents imported / offline evidence as current live truth.
+//!
 //! [`m5_retired_state_surface_certification::RetiredStateProfileCertificationPacket`]
 //! is the closing B148 surface-certification capstone over that frozen retired-state matrix.
 //! After the retirement-manifest, impact-report, countdown, review-packet, tombstone,
@@ -1608,6 +1623,7 @@ pub mod m5_file_path_reveal_and_native_window_menu_registries;
 pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_freeze_exception_and_go_no_go_registries;
+pub mod m5_historical_evidence_drill_corpus;
 pub mod m5_historical_reference_matrix;
 pub mod m5_historical_snapshot_descriptor_and_change_diff_registries;
 pub mod m5_historical_versus_live_compare_flow;
