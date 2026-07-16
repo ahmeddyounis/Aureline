@@ -627,6 +627,24 @@
 //! support-export / migration regression without a recorded override or claim-narrowing
 //! action.
 //!
+//! [`m5_supported_line_transparency_matrix::M5SupportedLineTransparencyMatrixPacket`]
+//! freezes Aureline's durable post-launch external-proof object model — its supported-line
+//! proof taxonomy (the public-proof ledger, the transparency report, the migration
+//! scoreboard, the ORR-history event, and the correction-train archive), their public-safe
+//! versus internal-only visibility posture, and the freshness window, owner, export class,
+//! and supported-line association each object must carry — into one export-safe matrix. It
+//! binds every governed proof object to one shared transparency-role taxonomy
+//! (freshness_window, transparency_disclosure, migration_scoreboard_currency,
+//! orr_history_retention, correction_archive_retention, public_proof_freshness,
+//! correction_history_join), to the widening stages (alpha, beta, RC, stable, LTS) each
+//! object must gate, and back to the already-landed stable-proof-index and migration-task-row
+//! packets, so no supported line stays green on stale external proof or opaque upstream
+//! health, migration pain stays scored and versioned, ORR and correction history stays
+//! retained and archived, transparency reports stay export-safe with no internal-only
+//! leakage, public-proof / migration / history stay joined to exact build and release-line
+//! identity, and support language never outruns current public proof rather than reading as
+//! green.
+//!
 //! [`m5_stable_line_protection_matrix::M5StableLineProtectionMatrixPacket`] freezes
 //! Aureline's concrete post-stable operating model — its stable-line-protection taxonomy
 //! (the fresh stable line, the evidence-refresh line, the correction/backport line, the
@@ -1262,6 +1280,7 @@ pub mod m5_stable_line_surface_certification;
 pub mod m5_staged_review_sheets;
 pub mod m5_staged_trust_and_post_open_queue_registries;
 pub mod m5_structured_input_and_staged_review;
+pub mod m5_supported_line_transparency_matrix;
 pub mod m5_syntax_diff_and_chart_token_registries;
 pub mod m5_system_appearance_live_apply_and_source_provenance_registries;
 pub mod m5_text_field_and_search_field_labels_validation_and_privacy;
