@@ -506,6 +506,20 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_stable_line_lts_readiness_decision_and_line_creation_gate_registries::M5StableLineLtsReadinessDecisionLineCreationGateRegistriesPacket`]
+//! makes any future LTS promise evidence-bearing over that frozen stable-line-protection
+//! matrix. It records the 91–180 day *LTS-readiness-decision* grammar per candidate line
+//! (one typed decision section per operating proof — backport branch posture, correction-line
+//! health, rollback evidence, support-window posture, mirror/air-gap continuity proof, and
+//! advisory/revocation readiness — bound to the named decision-forum outcome) and gates each
+//! candidate through a *line-creation-gate* grammar (whether LTS line creation or LTS-style
+//! language is committed on a green packet, blocked because the packet is missing or stale, or
+//! narrowed back to a plain stable posture) so no LTS label can widen without a green decision
+//! packet backed by current rollback and support evidence — a blocked or missing packet forces
+//! the narrower stable-line posture instead — and release/help/support/public-proof surfaces
+//! explain why a line is or is not LTS-ready from packet-backed facts rather than generic
+//! enterprise-language placeholders.
+//!
 //! [`m5_stable_line_correction_report_and_train_comparison_registries::M5StableLineCorrectionReportTrainComparisonRegistriesPacket`]
 //! makes post-launch learning durable over that frozen stable-line-protection matrix. It
 //! publishes a post-launch *correction-report* grammar per release train (one typed report
@@ -1220,6 +1234,7 @@ pub mod m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_regis
 pub mod m5_stable_line_correction_report_and_train_comparison_registries;
 pub mod m5_stable_line_defect_ledger_and_backport_decision_timer_registries;
 pub mod m5_stable_line_deferral_backlog_and_correction_conversion_registries;
+pub mod m5_stable_line_lts_readiness_decision_and_line_creation_gate_registries;
 pub mod m5_stable_line_protection_matrix;
 pub mod m5_stable_line_protection_plan_and_correction_queue_registries;
 pub mod m5_stable_line_refresh_policy_and_claim_downgrade_registries;
