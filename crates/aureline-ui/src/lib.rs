@@ -1638,6 +1638,19 @@
 //! produces a visible descriptor diff instead of a silent in-place mutation. Registry-A reuses the matrix
 //! constrained-file-state domain schema and Registry-B mints the constrained-state-change-diff domain schema
 //! fresh.
+//!
+//! [`m5_file_state_badge_group_and_reason_strip_consumers::M5FileStateBadgeGroupConsumersPacket`] is the B150
+//! badge-group / reason-strip consumer lane over that frozen constrained-file-state matrix. It ships one
+//! reusable file-state badge group and reason strip — a controlled state-class label (`Read-only`, `Generated`,
+//! `Policy locked`, `Managed`, `Projection`, `Captured snapshot`), a plain-language cause, the canonical source,
+//! the write disposition, and the nearest safe next step — and wires the tab-chrome, breadcrumb-trail,
+//! status-bar, command-palette, editor-banner, diff / review-header, write-review-sheet, AI / automation-path,
+//! and support / export consumers to the same constrained-object profile, so one object cannot look writable in
+//! one surface and blocked in another. A multi-state object (`Generated` plus `Policy locked`, `Managed` plus
+//! `Captured snapshot`) keeps every co-applicable state visible instead of letting one badge hide another, the
+//! write-capable safe-next-step affordance appears only where the full badge group is rendered, and every
+//! binding names the keyboard and screen-reader routes through which the state class, reason, and next safe
+//! action are discoverable without pointer-only chrome.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1679,6 +1692,7 @@ pub mod m5_draft_state_and_autosave;
 pub mod m5_exact_build_symbolication_and_mirror_offline_parity_registries;
 pub mod m5_field_control_rows;
 pub mod m5_file_path_reveal_and_native_window_menu_registries;
+pub mod m5_file_state_badge_group_and_reason_strip_consumers;
 pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_freeze_exception_and_go_no_go_registries;
