@@ -627,6 +627,26 @@
 //! support-export / migration regression without a recorded override or claim-narrowing
 //! action.
 //!
+//! [`m5_supported_line_surface_certification::SupportedLineTransparencyProfileCertificationPacket`]
+//! is the closing B147 surface-certification capstone over that frozen supported-line-transparency
+//! matrix. After the public-proof-ledger, transparency-report, migration-scoreboard, ORR-history,
+//! correction-train-archive, truth-feed, and retention-governance implement lanes, it certifies that
+//! the shared durable-proof truth holds on every claimed M5 supported line — current public-proof
+//! ledgers, export-safe transparency reports, versioned migration scoreboards, retained ORR history,
+//! and archived correction trains — and auto-narrows any profile that cannot sustain it. Keyed on the
+//! claimed profile (a live, first-party supported-line operating lane; a reviewable transparency
+//! structure; a disclosed correction-archive profile; an unverified migration-scoreboard profile; and
+//! an unverified ORR-history profile), each row certifies the profile across nine truth axes — visual,
+//! keyboard, screen-reader, high-zoom-reflow, high-contrast, localization, CLI/export, degraded-state,
+//! and supported-line-proof-truth behavior — and either passes (green), auto-narrows its operating
+//! claim to the weakest supported ceiling (yellow), or blocks (red) when a degraded axis hides behind a
+//! fresh certified claim, a B147 hard invariant breaks, CLI/export parity drops, or a non-live profile
+//! claims a certified operating line. Only a live, first-party supported-line operating lane with
+//! current, export-safe, and internally consistent durable proof may certify a certified operating
+//! line, and every row cites the one canonical supported-line-transparency proof bundle, so release,
+//! help, docs, support, public-proof, and partner/procurement surfaces consume one supported-line
+//! certification source rather than hand-authored prose.
+//!
 //! [`m5_supported_line_retention_policy_and_stale_escalation_registries::M5SupportedLineRetentionPolicyStaleEscalationRegistriesPacket`]
 //! keeps the B147 supported-line proof artifacts alive and reviewable after they first ship over the frozen
 //! supported-line-transparency matrix, so transparency reports, migration scoreboards, ORR histories,
@@ -1398,6 +1418,7 @@ pub mod m5_supported_line_migration_scoreboard_and_scoreboard_delta_registries;
 pub mod m5_supported_line_orr_history_and_follow_up_closure_registries;
 pub mod m5_supported_line_public_proof_ledger_and_claim_history_diff_registries;
 pub mod m5_supported_line_retention_policy_and_stale_escalation_registries;
+pub mod m5_supported_line_surface_certification;
 pub mod m5_supported_line_transparency_matrix;
 pub mod m5_supported_line_transparency_report_and_snapshot_diff_registries;
 pub mod m5_supported_line_truth_feed_and_audience_packet_registries;
