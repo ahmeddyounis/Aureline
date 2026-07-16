@@ -1717,6 +1717,28 @@
 //! without the live UI and never flatten a generated, managed, projection, policy-locked, or captured-snapshot object
 //! into generic read-only language; and redacted packets keep the omission reason while still preserving the state
 //! class and fallback decision.
+//!
+//! [`m5_constrained_object_surface_certification::ConstrainedObjectProfileCertificationPacket`] is the closing
+//! B150 surface-certification capstone over that same frozen constrained-file-state matrix. After the
+//! M05-1257..1263 implement lanes resolve the constrained-state descriptors, badge-group / reason-strip
+//! consumers, canonical-source relations, write-target reviews, write-review-sheet fallback paths, cross-actor
+//! mutation gate, drill corpus, and support / export evidence packets, this capstone certifies that the shared
+//! constrained-object truth actually holds on every claimed M5 editor, review, save, AI, repair, and export
+//! consumer. It publishes one current certification row per claimed consumer profile — a fully-classified
+//! constrained-object lane, a reviewable constrained-state record structure, a disclosed
+//! generated-divergence-partial profile, an unverified canonical-source profile, an unverified
+//! write-target-review profile, and an unverified actor-parity profile — scored across nine truth axes (visual,
+//! keyboard, screen-reader, high-zoom-reflow, high-contrast, localization, CLI/export, degraded-state, and
+//! constrained-object-truth behavior) and covering all six frozen object classes. A degraded axis must produce a
+//! visible claim narrowing, CLI/export parity must always certify, only a fully-classified constrained-object
+//! lane may certify a certified constrained-object record, and every B150 hard invariant must hold (no
+//! constrained-state class hides another, no generated / managed / projection / archived object silently falls
+//! back to a lossy direct write, no AI / automation / import / repair flow gets a hidden bypass, and the
+//! canonical source, exact write target, preserved-versus-lost sync, and recovery / regenerate path stay
+//! explicit), so a claim narrows automatically the moment a consumer regresses on shared vocabulary,
+//! canonical-source disclosure, write-target review, or actor-parity blocking. Every row cites the one canonical
+//! constrained-file-state matrix proof bundle so docs / help, support, and release / public-proof artifacts
+//! ingest the same certification result instead of restating it by hand.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1742,6 +1764,7 @@ pub mod m5_cohort_descriptor_and_evidence_packet_registries;
 pub mod m5_color_system_and_semantic_theme_token_registries;
 pub mod m5_combobox_and_checkbox_radio_switch_value_source_and_toggle_semantics;
 pub mod m5_constrained_file_state_matrix;
+pub mod m5_constrained_object_surface_certification;
 pub mod m5_constrained_state_descriptor_and_change_diff_registries;
 pub mod m5_constrained_state_drill_corpus;
 pub mod m5_constrained_state_export_and_review_evidence_packets;
