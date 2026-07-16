@@ -627,6 +627,22 @@
 //! support-export / migration regression without a recorded override or claim-narrowing
 //! action.
 //!
+//! [`m5_supported_line_correction_train_archive_and_closure_gate_registries::M5SupportedLineCorrectionTrainArchiveClosureGateRegistriesPacket`]
+//! makes every correction line auditable end to end over the frozen supported-line-transparency matrix, so
+//! release, support, and procurement readers can see what changed, why, and how it was recovered without private
+//! shiproom materials. It archives one *correction-train archive* record per shipped correction packet on each
+//! active supported line — a hotfix packet, a backport packet, a rollback outcome, an advisory publication, a
+//! public-communication bundle, or a revocation record, tracked against exact build / release-line identity, with
+//! public-safe advisory and public-communication history separated from internal-only hotfix / backport / rollback /
+//! revocation incident payloads — preserving machine-readable joins to bug IDs, supported-line defect ledgers,
+//! release artifact graphs, and the public-claim or support-window state the correction affected. It emits one
+//! *closure gate* event per archive-coverage gap (missing archive coverage, a broken exact-build join, or an
+//! untraceable correction line) so missing coverage or a broken join blocks correction-line closure until fixed.
+//! Every registry row binds a consumer surface to resolved archive and closure-gate entries that reuse the frozen
+//! matrix vocabulary, so a correction can be traced from an advisory or release note back to its archived evidence
+//! bundle, exact-build provenance stays joined to public communication, and no correction line closes while its
+//! archive coverage or build joins remain broken.
+//!
 //! [`m5_supported_line_orr_history_and_follow_up_closure_registries::M5SupportedLineOrrHistoryEventFollowUpClosureRegistriesPacket`]
 //! preserves supported-line launch and servicing memory over the frozen supported-line-transparency
 //! matrix so later promotion, support, and postmortem work never depends on shiproom folklore. It
@@ -1346,6 +1362,7 @@ pub mod m5_stable_line_surface_certification;
 pub mod m5_staged_review_sheets;
 pub mod m5_staged_trust_and_post_open_queue_registries;
 pub mod m5_structured_input_and_staged_review;
+pub mod m5_supported_line_correction_train_archive_and_closure_gate_registries;
 pub mod m5_supported_line_migration_scoreboard_and_scoreboard_delta_registries;
 pub mod m5_supported_line_orr_history_and_follow_up_closure_registries;
 pub mod m5_supported_line_public_proof_ledger_and_claim_history_diff_registries;
