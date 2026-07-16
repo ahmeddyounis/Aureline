@@ -1666,6 +1666,19 @@
 //! canonical-source-relation domain schema and Registry-B reuses the matrix write-target-review domain schema;
 //! path and target identity are preserved across the tab-chrome, status-bar, command-palette, diff / review-header,
 //! AI / automation-path, and support / export consumers without leaking raw secrets.
+//!
+//! [`m5_write_review_sheet_fallback_paths::M5WriteReviewSheetFallbackPathsPacket`] is the B150
+//! write-review-sheet lane over that frozen constrained-file-state matrix. It turns a blocked write on a
+//! constrained current object into an explicit reviewed transition — duplicate to an editable copy, detach from
+//! a managed source, create an overlay patch, request approval, or regenerate with preview — instead of a silent
+//! best-effort fallback: a reviewed sheet is shown before commit that names the exact write target, the side
+//! effects, the preserved-versus-lost sync or regenerate path, any required approvals, the checkpoint / undo
+//! class, and an export-safe explanation, and one sheet model is reused across the direct-save, code-action,
+//! AI-apply, importer, repair, and batch-edit flows so an AI apply and a direct save that hit the same
+//! constrained object get the same reviewed transition rather than one of them slipping a hidden bypass. Every
+//! one of the five fallback paths is reviewable before commit with explicit retained-versus-lost behaviour, a
+//! recovery / undo class is visible before commit on every path, and no constrained write silently mutates the
+//! current object through a lossy fallback.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1821,6 +1834,7 @@ pub mod m5_window_restore_matrix;
 pub mod m5_window_restore_shared_consumers_one_registry_across_surfaces;
 pub mod m5_window_restore_surface_certification;
 pub mod m5_workspace_authority_and_window_topology_registries;
+pub mod m5_write_review_sheet_fallback_paths;
 pub mod motion;
 pub mod themes;
 pub mod tokens;
