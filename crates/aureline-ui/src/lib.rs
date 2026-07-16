@@ -760,6 +760,22 @@
 //! leave public-proof, migration, or history unjoined from exact build and release-line
 //! identity.
 //!
+//! [`m5_retirement_review_packet_and_closure_gate_registries::M5RetirementReviewPacketClosureGateRegistriesPacket`]
+//! forces one typed retirement review packet before a line or stable-facing surface can move to
+//! `Retired`, so retirement stops being an ad hoc decision buried in release notes. It emits one
+//! export-safe *retirement review packet* per candidate — joining the migration outcome summary,
+//! the final compatibility / public-proof join, the exact-build snapshot refs, the support-note
+//! closure status, the archival signoff refs, and any unresolved dependent blockers to one
+//! candidate identity — and one *support-note closure gate* per candidate that blocks final
+//! retirement while the packet is missing its migration outcome or archival refs, still has an
+//! unclosed help / support / partner / procurement / incident surface, or would silently drop a
+//! recorded exception. Every registry row binds a consumer surface to resolved review-packet and
+//! closure-gate entries that reuse the frozen matrix vocabulary, so support, help, and
+//! public-proof consumers read the closure state directly from the packet instead of relying on
+//! free-text release notes, and no object reaches `Retired` without a completed packet that
+//! records who approved it, what evidence was accepted, which surfaces were closed or redirected,
+//! and what exceptions remain.
+//!
 //! [`m5_retirement_countdown_and_safety_gate_registries::M5RetirementCountdownSafetyGateRegistriesPacket`]
 //! turns retirement from a hidden date in release notes into a visible, inspectable countdown
 //! with an explicit successor path and safe exit steps over the frozen retired-state matrix. It
@@ -1444,6 +1460,7 @@ pub mod m5_retired_state_matrix;
 pub mod m5_retirement_countdown_and_safety_gate_registries;
 pub mod m5_retirement_impact_report_and_blocker_gate_registries;
 pub mod m5_retirement_manifest_and_change_diff_registries;
+pub mod m5_retirement_review_packet_and_closure_gate_registries;
 pub mod m5_ring_progression_and_rollback_stop_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_setting_capability_lifecycle_and_kill_switch_registries;
