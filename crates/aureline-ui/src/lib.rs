@@ -1692,6 +1692,19 @@
 //! represent and the only write-adjacent action opens the reviewed transition; the gate fails closed when the
 //! actor context drifts or a flow cannot explain the exact write target truthfully; and every support / export
 //! trace preserves the actor, the blocked reason, and the chosen fallback path.
+//!
+//! [`m5_constrained_state_drill_corpus::M5ConstrainedStateDrillCorpusPacket`] is the B150 fixture-corpus and
+//! regression-drill lane over that same frozen constrained-file-state matrix. It seeds one reusable corpus that
+//! proves the constrained-object loops stay honest under failure: every binding seeds one constrained-object fixture
+//! — a read-only alias path, a generated / derived artifact, a policy-locked managed mirror, a projection / virtual
+//! view, a managed source, or a captured workspace snapshot — exercised by one of nine drills covering the
+//! problematic transitions (symlink / alias save, generated-artifact drift, policy-locked managed mirrors,
+//! projection export, captured snapshots inside the current workspace, unsupported round trips, and five mixed-state
+//! combinations) that attempt a direct write, watch it be denied, and route to the exact reviewed fallback path
+//! keyed to the object class. The corpus covers every state class as a primary plus at least five mixed-state
+//! combinations, so a drill can prove a lossy direct write, a masked second state, a fallback that does not match its
+//! reason, or a grammar that drifts across surfaces is mechanically rejected, and the first seeded support / export
+//! packet can replay a constrained write denial and its chosen fallback path from fixtures.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1718,6 +1731,7 @@ pub mod m5_color_system_and_semantic_theme_token_registries;
 pub mod m5_combobox_and_checkbox_radio_switch_value_source_and_toggle_semantics;
 pub mod m5_constrained_file_state_matrix;
 pub mod m5_constrained_state_descriptor_and_change_diff_registries;
+pub mod m5_constrained_state_drill_corpus;
 pub mod m5_core_action_input_accessibility_parity_and_narrowing_when_control_truth_is_stale;
 pub mod m5_core_action_input_component_matrix;
 pub mod m5_core_action_input_component_surface_certification;
