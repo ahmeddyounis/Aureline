@@ -760,6 +760,22 @@
 //! leave public-proof, migration, or history unjoined from exact build and release-line
 //! identity.
 //!
+//! [`m5_retirement_tombstone_and_claim_block_gate_registries::M5RetirementTombstoneClaimBlockGateRegistriesPacket`]
+//! adds retired-state tombstones and claim-block logic to the install / update, marketplace,
+//! help / About, CLI / headless inspect, and new-tenant surfaces so a retired M5 line or
+//! stable-facing surface stops looking selectable or claimable while staying discoverable
+//! historically over the frozen retired-state matrix. It emits one export-safe *retirement
+//! tombstone* per retired object — carrying the stable identity anchor, the last-supported
+//! version marker, the archival pointer, the replacement / successor path, and the removed
+//! active-selection affordance so green / support badges and active enablement are gone but the
+//! object keeps its stable ID, last supported version, and archive / replacement pointer — and
+//! one *claim-block gate* per object that blocks it from being offered for new install, new
+//! tenant, or active enablement. Every registry row binds a consumer surface to resolved
+//! tombstone and claim-block-gate entries that reuse the frozen matrix vocabulary, so help /
+//! About, marketplace, and CLI / headless inspection agree on one retired-state truth for the
+//! same object and a retired surface never disappears without a tombstone, successor pointer, or
+//! archival route.
+//!
 //! [`m5_retirement_review_packet_and_closure_gate_registries::M5RetirementReviewPacketClosureGateRegistriesPacket`]
 //! forces one typed retirement review packet before a line or stable-facing surface can move to
 //! `Retired`, so retirement stops being an ad hoc decision buried in release notes. It emits one
@@ -1461,6 +1477,7 @@ pub mod m5_retirement_countdown_and_safety_gate_registries;
 pub mod m5_retirement_impact_report_and_blocker_gate_registries;
 pub mod m5_retirement_manifest_and_change_diff_registries;
 pub mod m5_retirement_review_packet_and_closure_gate_registries;
+pub mod m5_retirement_tombstone_and_claim_block_gate_registries;
 pub mod m5_ring_progression_and_rollback_stop_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_setting_capability_lifecycle_and_kill_switch_registries;
