@@ -506,6 +506,26 @@
 //! portable, and kill-switch or DisabledByPolicy states preserve user data and explain
 //! themselves.
 //!
+//! [`m5_stable_line_surface_certification::StableLineProtectionProfileCertificationPacket`]
+//! is the closing B146 surface-certification capstone over that frozen stable-line-protection
+//! matrix: after the 1221–1227 implement lanes resolve the protection-plan, correction-queue,
+//! refresh-policy, claim-downgrade, deferral-backlog, correction-conversion, bundle-refresh-audit,
+//! shipping-line-drift, defect-ledger, backport-decision-timer, correction-report, train-comparison,
+//! lts-readiness-decision, and line-creation-gate registries, it certifies that the shared
+//! stable-line operating truth holds on every claimed M5 supported line (a live supported-line
+//! operating lane, a reviewable stable-line structure, a disclosed correction-ownership profile, an
+//! unverified bundle-currentness profile, and an unverified LTS-readiness profile). Each profile is
+//! scored across nine truth axes and either passes (green), auto-narrows its operating claim to the
+//! weakest supported ceiling with a bound reason and frozen downgrade trigger (yellow), or blocks
+//! (red) when a degraded axis hides behind a fresh certified claim, a B146 hard invariant breaks
+//! (widening support language without current refresh and correction evidence, drifting a shipping
+//! line on stale evidence or frozen launch bundles, relying on tribal backport memory instead of a
+//! documented correction packet, claiming LTS eligibility without current rollback and support
+//! evidence, or leaving a supported-line defect unowned or unresolved past its SLA), CLI/export
+//! parity drops, or a non-live profile claims a certified operating line, so release, help, support,
+//! and public-proof surfaces consume one stable-line certification source rather than hand-authored
+//! prose.
+//!
 //! [`m5_stable_line_lts_readiness_decision_and_line_creation_gate_registries::M5StableLineLtsReadinessDecisionLineCreationGateRegistriesPacket`]
 //! makes any future LTS promise evidence-bearing over that frozen stable-line-protection
 //! matrix. It records the 91–180 day *LTS-readiness-decision* grammar per candidate line
@@ -1238,6 +1258,7 @@ pub mod m5_stable_line_lts_readiness_decision_and_line_creation_gate_registries;
 pub mod m5_stable_line_protection_matrix;
 pub mod m5_stable_line_protection_plan_and_correction_queue_registries;
 pub mod m5_stable_line_refresh_policy_and_claim_downgrade_registries;
+pub mod m5_stable_line_surface_certification;
 pub mod m5_staged_review_sheets;
 pub mod m5_staged_trust_and_post_open_queue_registries;
 pub mod m5_structured_input_and_staged_review;
