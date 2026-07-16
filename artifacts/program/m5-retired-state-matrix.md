@@ -1,0 +1,60 @@
+# M5 Retired-State, End-of-Support Closure, Successor-Routing, and Tombstone/Archive Matrix
+
+- Packet: `m5-retired-state:stable:0001`
+- Label: `M5 retired-state, end-of-support closure, successor-routing, and tombstone/archive matrix`
+- Object classes: 7 (7 stable)
+- Retirement roles: last_supported_pin, successor_routing, disable_path, export_rollback_route, archival_note, migration_outcome, support_note_closure
+- Removal-horizon stages: retirement_announced, deprecation_active, last_supported_pinned, disable_path_ready, retirement_executed
+- Proof freshness SLO: 720 hours (last audit: 2026-07-14T00:00:00Z)
+
+## Object classes
+
+- **supported_line**: `stable` (lifecycle_state: `retired`)
+  - Owner: Supported-line retirement owner (backup: Release-governance backup owner)
+  - Canonical schema: `schemas/program/m5-retirement-manifest.schema.json`
+  - Scope: One supported line moving to Retired names the last-supported version pinned to an exact build, the successor line routed forward, the disable path published, and the no-new-install gating enforced so the line never disappears silently and no new install can still select it
+  - Successor path: supported line v7.0
+  - Required labels: identity, retirement_role, registry_reference, last_supported_version
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **stable_capability**: `stable` (lifecycle_state: `retired`)
+  - Owner: Stable-capability retirement owner (backup: Capability-governance backup owner)
+  - Canonical schema: `schemas/program/m5-retirement-manifest.schema.json`
+  - Scope: One stable-facing capability moving to Retired names the last-supported channel pinned, the successor capability named, the export/rollback route ready, and the no-new-tenant gating enforced so its support and docs truth is never orphaned
+  - Successor path: successor capability v7.0
+  - Required labels: identity, retirement_role, registry_reference, successor_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **bundle**: `stable` (lifecycle_state: `retired`)
+  - Owner: Bundle retirement owner (backup: Release-engineering backup owner)
+  - Canonical schema: `schemas/program/m5-last-supported-snapshot.schema.json`
+  - Scope: One bundle moving to Retired names the last-supported bundle snapshotted to exact build identity, the archival note written, the export route ready, and the bundle removed from the upgrade flow so no stale bundle stays selectable
+  - Successor path: successor bundle v7.0
+  - Required labels: identity, retirement_role, registry_reference, cutoff_date
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **command_deep_link**: `stable` (lifecycle_state: `retired`)
+  - Owner: Command / deep-link retirement owner (backup: Shell-governance backup owner)
+  - Canonical schema: `schemas/program/m5-retirement-impact-report.schema.json`
+  - Scope: One command or deep link moving to Retired names the command tombstone registered, the successor redirect named, the disable path ready, and its removal from the command palette so no dangling deep link is left without a tombstone
+  - Successor path: successor command redirect v7.0
+  - Required labels: identity, retirement_role, registry_reference, successor_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **schema_bearing_surface**: `stable` (lifecycle_state: `retired`)
+  - Owner: Schema-bearing-surface retirement owner (backup: Data-contract backup owner)
+  - Canonical schema: `schemas/program/m5-last-supported-snapshot.schema.json`
+  - Scope: One schema-bearing surface moving to Retired names the last-supported schema snapshotted, the migration outcome recorded, the export route ready, and the archival note written so no last-supported schema is destroyed before support-note closure
+  - Successor path: successor schema v2
+  - Required labels: identity, retirement_role, registry_reference, cutoff_date
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **registry_visible_package**: `stable` (lifecycle_state: `retired`)
+  - Owner: Registry-visible-package retirement owner (backup: Marketplace-governance backup owner)
+  - Canonical schema: `schemas/program/m5-retirement-impact-report.schema.json`
+  - Scope: One registry-visible package moving to Retired names the package marked Retired in the registry, the successor package named, its removal from the marketplace listing, and the no-new-install gating from the registry so no stale marketplace listing stays selectable
+  - Successor path: successor package v7.0
+  - Required labels: identity, retirement_role, registry_reference, last_supported_version
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **managed_tenant_feature**: `stable` (lifecycle_state: `retired`)
+  - Owner: Managed / new-tenant-feature retirement owner (backup: Tenant-governance backup owner)
+  - Canonical schema: `schemas/program/m5-retirement-closure-ledger.schema.json`
+  - Scope: One managed / new-tenant-gated feature moving to Retired names the feature disabled by policy for new tenants, the successor named, the export/rollback route ready, and the support note closed so new-tenant gating is never bypassed
+  - Successor path: successor feature v7.0
+  - Required labels: identity, retirement_role, registry_reference, successor_path
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present

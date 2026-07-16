@@ -760,6 +760,24 @@
 //! leave public-proof, migration, or history unjoined from exact build and release-line
 //! identity.
 //!
+//! [`m5_retired_state_matrix::M5RetiredStateMatrixPacket`] freezes Aureline's
+//! terminal-lifecycle object model — the supported lines, stable-facing capabilities,
+//! bundles, commands / deep links, schema-bearing surfaces, registry-visible packages, and
+//! managed / new-tenant-gated features that must move from `Deprecated` to `Retired`
+//! cleanly, the required transition metadata each carries (last-supported version or
+//! channel, cutoff date, successor path, disable path, export / rollback route, archival
+//! note, migration outcome, and support-note closure state), and the closure artifacts each
+//! covered class owns — into one export-safe matrix. It binds every governed class to one
+//! shared retirement-role taxonomy (last_supported_pin, successor_routing, disable_path,
+//! export_rollback_route, archival_note, migration_outcome, support_note_closure), makes
+//! `Retired` mechanically distinct from `Deprecated`, `DisabledByPolicy`, and ordinary
+//! stable-line narrowing, and binds back to the already-landed stable-proof-index and
+//! migration-task-row packets, so no retired surface disappears without a tombstone,
+//! archival route, or successor pointer, no retired class stays selectable in a new-install /
+//! new-tenant / marketplace / upgrade flow, last-supported docs / schemas / evidence survive
+//! until support-note closure and export-safe archive handoff, and retirement state stays
+//! joined to exact build, line identity, deployment profile, and migration outcome.
+//!
 //! [`m5_supported_line_transparency_matrix::M5SupportedLineTransparencyMatrixPacket`]
 //! freezes Aureline's durable post-launch external-proof object model — its supported-line
 //! proof taxonomy (the public-proof ledger, the transparency report, the migration
@@ -1381,6 +1399,7 @@ pub mod m5_repository_bootstrap_matrix;
 pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
+pub mod m5_retired_state_matrix;
 pub mod m5_ring_progression_and_rollback_stop_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_setting_capability_lifecycle_and_kill_switch_registries;
