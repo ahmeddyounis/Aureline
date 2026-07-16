@@ -1765,6 +1765,21 @@
 //! canonical contract, and the same hard invariants (no implicit publish or merge, no hidden output
 //! destination, no stale finding shown as current, no lost local drafts, no finding without scope /
 //! destination / lifecycle) are re-asserted per binding.
+//!
+//! [`m5_ai_review_accessibility_parity_and_narrowing_when_provider_freshness_diff_drift_publish_target_or_finding_lifecycle_state_is_stale::AiReviewAccessibilityPacket`]
+//! closes the B151 batch's accessibility-parity arc by certifying — per governed AI-review-assist object —
+//! that keyboard-only, screen-reader, high-zoom / high-contrast, CLI/headless, and export flows can inspect,
+//! rerun, dismiss, publish, export, and reopen the finding row, review scope selector, publish-to-review
+//! sheet, and resolution memory row without losing analyzed scope, destination class, or finding lifecycle
+//! truth. When provider freshness is stale, diff drift invalidates prior findings, a publish target is
+//! unavailable, or a finding's lifecycle state falls outside live publish-safe conditions, each object's
+//! claim auto-narrows to a provider-freshness-unverified / diff-scope-unverified / publish-target-unverified
+//! / finding-lifecycle-unverified projection that discloses the narrowing with a precise binding dimension
+//! and frozen matrix trigger and preserves the canonical object identity, so a stale, drifted, or
+//! publish-unsafe object can never keep a trusted, publish-safe claim, AI review never auto-approves or
+//! auto-merges, and no local draft is lost or shown as a provider-committed publish. CLI / support / release
+//! exports carry the same scope, destination, and lifecycle labels visible in-product without leaking a raw
+//! payload.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1772,6 +1787,7 @@ pub mod components;
 pub mod density;
 pub mod m5_accessibility_and_continuity;
 pub mod m5_acquisition_evidence_and_partial_recovery_registries;
+pub mod m5_ai_review_accessibility_parity_and_narrowing_when_provider_freshness_diff_drift_publish_target_or_finding_lifecycle_state_is_stale;
 pub mod m5_ai_review_assist_matrix;
 pub mod m5_ai_review_finding_and_scope_source_registries;
 pub mod m5_ai_review_publish_continuity_and_reconcile_registries;
