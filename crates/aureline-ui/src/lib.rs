@@ -1739,6 +1739,20 @@
 //! canonical-source disclosure, write-target review, or actor-parity blocking. Every row cites the one canonical
 //! constrained-file-state matrix proof bundle so docs / help, support, and release / public-proof artifacts
 //! ingest the same certification result instead of restating it by hand.
+//!
+//! [`m5_ai_review_assist_matrix::M5AiReviewAssistMatrixPacket`] opens the B151 AI-review-assist batch by
+//! freezing the reusable AI review finding row, review scope selector, publish-to-review sheet, and resolution
+//! memory row as governed product truth. Each [`m5_ai_review_assist_matrix::M5AiReviewAssistRow`] names its
+//! finding class / severity, analyzed diff scope, publish mode / provider destination, local-draft-versus-
+//! provider-committed state (see [`m5_ai_review_assist_matrix::M5AiReviewAssistPublishState`]), lifecycle state
+//! (open, dismissed, published, outdated, suppressed, rerun recommended), and publish / export fallback, and
+//! binds each object class to its canonical per-domain finding / scope-selector / publish-sheet / resolution-
+//! memory schema. Hard invariants forbid AI review results publishing or merging implicitly, hiding whether
+//! output stays local or becomes a provider comment / suggested patch / check annotation, keeping stale
+//! findings looking current after diff or instruction drift, and losing local drafts or evidence when provider
+//! write scope is missing or a publish fails. Review detail, the AI review panel, pending-review trays, provider
+//! publish review, and support / export packets ingest this matrix instead of minting per-surface AI-review
+//! chrome.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1746,6 +1760,7 @@ pub mod components;
 pub mod density;
 pub mod m5_accessibility_and_continuity;
 pub mod m5_acquisition_evidence_and_partial_recovery_registries;
+pub mod m5_ai_review_assist_matrix;
 pub mod m5_annotation_rows;
 pub mod m5_archived_object_expiry_removal_state_and_metadata_fallback;
 pub mod m5_archived_snapshot_viewer_and_analysis_only_banner_consumers;
