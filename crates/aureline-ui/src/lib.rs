@@ -760,6 +760,19 @@
 //! leave public-proof, migration, or history unjoined from exact build and release-line
 //! identity.
 //!
+//! [`m5_retirement_manifest_and_change_diff_registries::M5RetirementManifestChangeDiffRegistriesPacket`]
+//! makes that terminal-lifecycle object model operable over the frozen retired-state matrix.
+//! It emits one machine-readable *retirement manifest* per retiring class — joining the object
+//! identity, last-supported version or channel, retirement trigger, cutoff date, successor
+//! reference, disable path, and export / rollback route to one class identity with its
+//! exact-build joins — and one *manifest change diff* per changed manifest (a cutoff-date
+//! change, a replacement-path change, or a disable / export-route change) so a changed cutoff
+//! date or replacement path becomes a visible, typed diff event rather than a silent mutation.
+//! Every registry row binds a consumer surface to resolved manifest and change-diff entries
+//! that reuse the frozen matrix vocabulary, so CLI, docs / help, partner packets, and support
+//! bundles read one canonical retirement object that exposes successor and rollback / export
+//! truth without hand-authored parallel prose staying consistent.
+//!
 //! [`m5_retired_state_matrix::M5RetiredStateMatrixPacket`] freezes Aureline's
 //! terminal-lifecycle object model — the supported lines, stable-facing capabilities,
 //! bundles, commands / deep links, schema-bearing surfaces, registry-visible packages, and
@@ -1400,6 +1413,7 @@ pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_retired_state_matrix;
+pub mod m5_retirement_manifest_and_change_diff_registries;
 pub mod m5_ring_progression_and_rollback_stop_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_setting_capability_lifecycle_and_kill_switch_registries;
