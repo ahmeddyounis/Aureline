@@ -760,6 +760,23 @@
 //! leave public-proof, migration, or history unjoined from exact build and release-line
 //! identity.
 //!
+//! [`m5_historical_reference_matrix::M5HistoricalReferenceMatrixPacket`] opens B149 by freezing
+//! Aureline's non-live-evidence object model — the retirement / last-supported snapshots, captured
+//! support / export evidence bundles, archived runbook execution packets, imported / offline route
+//! evidence, and review / incident snapshots that no longer point at live mutable state — into one
+//! export-safe matrix. It binds every governed class to one shared historical-reference role taxonomy
+//! (snapshot_labeling, capture_time_attribution, provenance_attribution, mutation_blocked_posture,
+//! live_target_handoff, imported_offline_disclosure, expiry_removal_handling) and required visible state
+//! (snapshot label, capture time, provenance, live-target availability, imported / offline status,
+//! mutation-blocked posture, and expiry / removed handling), makes captured / archived and imported /
+//! offline evidence mechanically distinct from ordinary live objects, read-only cached current state, and
+//! restore-capable workspaces, and binds back to the already-landed stable-proof-index and
+//! migration-task-row packets, so archived or imported evidence never looks live / writable / current by
+//! omission, no live target is reopened from a snapshot without validating identity, trust, route, and
+//! authority, no expired / removed artifact is dead-linked when metadata / provenance / cleanup state can
+//! be shown, and non-live evidence stays joined to capture time, provenance, retention state, and any
+//! current live-target mismatch.
+//!
 //! [`m5_retired_state_surface_certification::RetiredStateProfileCertificationPacket`]
 //! is the closing B148 surface-certification capstone over that frozen retired-state matrix.
 //! After the retirement-manifest, impact-report, countdown, review-packet, tombstone,
@@ -1493,6 +1510,7 @@ pub mod m5_file_path_reveal_and_native_window_menu_registries;
 pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_freeze_exception_and_go_no_go_registries;
+pub mod m5_historical_reference_matrix;
 pub mod m5_iconography_and_illustration_registries;
 pub mod m5_input_method_and_credential_store_wording_registries;
 pub mod m5_install_topology_accessibility_parity_and_narrowing_when_install_topology_state_root_repair_verify_or_rollout_evidence_is_stale;
