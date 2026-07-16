@@ -760,6 +760,20 @@
 //! leave public-proof, migration, or history unjoined from exact build and release-line
 //! identity.
 //!
+//! [`m5_retirement_countdown_and_safety_gate_registries::M5RetirementCountdownSafetyGateRegistriesPacket`]
+//! turns retirement from a hidden date in release notes into a visible, inspectable countdown
+//! with an explicit successor path and safe exit steps over the frozen retired-state matrix. It
+//! emits one export-safe *retirement countdown* per affected install / update, settings / help,
+//! docs, marketplace, and support surface — carrying the first-deprecated version, cutoff
+//! version / date, successor route, any remaining overlap window, and a no-surprises explanation
+//! of what changes at retirement — and one *pre-retirement safety gate* per candidate that
+//! blocks final closure while the candidate is still missing its declared rollback / export
+//! path, archive bundle, or successor / fallback route. Every registry row binds a consumer
+//! surface to resolved countdown and safety-gate entries that reuse the frozen matrix
+//! vocabulary, so at least one product surface and one operator / support surface open the same
+//! cutoff and successor data without contradiction and no surface transitions to Retired through
+//! a surprise shutdown.
+//!
 //! [`m5_retirement_impact_report_and_blocker_gate_registries::M5RetirementImpactReportBlockerGateRegistriesPacket`]
 //! makes retirement safe by proving who and what still depends on a retiring surface before
 //! Aureline closes the support window. It emits one export-safe *retirement impact report* per
@@ -1427,6 +1441,7 @@ pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_retired_state_matrix;
+pub mod m5_retirement_countdown_and_safety_gate_registries;
 pub mod m5_retirement_impact_report_and_blocker_gate_registries;
 pub mod m5_retirement_manifest_and_change_diff_registries;
 pub mod m5_ring_progression_and_rollback_stop_registries;
