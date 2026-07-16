@@ -794,6 +794,23 @@
 //! instead of a silent mutation. Registry-A reuses the matrix historical-snapshot-descriptor domain schema
 //! and Registry-B mints the descriptor-change-diff domain schema fresh.
 //!
+//! [`m5_archived_snapshot_viewer_and_analysis_only_banner_consumers::M5ArchivedSnapshotViewerConsumersPacket`]
+//! is the B149 archive-consumer lane over that frozen historical-reference matrix. Where the matrix and the
+//! descriptor lane describe what is preserved, this lane proves how it is shown: every archive-bearing
+//! surface — a support bundle viewer, a retirement snapshot page, a review / incident evidence reopen flow,
+//! and the shell, help / docs, runbook-archive, release-center, companion / export, program-governance, and
+//! CLI / export consumers among them — frames a preserved snapshot with one canonical archive/state banner
+//! and fact grid (snapshot label, capture time, provenance, analysis-only posture, and the exact action set
+//! allowed on archived evidence). It binds each preserved-evidence profile to the surfaces that render it and
+//! proves — by fixtures, not screenshots — that the same profile presents the same banner grammar wherever it
+//! appears, that inspect / compare / export-evidence are always available while a discoverable
+//! open-current-live-object action appears only where the live target still exists (mutation affordances are
+//! disabled by construction), that no surface presents a write-capable control as if the current object were
+//! open live, reopens a live target without validating identity / trust / route / authority, dead-links an
+//! expired or removed artifact, leaves non-live evidence unjoined to its capture context, or lets archived /
+//! imported evidence look live by omission, and that keyboard focus and screen-reader announcement can
+//! discover the non-live state, provenance, and open-live-target action without pointer-only chrome.
+//!
 //! [`m5_retired_state_surface_certification::RetiredStateProfileCertificationPacket`]
 //! is the closing B148 surface-certification capstone over that frozen retired-state matrix.
 //! After the retirement-manifest, impact-report, countdown, review-packet, tombstone,
@@ -1495,6 +1512,7 @@ pub mod density;
 pub mod m5_accessibility_and_continuity;
 pub mod m5_acquisition_evidence_and_partial_recovery_registries;
 pub mod m5_annotation_rows;
+pub mod m5_archived_snapshot_viewer_and_analysis_only_banner_consumers;
 pub mod m5_badge_chip_pill_and_popover_expansion_and_anchored_focus_return;
 pub mod m5_banner_inline_notice_and_empty_state_scoped_cause_and_next_action;
 pub mod m5_bootstrap_credential_posture_and_fetch_route_registries;
