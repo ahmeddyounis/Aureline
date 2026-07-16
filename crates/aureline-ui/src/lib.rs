@@ -627,6 +627,22 @@
 //! support-export / migration regression without a recorded override or claim-narrowing
 //! action.
 //!
+//! [`m5_supported_line_retention_policy_and_stale_escalation_registries::M5SupportedLineRetentionPolicyStaleEscalationRegistriesPacket`]
+//! keeps the B147 supported-line proof artifacts alive and reviewable after they first ship over the frozen
+//! supported-line-transparency matrix, so transparency reports, migration scoreboards, ORR histories,
+//! correction-train archives, and truth feeds stay current, diffable, and line-canonical rather than decaying into
+//! one-off launch appendices. It carries one *retention policy* per B147 artifact class — a public-proof-ledger
+//! policy, a migration-scoreboard policy, a transparency-report policy, a correction-archive policy, a truth-feed
+//! policy, and an ORR-history policy — each naming its accountable owner, review cadence, retention window, archive
+//! class, and destruction-or-long-term-retention rule so every class can be inspected in one checked-in policy
+//! packet. It raises one typed *stale escalation* per missed cadence (a missing scheduled snapshot, a stale line
+//! feed, or a snapshot mismatched with the active supported-line matrix) so automation blocks a supported line from
+//! staying green on expired evidence, and the checked-in policy packet exposes each snapshot's age and provenance so
+//! support bundles, docs/help/About truth, and public-proof consumers pull the freshest permitted snapshot. Every
+//! registry row binds a consumer surface to resolved retention-policy and stale-escalation entries that reuse the
+//! frozen matrix vocabulary, so a reviewer can read the retention discipline for any B147 artifact class directly and
+//! a missing or stale snapshot surfaces as a blocker rather than a silent decay.
+//!
 //! [`m5_supported_line_truth_feed_and_audience_packet_registries::M5SupportedLineTruthFeedAudiencePacketRegistriesPacket`]
 //! lets external evaluators and support paths consume one current supported-line truth feed instead of
 //! hand-assembled fragments over the frozen supported-line-transparency matrix. It bundles one export-safe
@@ -1381,6 +1397,7 @@ pub mod m5_supported_line_correction_train_archive_and_closure_gate_registries;
 pub mod m5_supported_line_migration_scoreboard_and_scoreboard_delta_registries;
 pub mod m5_supported_line_orr_history_and_follow_up_closure_registries;
 pub mod m5_supported_line_public_proof_ledger_and_claim_history_diff_registries;
+pub mod m5_supported_line_retention_policy_and_stale_escalation_registries;
 pub mod m5_supported_line_transparency_matrix;
 pub mod m5_supported_line_transparency_report_and_snapshot_diff_registries;
 pub mod m5_supported_line_truth_feed_and_audience_packet_registries;
