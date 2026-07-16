@@ -760,6 +760,20 @@
 //! leave public-proof, migration, or history unjoined from exact build and release-line
 //! identity.
 //!
+//! [`m5_retirement_impact_report_and_blocker_gate_registries::M5RetirementImpactReportBlockerGateRegistriesPacket`]
+//! makes retirement safe by proving who and what still depends on a retiring surface before
+//! Aureline closes the support window. It emits one export-safe *retirement impact report* per
+//! retirement candidate — classifying each detected dependency (a workflow bundle, migration
+//! pack, command / deep link, CLI alias, SDK contract row, saved artifact, profile, recipe,
+//! marketplace entry, mirror, or managed / new-tenant offering) as blocking, migration-required,
+//! historical-only, mirror-only, tenant-gated, or informational with a typed reason and owning
+//! team — and one *impact blocker gate* per candidate that blocks closure while a bundle, a
+//! tenant, or a schema / public artifact still points at the retiring surface. Every registry
+//! row binds a consumer surface to resolved impact-report and blocker-gate entries that reuse
+//! the frozen matrix vocabulary, so review packets, support exports, and public-proof consumers
+//! read one canonical retirement blast-radius report joined to the successor path or manual
+//! fallback rather than a hand-authored parallel prose.
+//!
 //! [`m5_retirement_manifest_and_change_diff_registries::M5RetirementManifestChangeDiffRegistriesPacket`]
 //! makes that terminal-lifecycle object model operable over the frozen retired-state matrix.
 //! It emits one machine-readable *retirement manifest* per retiring class — joining the object
@@ -1413,6 +1427,7 @@ pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_retired_state_matrix;
+pub mod m5_retirement_impact_report_and_blocker_gate_registries;
 pub mod m5_retirement_manifest_and_change_diff_registries;
 pub mod m5_ring_progression_and_rollback_stop_registries;
 pub mod m5_security_finding_cards;
