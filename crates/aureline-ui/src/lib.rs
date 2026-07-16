@@ -627,6 +627,23 @@
 //! support-export / migration regression without a recorded override or claim-narrowing
 //! action.
 //!
+//! [`m5_supported_line_orr_history_and_follow_up_closure_registries::M5SupportedLineOrrHistoryEventFollowUpClosureRegistriesPacket`]
+//! preserves supported-line launch and servicing memory over the frozen supported-line-transparency
+//! matrix so later promotion, support, and postmortem work never depends on shiproom folklore. It
+//! archives one *ORR-history event* per recorded operational-readiness decision on each active stable
+//! or LTS-candidate line — an archived ORR packet, a freeze exception, a rehearsal outcome, a cohort
+//! transition, a go/no-go decision, or a post-review action-item closure, tracked against exact
+//! build / release-line identity, with public-safe cohort-transition and go/no-go decision history
+//! separated from internal-only freeze / rehearsal / action-item minutiae — and emits one *follow-up
+//! closure* event per closure-drift scope (an unclosed action item, stale rehearsal evidence, or an
+//! unreconstructable line history) so support, partner, procurement, and governance reviews see
+//! unclosed follow-up work or stale rehearsal evidence on the active line rather than only in an
+//! archived meeting packet. Every registry row binds a consumer surface to resolved history and
+//! closure entries that reuse the frozen matrix vocabulary, so a current supported line can be
+//! reconstructed from ORR history without shiproom notes, widening and maintenance decisions stay
+//! reconstructable, and no line keeps a go/no-go or cohort claim ahead of its recorded decision
+//! history.
+//!
 //! [`m5_supported_line_migration_scoreboard_and_scoreboard_delta_registries::M5SupportedLineMigrationScoreboardScoreboardDeltaRegistriesPacket`]
 //! keeps post-launch migration and switching promises tied to real field outcomes rather than
 //! frozen launch-time confidence over the frozen supported-line-transparency matrix. It publishes
@@ -1330,6 +1347,7 @@ pub mod m5_staged_review_sheets;
 pub mod m5_staged_trust_and_post_open_queue_registries;
 pub mod m5_structured_input_and_staged_review;
 pub mod m5_supported_line_migration_scoreboard_and_scoreboard_delta_registries;
+pub mod m5_supported_line_orr_history_and_follow_up_closure_registries;
 pub mod m5_supported_line_public_proof_ledger_and_claim_history_diff_registries;
 pub mod m5_supported_line_transparency_matrix;
 pub mod m5_supported_line_transparency_report_and_snapshot_diff_registries;
