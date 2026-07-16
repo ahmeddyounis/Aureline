@@ -760,6 +760,23 @@
 //! leave public-proof, migration, or history unjoined from exact build and release-line
 //! identity.
 //!
+//! [`m5_retirement_closure_ledger_and_propagation_blocker_gate_registries::M5RetirementClosureLedgerPropagationBlockerGateRegistriesPacket`]
+//! propagates retirement manifests, tombstones, and last-supported archive refs into mirror
+//! metadata, offline bundle manifests, self-hosted registry / catalog paths, policy bundles, and
+//! managed new-tenant / new-workspace gates over the frozen retired-state matrix, so mirrors,
+//! offline bundles, self-hosted registries, and managed tenant gates all converge on the same
+//! closed retired-state truth. It maintains one export-safe *retirement closure ledger* per
+//! retiring object per deployment profile — recording the migration outcome, disable evidence,
+//! support-note closure, archival note, propagation status, and any remaining carve-outs joined to
+//! its exact-build identity — and one *propagation-blocker gate* per object that blocks final
+//! retirement certification while a claimed profile still lags its propagation, diverges from the
+//! profiles that already closed the line, or keeps advertising a retired line or capability after
+//! another profile closed it. Every registry row binds a consumer surface to resolved closure-ledger
+//! and propagation-blocker-gate entries that reuse the frozen matrix vocabulary, so a managed
+//! consumer and a mirror / offline / self-hosted consumer agree on retired-state truth for the same
+//! object and the propagation names the archival / successor path each profile needs without leaking
+//! internal-only detail.
+//!
 //! [`m5_last_supported_snapshot_and_archive_export_gate_registries::M5LastSupportedSnapshotArchiveExportGateRegistriesPacket`]
 //! ships last-supported snapshot and retirement archive bundles for a retiring M5 surface over
 //! the frozen retired-state matrix, so migration, audit, procurement, and support can inspect
@@ -1490,6 +1507,7 @@ pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_retired_state_matrix;
+pub mod m5_retirement_closure_ledger_and_propagation_blocker_gate_registries;
 pub mod m5_retirement_countdown_and_safety_gate_registries;
 pub mod m5_retirement_impact_report_and_blocker_gate_registries;
 pub mod m5_retirement_manifest_and_change_diff_registries;
