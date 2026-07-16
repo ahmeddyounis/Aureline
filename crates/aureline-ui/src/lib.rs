@@ -827,6 +827,24 @@
 //! historical grammar wherever it appears, and requires keyboard focus and screen-reader announcement to
 //! discover the compare state, provenance, and open-live-target action.
 //!
+//! [`m5_live_target_handoff_packet_and_route_validation::M5LiveTargetHandoffPacket`]
+//! is the B149 live-target-handoff implement lane over that frozen historical-reference matrix. It makes
+//! "open current live object" a reviewable, validated handoff rather than a hidden jump from non-live evidence
+//! into live mutable state: every binding carries a typed, versioned handoff packet (source snapshot id,
+//! target identity, required route class, trust / auth prerequisites, requested authority class, and a
+//! fallback behavior) and validates target existence, current scope / workset visibility, remote / managed
+//! route availability, trust posture, and required auth / approval before completing the pivot. A cleared
+//! handoff completes and offers the open-current-live-object action at the validated authority; a blocked
+//! handoff reports the exact blocker (target missing, out of scope, route unavailable, trust insufficient,
+//! auth / approval missing, retired capability, or policy / lifecycle block) and falls back to a
+//! satisfy-prerequisite or metadata-only exit instead of a dead end. The requested authority may never exceed
+//! what a direct open would grant, auth / approval prerequisites are named as controlled tokens rather than
+//! embedded secrets, and any actual elevation is delegated to a separate, reviewed authority handoff — this
+//! lane defines the typed handoff and its validation checks and never bypasses approval, trust, or auth
+//! refresh. It binds each preserved-snapshot profile to the surfaces that hand it off, proves the same profile
+//! carries identical historical grammar wherever it appears, and requires keyboard focus and screen-reader
+//! announcement to discover the handoff state, provenance, and open-live-target action.
+//!
 //! [`m5_retired_state_surface_certification::RetiredStateProfileCertificationPacket`]
 //! is the closing B148 surface-certification capstone over that frozen retired-state matrix.
 //! After the retirement-manifest, impact-report, countdown, review-packet, tombstone,
@@ -1575,6 +1593,7 @@ pub mod m5_last_supported_snapshot_and_archive_export_gate_registries;
 pub mod m5_launch_control_matrix;
 pub mod m5_launch_control_surface_certification;
 pub mod m5_layer_order_and_portal_registries;
+pub mod m5_live_target_handoff_packet_and_route_validation;
 pub mod m5_managed_deployment_operations_and_policy_bootstrap_injection;
 pub mod m5_manifest_diff_cards;
 pub mod m5_monitor_geometry_remap_and_restore_bounds;
