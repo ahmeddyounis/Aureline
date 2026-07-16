@@ -1762,6 +1762,7 @@ pub mod m5_accessibility_and_continuity;
 pub mod m5_acquisition_evidence_and_partial_recovery_registries;
 pub mod m5_ai_review_assist_matrix;
 pub mod m5_ai_review_finding_and_scope_source_registries;
+pub mod m5_ai_review_publish_continuity_and_reconcile_registries;
 pub mod m5_ai_review_publish_sheet_and_scope_decision_registries;
 pub mod m5_ai_review_resolution_memory_and_finding_lifecycle_registries;
 pub mod m5_ai_review_scope_selector_and_rerun_state_registries;
