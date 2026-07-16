@@ -1679,6 +1679,19 @@
 //! one of the five fallback paths is reviewable before commit with explicit retained-versus-lost behaviour, a
 //! recovery / undo class is visible before commit on every path, and no constrained write silently mutates the
 //! current object through a lossy fallback.
+//!
+//! [`m5_cross_actor_constrained_write_enforcement::M5CrossActorConstrainedWriteEnforcementPacket`] is the B150
+//! actor-parity mutation-gate lane over that frozen constrained-file-state matrix. It ships one shared
+//! constrained-write gate and safe-next-step resolver that every mutation-capable actor — a direct edit / save, an
+//! AI apply, an automation recipe, an importer, a repair, and a code action — is routed through, so each actor
+//! inherits the same state-class block and the same safe-next-step guidance instead of an actor-specific
+//! best-effort write. The blocked-write reason is a pure function of the constrained-object class, so an AI apply,
+//! a repair, an importer, and a direct save that all land on the same object hit the same structured reason and
+//! the same safe next step; a mutation-capable actor can never silently write a generated, managed, projection, or
+//! captured-snapshot object just because it bypasses direct typing, because there is no direct-write action to
+//! represent and the only write-adjacent action opens the reviewed transition; the gate fails closed when the
+//! actor context drifts or a flow cannot explain the exact write target truthfully; and every support / export
+//! trace preserves the actor, the blocked reason, and the chosen fallback path.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1709,6 +1722,7 @@ pub mod m5_core_action_input_accessibility_parity_and_narrowing_when_control_tru
 pub mod m5_core_action_input_component_matrix;
 pub mod m5_core_action_input_component_surface_certification;
 pub mod m5_core_action_input_shared_consumers_one_vocabulary_across_surfaces;
+pub mod m5_cross_actor_constrained_write_enforcement;
 pub mod m5_decision_feedback_accessibility_parity_and_narrowing_when_decision_feedback_truth_is_stale;
 pub mod m5_decision_feedback_component_matrix;
 pub mod m5_decision_feedback_component_surface_certification;
