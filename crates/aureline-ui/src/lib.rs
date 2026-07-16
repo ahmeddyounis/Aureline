@@ -811,6 +811,22 @@
 //! imported evidence look live by omission, and that keyboard focus and screen-reader announcement can
 //! discover the non-live state, provenance, and open-live-target action without pointer-only chrome.
 //!
+//! [`m5_historical_versus_live_compare_flow::M5HistoricalVersusLiveCompareFlowPacket`]
+//! is the B149 historical-vs-live compare-flow lane over that frozen historical-reference matrix. Where the
+//! archive-viewer lane proves how a single preserved snapshot is shown as non-live, this lane proves how a
+//! preserved snapshot is compared against its current live object without collapsing the two into one
+//! ambiguous view: every compare surface pairs a historical snapshot with its live target, labels identity,
+//! freshness, and drift, and — when the pairing is only approximate, its target is missing, or the pairing is
+//! policy-blocked — narrows the comparison with an explicit mismatch reason (missing target, changed scope,
+//! changed branch / worktree, retired capability, or unsupported skew) instead of dead-ending or failing
+//! silently. The historical side stays mutation blocked while navigation to a validated current live object
+//! and export of the comparison packet remain available, and the compare action set is closed and
+//! analysis-only (no apply / sync / restore variant) so a compare flow can never imply that applying or
+//! syncing the historical snapshot is safe unless an explicit, reviewed mutation handoff takes over. It binds
+//! each preserved-snapshot profile to the surfaces that compare it, proves the same profile carries identical
+//! historical grammar wherever it appears, and requires keyboard focus and screen-reader announcement to
+//! discover the compare state, provenance, and open-live-target action.
+//!
 //! [`m5_retired_state_surface_certification::RetiredStateProfileCertificationPacket`]
 //! is the closing B148 surface-certification capstone over that frozen retired-state matrix.
 //! After the retirement-manifest, impact-report, countdown, review-packet, tombstone,
@@ -1547,6 +1563,7 @@ pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_freeze_exception_and_go_no_go_registries;
 pub mod m5_historical_reference_matrix;
 pub mod m5_historical_snapshot_descriptor_and_change_diff_registries;
+pub mod m5_historical_versus_live_compare_flow;
 pub mod m5_iconography_and_illustration_registries;
 pub mod m5_input_method_and_credential_store_wording_registries;
 pub mod m5_install_topology_accessibility_parity_and_narrowing_when_install_topology_state_root_repair_verify_or_rollout_evidence_is_stale;
