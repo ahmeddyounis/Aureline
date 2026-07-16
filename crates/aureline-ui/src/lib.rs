@@ -627,6 +627,24 @@
 //! support-export / migration regression without a recorded override or claim-narrowing
 //! action.
 //!
+//! [`m5_supported_line_migration_scoreboard_and_scoreboard_delta_registries::M5SupportedLineMigrationScoreboardScoreboardDeltaRegistriesPacket`]
+//! keeps post-launch migration and switching promises tied to real field outcomes rather than
+//! frozen launch-time confidence over the frozen supported-line-transparency matrix. It publishes
+//! one versioned, scored *migration scoreboard* per active stable or LTS-candidate line — one row
+//! per importer / bridge outcome class (cleanly imported, translated, partial, shimmed,
+//! unsupported item category, and rollback-cleanliness result, tracked by source tool / version /
+//! archetype), each bound to one supported-line identity with rollback cleanliness, docs/help
+//! parity, and linked compatibility evidence, and public-safe outcome classes separated from
+//! internal-only migration detail — and one *scoreboard delta* per scoreboard change (a field-pain
+//! cluster, an unsupported-category growth, or a docs/help-or-rollback gap) so docs/help/migration
+//! owners, support, and procurement reviews see where field pain, unsupported-item categories,
+//! docs/help gaps, or rollback failures are accumulating against the last published scoreboard
+//! rather than reconstructing data from anecdotal support threads by hand. Every registry row binds
+//! a consumer surface to resolved scoreboard and delta entries that reuse the frozen matrix
+//! vocabulary, so claim-state or support-language changes cite scoreboard data, docs/help owners
+//! identify concrete deltas without manual reconstruction, and no line keeps replacement-grade or
+//! daily-driver language ahead of current migration truth.
+//!
 //! [`m5_supported_line_transparency_report_and_snapshot_diff_registries::M5SupportedLineTransparencyReportSnapshotDiffRegistriesPacket`]
 //! turns maintainer / upstream durability into support-line-safe product truth over the frozen
 //! supported-line-transparency matrix. It publishes one export-safe *transparency report* per
@@ -1311,6 +1329,7 @@ pub mod m5_stable_line_surface_certification;
 pub mod m5_staged_review_sheets;
 pub mod m5_staged_trust_and_post_open_queue_registries;
 pub mod m5_structured_input_and_staged_review;
+pub mod m5_supported_line_migration_scoreboard_and_scoreboard_delta_registries;
 pub mod m5_supported_line_public_proof_ledger_and_claim_history_diff_registries;
 pub mod m5_supported_line_transparency_matrix;
 pub mod m5_supported_line_transparency_report_and_snapshot_diff_registries;
