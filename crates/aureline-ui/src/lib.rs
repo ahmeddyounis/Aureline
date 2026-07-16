@@ -1621,6 +1621,23 @@
 //! recovery / regenerate path stay explicit across tabs, breadcrumbs, the status bar, the command palette,
 //! editor banners, diff / review headers, write-review sheets, AI / automation mutation paths, and support /
 //! export packets.
+//!
+//! [`m5_constrained_state_descriptor_and_change_diff_registries::M5ConstrainedStateDescriptorChangeDiffRegistriesPacket`]
+//! is the first B150 implement lane over that frozen constrained-file-state matrix. It makes every
+//! constrained-current-object class — a read-only path case, a generated artifact, a policy-locked object, a
+//! managed / mirrored object, a projection, and a captured snapshot — emit one machine-readable
+//! constrained-state descriptor with a stable ID, turning the constrained-state-descriptor grammar (per object:
+//! its state-class, the reason it is constrained, its canonical-source relation, its exact write target or its
+//! absence, its allowed safe actions, and its retained-versus-lost sync notes) and the change-diff grammar (a
+//! state-class change, a canonical-source change, or a write-target change) into registry resolvers that emit
+//! export-safe, honest projections. Each registry row binds a tab-chrome, status-bar, command-palette,
+//! diff / review-header, write-review-sheet, AI / automation-path, or support / export consumer to resolved
+//! descriptor and change-diff entries across the canonical, accessible, and audit resolution forms, so
+//! consumers can distinguish inspect-only from duplicate / detach / overlay / regenerate / request-approval
+//! paths without hand-authored special-case prose, and a changed state-class, canonical source, or write target
+//! produces a visible descriptor diff instead of a silent in-place mutation. Registry-A reuses the matrix
+//! constrained-file-state domain schema and Registry-B mints the constrained-state-change-diff domain schema
+//! fresh.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1645,6 +1662,7 @@ pub mod m5_cohort_descriptor_and_evidence_packet_registries;
 pub mod m5_color_system_and_semantic_theme_token_registries;
 pub mod m5_combobox_and_checkbox_radio_switch_value_source_and_toggle_semantics;
 pub mod m5_constrained_file_state_matrix;
+pub mod m5_constrained_state_descriptor_and_change_diff_registries;
 pub mod m5_core_action_input_accessibility_parity_and_narrowing_when_control_truth_is_stale;
 pub mod m5_core_action_input_component_matrix;
 pub mod m5_core_action_input_component_surface_certification;
