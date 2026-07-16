@@ -1651,6 +1651,21 @@
 //! write-capable safe-next-step affordance appears only where the full badge group is rendered, and every
 //! binding names the keyboard and screen-reader routes through which the state class, reason, and next safe
 //! action are discoverable without pointer-only chrome.
+//!
+//! [`m5_canonical_source_relation_and_write_target_review_registries::M5CanonicalSourceRelationWriteTargetReviewRegistriesPacket`]
+//! is the B150 canonical-source-relation and write-target-review implement lane over that frozen
+//! constrained-file-state matrix. Registry-A links each constrained current object to the authoritative source
+//! an edit belongs to — an editable source file, a generator input, an owning rule, a managed authoritative
+//! source, or a live target when known — as one machine-readable canonical-source relation row with a stable
+//! target identity, so an alias-versus-canonical path case, a generated source sibling, a managed / mirrored
+//! object, and an archived-snapshot handoff each expose where authoritative edits land. Registry-B carries the
+//! exact write-target explainer for the chosen action — the current pane, the canonical source, a duplicate
+//! copy, an overlay patch, or a no-write path — so a save review, compare sheet, review header, or export packet
+//! can say what bytes will or will not change without leaving the user to infer it, and a changed state-class,
+//! canonical source, or write target surfaces as a visible, typed diff. Registry-A reuses the matrix
+//! canonical-source-relation domain schema and Registry-B reuses the matrix write-target-review domain schema;
+//! path and target identity are preserved across the tab-chrome, status-bar, command-palette, diff / review-header,
+//! AI / automation-path, and support / export consumers without leaking raw secrets.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
@@ -1669,6 +1684,7 @@ pub mod m5_build_lane_trust_matrix;
 pub mod m5_build_lane_trust_shared_consumers_one_registry_across_surfaces;
 pub mod m5_build_lane_trust_surface_certification;
 pub mod m5_button_and_icon_button_state_and_command_attribution;
+pub mod m5_canonical_source_relation_and_write_target_review_registries;
 pub mod m5_channel_isolation_precedence_review_and_rollback_targets;
 pub mod m5_clean_room_rebuild_lane_and_artifact_diff_packet_registries;
 pub mod m5_cohort_descriptor_and_evidence_packet_registries;
