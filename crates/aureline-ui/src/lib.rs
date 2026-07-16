@@ -627,6 +627,21 @@
 //! support-export / migration regression without a recorded override or claim-narrowing
 //! action.
 //!
+//! [`m5_supported_line_truth_feed_and_audience_packet_registries::M5SupportedLineTruthFeedAudiencePacketRegistriesPacket`]
+//! lets external evaluators and support paths consume one current supported-line truth feed instead of
+//! hand-assembled fragments over the frozen supported-line-transparency matrix. It bundles one export-safe
+//! *truth feed* per active stable or LTS-candidate line — a public-proof summary, a migration-scoreboard summary, a
+//! transparency snapshot, a correction-history summary, a claim-history summary, and a release-evidence link, each
+//! tracked against exact build / release-line identity with a stable ID and freshness date, public-safe
+//! correction-history and claim-history summaries separated from internal-only incident / security payloads — and
+//! links out to compatibility reports, known limits, migration guides, and release evidence rather than duplicating
+//! them. It projects that one canonical feed into export-safe *audience packet* variants (a support bundle, a
+//! procurement bundle, or a partner-review bundle) that exclude internal-only detail by default while still naming
+//! the current claim, evidence freshness, migration posture, and correction history. Every registry row binds a
+//! consumer surface to resolved truth-feed and audience-packet entries that reuse the frozen matrix vocabulary, so a
+//! support, procurement, or partner reviewer opens one current feed directly, a claim never runs ahead of current
+//! proof, and no packet variant leaks internal-only detail or lets a stale feed read as green.
+//!
 //! [`m5_supported_line_correction_train_archive_and_closure_gate_registries::M5SupportedLineCorrectionTrainArchiveClosureGateRegistriesPacket`]
 //! makes every correction line auditable end to end over the frozen supported-line-transparency matrix, so
 //! release, support, and procurement readers can see what changed, why, and how it was recovered without private
@@ -1368,6 +1383,7 @@ pub mod m5_supported_line_orr_history_and_follow_up_closure_registries;
 pub mod m5_supported_line_public_proof_ledger_and_claim_history_diff_registries;
 pub mod m5_supported_line_transparency_matrix;
 pub mod m5_supported_line_transparency_report_and_snapshot_diff_registries;
+pub mod m5_supported_line_truth_feed_and_audience_packet_registries;
 pub mod m5_syntax_diff_and_chart_token_registries;
 pub mod m5_system_appearance_live_apply_and_source_provenance_registries;
 pub mod m5_text_field_and_search_field_labels_validation_and_privacy;
