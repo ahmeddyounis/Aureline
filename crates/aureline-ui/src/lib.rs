@@ -777,6 +777,23 @@
 //! be shown, and non-live evidence stays joined to capture time, provenance, retention state, and any
 //! current live-target mismatch.
 //!
+//! [`m5_historical_snapshot_descriptor_and_change_diff_registries::M5HistoricalSnapshotDescriptorChangeDiffRegistriesPacket`]
+//! is the first B149 implement lane over that frozen historical-reference matrix. It makes the two
+//! descriptor-bearing classes — a retirement snapshot and a captured support / export evidence packet —
+//! operable by turning the historical-snapshot-descriptor grammar (one machine-readable descriptor per
+//! preserved object: canonical object ID and source class, capture time, producer / build identity,
+//! provenance lineage and trust class, retention / removal state, and analysis-only / reopenable /
+//! metadata-only disposition bound to capture-context joins) and the descriptor-change-diff grammar (a
+//! producer-build change, a target-link change, or a retention-state change) into registry resolvers that
+//! emit export-safe, honest projections. Each registry row binds a shell / archive-viewer, help / docs,
+//! support, review / incident, runbook-archive, or companion / export surface to resolved descriptor and
+//! change-diff entries across the canonical, accessible, and audit resolution forms, so at least one
+//! retirement snapshot and one support / export packet emit a descriptor with stable IDs and provenance
+//! joins, non-live state / capture time / live-target references surface without hand-authored duplicate
+//! prose, and a changed producer build, target link, or retention state produces a visible descriptor diff
+//! instead of a silent mutation. Registry-A reuses the matrix historical-snapshot-descriptor domain schema
+//! and Registry-B mints the descriptor-change-diff domain schema fresh.
+//!
 //! [`m5_retired_state_surface_certification::RetiredStateProfileCertificationPacket`]
 //! is the closing B148 surface-certification capstone over that frozen retired-state matrix.
 //! After the retirement-manifest, impact-report, countdown, review-packet, tombstone,
@@ -1511,6 +1528,7 @@ pub mod m5_form_family_certification;
 pub mod m5_form_validation_and_blocked_submit;
 pub mod m5_freeze_exception_and_go_no_go_registries;
 pub mod m5_historical_reference_matrix;
+pub mod m5_historical_snapshot_descriptor_and_change_diff_registries;
 pub mod m5_iconography_and_illustration_registries;
 pub mod m5_input_method_and_credential_store_wording_registries;
 pub mod m5_install_topology_accessibility_parity_and_narrowing_when_install_topology_state_root_repair_verify_or_rollout_evidence_is_stale;
