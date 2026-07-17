@@ -1899,6 +1899,7 @@ pub mod m5_repository_bootstrap_accessibility_parity_and_narrowing_when_checkout
 pub mod m5_repository_bootstrap_matrix;
 pub mod m5_repository_bootstrap_shared_consumers_one_registry_across_surfaces;
 pub mod m5_repository_bootstrap_surface_certification;
+pub mod m5_required_evidence_check_and_local_ci_parity_registries;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
 pub mod m5_retired_state_matrix;
 pub mod m5_retired_state_surface_certification;
