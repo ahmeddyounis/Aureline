@@ -1884,6 +1884,7 @@ pub mod m5_motion_token_and_reduced_motion_registries;
 pub mod m5_no_rerun_session_recovery_and_authority_replay_fence_registries;
 pub mod m5_opacity_scrim_and_overlay_depth_registries;
 pub mod m5_orr_review_and_rehearsal_drill_registries;
+pub mod m5_ownership_signal_and_conflict_registries;
 pub mod m5_parameter_source_and_precedence;
 pub mod m5_pipeline_dependency_finding_components;
 pub mod m5_pipeline_run_rows;
