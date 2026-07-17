@@ -1803,6 +1803,7 @@ pub mod components;
 pub mod density;
 pub mod m5_accessibility_and_continuity;
 pub mod m5_acquisition_evidence_and_partial_recovery_registries;
+pub mod m5_ai_policy_hook_and_result_registries;
 pub mod m5_ai_review_accessibility_parity_and_narrowing_when_provider_freshness_diff_drift_publish_target_or_finding_lifecycle_state_is_stale;
 pub mod m5_ai_review_assist_matrix;
 pub mod m5_ai_review_assist_surface_certification;
