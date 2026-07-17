@@ -1915,6 +1915,7 @@ pub mod m5_review_pack_evaluator_matrix;
 pub mod m5_review_pack_invalidation_and_rerun_compare_registries;
 pub mod m5_review_pack_record_and_result_registries;
 pub mod m5_review_pack_shared_consumers_one_vocabulary_across_surfaces;
+pub mod m5_review_pack_surface_certification;
 pub mod m5_review_template_packet_and_publish_attribution_registries;
 pub mod m5_ring_progression_and_rollback_stop_registries;
 pub mod m5_security_finding_cards;
