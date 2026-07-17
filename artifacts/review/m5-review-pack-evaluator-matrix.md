@@ -1,0 +1,59 @@
+# M5 Review Pack: Review-Pack, Ownership, Required Evidence, Local-CI Parity, AI Policy Hook, and Review Template Matrix
+
+- Packet: `m5-review-pack-evaluator:stable:0001`
+- Label: `M5 review-pack, ownership-signal, required-evidence-check, local-CI-parity-strip, AI-policy-hook, and review-template-packet matrix`
+- Object classes: 6 (6 stable)
+- Review-pack roles: pack_version_and_digest_disclosure, owner_provenance_disclosure, evaluator_result_class_disclosure, local_versus_provider_parity_disclosure, required_evidence_and_check_disclosure, template_attribution_disclosure, pack_freshness_and_invalidation_disclosure
+- Classification stages: pack_loaded, scope_resolved, evidence_and_checks_evaluated, local_provider_parity_resolved, review_result_recorded
+- Proof freshness SLO: 720 hours (last audit: 2026-07-16T00:00:00Z)
+
+## Object classes
+
+- **review_pack_record**: `stable` (parity_state: `local_parity_estimate`)
+  - Owner: Review-pack record owner (backup: Review-governance backup owner)
+  - Canonical schema: `schemas/review/m5-review-pack.schema.json`
+  - Scope: One declarative review-pack record shows its version and content digest, names its scope selectors and evaluator identity, shows pack freshness and invalidation (stale-pack, partial-scope, slice-omitted), and never lets its pack version or digest be swapped without disclosure
+  - Evaluator result class: local parity estimate at pack load; provider-authoritative confirmation happens per check
+  - Pack freshness state: pack fresh: fully evaluated at the current base and head
+  - Required labels: identity, pack_role, canonical_reference, pack_version_digest
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **ownership_signal**: `stable` (parity_state: `provider_authoritative`)
+  - Owner: Ownership-signal owner (backup: Review-governance backup owner)
+  - Canonical schema: `schemas/review/m5-ownership-signal.schema.json`
+  - Scope: One ownership signal shows advisory-owner versus enforced-owner provenance for a named scope slice, shows the owner approval state, flags partial-scope or slice-omitted coverage, and never flattens advisory-owner and enforced-owner into one owner pill
+  - Evaluator result class: provider-authoritative: enforced-owner approval is a real merge gate on the connected provider
+  - Pack freshness state: pack fresh: ownership resolved for the full evaluated scope
+  - Required labels: identity, pack_role, canonical_reference, evaluator_result_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **required_evidence_check_row**: `stable` (parity_state: `ci_only`)
+  - Owner: Required-evidence-row owner (backup: CI-governance backup owner)
+  - Canonical schema: `schemas/review/m5-review-pack-result.schema.json`
+  - Scope: One required-evidence / required-check row names the demanded evidence or check, shows its evaluator result class, shows ci-only and not-evaluated-here state, names an evidence anchor, and never hides a ci-only, not-evaluated-here, or provider-unavailable check behind a green summary
+  - Evaluator result class: ci-only: this check runs in CI and is not evaluated locally, never a local green
+  - Pack freshness state: partial scope: the local lane evaluated only the subset it can run
+  - Required labels: identity, pack_role, canonical_reference, evaluator_result_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **local_ci_parity_strip**: `stable` (parity_state: `local_parity_estimate`)
+  - Owner: Local-CI-parity-strip owner (backup: Review-governance backup owner)
+  - Canonical schema: `schemas/review/m5-local-ci-parity.schema.json`
+  - Scope: One local-CI parity strip labels a local parity estimate as an estimate, names the provider-authoritative state, shows ci-only and provider-unavailable state, flags stale-relative-to-base/head, and never presents a local parity estimate as provider-authoritative mergeability
+  - Evaluator result class: local-parity-estimate; a provider-authoritative confirmation is fetched separately
+  - Pack freshness state: stale relative to base/head once the diff moves; a re-evaluation is offered
+  - Required labels: identity, pack_role, canonical_reference, evaluator_result_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **ai_policy_hook**: `stable` (parity_state: `not_evaluated_here`)
+  - Owner: AI-policy-hook owner (backup: AI-review-governance backup owner)
+  - Canonical schema: `schemas/review/m5-ai-policy-hook.schema.json`
+  - Scope: One AI review policy hook shows the pack version and digest the AI run used, names the pack-driven policy, discloses any divergent pack version, binds the AI result to the pack's evaluator result class, and never lets AI review run under a different pack version without disclosure
+  - Evaluator result class: not evaluated here: the AI finding is advisory until the pack's authoritative checks confirm it
+  - Pack freshness state: pack fresh: the AI review ran under the current disclosed pack version
+  - Required labels: identity, pack_role, canonical_reference, evaluator_result_class
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **review_template_packet**: `stable` (parity_state: `draft_only_review_state`)
+  - Owner: Review-template-packet owner (backup: Support-governance backup owner)
+  - Canonical schema: `schemas/review/m5-review-template-packet.schema.json`
+  - Scope: One review-template packet shows the comment / summary template attribution, names the template, shows the template version and pack binding, and preserves the attribution on export, publish, and reopen so review-pack version / digest and template attribution are never lost
+  - Evaluator result class: draft-only review state until the rendered comment or summary is published
+  - Pack freshness state: pack fresh: template bound to the current disclosed pack version
+  - Required labels: identity, pack_role, canonical_reference, template_attribution
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
