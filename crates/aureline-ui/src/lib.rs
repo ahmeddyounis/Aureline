@@ -1878,6 +1878,7 @@ pub mod m5_install_topology_and_state_root_registries;
 pub mod m5_install_topology_matrix;
 pub mod m5_install_topology_shared_consumers_one_registry_across_surfaces;
 pub mod m5_install_topology_surface_certification;
+pub mod m5_landing_candidate_sheet_and_authorization_registries;
 pub mod m5_last_supported_snapshot_and_archive_export_gate_registries;
 pub mod m5_launch_control_matrix;
 pub mod m5_launch_control_surface_certification;
