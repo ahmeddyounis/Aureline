@@ -1,0 +1,59 @@
+# M5 Change Intent: Start-Work, Linked-Change, Ready-for-Review Handoff, Resolve/Close, and Blocked/Escalate Matrix
+
+- Packet: `m5-change-intent-lifecycle:stable:0001`
+- Label: `M5 change-intent, start-work-sheet, linked-change-panel, ready-for-review-handoff, resolve-close-sheet, and blocked-escalate-card matrix`
+- Object classes: 6 (6 stable)
+- Change-intent roles: provider_ownership_disclosure, local_versus_provider_state_disclosure, linked_engineering_identity_disclosure, side_effect_disclosure, validation_evidence_disclosure, publish_later_fallback_disclosure, final_resolution_authority_disclosure
+- Classification stages: intent_captured, work_started, change_linked, handoff_packaged, resolution_recorded
+- Proof freshness SLO: 720 hours (last audit: 2026-07-16T00:00:00Z)
+
+## Object classes
+
+- **change_intent_record**: `stable` (commit_state: `local_only_draft`)
+  - Owner: Change-intent-record owner (backup: Work-item-governance backup owner)
+  - Canonical schema: `schemas/teamwork/m5-change-intent.schema.json`
+  - Scope: One durable change-intent record names its provider ownership, shows local-versus-provider state, names the linked branch / worktree / review identity, shows its intent lifecycle stage, and never lets its provider link or ownership be swapped without disclosure
+  - Local vs provider state: local-only draft captured on this machine, not yet a provider-committed update
+  - Blocker state: ready to resolve once the linked change lands
+  - Required labels: identity, lifecycle_role, canonical_reference, provider_commit_state
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **start_work_sheet**: `stable` (commit_state: `local_only_draft`)
+  - Owner: Start-work-sheet owner (backup: Work-item-governance backup owner)
+  - Canonical schema: `schemas/ui/m5-start-work-sheet.schema.json`
+  - Scope: One start-work sheet discloses the branch, worktree, review draft, and provider link it would create as separate side effects, names the tracked item it launches from, and never silently creates a branch, worktree, review draft, or provider link without disclosing each side effect
+  - Local vs provider state: local-only draft: no side effect is created until each is disclosed and confirmed
+  - Blocker state: ready to resolve is not claimed until work is actually started
+  - Required labels: identity, lifecycle_role, canonical_reference, relation_source
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **linked_change_panel**: `stable` (commit_state: `provider_committed`)
+  - Owner: Linked-change-panel owner (backup: Work-item-governance backup owner)
+  - Canonical schema: `schemas/ui/m5-linked-change-panel.schema.json`
+  - Scope: One linked-change panel shows the relation source for each linked change, keeps linked-by-provider, linked-locally, suggested-by-Aureline, and stale-or-broken distinct, flags stale-or-broken relations, and never flattens the four relation sources into one generic relation badge
+  - Local vs provider state: provider-committed link confirmed by the connected provider
+  - Blocker state: ready to resolve when every linked change is confirmed
+  - Required labels: identity, lifecycle_role, canonical_reference, relation_source
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **ready_for_review_handoff_sheet**: `stable` (commit_state: `queued_for_publish`)
+  - Owner: Ready-for-review-handoff owner (backup: Review-governance backup owner)
+  - Canonical schema: `schemas/ui/m5-ready-for-review-handoff-sheet.schema.json`
+  - Scope: One ready-for-review handoff sheet packages the validation evidence backing the handoff, shows the publish-later fallback, labels a local handoff packet as local, names the handoff destination, and never lets a local handoff packet or queued publish masquerade as a provider-committed update
+  - Local vs provider state: queued for publish: a deferred handoff waiting to reach the provider, not yet committed
+  - Blocker state: ready to resolve is deferred until the handoff is committed and reviewed
+  - Required labels: identity, lifecycle_role, canonical_reference, provider_commit_state
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **resolve_close_sheet**: `stable` (commit_state: `provider_committed`)
+  - Owner: Resolve-close-sheet owner (backup: Work-item-governance backup owner)
+  - Canonical schema: `schemas/ui/m5-resolve-close-sheet.schema.json`
+  - Scope: One resolve-or-close sheet shows the final-resolution authority, shows any unresolved engineering blocker, names the resolution outcome, shows provider-write-pending state, and never auto-resolves tracked work while engineering blockers remain unresolved
+  - Local vs provider state: provider-committed once the resolution is written to the connected provider
+  - Blocker state: ready to resolve only when no engineering blocker remains
+  - Required labels: identity, lifecycle_role, canonical_reference, blocker_state
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **blocked_escalate_card**: `stable` (commit_state: `publish_failed_retained`)
+  - Owner: Blocked-escalate-card owner (backup: Incident-governance backup owner)
+  - Canonical schema: `schemas/ui/m5-blocked-escalate-card.schema.json`
+  - Scope: One blocked-or-escalate card names the blocker cause, shows the escalation path, retains local notes and linked evidence, shows the blocker state, and never drops local notes, handoff packets, or linked evidence when provider write fails
+  - Local vs provider state: publish failed and retained: local notes and linked evidence kept for retry, not committed
+  - Blocker state: blocked by engineering with an open escalation
+  - Required labels: identity, lifecycle_role, canonical_reference, blocker_state
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
