@@ -1911,6 +1911,7 @@ pub mod m5_retirement_manifest_and_change_diff_registries;
 pub mod m5_retirement_review_packet_and_closure_gate_registries;
 pub mod m5_retirement_tombstone_and_claim_block_gate_registries;
 pub mod m5_review_pack_evaluator_matrix;
+pub mod m5_review_pack_invalidation_and_rerun_compare_registries;
 pub mod m5_review_pack_record_and_result_registries;
 pub mod m5_review_template_packet_and_publish_attribution_registries;
 pub mod m5_ring_progression_and_rollback_stop_registries;
