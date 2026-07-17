@@ -1908,6 +1908,7 @@ pub mod m5_retirement_manifest_and_change_diff_registries;
 pub mod m5_retirement_review_packet_and_closure_gate_registries;
 pub mod m5_retirement_tombstone_and_claim_block_gate_registries;
 pub mod m5_review_pack_evaluator_matrix;
+pub mod m5_review_pack_record_and_result_registries;
 pub mod m5_ring_progression_and_rollback_stop_registries;
 pub mod m5_security_finding_cards;
 pub mod m5_setting_capability_lifecycle_and_kill_switch_registries;
