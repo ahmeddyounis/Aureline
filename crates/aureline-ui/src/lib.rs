@@ -1959,6 +1959,7 @@ pub mod m5_stable_line_protection_matrix;
 pub mod m5_stable_line_protection_plan_and_correction_queue_registries;
 pub mod m5_stable_line_refresh_policy_and_claim_downgrade_registries;
 pub mod m5_stable_line_surface_certification;
+pub mod m5_stack_edit_review_sheet_and_disposition_registries;
 pub mod m5_staged_review_sheets;
 pub mod m5_staged_trust_and_post_open_queue_registries;
 pub mod m5_structured_input_and_staged_review;
