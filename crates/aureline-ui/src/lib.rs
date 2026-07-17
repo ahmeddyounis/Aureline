@@ -1875,6 +1875,7 @@ pub mod m5_last_supported_snapshot_and_archive_export_gate_registries;
 pub mod m5_launch_control_matrix;
 pub mod m5_launch_control_surface_certification;
 pub mod m5_layer_order_and_portal_registries;
+pub mod m5_linked_change_panel_registries;
 pub mod m5_live_target_handoff_packet_and_route_validation;
 pub mod m5_managed_deployment_operations_and_policy_bootstrap_injection;
 pub mod m5_manifest_diff_cards;
