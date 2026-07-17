@@ -1,0 +1,59 @@
+# M5 Change-Object, Patch-Stack/Queue, Stack-Edit-Review, Landing-Candidate, Portable-Shelf, and Worktree-Cleanup-Preview Matrix
+
+- Packet: `m5-change-orchestration:stable:0001`
+- Label: `M5 change-object, patch-stack/queue, stack-edit-review, landing-candidate, portable-shelf, and worktree-cleanup-preview matrix`
+- Object classes: 6 (6 stable)
+- Change-orchestration roles: selected_change_object_disclosure, worktree_binding_disclosure, stack_membership_disclosure, landing_state_disclosure, validation_freshness_disclosure, rollback_export_fallback_disclosure, cleanup_safety_disclosure
+- Classification stages: change_object_selected, stack_assembled, stack_reviewed, landing_evaluated, shelved_or_cleaned
+- Proof freshness SLO: 720 hours (last audit: 2026-07-17T00:00:00Z)
+
+## Object classes
+
+- **change_object**: `stable` (landing_state: `selected_change`)
+  - Owner: Change-object owner (backup: Git-orchestration backup owner)
+  - Canonical schema: `schemas/change/m5-change-object.schema.json`
+  - Scope: One explicit change object binds a non-trivial multi-file change to its selected worktree / base identity, names whether it is a working-set patch or a side-branch work unit, shows its validation freshness, and never lets a command, AI tool, refactor, formatter, or provider action mutate files in another worktree without an explicit selected change object and worktree binding
+  - Worktree / base identity: selected worktree and base commit named, no ambient branch is treated as the change object
+  - Cleanup safety: clear to land once validation is fresh and no blocker remains
+  - Required labels: identity, lifecycle_role, canonical_reference, landing_state
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **patch_stack_queue**: `stable` (landing_state: `queue_eligible`)
+  - Owner: Patch-stack-queue owner (backup: Git-orchestration backup owner)
+  - Canonical schema: `schemas/ui/m5-patch-stack-queue.schema.json`
+  - Scope: One patch stack / queue shows its member order, shows queue eligibility and any queue-blocked reason, shows the stack dependency edges, and never silently reorders, collapses, or retargets stack members or infers stack membership from branch names alone
+  - Worktree / base identity: each member's worktree / base identity, never inferred from a branch name
+  - Cleanup safety: clear to land per member; a queue-blocked member is named, not hidden
+  - Required labels: identity, lifecycle_role, canonical_reference, stack_membership_source
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **stack_edit_review_sheet**: `stable` (landing_state: `restack_required`)
+  - Owner: Stack-edit-review-sheet owner (backup: Review-governance backup owner)
+  - Canonical schema: `schemas/ui/m5-stack-edit-review-sheet.schema.json`
+  - Scope: One stack-edit / review sheet shows each member's stack membership source, flags a restack-required stack, flags stale-or-broken membership, labels an inferred-from-branch-name membership as inferred, and never flattens declared-in-change-object, declared-locally, inferred-from-branch-name, and stale-or-broken membership into one badge
+  - Worktree / base identity: each member's worktree binding shown while the stack is edited
+  - Cleanup safety: clear to land is withheld until the restack is applied
+  - Required labels: identity, lifecycle_role, canonical_reference, stack_membership_source
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **landing_candidate_sheet**: `stable` (landing_state: `protected_branch_blocked`)
+  - Owner: Landing-candidate-sheet owner (backup: Review-governance backup owner)
+  - Canonical schema: `schemas/ui/m5-landing-candidate-sheet.schema.json`
+  - Scope: One landing-candidate sheet shows its validation freshness, shows the protected-branch gate, labels ambient branch state as not a reviewed landing candidate, names the landing target, and never lands from ambient branch state without a reviewed landing candidate
+  - Worktree / base identity: the landing target and its base, with the selected worktree named
+  - Cleanup safety: clear to land only when validation is fresh and no gate is failing
+  - Required labels: identity, lifecycle_role, canonical_reference, landing_state
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **portable_shelf**: `stable` (landing_state: `exported`)
+  - Owner: Portable-shelf owner (backup: Git-orchestration backup owner)
+  - Canonical schema: `schemas/change/m5-portable-shelf.schema.json`
+  - Scope: One portable shelf / bundle shows its export bundle contents, shows its import / reopen lineage, names the shelf state (exported, imported, reopened), shows the recovery checkpoint, and never drops shelf contents on an export failure
+  - Worktree / base identity: the worktree / base the shelf was captured from and reopens against
+  - Cleanup safety: clear to land is re-evaluated after import / reopen, never carried over blindly
+  - Required labels: identity, lifecycle_role, canonical_reference, cleanup_safety
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **worktree_cleanup_preview**: `stable` (landing_state: `orphaned`)
+  - Owner: Worktree-cleanup-preview owner (backup: Incident-governance backup owner)
+  - Canonical schema: `schemas/ui/m5-worktree-manager-row.schema.json`
+  - Scope: One worktree cleanup preview names the cleanup target, previews running tasks and open editors, previews uncommitted changes and recovery checkpoints, shows the cleanup state (orphaned, abandoned), and never deletes orphaned worktrees or stale stack members without previewing running work and export-safe evidence
+  - Worktree / base identity: the worktree path and base the cleanup would remove, previewed before deletion
+  - Cleanup safety: running tasks, open editors, uncommitted changes, and checkpoints previewed before delete
+  - Required labels: identity, lifecycle_role, canonical_reference, cleanup_safety
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
