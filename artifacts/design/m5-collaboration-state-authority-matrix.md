@@ -1,0 +1,59 @@
+# M5 Collaboration-Replica, Shared-Object-Authority, Anchor-Drift, Convergence-State, and Session-Archive Matrix
+
+- Packet: `m5-collaboration-convergence:stable:0001`
+- Label: `M5 collaboration-replica, shared-object-authority, anchor-drift, convergence-state, and session-archive matrix`
+- Object classes: 6 (6 stable)
+- Collaboration-state roles: authority_model_disclosure, local_truth_preservation_disclosure, merge_and_drift_semantics_disclosure, downgrade_behavior_disclosure, anchor_drift_history_disclosure, export_posture_disclosure, provenance_and_freshness_disclosure
+- Classification stages: shared_object_declared, replica_joined_and_synced, convergence_or_ordering_established, downgrade_or_drift_handled, session_sealed_or_compacted
+- Proof freshness SLO: 720 hours (last audit: 2026-07-18T00:00:00Z)
+
+## Object classes
+
+- **crdt_backed_shared_text**: `stable` (convergence_state: `converged`)
+  - Owner: Crdt-backed-shared-text owner (backup: Collaboration-state backup owner)
+  - Canonical schema: `schemas/collaboration/m5-collaboration-replica-state.schema.json`
+  - Scope: One CRDT-backed shared-text object is the convergent replica of shared text that merges concurrent edits, shows whether it has converged, keeps the local buffer, VFS, and Git truth canonical, shows its merge semantics, and preserves unsent local edits on downgrade, never letting the replica overwrite local, VFS, or Git truth implicitly
+  - Authority model: crdt-convergent replica: peers converge on one value without a central ordering authority
+  - Export posture: op-logs and snapshots export only with policy-labeled redaction and actor lineage
+  - Required labels: identity, lifecycle_role, canonical_reference, authority_model
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **sampled_presence_cursors_selections**: `stable` (convergence_state: `sampled_presence_only`)
+  - Owner: Sampled-presence owner (backup: Collaboration-state backup owner)
+  - Canonical schema: `schemas/collaboration/m5-shared-object-descriptor.schema.json`
+  - Scope: One sampled presence / cursors / selections object samples non-authoritative presence, shows its sampling rate, shows that presence is non-authoritative, expires stale cursors and selections, and never edits the buffer, never treating sampled presence as converged truth
+  - Authority model: sampled, non-authoritative presence: cursors and selections are sampled, not a converged value
+  - Export posture: presence metadata exports as sampled counts and roles, never raw cursor payloads
+  - Required labels: identity, lifecycle_role, canonical_reference, convergence_state
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **server_ordered_comments_annotations_review_pins**: `stable` (convergence_state: `anchor_rebound_append_only`)
+  - Owner: Server-ordered-comments owner (backup: Collaboration-review backup owner)
+  - Canonical schema: `schemas/collaboration/m5-collaboration-anchor-history.schema.json`
+  - Scope: One server-ordered comments / annotations / review-pins object shows its server ordering, records anchor drift append-only, shows every rebind as reviewable, and shows pin-resolution provenance, never rebinding a comment, annotation, or review pin without append-only drift history
+  - Authority model: server-ordered sequence: pin and comment order is fixed by a server total order, not peer convergence
+  - Export posture: pins and anchor-drift history export as metadata with actor lineage, never raw comment bodies
+  - Required labels: identity, lifecycle_role, canonical_reference, authority_model
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **presenter_follow_state**: `stable` (convergence_state: `host_authoritative`)
+  - Owner: Presenter-follow-state owner (backup: Collaboration-state backup owner)
+  - Canonical schema: `schemas/collaboration/m5-collaboration-convergence-state.schema.json`
+  - Scope: One presenter / follow state names its presenter holder, names its follow target, shows that following is view-only, and shows its handoff provenance, never letting follow imply control or convergence
+  - Authority model: host-authoritative state: the presenter owns the followed viewport; followers observe, not merge
+  - Export posture: presenter and follow state export as roles and handoff lineage, never raw viewport contents
+  - Required labels: identity, lifecycle_role, canonical_reference, authority_model
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **higher_risk_control_plane**: `stable` (convergence_state: `convergence_degraded`)
+  - Owner: Higher-risk-control-plane owner (backup: Collaboration-safety backup owner)
+  - Canonical schema: `schemas/ui/m5-collaboration-degradation-banner.schema.json`
+  - Scope: One higher-risk control plane is kept separate from the convergent objects, distinguishes convergence-degraded from awareness-degraded, shows the anchor-unresolved state, and preserves local unsent work first on downgrade, never collapsing a convergence-degraded or awareness-degraded state into a generic stale or broken badge
+  - Authority model: a separate higher-risk control plane, distinct from the convergent shared objects it guards
+  - Export posture: degradation events export as named states with actor lineage, never raw op-log payloads
+  - Required labels: identity, lifecycle_role, canonical_reference, convergence_state
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **sealed_session_archive**: `stable` (convergence_state: `sealed_archived`)
+  - Owner: Sealed-session-archive owner (backup: Collaboration-privacy backup owner)
+  - Canonical schema: `schemas/collaboration/m5-session-compaction-manifest.schema.json`
+  - Scope: One sealed session archive shows its bounded compaction lineage, shows its retention and export posture, shows its actor lineage, and shows its policy-labeled redaction, never exporting op-logs, snapshots, or archives without policy-labeled redaction and actor lineage
+  - Authority model: a sealed archive of prior collaboration state; it observes and retains, it does not converge
+  - Export posture: the archive exports only with policy-labeled redaction and actor lineage, never raw snapshots
+  - Required labels: identity, lifecycle_role, canonical_reference, export_posture
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
