@@ -1922,6 +1922,7 @@ pub mod m5_repository_bootstrap_surface_certification;
 pub mod m5_required_evidence_check_and_local_ci_parity_registries;
 pub mod m5_resolve_close_sheet_registries;
 pub mod m5_responsive_geometry_and_collapse_priority_registries;
+pub mod m5_retention_review_and_sealed_archive_manifest_registries;
 pub mod m5_retired_state_matrix;
 pub mod m5_retired_state_surface_certification;
 pub mod m5_retirement_closure_ledger_and_propagation_blocker_gate_registries;
