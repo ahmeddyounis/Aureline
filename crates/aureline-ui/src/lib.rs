@@ -1989,6 +1989,7 @@ pub mod m5_window_restore_matrix;
 pub mod m5_window_restore_shared_consumers_one_registry_across_surfaces;
 pub mod m5_window_restore_surface_certification;
 pub mod m5_workspace_authority_and_window_topology_registries;
+pub mod m5_worktree_manager_row_and_cleanup_preview_registries;
 pub mod m5_write_review_sheet_fallback_paths;
 pub mod motion;
 pub mod themes;
