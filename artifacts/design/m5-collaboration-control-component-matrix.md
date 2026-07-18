@@ -1,0 +1,59 @@
+# M5 Shared-Terminal/Debug-View, Control-Grant, Presenter-Token, Consent-Envelope, Retention-Review, and Session-Restore-View Matrix
+
+- Packet: `m5-collaboration-control:stable:0001`
+- Label: `M5 shared-terminal/debug-view, control-grant, presenter-token, consent-envelope, retention-review, and session-restore-view matrix`
+- Object classes: 6 (6 stable)
+- Collaboration-control roles: control_authority_disclosure, active_driver_disclosure, view_first_default_disclosure, consent_scope_disclosure, recording_retention_state_disclosure, paste_secret_guard_disclosure, replay_free_restore_disclosure
+- Classification stages: session_joined_view_first, control_requested, control_granted_single_driver, consent_and_retention_reviewed, session_restored_or_sealed
+- Proof freshness SLO: 720 hours (last audit: 2026-07-18T00:00:00Z)
+
+## Object classes
+
+- **shared_terminal_debug_view**: `stable` (session_state: `driver`)
+  - Owner: Shared-terminal-debug-view owner (backup: Collaboration-control backup owner)
+  - Canonical schema: `schemas/ui/m5-shared-terminal-debug-view.schema.json`
+  - Scope: One shared terminal / debug view streams a live shared terminal or debugger, begins view-first, names its single active driver, and shows the provenance of every input, never letting presence, follow mode, browser handoff, or companion resume acquire terminal / debug control without an explicit grant and never replaying prior input on join
+  - Active driver: one active driver is named, or explicitly none, and presence never reads as control
+  - Consent / retention state: recording and retention state disclosed; nothing is recorded without a consent posture
+  - Required labels: identity, lifecycle_role, canonical_reference, session_state
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **control_grant**: `stable` (session_state: `control_granted`)
+  - Owner: Control-grant owner (backup: Collaboration-control backup owner)
+  - Canonical schema: `schemas/collaboration/m5-control-grant.schema.json`
+  - Scope: One control grant is the explicit grant of terminal / debug write control that names its granted authority, enforces a single active driver, shows its scope and expiry, and shows its revoke / reclaim path, never acquiring control from presence or follow alone and never allowing more than one active driver on a sensitive surface
+  - Active driver: the single active driver named by this grant, with any prior driver reverted to view-first
+  - Consent / retention state: the grant's consent posture and retention scope disclosed before control begins
+  - Required labels: identity, lifecycle_role, canonical_reference, control_authority_source
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **presenter_token**: `stable` (session_state: `presenter_moderator`)
+  - Owner: Presenter-token owner (backup: Collaboration-moderation backup owner)
+  - Canonical schema: `schemas/ui/m5-presenter-handoff-sheet.schema.json`
+  - Scope: One presenter token names its current holder, names its handoff target, shows its moderation scope, and shows its expiry and reclaim path, never letting two presenters drive one sensitive surface at once
+  - Active driver: the active driver, if any, named alongside the current presenter / moderator
+  - Consent / retention state: recording and retention state disclosed for the presented session
+  - Required labels: identity, lifecycle_role, canonical_reference, control_authority_source
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **consent_envelope**: `stable` (session_state: `consent_renewal_required`)
+  - Owner: Consent-envelope owner (backup: Collaboration-privacy backup owner)
+  - Canonical schema: `schemas/ui/m5-collaboration-join-review-sheet.schema.json`
+  - Scope: One consent envelope discloses its join-time consent scope, discloses the guest scope and route visibility, discloses the recording and retention consequences, and shows the consent renewal requirement, never widening guest scope or route visibility silently
+  - Active driver: the active driver, if any, disclosed at join alongside the view-first default
+  - Consent / retention state: recording, retention, guest scope, and route visibility consequences shown before joining
+  - Required labels: identity, lifecycle_role, canonical_reference, consent_retention_gate
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **retention_review**: `stable` (session_state: `recording_active`)
+  - Owner: Retention-review owner (backup: Collaboration-privacy backup owner)
+  - Canonical schema: `schemas/ui/m5-collaboration-retention-sheet.schema.json`
+  - Scope: One retention review shows the recording state, shows the retention mode and duration, shows the replayable-archive scope, shows the export and support-evidence scope, and never silently starts or widens recording, transcript retention, replayable archives, or route visibility, and never reveals raw secrets, command text, variable bodies, or clipboard contents without a guard and consent posture
+  - Active driver: the active driver, if any, named on the retained record for audit
+  - Consent / retention state: the recording state, retention mode and duration, and replayable-archive scope shown explicitly
+  - Required labels: identity, lifecycle_role, canonical_reference, consent_retention_gate
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
+- **session_restore_view**: `stable` (session_state: `restore_view_only`)
+  - Owner: Session-restore-view owner (backup: Collaboration-control backup owner)
+  - Canonical schema: `schemas/collaboration/m5-session-policy-manifest.schema.json`
+  - Scope: One session-restore view reattaches read-only, shows the restored scrollback read-only, replays no prior terminal / debug input on restore, preserves retention scope on restore, and requires a fresh control grant before write control resumes, never replaying prior input and never widening retention on restore
+  - Active driver: no active driver on restore until a fresh control grant is made; the session reattaches view-only
+  - Consent / retention state: the retention scope preserved on restore, never widened by the restore itself
+  - Required labels: identity, lifecycle_role, canonical_reference, session_state
+  - Accessibility routes: keyboard_focusable, screen_reader_announced, high_zoom_reflow, high_contrast_safe, cli_exportable, support_packet_present
