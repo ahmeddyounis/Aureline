@@ -1906,6 +1906,7 @@ pub mod m5_platform_fit_matrix;
 pub mod m5_platform_fit_shared_consumers_one_convention_across_surfaces;
 pub mod m5_platform_fit_surface_certification;
 pub mod m5_portable_mode_state_containment_and_diagnostics;
+pub mod m5_portable_shelf_and_reopen_parity_registries;
 pub mod m5_ready_for_review_handoff_registries;
 pub mod m5_regression_asset_and_incident_close_registries;
 pub mod m5_remote_cache_integrity_and_cache_bypass_drill_registries;
