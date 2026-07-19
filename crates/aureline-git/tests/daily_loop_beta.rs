@@ -3,13 +3,50 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 
 use serde::Deserialize;
 
+use aureline_git::stabilize_the_daily_git_loop_status_diff_stage::DailyLoopBackend;
 use aureline_git::{
-    DailyLoopOperationKind, DailyLoopPreviewState, DailyLoopRequest, DailyLoopService,
-    DailyLoopSnapshotState,
+    DailyLoopBackendError, DailyLoopCommandOutput, DailyLoopOperationKind, DailyLoopPreviewState,
+    DailyLoopRequest, DailyLoopService, DailyLoopSnapshotState,
 };
+
+#[derive(Debug, Clone, Default)]
+struct RecordingBackend {
+    calls: Arc<Mutex<Vec<Vec<String>>>>,
+}
+
+impl DailyLoopBackend for RecordingBackend {
+    fn run_git(
+        &self,
+        _root: &Path,
+        args: &[&str],
+    ) -> Result<DailyLoopCommandOutput, DailyLoopBackendError> {
+        self.calls
+            .lock()
+            .expect("recording backend lock")
+            .push(args.iter().map(|arg| (*arg).to_string()).collect());
+
+        let stdout = match args {
+            ["rev-parse", "--git-dir"] => b".git\n".to_vec(),
+            ["rev-parse", "--is-bare-repository"] | ["rev-parse", "--is-shallow-repository"] => {
+                b"false\n".to_vec()
+            }
+            ["rev-parse", "--abbrev-ref", "HEAD"] => b"main\n".to_vec(),
+            ["rev-parse", "--git-path", "HEAD"] => b".git/HEAD\n".to_vec(),
+            _ => Vec::new(),
+        };
+
+        Ok(DailyLoopCommandOutput {
+            stdout,
+            stderr: Vec::new(),
+            status_code: Some(0),
+            success: true,
+        })
+    }
+}
 
 #[derive(Debug, Deserialize)]
 struct DailyLoopFixture {
@@ -292,6 +329,29 @@ fn stage_preview_ready() {
     let preview = service.preview(&request);
     assert_eq!(preview.state, DailyLoopPreviewState::Ready);
     assert!(!preview.affected_paths.is_empty());
+}
+
+#[test]
+fn diff_snapshot_preserves_every_scoped_path() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let backend = RecordingBackend::default();
+    let calls = Arc::clone(&backend.calls);
+    let service = DailyLoopService::new(backend);
+    let request = DailyLoopRequest::for_worktree(
+        dir.path(),
+        DailyLoopOperationKind::Diff,
+        vec![PathBuf::from("src/one.rs"), PathBuf::from("src/two.rs")],
+    );
+
+    let snapshot = service.snapshot(&request);
+
+    assert_eq!(snapshot.state, DailyLoopSnapshotState::Current);
+    let calls = calls.lock().expect("recording backend lock");
+    let diff_call = calls
+        .iter()
+        .find(|args| args.first().map(String::as_str) == Some("diff"))
+        .expect("diff command recorded");
+    assert_eq!(diff_call, &["diff", "--", "src/one.rs", "src/two.rs"]);
 }
 
 #[test]

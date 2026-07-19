@@ -1520,12 +1520,14 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
         if let Some(commit_ref) = &request.commit_ref {
             args.push(commit_ref);
         }
-        for path in &request.path_scope {
+        let scoped_paths = request
+            .path_scope
+            .iter()
+            .filter_map(|path| path.to_str())
+            .collect::<Vec<_>>();
+        if !scoped_paths.is_empty() {
             args.push("--");
-            if let Some(s) = path.to_str() {
-                args.push(s);
-            }
-            break; // simplify: only first path for now
+            args.extend(scoped_paths);
         }
 
         let output = match self.backend.run_git(&target.worktree.worktree_root, &args) {
@@ -1918,15 +1920,15 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             .filter_map(|p| p.to_str().map(|s| s.to_string()))
             .collect();
 
-        let stash_entry = request.stash_entry_ref.as_ref().and_then(|ref_id| {
+        let stash_entry = request.stash_entry_ref.as_ref().map(|ref_id| {
             // Simplified: construct a minimal entry from the ref.
-            Some(StashShelfEntry::new(
+            StashShelfEntry::new(
                 ref_id.clone(),
                 "actor:git:stash".to_string(),
                 target.repo.clone(),
                 target.worktree.clone(),
                 request.message.clone().unwrap_or_default(),
-            ))
+            )
         });
 
         DailyLoopPreview {
@@ -1957,9 +1959,9 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
         if preview.kind == DailyLoopOperationKind::Unstage {
             args = vec!["reset", "HEAD"];
         }
-        for path in &preview.affected_paths {
+        if !preview.affected_paths.is_empty() {
             args.push("--");
-            args.push(path);
+            args.extend(preview.affected_paths.iter().map(String::as_str));
         }
         let output = match self
             .backend
@@ -2052,9 +2054,9 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
                     args.push("-m");
                     args.push(msg);
                 }
-                for path in &preview.affected_paths {
+                if !preview.affected_paths.is_empty() {
                     args.push("--");
-                    args.push(path);
+                    args.extend(preview.affected_paths.iter().map(String::as_str));
                 }
                 self.backend
                     .run_git(&preview.target.worktree.worktree_root, &args)
