@@ -75,6 +75,9 @@ fi
 export TZ=UTC
 export LC_ALL=C
 
+printf '[contract-validation] checking workspace governance synchronization\n'
+python3 "${REPO_ROOT}/tools/governance/sync_workspace_governance.py"
+
 python3 "${REPO_ROOT}/tools/ci/validate_contract_artifacts.py" "${ARGS[@]}" | tee "${SUMMARY_PATH}"
 
 printf '\n[contract-validation] validating checked-in build identity artifact\n' | tee -a "${SUMMARY_PATH}"

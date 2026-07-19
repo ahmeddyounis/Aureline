@@ -16,6 +16,11 @@ lint rules and cases.
 
 Companion artifacts:
 
+- [`/tools/governance/sync_workspace_governance.py`](../../tools/governance/sync_workspace_governance.py)
+  — synchronizes and checks Cargo workspace membership, production/build
+  edges, topological layers, package ownership, protected dependency classes,
+  and the repository topology docs. Test-only `dev-dependencies` are excluded
+  from production authority and cycle analysis.
 - [`/tools/ci/validate_contract_artifacts.py`](../../tools/ci/validate_contract_artifacts.py)
   — shared validator entry point.
 - [`/ci/contract_validation.sh`](../../ci/contract_validation.sh)
@@ -72,7 +77,15 @@ Companion artifacts:
 ## Prerequisites
 
 - `python3`
+- Python packages pinned in
+  [`/tools/requirements-contract-validation.txt`](../../tools/requirements-contract-validation.txt)
 - `ruby` (the validator parses YAML through Ruby's built-in `Psych`)
+
+Install the Python dependencies into your preferred virtual environment:
+
+```bash
+python3 -m pip install --requirement tools/requirements-contract-validation.txt
+```
 
 ## Run locally
 

@@ -68,7 +68,10 @@ SCAN_SUFFIXES = {
 }
 
 RAW_COLOR_RE = re.compile(
-    r"(#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b)"
+    # Numeric-only three/four digit fragments are overwhelmingly issue, PR,
+    # check, or run references (for example ``#4821``), not CSS. Short-form
+    # colors remain detectable when they contain a hexadecimal alpha digit.
+    r"(#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8}|(?=[0-9a-fA-F]{3,4}\b)(?=[0-9a-fA-F]*[a-fA-F])[0-9a-fA-F]{3,4})\b)"
     r"|(\b(?:rgb|rgba|hsl|hsla)\([^)\n]*\))"
     r"|(\b0x[0-9a-fA-F]{6,8}\b)"
 )
@@ -113,6 +116,12 @@ DOMAIN_FORBIDDEN_TOKEN_PREFIXES: dict[str, tuple[str, ...]] = {
 }
 
 DOMAIN_TAG_RE = re.compile(r"\baureline-token-domain\s*:\s*(?P<domain>[A-Za-z_]+)\b")
+
+# Design-system sources of truth may carry deliberately invalid literals to
+# prove their own rejection behavior. These are not consuming product styles.
+NON_CONSUMING_SOURCE_GLOBS = (
+    "crates/aureline-design-system/src/m5_style_drift_lint/seed.rs",
+)
 
 
 class GateError(RuntimeError):
@@ -357,7 +366,28 @@ def iter_first_party_files(repo_root: Path, roots: Iterable[str]) -> Iterable[Pa
                 continue
             if path.suffix.lower() not in SCAN_SUFFIXES:
                 continue
+            # Unit and integration tests intentionally construct invalid
+            # literals; the product-code gate validates those through the
+            # dedicated fixture corpus below instead of scanning test bodies.
+            if path.name == "tests.rs" or "tests" in rel.parts:
+                continue
+            if matches_any_glob(rel.as_posix(), NON_CONSUMING_SOURCE_GLOBS):
+                continue
             yield path
+
+
+def source_without_comment_only_lines(text: str) -> str:
+    """Drop comment-only lines before scanning source-code literals.
+
+    Rust/JS/CSS documentation frequently names forbidden literal forms while
+    explaining the policy. A lexical consumer-style gate must not turn that
+    prose into a product-style violation.
+    """
+
+    return "\n".join(
+        "" if line.lstrip().startswith(("//", "/*", "*", "*/")) else line
+        for line in text.splitlines()
+    )
 
 
 def exception_allows_literal(
@@ -408,9 +438,10 @@ def check_first_party_sources(
         except UnicodeDecodeError:
             continue
 
-        declared_domain = find_declared_domain(text)
+        scan_text = source_without_comment_only_lines(text)
+        declared_domain = find_declared_domain(scan_text)
         if declared_domain:
-            token_refs = detect_token_refs(text)
+            token_refs = detect_token_refs(scan_text)
             domain_violations = detect_domain_violations(declared_domain, token_refs)
             for violation in domain_violations:
                 token_ref = violation["token_ref"]
@@ -424,7 +455,7 @@ def check_first_party_sources(
                         f"{rel_path}: token {token_ref!r} violates declared domain {declared_domain!r} (no active exception)"
                     )
 
-        raw_literals = detect_raw_color_literals(text)
+        raw_literals = sorted(set(detect_raw_color_literals(scan_text)))
         if not raw_literals:
             continue
 
