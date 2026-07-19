@@ -1,9 +1,10 @@
 # Docs index
 
 Aureline is an open-source next-generation IDE (working name). The
-repository is in its pre-implementation stage; these documents describe
-the governance, ownership, and build discipline that precede source
-code.
+repository is under active pre-release implementation and contract
+maturation. These documents define the governance, ownership, architecture,
+product behavior, build discipline, validation evidence, and compatibility
+rules that the source code and release artifacts must satisfy.
 
 ## Governance
 

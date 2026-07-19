@@ -47,9 +47,10 @@ point for contributors and reviewers. It pairs with:
   — the companion upstream-risk and approval-quorum records for
   protected dependency and release/security actions.
 
-Aureline is in its pre-implementation stage. The contribution rules
-below apply from the first source-bearing change so that compliance
-debt does not accumulate silently.
+Aureline is under active pre-release implementation and contract
+maturation. The contribution rules below apply to every source-bearing
+change so that compatibility, evidence, and compliance debt do not
+accumulate silently.
 
 ## Quick start
 
