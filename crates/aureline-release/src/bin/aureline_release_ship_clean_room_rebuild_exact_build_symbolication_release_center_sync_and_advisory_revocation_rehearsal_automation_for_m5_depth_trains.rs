@@ -10,19 +10,19 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_clean_room_rebuild_exact_build_symbolication_release_center_sync_and_advisory_revocation_rehearsal_automation_for_m5_depth_trains -- register
+//!   --bin aureline_release_ship_clean_room_rebuild_exact -- register
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_clean_room_rebuild_exact_build_symbolication_release_center_sync_and_advisory_revocation_rehearsal_automation_for_m5_depth_trains -- support-export
+//!   --bin aureline_release_ship_clean_room_rebuild_exact -- support-export
 //!
 //! # Print the rehearsal-expiry feed that dashboards and the evidence index ingest.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_clean_room_rebuild_exact_build_symbolication_release_center_sync_and_advisory_revocation_rehearsal_automation_for_m5_depth_trains -- expiry-feed
+//!   --bin aureline_release_ship_clean_room_rebuild_exact -- expiry-feed
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_clean_room_rebuild_exact_build_symbolication_release_center_sync_and_advisory_revocation_rehearsal_automation_for_m5_depth_trains -- emit-fixtures \
+//!   --bin aureline_release_ship_clean_room_rebuild_exact -- emit-fixtures \
 //!   fixtures/release/m5/ship_clean_room_rebuild_exact_build_symbolication_release_center_sync_and_advisory_revocation_rehearsal_automation_for_m5_depth_trains
 //! ```
 

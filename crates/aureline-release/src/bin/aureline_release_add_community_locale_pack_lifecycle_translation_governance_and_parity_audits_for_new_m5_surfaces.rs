@@ -11,15 +11,15 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces -- register
+//!   --bin aureline_release_add_community_locale_pack_lifecycle -- register
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces -- support-export
+//!   --bin aureline_release_add_community_locale_pack_lifecycle -- support-export
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces -- emit-fixtures \
+//!   --bin aureline_release_add_community_locale_pack_lifecycle -- emit-fixtures \
 //!   fixtures/release/m5/add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces
 //! ```
 

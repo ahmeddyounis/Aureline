@@ -11,20 +11,20 @@
 //! ```sh
 //! # Print the full graph as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_release_candidate_objects_blocker_evidence_freshness_rows_and_scoped_artifact_bundle_cards_for_every_new_m5_family -- graph
+//!   --bin aureline_release_implement_release_candidate_objects_blocker -- graph
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_release_candidate_objects_blocker_evidence_freshness_rows_and_scoped_artifact_bundle_cards_for_every_new_m5_family -- support-export
+//!   --bin aureline_release_implement_release_candidate_objects_blocker -- support-export
 //!
 //! # Regenerate the checked-in artifact from the builder.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_release_candidate_objects_blocker_evidence_freshness_rows_and_scoped_artifact_bundle_cards_for_every_new_m5_family -- emit-artifact \
+//!   --bin aureline_release_implement_release_candidate_objects_blocker -- emit-artifact \
 //!   artifacts/release/m5/implement_release_candidate_objects_blocker_evidence_freshness_rows_and_scoped_artifact_bundle_cards_for_every_new_m5_family.json
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_release_candidate_objects_blocker_evidence_freshness_rows_and_scoped_artifact_bundle_cards_for_every_new_m5_family -- emit-fixtures \
+//!   --bin aureline_release_implement_release_candidate_objects_blocker -- emit-fixtures \
 //!   fixtures/release/m5/implement_release_candidate_objects_blocker_evidence_freshness_rows_and_scoped_artifact_bundle_cards_for_every_new_m5_family
 //! ```
 

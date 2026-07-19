@@ -9,23 +9,23 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages -- register
+//!   --bin aureline_release_implement_contract_ci_gates_release -- register
 //!
 //! # Inspect one family: its gates, graph linkage, and blocker decision.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages -- inspect task_event_envelope
+//!   --bin aureline_release_implement_contract_ci_gates_release -- inspect task_event_envelope
 //!
 //! # Print the shiproom blocker projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages -- shiproom
+//!   --bin aureline_release_implement_contract_ci_gates_release -- shiproom
 //!
 //! # Print the promotion gate decision and exit non-zero when promotion is held.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages -- gate
+//!   --bin aureline_release_implement_contract_ci_gates_release -- gate
 //!
 //! # Validate the checked-in register.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages -- validate
+//!   --bin aureline_release_implement_contract_ci_gates_release -- validate
 //! ```
 
 use aureline_release::implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages::{

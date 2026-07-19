@@ -35,5 +35,5 @@ Held by: `task_event_envelope` (failing gate kinds: `compatibility_report`). The
 The typed consumer ships a headless inspect bin that prints the register, a per-family inspect view, the shiproom blocker projection, and the gate manifest, with no live service:
 
 ```sh
-cargo run -q -p aureline-release --bin aureline_release_implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages -- inspect task_event_envelope
+cargo run -q -p aureline-release --bin aureline_release_implement_contract_ci_gates_release -- inspect task_event_envelope
 ```

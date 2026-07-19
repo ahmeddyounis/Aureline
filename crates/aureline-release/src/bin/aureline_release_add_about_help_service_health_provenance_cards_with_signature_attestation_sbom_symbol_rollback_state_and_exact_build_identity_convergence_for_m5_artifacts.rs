@@ -12,20 +12,20 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_about_help_service_health_provenance_cards_with_signature_attestation_sbom_symbol_rollback_state_and_exact_build_identity_convergence_for_m5_artifacts -- register
+//!   --bin aureline_release_add_about_help_service_health -- register
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_about_help_service_health_provenance_cards_with_signature_attestation_sbom_symbol_rollback_state_and_exact_build_identity_convergence_for_m5_artifacts -- support-export
+//!   --bin aureline_release_add_about_help_service_health -- support-export
 //!
 //! # Regenerate the checked-in artifact from the builder.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_about_help_service_health_provenance_cards_with_signature_attestation_sbom_symbol_rollback_state_and_exact_build_identity_convergence_for_m5_artifacts -- emit-artifact \
+//!   --bin aureline_release_add_about_help_service_health -- emit-artifact \
 //!   artifacts/release/m5/add_about_help_service_health_provenance_cards_with_signature_attestation_sbom_symbol_rollback_state_and_exact_build_identity_convergence_for_m5_artifacts.json
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_about_help_service_health_provenance_cards_with_signature_attestation_sbom_symbol_rollback_state_and_exact_build_identity_convergence_for_m5_artifacts -- emit-fixtures \
+//!   --bin aureline_release_add_about_help_service_health -- emit-fixtures \
 //!   fixtures/release/m5/add_about_help_service_health_provenance_cards_with_signature_attestation_sbom_symbol_rollback_state_and_exact_build_identity_convergence_for_m5_artifacts
 //! ```
 

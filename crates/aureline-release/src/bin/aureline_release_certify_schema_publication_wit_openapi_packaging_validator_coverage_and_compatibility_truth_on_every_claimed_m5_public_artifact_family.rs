@@ -10,23 +10,23 @@
 //! ```sh
 //! # Print the full certification register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family -- register
+//!   --bin aureline_release_certify_schema_publication_wit_openapi -- register
 //!
 //! # Inspect one family: its pillars, certification state, reasons, and decision.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family -- inspect task_event_envelope
+//!   --bin aureline_release_certify_schema_publication_wit_openapi -- inspect task_event_envelope
 //!
 //! # Print the support/export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family -- support
+//!   --bin aureline_release_certify_schema_publication_wit_openapi -- support
 //!
 //! # Print the promotion decision and exit non-zero when certification holds promotion.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family -- gate
+//!   --bin aureline_release_certify_schema_publication_wit_openapi -- gate
 //!
 //! # Validate the checked-in register.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family -- validate
+//!   --bin aureline_release_certify_schema_publication_wit_openapi -- validate
 //! ```
 
 use aureline_release::certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family::{

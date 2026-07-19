@@ -11,20 +11,20 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_version_bump_proposals_publish_target_review_sheets_auth_source_disclosure_dry_run_previews_and_rollout_ring_truth_across_m5_publication_lanes -- register
+//!   --bin aureline_release_ship_version_bump_proposals_publish -- register
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_version_bump_proposals_publish_target_review_sheets_auth_source_disclosure_dry_run_previews_and_rollout_ring_truth_across_m5_publication_lanes -- support-export
+//!   --bin aureline_release_ship_version_bump_proposals_publish -- support-export
 //!
 //! # Regenerate the checked-in artifact from the builder.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_version_bump_proposals_publish_target_review_sheets_auth_source_disclosure_dry_run_previews_and_rollout_ring_truth_across_m5_publication_lanes -- emit-artifact \
+//!   --bin aureline_release_ship_version_bump_proposals_publish -- emit-artifact \
 //!   artifacts/release/m5/ship_version_bump_proposals_publish_target_review_sheets_auth_source_disclosure_dry_run_previews_and_rollout_ring_truth_across_m5_publication_lanes.json
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_version_bump_proposals_publish_target_review_sheets_auth_source_disclosure_dry_run_previews_and_rollout_ring_truth_across_m5_publication_lanes -- emit-fixtures \
+//!   --bin aureline_release_ship_version_bump_proposals_publish -- emit-fixtures \
 //!   fixtures/release/m5/ship_version_bump_proposals_publish_target_review_sheets_auth_source_disclosure_dry_run_previews_and_rollout_ring_truth_across_m5_publication_lanes
 //! ```
 

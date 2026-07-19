@@ -15,12 +15,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-release --bin aureline_release_add_shared_release_center_update_center_about_help_docs_evaluation_and_support_publication_component_consumers -- support-export
-//! cargo run -q -p aureline-release --bin aureline_release_add_shared_release_center_update_center_about_help_docs_evaluation_and_support_publication_component_consumers -- report
-//! cargo run -q -p aureline-release --bin aureline_release_add_shared_release_center_update_center_about_help_docs_evaluation_and_support_publication_component_consumers -- csv
-//! cargo run -q -p aureline-release --bin aureline_release_add_shared_release_center_update_center_about_help_docs_evaluation_and_support_publication_component_consumers -- fixture-about-help-handoff-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_add_shared_release_center_update_center_about_help_docs_evaluation_and_support_publication_component_consumers -- fixture-docs-mirror-offline-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_add_shared_release_center_update_center_about_help_docs_evaluation_and_support_publication_component_consumers -- validate
+//! cargo run -q -p aureline-release --bin aureline_release_add_shared_release_center_update -- support-export
+//! cargo run -q -p aureline-release --bin aureline_release_add_shared_release_center_update -- report
+//! cargo run -q -p aureline-release --bin aureline_release_add_shared_release_center_update -- csv
+//! cargo run -q -p aureline-release --bin aureline_release_add_shared_release_center_update -- fixture-about-help-handoff-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_add_shared_release_center_update -- fixture-docs-mirror-offline-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_add_shared_release_center_update -- validate
 //! ```
 
 use aureline_release::add_shared_release_center_update_center_about_help_docs_evaluation_and_support_publication_component_consumers::{

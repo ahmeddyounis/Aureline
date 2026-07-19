@@ -13,12 +13,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-ai --bin aureline_ai_draft_state_row_attachment_stale_banner_send_review_control_primitive -- support-export
-//! cargo run -q -p aureline-ai --bin aureline_ai_draft_state_row_attachment_stale_banner_send_review_control_primitive -- report
-//! cargo run -q -p aureline-ai --bin aureline_ai_draft_state_row_attachment_stale_banner_send_review_control_primitive -- csv
-//! cargo run -q -p aureline-ai --bin aureline_ai_draft_state_row_attachment_stale_banner_send_review_control_primitive -- fixture-patch-draft-preview-narrowed
-//! cargo run -q -p aureline-ai --bin aureline_ai_draft_state_row_attachment_stale_banner_send_review_control_primitive -- fixture-cli-headless-beta-narrowed
-//! cargo run -q -p aureline-ai --bin aureline_ai_draft_state_row_attachment_stale_banner_send_review_control_primitive -- validate
+//! cargo run -q -p aureline-ai --bin aureline_ai_draft_state_row_attachment_stale -- support-export
+//! cargo run -q -p aureline-ai --bin aureline_ai_draft_state_row_attachment_stale -- report
+//! cargo run -q -p aureline-ai --bin aureline_ai_draft_state_row_attachment_stale -- csv
+//! cargo run -q -p aureline-ai --bin aureline_ai_draft_state_row_attachment_stale -- fixture-patch-draft-preview-narrowed
+//! cargo run -q -p aureline-ai --bin aureline_ai_draft_state_row_attachment_stale -- fixture-cli-headless-beta-narrowed
+//! cargo run -q -p aureline-ai --bin aureline_ai_draft_state_row_attachment_stale -- validate
 //! ```
 
 use aureline_ai::ship_draft_state_rows_offline_local_only_banners_attachment_stale_warnings_and_split_send_or_review_controls_with_no_hidden_sharing_and_no_ambiguous_send_truth_across_claimed_m5_composer_surfaces::{

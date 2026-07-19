@@ -11,15 +11,15 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards -- register
+//!   --bin aureline_release_ship_benchmark_corpora_reference_workspace -- register
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards -- support-export
+//!   --bin aureline_release_ship_benchmark_corpora_reference_workspace -- support-export
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards -- emit-fixtures \
+//!   --bin aureline_release_ship_benchmark_corpora_reference_workspace -- emit-fixtures \
 //!   fixtures/release/m5/ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards
 //! ```
 

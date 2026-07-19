@@ -10,20 +10,20 @@
 //! ```sh
 //! # Print the full catalog as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity -- catalog
+//!   --bin aureline_release_ship_contract_example_corpora_sample -- catalog
 //!
 //! # Inspect one family: its catalog entry plus the sample payload gallery
 //! # the docs/SDK publication links to.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity -- inspect command_descriptors
+//!   --bin aureline_release_ship_contract_example_corpora_sample -- inspect command_descriptors
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity -- support-export
+//!   --bin aureline_release_ship_contract_example_corpora_sample -- support-export
 //!
 //! # Validate the checked-in catalog.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity -- validate
+//!   --bin aureline_release_ship_contract_example_corpora_sample -- validate
 //! ```
 
 use std::path::PathBuf;

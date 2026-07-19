@@ -10,15 +10,15 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_generate_m5_proof_freshness_backport_and_evidence_expiry_automation_for_depth_trains -- register
+//!   --bin aureline_release_generate_m5_proof_freshness_backport -- register
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_generate_m5_proof_freshness_backport_and_evidence_expiry_automation_for_depth_trains -- support-export
+//!   --bin aureline_release_generate_m5_proof_freshness_backport -- support-export
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_generate_m5_proof_freshness_backport_and_evidence_expiry_automation_for_depth_trains -- emit-fixtures \
+//!   --bin aureline_release_generate_m5_proof_freshness_backport -- emit-fixtures \
 //!   fixtures/release/m5/generate_m5_proof_freshness_backport_and_evidence_expiry_automation_for_depth_trains
 //! ```
 

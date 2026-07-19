@@ -17,12 +17,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-release --bin aureline_release_ship_version_bump_rows_and_publish_target_review_sheets_across_claimed_m5_publication_lanes -- support-export
-//! cargo run -q -p aureline-release --bin aureline_release_ship_version_bump_rows_and_publish_target_review_sheets_across_claimed_m5_publication_lanes -- report
-//! cargo run -q -p aureline-release --bin aureline_release_ship_version_bump_rows_and_publish_target_review_sheets_across_claimed_m5_publication_lanes -- csv
-//! cargo run -q -p aureline-release --bin aureline_release_ship_version_bump_rows_and_publish_target_review_sheets_across_claimed_m5_publication_lanes -- fixture-update-center-publish-row-beta-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_ship_version_bump_rows_and_publish_target_review_sheets_across_claimed_m5_publication_lanes -- fixture-cli-publish-inspect-preview-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_ship_version_bump_rows_and_publish_target_review_sheets_across_claimed_m5_publication_lanes -- validate
+//! cargo run -q -p aureline-release --bin aureline_release_ship_version_bump_rows_publish -- support-export
+//! cargo run -q -p aureline-release --bin aureline_release_ship_version_bump_rows_publish -- report
+//! cargo run -q -p aureline-release --bin aureline_release_ship_version_bump_rows_publish -- csv
+//! cargo run -q -p aureline-release --bin aureline_release_ship_version_bump_rows_publish -- fixture-update-center-publish-row-beta-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_ship_version_bump_rows_publish -- fixture-cli-publish-inspect-preview-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_ship_version_bump_rows_publish -- validate
 //! ```
 
 use aureline_release::ship_version_bump_rows_and_publish_target_review_sheets_across_claimed_m5_publication_lanes::{

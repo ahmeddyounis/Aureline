@@ -32,5 +32,5 @@ The interchange-conformance promotion decision is **clear**.
 The typed consumer ships a headless inspect bin that prints the register, a per-family inspect view, the support/export projection, and the validator manifest, with no live service:
 
 ```sh
-cargo run -q -p aureline-release --bin aureline_release_add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families -- inspect support_bundles
+cargo run -q -p aureline-release --bin aureline_release_add_import_export_validators_cross -- inspect support_bundles
 ```

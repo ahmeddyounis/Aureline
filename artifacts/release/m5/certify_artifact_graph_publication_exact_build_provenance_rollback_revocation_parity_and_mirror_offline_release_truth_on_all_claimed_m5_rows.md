@@ -7,7 +7,7 @@ publication-certification register.
 - **Schema**: `schemas/governance/certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows.schema.json`
 - **Typed consumer**: `crates/aureline-release/src/certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows/mod.rs`
 - **Overview page**: `docs/m5/certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows.md`
-- **Headless emitter**: `cargo run -q -p aureline-release --bin aureline_release_certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows -- register`
+- **Headless emitter**: `cargo run -q -p aureline-release --bin aureline_release_certify_artifact_graph_publication_exact -- register`
 
 The register is the single source of truth for certifying that every claimed M5
 artifact family — notebook packs, request/data assets, profiler/replay artifacts,

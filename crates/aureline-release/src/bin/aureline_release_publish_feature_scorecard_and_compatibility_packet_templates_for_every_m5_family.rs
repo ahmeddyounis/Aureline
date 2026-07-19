@@ -10,15 +10,15 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_publish_feature_scorecard_and_compatibility_packet_templates_for_every_m5_family -- register
+//!   --bin aureline_release_publish_feature_scorecard_compatibility_packet -- register
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_publish_feature_scorecard_and_compatibility_packet_templates_for_every_m5_family -- support-export
+//!   --bin aureline_release_publish_feature_scorecard_compatibility_packet -- support-export
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_publish_feature_scorecard_and_compatibility_packet_templates_for_every_m5_family -- emit-fixtures \
+//!   --bin aureline_release_publish_feature_scorecard_compatibility_packet -- emit-fixtures \
 //!   fixtures/release/m5/publish_feature_scorecard_and_compatibility_packet_templates_for_every_m5_family
 //! ```
 

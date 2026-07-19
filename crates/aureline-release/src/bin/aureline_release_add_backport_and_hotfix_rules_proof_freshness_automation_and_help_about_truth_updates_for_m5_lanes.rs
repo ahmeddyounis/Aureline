@@ -11,15 +11,15 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes -- register
+//!   --bin aureline_release_add_backport_hotfix_rules_proof -- register
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes -- support-export
+//!   --bin aureline_release_add_backport_hotfix_rules_proof -- support-export
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes -- emit-fixtures \
+//!   --bin aureline_release_add_backport_hotfix_rules_proof -- emit-fixtures \
 //!   fixtures/release/m5/add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes
 //! ```
 

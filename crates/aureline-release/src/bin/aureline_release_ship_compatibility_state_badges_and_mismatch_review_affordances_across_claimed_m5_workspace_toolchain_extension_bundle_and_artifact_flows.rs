@@ -13,12 +13,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-release --bin aureline_release_ship_compatibility_state_badges_and_mismatch_review_affordances_across_claimed_m5_workspace_toolchain_extension_bundle_and_artifact_flows -- support-export
-//! cargo run -q -p aureline-release --bin aureline_release_ship_compatibility_state_badges_and_mismatch_review_affordances_across_claimed_m5_workspace_toolchain_extension_bundle_and_artifact_flows -- report
-//! cargo run -q -p aureline-release --bin aureline_release_ship_compatibility_state_badges_and_mismatch_review_affordances_across_claimed_m5_workspace_toolchain_extension_bundle_and_artifact_flows -- csv
-//! cargo run -q -p aureline-release --bin aureline_release_ship_compatibility_state_badges_and_mismatch_review_affordances_across_claimed_m5_workspace_toolchain_extension_bundle_and_artifact_flows -- fixture-compare-review-panel-beta-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_ship_compatibility_state_badges_and_mismatch_review_affordances_across_claimed_m5_workspace_toolchain_extension_bundle_and_artifact_flows -- fixture-support-export-row-preview-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_ship_compatibility_state_badges_and_mismatch_review_affordances_across_claimed_m5_workspace_toolchain_extension_bundle_and_artifact_flows -- validate
+//! cargo run -q -p aureline-release --bin aureline_release_ship_compatibility_state_badges_mismatch -- support-export
+//! cargo run -q -p aureline-release --bin aureline_release_ship_compatibility_state_badges_mismatch -- report
+//! cargo run -q -p aureline-release --bin aureline_release_ship_compatibility_state_badges_mismatch -- csv
+//! cargo run -q -p aureline-release --bin aureline_release_ship_compatibility_state_badges_mismatch -- fixture-compare-review-panel-beta-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_ship_compatibility_state_badges_mismatch -- fixture-support-export-row-preview-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_ship_compatibility_state_badges_mismatch -- validate
 //! ```
 
 use aureline_release::ship_compatibility_state_badges_and_mismatch_review_affordances_across_claimed_m5_workspace_toolchain_extension_bundle_and_artifact_flows::{

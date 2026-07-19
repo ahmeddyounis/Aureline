@@ -29,7 +29,7 @@ Downstream docs, Help/About, CLI inspection, release/public-truth automation, an
 
 ## Regeneration
 
-`tools/regenerate_freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix.py` is the single source of truth for the matrix, its CI validation capture, and the negative fixtures. It derives the summary counts and promotion verdict exactly as the typed Rust consumer does. After editing the row set, run the regenerator and then `cargo test -p aureline-release --test freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix`.
+`tools/regenerate_freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix.py` is the single source of truth for the matrix, its CI validation capture, and the negative fixtures. It derives the summary counts and promotion verdict exactly as the typed Rust consumer does. After editing the row set, run the regenerator and then `cargo test -p aureline-release --test rel_it_16_freeze_m5_dependency_intelligence`.
 
 ## Freshness
 

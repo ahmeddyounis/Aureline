@@ -18,12 +18,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-release --bin aureline_release_implement_artifact_provenance_bundle_cards_and_attestation_or_sbom_status_rows_across_claimed_m5_release_evaluation_support_surfaces -- support-export
-//! cargo run -q -p aureline-release --bin aureline_release_implement_artifact_provenance_bundle_cards_and_attestation_or_sbom_status_rows_across_claimed_m5_release_evaluation_support_surfaces -- report
-//! cargo run -q -p aureline-release --bin aureline_release_implement_artifact_provenance_bundle_cards_and_attestation_or_sbom_status_rows_across_claimed_m5_release_evaluation_support_surfaces -- csv
-//! cargo run -q -p aureline-release --bin aureline_release_implement_artifact_provenance_bundle_cards_and_attestation_or_sbom_status_rows_across_claimed_m5_release_evaluation_support_surfaces -- fixture-evaluation-provenance-sheet-beta-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_implement_artifact_provenance_bundle_cards_and_attestation_or_sbom_status_rows_across_claimed_m5_release_evaluation_support_surfaces -- fixture-cli-provenance-inspect-preview-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_implement_artifact_provenance_bundle_cards_and_attestation_or_sbom_status_rows_across_claimed_m5_release_evaluation_support_surfaces -- validate
+//! cargo run -q -p aureline-release --bin aureline_release_implement_artifact_provenance_bundle_cards -- support-export
+//! cargo run -q -p aureline-release --bin aureline_release_implement_artifact_provenance_bundle_cards -- report
+//! cargo run -q -p aureline-release --bin aureline_release_implement_artifact_provenance_bundle_cards -- csv
+//! cargo run -q -p aureline-release --bin aureline_release_implement_artifact_provenance_bundle_cards -- fixture-evaluation-provenance-sheet-beta-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_implement_artifact_provenance_bundle_cards -- fixture-cli-provenance-inspect-preview-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_implement_artifact_provenance_bundle_cards -- validate
 //! ```
 
 use aureline_release::implement_artifact_provenance_bundle_cards_and_attestation_or_sbom_status_rows_across_claimed_m5_release_evaluation_support_surfaces::{

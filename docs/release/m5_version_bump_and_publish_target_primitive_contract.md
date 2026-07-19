@@ -87,5 +87,5 @@ publication step, and never inherits ambient credentials silently.
 - Narrowed fixtures: `fixtures/ui/m5-publish-target-review-sheet-primitive/`
 
 All are minted from one seed builder by the headless emitter
-`aureline_release_ship_version_bump_rows_and_publish_target_review_sheets_across_claimed_m5_publication_lanes`;
+`aureline_release_ship_version_bump_rows_publish`;
 the inline tests re-read them and assert they match the seed exactly.

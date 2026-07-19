@@ -29,7 +29,7 @@ Every entry points back to the canonical schema/spec identifier and the lifecycl
 The typed consumer ships a headless inspect bin that prints the catalog, a per-family inspect view, and the support-export projection. The per-family view links back to the same catalog entry and example payload the Help and SDK docs publish, so one catalog entry backs docs, SDK, support export, and in-product inspection at once:
 
 ```sh
-cargo run -q -p aureline-release --bin aureline_release_ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity -- inspect command_descriptors
+cargo run -q -p aureline-release --bin aureline_release_ship_contract_example_corpora_sample -- inspect command_descriptors
 ```
 
 ## Offline and mirror parity

@@ -11,15 +11,15 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance -- register
+//!   --bin aureline_release_implement_feature_train_compatibility_reports -- register
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance -- support-export
+//!   --bin aureline_release_implement_feature_train_compatibility_reports -- support-export
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance -- emit-fixtures \
+//!   --bin aureline_release_implement_feature_train_compatibility_reports -- emit-fixtures \
 //!   fixtures/release/m5/implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance
 //! ```
 

@@ -6,13 +6,13 @@
 //! `fixtures/release/m5-stable-line-bundle-refresh-audit-and-shipping-line-drift-report-registries/`.
 //!
 //! ```text
-//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries -- support-export
-//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries -- report
-//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries -- csv
-//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries -- bundle-refresh-audit-table
-//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries -- fixture-bundle-refresh-audit-beta-narrowed
-//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries -- fixture-shipping-line-drift-report-preview-narrowed
-//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries -- validate
+//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh -- support-export
+//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh -- report
+//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh -- csv
+//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh -- bundle-refresh-audit-table
+//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh -- fixture-bundle-refresh-audit-beta-narrowed
+//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh -- fixture-shipping-line-drift-report-preview-narrowed
+//! cargo run -p aureline-ui --example dump_m5_stable_line_bundle_refresh -- validate
 //! ```
 
 use aureline_ui::m5_stable_line_bundle_refresh_audit_and_shipping_line_drift_report_registries::{

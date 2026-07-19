@@ -6,13 +6,13 @@
 //! `fixtures/collaboration/m5-comment-annotation-review-pin-anchor-history-and-rebind-review-registries/`.
 //!
 //! ```text
-//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin_anchor_history_and_rebind_review_registries -- support-export
-//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin_anchor_history_and_rebind_review_registries -- report
-//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin_anchor_history_and_rebind_review_registries -- csv
-//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin_anchor_history_and_rebind_review_registries -- review-pack-record-table
-//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin_anchor_history_and_rebind_review_registries -- fixture-review-pack-record-beta-narrowed
-//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin_anchor_history_and_rebind_review_registries -- fixture-review-pack-result-preview-narrowed
-//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin_anchor_history_and_rebind_review_registries -- validate
+//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin -- support-export
+//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin -- report
+//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin -- csv
+//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin -- review-pack-record-table
+//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin -- fixture-review-pack-record-beta-narrowed
+//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin -- fixture-review-pack-result-preview-narrowed
+//! cargo run -p aureline-ui --example dump_m5_comment_annotation_review_pin -- validate
 //! ```
 
 use aureline_ui::m5_comment_annotation_review_pin_anchor_history_and_rebind_review_registries::{

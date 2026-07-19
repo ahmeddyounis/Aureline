@@ -19,7 +19,7 @@ surface.
 
 The Rust validator in `crates/aureline-release` is the authoritative gate; this
 doc and the schema describe the shape. The headless emitter
-(`aureline_release_freeze_the_m5_support_class_evidence_freshness_lifecycle_channel_deployment_scope_compatibility_state_and_explanation_drawer_badge_matrix`)
+(`aureline_release_freeze_m5_support_class_evidence`)
 is the only mint-from-truth path for the artifacts above.
 
 ## Badge families (axes)

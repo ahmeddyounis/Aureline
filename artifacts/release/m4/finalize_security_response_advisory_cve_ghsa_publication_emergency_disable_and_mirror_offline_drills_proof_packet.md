@@ -89,7 +89,7 @@ rehearsal lands, and the offline bundle verification packet is captured.
 ## How to re-verify
 
 ```
-cargo test -p aureline-release --test finalize_security_response_advisory_cve_ghsa_publication_emergency_disable_and_mirror_offline_drills
+cargo test -p aureline-release --test rel_it_14_finalize_security_response_advisory
 ```
 
 The protected tests parse the checked-in packet, confirm every response kind is

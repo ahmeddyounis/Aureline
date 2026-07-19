@@ -105,7 +105,7 @@ the security-response packet publication gate.
 ## Verification
 
 ```sh
-cargo test -p aureline-release --test finalize_security_response_advisory_cve_ghsa_publication_emergency_disable_and_mirror_offline_drills
+cargo test -p aureline-release --test rel_it_14_finalize_security_response_advisory
 ```
 
 ## Response-packet freshness SLO

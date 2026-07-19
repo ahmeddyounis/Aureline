@@ -9,23 +9,23 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families -- register
+//!   --bin aureline_release_add_import_export_validators_cross -- register
 //!
 //! # Inspect one family: its validator, runner, dimensions, and decision.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families -- inspect support_bundles
+//!   --bin aureline_release_add_import_export_validators_cross -- inspect support_bundles
 //!
 //! # Print the support/export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families -- support
+//!   --bin aureline_release_add_import_export_validators_cross -- support
 //!
 //! # Print the promotion decision and exit non-zero when promotion is held.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families -- gate
+//!   --bin aureline_release_add_import_export_validators_cross -- gate
 //!
 //! # Validate the checked-in register.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families -- validate
+//!   --bin aureline_release_add_import_export_validators_cross -- validate
 //! ```
 
 use aureline_release::add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families::{

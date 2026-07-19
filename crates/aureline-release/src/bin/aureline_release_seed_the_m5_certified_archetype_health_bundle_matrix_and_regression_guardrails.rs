@@ -10,15 +10,15 @@
 //! ```sh
 //! # Print the full matrix as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails -- matrix
+//!   --bin aureline_release_seed_m5_certified_archetype_health -- matrix
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails -- support-export
+//!   --bin aureline_release_seed_m5_certified_archetype_health -- support-export
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails -- emit-fixtures \
+//!   --bin aureline_release_seed_m5_certified_archetype_health -- emit-fixtures \
 //!   fixtures/release/m5/seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails
 //! ```
 

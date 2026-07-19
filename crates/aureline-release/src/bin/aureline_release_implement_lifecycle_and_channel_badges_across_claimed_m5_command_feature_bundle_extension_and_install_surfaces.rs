@@ -13,12 +13,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-release --bin aureline_release_implement_lifecycle_and_channel_badges_across_claimed_m5_command_feature_bundle_extension_and_install_surfaces -- support-export
-//! cargo run -q -p aureline-release --bin aureline_release_implement_lifecycle_and_channel_badges_across_claimed_m5_command_feature_bundle_extension_and_install_surfaces -- report
-//! cargo run -q -p aureline-release --bin aureline_release_implement_lifecycle_and_channel_badges_across_claimed_m5_command_feature_bundle_extension_and_install_surfaces -- csv
-//! cargo run -q -p aureline-release --bin aureline_release_implement_lifecycle_and_channel_badges_across_claimed_m5_command_feature_bundle_extension_and_install_surfaces -- fixture-extension-install-row-beta-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_implement_lifecycle_and_channel_badges_across_claimed_m5_command_feature_bundle_extension_and_install_surfaces -- fixture-ecosystem-review-preview-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_implement_lifecycle_and_channel_badges_across_claimed_m5_command_feature_bundle_extension_and_install_surfaces -- validate
+//! cargo run -q -p aureline-release --bin aureline_release_implement_lifecycle_channel_badges_claimed -- support-export
+//! cargo run -q -p aureline-release --bin aureline_release_implement_lifecycle_channel_badges_claimed -- report
+//! cargo run -q -p aureline-release --bin aureline_release_implement_lifecycle_channel_badges_claimed -- csv
+//! cargo run -q -p aureline-release --bin aureline_release_implement_lifecycle_channel_badges_claimed -- fixture-extension-install-row-beta-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_implement_lifecycle_channel_badges_claimed -- fixture-ecosystem-review-preview-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_implement_lifecycle_channel_badges_claimed -- validate
 //! ```
 
 use aureline_release::implement_lifecycle_and_channel_badges_across_claimed_m5_command_feature_bundle_extension_and_install_surfaces::{

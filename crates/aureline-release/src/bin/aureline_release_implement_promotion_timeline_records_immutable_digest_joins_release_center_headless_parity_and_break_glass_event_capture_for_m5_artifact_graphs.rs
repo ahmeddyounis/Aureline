@@ -11,20 +11,20 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_promotion_timeline_records_immutable_digest_joins_release_center_headless_parity_and_break_glass_event_capture_for_m5_artifact_graphs -- register
+//!   --bin aureline_release_implement_promotion_timeline_records_immutable -- register
 //!
 //! # Print the audit/postmortem support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_promotion_timeline_records_immutable_digest_joins_release_center_headless_parity_and_break_glass_event_capture_for_m5_artifact_graphs -- support-export
+//!   --bin aureline_release_implement_promotion_timeline_records_immutable -- support-export
 //!
 //! # Regenerate the checked-in artifact from the builder.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_promotion_timeline_records_immutable_digest_joins_release_center_headless_parity_and_break_glass_event_capture_for_m5_artifact_graphs -- emit-artifact \
+//!   --bin aureline_release_implement_promotion_timeline_records_immutable -- emit-artifact \
 //!   artifacts/release/m5/implement_promotion_timeline_records_immutable_digest_joins_release_center_headless_parity_and_break_glass_event_capture_for_m5_artifact_graphs.json
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_promotion_timeline_records_immutable_digest_joins_release_center_headless_parity_and_break_glass_event_capture_for_m5_artifact_graphs -- emit-fixtures \
+//!   --bin aureline_release_implement_promotion_timeline_records_immutable -- emit-fixtures \
 //!   fixtures/release/m5/implement_promotion_timeline_records_immutable_digest_joins_release_center_headless_parity_and_break_glass_event_capture_for_m5_artifact_graphs
 //! ```
 

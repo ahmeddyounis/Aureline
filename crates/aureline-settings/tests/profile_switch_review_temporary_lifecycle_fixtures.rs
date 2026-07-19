@@ -29,7 +29,7 @@ fn fixtures_match_in_code_projection() {
         assert_eq!(
             on_disk,
             scenario.record(),
-            "{} fixture drifted; re-emit with `cargo run -q -p aureline-settings --bin aureline_settings_stabilize_profile_switch_review_and_temporary_profile_lifecycle -- emit-fixtures fixtures/settings/m4/stabilize-profile-switch-review-and-temporary-profile-lifecycle`",
+            "{} fixture drifted; re-emit with `cargo run -q -p aureline-settings --bin aureline_settings_stabilize_profile_switch_review_temporary -- emit-fixtures fixtures/settings/m4/stabilize-profile-switch-review-and-temporary-profile-lifecycle`",
             scenario.scenario_id
         );
     }

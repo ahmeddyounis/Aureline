@@ -11,19 +11,19 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows -- register
+//!   --bin aureline_release_certify_artifact_graph_publication_exact -- register
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows -- support-export
+//!   --bin aureline_release_certify_artifact_graph_publication_exact -- support-export
 //!
 //! # Print the computed summary and promotion verdict as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows -- computed
+//!   --bin aureline_release_certify_artifact_graph_publication_exact -- computed
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows -- emit-fixtures \
+//!   --bin aureline_release_certify_artifact_graph_publication_exact -- emit-fixtures \
 //!   fixtures/release/m5/certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows
 //! ```
 

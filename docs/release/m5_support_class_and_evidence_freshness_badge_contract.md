@@ -102,7 +102,7 @@ Every row carries four invariants that must be `false`:
 - Narrowed fixtures: `fixtures/ui/m5-support-class-and-evidence-freshness-badges/`
 
 The headless emitter
-`aureline_release_implement_support_class_and_evidence_freshness_badges_across_claimed_m5_onboarding_help_marketplace_and_diagnostics_surfaces`
+`aureline_release_implement_support_class_evidence_freshness`
 is the only mint-from-truth path for these artifacts. The Rust validator in
 `crates/aureline-release` is the authoritative gate; this doc and the schema document
 the shape.

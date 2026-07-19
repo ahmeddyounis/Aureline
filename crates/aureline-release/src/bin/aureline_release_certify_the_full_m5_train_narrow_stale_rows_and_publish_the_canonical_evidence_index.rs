@@ -11,15 +11,15 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index -- register
+//!   --bin aureline_release_certify_full_m5_train_narrow -- register
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index -- support-export
+//!   --bin aureline_release_certify_full_m5_train_narrow -- support-export
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index -- emit-fixtures \
+//!   --bin aureline_release_certify_full_m5_train_narrow -- emit-fixtures \
 //!   fixtures/release/m5/certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index
 //! ```
 

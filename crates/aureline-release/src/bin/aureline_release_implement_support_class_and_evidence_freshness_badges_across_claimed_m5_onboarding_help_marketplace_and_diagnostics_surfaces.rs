@@ -15,12 +15,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-release --bin aureline_release_implement_support_class_and_evidence_freshness_badges_across_claimed_m5_onboarding_help_marketplace_and_diagnostics_surfaces -- support-export
-//! cargo run -q -p aureline-release --bin aureline_release_implement_support_class_and_evidence_freshness_badges_across_claimed_m5_onboarding_help_marketplace_and_diagnostics_surfaces -- report
-//! cargo run -q -p aureline-release --bin aureline_release_implement_support_class_and_evidence_freshness_badges_across_claimed_m5_onboarding_help_marketplace_and_diagnostics_surfaces -- csv
-//! cargo run -q -p aureline-release --bin aureline_release_implement_support_class_and_evidence_freshness_badges_across_claimed_m5_onboarding_help_marketplace_and_diagnostics_surfaces -- fixture-marketplace-listing-beta-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_implement_support_class_and_evidence_freshness_badges_across_claimed_m5_onboarding_help_marketplace_and_diagnostics_surfaces -- fixture-certification-record-preview-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_implement_support_class_and_evidence_freshness_badges_across_claimed_m5_onboarding_help_marketplace_and_diagnostics_surfaces -- validate
+//! cargo run -q -p aureline-release --bin aureline_release_implement_support_class_evidence_freshness -- support-export
+//! cargo run -q -p aureline-release --bin aureline_release_implement_support_class_evidence_freshness -- report
+//! cargo run -q -p aureline-release --bin aureline_release_implement_support_class_evidence_freshness -- csv
+//! cargo run -q -p aureline-release --bin aureline_release_implement_support_class_evidence_freshness -- fixture-marketplace-listing-beta-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_implement_support_class_evidence_freshness -- fixture-certification-record-preview-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_implement_support_class_evidence_freshness -- validate
 //! ```
 
 use aureline_release::implement_support_class_and_evidence_freshness_badges_across_claimed_m5_onboarding_help_marketplace_and_diagnostics_surfaces::{

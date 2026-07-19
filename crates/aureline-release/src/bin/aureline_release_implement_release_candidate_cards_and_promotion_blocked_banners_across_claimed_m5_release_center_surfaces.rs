@@ -16,12 +16,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-release --bin aureline_release_implement_release_candidate_cards_and_promotion_blocked_banners_across_claimed_m5_release_center_surfaces -- support-export
-//! cargo run -q -p aureline-release --bin aureline_release_implement_release_candidate_cards_and_promotion_blocked_banners_across_claimed_m5_release_center_surfaces -- report
-//! cargo run -q -p aureline-release --bin aureline_release_implement_release_candidate_cards_and_promotion_blocked_banners_across_claimed_m5_release_center_surfaces -- csv
-//! cargo run -q -p aureline-release --bin aureline_release_implement_release_candidate_cards_and_promotion_blocked_banners_across_claimed_m5_release_center_surfaces -- fixture-update-center-card-beta-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_implement_release_candidate_cards_and_promotion_blocked_banners_across_claimed_m5_release_center_surfaces -- fixture-cli-release-inspect-preview-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_implement_release_candidate_cards_and_promotion_blocked_banners_across_claimed_m5_release_center_surfaces -- validate
+//! cargo run -q -p aureline-release --bin aureline_release_implement_release_candidate_cards_promotion -- support-export
+//! cargo run -q -p aureline-release --bin aureline_release_implement_release_candidate_cards_promotion -- report
+//! cargo run -q -p aureline-release --bin aureline_release_implement_release_candidate_cards_promotion -- csv
+//! cargo run -q -p aureline-release --bin aureline_release_implement_release_candidate_cards_promotion -- fixture-update-center-card-beta-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_implement_release_candidate_cards_promotion -- fixture-cli-release-inspect-preview-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_implement_release_candidate_cards_promotion -- validate
 //! ```
 
 use aureline_release::implement_release_candidate_cards_and_promotion_blocked_banners_across_claimed_m5_release_center_surfaces::{

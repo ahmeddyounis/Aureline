@@ -93,5 +93,5 @@ narrowed badge is understood from the banner alone.
 Regenerate all artifacts from the single seed builder with:
 
 ```sh
-cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings_onboarding_diagnostics_export_runtime_and_workspace_consumers_so_badge_families_keep_label_explanation_and_downgrade_parity_across_claimed_m5_profiles -- support-export
+cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings -- support-export
 ```

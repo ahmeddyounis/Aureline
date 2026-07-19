@@ -18,7 +18,7 @@ transport — it does **not** re-architect any of them.
 - Design matrix: `artifacts/design/m5-release-center-component-matrix.md`
 - Narrowed fixtures: `fixtures/ui/m5-release-center-components/`
 - Headless emitter (only mint-from-truth path):
-  `cargo run -p aureline-release --bin aureline_release_freeze_the_m5_release_candidate_card_version_bump_row_publish_target_row_artifact_provenance_bundle_card_and_promotion_timeline_component_matrix -- <support-export|report|csv|fixture-*|validate>`
+  `cargo run -p aureline-release --bin aureline_release_freeze_m5_release_candidate_card -- <support-export|report|csv|fixture-*|validate>`
 
 ## Component families (6)
 

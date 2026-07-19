@@ -77,7 +77,7 @@ All scenarios must enforce:
 Run the protected integration test:
 
 ```
-cargo test -p aureline-support --test stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_and_enterprise_network_rows
+cargo test -p aureline-support --test sup_it_01_stabilize_seeded_support_scenario
 ```
 
 All tests must pass before a release candidate can claim this row as stable.

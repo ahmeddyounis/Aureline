@@ -55,4 +55,4 @@ Publishing the full OpenAPI family un-narrows the `service_optional_api` row of 
 
 - `python3 tools/regenerate_m5_openapi_catalog.py` regenerates the catalog, example packs, SDK doc, this overview, the CI capture, and the negative fixtures from one source.
 - `python3 tools/validate_m5_openapi_catalog.py` validates the catalog against its boundary schema and semantic invariants, confirms every operation and auth posture matches the OpenAPI document and the surface rows, validates each example pack against the document's component schemas, and rejects the negative fixtures.
-- `cargo test -p aureline-release --test publish_openapi_specs_lifecycle_labels_and_example_packs_for_m5_service_apis_registry_mirror_endpoints_admin_ai_usage_export_routes_and_managed_control_plane_surfaces` runs the typed Rust consumer against the checked-in catalog, capture, and fixtures.
+- `cargo test -p aureline-release --test rel_it_34_publish_openapi_specs_lifecycle` runs the typed Rust consumer against the checked-in catalog, capture, and fixtures.

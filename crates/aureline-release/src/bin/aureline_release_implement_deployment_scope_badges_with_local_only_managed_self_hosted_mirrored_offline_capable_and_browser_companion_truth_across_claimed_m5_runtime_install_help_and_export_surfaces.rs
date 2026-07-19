@@ -13,12 +13,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-release --bin aureline_release_implement_deployment_scope_badges_with_local_only_managed_self_hosted_mirrored_offline_capable_and_browser_companion_truth_across_claimed_m5_runtime_install_help_and_export_surfaces -- support-export
-//! cargo run -q -p aureline-release --bin aureline_release_implement_deployment_scope_badges_with_local_only_managed_self_hosted_mirrored_offline_capable_and_browser_companion_truth_across_claimed_m5_runtime_install_help_and_export_surfaces -- report
-//! cargo run -q -p aureline-release --bin aureline_release_implement_deployment_scope_badges_with_local_only_managed_self_hosted_mirrored_offline_capable_and_browser_companion_truth_across_claimed_m5_runtime_install_help_and_export_surfaces -- csv
-//! cargo run -q -p aureline-release --bin aureline_release_implement_deployment_scope_badges_with_local_only_managed_self_hosted_mirrored_offline_capable_and_browser_companion_truth_across_claimed_m5_runtime_install_help_and_export_surfaces -- fixture-companion-mode-card-beta-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_implement_deployment_scope_badges_with_local_only_managed_self_hosted_mirrored_offline_capable_and_browser_companion_truth_across_claimed_m5_runtime_install_help_and_export_surfaces -- fixture-diagnostics-report-preview-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_implement_deployment_scope_badges_with_local_only_managed_self_hosted_mirrored_offline_capable_and_browser_companion_truth_across_claimed_m5_runtime_install_help_and_export_surfaces -- validate
+//! cargo run -q -p aureline-release --bin aureline_release_implement_deployment_scope_badges_local -- support-export
+//! cargo run -q -p aureline-release --bin aureline_release_implement_deployment_scope_badges_local -- report
+//! cargo run -q -p aureline-release --bin aureline_release_implement_deployment_scope_badges_local -- csv
+//! cargo run -q -p aureline-release --bin aureline_release_implement_deployment_scope_badges_local -- fixture-companion-mode-card-beta-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_implement_deployment_scope_badges_local -- fixture-diagnostics-report-preview-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_implement_deployment_scope_badges_local -- validate
 //! ```
 
 use aureline_release::implement_deployment_scope_badges_with_local_only_managed_self_hosted_mirrored_offline_capable_and_browser_companion_truth_across_claimed_m5_runtime_install_help_and_export_surfaces::{

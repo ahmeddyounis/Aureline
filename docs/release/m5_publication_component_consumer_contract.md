@@ -92,7 +92,7 @@ preserved whenever a component appears outside the main release center.
 The headless emitter is the only mint-from-truth path:
 
 ```sh
-BIN=aureline_release_add_shared_release_center_update_center_about_help_docs_evaluation_and_support_publication_component_consumers
+BIN=aureline_release_add_shared_release_center_update
 cargo run -q -p aureline-release --bin $BIN -- support-export > artifacts/release/m5-publication-component-consumer-proof/support_export.json
 cargo run -q -p aureline-release --bin $BIN -- csv           > artifacts/release/m5-publication-component-consumer-proof/matrix.csv
 cargo run -q -p aureline-release --bin $BIN -- report        > artifacts/components/m5-publication-component-consumer.md

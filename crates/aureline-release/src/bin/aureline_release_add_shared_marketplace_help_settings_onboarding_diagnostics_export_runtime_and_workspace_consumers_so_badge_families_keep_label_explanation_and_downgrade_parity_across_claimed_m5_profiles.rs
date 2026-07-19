@@ -14,12 +14,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings_onboarding_diagnostics_export_runtime_and_workspace_consumers_so_badge_families_keep_label_explanation_and_downgrade_parity_across_claimed_m5_profiles -- support-export
-//! cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings_onboarding_diagnostics_export_runtime_and_workspace_consumers_so_badge_families_keep_label_explanation_and_downgrade_parity_across_claimed_m5_profiles -- report
-//! cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings_onboarding_diagnostics_export_runtime_and_workspace_consumers_so_badge_families_keep_label_explanation_and_downgrade_parity_across_claimed_m5_profiles -- csv
-//! cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings_onboarding_diagnostics_export_runtime_and_workspace_consumers_so_badge_families_keep_label_explanation_and_downgrade_parity_across_claimed_m5_profiles -- fixture-diagnostics-freshness-beta-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings_onboarding_diagnostics_export_runtime_and_workspace_consumers_so_badge_families_keep_label_explanation_and_downgrade_parity_across_claimed_m5_profiles -- fixture-support-export-scope-preview-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings_onboarding_diagnostics_export_runtime_and_workspace_consumers_so_badge_families_keep_label_explanation_and_downgrade_parity_across_claimed_m5_profiles -- validate
+//! cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings -- support-export
+//! cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings -- report
+//! cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings -- csv
+//! cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings -- fixture-diagnostics-freshness-beta-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings -- fixture-support-export-scope-preview-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_add_shared_marketplace_help_settings -- validate
 //! ```
 
 use aureline_release::add_shared_marketplace_help_settings_onboarding_diagnostics_export_runtime_and_workspace_consumers_so_badge_families_keep_label_explanation_and_downgrade_parity_across_claimed_m5_profiles::{

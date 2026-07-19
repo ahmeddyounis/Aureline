@@ -15,7 +15,7 @@ This evidence packet records the reader/writer compatibility proof for the durab
 ```bash
 python3 tools/regenerate_m5_reader_writer_compat_suite.py
 python3 tools/validate_m5_reader_writer_compat_suite.py
-cargo test -p aureline-release --test add_forward_read_back_read_round_trip_and_migration_diff_suites_for_m5_workspace_state_evidence_support_appearance_learning_diagnostic_artifact_families
+cargo test -p aureline-release --test rel_it_04_add_forward_read_back
 ```
 
 ## Per-family coverage

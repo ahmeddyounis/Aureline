@@ -9,7 +9,7 @@ The canonical record is emitted by:
 
 ```sh
 cargo run -q -p aureline-settings \
-  --bin aureline_settings_stabilize_profile_switch_review_and_temporary_profile_lifecycle \
+  --bin aureline_settings_stabilize_profile_switch_review_temporary \
   -- emit-fixtures fixtures/settings/m4/stabilize-profile-switch-review-and-temporary-profile-lifecycle
 ```
 

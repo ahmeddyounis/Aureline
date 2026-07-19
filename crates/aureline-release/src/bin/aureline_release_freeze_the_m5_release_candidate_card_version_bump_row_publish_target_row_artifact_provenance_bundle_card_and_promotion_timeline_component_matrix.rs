@@ -17,12 +17,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-release --bin aureline_release_freeze_the_m5_release_candidate_card_version_bump_row_publish_target_row_artifact_provenance_bundle_card_and_promotion_timeline_component_matrix -- support-export
-//! cargo run -q -p aureline-release --bin aureline_release_freeze_the_m5_release_candidate_card_version_bump_row_publish_target_row_artifact_provenance_bundle_card_and_promotion_timeline_component_matrix -- report
-//! cargo run -q -p aureline-release --bin aureline_release_freeze_the_m5_release_candidate_card_version_bump_row_publish_target_row_artifact_provenance_bundle_card_and_promotion_timeline_component_matrix -- csv
-//! cargo run -q -p aureline-release --bin aureline_release_freeze_the_m5_release_candidate_card_version_bump_row_publish_target_row_artifact_provenance_bundle_card_and_promotion_timeline_component_matrix -- fixture-promotion-timeline-step-beta-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_freeze_the_m5_release_candidate_card_version_bump_row_publish_target_row_artifact_provenance_bundle_card_and_promotion_timeline_component_matrix -- fixture-rollback-revocation-row-preview-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_freeze_the_m5_release_candidate_card_version_bump_row_publish_target_row_artifact_provenance_bundle_card_and_promotion_timeline_component_matrix -- validate
+//! cargo run -q -p aureline-release --bin aureline_release_freeze_m5_release_candidate_card -- support-export
+//! cargo run -q -p aureline-release --bin aureline_release_freeze_m5_release_candidate_card -- report
+//! cargo run -q -p aureline-release --bin aureline_release_freeze_m5_release_candidate_card -- csv
+//! cargo run -q -p aureline-release --bin aureline_release_freeze_m5_release_candidate_card -- fixture-promotion-timeline-step-beta-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_freeze_m5_release_candidate_card -- fixture-rollback-revocation-row-preview-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_freeze_m5_release_candidate_card -- validate
 //! ```
 
 use aureline_release::freeze_the_m5_release_candidate_card_version_bump_row_publish_target_row_artifact_provenance_bundle_card_and_promotion_timeline_component_matrix::{

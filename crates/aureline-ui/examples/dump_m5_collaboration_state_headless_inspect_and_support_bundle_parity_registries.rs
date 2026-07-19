@@ -6,13 +6,13 @@
 //! `fixtures/collaboration/m5-collaboration-state-headless-inspect-and-support-bundle-parity-registries/`.
 //!
 //! ```text
-//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect_and_support_bundle_parity_registries -- support-export
-//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect_and_support_bundle_parity_registries -- report
-//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect_and_support_bundle_parity_registries -- csv
-//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect_and_support_bundle_parity_registries -- review-pack-record-table
-//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect_and_support_bundle_parity_registries -- fixture-review-pack-record-beta-narrowed
-//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect_and_support_bundle_parity_registries -- fixture-review-pack-result-preview-narrowed
-//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect_and_support_bundle_parity_registries -- validate
+//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect -- support-export
+//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect -- report
+//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect -- csv
+//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect -- review-pack-record-table
+//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect -- fixture-review-pack-record-beta-narrowed
+//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect -- fixture-review-pack-result-preview-narrowed
+//! cargo run -p aureline-ui --example dump_m5_collaboration_state_headless_inspect -- validate
 //! ```
 
 use aureline_ui::m5_collaboration_state_headless_inspect_and_support_bundle_parity_registries::{

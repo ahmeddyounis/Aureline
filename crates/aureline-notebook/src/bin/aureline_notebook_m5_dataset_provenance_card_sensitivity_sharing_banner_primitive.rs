@@ -16,12 +16,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity_sharing_banner_primitive -- support-export
-//! cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity_sharing_banner_primitive -- report
-//! cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity_sharing_banner_primitive -- csv
-//! cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity_sharing_banner_primitive -- fixture-dataset-card-remote
-//! cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity_sharing_banner_primitive -- fixture-sharing-banner-raw-payload
-//! cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity_sharing_banner_primitive -- validate
+//! cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity -- support-export
+//! cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity -- report
+//! cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity -- csv
+//! cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity -- fixture-dataset-card-remote
+//! cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity -- fixture-sharing-banner-raw-payload
+//! cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity -- validate
 //! ```
 
 use aureline_notebook::implement_dataset_provenance_cards_and_sensitivity_sharing_banners_with_snapshot_sample_redaction_and_local_remote_location_truth_across_claimed_m5_data_lanes::{

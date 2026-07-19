@@ -16,12 +16,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-release --bin aureline_release_implement_promotion_timeline_steps_and_rollback_or_revocation_rows_across_claimed_m5_release_histories -- support-export
-//! cargo run -q -p aureline-release --bin aureline_release_implement_promotion_timeline_steps_and_rollback_or_revocation_rows_across_claimed_m5_release_histories -- report
-//! cargo run -q -p aureline-release --bin aureline_release_implement_promotion_timeline_steps_and_rollback_or_revocation_rows_across_claimed_m5_release_histories -- csv
-//! cargo run -q -p aureline-release --bin aureline_release_implement_promotion_timeline_steps_and_rollback_or_revocation_rows_across_claimed_m5_release_histories -- fixture-update-center-history-beta-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_implement_promotion_timeline_steps_and_rollback_or_revocation_rows_across_claimed_m5_release_histories -- fixture-cli-history-inspect-preview-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_implement_promotion_timeline_steps_and_rollback_or_revocation_rows_across_claimed_m5_release_histories -- validate
+//! cargo run -q -p aureline-release --bin aureline_release_implement_promotion_timeline_steps_rollback -- support-export
+//! cargo run -q -p aureline-release --bin aureline_release_implement_promotion_timeline_steps_rollback -- report
+//! cargo run -q -p aureline-release --bin aureline_release_implement_promotion_timeline_steps_rollback -- csv
+//! cargo run -q -p aureline-release --bin aureline_release_implement_promotion_timeline_steps_rollback -- fixture-update-center-history-beta-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_implement_promotion_timeline_steps_rollback -- fixture-cli-history-inspect-preview-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_implement_promotion_timeline_steps_rollback -- validate
 //! ```
 
 use aureline_release::implement_promotion_timeline_steps_and_rollback_or_revocation_rows_across_claimed_m5_release_histories::{

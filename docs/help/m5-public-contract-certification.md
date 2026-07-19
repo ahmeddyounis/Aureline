@@ -19,7 +19,7 @@ Aureline certifies every claimed public artifact family with a single certificat
 
 ```sh
 cargo run -q -p aureline-release \
-  --bin aureline_release_certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family -- inspect command_descriptors
+  --bin aureline_release_certify_schema_publication_wit_openapi -- inspect command_descriptors
 ```
 
 The certification packet is consumed by claim-publication, release-center, support-center, and SDK/docs publication flows; it joins the contract-health register (`artifacts/release/m5-contract-health.json`) and the publication matrix (`artifacts/contracts/m5-stability-lifecycle-map.json`) rather than restating their field semantics.

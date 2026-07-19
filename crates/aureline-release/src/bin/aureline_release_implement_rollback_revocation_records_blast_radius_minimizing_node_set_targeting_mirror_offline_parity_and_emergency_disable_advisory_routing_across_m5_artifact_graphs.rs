@@ -11,20 +11,20 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_rollback_revocation_records_blast_radius_minimizing_node_set_targeting_mirror_offline_parity_and_emergency_disable_advisory_routing_across_m5_artifact_graphs -- register
+//!   --bin aureline_release_implement_rollback_revocation_records_blast -- register
 //!
 //! # Print the audit/advisory support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_rollback_revocation_records_blast_radius_minimizing_node_set_targeting_mirror_offline_parity_and_emergency_disable_advisory_routing_across_m5_artifact_graphs -- support-export
+//!   --bin aureline_release_implement_rollback_revocation_records_blast -- support-export
 //!
 //! # Regenerate the checked-in artifact from the builder.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_rollback_revocation_records_blast_radius_minimizing_node_set_targeting_mirror_offline_parity_and_emergency_disable_advisory_routing_across_m5_artifact_graphs -- emit-artifact \
+//!   --bin aureline_release_implement_rollback_revocation_records_blast -- emit-artifact \
 //!   artifacts/release/m5/implement_rollback_revocation_records_blast_radius_minimizing_node_set_targeting_mirror_offline_parity_and_emergency_disable_advisory_routing_across_m5_artifact_graphs.json
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_implement_rollback_revocation_records_blast_radius_minimizing_node_set_targeting_mirror_offline_parity_and_emergency_disable_advisory_routing_across_m5_artifact_graphs -- emit-fixtures \
+//!   --bin aureline_release_implement_rollback_revocation_records_blast -- emit-fixtures \
 //!   fixtures/release/m5/implement_rollback_revocation_records_blast_radius_minimizing_node_set_targeting_mirror_offline_parity_and_emergency_disable_advisory_routing_across_m5_artifact_graphs
 //! ```
 

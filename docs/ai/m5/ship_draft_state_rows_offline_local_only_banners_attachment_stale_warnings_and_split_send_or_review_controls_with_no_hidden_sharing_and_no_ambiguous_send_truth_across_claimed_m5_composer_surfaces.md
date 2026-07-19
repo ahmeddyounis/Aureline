@@ -113,5 +113,5 @@ sensitive strings.
 - Narrowed fixtures: `fixtures/ai/m5/ship_draft_state_rows_offline_local_only_banners_attachment_stale_warnings_and_split_send_or_review_controls_with_no_hidden_sharing_and_no_ambiguous_send_truth_across_claimed_m5_composer_surfaces/`.
 
 All are minted from the seed builders by the headless emitter
-`aureline_ai_draft_state_row_attachment_stale_banner_send_review_control_primitive`; the inline
+`aureline_ai_draft_state_row_attachment_stale`; the inline
 tests assert the checked artifacts never drift from the seed.

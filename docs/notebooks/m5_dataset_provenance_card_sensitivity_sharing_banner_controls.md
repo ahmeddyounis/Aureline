@@ -107,10 +107,10 @@ six seeded sharing banners.
 Regenerate every artifact and fixture from the single seed with the headless emitter:
 
 ```sh
-cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity_sharing_banner_primitive -- support-export
-cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity_sharing_banner_primitive -- csv
-cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity_sharing_banner_primitive -- report
-cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity_sharing_banner_primitive -- fixture-dataset-card-remote
-cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity_sharing_banner_primitive -- fixture-sharing-banner-raw-payload
-cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity_sharing_banner_primitive -- validate
+cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity -- support-export
+cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity -- csv
+cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity -- report
+cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity -- fixture-dataset-card-remote
+cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity -- fixture-sharing-banner-raw-payload
+cargo run -q -p aureline-notebook --bin aureline_notebook_m5_dataset_provenance_card_sensitivity -- validate
 ```

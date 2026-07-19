@@ -14,12 +14,12 @@
 //! Subcommands:
 //!
 //! ```sh
-//! cargo run -q -p aureline-release --bin aureline_release_freeze_the_m5_support_class_evidence_freshness_lifecycle_channel_deployment_scope_compatibility_state_and_explanation_drawer_badge_matrix -- support-export
-//! cargo run -q -p aureline-release --bin aureline_release_freeze_the_m5_support_class_evidence_freshness_lifecycle_channel_deployment_scope_compatibility_state_and_explanation_drawer_badge_matrix -- report
-//! cargo run -q -p aureline-release --bin aureline_release_freeze_the_m5_support_class_evidence_freshness_lifecycle_channel_deployment_scope_compatibility_state_and_explanation_drawer_badge_matrix -- csv
-//! cargo run -q -p aureline-release --bin aureline_release_freeze_the_m5_support_class_evidence_freshness_lifecycle_channel_deployment_scope_compatibility_state_and_explanation_drawer_badge_matrix -- fixture-channel-badge-beta-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_freeze_the_m5_support_class_evidence_freshness_lifecycle_channel_deployment_scope_compatibility_state_and_explanation_drawer_badge_matrix -- fixture-compatibility-state-badge-preview-narrowed
-//! cargo run -q -p aureline-release --bin aureline_release_freeze_the_m5_support_class_evidence_freshness_lifecycle_channel_deployment_scope_compatibility_state_and_explanation_drawer_badge_matrix -- validate
+//! cargo run -q -p aureline-release --bin aureline_release_freeze_m5_support_class_evidence -- support-export
+//! cargo run -q -p aureline-release --bin aureline_release_freeze_m5_support_class_evidence -- report
+//! cargo run -q -p aureline-release --bin aureline_release_freeze_m5_support_class_evidence -- csv
+//! cargo run -q -p aureline-release --bin aureline_release_freeze_m5_support_class_evidence -- fixture-channel-badge-beta-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_freeze_m5_support_class_evidence -- fixture-compatibility-state-badge-preview-narrowed
+//! cargo run -q -p aureline-release --bin aureline_release_freeze_m5_support_class_evidence -- validate
 //! ```
 
 use aureline_release::freeze_the_m5_support_class_evidence_freshness_lifecycle_channel_deployment_scope_compatibility_state_and_explanation_drawer_badge_matrix::{

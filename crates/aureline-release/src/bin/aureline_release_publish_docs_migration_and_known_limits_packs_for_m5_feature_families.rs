@@ -11,15 +11,15 @@
 //! ```sh
 //! # Print the full register as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_publish_docs_migration_and_known_limits_packs_for_m5_feature_families -- register
+//!   --bin aureline_release_publish_docs_migration_known_limits -- register
 //!
 //! # Print the support-export projection as JSON.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_publish_docs_migration_and_known_limits_packs_for_m5_feature_families -- support-export
+//!   --bin aureline_release_publish_docs_migration_known_limits -- support-export
 //!
 //! # Refresh the on-disk fixtures.
 //! cargo run -q -p aureline-release \
-//!   --bin aureline_release_publish_docs_migration_and_known_limits_packs_for_m5_feature_families -- emit-fixtures \
+//!   --bin aureline_release_publish_docs_migration_known_limits -- emit-fixtures \
 //!   fixtures/release/m5/publish_docs_migration_and_known_limits_packs_for_m5_feature_families
 //! ```
 
