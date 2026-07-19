@@ -26,8 +26,7 @@ posture lexicon, then writes, all deterministically:
 
 Run ``python3 tools/regenerate_m5_reader_writer_compat_suite.py`` after editing the
 suite shape, then ``python3 tools/validate_m5_reader_writer_compat_suite.py`` and
-``cargo test -p aureline-release --test
-add_forward_read_back_read_round_trip_and_migration_diff_suites_for_m5_workspace_state_evidence_support_appearance_learning_diagnostic_artifact_families``
+``cargo test -p aureline-release --test rel_it_04_add_forward_read_back``
 to confirm the validator and the typed model agree.
 
 Reader/writer posture drives the write-back behavior: ``reader_only`` families are
@@ -747,11 +746,7 @@ def build_evidence_doc(suite: dict) -> str:
     lines.append("```bash")
     lines.append("python3 tools/regenerate_m5_reader_writer_compat_suite.py")
     lines.append("python3 tools/validate_m5_reader_writer_compat_suite.py")
-    lines.append(
-        "cargo test -p aureline-release --test "
-        "add_forward_read_back_read_round_trip_and_migration_diff_suites_for_m5_"
-        "workspace_state_evidence_support_appearance_learning_diagnostic_artifact_families"
-    )
+    lines.append("cargo test -p aureline-release --test rel_it_04_add_forward_read_back")
     lines.append("```")
     lines.append("")
     lines.append("## Per-family coverage")
