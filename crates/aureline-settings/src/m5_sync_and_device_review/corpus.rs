@@ -478,7 +478,7 @@ fn lifecycle_bindings() -> Vec<SyncLifecycleBinding> {
                     .to_owned(),
         },
         SyncLifecycleBinding {
-            bundle_id: "sync.data-api".to_owned(),
+            bundle_id: "sync.data_api".to_owned(),
             request_case_ref: "request-case:sync-ledger:0001".to_owned(),
             export_job_ref: "export-job:sync-ledger:0001".to_owned(),
             delete_case_ref: "delete-case:sync-ledger:0001".to_owned(),
@@ -502,7 +502,7 @@ fn lifecycle_bindings() -> Vec<SyncLifecycleBinding> {
                     .to_owned(),
         },
         SyncLifecycleBinding {
-            bundle_id: "sync.extensions".to_owned(),
+            bundle_id: "sync.extension_bundles".to_owned(),
             request_case_ref: "request-case:sync-ledger:0001".to_owned(),
             export_job_ref: "export-job:sync-ledger:0001".to_owned(),
             delete_case_ref: "delete-case:sync-ledger:0001".to_owned(),
