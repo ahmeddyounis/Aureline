@@ -158,3 +158,43 @@ fn tampering_with_a_blocked_claim_publishability_is_caught() {
     }
     assert!(packet.validate().is_err());
 }
+
+/// One-shot generator for the checked diagnostics packet and metadata-only
+/// support export. Run with `GEN_LOCALE_DIAGNOSTICS_FIXTURES=1 cargo test -p
+/// aureline-shell i18n::locale_diagnostics::tests::generate_artifacts`.
+#[test]
+fn generate_artifacts() {
+    if std::env::var("GEN_LOCALE_DIAGNOSTICS_FIXTURES").is_err() {
+        return;
+    }
+    use std::fs;
+    use std::path::Path;
+
+    let packet = seeded_locale_diagnostics_packet();
+    packet
+        .validate()
+        .expect("seeded diagnostics packet validates");
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    for (fixture_ref, value) in [
+        (
+            LOCALE_DIAGNOSTICS_FIXTURE_REF,
+            serde_json::to_value(&packet).expect("diagnostics packet serializes"),
+        ),
+        (
+            LOCALE_DIAGNOSTICS_SUPPORT_EXPORT_FIXTURE_REF,
+            serde_json::to_value(&packet.support_export).expect("support export serializes"),
+        ),
+    ] {
+        let target = repo_root.join(fixture_ref);
+        fs::create_dir_all(target.parent().expect("fixture has a parent directory"))
+            .expect("create locale-diagnostics fixture directory");
+        fs::write(
+            target,
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&value).expect("fixture serializes")
+            ),
+        )
+        .expect("write locale-diagnostics fixture");
+    }
+}

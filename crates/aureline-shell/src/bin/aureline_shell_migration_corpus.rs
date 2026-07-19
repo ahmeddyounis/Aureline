@@ -18,7 +18,10 @@
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_corpus -- scoreboard-md
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_corpus -- compact
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_corpus -- validate
+//! cargo run -q -p aureline-shell --bin aureline_shell_migration_corpus -- emit-fixtures fixtures/migration/m3/incumbent_flows artifacts/migration/m3/migration_scoreboard.md
 //! ```
+
+use std::path::{Path, PathBuf};
 
 use aureline_shell::migration_corpus::{
     seeded_migration_scoreboard, validate_migration_scoreboard, IncumbentEcosystem,
@@ -84,6 +87,15 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(3);
             }
         },
+        Some("emit-fixtures") => {
+            let dir = args
+                .get(1)
+                .ok_or("emit-fixtures <dir> <scoreboard-md> requires a fixture directory")?;
+            let markdown = args
+                .get(2)
+                .ok_or("emit-fixtures <dir> <scoreboard-md> requires a Markdown target")?;
+            emit_fixtures(PathBuf::from(dir), PathBuf::from(markdown), &scoreboard)?;
+        }
         Some(other) => {
             return Err(format!("unknown subcommand: {other}").into());
         }
@@ -94,5 +106,45 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 fn print_json<T: serde::Serialize>(value: &T) -> Result<(), Box<dyn std::error::Error>> {
     let json = serde_json::to_string_pretty(value)?;
     println!("{json}");
+    Ok(())
+}
+
+fn emit_fixtures(
+    dir: PathBuf,
+    markdown_path: PathBuf,
+    scoreboard: &aureline_shell::migration_corpus::MigrationScoreboard,
+) -> Result<(), Box<dyn std::error::Error>> {
+    std::fs::create_dir_all(&dir)?;
+    write_json(&dir.join("scoreboard.json"), scoreboard)?;
+    for section in &scoreboard.sections {
+        let name = match section.ecosystem {
+            IncumbentEcosystem::VsCodeCodeOss => "vs_code_code_oss.json",
+            IncumbentEcosystem::JetBrainsFamily => "jetbrains_family.json",
+            IncumbentEcosystem::VimNeovim => "vim_neovim.json",
+            IncumbentEcosystem::Emacs => "emacs.json",
+        };
+        write_json(&dir.join(name), section)?;
+    }
+    let support_export = MigrationCorpusSupportExport::from_scoreboard(
+        "support-export:migration-corpus:001",
+        scoreboard.clone(),
+    );
+    write_json(&dir.join("support_export.json"), &support_export)?;
+    std::fs::write(
+        dir.join("compact.txt"),
+        format!("{}\n", scoreboard.compact_lines().join("\n")),
+    )?;
+    if let Some(parent) = markdown_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(markdown_path, scoreboard.render_scoreboard_markdown())?;
+    Ok(())
+}
+
+fn write_json<T: serde::Serialize>(
+    path: &Path,
+    value: &T,
+) -> Result<(), Box<dyn std::error::Error>> {
+    std::fs::write(path, format!("{}\n", serde_json::to_string_pretty(value)?))?;
     Ok(())
 }

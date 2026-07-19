@@ -263,13 +263,15 @@ fn always_on_capture_fails() {
     for row in &mut set.permission_rows {
         row.permission_state = PermissionState::GrantedInUse;
         row.capture_active = true;
+        if !row
+            .available_actions
+            .contains(&PermissionActionClass::RevokeInApp)
+        {
+            row.available_actions
+                .push(PermissionActionClass::RevokeInApp);
+        }
     }
-    assert!(matches!(
-        set.validate(),
-        Err(DevicePermissionError::CaptureAlwaysOn)
-            | Err(DevicePermissionError::LocalProcessingClaimedWithProvider { .. })
-            | Err(DevicePermissionError::ProviderProcessingUnrepresented)
-    ));
+    assert_eq!(set.validate(), Err(DevicePermissionError::CaptureAlwaysOn));
 }
 
 #[test]
@@ -421,4 +423,63 @@ fn checked_fixtures_match_seed_builders() {
     )))
     .expect("provider-backed review fixture parses");
     assert_eq!(review, seeded_provider_backed_capture_review());
+}
+
+/// One-shot generator for the checked support artifacts and narrowed fixtures.
+/// Run with `GEN_DEVICE_PERMISSION_ARTIFACTS=1 cargo test -p aureline-shell
+/// m5_device_permissions::tests::generate_artifacts`.
+#[test]
+fn generate_artifacts() {
+    if std::env::var("GEN_DEVICE_PERMISSION_ARTIFACTS").is_err() {
+        return;
+    }
+    use std::fs;
+    use std::path::Path;
+
+    let set = seeded_m5_device_permission_set();
+    set.validate().expect("seeded permission set validates");
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    let artifact_dir = manifest.join("../../artifacts/help/m5-device-permission-proof");
+    fs::create_dir_all(&artifact_dir).expect("create device-permission artifact directory");
+    fs::write(
+        artifact_dir.join("permission_set.json"),
+        format!("{}\n", set.export_safe_json()),
+    )
+    .expect("write device-permission support export");
+    fs::write(
+        manifest.join("../../artifacts/help/m5-device-permission-governance.md"),
+        set.render_markdown_summary(),
+    )
+    .expect("write device-permission governance summary");
+    fs::write(
+        manifest.join("../../artifacts/help/m5-device-permission-rows.csv"),
+        set.render_matrix_csv(),
+    )
+    .expect("write device-permission matrix");
+
+    let fixture_dir = manifest.join("../../fixtures/help/device-permissions");
+    fs::create_dir_all(&fixture_dir).expect("create device-permission fixture directory");
+    let pill = seeded_high_impact_confirmation_pill();
+    pill.validate().expect("seeded confirmation pill validates");
+    fs::write(
+        fixture_dir.join("high_impact_confirmation_pill.json"),
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&pill).expect("confirmation pill serializes")
+        ),
+    )
+    .expect("write confirmation-pill fixture");
+    let review = seeded_provider_backed_capture_review();
+    review
+        .validate()
+        .expect("seeded provider-backed review validates");
+    fs::write(
+        fixture_dir.join("provider_backed_capture_review.json"),
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&review).expect("capture review serializes")
+        ),
+    )
+    .expect("write provider-backed review fixture");
 }

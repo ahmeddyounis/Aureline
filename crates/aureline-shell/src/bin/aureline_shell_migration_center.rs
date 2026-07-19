@@ -17,7 +17,10 @@
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_center -- drill-account-detour
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_center -- drill-missing-command-id
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_center -- drill-review-overdue
+//! cargo run -q -p aureline-shell --bin aureline_shell_migration_center -- emit-fixtures fixtures/ux/m3/migration_center
 //! ```
+
+use std::path::{Path, PathBuf};
 
 use aureline_shell::migration_center::{
     audit_migration_center_rows, seeded_migration_center_page, validate_migration_center_page,
@@ -98,6 +101,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 FreshnessClass::ReviewOverdue.as_str().to_owned();
             print_json(&rebuild_with_defects(page))?;
         }
+        Some("emit-fixtures") => {
+            let dir = args
+                .get(1)
+                .ok_or("emit-fixtures <dir> requires a target directory")?;
+            emit_fixtures(PathBuf::from(dir), &page)?;
+        }
         Some(other) => {
             return Err(format!("unknown subcommand: {other}").into());
         }
@@ -115,4 +124,32 @@ fn rebuild_with_defects(mut page: MigrationCenterPage) -> MigrationCenterPage {
     page.defects = audit_migration_center_rows(&page.sections, &page.entries, &page.support_rows);
     page.summary.defect_count = page.defects.len();
     page
+}
+
+fn emit_fixtures(
+    dir: PathBuf,
+    page: &MigrationCenterPage,
+) -> Result<(), Box<dyn std::error::Error>> {
+    std::fs::create_dir_all(&dir)?;
+    write_json(&dir.join("page.json"), page)?;
+    write_json(&dir.join("sections.json"), &page.sections)?;
+    write_json(&dir.join("entries.json"), &page.entries)?;
+    write_json(&dir.join("support_rows.json"), &page.support_rows)?;
+    write_json(&dir.join("defects.json"), &page.defects)?;
+    write_json(&dir.join("summary.json"), &page.summary)?;
+    let support_export = MigrationCenterSupportExport::from_page(
+        "support-export:migration-center-beta:001",
+        "2026-05-15T00:00:00Z",
+        page.clone(),
+    );
+    write_json(&dir.join("support_export.json"), &support_export)?;
+    Ok(())
+}
+
+fn write_json<T: serde::Serialize>(
+    path: &Path,
+    value: &T,
+) -> Result<(), Box<dyn std::error::Error>> {
+    std::fs::write(path, format!("{}\n", serde_json::to_string_pretty(value)?))?;
+    Ok(())
 }

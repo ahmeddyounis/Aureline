@@ -4,13 +4,13 @@ Set: `m5_device_permission_set:default`
 
 ## Device-permission rows
 
-| Device | State | Actor | Processing | Retention | Capture active? |
-| --- | --- | --- | --- | --- | --- |
-| Microphone | Granted — idle | You | `local_on_device` | `ephemeral_audio_local_only_no_transcript_retained` | false |
-| Camera | Not yet requested | Operating system | `processing_unavailable` | `no_audio_retained_no_transcript_retained` | false |
-| Screen capture | Granted — in use | You | `local_on_device` | `no_audio_retained_no_transcript_retained` | true |
-| System audio | Granted — idle | Connected provider | `hosted_remote_disclosed` | `transcript_retained_provider_per_contract` | false |
-| Clipboard | Blocked by policy | Administrator policy | `processing_unavailable` | `no_audio_retained_no_transcript_retained` | false |
+| Record | Device | State | Actor | Processing | Retention | Capture active? |
+| --- | --- | --- | --- | --- | --- | --- |
+| `device_permission_row:microphone` | Microphone | Granted — idle | You | `local_on_device` | `ephemeral_audio_local_only_no_transcript_retained` | false |
+| `device_permission_row:camera` | Camera | Not yet requested | Operating system | `processing_unavailable` | `no_audio_retained_no_transcript_retained` | false |
+| `device_permission_row:screen_capture` | Screen capture | Granted — in use | You | `local_on_device` | `no_audio_retained_no_transcript_retained` | true |
+| `device_permission_row:system_audio_capture` | System audio | Granted — idle | Connected provider | `hosted_remote_disclosed` | `transcript_retained_provider_per_contract` | false |
+| `device_permission_row:clipboard` | Clipboard | Blocked by policy | Administrator policy | `processing_unavailable` | `no_audio_retained_no_transcript_retained` | false |
 
 ## Mic-state pills
 

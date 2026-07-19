@@ -334,3 +334,63 @@ fn checked_fixtures_match_seed_builders() {
     .expect("secrets-removed fixture parses");
     assert_eq!(removed, seeded_tokens_and_approvals_removed_packet());
 }
+
+/// One-shot generator for the checked support artifacts and narrowed fixtures.
+/// Run with `GEN_REPRODUCTION_PACKET_ARTIFACTS=1 cargo test -p aureline-shell
+/// m5_reproduction_packets::tests::generate_artifacts`.
+#[test]
+fn generate_artifacts() {
+    if std::env::var("GEN_REPRODUCTION_PACKET_ARTIFACTS").is_err() {
+        return;
+    }
+    use std::fs;
+    use std::path::Path;
+
+    let set = seeded_m5_reproduction_packet_set();
+    set.validate()
+        .expect("seeded reproduction packet set validates");
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    let artifact_dir = manifest.join("../../artifacts/help/m5-reproduction-packet-proof");
+    fs::create_dir_all(&artifact_dir).expect("create reproduction-packet artifact directory");
+    fs::write(
+        artifact_dir.join("packet_set.json"),
+        format!("{}\n", set.export_safe_json()),
+    )
+    .expect("write reproduction-packet support export");
+    fs::write(
+        manifest.join("../../artifacts/help/m5-reproduction-packet-governance.md"),
+        set.render_markdown_summary(),
+    )
+    .expect("write reproduction-packet governance summary");
+    fs::write(
+        manifest.join("../../artifacts/help/m5-reproduction-packet-packets.csv"),
+        set.render_matrix_csv(),
+    )
+    .expect("write reproduction-packet matrix");
+
+    let fixture_dir = manifest.join("../../fixtures/help/reproduction-packets");
+    fs::create_dir_all(&fixture_dir).expect("create reproduction-packet fixture directory");
+    for (name, packet) in [
+        (
+            "save_local_offline_draft.json",
+            seeded_save_local_offline_draft_packet(),
+        ),
+        (
+            "tokens_and_approvals_removed.json",
+            seeded_tokens_and_approvals_removed_packet(),
+        ),
+    ] {
+        packet
+            .validate()
+            .expect("seeded reproduction packet validates");
+        fs::write(
+            fixture_dir.join(name),
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&packet).expect("reproduction packet serializes")
+            ),
+        )
+        .expect("write reproduction-packet fixture");
+    }
+}

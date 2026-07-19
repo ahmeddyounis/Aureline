@@ -1,12 +1,14 @@
 //! Headless emitter for the M5 reproduction-packet set.
 //!
-//! The bin is the only mint-from-truth path for the support export checked in at
+//! The bin is the headless stdout projection path for the support export checked in at
 //! `artifacts/help/m5-reproduction-packet-proof/packet_set.json`, the governance
 //! Markdown summary `artifacts/help/m5-reproduction-packet-governance.md`, the
 //! matrix CSV `artifacts/help/m5-reproduction-packet-packets.csv`, and the
 //! narrowed fixtures under `fixtures/help/reproduction-packets/`. Help/About,
 //! support, and community-handoff surfaces read this set so a report can be
-//! previewed and redacted before a public/community/support route opens.
+//! previewed and redacted before a public/community/support route opens. The
+//! guarded `generate_artifacts` module test refreshes every checked projection
+//! from the same seed builders in one operation.
 //!
 //! Subcommands:
 //!

@@ -612,3 +612,60 @@ fn checked_narrowed_fixtures_validate_and_match_seed_builders() {
         seeded_m5_marketplace_handoff_controls_account_preview_narrowed()
     );
 }
+
+/// One-shot generator for the checked proof bundle and narrowed fixtures. Run
+/// with `GEN_MARKETPLACE_HANDOFF_CONTROL_ARTIFACTS=1 cargo test -p
+/// aureline-shell marketplace_account_boundary::tests::generate_artifacts`.
+#[test]
+fn generate_artifacts() {
+    if std::env::var("GEN_MARKETPLACE_HANDOFF_CONTROL_ARTIFACTS").is_err() {
+        return;
+    }
+    use std::fs;
+    use std::path::Path;
+
+    let packet = seeded_m5_marketplace_handoff_controls();
+    assert!(packet.validate().is_empty());
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let artifact_dir = manifest.join(
+        "../../artifacts/release/m5-marketplace-account-boundary-open-in-browser-handoff-controls-proof",
+    );
+    fs::create_dir_all(&artifact_dir).expect("create marketplace-handoff artifact directory");
+    fs::write(
+        artifact_dir.join("support_export.json"),
+        format!("{}\n", packet.export_safe_json()),
+    )
+    .expect("write marketplace-handoff support export");
+    fs::write(artifact_dir.join("matrix.csv"), packet.render_matrix_csv())
+        .expect("write marketplace-handoff matrix");
+    fs::write(
+        artifact_dir.join("summary.md"),
+        packet.render_markdown_summary(),
+    )
+    .expect("write marketplace-handoff summary");
+
+    let fixture_dir = manifest
+        .join("../../fixtures/ui/m5-marketplace-account-boundary-open-in-browser-handoff-controls");
+    fs::create_dir_all(&fixture_dir).expect("create marketplace-handoff fixture directory");
+    for (name, narrowed) in [
+        (
+            "marketplace_beta_narrowed.json",
+            seeded_m5_marketplace_handoff_controls_marketplace_beta_narrowed(),
+        ),
+        (
+            "account_preview_narrowed.json",
+            seeded_m5_marketplace_handoff_controls_account_preview_narrowed(),
+        ),
+    ] {
+        assert!(narrowed.validate().is_empty());
+        fs::write(
+            fixture_dir.join(name),
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&narrowed)
+                    .expect("marketplace-handoff fixture serializes")
+            ),
+        )
+        .expect("write marketplace-handoff fixture");
+    }
+}

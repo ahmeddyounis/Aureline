@@ -1,6 +1,6 @@
 //! Headless emitter for the M5 device-permission set.
 //!
-//! The bin is the only mint-from-truth path for the support export checked in at
+//! The bin is the headless stdout projection path for the support export checked in at
 //! `artifacts/help/m5-device-permission-proof/permission_set.json`, the
 //! governance Markdown summary
 //! `artifacts/help/m5-device-permission-governance.md`, the matrix CSV
@@ -8,7 +8,8 @@
 //! under `fixtures/help/device-permissions/`. Voice, help, and support surfaces
 //! read this set so users can see what device class is accessible, whether
 //! capture is local or provider-backed, and what transcript or media will be
-//! retained or exported.
+//! retained or exported. The guarded `generate_artifacts` module test refreshes
+//! every checked projection from the same seed builders in one operation.
 //!
 //! Subcommands:
 //!

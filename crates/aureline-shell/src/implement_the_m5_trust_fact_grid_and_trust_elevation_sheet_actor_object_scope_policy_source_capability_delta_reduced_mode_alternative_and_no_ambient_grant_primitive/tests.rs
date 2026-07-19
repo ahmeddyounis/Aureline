@@ -571,3 +571,59 @@ fn implemented_families_are_the_two_trust_review_components() {
         ]
     );
 }
+
+/// One-shot generator for the checked proof bundle and narrowed fixtures. Run
+/// with `GEN_TRUST_ELEVATION_CONTROL_ARTIFACTS=1 cargo test -p aureline-shell
+/// trust_fact_grid_and_trust_elevation_sheet::tests::generate_artifacts`.
+#[test]
+fn generate_artifacts() {
+    if std::env::var("GEN_TRUST_ELEVATION_CONTROL_ARTIFACTS").is_err() {
+        return;
+    }
+    use std::fs;
+    use std::path::Path;
+
+    let packet = seeded_m5_trust_fact_grid_elevation_controls();
+    assert!(packet.validate().is_empty());
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let artifact_dir = manifest
+        .join("../../artifacts/release/m5-trust-fact-grid-trust-elevation-sheet-controls-proof");
+    fs::create_dir_all(&artifact_dir).expect("create trust-elevation artifact directory");
+    fs::write(
+        artifact_dir.join("support_export.json"),
+        format!("{}\n", packet.export_safe_json()),
+    )
+    .expect("write trust-elevation support export");
+    fs::write(artifact_dir.join("matrix.csv"), packet.render_matrix_csv())
+        .expect("write trust-elevation matrix");
+    fs::write(
+        artifact_dir.join("summary.md"),
+        packet.render_markdown_summary(),
+    )
+    .expect("write trust-elevation summary");
+
+    let fixture_dir =
+        manifest.join("../../fixtures/ui/m5-trust-fact-grid-trust-elevation-sheet-controls");
+    fs::create_dir_all(&fixture_dir).expect("create trust-elevation fixture directory");
+    for (name, narrowed) in [
+        (
+            "workspace_trust_ui_beta_narrowed.json",
+            seeded_m5_trust_fact_grid_elevation_controls_workspace_trust_ui_beta_narrowed(),
+        ),
+        (
+            "safe_mode_ui_preview_narrowed.json",
+            seeded_m5_trust_fact_grid_elevation_controls_safe_mode_ui_preview_narrowed(),
+        ),
+    ] {
+        assert!(narrowed.validate().is_empty());
+        fs::write(
+            fixture_dir.join(name),
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&narrowed)
+                    .expect("trust-elevation fixture serializes")
+            ),
+        )
+        .expect("write trust-elevation fixture");
+    }
+}

@@ -1227,11 +1227,14 @@ impl M5DevicePermissionSet {
         out.push_str(&format!("Set: `{}`\n\n", self.set_id));
 
         out.push_str("## Device-permission rows\n\n");
-        out.push_str("| Device | State | Actor | Processing | Retention | Capture active? |\n");
-        out.push_str("| --- | --- | --- | --- | --- | --- |\n");
+        out.push_str(
+            "| Record | Device | State | Actor | Processing | Retention | Capture active? |\n",
+        );
+        out.push_str("| --- | --- | --- | --- | --- | --- | --- |\n");
         for row in &self.permission_rows {
             out.push_str(&format!(
-                "| {} | {} | {} | `{}` | `{}` | {} |\n",
+                "| `{}` | {} | {} | {} | `{}` | `{}` | {} |\n",
+                row.row_id,
                 row.device_class.label(),
                 row.permission_state.label(),
                 row.controlling_actor.label(),

@@ -60,13 +60,8 @@ and `support_row_id`.
 ## Regenerate
 
 ```sh
-cargo run -q -p aureline-shell --bin aureline_shell_migration_center -- page           > fixtures/ux/m3/migration_center/page.json
-cargo run -q -p aureline-shell --bin aureline_shell_migration_center -- sections       > fixtures/ux/m3/migration_center/sections.json
-cargo run -q -p aureline-shell --bin aureline_shell_migration_center -- entries        > fixtures/ux/m3/migration_center/entries.json
-cargo run -q -p aureline-shell --bin aureline_shell_migration_center -- support-rows   > fixtures/ux/m3/migration_center/support_rows.json
-cargo run -q -p aureline-shell --bin aureline_shell_migration_center -- support-export > fixtures/ux/m3/migration_center/support_export.json
-cargo run -q -p aureline-shell --bin aureline_shell_migration_center -- defects        > fixtures/ux/m3/migration_center/defects.json
-cargo run -q -p aureline-shell --bin aureline_shell_migration_center -- summary        > fixtures/ux/m3/migration_center/summary.json
+cargo run -q -p aureline-shell --bin aureline_shell_migration_center -- \
+  emit-fixtures fixtures/ux/m3/migration_center
 ```
 
 ## Verification
