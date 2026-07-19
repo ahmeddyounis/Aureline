@@ -73,7 +73,7 @@ fn print_index() {
 fn emit_fixtures(dir: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(&dir)?;
     for scenario in profile_switch_lifecycle_corpus() {
-        let path = dir.join(&scenario.fixture_filename);
+        let path = dir.join(scenario.fixture_filename.as_str());
         let json = render_json(&scenario);
         std::fs::write(&path, format!("{json}\n"))?;
         println!("wrote {}", path.display());

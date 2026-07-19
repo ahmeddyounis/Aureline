@@ -1086,7 +1086,7 @@ mod tests {
             .expect("record resolves");
         assert_eq!(record.lock_state, "capability_locked");
         assert_eq!(record.lock_reason, "capability_dependency_unmet");
-        assert_eq!(record.capability_dependencies[0].satisfied, false);
+        assert!(!record.capability_dependencies[0].satisfied);
     }
 
     #[test]

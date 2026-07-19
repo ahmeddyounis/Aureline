@@ -831,13 +831,11 @@ fn alpha_card_rebuild(alpha: &EmbeddedBoundaryAlphaSnapshot) -> Vec<EmbeddedBoun
     // snapshot also exposes a small number of cards.
     use crate::embedded::docs_help::seeded_docs_help_boundary_card;
     let _ = alpha; // alpha is kept for symmetry; the fixture loaders are deterministic.
-    let mut cards: Vec<EmbeddedBoundaryCardRecord> = Vec::new();
-    cards.push(seeded_docs_help_boundary_card(
-        "id:build:embedded-boundary-audit-beta:seed",
-    ));
-    cards.push(rebuild_extension_webview_alpha_card());
-    cards.push(rebuild_marketplace_account_alpha_card());
-    cards
+    vec![
+        seeded_docs_help_boundary_card("id:build:embedded-boundary-audit-beta:seed"),
+        rebuild_extension_webview_alpha_card(),
+        rebuild_marketplace_account_alpha_card(),
+    ]
 }
 
 fn rebuild_extension_webview_alpha_card() -> EmbeddedBoundaryCardRecord {

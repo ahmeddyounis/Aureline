@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 chronology-group primitive.
 //!
 //! These builders are the single producer of the checked-in support export and
@@ -147,7 +150,7 @@ fn surface_rows() -> Vec<M5ChronologySurfaceRow> {
     use M5ChronologyVerb as V;
     use M5ProvenanceBadge as P;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(6);
 
     // 1. AI evidence — an AI run: initiated, executed, and resolved. Three phases,
     //    three groups, AI-initiated provenance, absolute + relative parity.

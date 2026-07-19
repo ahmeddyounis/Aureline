@@ -28,7 +28,7 @@ fn main() {
     let corpus = orientation_aids_stability_corpus();
     let mut written = 0;
     for scenario in &corpus {
-        let path = fixture_dir.join(&scenario.fixture_filename);
+        let path = fixture_dir.join(scenario.fixture_filename);
         let payload = serde_json::to_string_pretty(&scenario.packet())
             .unwrap_or_else(|err| panic!("serialize {}: {err}", scenario.scenario_id));
         std::fs::write(&path, payload).unwrap_or_else(|err| {

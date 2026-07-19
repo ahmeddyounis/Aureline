@@ -176,7 +176,7 @@ pub struct InfrastructureSurfaceView<'a> {
     surface: InfrastructureJourneySurface,
 }
 
-impl<'a> InfrastructureSurfaceView<'a> {
+impl InfrastructureSurfaceView<'_> {
     /// Returns the stable surface vocabulary this view uses.
     pub const fn surface(&self) -> InfrastructureJourneySurface {
         self.surface

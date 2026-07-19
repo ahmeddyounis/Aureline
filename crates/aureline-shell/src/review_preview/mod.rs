@@ -623,7 +623,7 @@ pub enum WedgeError {
         actual: PreviewApplyRevertPhase,
     },
     ApplyBlocked(ApplyAdmissibility),
-    ApplyBlockedByCommitGuard(PreviewCommitGuardEvaluation),
+    ApplyBlockedByCommitGuard(Box<PreviewCommitGuardEvaluation>),
     NoPreview,
     NoApply,
     AlreadyReverted,
@@ -1036,7 +1036,9 @@ impl DestructiveCoreEngine {
             preview_mut.commit_guard_evaluation = Some(guard_evaluation.clone());
         }
         if guard_evaluation.blocks_apply {
-            return Err(WedgeError::ApplyBlockedByCommitGuard(guard_evaluation));
+            return Err(WedgeError::ApplyBlockedByCommitGuard(Box::new(
+                guard_evaluation,
+            )));
         }
 
         let apply_id = self.applies.mint();

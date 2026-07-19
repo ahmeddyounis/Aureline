@@ -820,8 +820,10 @@ struct RowSeed {
     events: Vec<OnboardingEventInput>,
 }
 
+// Scenario sections are intentionally separated by explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn seeded_row_inputs() -> Vec<RowSeed> {
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(8);
 
     // ---- First-run flow ---------------------------------------------
 

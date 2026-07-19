@@ -398,10 +398,10 @@ fn permission_posture_explicit_not_proven_when_no_clean_summary_shown() {
     let mut packet = seeded_m5_permission_manifest_controls();
     for row in &mut packet.controls_rows {
         row.permission_manifest_summary_examples.retain(|ex| {
-            !(ex.is_clean()
-                && ex.requests_capabilities
-                && !ex.required_capabilities.is_empty()
-                && !ex.manifest_digest.trim().is_empty())
+            !ex.is_clean()
+                || !ex.requests_capabilities
+                || ex.required_capabilities.is_empty()
+                || ex.manifest_digest.trim().is_empty()
         });
     }
     assert!(packet

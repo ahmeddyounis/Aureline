@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 presence-avatar-stack primitive.
 //!
 //! These builders are the single producer of the checked-in support export and the
@@ -117,7 +120,7 @@ fn consumer_rows() -> Vec<M5PresenceConsumerRow> {
     use M5PresenceParticipantLiveness as Live;
     use M5RecordingRetentionCue as Rec;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(9);
 
     // 1. Collaboration strip — following the presenter on a live link, and a degraded
     //    link that keeps the roster visible with a reconnect action (AC2 example).

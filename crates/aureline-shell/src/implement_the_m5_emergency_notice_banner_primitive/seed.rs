@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 emergency-notice banner primitive.
 //!
 //! These builders are the single producer of the checked-in support export and the
@@ -129,7 +132,7 @@ fn reason_rows() -> Vec<M5EmergencyReasonRow> {
     use M5EmergencyDismissalPolicy as P;
     use M5EmergencyLocalWorkState as L;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(5);
 
     // 1. Capability kill switch — an operational emergency: a compromised extension
     //    capability is killed. The affected capability is suspended, but editing,

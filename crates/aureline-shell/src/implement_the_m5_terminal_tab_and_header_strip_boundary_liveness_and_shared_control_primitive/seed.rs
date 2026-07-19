@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 terminal-tab primitive.
 //!
 //! These builders are the single producer of the checked-in support export and
@@ -113,7 +116,7 @@ fn console_rows() -> Vec<M5TerminalConsoleRow> {
     use M5ShellIntegrationQuality as Integ;
     use M5TerminalSessionLiveness as Live;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(5);
 
     // 1. Terminal panel — a live local write-capable session, and a remote restored
     //    transcript that is read-only (the AC1 live-versus-restored proof).

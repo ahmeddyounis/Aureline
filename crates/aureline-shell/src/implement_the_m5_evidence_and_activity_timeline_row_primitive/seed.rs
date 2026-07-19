@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 evidence / activity row primitive.
 //!
 //! These builders are the single producer of the checked-in support export and
@@ -126,7 +129,7 @@ fn surface_rows() -> Vec<M5EvidenceSurfaceRow> {
     use M5EvidenceOutcome as O;
     use M5ProvenanceBadge as P;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(8);
 
     // 1. AI evidence — an AI run ran an analysis and succeeded, with disclosure-
     //    ready detail into the run's evidence. Portable: copyable as text / JSON /

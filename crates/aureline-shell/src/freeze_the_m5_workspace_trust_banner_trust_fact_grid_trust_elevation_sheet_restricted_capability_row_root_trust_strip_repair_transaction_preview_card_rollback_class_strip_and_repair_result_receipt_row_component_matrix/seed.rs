@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the frozen M5 workspace-trust-repair component matrix.
 //!
 //! These builders are the single producer of the checked-in support export and the narrowed

@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the frozen M5 terminal-tab, remote-target-pill,
 //! environment-status-strip, toolchain-pin-row, presence-avatar-stack, and
 //! repair-action-card component matrix.

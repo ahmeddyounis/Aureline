@@ -406,7 +406,7 @@ fn field_parity_not_proven_when_one_time_effect_uncovered() {
     // Drop every clean one-time / single-action sheet so the lasting-versus-one-time grammar breaks.
     for row in &mut packet.controls_rows {
         row.trust_elevation_sheet_examples
-            .retain(|ex| !(ex.is_clean() && !ex.effect_lasting));
+            .retain(|ex| !ex.is_clean() || ex.effect_lasting);
     }
     assert!(packet
         .validate()

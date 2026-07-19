@@ -109,8 +109,8 @@ fn print_plaintext() {
 
 fn print_index() {
     println!(
-        "{:<42} {:<12} {:<28} {:<7} {}",
-        "scenario_id", "entry_kind", "resulting_mode", "honesty", "bypass_count"
+        "{:<42} {:<12} {:<28} {:<7} bypass_count",
+        "scenario_id", "entry_kind", "resulting_mode", "honesty"
     );
     for scenario in template_starter_prebuild_entry_corpus() {
         let record = scenario.record();

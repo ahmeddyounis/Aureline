@@ -228,26 +228,26 @@ fn validator_catches_overclaims_and_raw_default_share() {
 }
 
 trait ArtifactLineageStateExt {
-    fn is_current(self) -> bool;
-    fn is_stale(self) -> bool;
-    fn is_manual_attach(self) -> bool;
-    fn is_unknown(self) -> bool;
+    fn is_current(&self) -> bool;
+    fn is_stale(&self) -> bool;
+    fn is_manual_attach(&self) -> bool;
+    fn is_unknown(&self) -> bool;
 }
 
 impl ArtifactLineageStateExt for aureline_data::ArtifactLineageState {
-    fn is_current(self) -> bool {
+    fn is_current(&self) -> bool {
         matches!(self, Self::Current)
     }
 
-    fn is_stale(self) -> bool {
+    fn is_stale(&self) -> bool {
         matches!(self, Self::Stale)
     }
 
-    fn is_manual_attach(self) -> bool {
+    fn is_manual_attach(&self) -> bool {
         matches!(self, Self::ManualAttach)
     }
 
-    fn is_unknown(self) -> bool {
+    fn is_unknown(&self) -> bool {
         matches!(self, Self::Unknown)
     }
 }

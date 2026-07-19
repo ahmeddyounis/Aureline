@@ -270,7 +270,9 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut EditorInlineConsumerBinding), &str); 6] = [
+    type GuardrailCase = (fn(&mut EditorInlineConsumerBinding), &'static str);
+
+    let cases: [GuardrailCase; 6] = [
         (
             |b| b.encodes_state_by_color_alone = true,
             "state_encoded_by_color_alone",

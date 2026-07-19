@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 disclosure / history block primitive.
 //!
 //! These builders are the single producer of the checked-in support export and the
@@ -134,7 +137,7 @@ fn source_rows() -> Vec<M5DisclosureSourceRow> {
     use M5AdvisorySeverityClass as S;
     use M5DisclosureHistoryState as H;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(6);
 
     // 1. First-party signed — critical, published: the active first-party disclosure keeps
     //    full weight, carries both a CVE and a GHSA alias as copy-safe ids, and hands off

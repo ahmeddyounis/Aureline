@@ -77,8 +77,7 @@ impl SearchExportReplayCue {
     /// True when the cue is privacy-safe: a cue that leaves the device carries no
     /// literal query text, and the cue type never surfaces the raw literal.
     pub fn is_privacy_safe(&self) -> bool {
-        !self.scenario.trim().is_empty()
-            && !(self.leaves_device && self.literal_query_text_included)
+        !(self.scenario.trim().is_empty() || self.leaves_device && self.literal_query_text_included)
     }
 }
 

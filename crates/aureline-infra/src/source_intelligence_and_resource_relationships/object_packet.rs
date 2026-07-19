@@ -381,17 +381,15 @@ pub fn validate_object_packet(
         if matches!(
             object.truth_layer,
             TruthLayer::RenderedExpanded | TruthLayer::PlannedValidated
-        ) {
-            if object.lineage.authored_object_refs.is_empty()
-                || object.lineage.known_path_back_to_source_refs.is_empty()
-                || object.lineage.tool_identity.is_none()
-                || object.lineage.tool_version.is_none()
-            {
-                findings.push(error(
-                    "derived_lineage",
-                    "Rendered and planned objects must preserve authored lineage and tool identity/version.",
-                ));
-            }
+        ) && (object.lineage.authored_object_refs.is_empty()
+            || object.lineage.known_path_back_to_source_refs.is_empty()
+            || object.lineage.tool_identity.is_none()
+            || object.lineage.tool_version.is_none())
+        {
+            findings.push(error(
+                "derived_lineage",
+                "Rendered and planned objects must preserve authored lineage and tool identity/version.",
+            ));
         }
         if matches!(
             object.truth_layer,
@@ -522,7 +520,7 @@ pub fn validate_object_packet(
             .map(|relation| relation.edge_class)
             .collect::<BTreeSet<_>>();
         for required in required_edges_for(family) {
-            if !family_edges.contains(&required) {
+            if !family_edges.contains(required) {
                 findings.push(error(
                     "family_relation_edge_coverage",
                     "Infrastructure family is missing a required relation-edge class.",

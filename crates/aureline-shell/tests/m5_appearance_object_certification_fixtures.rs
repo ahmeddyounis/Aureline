@@ -130,13 +130,12 @@ fn fixture_claim_scope_is_the_derived_auto_narrowed_value() {
             CertifiedClaimScope::CertifiedFull
         ) {
             assert!(
-                surface
+                !surface
                     .narrowing_reason
                     .as_deref()
                     .unwrap_or("")
                     .trim()
-                    .len()
-                    > 0,
+                    .is_empty(),
                 "narrowed surface {} hides its reason",
                 surface.certification_id
             );

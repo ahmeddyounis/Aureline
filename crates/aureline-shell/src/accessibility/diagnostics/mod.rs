@@ -1461,7 +1461,7 @@ fn validate_release_gate_aggregate(
     expected_blocked.sort();
     let mut declared = gate.blocked_surface_ids.clone();
     declared.sort();
-    if gate.blocks_release != !expected_blocked.is_empty() || declared != expected_blocked {
+    if gate.blocks_release == expected_blocked.is_empty() || declared != expected_blocked {
         violations.push(M5DiagnosticsViolation::ReleaseGateAggregateInconsistent);
     }
 }

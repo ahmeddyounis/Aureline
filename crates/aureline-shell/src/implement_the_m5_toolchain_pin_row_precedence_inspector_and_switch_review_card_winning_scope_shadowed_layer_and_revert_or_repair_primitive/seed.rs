@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 toolchain-pin / switch-review primitive.
 //!
 //! These builders are the single producer of the checked-in support export and the
@@ -138,7 +141,7 @@ fn selector_rows() -> Vec<M5EnvironmentSelectorRow> {
     use M5ToolchainSourceClass as Source;
     use M5ToolchainTargetKind as Kind;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(9);
 
     // 1. Status-bar selector — a cleanly project-pinned interpreter (PinnedResolved),
     //    and a policy override shadowing that pin (PinOverridden, shadow disclosed).

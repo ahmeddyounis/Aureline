@@ -851,6 +851,8 @@ fn make_row(
 /// JSON checked in under `fixtures/ux/m3/theme_density_motion/`, so
 /// the live shell records, the CLI rows, and the support-export rows
 /// cannot drift.
+// Sequential rows keep each launch-critical surface case readable in place.
+#[allow(clippy::vec_init_then_push)]
 pub fn seeded_token_state_audit_page() -> TokenStateAuditPage {
     let focus_color_tokens = ["color.focus.ring", "color.surface.background.chrome"];
     let trust_warning_tokens = [
@@ -869,7 +871,7 @@ pub fn seeded_token_state_audit_page() -> TokenStateAuditPage {
         "color.focus.ring",
     ];
 
-    let mut rows: Vec<TokenStateAuditRow> = Vec::new();
+    let mut rows: Vec<TokenStateAuditRow> = Vec::with_capacity(17);
 
     rows.push(make_row(
         "shell:token-state-audit:beta:shell-chrome:dark-standard:01",

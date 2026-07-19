@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 settings-row primitive.
 //!
 //! These builders are the single producer of the checked-in support export and
@@ -96,7 +99,7 @@ fn surface_rows() -> Vec<M5SettingsRowSurfaceRow> {
     use M5SettingSourcePill as SP;
     use M5SettingsSourceContribution as SC;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(7);
 
     // 1. Admin / enterprise — a policy-locked value that keeps the user's value
     //    visible. This is the acceptance-criterion example: enforced value and

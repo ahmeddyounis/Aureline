@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 notification / activity-center handoff routing
 //! primitive.
 //!
@@ -137,7 +140,7 @@ fn delivery_rows() -> Vec<M5NotificationDeliveryRow> {
     use M5NotificationEventKind as E;
     use M5NotificationReopenSurface as U;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(6);
 
     // 1. Foreground focused — critical, newly published: the app is focused, so the event
     //    delivers a native notification plus a durable activity row and reopens onto the

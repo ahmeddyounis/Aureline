@@ -418,7 +418,7 @@ impl NotebookOutlineItem {
         }
 
         if let Some(level) = self.heading_level {
-            if level < 1 || level > 6 {
+            if !(1..=6).contains(&level) {
                 findings.push(NotebookOutlineItemFinding::new(
                     "notebook_outline_item.heading_level_range",
                     subject,

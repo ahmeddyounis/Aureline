@@ -91,14 +91,7 @@ fn main() {
             preview: Some(preview),
             result: Some(result),
         }
-    } else if preview_only {
-        let preview = service.preview(&request);
-        DailyLoopPacket {
-            snapshot: None,
-            preview: Some(preview),
-            result: None,
-        }
-    } else if kind.is_mutation() {
+    } else if preview_only || kind.is_mutation() {
         let preview = service.preview(&request);
         DailyLoopPacket {
             snapshot: None,

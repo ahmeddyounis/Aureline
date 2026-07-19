@@ -1516,7 +1516,7 @@ fn validate_acceptance_criteria(
     let toast_degrades = row_examples()
         .any(|ex| ex.degrade_reason == Some(M5BackgroundWorkRowDegradeReason::ToastOnlyNotDurable));
     let no_clean_toast_only =
-        row_examples().all(|ex| !(ex.is_clean() && !ex.reviewable_after_looking_away));
+        row_examples().all(|ex| !ex.is_clean() || ex.reviewable_after_looking_away);
     if !(clean_reviewable && toast_degrades && no_clean_toast_only) {
         violations.push(M5BackgroundWorkControlsViolation::Ac1NotProven);
     }

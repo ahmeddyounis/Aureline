@@ -799,14 +799,21 @@ pub struct MigrationWizardSupportExport {
 impl MigrationWizardSupportExport {
     /// Builds the support-export wrapper for a wizard page.
     pub fn from_page(support_export_id: impl Into<String>, page: MigrationWizardPage) -> Self {
-        let mut case_ids = Vec::new();
-        case_ids.push(page.migration_session_ref.clone());
-        case_ids.push(page.wizard_session_id.clone());
-        case_ids.push(page.header.checkpoint_notice.checkpoint_ref.clone());
-        case_ids.push(page.header.restore_action.action_id.clone());
-        case_ids.push(page.header.compatibility_report_action.action_id.clone());
-        case_ids.push(page.header.issue_template_ref.clone());
-        case_ids.push(page.mapping_report.mapping_report_id.clone());
+        let mut case_ids = vec![
+            page.migration_session_ref.clone(),
+            page.wizard_session_id.clone(),
+            page.header.checkpoint_notice.checkpoint_ref.clone(),
+            page.header.restore_action.action_id.clone(),
+            page.header.compatibility_report_action.action_id.clone(),
+            page.header.issue_template_ref.clone(),
+            page.mapping_report.mapping_report_id.clone(),
+        ];
+        case_ids.reserve(
+            page.mapping_report.rows.len()
+                + page.mapping_report.unsupported_gaps.len()
+                + page.compare_actions.len()
+                + page.undo_actions.len(),
+        );
         for row in &page.mapping_report.rows {
             case_ids.push(row.row_id.clone());
         }

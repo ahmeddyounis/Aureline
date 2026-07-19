@@ -867,9 +867,9 @@ pub fn resolve_live_resource_navigation(
         Some(degraded.trigger)
     } else if drift_present {
         Some(M5ManifestBuildDowngradeTrigger::DriftFromSource)
-    } else if input.permission.is_disconnected() {
-        Some(M5ManifestBuildDowngradeTrigger::ConnectorLoss)
-    } else if input.compare_verdict.is_comparison_unavailable() {
+    } else if input.permission.is_disconnected()
+        || input.compare_verdict.is_comparison_unavailable()
+    {
         Some(M5ManifestBuildDowngradeTrigger::ConnectorLoss)
     } else if matches!(input.permission, M5PermissionPosture::PermissionLimited) {
         Some(M5ManifestBuildDowngradeTrigger::PolicyBlock)

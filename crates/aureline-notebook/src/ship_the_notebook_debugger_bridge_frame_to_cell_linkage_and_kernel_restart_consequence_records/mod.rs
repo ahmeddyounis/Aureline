@@ -407,17 +407,16 @@ impl KernelRestartDebuggerConsequence {
             }
         }
 
-        match self.reattach_action_class {
-            KernelRestartDebuggerActionClass::ReattachUnavailable => {
-                if self.next_kernel_session_id_ref.is_some() {
-                    findings.push(KernelRestartDebuggerConsequenceFinding::new(
-                        "kernel_restart_debugger_consequence.unavailable_no_next_session",
-                        subject,
-                        "reattach_unavailable must not carry a next_kernel_session_id_ref",
-                    ));
-                }
-            }
-            _ => {}
+        if matches!(
+            self.reattach_action_class,
+            KernelRestartDebuggerActionClass::ReattachUnavailable
+        ) && self.next_kernel_session_id_ref.is_some()
+        {
+            findings.push(KernelRestartDebuggerConsequenceFinding::new(
+                "kernel_restart_debugger_consequence.unavailable_no_next_session",
+                subject,
+                "reattach_unavailable must not carry a next_kernel_session_id_ref",
+            ));
         }
 
         if matches!(

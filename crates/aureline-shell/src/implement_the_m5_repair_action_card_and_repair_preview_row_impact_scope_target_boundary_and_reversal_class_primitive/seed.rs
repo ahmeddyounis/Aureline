@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 repair-action-card primitive.
 //!
 //! These builders are the single producer of the checked-in support export and the
@@ -127,7 +130,7 @@ fn consumer_rows() -> Vec<M5RepairConsumerRow> {
     use M5RepairTrustRequirement as Trust;
     use M5ReversibilityClass as Rev;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(9);
 
     // 1. Project Doctor panel — a local, exact-reversible config repair reading as an
     //    ordinary apply, and a no-writes preview of an index rebuild.

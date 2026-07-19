@@ -56,7 +56,7 @@ fn every_fixture_is_contract_valid() {
     let corpus = modal_editing_safety_corpus();
 
     for scenario in &corpus {
-        let path = fixture_dir.join(&scenario.fixture_filename);
+        let path = fixture_dir.join(scenario.fixture_filename);
         let raw = fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {path:?}: {err}"));
         let packet: ModalEditingSafetyPacket =
             serde_json::from_str(&raw).unwrap_or_else(|err| panic!("parse {path:?}: {err}"));
@@ -94,7 +94,7 @@ fn fixture_files_match_live_packet_serialization() {
     let corpus = modal_editing_safety_corpus();
 
     for scenario in &corpus {
-        let path = fixture_dir.join(&scenario.fixture_filename);
+        let path = fixture_dir.join(scenario.fixture_filename);
         let raw = fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {path:?}: {err}"));
         let from_disk: serde_json::Value =
             serde_json::from_str(&raw).unwrap_or_else(|err| panic!("parse {path:?}: {err}"));

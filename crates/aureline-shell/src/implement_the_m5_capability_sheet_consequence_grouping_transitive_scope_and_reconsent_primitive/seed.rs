@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 capability-sheet primitive.
 //!
 //! These builders are the single producer of the checked-in support export and
@@ -124,7 +127,7 @@ fn surface_rows() -> Vec<M5CapabilitySheetSurfaceRow> {
     use M5CapabilityDecision as D;
     use M5CapabilityPolicyPredecision as PP;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(6);
 
     // 1. Extension install — a read granted in full and a workspace modification
     //    granted at a reduced scope. This is the reduced-mode acceptance-criterion

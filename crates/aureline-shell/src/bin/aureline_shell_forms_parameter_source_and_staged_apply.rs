@@ -73,8 +73,8 @@ fn print_scenario(id: &str) -> Result<(), Box<dyn std::error::Error>> {
 
 fn print_index() {
     println!(
-        "{:<48} {:<22} {:<20} {}",
-        "scenario_id", "surface", "client_scope", "apply_timing"
+        "{:<48} {:<22} {:<20} apply_timing",
+        "scenario_id", "surface", "client_scope"
     );
     for scenario in forms_parameter_source_and_staged_apply_corpus() {
         let record = scenario.record();

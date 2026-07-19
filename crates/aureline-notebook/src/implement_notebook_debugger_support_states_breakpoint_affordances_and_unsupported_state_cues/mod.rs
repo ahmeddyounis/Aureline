@@ -272,14 +272,14 @@ impl NotebookDebuggerSupportState {
             ));
         }
 
-        if self.debugger_support_state_class.is_live_session() {
-            if self.kernel_session_id_ref.is_none() {
-                findings.push(NotebookDebuggerSupportStateFinding::new(
-                    "notebook_debugger_support_state.live_session_requires_kernel",
-                    subject,
-                    "live session states must carry a kernel_session_id_ref",
-                ));
-            }
+        if self.debugger_support_state_class.is_live_session()
+            && self.kernel_session_id_ref.is_none()
+        {
+            findings.push(NotebookDebuggerSupportStateFinding::new(
+                "notebook_debugger_support_state.live_session_requires_kernel",
+                subject,
+                "live session states must carry a kernel_session_id_ref",
+            ));
         }
 
         if self
@@ -304,14 +304,12 @@ impl NotebookDebuggerSupportState {
                     "degraded or unsupported states must not expose available breakpoint affordances",
                 ));
             }
-        } else {
-            if !self.unsupported_state_cues.is_empty() {
-                findings.push(NotebookDebuggerSupportStateFinding::new(
-                    "notebook_debugger_support_state.no_cues_when_supported",
-                    subject,
-                    "fully supported states must not carry unsupported_state_cues",
-                ));
-            }
+        } else if !self.unsupported_state_cues.is_empty() {
+            findings.push(NotebookDebuggerSupportStateFinding::new(
+                "notebook_debugger_support_state.no_cues_when_supported",
+                subject,
+                "fully supported states must not carry unsupported_state_cues",
+            ));
         }
 
         for affordance in &self.breakpoint_affordances {

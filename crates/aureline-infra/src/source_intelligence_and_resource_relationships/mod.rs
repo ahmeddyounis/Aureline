@@ -398,7 +398,7 @@ pub fn validate_packet(
             }
         }
         for required in required_edges_for(row.family) {
-            if !row_edges.contains(&required) {
+            if !row_edges.contains(required) {
                 findings.push(error(
                     "relation_edge_coverage",
                     "Family row is missing a required relation-edge class.",

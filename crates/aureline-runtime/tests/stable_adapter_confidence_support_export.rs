@@ -110,14 +110,7 @@ fn stable_adapter_confidence_export_matches_fixture() {
     assert_eq!(export.receipts.len(), 3);
 
     assert_eq!(
-        token_set(
-            export
-                .coverage_manifest
-                .lane_type_tokens
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>()
-        ),
+        token_set(export.coverage_manifest.lane_type_tokens.to_vec()),
         token_set(fixture.expect.lane_type_tokens.clone())
     );
     assert_eq!(

@@ -402,17 +402,15 @@ impl RunScopeControl {
                     "changeable scope must cite lock_reason=not_locked",
                 ));
             }
-        } else {
-            if matches!(
-                self.lock_reason_class,
-                RunScopeControlLockReasonClass::NotLocked
-            ) {
-                findings.push(RunScopeControlFinding::new(
-                    "run_scope_control.locked_reason_required",
-                    subject,
-                    "non-changeable scope must cite a non-not_locked lock_reason",
-                ));
-            }
+        } else if matches!(
+            self.lock_reason_class,
+            RunScopeControlLockReasonClass::NotLocked
+        ) {
+            findings.push(RunScopeControlFinding::new(
+                "run_scope_control.locked_reason_required",
+                subject,
+                "non-changeable scope must cite a non-not_locked lock_reason",
+            ));
         }
 
         if matches!(

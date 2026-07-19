@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the frozen M5 settings-row, capability-sheet,
 //! evidence-chronology, and chronology-export component matrix.
 //!

@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 affected-install assessment panel primitive.
 //!
 //! These builders are the single producer of the checked-in support export and the
@@ -134,7 +137,7 @@ fn install_rows() -> Vec<M5InstallProfileRow> {
     use M5AdvisoryRequiredAction as R;
     use M5AdvisorySeverityClass as S;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(6);
 
     // 1. Per-user installed — critical: the running per-user build is installed and
     //    active against a critical advisory. The verdict is `affected`, resolved

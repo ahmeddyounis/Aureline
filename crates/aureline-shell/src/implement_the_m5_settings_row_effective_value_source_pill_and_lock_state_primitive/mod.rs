@@ -648,7 +648,7 @@ pub fn resolve_settings_row(
 
     let mut shadow_chain: Vec<M5SettingSourcePill> =
         input.contributions.iter().map(|c| c.source).collect();
-    shadow_chain.sort_by(|a, b| source_precedence(*b).cmp(&source_precedence(*a)));
+    shadow_chain.sort_by_key(|pill| std::cmp::Reverse(source_precedence(*pill)));
 
     Ok(M5ResolvedSettingsRow {
         setting_key: input.setting_key.clone(),

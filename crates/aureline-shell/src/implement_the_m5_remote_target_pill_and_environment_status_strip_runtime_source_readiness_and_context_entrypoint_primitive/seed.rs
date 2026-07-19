@@ -1,3 +1,6 @@
+// Sequential pushes keep each contract scenario adjacent to its rationale.
+#![allow(clippy::vec_init_then_push)]
+
 //! Canonical seed builders for the M5 remote-target / environment primitive.
 //!
 //! These builders are the single producer of the checked-in support export and the
@@ -108,7 +111,7 @@ fn surface_rows() -> Vec<M5RunCapableSurfaceRow> {
     use M5ResolvedScope as Scope;
     use M5RuntimeSourceClass as Source;
 
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(9);
 
     // 1. Run console — a live local resolved runtime (LocalInline / Ready), and a
     //    connected remote whose value is offline-cached (DegradedCached).
