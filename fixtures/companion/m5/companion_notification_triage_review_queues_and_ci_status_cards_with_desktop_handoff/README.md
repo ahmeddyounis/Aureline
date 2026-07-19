@@ -4,6 +4,12 @@ These fixtures are generated deterministically from the first-consumer surface
 builder in `aureline-companion` and validate against
 `schemas/companion/companion-notification-triage-review-queues-and-ci-status-cards-with-desktop-handoff.schema.json`.
 
+Regenerate the canonical support export and both drill fixtures together with:
+
+```text
+cargo run -p aureline-companion --example dump_companion_triage_surface -- emit-fixtures .
+```
+
 ## relay_unavailable_surface.json
 
 A surface where the companion relay is unavailable, so every section narrows one
