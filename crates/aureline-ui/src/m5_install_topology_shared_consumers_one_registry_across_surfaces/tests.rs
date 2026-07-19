@@ -292,7 +292,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut InstallTopologyConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<InstallTopologyConsumerBinding>; 5] = [
         (
             |b| b.portable_mode_writes_hidden_machine_global_durable_state = true,
             "portable_mode_writes_hidden_machine_global_durable_state",

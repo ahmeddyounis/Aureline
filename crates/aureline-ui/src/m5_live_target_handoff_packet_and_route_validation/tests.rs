@@ -518,7 +518,7 @@ fn blocker_reason_not_supported_by_precondition_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut LiveTargetHandoffBinding), &str); 4] = [
+    let cases: [crate::GuardrailCase<LiveTargetHandoffBinding>; 4] = [
         (
             |b| b.reopens_live_target_without_validating_identity_trust_route_and_authority = true,
             "reopens_live_target_without_validating_identity_trust_route_and_authority",

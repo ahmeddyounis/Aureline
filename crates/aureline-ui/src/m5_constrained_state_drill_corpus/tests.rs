@@ -592,7 +592,7 @@ fn co_applicable_state_ref_mismatch_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut DrillCorpusBinding), &str); 4] = [
+    let cases: [crate::GuardrailCase<DrillCorpusBinding>; 4] = [
         (
             |b| b.lets_one_constrained_state_class_hide_another = true,
             "lets_one_constrained_state_class_hide_another",

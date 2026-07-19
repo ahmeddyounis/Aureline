@@ -624,7 +624,7 @@ fn satisfy_prerequisite_ref_mismatch_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut DrillCorpusBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<DrillCorpusBinding>; 5] = [
         (
             |b| b.looks_live_by_omission = true,
             "looks_live_by_omission",

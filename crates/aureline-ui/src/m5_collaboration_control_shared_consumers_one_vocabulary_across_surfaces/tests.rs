@@ -300,7 +300,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut CollaborationControlSharedConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<CollaborationControlSharedConsumerBinding>; 5] = [
         (
             |b| b.acquires_terminal_or_debug_control_from_presence_without_an_explicit_grant = true,
             "acquires_terminal_or_debug_control_from_presence_without_an_explicit_grant",

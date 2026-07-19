@@ -4,10 +4,7 @@ fn packet() -> M5MutationPathFixFlowPacket {
     frozen_m5_mutation_path_fix_flow_packet()
 }
 
-fn path<'a>(
-    packet: &'a M5MutationPathFixFlowPacket,
-    path: M5MutationPath,
-) -> &'a M5MutationPathProjection {
+fn path(packet: &M5MutationPathFixFlowPacket, path: M5MutationPath) -> &M5MutationPathProjection {
     packet
         .paths
         .iter()

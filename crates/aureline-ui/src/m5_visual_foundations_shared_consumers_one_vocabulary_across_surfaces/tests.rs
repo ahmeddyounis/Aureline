@@ -290,7 +290,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut VisualFoundationConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<VisualFoundationConsumerBinding>; 5] = [
         (
             |b| b.relies_on_hue_alone_for_meaning = true,
             "hue_alone_for_meaning",

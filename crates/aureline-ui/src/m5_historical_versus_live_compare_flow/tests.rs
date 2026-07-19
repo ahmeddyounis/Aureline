@@ -432,7 +432,7 @@ fn mismatch_reason_not_allowed_for_outcome_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut CompareFlowBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<CompareFlowBinding>; 5] = [
         (
             |b| b.collapses_snapshot_and_live_into_one_ambiguous_view = true,
             "collapses_snapshot_and_live_into_one_ambiguous_view",

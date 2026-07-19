@@ -278,7 +278,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut AiReviewConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<AiReviewConsumerBinding>; 5] = [
         (
             |b| b.lets_ai_review_results_publish_or_merge_implicitly = true,
             "lets_ai_review_results_publish_or_merge_implicitly",

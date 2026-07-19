@@ -295,7 +295,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut VisualInteractionConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<VisualInteractionConsumerBinding>; 5] = [
         (
             |b| b.delays_protected_input_with_motion = true,
             "delays_protected_input_with_motion",

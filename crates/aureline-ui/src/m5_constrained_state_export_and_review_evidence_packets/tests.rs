@@ -571,7 +571,7 @@ fn incomplete_preserved_versus_lost_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut EvidencePacketBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<EvidencePacketBinding>; 5] = [
         (
             |b| b.flattens_constrained_state_into_generic_read_only_language = true,
             "human_readable_flattens_state_class",

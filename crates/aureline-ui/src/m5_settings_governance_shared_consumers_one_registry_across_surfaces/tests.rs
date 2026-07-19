@@ -300,7 +300,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut SettingsGovernanceConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<SettingsGovernanceConsumerBinding>; 5] = [
         (
             |b| b.recycles_a_retired_setting_id = true,
             "recycles_a_retired_setting_id",

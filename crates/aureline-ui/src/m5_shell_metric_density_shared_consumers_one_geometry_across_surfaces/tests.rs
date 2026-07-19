@@ -287,7 +287,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut ShellGeometryConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<ShellGeometryConsumerBinding>; 5] = [
         (
             |b| b.density_or_collapse_changes_command_focus_or_trust = true,
             "density_or_collapse_changes_command_focus_or_trust",

@@ -288,7 +288,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut ReviewPackSharedConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<ReviewPackSharedConsumerBinding>; 5] = [
         (
             |b| b.lets_a_local_parity_estimate_masquerade_as_provider_authoritative = true,
             "lets_a_local_parity_estimate_masquerade_as_provider_authoritative",

@@ -349,7 +349,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut ArchiveViewerConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<ArchiveViewerConsumerBinding>; 5] = [
         (
             |b| b.presents_write_capable_control_as_if_current_object_open_live = true,
             "presents_write_capable_control_as_if_current_object_open_live",

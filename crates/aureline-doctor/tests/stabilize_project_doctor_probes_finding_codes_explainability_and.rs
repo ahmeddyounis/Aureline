@@ -272,7 +272,7 @@ fn stable_unsupported_state_reports_are_typed_and_evidence_backed() {
     }
 
     assert!(
-        state_classes.len() >= 1,
+        !state_classes.is_empty(),
         "reports must cover at least one unsupported state class"
     );
 }

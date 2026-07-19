@@ -451,7 +451,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut WriteReviewSheetBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<WriteReviewSheetBinding>; 5] = [
         (
             |b| b.silently_mutates_current_object_through_lossy_fallback = true,
             "silently_mutates_current_object_through_lossy_fallback",

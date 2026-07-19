@@ -290,7 +290,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut BuildLaneTrustConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<BuildLaneTrustConsumerBinding>; 5] = [
         (
             |b| b.pr_caches_publish_release_artifacts = true,
             "pr_caches_publish_release_artifacts",

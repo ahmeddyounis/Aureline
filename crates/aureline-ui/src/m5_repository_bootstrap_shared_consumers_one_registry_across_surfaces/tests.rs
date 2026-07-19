@@ -297,7 +297,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut RepositoryBootstrapConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<RepositoryBootstrapConsumerBinding>; 5] = [
         (
             |b| b.rewrites_clone_into_open_when_local_checkout_already_exists = true,
             "rewrites_clone_into_open_when_local_checkout_already_exists",

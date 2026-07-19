@@ -416,7 +416,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut FileStateBadgeGroupConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<FileStateBadgeGroupConsumerBinding>; 5] = [
         (
             |b| b.presents_constrained_object_as_directly_writable_or_hides_recovery_path = true,
             "presents_constrained_object_as_directly_writable_or_hides_recovery_path",

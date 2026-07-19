@@ -1799,6 +1799,9 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
+#[cfg(test)]
+pub(crate) type GuardrailCase<T> = (fn(&mut T), &'static str);
+
 pub mod components;
 pub mod density;
 pub mod m5_accessibility_and_continuity;

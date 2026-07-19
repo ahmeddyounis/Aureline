@@ -292,7 +292,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut WindowRestoreConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<WindowRestoreConsumerBinding>; 5] = [
         (
             |b| {
                 b.reruns_commands_or_reattaches_privileged_sessions_implicitly_during_restore = true

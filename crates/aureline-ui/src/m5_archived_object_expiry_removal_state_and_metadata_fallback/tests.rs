@@ -503,7 +503,7 @@ fn removal_attribution_incomplete_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut ArchivedEvidenceStateBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<ArchivedEvidenceStateBinding>; 5] = [
         (
             |b| b.reopens_live_target_without_validating_identity_trust_route_and_authority = true,
             "reopens_live_target_without_validating_identity_trust_route_and_authority",

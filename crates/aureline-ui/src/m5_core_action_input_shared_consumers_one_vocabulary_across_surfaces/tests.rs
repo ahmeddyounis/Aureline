@@ -264,7 +264,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut CoreControlConsumerBinding), &str); 6] = [
+    let cases: [crate::GuardrailCase<CoreControlConsumerBinding>; 6] = [
         (
             |b| b.lets_placeholder_text_replace_the_label = true,
             "placeholder_replaces_label",

@@ -273,7 +273,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut DecisionFeedbackConsumerBinding), &str); 6] = [
+    let cases: [crate::GuardrailCase<DecisionFeedbackConsumerBinding>; 6] = [
         (
             |b| b.relies_on_color_alone_for_meaning = true,
             "color_alone_for_meaning",

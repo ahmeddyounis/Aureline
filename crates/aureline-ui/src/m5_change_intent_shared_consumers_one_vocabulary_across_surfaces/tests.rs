@@ -295,7 +295,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut ChangeIntentSharedConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<ChangeIntentSharedConsumerBinding>; 5] = [
         (
             |b| b.lets_a_local_handoff_or_queued_publish_masquerade_as_a_provider_committed_update = true,
             "lets_a_local_handoff_or_queued_publish_masquerade_as_a_provider_committed_update",

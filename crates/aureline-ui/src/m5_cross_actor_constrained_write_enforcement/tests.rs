@@ -515,7 +515,7 @@ fn unexpected_narrow_note_on_enforced_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut CrossActorGateBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<CrossActorGateBinding>; 5] = [
         (
             |b| b.silently_writes_constrained_object_bypassing_direct_typing = true,
             "actor_silently_writes_constrained_object_bypassing_direct_typing",

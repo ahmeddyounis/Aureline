@@ -525,7 +525,7 @@ fn metadata_only_exit_ref_mismatch_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut ImportedOfflineLineageBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<ImportedOfflineLineageBinding>; 5] = [
         (
             |b| b.ranked_or_narrated_as_current_live_service_truth = true,
             "ranked_or_narrated_as_current_live_service_truth",

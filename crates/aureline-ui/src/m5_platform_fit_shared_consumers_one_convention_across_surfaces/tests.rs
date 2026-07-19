@@ -288,7 +288,7 @@ fn unexpected_narrow_note_on_full_binding_is_rejected() {
 
 #[test]
 fn each_guardrail_is_enforced() {
-    let cases: [(fn(&mut PlatformFitConsumerBinding), &str); 5] = [
+    let cases: [crate::GuardrailCase<PlatformFitConsumerBinding>; 5] = [
         (
             |b| b.platform_wording_changes_command_or_permission_meaning = true,
             "platform_wording_changes_command_or_permission_meaning",
