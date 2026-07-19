@@ -1044,13 +1044,18 @@ impl ManifestDiffCard {
     /// Whether the card honestly blocks or narrows when preview/checkpoint state
     /// is unavailable.
     pub const fn fallback_honest(&self) -> bool {
-        match (self.preview_state, self.checkpoint_state, self.apply_action) {
-            (ManifestDiffPreviewState::Available, ManifestDiffCheckpointState::Available, _) => {
-                true
-            }
-            (_, _, ManifestDiffApplyAction::Blocked | ManifestDiffApplyAction::InspectOnly) => true,
-            _ => false,
-        }
+        matches!(
+            (self.preview_state, self.checkpoint_state, self.apply_action),
+            (
+                ManifestDiffPreviewState::Available,
+                ManifestDiffCheckpointState::Available,
+                _
+            ) | (
+                _,
+                _,
+                ManifestDiffApplyAction::Blocked | ManifestDiffApplyAction::InspectOnly
+            )
+        )
     }
 }
 

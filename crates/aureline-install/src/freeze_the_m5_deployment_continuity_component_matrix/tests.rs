@@ -435,10 +435,10 @@ fn certification() -> M5DeploymentContinuitySurfaceCertificationPacket {
     seeded_deployment_continuity_surface_certification()
 }
 
-fn certification_row_mut<'a>(
-    packet: &'a mut M5DeploymentContinuitySurfaceCertificationPacket,
+fn certification_row_mut(
+    packet: &mut M5DeploymentContinuitySurfaceCertificationPacket,
     surface: M5ClaimedDeploymentSurface,
-) -> &'a mut M5DeploymentContinuitySurfaceCertificationRow {
+) -> &mut M5DeploymentContinuitySurfaceCertificationRow {
     packet
         .surface_rows
         .iter_mut()

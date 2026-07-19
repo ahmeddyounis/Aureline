@@ -894,17 +894,16 @@ fn qualify_rows(
                 .map(|d| d.narrow_reason)
                 .unwrap_or(DeprovisionProofNarrowReasonClass::LocalWorkSilentlyPurged);
             row.narrow_reason_token = reason.as_str().to_owned();
-        } else if beta_ids.contains(&row.row_id.as_str()) {
-            if row.qualification_token == DeprovisionProofQualificationClass::Stable.as_str() {
-                row.qualification_token =
-                    DeprovisionProofQualificationClass::Beta.as_str().to_owned();
-                let reason = defects
-                    .iter()
-                    .find(|d| d.source_row_id == row.row_id)
-                    .map(|d| d.narrow_reason)
-                    .unwrap_or(DeprovisionProofNarrowReasonClass::NotNarrowed);
-                row.narrow_reason_token = reason.as_str().to_owned();
-            }
+        } else if beta_ids.contains(&row.row_id.as_str())
+            && row.qualification_token == DeprovisionProofQualificationClass::Stable.as_str()
+        {
+            row.qualification_token = DeprovisionProofQualificationClass::Beta.as_str().to_owned();
+            let reason = defects
+                .iter()
+                .find(|d| d.source_row_id == row.row_id)
+                .map(|d| d.narrow_reason)
+                .unwrap_or(DeprovisionProofNarrowReasonClass::NotNarrowed);
+            row.narrow_reason_token = reason.as_str().to_owned();
         }
     }
     rows

@@ -142,6 +142,8 @@ fn base_row(
     }
 }
 
+// Keep the numbered contract cases beside their explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn controls_rows() -> Vec<M5FitnessGovernanceRow> {
     use M5EvidenceFreshness as Fresh;
     use M5FitnessDeclaredState as Metric;

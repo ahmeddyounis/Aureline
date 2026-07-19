@@ -763,11 +763,11 @@ impl EmbeddingIndexManifest {
         contribution
             .retrieval_epoch
             .as_deref()
-            .map_or(false, |epoch| epoch == self.retrieval_epoch)
+            .is_some_and(|epoch| epoch == self.retrieval_epoch)
             && contribution
                 .embedder_model_id
                 .as_deref()
-                .map_or(false, |model| model == self.embedder_model_id)
+                .is_some_and(|model| model == self.embedder_model_id)
             && contribution
                 .embedder_model_version
                 .as_deref()
@@ -788,9 +788,7 @@ impl EmbeddingIndexManifest {
                 .retention_policy_id
                 .as_deref()
                 .map_or(true, |retention| {
-                    self.retention_policy_id
-                        .as_deref()
-                        .map_or(false, |manifest_retention| retention == manifest_retention)
+                    self.retention_policy_id.as_deref() == Some(retention)
                 })
     }
 
@@ -825,11 +823,11 @@ impl EmbeddingIndexManifest {
     fn has_tenant_boundary(&self) -> bool {
         self.tenant_scope_ref
             .as_deref()
-            .map_or(false, |value| !value.trim().is_empty())
+            .is_some_and(|value| !value.trim().is_empty())
             && self
                 .region_ref
                 .as_deref()
-                .map_or(false, |value| !value.trim().is_empty())
+                .is_some_and(|value| !value.trim().is_empty())
             && !self.policy_scope_ref.trim().is_empty()
     }
 
@@ -840,11 +838,11 @@ impl EmbeddingIndexManifest {
     fn has_pack_compatibility(&self) -> bool {
         self.signed_pack_ref
             .as_deref()
-            .map_or(false, |value| !value.trim().is_empty())
+            .is_some_and(|value| !value.trim().is_empty())
             && self
                 .compatibility_ref
                 .as_deref()
-                .map_or(false, |value| !value.trim().is_empty())
+                .is_some_and(|value| !value.trim().is_empty())
     }
 }
 

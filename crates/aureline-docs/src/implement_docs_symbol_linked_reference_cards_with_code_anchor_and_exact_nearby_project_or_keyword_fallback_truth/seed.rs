@@ -115,6 +115,8 @@ fn base_row(
     }
 }
 
+// Sequential pushes preserve the numbered consumer-matrix narrative below.
+#[allow(clippy::vec_init_then_push)]
 fn reference_card_rows() -> Vec<M5DocsReferenceCardRow> {
     use M5DocsCorpusClass as Corpus;
     use M5DocsFreshnessState as Fresh;

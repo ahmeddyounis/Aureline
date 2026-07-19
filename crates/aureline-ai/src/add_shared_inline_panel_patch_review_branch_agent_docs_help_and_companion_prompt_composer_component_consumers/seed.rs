@@ -97,6 +97,8 @@ fn base_row(
     }
 }
 
+// Keep the numbered contract cases beside their explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn consumer_rows() -> Vec<M5ComposerComponentConsumerRow> {
     use M5ComposerComponentConsumer as Consumer;
     use M5ComposerConsumerExportCaveat as Caveat;

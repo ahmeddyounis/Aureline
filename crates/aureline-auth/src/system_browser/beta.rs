@@ -931,7 +931,7 @@ pub struct StageSystemBrowserReturnPathBetaRowRequest<'a> {
     pub plain_language_summary: &'a str,
 }
 
-impl<'a> StageSystemBrowserReturnPathBetaRowRequest<'a> {
+impl StageSystemBrowserReturnPathBetaRowRequest<'_> {
     /// Mint a beta row with all closed-vocabulary tokens stamped from the
     /// alpha claimed-row truth and the passed return-path / passkey inputs.
     pub fn stage(self) -> SystemBrowserReturnPathBetaRow {

@@ -99,6 +99,8 @@ fn base_row(
     }
 }
 
+// Sequential pushes preserve the numbered consumer-matrix narrative below.
+#[allow(clippy::vec_init_then_push)]
 fn consumer_rows() -> Vec<M5SupportIntakeComponentConsumerRow> {
     use M5SupportIntakeComponentConsumer as Consumer;
     use M5SupportIntakeConsumerExportCaveat as Caveat;

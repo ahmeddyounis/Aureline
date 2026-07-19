@@ -489,6 +489,8 @@ pub struct SnapshotMutationReview {
 
 impl SnapshotMutationReview {
     /// Builds a governed snapshot/baseline mutation review.
+    // The review constructor mirrors the mutation-review schema.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         mutation_review_id: impl Into<String>,
         identity: TestTriageIdentity,

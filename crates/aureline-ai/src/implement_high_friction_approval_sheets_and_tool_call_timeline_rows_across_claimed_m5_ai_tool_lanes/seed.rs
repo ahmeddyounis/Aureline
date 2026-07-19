@@ -131,6 +131,8 @@ fn base_row(
     }
 }
 
+// Keep the numbered contract cases beside their explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn rows() -> Vec<M5AiApprovalToolCallRow> {
     use M5AiActionScope as Scope;
     use M5AiApprovalGate as Gate;

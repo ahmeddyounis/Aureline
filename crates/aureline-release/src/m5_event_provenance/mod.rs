@@ -1178,7 +1178,7 @@ impl RouteDriftBanner {
             out.push(M5EventProvenanceViolation::DriftGateDrift);
         }
         if self.drift_count as usize != self.drifted_facets.len()
-            || self.has_drift != !self.drifted_facets.is_empty()
+            || self.has_drift == self.drifted_facets.is_empty()
         {
             out.push(M5EventProvenanceViolation::DriftBannerInconsistent);
         }
@@ -2414,7 +2414,7 @@ fn derive_conformance(
     let drift_ok = events.iter().all(|e| {
         let b = &e.drift_banner;
         b.drift_count as usize == b.drifted_facets.len()
-            && b.has_drift == !b.drifted_facets.is_empty()
+            && b.has_drift != b.drifted_facets.is_empty()
             && b.drifted_facets
                 .iter()
                 .all(|f| f.baseline == b.baseline && !f.planned_ref.trim().is_empty())

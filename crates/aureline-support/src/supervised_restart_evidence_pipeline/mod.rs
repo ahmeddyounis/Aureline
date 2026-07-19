@@ -721,7 +721,7 @@ impl SupervisedRestartEvidencePacket {
             packet_id: packet_id.into(),
             workspace_id: fault_packet.workspace_id.clone(),
             generated_at: generated_at.into(),
-            build_id: build_id.into(),
+            build_id,
             doc_ref: SUPERVISED_RESTART_EVIDENCE_PIPELINE_DOC_REF.to_owned(),
             schema_ref: SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF.to_owned(),
             lineage_entries,

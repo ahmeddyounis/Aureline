@@ -524,7 +524,7 @@ pub enum ContentIntegrityBetaArtifactError {
     /// Packet failed to parse.
     Packet(serde_json::Error),
     /// Packet failed validation.
-    Validation(ContentIntegrityBetaValidationReport),
+    Validation(Box<ContentIntegrityBetaValidationReport>),
 }
 
 impl fmt::Display for ContentIntegrityBetaArtifactError {
@@ -560,7 +560,9 @@ pub fn current_content_integrity_beta_packet(
     if report.is_green() {
         Ok(packet)
     } else {
-        Err(ContentIntegrityBetaArtifactError::Validation(report))
+        Err(ContentIntegrityBetaArtifactError::Validation(Box::new(
+            report,
+        )))
     }
 }
 

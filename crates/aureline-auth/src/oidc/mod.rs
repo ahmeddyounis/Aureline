@@ -1287,7 +1287,7 @@ pub struct StageOidcSystemBrowserBetaRowRequest<'a> {
     pub plain_language_summary: &'a str,
 }
 
-impl<'a> StageOidcSystemBrowserBetaRowRequest<'a> {
+impl StageOidcSystemBrowserBetaRowRequest<'_> {
     /// Mint a beta row with all closed-vocabulary tokens stamped from the
     /// passed inputs.
     pub fn stage(self) -> OidcSystemBrowserBetaRow {

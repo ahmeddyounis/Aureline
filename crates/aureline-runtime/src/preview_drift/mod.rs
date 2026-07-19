@@ -457,6 +457,8 @@ pub struct PreviewCommitBasis {
 
 impl PreviewCommitBasis {
     /// Builds a guard basis and canonicalizes target ordering by target ref.
+    // Every preview guard axis is intentionally explicit at construction.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         target_bindings: Vec<PreviewTargetBinding>,
         selected_scope: PreviewScalarBinding,

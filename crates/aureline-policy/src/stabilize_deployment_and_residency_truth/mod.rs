@@ -964,8 +964,6 @@ fn derive_stabilize_rows(
 
             let row_qual = if has_withdrawal {
                 DeploymentResidencyStabilizeQualificationClass::Withdrawn
-            } else if row_narrow != DeploymentResidencyStabilizeNarrowReasonClass::NotNarrowed {
-                overall_qual
             } else {
                 overall_qual
             };

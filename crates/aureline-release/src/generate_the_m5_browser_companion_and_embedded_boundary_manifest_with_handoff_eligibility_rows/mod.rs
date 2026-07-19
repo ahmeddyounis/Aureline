@@ -853,28 +853,29 @@ impl M5BrowserCompanionEmbeddedBoundaryManifest {
             });
         }
 
-        if row.publishes_stable() {
-            if matches!(
+        if row.publishes_stable()
+            && matches!(
                 row.proof_packet.slo_state,
                 FreshnessSloState::Breached | FreshnessSloState::Missing
-            ) {
-                violations.push(M5HandoffEligibilityManifestViolation::HeldOnStalePacket {
-                    entry_id: row.entry_id.clone(),
-                    slo_state: row.proof_packet.slo_state,
-                });
-            }
+            )
+        {
+            violations.push(M5HandoffEligibilityManifestViolation::HeldOnStalePacket {
+                entry_id: row.entry_id.clone(),
+                slo_state: row.proof_packet.slo_state,
+            });
         }
 
-        if row.claim_holds_stable() && row.handoff_state.forces_narrowing() {
-            if row.effective_label.is_at_or_above_cutline() {
-                violations.push(
-                    M5HandoffEligibilityManifestViolation::PublishedLabelNotNarrowed {
-                        entry_id: row.entry_id.clone(),
-                        claim_label: row.claim_label,
-                        published_label: row.effective_label,
-                    },
-                );
-            }
+        if row.claim_holds_stable()
+            && row.handoff_state.forces_narrowing()
+            && row.effective_label.is_at_or_above_cutline()
+        {
+            violations.push(
+                M5HandoffEligibilityManifestViolation::PublishedLabelNotNarrowed {
+                    entry_id: row.entry_id.clone(),
+                    claim_label: row.claim_label,
+                    published_label: row.effective_label,
+                },
+            );
         }
     }
 

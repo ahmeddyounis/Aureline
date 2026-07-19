@@ -759,6 +759,8 @@ fn stable_jobs() -> Vec<StableBackgroundJob> {
     ]
 }
 
+// Seed jobs spell out all admission and collapse-policy axes inline.
+#[allow(clippy::too_many_arguments)]
 fn stable_job(
     job_id: &str,
     job_kind: BackgroundJobKind,

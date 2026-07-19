@@ -139,6 +139,8 @@ fn base_row(
     }
 }
 
+// Keep the numbered contract cases beside their explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn rows() -> Vec<M5AiConnectorModelRow> {
     use M5AiAuthPosture as Auth;
     use M5AiConnectorCapability as Cap;

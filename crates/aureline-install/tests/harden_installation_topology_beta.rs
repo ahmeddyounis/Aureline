@@ -3,9 +3,8 @@
 
 use aureline_install::{
     seeded_harden_install_topology_page, validate_harden_install_topology_page, BinaryRootClass,
-    FleetRolloutEvidenceClass, HardenInstallTopologyPage, ManagedFleetAuditRow, NarrowReasonToken,
-    QualificationToken, RolloutRingClass, SilentDeploymentAuditRow, SilentInstallSupportClass,
-    StateRootAuditEntry, StateRootIsolationClass, StateRootReviewClass, UpdaterOwnerClass,
+    FleetRolloutEvidenceClass, HardenInstallTopologyPage, NarrowReasonToken, QualificationToken,
+    RolloutRingClass, StateRootIsolationClass, StateRootReviewClass, UpdaterOwnerClass,
     HARDEN_INSTALL_TOPOLOGY_PAGE_RECORD_KIND, HARDEN_INSTALL_TOPOLOGY_SCHEMA_VERSION,
     HARDEN_INSTALL_TOPOLOGY_SHARED_CONTRACT_REF, REQUIRED_FLEET_EVIDENCE,
 };

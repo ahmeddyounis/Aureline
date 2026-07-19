@@ -104,6 +104,8 @@ fn base_row(
     }
 }
 
+// Keep the numbered contract cases beside their explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn banner_rows() -> Vec<M5AiActionStateBannerRow> {
     use M5AiActionPlacement as Place;
     use M5AiActionState as State;

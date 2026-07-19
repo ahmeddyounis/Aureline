@@ -530,12 +530,10 @@ fn derive_drift_reasons(record: &RemoteHelperBetaRecord) -> Vec<DriftReasonClass
     if matches!(
         record.skew_visibility,
         RemoteHelperSkewVisibilityClass::OutsideSupportedWindow
-    ) {
-        if drops_imply_version {
-            push(DriftReasonClass::VersionMismatch, &mut ordered, &mut seen);
-        } else if record.dropped_capabilities.is_empty() && !target_scoped_posture {
-            push(DriftReasonClass::VersionMismatch, &mut ordered, &mut seen);
-        }
+    ) && (drops_imply_version
+        || (record.dropped_capabilities.is_empty() && !target_scoped_posture))
+    {
+        push(DriftReasonClass::VersionMismatch, &mut ordered, &mut seen);
     }
 
     for dropped in &record.dropped_capabilities {
@@ -581,21 +579,19 @@ fn derive_drift_reasons(record: &RemoteHelperBetaRecord) -> Vec<DriftReasonClass
         push(DriftReasonClass::RouteMismatch, &mut ordered, &mut seen);
     }
 
-    if target_scoped_posture
+    if (target_scoped_posture
         && record.dropped_capabilities.is_empty()
         && matches!(
             record.skew_visibility,
             RemoteHelperSkewVisibilityClass::OutsideSupportedWindow
                 | RemoteHelperSkewVisibilityClass::NarrowedSupportedWindow
-        )
-    {
-        push(DriftReasonClass::TargetMismatch, &mut ordered, &mut seen);
-    } else if matches!(
-        record.effective_posture,
-        EffectiveCapabilityPosture::Blocked
-    ) && !drops_imply_auth
-        && !drops_imply_version
-        && record.dropped_capabilities.is_empty()
+        ))
+        || (matches!(
+            record.effective_posture,
+            EffectiveCapabilityPosture::Blocked
+        ) && !drops_imply_auth
+            && !drops_imply_version
+            && record.dropped_capabilities.is_empty())
     {
         push(DriftReasonClass::TargetMismatch, &mut ordered, &mut seen);
     }

@@ -83,6 +83,9 @@ pub struct ProvenanceChainRecord {
 
 impl ProvenanceChainRecord {
     /// Builds a metadata-only provenance-chain transition.
+    // The constructor follows the frozen provenance record field order so
+    // call sites remain directly auditable against the boundary schema.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         record_id: impl Into<String>,
         sequence: u32,

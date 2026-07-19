@@ -604,7 +604,7 @@ pub struct TabRecord {
 pub enum PaneNode {
     Leaf {
         pane_id: String,
-        surface: PaneSurfaceDescriptor,
+        surface: Box<PaneSurfaceDescriptor>,
     },
     Split {
         split_id: String,

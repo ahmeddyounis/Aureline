@@ -131,6 +131,14 @@ fn status_strip_and_convention_truth_fixtures_validate_and_match_manifest() {
                 .unwrap_or_else(|err| panic!("parse {case_path:?}: {err}"));
             let scope = format!("{case_rel} ({})", case.fixture_meta.name);
 
+            assert!(
+                case.fixture_meta
+                    .scenario
+                    .as_deref()
+                    .is_some_and(|scenario| !scenario.trim().is_empty()),
+                "{scope}: fixture scenario must be present and non-empty"
+            );
+
             assert_eq!(
                 case.strip.record_kind, FRAMEWORK_SUPPORT_STRIP_RECORD_KIND,
                 "{scope}: record kind"
@@ -170,6 +178,14 @@ fn status_strip_and_convention_truth_fixtures_validate_and_match_manifest() {
             let case: CertaintyFixture = serde_yaml::from_str(&payload)
                 .unwrap_or_else(|err| panic!("parse {case_path:?}: {err}"));
             let scope = format!("{case_rel} ({})", case.fixture_meta.name);
+
+            assert!(
+                case.fixture_meta
+                    .scenario
+                    .as_deref()
+                    .is_some_and(|scenario| !scenario.trim().is_empty()),
+                "{scope}: fixture scenario must be present and non-empty"
+            );
 
             assert_eq!(
                 case.record.record_kind, FRAMEWORK_OBJECT_CERTAINTY_RECORD_KIND,

@@ -863,22 +863,21 @@ impl ChangeObjectOrchestrationPacket {
         validate_inspection(&self.inspection, self)?;
 
         // Cross-record invariants
-        if self.orchestration.flow_state == "preview_approved" {
-            if self.mutation_checkpoint.checkpoint_state == "missing_blocks_apply" {
-                return Err(change_object_orchestration_validation_error(
-                    "preview_approved flow cannot have missing_blocks_apply checkpoint",
-                ));
-            }
+        if self.orchestration.flow_state == "preview_approved"
+            && self.mutation_checkpoint.checkpoint_state == "missing_blocks_apply"
+        {
+            return Err(change_object_orchestration_validation_error(
+                "preview_approved flow cannot have missing_blocks_apply checkpoint",
+            ));
         }
         if matches!(
             self.orchestration.flow_state.as_str(),
             "executing" | "completed" | "rolled_back"
-        ) {
-            if self.mutation_checkpoint.checkpoint_state == "missing_blocks_apply" {
-                return Err(change_object_orchestration_validation_error(
-                    "executing/completed/rolled_back flow cannot have missing_blocks_apply checkpoint",
-                ));
-            }
+        ) && self.mutation_checkpoint.checkpoint_state == "missing_blocks_apply"
+        {
+            return Err(change_object_orchestration_validation_error(
+                "executing/completed/rolled_back flow cannot have missing_blocks_apply checkpoint",
+            ));
         }
         if self.orchestration.flow_state == "completed" && self.inspection.failed {
             return Err(change_object_orchestration_validation_error(

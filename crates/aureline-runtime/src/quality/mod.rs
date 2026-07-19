@@ -2280,6 +2280,7 @@ impl QualityReleaseDebtPacket {
     /// Returns [`QualityGovernanceError::MissingEffectiveProfile`] or
     /// [`QualityGovernanceError::MissingQualitySession`] when the packet cannot
     /// cite the profile/session truth source required for reconstruction.
+    #[allow(clippy::too_many_arguments)]
     pub fn from_records(
         packet_id: impl Into<String>,
         release_ref: impl Into<String>,

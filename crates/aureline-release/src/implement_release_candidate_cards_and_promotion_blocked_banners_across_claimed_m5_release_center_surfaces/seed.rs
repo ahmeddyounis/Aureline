@@ -109,6 +109,8 @@ fn base_row(
     }
 }
 
+// Keep the numbered contract cases beside their explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn candidate_rows() -> Vec<M5ReleaseCandidateRow> {
     use M5CandidateBlockerState as Block;
     use M5CandidateChannelFamily as Chan;

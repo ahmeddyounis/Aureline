@@ -778,6 +778,8 @@ pub fn canonical_service_health_feed() -> ServiceHealthFeed {
     }
 }
 
+// Feed seeds keep every disclosure axis explicit at the call site for auditability.
+#[allow(clippy::too_many_arguments)]
 fn item(
     item_id: &str,
     service_family: &str,

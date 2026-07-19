@@ -1181,18 +1181,17 @@ fn validate_recovery_checkpoint(
             option,
         )?;
     }
-    if !record.checkpoint_possible {
-        if !record.reflog_only_disclosure_required
+    if !record.checkpoint_possible
+        && (!record.reflog_only_disclosure_required
             || !record.reflog_only_disclosure_acknowledged
             || !record
                 .restore_options
                 .iter()
-                .any(|option| option == "reflog_only_disclosure")
-        {
-            return Err(RiskyVcsTruthValidationError::new(
-                "impossible checkpoints require acknowledged reflog-only disclosure",
-            ));
-        }
+                .any(|option| option == "reflog_only_disclosure"))
+    {
+        return Err(RiskyVcsTruthValidationError::new(
+            "impossible checkpoints require acknowledged reflog-only disclosure",
+        ));
     }
     if record.lifecycle_state == "missing_blocks_apply"
         && record.reflog_only_disclosure_acknowledged

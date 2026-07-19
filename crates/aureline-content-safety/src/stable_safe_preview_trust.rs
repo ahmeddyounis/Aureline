@@ -583,11 +583,11 @@ impl StableSafePreviewTrustPacket {
                     },
                 );
             }
-            if row.qualification == SurfaceQualification::Stable && !row.owner_identity_visible
-                || row.qualification == SurfaceQualification::Stable && !row.origin_identity_visible
-                || row.qualification == SurfaceQualification::Stable && !row.trust_class_visible
-                || row.qualification == SurfaceQualification::Stable
-                    && !row.representation_label_visible
+            if row.qualification == SurfaceQualification::Stable
+                && (!row.owner_identity_visible
+                    || !row.origin_identity_visible
+                    || !row.trust_class_visible
+                    || !row.representation_label_visible)
             {
                 violations.push(
                     StableSafePreviewTrustViolation::SurfaceMissingVisibleTruth {
@@ -954,7 +954,8 @@ fn duplicate_tokens<'a>(tokens: impl Iterator<Item = &'a str>) -> Vec<String> {
     }
     counts
         .into_iter()
-        .filter_map(|(token, count)| (count > 1).then(|| token.to_string()))
+        .filter(|(_, count)| *count > 1)
+        .map(|(token, _)| token.to_string())
         .collect()
 }
 
@@ -1114,6 +1115,9 @@ fn all_carriers() -> Vec<TrustEvidenceCarrier> {
     REQUIRED_TRUST_EVIDENCE_CARRIERS.to_vec()
 }
 
+// The seed helper mirrors the eight independently reviewable fields in the
+// surface-matrix schema; grouping them would obscure fixture intent.
+#[allow(clippy::too_many_arguments)]
 fn stable_row(
     row_id: &str,
     surface: SafePreviewConsumerSurface,
@@ -1373,6 +1377,8 @@ fn stable_surface_matrix() -> Vec<SafePreviewSurfaceMatrixRow> {
     ]
 }
 
+// Transfer cases deliberately spell out every trust-preservation axis.
+#[allow(clippy::too_many_arguments)]
 fn transfer_case(
     case_id: &str,
     case_kind: SafePreviewTransferCaseKind,

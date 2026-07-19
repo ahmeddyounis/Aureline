@@ -372,21 +372,18 @@ impl GitTopologyReviewPacket {
 
             // A recommendation is advisory and must match the reviewed verb; a
             // wrong-root sheet recommends nothing (the user must retarget).
-            match row.recommended_action {
-                Some(action) => {
-                    if sheet.wrong_root_guard.blocks() {
-                        errors.push(
-                            GitTopologyReviewValidationError::RecommendationAcrossWrongRoot {
-                                row_id: row.row_id.clone(),
-                            },
-                        );
-                    } else if action != sheet.action_kind {
-                        errors.push(GitTopologyReviewValidationError::RecommendationMismatch {
+            if let Some(action) = row.recommended_action {
+                if sheet.wrong_root_guard.blocks() {
+                    errors.push(
+                        GitTopologyReviewValidationError::RecommendationAcrossWrongRoot {
                             row_id: row.row_id.clone(),
-                        });
-                    }
+                        },
+                    );
+                } else if action != sheet.action_kind {
+                    errors.push(GitTopologyReviewValidationError::RecommendationMismatch {
+                        row_id: row.row_id.clone(),
+                    });
                 }
-                None => {}
             }
         }
 

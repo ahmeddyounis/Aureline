@@ -1451,7 +1451,7 @@ pub fn canonical_deferred_publish_queue_recovery_packet() -> DeferredPublishQueu
 
     let local_packets = queue_rows
         .iter()
-        .map(|row| local_packet_from_queue_row(row))
+        .map(local_packet_from_queue_row)
         .collect::<Vec<_>>();
 
     let activity_rows = queue_rows

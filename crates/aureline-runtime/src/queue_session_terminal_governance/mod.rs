@@ -4833,6 +4833,8 @@ fn workspace_scope(scope_class: &str, scope_ref: &str) -> QueueJobScope {
     }
 }
 
+// Seed identities mirror every governed execution identity axis.
+#[allow(clippy::too_many_arguments)]
 fn job_identity(
     job_kind: GovernedJobKind,
     job_identity_ref: &str,
@@ -4870,6 +4872,8 @@ fn job_identity(
     }
 }
 
+// Queue rows keep each admission, budget, and checkpoint axis explicit.
+#[allow(clippy::too_many_arguments)]
 fn queue_row(
     workload: GovernedWorkloadClass,
     queue_lane_class: QueueLaneClass,

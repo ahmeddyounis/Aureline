@@ -2158,7 +2158,7 @@ fn build_row(entry: &CommandRegistryEntryRecord) -> M5CommandGovernanceRow {
             rollout_governance.effective_state_class.as_str()
         ));
     }
-    if rollout_governance.active_kill_switches().first().is_some() {
+    if !rollout_governance.active_kill_switches().is_empty() {
         finding_codes.push("active_kill_switch".to_string());
     }
 
@@ -2440,43 +2440,43 @@ pub fn validate_m5_command_governance_packet(
                     .copy_command_id
                     .value
                     .as_deref()
-                    .is_none_or(str::is_empty)
+                    .map_or(true, str::is_empty)
                 || (actions.copy_cli_form.available
                     && actions
                         .copy_cli_form
                         .value
                         .as_deref()
-                        .is_none_or(str::is_empty))
+                        .map_or(true, str::is_empty))
                 || (actions.copy_recipe_step.available
                     && actions
                         .copy_recipe_step
                         .value
                         .as_deref()
-                        .is_none_or(str::is_empty))
+                        .map_or(true, str::is_empty))
                 || !actions.inspect_origin.available
                 || actions
                     .inspect_origin
                     .detail_ref
                     .as_deref()
-                    .is_none_or(str::is_empty)
+                    .map_or(true, str::is_empty)
                 || !actions.inspect_lifecycle.available
                 || actions
                     .inspect_lifecycle
                     .detail_ref
                     .as_deref()
-                    .is_none_or(str::is_empty)
+                    .map_or(true, str::is_empty)
                 || !actions.inspect_capability_class.available
                 || actions
                     .inspect_capability_class
                     .detail_ref
                     .as_deref()
-                    .is_none_or(str::is_empty)
+                    .map_or(true, str::is_empty)
                 || (actions.inspect_why_not_automatable.available
                     && actions
                         .inspect_why_not_automatable
                         .detail_ref
                         .as_deref()
-                        .is_none_or(str::is_empty))
+                        .map_or(true, str::is_empty))
             {
                 errors.push(
                     M5CommandGovernanceValidationError::MissingIntrospectionAction {
@@ -2537,12 +2537,12 @@ pub fn validate_m5_command_governance_packet(
                     .route_provenance
                     .handoff_packet_ref
                     .as_deref()
-                    .is_none_or(str::is_empty)
+                    .map_or(true, str::is_empty)
                     || surface
                         .route_provenance
                         .handoff_reason_class
                         .as_deref()
-                        .is_none_or(str::is_empty))
+                        .map_or(true, str::is_empty))
             {
                 errors.push(
                     M5CommandGovernanceValidationError::MissingHandoffProvenance {

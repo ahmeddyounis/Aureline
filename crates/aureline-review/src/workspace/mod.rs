@@ -1261,15 +1261,14 @@ impl ReviewWorkspaceBetaPacket {
 
     /// Returns true when raw URL/comment/source escapes are absent.
     pub fn raw_escape_hatches_absent(&self) -> bool {
-        self.support_export.raw_comment_body_export_allowed == false
-            && self.support_export.raw_url_export_allowed == false
-            && self.support_export.raw_source_body_export_allowed == false
+        !self.support_export.raw_comment_body_export_allowed
+            && !self.support_export.raw_url_export_allowed
+            && !self.support_export.raw_source_body_export_allowed
             && self
                 .browser_handoff
                 .as_ref()
                 .map(|handoff| {
-                    handoff.raw_url_export_allowed == false
-                        && !looks_like_raw_url(&handoff.destination_ref)
+                    !handoff.raw_url_export_allowed && !looks_like_raw_url(&handoff.destination_ref)
                 })
                 .unwrap_or(true)
     }
@@ -1733,11 +1732,11 @@ fn beta_inspection_for(
         check_freshness,
         object_lineage,
     );
-    let raw_escape_hatches_absent = support_export.raw_comment_body_export_allowed == false
-        && support_export.raw_url_export_allowed == false
-        && support_export.raw_source_body_export_allowed == false
+    let raw_escape_hatches_absent = !support_export.raw_comment_body_export_allowed
+        && !support_export.raw_url_export_allowed
+        && !support_export.raw_source_body_export_allowed
         && browser_handoff
-            .map(|handoff| handoff.raw_url_export_allowed == false)
+            .map(|handoff| !handoff.raw_url_export_allowed)
             .unwrap_or(true);
     let stale_check_blocks_operator_truth = check_freshness
         .iter()
@@ -2272,9 +2271,9 @@ fn support_export_reopenable(
         && !durable_comment_anchors.is_empty()
         && !check_freshness.is_empty()
         && !object_lineage.is_empty()
-        && support_export.raw_comment_body_export_allowed == false
-        && support_export.raw_url_export_allowed == false
-        && support_export.raw_source_body_export_allowed == false
+        && !support_export.raw_comment_body_export_allowed
+        && !support_export.raw_url_export_allowed
+        && !support_export.raw_source_body_export_allowed
 }
 
 fn validate_anchor_drift_pair(

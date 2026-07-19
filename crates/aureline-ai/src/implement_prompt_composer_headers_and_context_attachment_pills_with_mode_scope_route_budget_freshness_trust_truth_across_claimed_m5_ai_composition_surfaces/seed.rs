@@ -132,6 +132,8 @@ fn base_row(
     }
 }
 
+// Keep the numbered contract cases beside their explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn rows() -> Vec<M5PromptComposerHeaderPillRow> {
     use M5AttachmentKind as Kind;
     use M5AttachmentTrustState as Trust;

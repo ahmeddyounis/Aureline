@@ -888,11 +888,11 @@ pub fn validate_extension_mutation_review_surface(
     ) && (surface
         .compatibility_range
         .as_deref()
-        .is_none_or(str::is_empty)
+        .map_or(true, str::is_empty)
         || surface
             .activation_budget
             .as_ref()
-            .is_none_or(activation_budget_unknown)
+            .map_or(true, activation_budget_unknown)
         || surface.activation_trigger_refs.is_empty()
         || surface.activation_evidence_refs.is_empty())
     {
@@ -1185,7 +1185,7 @@ fn rollback_truth_missing(
                 || state_plan
                     .last_known_good_version
                     .as_deref()
-                    .is_none_or(str::is_empty)
+                    .map_or(true, str::is_empty)
         }
     }
 }

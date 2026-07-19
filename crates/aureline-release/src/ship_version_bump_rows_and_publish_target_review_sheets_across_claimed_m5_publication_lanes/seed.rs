@@ -130,6 +130,8 @@ fn base_row(
     }
 }
 
+// Keep the numbered contract cases beside their explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn publication_rows() -> Vec<M5PublicationReviewRow> {
     use M5AuthDisclosureState as Auth;
     use M5CompatibilityImpact as Compat;

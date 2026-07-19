@@ -576,6 +576,8 @@ fn kill_switch(
     }
 }
 
+// Rollout rows intentionally spell out every governance field for review parity.
+#[allow(clippy::too_many_arguments)]
 fn row(
     command_id: &str,
     capability_id: &str,

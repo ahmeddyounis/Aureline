@@ -1399,6 +1399,8 @@ pub fn seeded_cross_surface_subscription_fixtures() -> Vec<CrossSurfaceSubscript
 // Builders / helpers.
 // ---------------------------------------------------------------------------
 
+// Subscription fixtures intentionally declare each authority and delivery axis inline.
+#[allow(clippy::too_many_arguments)]
 fn binding(
     binding_id: &str,
     query_family: &str,

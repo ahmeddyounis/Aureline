@@ -2242,6 +2242,8 @@ fn checkpoint(
     }
 }
 
+// Seed construction mirrors the mutation-group schema's reviewable axes.
+#[allow(clippy::too_many_arguments)]
 fn mutation_group(
     group_id: &str,
     lineage_root_id: &str,
@@ -2297,6 +2299,8 @@ fn mutation_group(
     }
 }
 
+// Seed construction mirrors the history-inspector schema's reviewable axes.
+#[allow(clippy::too_many_arguments)]
 fn inspector_row(
     row_id: &str,
     lineage_root_id: &str,

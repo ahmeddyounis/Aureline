@@ -154,6 +154,8 @@ fn base_row(
     }
 }
 
+// Sequential pushes preserve the numbered consumer-matrix narrative below.
+#[allow(clippy::vec_init_then_push)]
 fn pack_finding_rows() -> Vec<M5DocsPackFindingRow> {
     use M5DocsCorpusClass as Corpus;
     use M5DocsExampleAnchorKind as Anchor;

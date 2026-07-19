@@ -1418,6 +1418,8 @@ mod seed {
         }
     }
 
+    // Test sources mirror every governed source-descriptor field explicitly.
+    #[allow(clippy::too_many_arguments)]
     fn source(
         source_id: &str,
         source_class: CitationSourceClass,

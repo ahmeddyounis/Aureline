@@ -1086,19 +1086,18 @@ fn validate_certification(
             "certification.source_badge_class must match bundle_identity.bundle_source_class",
         ));
     }
-    if matches!(
+    if (matches!(
         certification.evidence_freshness_class.as_str(),
         "stale_past_window" | "evidence_unknown"
-    ) || certification.retest_required
-    {
-        if matches!(
+    ) || certification.retest_required)
+        && matches!(
             certification.effective_badge_class.as_str(),
             "certified" | "managed_approved"
-        ) {
-            return Err(WorkflowBundleReviewValidationError::new(
-                "stale or retest-required evidence cannot render certified or managed-approved effective badges",
-            ));
-        }
+        )
+    {
+        return Err(WorkflowBundleReviewValidationError::new(
+            "stale or retest-required evidence cannot render certified or managed-approved effective badges",
+        ));
     }
     match certification.source_badge_class.as_str() {
         "certified" => {

@@ -1196,12 +1196,10 @@ fn validate_input(
         )?;
     }
 
-    if op.operation_kind == "remove" {
-        if input.asset_provenance.is_empty() {
-            return Err(err(
-                "remove operation must carry asset_provenance classifications",
-            ));
-        }
+    if op.operation_kind == "remove" && input.asset_provenance.is_empty() {
+        return Err(err(
+            "remove operation must carry asset_provenance classifications",
+        ));
     }
 
     for asset in &input.asset_provenance {

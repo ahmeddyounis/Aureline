@@ -2080,7 +2080,8 @@ fn required_header_value(
 fn extract_backtick_values(text: &str) -> Vec<String> {
     text.split('`')
         .enumerate()
-        .filter_map(|(index, value)| (index % 2 == 1).then(|| value.trim().to_owned()))
+        .filter(|(index, _)| index % 2 == 1)
+        .map(|(_, value)| value.trim().to_owned())
         .filter(|value| !value.is_empty())
         .collect()
 }

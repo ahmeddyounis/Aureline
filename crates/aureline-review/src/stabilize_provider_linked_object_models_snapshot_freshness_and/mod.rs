@@ -1494,9 +1494,9 @@ fn validate_actor_target_identity_record(
         "actor_target_identity.schema_version",
     )?;
     if record.stabilization_id_ref != expected_stabilization_id {
-        return Err(provider_linked_validation_error(format!(
-            "actor_target_identity.stabilization_id_ref mismatch"
-        )));
+        return Err(provider_linked_validation_error(
+            "actor_target_identity.stabilization_id_ref mismatch".to_string(),
+        ));
     }
     ensure_nonempty(
         &record.identity_binding_id,
@@ -1537,9 +1537,9 @@ fn validate_deferred_intent_record(
         "deferred_intent.schema_version",
     )?;
     if record.stabilization_id_ref != expected_stabilization_id {
-        return Err(provider_linked_validation_error(format!(
-            "deferred_intent.stabilization_id_ref mismatch"
-        )));
+        return Err(provider_linked_validation_error(
+            "deferred_intent.stabilization_id_ref mismatch".to_string(),
+        ));
     }
     ensure_nonempty(&record.intent_id, "deferred_intent.intent_id")?;
     ensure_nonempty(&record.command_id, "deferred_intent.command_id")?;
@@ -1582,9 +1582,9 @@ fn validate_freshness_snapshot_record(
         "freshness_snapshot.schema_version",
     )?;
     if record.stabilization_id_ref != expected_stabilization_id {
-        return Err(provider_linked_validation_error(format!(
-            "freshness_snapshot.stabilization_id_ref mismatch"
-        )));
+        return Err(provider_linked_validation_error(
+            "freshness_snapshot.stabilization_id_ref mismatch".to_string(),
+        ));
     }
     ensure_nonempty(&record.snapshot_id, "freshness_snapshot.snapshot_id")?;
     ensure_nonempty(
@@ -1626,9 +1626,9 @@ fn validate_command_record(
         "command.schema_version",
     )?;
     if record.stabilization_id_ref != expected_stabilization_id {
-        return Err(provider_linked_validation_error(format!(
-            "command.stabilization_id_ref mismatch"
-        )));
+        return Err(provider_linked_validation_error(
+            "command.stabilization_id_ref mismatch".to_string(),
+        ));
     }
     ensure_nonempty(&record.command_id, "command.command_id")?;
     ensure_token(
@@ -1658,9 +1658,9 @@ fn validate_support_export(
         "support_export.schema_version",
     )?;
     if packet.stabilization_id_ref != stabilization.stabilization_id {
-        return Err(provider_linked_validation_error(format!(
-            "support_export.stabilization_id_ref mismatch"
-        )));
+        return Err(provider_linked_validation_error(
+            "support_export.stabilization_id_ref mismatch".to_string(),
+        ));
     }
     ensure_nonempty(
         &packet.support_export_id,
@@ -1718,34 +1718,34 @@ fn validate_inspection(
         "inspection.schema_version",
     )?;
     if record.stabilization_id_ref != packet.stabilization.stabilization_id {
-        return Err(provider_linked_validation_error(format!(
-            "inspection.stabilization_id_ref mismatch"
-        )));
+        return Err(provider_linked_validation_error(
+            "inspection.stabilization_id_ref mismatch".to_string(),
+        ));
     }
     if record.review_workspace_id_ref != packet.stabilization.review_workspace_id_ref {
-        return Err(provider_linked_validation_error(format!(
-            "inspection.review_workspace_id_ref mismatch"
-        )));
+        return Err(provider_linked_validation_error(
+            "inspection.review_workspace_id_ref mismatch".to_string(),
+        ));
     }
     if record.object_row_count != packet.object_rows.len() {
-        return Err(provider_linked_validation_error(format!(
-            "inspection.object_row_count mismatch"
-        )));
+        return Err(provider_linked_validation_error(
+            "inspection.object_row_count mismatch".to_string(),
+        ));
     }
     if record.deferred_intent_count != packet.deferred_intents.len() {
-        return Err(provider_linked_validation_error(format!(
-            "inspection.deferred_intent_count mismatch"
-        )));
+        return Err(provider_linked_validation_error(
+            "inspection.deferred_intent_count mismatch".to_string(),
+        ));
     }
     if record.freshness_snapshot_count != packet.freshness_snapshots.len() {
-        return Err(provider_linked_validation_error(format!(
-            "inspection.freshness_snapshot_count mismatch"
-        )));
+        return Err(provider_linked_validation_error(
+            "inspection.freshness_snapshot_count mismatch".to_string(),
+        ));
     }
     if record.command_count != packet.commands.len() {
-        return Err(provider_linked_validation_error(format!(
-            "inspection.command_count mismatch"
-        )));
+        return Err(provider_linked_validation_error(
+            "inspection.command_count mismatch".to_string(),
+        ));
     }
     ensure_nonempty(&record.summary_label, "inspection.summary_label")?;
     Ok(())

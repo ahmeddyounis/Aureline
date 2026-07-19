@@ -1038,7 +1038,7 @@ pub fn current_incident_workspace_runbook_corpus(
     for (fixture_ref, contents) in FIXTURE_SOURCES.iter() {
         let packet = load_incident_workspace_runbook_packet(contents).map_err(|source| {
             IncidentWorkspaceLoadError::Fixture {
-                fixture_ref: *fixture_ref,
+                fixture_ref,
                 source,
             }
         })?;

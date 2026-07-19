@@ -1455,7 +1455,7 @@ impl M5EffectiveSettingsCertification {
 
             let source_declared = row.policy_lock.source_bundle_ref.is_some()
                 || row.policy_lock.source_scope_ref.is_some();
-            let write_explained = row.write_preview.as_ref().is_none_or(|preview| {
+            let write_explained = row.write_preview.as_ref().map_or(true, |preview| {
                 if preview.effective_after_write == WriteEffect::BecomesWinningValue {
                     true
                 } else {

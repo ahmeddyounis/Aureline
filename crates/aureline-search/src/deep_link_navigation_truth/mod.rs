@@ -34,7 +34,6 @@ use serde::{Deserialize, Serialize};
 use aureline_workspace::{
     NavigationArtifactKind, NavigationContinuityError, NavigationContinuityRecord,
     NavigationContinuityState, NavigationOriginClass, NavigationRecoveryAction,
-    NavigationSurfaceClass,
 };
 
 use crate::remap::{
@@ -1039,6 +1038,7 @@ pub fn current_stable_deep_link_navigation_truth_packet(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use aureline_workspace::NavigationSurfaceClass;
 
     use aureline_workspace::{
         NavigationContinuityRecordKind, NavigationDestinationVisibility, NavigationScopeIdentity,

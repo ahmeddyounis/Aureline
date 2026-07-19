@@ -129,6 +129,8 @@ fn base_row(
     }
 }
 
+// Keep the numbered contract cases beside their explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn rows() -> Vec<M5MentionSlashCommandRow> {
     use M5SlashCommandCapabilityClass as Cap;
     use M5SlashCommandState as State;

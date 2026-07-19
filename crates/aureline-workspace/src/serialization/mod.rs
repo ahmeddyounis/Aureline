@@ -1809,7 +1809,7 @@ fn redaction_exclusions_from_alpha(
         .redaction_manifest
         .rules
         .iter()
-        .filter_map(|rule| {
+        .map(|rule| {
             let reason = match rule {
                 RedactionRuleClass::RawSecretMaterialExcluded => {
                     PortableStateExclusionReason::SecretMaterial
@@ -1859,7 +1859,7 @@ fn redaction_exclusions_from_alpha(
                 }
                 _ => WorkspaceStateLayer::WorkspaceAuthority,
             };
-            Some(PortableStateExclusion {
+            PortableStateExclusion {
                 exclusion_id: format!("redaction-exclusion:{:?}:{}", rule, alpha.package_id),
                 layer,
                 artifact_ref: format!("redaction-rule:{:?}:{}", rule, alpha.package_id),
@@ -1869,7 +1869,7 @@ fn redaction_exclusions_from_alpha(
                 named_in_restore_summary: true,
                 notes: "Redaction rule excludes this class from portable-state packages."
                     .to_string(),
-            })
+            }
         })
         .collect()
 }

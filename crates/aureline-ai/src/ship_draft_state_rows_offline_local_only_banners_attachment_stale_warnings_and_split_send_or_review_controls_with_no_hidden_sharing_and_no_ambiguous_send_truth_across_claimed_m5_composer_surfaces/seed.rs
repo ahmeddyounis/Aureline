@@ -166,6 +166,8 @@ fn base_row(
     }
 }
 
+// Keep the numbered contract cases beside their explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn rows() -> Vec<M5DraftSendRow> {
     use M5ComposerRouteClass as Route;
     use M5DraftLocality as Loc;

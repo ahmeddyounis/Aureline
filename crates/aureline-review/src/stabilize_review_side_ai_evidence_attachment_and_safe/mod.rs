@@ -916,22 +916,22 @@ fn evidence_record(
 ) -> AiReviewEvidenceRecord {
     let mut invalidation_reasons = input.invalidation_reasons.clone();
     for attachment in &input.evidence_attachments {
-        if attachment.freshness_class == "stale" {
-            if !invalidation_reasons.contains(&"evidence_stale".to_string()) {
-                invalidation_reasons.push("evidence_stale".to_string());
-            }
+        if attachment.freshness_class == "stale"
+            && !invalidation_reasons.contains(&"evidence_stale".to_string())
+        {
+            invalidation_reasons.push("evidence_stale".to_string());
         }
     }
     for suggestion in &input.suggestion_applies {
-        if suggestion.would_broaden_authority {
-            if !invalidation_reasons.contains(&"authority_exceeded".to_string()) {
-                invalidation_reasons.push("authority_exceeded".to_string());
-            }
+        if suggestion.would_broaden_authority
+            && !invalidation_reasons.contains(&"authority_exceeded".to_string())
+        {
+            invalidation_reasons.push("authority_exceeded".to_string());
         }
-        if suggestion.apply_state == "blocked_pending_review" {
-            if !invalidation_reasons.contains(&"human_review_required".to_string()) {
-                invalidation_reasons.push("human_review_required".to_string());
-            }
+        if suggestion.apply_state == "blocked_pending_review"
+            && !invalidation_reasons.contains(&"human_review_required".to_string())
+        {
+            invalidation_reasons.push("human_review_required".to_string());
         }
     }
     invalidation_reasons.sort();

@@ -764,6 +764,8 @@ pub fn seeded_env_inspect_support_export(
     EnvInspectSupportExport::new(manifest_id, generated_at, snapshots)
 }
 
+// Sequential pushes keep the inspector sections in their documented rendering order.
+#[allow(clippy::vec_init_then_push)]
 fn build_core_fields(
     context: &ExecutionContext,
     lane: ExecutionContextBetaLane,

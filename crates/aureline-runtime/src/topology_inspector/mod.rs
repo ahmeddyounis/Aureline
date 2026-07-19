@@ -1920,6 +1920,8 @@ pub struct LaneEventRow {
 
 impl LaneEventRow {
     /// Builds one event row.
+    // Event construction keeps each topology and restart axis explicit.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         event_id: impl Into<String>,
         lane: &HostLaneRecord,

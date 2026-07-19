@@ -1102,7 +1102,7 @@ pub fn audit_structured_config_artifact_modes_and_layers(
                     && flow
                         .rollback_checkpoint_ref
                         .as_deref()
-                        .is_none_or(|value| value.trim().is_empty()))
+                        .map_or(true, |value| value.trim().is_empty()))
                 || flow
                     .policy_denied_reason
                     .as_deref()

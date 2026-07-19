@@ -732,7 +732,7 @@ impl HistoryContinuityRecord {
     pub fn undo_class_consistent(&self) -> bool {
         self.resolution
             .canonical_undo_class()
-            .is_none_or(|expected| expected == self.undo_class)
+            .map_or(true, |expected| expected == self.undo_class)
     }
 
     /// Whether the loss cause, close timestamp, and reopen resolution agree: a

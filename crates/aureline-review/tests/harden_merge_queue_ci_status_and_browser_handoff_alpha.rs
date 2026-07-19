@@ -299,8 +299,8 @@ fn hidden_authority_degrades_audit() {
         "hidden authority must invalidate the audit"
     );
     assert!(
-        !packet.inspection.all_provider_rows_claimed_stable || true,
-        "downgrade is allowed when hidden authority is detected"
+        packet.inspection.all_provider_rows_claimed_stable,
+        "hidden authority invalidates the audit without rewriting provider stability evidence"
     );
 }
 

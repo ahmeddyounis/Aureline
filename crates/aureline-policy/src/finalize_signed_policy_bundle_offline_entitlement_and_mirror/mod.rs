@@ -1540,7 +1540,7 @@ fn make_seeded_row(
 ) -> FinalizeSignedPolicyBundleRow {
     let delivery_source = delivery_source_for(import_flow, bundle_kind);
     let grace_posture = grace_posture_for(import_flow, bundle_kind);
-    let expiry_guidance = expiry_guidance_for(import_flow, bundle_kind, grace_posture);
+    let expiry_guidance = expiry_guidance_for(bundle_kind, grace_posture);
     let privileged_posture =
         privileged_posture_for(import_flow, bundle_kind, grace_posture, delivery_source);
     let staleness_label = staleness_label_for(import_flow, bundle_kind, grace_posture);
@@ -1787,7 +1787,6 @@ fn grace_posture_for(
 }
 
 fn expiry_guidance_for(
-    import_flow: BundleImportFlowClass,
     bundle_kind: BundleKindClass,
     grace_posture: GracePostureClass,
 ) -> ExpiryGuidanceClass {
@@ -1801,13 +1800,7 @@ fn expiry_guidance_for(
         BundleKindClass::AdminPolicyBundle => ExpiryGuidanceClass::RefreshBeforeExpiry,
         BundleKindClass::EntitlementSnapshot => ExpiryGuidanceClass::RefreshBeforeExpiry,
         BundleKindClass::EmergencyDisableBundle => ExpiryGuidanceClass::SupersedeOrExpire,
-        BundleKindClass::TrustRootSignerUpdate => {
-            if import_flow == BundleImportFlowClass::Online {
-                ExpiryGuidanceClass::RotationWindowRequired
-            } else {
-                ExpiryGuidanceClass::RotationWindowRequired
-            }
-        }
+        BundleKindClass::TrustRootSignerUpdate => ExpiryGuidanceClass::RotationWindowRequired,
     }
 }
 

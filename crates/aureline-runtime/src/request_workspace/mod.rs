@@ -1718,6 +1718,8 @@ fn assertion_suite(
     AssertionSuite::new(suite_id, suite_alias, lineage_class, assertions.to_vec())
 }
 
+// Seed results mirror every assertion-result lineage field.
+#[allow(clippy::too_many_arguments)]
 fn assertion_result(
     result_id: &str,
     suite_id: &str,

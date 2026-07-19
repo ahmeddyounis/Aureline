@@ -674,17 +674,17 @@ impl StableProviderAccountInstallGrantRegistryPacket {
         let provider_accounts = input
             .provider_accounts
             .iter()
-            .map(|a| provider_account_record(a))
+            .map(provider_account_record)
             .collect::<Vec<_>>();
         let install_grants = input
             .install_grants
             .iter()
-            .map(|g| install_grant_record(g))
+            .map(install_grant_record)
             .collect::<Vec<_>>();
         let mapping_rows = input
             .mapping_rows
             .iter()
-            .map(|m| mapping_review_row_record(m))
+            .map(mapping_review_row_record)
             .collect::<Vec<_>>();
         let support_export = support_export_packet(&support_export_input, &registry);
         let inspection = inspection_record(

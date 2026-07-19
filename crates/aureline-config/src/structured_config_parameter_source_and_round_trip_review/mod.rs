@@ -1112,7 +1112,7 @@ pub fn audit_structured_config_parameter_source_and_round_trip_review(
                     && mutation_review
                         .rollback_checkpoint_ref
                         .as_deref()
-                        .is_none_or(|value| value.trim().is_empty()))
+                        .map_or(true, |value| value.trim().is_empty()))
                 || mutation_review
                     .policy_denied_reason
                     .as_deref()

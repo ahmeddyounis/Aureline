@@ -1146,8 +1146,6 @@ fn derive_boundary_rows(
 
             let row_qual = if has_withdrawal {
                 OpenVsPaidBoundaryQualificationClass::Withdrawn
-            } else if row_narrow != OpenVsPaidBoundaryNarrowReasonClass::NotNarrowed {
-                overall_qual
             } else {
                 overall_qual
             };

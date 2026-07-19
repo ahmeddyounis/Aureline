@@ -19,8 +19,11 @@ use aureline_review::{
     LandingCandidatePacket, ReviewStabilizationInput, ReviewStabilizationPacket,
     ReviewWorkspaceBetaInput, ReviewWorkspaceBetaPacket, ReviewWorkspaceSeedInput,
     ReviewWorkspaceSeedPacket, WorkItemLinkageFinalizationInput, WorkItemLinkageFinalizationPacket,
+    WORK_ITEM_LINKAGE_FINALIZATION_SCHEMA_VERSION,
 };
 use serde::Deserialize;
+
+const LINKAGE_FINALIZATION_FIXTURE_RECORD_KIND: &str = "work_item_linkage_finalization_case";
 
 #[derive(Debug, Deserialize)]
 struct LinkageFinalizationFixture {
@@ -302,6 +305,16 @@ fn all_fixtures_parse_validate_and_project() {
     for path in load_fixture_paths() {
         let name = path.file_stem().unwrap().to_str().unwrap().to_string();
         let fixture = load_fixture(&format!("{name}.json"));
+        assert_eq!(
+            fixture.record_kind, LINKAGE_FINALIZATION_FIXTURE_RECORD_KIND,
+            "{}: fixture record kind",
+            fixture.case_name
+        );
+        assert_eq!(
+            fixture.schema_version, WORK_ITEM_LINKAGE_FINALIZATION_SCHEMA_VERSION,
+            "{}: fixture schema version",
+            fixture.case_name
+        );
         let packet = linkage_finalization_packet_for(&fixture);
         assert_expected(&packet, &fixture.expected, &fixture.case_name);
     }

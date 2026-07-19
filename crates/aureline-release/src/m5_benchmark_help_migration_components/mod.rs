@@ -1785,15 +1785,14 @@ impl SupportPackageCard {
                 package_id: self.package_id.clone(),
             });
         }
-        if self.policy_locked_counts.code_adjacent > 0 || self.policy_locked_counts.high_risk > 0 {
-            if !self
+        if (self.policy_locked_counts.code_adjacent > 0 || self.policy_locked_counts.high_risk > 0)
+            && !self
                 .redaction_export_summary
                 .policy_locked_exclusions_visible
-            {
-                violations.push(SupportPackageCardViolation::PolicyLockedExclusionsHidden {
-                    package_id: self.package_id.clone(),
-                });
-            }
+        {
+            violations.push(SupportPackageCardViolation::PolicyLockedExclusionsHidden {
+                package_id: self.package_id.clone(),
+            });
         }
         if self.excluded_counts.high_risk > 0 && !self.redaction_export_summary.high_risk_excluded {
             violations.push(SupportPackageCardViolation::HighRiskExclusionMismatch {
@@ -2306,16 +2305,15 @@ impl ImporterDiffRow {
                 row_id: self.row_id.clone(),
             });
         }
-        if self.outcome_state == ImporterOutcomeState::BridgeRequired {
-            if self.compatibility_state != ImporterCompatibilityState::BridgeRequired
+        if self.outcome_state == ImporterOutcomeState::BridgeRequired
+            && (self.compatibility_state != ImporterCompatibilityState::BridgeRequired
                 || self.mapping_basis != ImporterMappingBasis::BridgeAdapter
                 || self.degraded_state != ImporterDegradedState::BridgeRequiredImport
-                || self.manual_review_action.action_kind != ImporterReviewActionKind::InstallBridge
-            {
-                violations.push(ImporterDiffRowViolation::BridgeTruthCollapsed {
-                    row_id: self.row_id.clone(),
-                });
-            }
+                || self.manual_review_action.action_kind != ImporterReviewActionKind::InstallBridge)
+        {
+            violations.push(ImporterDiffRowViolation::BridgeTruthCollapsed {
+                row_id: self.row_id.clone(),
+            });
         }
         if self.outcome_state == ImporterOutcomeState::Unsupported
             && self.compatibility_state != ImporterCompatibilityState::Unsupported
@@ -2324,31 +2322,29 @@ impl ImporterDiffRow {
                 row_id: self.row_id.clone(),
             });
         }
-        if self.outcome_state == ImporterOutcomeState::ManualReview {
-            if self.manual_review_action.action_kind != ImporterReviewActionKind::ReviewMapping
-                || !self.manual_review_action.required_before_completion
-            {
-                violations.push(ImporterDiffRowViolation::ManualReviewActionMissing {
-                    row_id: self.row_id.clone(),
-                });
-            }
+        if self.outcome_state == ImporterOutcomeState::ManualReview
+            && (self.manual_review_action.action_kind != ImporterReviewActionKind::ReviewMapping
+                || !self.manual_review_action.required_before_completion)
+        {
+            violations.push(ImporterDiffRowViolation::ManualReviewActionMissing {
+                row_id: self.row_id.clone(),
+            });
         }
-        if matches!(
+        if (matches!(
             self.outcome_state,
             ImporterOutcomeState::Skipped
                 | ImporterOutcomeState::ManualReview
                 | ImporterOutcomeState::BridgeRequired
                 | ImporterOutcomeState::Unsupported
-        ) || self.lossy_mapping
+        ) || self.lossy_mapping)
+            && (!self.post_apply_summary_visible || !self.support_export_visible)
         {
-            if !self.post_apply_summary_visible || !self.support_export_visible {
-                violations.push(
-                    ImporterDiffRowViolation::PostApplyOrExportVisibilityDropped {
-                        row_id: self.row_id.clone(),
-                        outcome_state: self.outcome_state,
-                    },
-                );
-            }
+            violations.push(
+                ImporterDiffRowViolation::PostApplyOrExportVisibilityDropped {
+                    row_id: self.row_id.clone(),
+                    outcome_state: self.outcome_state,
+                },
+            );
         }
         if self.checkpoint_context.checkpoint_required
             && (self.checkpoint_context.checkpoint_ref.is_none()
@@ -2660,7 +2656,7 @@ impl ImporterReviewTable {
                 },
             );
         }
-        if self.outcome_group_order.as_slice() != &ImporterOutcomeState::STABLE_GROUP_ORDER {
+        if self.outcome_group_order.as_slice() != ImporterOutcomeState::STABLE_GROUP_ORDER {
             violations.push(ImporterDiffRowViolation::UnstableOutcomeGroupOrder {
                 table_id: self.table_id.clone(),
             });
@@ -3758,15 +3754,14 @@ impl CommunityHandoffTile {
                 tile_id: self.tile_id.clone(),
             });
         }
-        if matches!(self.trust_class, HandoffTrustClass::LocalOnly) {
-            if self.data_exit_boundary != HandoffDataExitBoundary::NoPayloadLeavesProduct
+        if matches!(self.trust_class, HandoffTrustClass::LocalOnly)
+            && (self.data_exit_boundary != HandoffDataExitBoundary::NoPayloadLeavesProduct
                 || self.visibility_boundary != HandoffVisibilityBoundary::LocalNeverLeaves
-                || self.auth_expectation != HandoffAuthExpectation::LocalNoNetwork
-            {
-                violations.push(CommunityHandoffTileViolation::LocalOnlyBoundaryWidened {
-                    tile_id: self.tile_id.clone(),
-                });
-            }
+                || self.auth_expectation != HandoffAuthExpectation::LocalNoNetwork)
+        {
+            violations.push(CommunityHandoffTileViolation::LocalOnlyBoundaryWidened {
+                tile_id: self.tile_id.clone(),
+            });
         }
         if matches!(
             self.trust_class,
@@ -4216,6 +4211,7 @@ impl ComponentCertificationRow {
                 .all(|reason| !reason.is_blocking())
     }
 
+    #[cfg(test)]
     fn has_reason(&self, reason: ComponentCertificationReason) -> bool {
         self.active_reasons.contains(&reason)
     }
@@ -4286,12 +4282,13 @@ impl M5BenchmarkHelpMigrationComponentCertification {
         importer_table: ImporterReviewTable,
         handoff_tiles: Vec<CommunityHandoffTile>,
     ) -> Self {
-        let mut rows = Vec::new();
-        rows.push(certify_benchmark_family(&proof_packet, &benchmark_cards));
-        rows.push(certify_about_family(&proof_packet, &about_card));
-        rows.push(certify_support_family(&proof_packet, &support_card));
-        rows.push(certify_importer_family(&proof_packet, &importer_table));
-        rows.push(certify_handoff_family(&proof_packet, &handoff_tiles));
+        let rows = vec![
+            certify_benchmark_family(&proof_packet, &benchmark_cards),
+            certify_about_family(&proof_packet, &about_card),
+            certify_support_family(&proof_packet, &support_card),
+            certify_importer_family(&proof_packet, &importer_table),
+            certify_handoff_family(&proof_packet, &handoff_tiles),
+        ];
         let summary = ComponentCertificationSummary::derive(&rows);
         let release_decision = if rows.iter().all(ComponentCertificationRow::release_ready) {
             PromotionDecision::Proceed

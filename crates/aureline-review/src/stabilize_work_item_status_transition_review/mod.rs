@@ -692,27 +692,27 @@ impl StableWorkItemStatusTransitionPacket {
         let work_item_details = input
             .work_item_details
             .iter()
-            .map(|d| work_item_detail_record(d))
+            .map(work_item_detail_record)
             .collect::<Vec<_>>();
         let transition_sheets = input
             .transition_sheets
             .iter()
-            .map(|s| status_transition_sheet_record(s))
+            .map(status_transition_sheet_record)
             .collect::<Vec<_>>();
         let offline_handoffs = input
             .offline_handoffs
             .iter()
-            .map(|h| offline_handoff_record(h))
+            .map(offline_handoff_record)
             .collect::<Vec<_>>();
         let publish_later_continuities = input
             .publish_later_continuities
             .iter()
-            .map(|c| publish_later_continuity_record(c))
+            .map(publish_later_continuity_record)
             .collect::<Vec<_>>();
         let commands = input
             .commands
             .iter()
-            .map(|c| command_record(c, &status_transition))
+            .map(command_record)
             .collect::<Vec<_>>();
         let support_export = support_export_packet(
             &input.support_export,
@@ -1303,10 +1303,7 @@ fn publish_later_continuity_record(
     }
 }
 
-fn command_record(
-    input: &StableWorkItemCommandInput,
-    status_transition: &StableWorkItemStatusTransitionRecord,
-) -> StableWorkItemCommandRecord {
+fn command_record(input: &StableWorkItemCommandInput) -> StableWorkItemCommandRecord {
     StableWorkItemCommandRecord {
         record_kind: STABLE_WORK_ITEM_COMMAND_RECORD_KIND.to_string(),
         schema_version: STABLE_WORK_ITEM_STATUS_TRANSITION_REVIEW_SCHEMA_VERSION,

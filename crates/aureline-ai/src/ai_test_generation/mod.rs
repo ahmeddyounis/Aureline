@@ -1291,7 +1291,9 @@ fn object_mismatch(
 ) -> bool {
     object_candidates
         .get(object_id)
-        .is_none_or(|owner_candidate_id| owner_candidate_id != candidate_id)
+        .map_or(true, |owner_candidate_id| {
+            owner_candidate_id != candidate_id
+        })
 }
 
 fn json_contains_forbidden_boundary_material(value: &serde_json::Value) -> bool {

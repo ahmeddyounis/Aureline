@@ -779,27 +779,25 @@ impl DiffFirstRewriteFlowPacket {
         validate_inspection(&self.inspection, self)?;
 
         // Cross-record invariants
-        if self.diff_first_review.diff_review_state == "approved_with_checkpoints" {
-            if self.diff_first_review.checkpoint_required_before_apply {
-                if !matches!(
-                    self.recovery_checkpoint_summary.checkpoint_state.as_str(),
-                    "captured_ready" | "captured_pending" | "restored"
-                ) {
-                    return Err(rewrite_flow_validation_error(
-                        "diff approved_with_checkpoints requires a captured or restored checkpoint",
-                    ));
-                }
-            }
+        if self.diff_first_review.diff_review_state == "approved_with_checkpoints"
+            && self.diff_first_review.checkpoint_required_before_apply
+            && !matches!(
+                self.recovery_checkpoint_summary.checkpoint_state.as_str(),
+                "captured_ready" | "captured_pending" | "restored"
+            )
+        {
+            return Err(rewrite_flow_validation_error(
+                "diff approved_with_checkpoints requires a captured or restored checkpoint",
+            ));
         }
         if matches!(
             self.rewrite_flow.flow_state.as_str(),
             "executing" | "completed" | "paused_conflict"
-        ) {
-            if self.diff_first_review.diff_review_state != "approved_with_checkpoints" {
-                return Err(rewrite_flow_validation_error(
-                    "flow_state executing/completed/paused_conflict requires diff_review_state approved_with_checkpoints",
-                ));
-            }
+        ) && self.diff_first_review.diff_review_state != "approved_with_checkpoints"
+        {
+            return Err(rewrite_flow_validation_error(
+                "flow_state executing/completed/paused_conflict requires diff_review_state approved_with_checkpoints",
+            ));
         }
         if self.rewrite_flow.flow_state == "completed" && self.inspection.paused_conflict {
             return Err(rewrite_flow_validation_error(

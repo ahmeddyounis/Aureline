@@ -3608,6 +3608,8 @@ pub fn seeded_secret_boundary_active_repair_state(
         .find(|state| state.triggering_health_state == health_state)
 }
 
+// Seed rows keep every deployment-profile parity axis explicit.
+#[allow(clippy::too_many_arguments)]
 fn profile_parity_row(
     matrix_row_id: &str,
     deployment_profile: SecretBoundaryDeploymentProfileClass,
@@ -3630,6 +3632,8 @@ fn profile_parity_row(
     }
 }
 
+// Repair-state seeds mirror the full review and recovery record.
+#[allow(clippy::too_many_arguments)]
 fn repairable_state(
     repair_state_id: &str,
     matrix_row_id: &str,
@@ -3677,6 +3681,8 @@ fn workflow_dependency(
     }
 }
 
+// Export-rule seeds keep every redaction and rebind disclosure axis explicit.
+#[allow(clippy::too_many_arguments)]
 fn artifact_export_rule(
     artifact_family: SecretBoundaryArtifactFamilyClass,
     source_ref: &str,
@@ -3802,6 +3808,8 @@ fn qualification_proof(
     })
 }
 
+// Qualification derives from nine independently governed proof axes.
+#[allow(clippy::too_many_arguments)]
 fn qualification_narrow_reason_for_gap(
     proof_freshness: SecretBoundaryProofFreshnessClass,
     handle_classes_verified: bool,

@@ -157,6 +157,8 @@ fn base_row(
     }
 }
 
+// Keep the numbered contract cases beside their explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn history_rows() -> Vec<M5ReleaseHistoryRow> {
     use M5BreakGlassPosture as Bg;
     use M5NodeTargeting as Target;

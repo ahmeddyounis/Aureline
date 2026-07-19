@@ -10,6 +10,7 @@
 //! hierarchy, or rename-preview evidence appears in a packet.
 
 #![doc(html_root_url = "https://docs.rs/aureline-review/0.0.0")]
+#![cfg_attr(test, allow(clippy::const_is_empty))]
 
 pub mod add_merge_queue_readiness_stale_base_invalidation_and_approval_recomputation_flows;
 pub mod add_remote_preview_route_lifecycle_expiry_target_identity_and_preview_runtime_trust_disclosure;

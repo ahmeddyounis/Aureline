@@ -792,6 +792,8 @@ pub struct DependencyGraphRecord {
 
 impl DependencyGraphRecord {
     /// Creates a normalized dependency graph record.
+    // The constructor mirrors the dependency-graph boundary record.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         graph_id: impl Into<String>,
         workspace_scope_ref: impl Into<String>,

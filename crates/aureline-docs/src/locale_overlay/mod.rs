@@ -435,17 +435,16 @@ impl LocaleOverlayRecord {
                 "source-language fallback overlays must render the source locale",
             ));
         }
-        if self.coverage_state == LocaleOverlayCoverageState::TranslatedStale {
-            if self.skew_state == LocaleOverlaySkewState::NoSkew
+        if self.coverage_state == LocaleOverlayCoverageState::TranslatedStale
+            && (self.skew_state == LocaleOverlaySkewState::NoSkew
                 || self.freshness_class != DocsFreshnessClass::Stale
-                || self.overlay_source_revision_ref == self.source_revision_ref
-            {
-                findings.push(LocaleOverlayFinding::new(
-                    &self.overlay_id,
-                    "locale_overlay.stale_skew",
-                    "stale translations must name source/overlay skew and stale freshness",
-                ));
-            }
+                || self.overlay_source_revision_ref == self.source_revision_ref)
+        {
+            findings.push(LocaleOverlayFinding::new(
+                &self.overlay_id,
+                "locale_overlay.stale_skew",
+                "stale translations must name source/overlay skew and stale freshness",
+            ));
         }
         if self.coverage_state == LocaleOverlayCoverageState::TranslatedComplete
             && (self.skew_state != LocaleOverlaySkewState::NoSkew

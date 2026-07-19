@@ -1884,9 +1884,9 @@ mod tests {
         let mut input = baseline_input();
         // Drop runtime_observed reference row and its coverage entry.
         input.rows.retain(|row| {
-            row.reference_context
-                .as_ref()
-                .is_none_or(|context| context.access_kind != AccessKind::RuntimeObserved)
+            row.reference_context.as_ref().map_or(true, |context| {
+                context.access_kind != AccessKind::RuntimeObserved
+            })
         });
         input
             .covered_access_kinds

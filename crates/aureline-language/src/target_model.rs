@@ -521,6 +521,8 @@ fn generated_state_for_python_anchor(
     }
 }
 
+// Downgrade derivation deliberately receives every independently governed truth axis.
+#[allow(clippy::too_many_arguments)]
 fn semantic_downgrade_reasons(
     proof_class: ProofClass,
     confidence: NavigationConfidence,

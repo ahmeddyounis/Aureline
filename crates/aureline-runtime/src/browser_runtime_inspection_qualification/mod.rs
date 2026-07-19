@@ -1215,6 +1215,8 @@ fn validate_row(
     }
 }
 
+// Coverage validation keeps each finding descriptor explicit for auditability.
+#[allow(clippy::too_many_arguments)]
 fn validate_coverage<T, const N: usize, F>(
     rows: &[BrowserRuntimeInspectionQualificationRow],
     findings: &mut Vec<BrowserRuntimeInspectionQualificationFinding>,

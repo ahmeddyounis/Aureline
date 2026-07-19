@@ -283,14 +283,13 @@ impl AnnotationRow {
         if self.anchor.partial_anchor && self.stale_handoff.state != "partial" {
             violations.push(V::PartialAnchorNotHandoff);
         }
-        if self.requires_stale_handoff() {
-            if self.stale_handoff.reason == "not_applicable"
+        if self.requires_stale_handoff()
+            && (self.stale_handoff.reason == "not_applicable"
                 || !self.stale_handoff.review_required
                 || !self.stale_handoff.silent_retarget_prohibited
-                || self.stale_handoff.previous_anchor_ref != self.anchor_ref
-            {
-                violations.push(V::StaleHandoffIncomplete);
-            }
+                || self.stale_handoff.previous_anchor_ref != self.anchor_ref)
+        {
+            violations.push(V::StaleHandoffIncomplete);
         }
         if !self.suppression_state.visible_in_export {
             violations.push(V::SuppressionHiddenFromExport);

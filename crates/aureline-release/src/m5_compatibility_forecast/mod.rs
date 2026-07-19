@@ -1378,7 +1378,7 @@ impl MigrationTaskRow {
             && waiver
                 .rationale
                 .as_ref()
-                .is_none_or(|r| r.trim().is_empty())
+                .map_or(true, |r| r.trim().is_empty())
         {
             return Some(CompatibilityForecastViolation::WaiverRationaleMissing);
         }

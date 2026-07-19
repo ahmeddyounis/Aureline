@@ -145,11 +145,6 @@ impl DiffPacketStateClass {
     const fn reached_live_tree(self) -> bool {
         matches!(self, Self::Applied | Self::Reverted)
     }
-
-    /// Terminal states where the patch was never applied.
-    const fn is_terminal_no_apply(self) -> bool {
-        matches!(self, Self::Rejected)
-    }
 }
 
 /// Kind of validation run against a diff packet.

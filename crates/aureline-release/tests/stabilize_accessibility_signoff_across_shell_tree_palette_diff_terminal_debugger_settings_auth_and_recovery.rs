@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
 use aureline_release::stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery::{
-    current_accessibility_surface_signoffs, DimensionKind, DimensionState, GapReason, SignoffState,
+    current_accessibility_surface_signoffs, DimensionKind, DimensionState, SignoffState,
     SurfaceKind, AccessibilitySurfaceSignoffs, AccessibilitySurfaceSignoffsViolation,
     ACCESSIBILITY_SURFACE_SIGNOFFS_RECORD_KIND, ACCESSIBILITY_SURFACE_SIGNOFFS_SCHEMA_VERSION,
 };

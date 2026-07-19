@@ -939,16 +939,13 @@ impl DetailHeaderTransitionControlsPacket {
         for header in &self.detail_headers {
             let disclosure = header.boundary_disclosure();
             out.push_str(&format!(
-                "{},{},{},{},{},{}\n",
+                "{},{},{},{},{}|{},{}\n",
                 "detail_header",
                 csv_field(&header.header_id),
                 header.work_item_kind.as_str(),
                 header.local_state.as_str(),
-                format!(
-                    "{}|{}",
-                    disclosure.write_scope.as_str(),
-                    disclosure.freshness_class.as_str()
-                ),
+                disclosure.write_scope.as_str(),
+                disclosure.freshness_class.as_str(),
                 disclosure.is_provider_writable,
             ));
         }

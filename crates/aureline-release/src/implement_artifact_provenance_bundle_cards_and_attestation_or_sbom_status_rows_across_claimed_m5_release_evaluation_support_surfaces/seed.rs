@@ -124,6 +124,8 @@ fn base_row(
     }
 }
 
+// Keep the numbered contract cases beside their explanatory comments.
+#[allow(clippy::vec_init_then_push)]
 fn provenance_rows() -> Vec<M5ProvenanceBundleRow> {
     use M5AttestationStatus as Att;
     use M5DigestLineageState as Digest;

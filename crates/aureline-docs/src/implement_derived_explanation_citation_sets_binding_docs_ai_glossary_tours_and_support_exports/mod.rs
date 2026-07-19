@@ -1039,7 +1039,7 @@ impl DerivedExplanationCitationPacket {
                 if citation_set
                     .inference_label
                     .as_ref()
-                    .is_none_or(|label| !label.is_well_formed()) =>
+                    .map_or(true, |label| !label.is_well_formed()) =>
             {
                 findings.push(DerivedExplanationCitationValidationFinding::blocker(
                     DerivedExplanationCitationValidationKind::InferenceLabelMissing,

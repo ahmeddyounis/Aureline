@@ -775,12 +775,13 @@ impl ExtensionDependencyResolutionPacket {
                 "stored effective permissions drifted from declared plus hard-dependency permissions",
             ));
         }
-        if self.permissions.widened() && !self.permissions.reconsent_satisfied() {
-            if self.claim.effective_tier == "stable" {
-                return Err(err(
-                    "stable tier cannot keep widened effective permissions without obtained re-consent",
-                ));
-            }
+        if self.permissions.widened()
+            && !self.permissions.reconsent_satisfied()
+            && self.claim.effective_tier == "stable"
+        {
+            return Err(err(
+                "stable tier cannot keep widened effective permissions without obtained re-consent",
+            ));
         }
         if high_trust_update_may_resume(&self.continuity)
             && continuity_requires_review(&self.continuity)
