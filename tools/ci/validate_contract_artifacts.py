@@ -81,7 +81,7 @@ REJECTED_PATTERNS_REL = "artifacts/architecture/driver_to_rejected_pattern_refs.
 MANDATORY_REVIEW_ARTIFACTS_REL = "artifacts/governance/mandatory_review_artifacts.yaml"
 
 SENTINEL_REFS = {"not_yet_seeded", "outline_only", "contract_not_yet_seeded"}
-LAYER_ORDER = {"L0": 0, "L1": 1, "L2": 2, "L3": 3, "LX": 99}
+LAYER_RE = re.compile(r"^L(?P<rank>0|[1-9][0-9]*)$")
 
 REQUIRED_CONTROL_ROWS = {
     "public_surface_truth_map": SOURCE_OF_TRUTH_MAP_REL,
@@ -422,7 +422,10 @@ def parse_workspace(repo: RepoView) -> tuple[list[str], dict[str, dict[str, Any]
 
 def extract_internal_deps(cargo_toml: dict[str, Any]) -> list[str]:
     deps: set[str] = set()
-    for section in ("dependencies", "dev-dependencies", "build-dependencies"):
+    # Dev-dependencies describe test topology, not the production/build graph.
+    # Cargo permits dev-only cycles, so including them here manufactures false
+    # architecture violations and grants test edges production authority.
+    for section in ("dependencies", "build-dependencies"):
         entries = cargo_toml.get(section, {})
         if not isinstance(entries, dict):
             continue
@@ -432,6 +435,15 @@ def extract_internal_deps(cargo_toml: dict[str, Any]) -> list[str]:
             if isinstance(dep_spec, dict) and "path" in dep_spec:
                 deps.add(dep_name)
     return sorted(deps)
+
+
+def layer_rank(layer: Any) -> int | None:
+    if layer == "LX":
+        return sys.maxsize
+    if not isinstance(layer, str):
+        return None
+    match = LAYER_RE.fullmatch(layer)
+    return int(match.group("rank")) if match else None
 
 
 def resolve_owner_ref(owner_ref: str, packages: set[str], lanes: set[str]) -> bool:
@@ -646,7 +658,9 @@ def validate_package_inventory(repo: RepoView) -> list[Finding]:
                 continue
 
             dep_layer = dep_row.get("layer")
-            if source_layer in LAYER_ORDER and dep_layer in LAYER_ORDER and source_layer != "LX":
+            source_rank = layer_rank(source_layer)
+            dep_rank = layer_rank(dep_layer)
+            if source_rank is not None and dep_rank is not None and source_layer != "LX":
                 if dep_layer == "LX" and row.get("depended_on_by_production"):
                     findings.append(
                         make_finding(
@@ -659,7 +673,7 @@ def validate_package_inventory(repo: RepoView) -> list[Finding]:
                             row_ref=package_name,
                         )
                     )
-                elif dep_layer != "LX" and LAYER_ORDER[dep_layer] >= LAYER_ORDER[source_layer]:
+                elif dep_layer != "LX" and dep_rank >= source_rank:
                     findings.append(
                         make_finding(
                             "error",

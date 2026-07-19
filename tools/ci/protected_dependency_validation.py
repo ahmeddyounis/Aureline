@@ -131,7 +131,9 @@ def load_toml(path: Path) -> dict[str, Any]:
 
 def extract_internal_deps(cargo_toml: dict[str, Any]) -> list[str]:
     deps: set[str] = set()
-    for section in ("dependencies", "dev-dependencies", "build-dependencies"):
+    # Dependency-class policy governs production/build edges. Dev-dependencies
+    # remain test-only and may form cycles that Cargo intentionally permits.
+    for section in ("dependencies", "build-dependencies"):
         entries = cargo_toml.get(section, {})
         if not isinstance(entries, dict):
             continue
