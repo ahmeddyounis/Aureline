@@ -46,8 +46,7 @@ and writes, all deterministically:
 
 Run ``python3 tools/regenerate_m5_contract_health.py`` after editing the upstream
 sources or this script, then ``python3 tools/validate_m5_contract_health.py`` and
-``cargo test -p aureline-release --test
-implement_contract_ci_gates_release_artifact_graph_linkage_and_shiproom_blockers_for_stale_missing_or_incompatible_m5_schema_spec_packages``
+``cargo test -p aureline-release --test rel_it_27_implement_contract_ci_gates``
 to confirm the validator and the typed model agree.
 
 The register is metadata-plus-state only: every field is a typed state, an opaque
@@ -955,7 +954,7 @@ def build_overview_doc(register: dict) -> str:
     lines.append("```sh")
     lines.append(
         "cargo run -q -p aureline-release --bin "
-        f"aureline_release_{NAME} -- inspect task_event_envelope"
+        "aureline_release_implement_contract_ci_gates_release -- inspect task_event_envelope"
     )
     lines.append("```")
     lines.append("")

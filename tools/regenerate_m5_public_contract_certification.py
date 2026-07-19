@@ -47,8 +47,7 @@ It writes, all deterministically:
 Run ``python3 tools/regenerate_m5_public_contract_certification.py`` after editing this
 script or any upstream contract artifact, then
 ``python3 tools/validate_m5_public_contract_certification.py`` and
-``cargo test -p aureline-release --test
-certify_schema_publication_wit_openapi_packaging_validator_coverage_and_compatibility_truth_on_every_claimed_m5_public_artifact_family``
+``cargo test -p aureline-release --test rel_it_09_certify_schema_publication_wit``
 to confirm the validator and the typed model agree.
 
 The register is metadata-plus-state only: every field is a typed state, an opaque
@@ -861,7 +860,8 @@ def build_help_doc(register: dict) -> str:
     lines.append("```sh")
     lines.append(
         "cargo run -q -p aureline-release \\\n"
-        f"  --bin aureline_release_{NAME} -- inspect command_descriptors"
+        "  --bin aureline_release_certify_schema_publication_wit_openapi "
+        "-- inspect command_descriptors"
     )
     lines.append("```")
     lines.append("")

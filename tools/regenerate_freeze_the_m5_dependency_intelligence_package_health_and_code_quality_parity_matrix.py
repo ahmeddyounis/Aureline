@@ -12,7 +12,7 @@ then writes:
 
 Run ``python3 tools/regenerate_freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix.py``
 after editing the row set, then ``cargo test -p aureline-release --test
-freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix``
+rel_it_16_freeze_m5_dependency_intelligence``
 to confirm the typed model agrees.
 """
 

@@ -43,8 +43,7 @@ It writes, all deterministically:
 
 Run ``python3 tools/regenerate_m5_interchange_conformance.py`` after editing this script or
 the upstream catalog, then ``python3 tools/validate_m5_interchange_conformance.py`` and
-``cargo test -p aureline-release --test
-add_import_export_validators_and_cross_surface_conformance_runners_for_m5_interchange_families``
+``cargo test -p aureline-release --test rel_it_05_add_import_export_validators``
 to confirm the validator and the typed model agree.
 
 The register and every emitted artifact are metadata-plus-state only: every field is a
@@ -1145,7 +1144,7 @@ def build_overview_doc(register: dict) -> str:
     lines.append("```sh")
     lines.append(
         "cargo run -q -p aureline-release --bin "
-        f"aureline_release_{NAME} -- inspect support_bundles"
+        "aureline_release_add_import_export_validators_cross -- inspect support_bundles"
     )
     lines.append("```")
     lines.append("")

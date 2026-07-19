@@ -19,8 +19,7 @@ It builds one [`packages`] entry per family, then writes, all deterministically:
 
 Run ``python3 tools/regenerate_m5_json_schema_catalog.py`` after editing the
 package set, then ``python3 tools/validate_m5_json_schema_catalog.py`` and
-``cargo test -p aureline-release --test
-implement_canonical_json_schema_packages_explicit_version_fields_and_stability_labels_for_newly_stable_or_beta_m5_durable_artifacts``
+``cargo test -p aureline-release --test rel_it_26_implement_canonical_json_schema``
 to confirm the validator and the typed model agree.
 
 The catalog reuses the existing contract-family registry and the public-contract

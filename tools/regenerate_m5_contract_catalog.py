@@ -40,8 +40,7 @@ and writes, all deterministically:
 
 Run ``python3 tools/regenerate_m5_contract_catalog.py`` after editing the upstream
 sources or this script, then ``python3 tools/validate_m5_contract_catalog.py`` and
-``cargo test -p aureline-release --test
-ship_contract_example_corpora_sample_payload_galleries_and_docs_help_sdk_catalogs_so_every_published_m5_contract_is_inspectable_with_offline_mirror_parity``
+``cargo test -p aureline-release --test rel_it_41_ship_contract_example_corpora``
 to confirm the validator and the typed model agree.
 
 The catalog is metadata-plus-sample only: every entry is a typed state, an opaque
@@ -822,7 +821,7 @@ def build_overview_doc(catalog: dict) -> str:
     lines.append("```sh")
     lines.append(
         "cargo run -q -p aureline-release --bin "
-        f"aureline_release_{NAME} -- inspect command_descriptors"
+        "aureline_release_ship_contract_example_corpora_sample -- inspect command_descriptors"
     )
     lines.append("```")
     lines.append("")

@@ -15,8 +15,7 @@ does, then writes:
 
 Run ``python3 tools/regenerate_m5_public_contract_matrix.py`` after editing the
 row set, then ``python3 tools/validate_m5_public_contract_matrix.py`` and
-``cargo test -p aureline-release --test
-freeze_the_m5_public_contract_schema_publication_wit_openapi_and_interchange_conformance_matrix``
+``cargo test -p aureline-release --test rel_it_18_freeze_m5_public_contract``
 to confirm the validator and the typed model agree.
 
 The matrix is descriptive metadata. It reuses the existing contract-family

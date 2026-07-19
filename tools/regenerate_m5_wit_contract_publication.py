@@ -26,8 +26,7 @@ It writes:
 Run ``python3 tools/regenerate_m5_wit_contract_publication.py`` after editing the
 package / fixture / diff set, then ``python3
 tools/validate_m5_wit_contract_publication.py`` and ``cargo test -p
-aureline-extensions --test
-implement_versioned_wit_packages_host_guest_negotiation_fixtures_and_capability_diff_reports_for_m5_wasm_extension_and_bridge_backed_public_contracts``
+aureline-extensions --test ext_it_01_implement_versioned_wit_packages``
 to confirm the validator and the typed Rust consumer agree.
 
 The packet is descriptive metadata. It reuses the ADR-0019 capability-world

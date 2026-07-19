@@ -19,8 +19,7 @@ It builds one ``surfaces`` entry per surface, then writes, all deterministically
 
 Run ``python3 tools/regenerate_m5_cli_output_catalog.py`` after editing the
 surface set, then ``python3 tools/validate_m5_cli_output_catalog.py`` and
-``cargo test -p aureline-release --test
-ship_cli_headless_structured_output_schemas_result_code_catalogs_and_schema_reference_links_for_every_new_m5_inspect_export_report_surface``
+``cargo test -p aureline-release --test rel_it_40_ship_cli_headless_structured``
 to confirm the validator and the typed model agree.
 
 The catalog reuses existing governance sources rather than minting a new

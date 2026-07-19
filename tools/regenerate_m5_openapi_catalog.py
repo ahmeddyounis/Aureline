@@ -24,8 +24,7 @@ deterministically:
 
 Run ``python3 tools/regenerate_m5_openapi_catalog.py`` after editing the
 endpoint set, then ``python3 tools/validate_m5_openapi_catalog.py`` and
-``cargo test -p aureline-release --test
-publish_openapi_specs_lifecycle_labels_and_example_packs_for_m5_service_apis_registry_mirror_endpoints_admin_ai_usage_export_routes_and_managed_control_plane_surfaces``
+``cargo test -p aureline-release --test rel_it_34_publish_openapi_specs_lifecycle``
 to confirm the validator and the typed model agree.
 
 The catalog reuses existing governance sources rather than minting a new
@@ -1130,7 +1129,8 @@ def build_overview_doc(catalog: dict) -> str:
     )
     lines.append(
         "- `cargo test -p aureline-release --test "
-        f"{NAME}` runs the typed Rust consumer against the checked-in catalog, capture, "
+        "rel_it_34_publish_openapi_specs_lifecycle` runs the typed Rust consumer "
+        "against the checked-in catalog, capture, "
         "and fixtures."
     )
     lines.append("")
