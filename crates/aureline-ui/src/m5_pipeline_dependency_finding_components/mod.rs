@@ -211,6 +211,57 @@ pub struct SecurityFindingCardInvariants {
     pub audit_actions_included_in_support_export: bool,
 }
 
+/// Freshness contract for the checked component proof.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProofFreshness {
+    /// Maximum age of the proof before its claims narrow.
+    pub freshness_slo_hours: u32,
+    /// UTC timestamp of the most recent proof refresh.
+    pub last_refresh: String,
+    /// Whether the checked proof is currently fresh.
+    pub proof_fresh: bool,
+    /// Whether stale evidence automatically narrows the claim.
+    pub auto_narrow_on_stale: bool,
+    /// Effect applied when the freshness check fails.
+    pub stale_failure_effect: String,
+}
+
+/// One parity check shared by all certified component consumers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ParityCheck {
+    /// Stable parity-check identifier.
+    pub check_id: String,
+    /// Component and consumer scope covered by the check.
+    pub scope: String,
+    /// Condition the consumer must satisfy.
+    #[serde(rename = "requires")]
+    pub requirement: String,
+    /// Effect applied when the parity check fails.
+    pub failure_effect: String,
+}
+
+/// Certification of one claimed consumer surface.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConsumerCertification {
+    /// Stable consumer token.
+    pub consumer: String,
+    /// Claimed M5 surface.
+    pub claimed_surface: String,
+    /// Current certification state.
+    pub claim_state: String,
+    /// Component families certified on this consumer.
+    pub component_families: Vec<ComponentFamily>,
+    /// Freshness check used by this certification.
+    pub freshness_check: String,
+    /// Parity checks used by this certification.
+    pub parity_check_refs: Vec<String>,
+    /// Rule applied when a required check fails.
+    pub narrowing_rule: String,
+}
+
 /// Promotion gate declared by the proof.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -225,6 +276,10 @@ pub struct PromotionGate {
     pub release_proof_checked_in: bool,
     /// Support export is checked in.
     pub support_export_checked_in: bool,
+    /// Consumer certifications are checked in.
+    pub consumer_certifications_checked_in: bool,
+    /// Freshness and parity failures narrow affected claims.
+    pub freshness_and_parity_checks_narrow_claims: bool,
     /// First consumers can reference one baseline.
     pub first_consumers_can_reference_one_baseline: bool,
 }
@@ -245,6 +300,12 @@ pub struct M5PipelineDependencyFindingComponentProof {
     pub matrix_ref: String,
     /// UTC date this proof is current as of.
     pub as_of: String,
+    /// Freshness contract for the proof.
+    pub proof_freshness: ProofFreshness,
+    /// Shared parity checks for claimed consumers.
+    pub parity_checks: Vec<ParityCheck>,
+    /// Per-consumer certifications.
+    pub consumer_certifications: Vec<ConsumerCertification>,
     /// Component family proof rows.
     pub component_families: Vec<ComponentFamilyProofRow>,
     /// Suppression vocabulary.
@@ -302,6 +363,89 @@ impl M5PipelineDependencyFindingComponentProof {
         }
         if any_blank([&self.proof_id, &self.status, &self.as_of]) {
             violations.push(V::MissingProofIdentity);
+        }
+
+        if self.proof_freshness.freshness_slo_hours == 0
+            || self.proof_freshness.last_refresh.trim().is_empty()
+            || !self.proof_freshness.proof_fresh
+            || !self.proof_freshness.auto_narrow_on_stale
+            || self.proof_freshness.stale_failure_effect != "narrow_claim"
+        {
+            violations.push(V::ProofFreshnessInvalid);
+        }
+
+        let required_parity_checks: BTreeSet<&str> = [
+            "required_field_parity",
+            "controlled_label_parity",
+            "action_vocabulary_parity",
+            "degraded_state_parity",
+            "suppression_visibility",
+            "copy_export_parity",
+        ]
+        .into_iter()
+        .collect();
+        let mut parity_check_ids = BTreeSet::new();
+        let parity_checks_valid = self.parity_checks.iter().all(|check| {
+            parity_check_ids.insert(check.check_id.as_str())
+                && !check.scope.trim().is_empty()
+                && !check.requirement.trim().is_empty()
+                && check.failure_effect == "narrow_claim"
+        });
+        if !parity_checks_valid || parity_check_ids != required_parity_checks {
+            violations.push(V::ParityChecksIncomplete);
+        }
+
+        let mut certification_consumers = BTreeSet::new();
+        let certifications_valid = self.consumer_certifications.iter().all(|certification| {
+            let expected = match certification.consumer.as_str() {
+                "review_pane" => Some(("m5_review_surface", ComponentFamily::ALL.as_slice())),
+                "package_manager" => Some((
+                    "m5_package_surface",
+                    &[
+                        ComponentFamily::DependencyRow,
+                        ComponentFamily::ManifestDiffCard,
+                        ComponentFamily::SecurityFindingCard,
+                    ][..],
+                )),
+                "project_health_center" => {
+                    Some(("m5_health_surface", ComponentFamily::ALL.as_slice()))
+                }
+                "companion_client" => Some((
+                    "m5_narrow_companion_surface",
+                    ComponentFamily::ALL.as_slice(),
+                )),
+                _ => None,
+            };
+            let Some((claimed_surface, expected_families)) = expected else {
+                return false;
+            };
+            let actual_families: BTreeSet<ComponentFamily> =
+                certification.component_families.iter().copied().collect();
+            let expected_families: BTreeSet<ComponentFamily> =
+                expected_families.iter().copied().collect();
+            let actual_checks: BTreeSet<&str> = certification
+                .parity_check_refs
+                .iter()
+                .map(String::as_str)
+                .collect();
+            certification_consumers.insert(certification.consumer.as_str())
+                && certification.claimed_surface == claimed_surface
+                && certification.claim_state == "passed"
+                && actual_families == expected_families
+                && certification.freshness_check == "proof_freshness.proof_fresh"
+                && actual_checks == required_parity_checks
+                && !certification.narrowing_rule.trim().is_empty()
+        });
+        let required_consumers: BTreeSet<&str> = [
+            "review_pane",
+            "package_manager",
+            "project_health_center",
+            "companion_client",
+        ]
+        .into_iter()
+        .collect();
+        if !certifications_valid || certification_consumers != required_consumers {
+            violations.push(V::ConsumerCertificationsIncomplete);
         }
 
         let mut seen = BTreeSet::new();
@@ -384,6 +528,10 @@ impl M5PipelineDependencyFindingComponentProof {
             || !self.promotion_gate.matrix_checked_in
             || !self.promotion_gate.release_proof_checked_in
             || !self.promotion_gate.support_export_checked_in
+            || !self.promotion_gate.consumer_certifications_checked_in
+            || !self
+                .promotion_gate
+                .freshness_and_parity_checks_narrow_claims
             || !self
                 .promotion_gate
                 .first_consumers_can_reference_one_baseline
@@ -643,6 +791,12 @@ pub enum ComponentProofViolation {
     MissingProofIdentity,
     /// Matrix ref is not canonical.
     MatrixRefMismatch,
+    /// Proof freshness does not fail closed by narrowing the claim.
+    ProofFreshnessInvalid,
+    /// Required parity checks are missing, duplicated, or malformed.
+    ParityChecksIncomplete,
+    /// Required consumer certifications are missing, duplicated, or malformed.
+    ConsumerCertificationsIncomplete,
     /// A component family is missing.
     FamilyMissing(ComponentFamily),
     /// A component family is duplicated.

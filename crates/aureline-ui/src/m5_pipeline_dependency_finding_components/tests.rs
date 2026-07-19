@@ -126,6 +126,46 @@ fn incomplete_promotion_gate_fails_validation() {
 }
 
 #[test]
+fn stale_proof_without_auto_narrowing_fails_validation() {
+    let mut proof = cloned();
+    proof.proof_freshness.proof_fresh = false;
+    proof.proof_freshness.auto_narrow_on_stale = false;
+    assert!(
+        proof
+            .validate()
+            .contains(&ComponentProofViolation::ProofFreshnessInvalid),
+        "{:?}",
+        proof.validate()
+    );
+}
+
+#[test]
+fn missing_parity_check_fails_validation() {
+    let mut proof = cloned();
+    proof.parity_checks.pop();
+    assert!(
+        proof
+            .validate()
+            .contains(&ComponentProofViolation::ParityChecksIncomplete),
+        "{:?}",
+        proof.validate()
+    );
+}
+
+#[test]
+fn incomplete_consumer_certification_fails_validation() {
+    let mut proof = cloned();
+    proof.consumer_certifications[0].parity_check_refs.pop();
+    assert!(
+        proof
+            .validate()
+            .contains(&ComponentProofViolation::ConsumerCertificationsIncomplete),
+        "{:?}",
+        proof.validate()
+    );
+}
+
+#[test]
 fn changed_suppression_vocabulary_fails_validation() {
     let mut proof = cloned();
     proof.suppression_vocabulary.pop();
