@@ -1200,7 +1200,9 @@ impl M5MarketplaceHandoffControlsPacket {
     /// Deterministic Markdown report for support, docs, or review handoff.
     pub fn render_markdown_summary(&self) -> String {
         let mut out = String::new();
-        out.push_str("# M5 Marketplace/Account Boundary-Card and Open-in-Browser Handoff-Row Controls\n\n");
+        out.push_str(
+            "# M5 Marketplace/Account Boundary-Card and Open-in-Browser Handoff-Row Controls\n\n",
+        );
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
         out.push_str(&format!("- Label: `{}`\n", self.controls_label));
         out.push_str(&format!(
@@ -1554,8 +1556,9 @@ fn validate_acceptance_criteria(
             && ex.handoff_reason_stated
             && ex.local_continuity_explicit
     });
-    let identity_dropped_degrades = row_examples()
-        .any(|ex| ex.degrade_reason == Some(M5OpenInBrowserRowDegradeReason::ObjectIdentityDropped));
+    let identity_dropped_degrades = row_examples().any(|ex| {
+        ex.degrade_reason == Some(M5OpenInBrowserRowDegradeReason::ObjectIdentityDropped)
+    });
     let generic_landing_degrades = row_examples()
         .any(|ex| ex.degrade_reason == Some(M5OpenInBrowserRowDegradeReason::LandsOnGenericPage));
     let no_clean_row_drops =

@@ -18,7 +18,10 @@ fn row(id: &str) -> BundleAccessibilityRow {
 fn seeded_packet_validates_clean() {
     let packet = seeded_m5_bundle_a11y_fallback_packet();
     let violations = packet.validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -28,7 +31,10 @@ fn every_frozen_family_is_certified_once() {
         packet.represented_families().len(),
         M5WorkflowBundleComponentFamily::ALL.len()
     );
-    assert_eq!(packet.rows.len(), M5WorkflowBundleComponentFamily::ALL.len());
+    assert_eq!(
+        packet.rows.len(),
+        M5WorkflowBundleComponentFamily::ALL.len()
+    );
 }
 
 #[test]
@@ -90,10 +96,16 @@ fn intact_start_center_card_is_certified_and_green() {
 #[test]
 fn stale_certification_narrows_to_retest_pending() {
     let badges = row("a11y:certified-archetype-badge-group");
-    assert_eq!(badges.effective_claim(), M5BundleSupportClaim::RetestPending);
+    assert_eq!(
+        badges.effective_claim(),
+        M5BundleSupportClaim::RetestPending
+    );
     assert!(!badges.effective_claim().asserts_full_certification());
     let narrow = badges.claim_narrow.as_ref().expect("narrow present");
-    assert_eq!(narrow.trigger, M5BundleComponentDowngradeTrigger::StaleCertification);
+    assert_eq!(
+        narrow.trigger,
+        M5BundleComponentDowngradeTrigger::StaleCertification
+    );
     assert_eq!(
         narrow.binding_dimension,
         M5BundleClaimDimension::CertificationEvidence
@@ -104,7 +116,10 @@ fn stale_certification_narrows_to_retest_pending() {
 #[test]
 fn policy_blocked_dependency_narrows_to_policy_blocked() {
     let detail = row("a11y:bundle-detail-page");
-    assert_eq!(detail.effective_claim(), M5BundleSupportClaim::PolicyBlocked);
+    assert_eq!(
+        detail.effective_claim(),
+        M5BundleSupportClaim::PolicyBlocked
+    );
     assert!(!detail.effective_claim().asserts_full_self_sufficiency());
     assert!(detail.claim_is_honest());
 }
@@ -273,7 +288,9 @@ fn dropping_a_mandatory_label_strands_a_row() {
 #[test]
 fn missing_family_coverage_is_flagged() {
     let mut packet = seeded_m5_bundle_a11y_fallback_packet();
-    packet.rows.retain(|r| r.row_id != "a11y:bundle-detail-page");
+    packet
+        .rows
+        .retain(|r| r.row_id != "a11y:bundle-detail-page");
     let violations = packet.validate();
     assert!(violations.iter().any(|v| matches!(
         v,
@@ -317,12 +334,13 @@ fn summary_mismatch_is_flagged() {
 #[test]
 fn forbidden_material_in_export_is_flagged() {
     let mut packet = seeded_m5_bundle_a11y_fallback_packet();
-    packet.rows[0].source_refs.push("api_key=hunter2".to_owned());
+    packet.rows[0]
+        .source_refs
+        .push("api_key=hunter2".to_owned());
     let violations = packet.validate();
-    assert!(violations.iter().any(|v| matches!(
-        v,
-        BundleAccessibilityViolation::RawBoundaryMaterialInExport
-    )));
+    assert!(violations
+        .iter()
+        .any(|v| matches!(v, BundleAccessibilityViolation::RawBoundaryMaterialInExport)));
 }
 
 // --- rendering ---
@@ -414,8 +432,8 @@ fn generate_artifacts() {
     fs::write(art.join("matrix.csv"), &csv).expect("write csv");
     fs::write(art.join("report.md"), &report).expect("write report");
 
-    let fixtures =
-        Path::new(manifest).join("../../fixtures/ui/m5-workflow-bundle-component-accessibility-fallback");
+    let fixtures = Path::new(manifest)
+        .join("../../fixtures/ui/m5-workflow-bundle-component-accessibility-fallback");
     fs::create_dir_all(&fixtures).expect("create fixture dir");
     fs::write(fixtures.join("support_export.json"), &json).expect("write fixture export");
     fs::write(fixtures.join("matrix.csv"), &csv).expect("write fixture csv");

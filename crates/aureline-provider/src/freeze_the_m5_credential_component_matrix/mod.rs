@@ -77,8 +77,7 @@ pub const M5_CREDENTIAL_COMPONENT_SCHEMA_REF: &str =
     "schemas/ui/m5-credential-component-matrix.schema.json";
 
 /// Repo-relative path of the contract doc.
-pub const M5_CREDENTIAL_COMPONENT_DOC_REF: &str =
-    "docs/security/m5_credential_component_matrix.md";
+pub const M5_CREDENTIAL_COMPONENT_DOC_REF: &str = "docs/security/m5_credential_component_matrix.md";
 
 /// Repo-relative path of the credential-state-row canonical component schema.
 pub const M5_CREDENTIAL_STATE_ROW_SCHEMA_REF: &str =
@@ -1349,8 +1348,7 @@ impl M5CredentialComponentMatrixPacket {
         validate_release_posture(self, &mut violations);
 
         if json_contains_forbidden_material(
-            &serde_json::to_value(self)
-                .expect("m5 credential component matrix packet serializes"),
+            &serde_json::to_value(self).expect("m5 credential component matrix packet serializes"),
         ) {
             violations.push(M5CredentialComponentMatrixViolation::RawMaterialInExport);
         }

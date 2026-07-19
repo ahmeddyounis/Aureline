@@ -14,7 +14,10 @@ fn packet() -> EfficiencySurfaceCertificationPacket {
 #[test]
 fn seeded_packet_validates() {
     let violations = packet().validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -32,7 +35,10 @@ fn every_claimed_surface_is_certified_exactly_once() {
         let count = p.rows.iter().filter(|r| r.surface == surface).count();
         assert_eq!(count, 1, "surface {surface:?} certified {count} times");
     }
-    assert_eq!(p.summary.surface_count, M5EfficiencyCertifiedSurface::ALL.len());
+    assert_eq!(
+        p.summary.surface_count,
+        M5EfficiencyCertifiedSurface::ALL.len()
+    );
 }
 
 #[test]
@@ -42,7 +48,10 @@ fn every_frozen_family_is_certified_on_some_surface() {
     assert!(p.summary.all_families_covered);
     let families = p.represented_families();
     for family in M5EfficiencyComponentFamily::ALL {
-        assert!(families.contains(&family), "family {family:?} not certified");
+        assert!(
+            families.contains(&family),
+            "family {family:?} not certified"
+        );
     }
 }
 
@@ -61,7 +70,10 @@ fn every_row_scores_every_axis_exactly_once() {
     let p = packet();
     for row in &p.rows {
         assert!(row.covers_all_axes(), "row {} misses an axis", row.row_id);
-        assert_eq!(row.axis_outcomes.len(), EfficiencyCertificationAxis::ALL.len());
+        assert_eq!(
+            row.axis_outcomes.len(),
+            EfficiencyCertificationAxis::ALL.len()
+        );
     }
     assert!(p.summary.every_axis_covered_on_every_row);
 }
@@ -84,7 +96,10 @@ fn every_row_cites_the_one_canonical_bundle() {
     let p = packet();
     assert_eq!(p.canonical_bundle_ref, EFFICIENCY_CERT_CANONICAL_BUNDLE_REF);
     for row in &p.rows {
-        assert_eq!(row.canonical_bundle_ref, EFFICIENCY_CERT_CANONICAL_BUNDLE_REF);
+        assert_eq!(
+            row.canonical_bundle_ref,
+            EFFICIENCY_CERT_CANONICAL_BUNDLE_REF
+        );
     }
     assert!(p.summary.all_rows_cite_canonical_bundle);
 }
@@ -490,7 +505,9 @@ fn summary_mismatch_is_rejected() {
 #[test]
 fn forbidden_material_in_export_is_rejected() {
     let mut p = packet();
-    p.rows[0].evidence_refs.push("bearer abc123def456".to_owned());
+    p.rows[0]
+        .evidence_refs
+        .push("bearer abc123def456".to_owned());
     p.rows[0].derived_status = p.rows[0].derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
@@ -533,14 +550,17 @@ fn markdown_summary_lists_every_row() {
     let p = packet();
     let md = p.render_markdown_summary();
     for row in &p.rows {
-        assert!(md.contains(&row.row_id), "missing {} in markdown", row.row_id);
+        assert!(
+            md.contains(&row.row_id),
+            "missing {} in markdown",
+            row.row_id
+        );
     }
 }
 
 #[test]
 fn checked_in_export_matches_seeded_builder() {
-    let on_disk =
-        current_m5_efficiency_component_certification_export().expect("export is valid");
+    let on_disk = current_m5_efficiency_component_certification_export().expect("export is valid");
     assert_eq!(
         on_disk.export_safe_json(),
         packet().export_safe_json(),

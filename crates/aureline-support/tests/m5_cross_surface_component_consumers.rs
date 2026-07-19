@@ -134,8 +134,11 @@ fn ai_review_incident_support_point_at_canonical_evidence() {
     // AC2: AI/review/incident/support consumers point back to one canonical
     // component family for their performance or topology evidence object.
     for group in [ConsumerGroup::AiReview, ConsumerGroup::IncidentSupport] {
-        let rows: Vec<&CrossSurfaceConsumerRow> =
-            packet.rows.iter().filter(|r| r.consumer_group == group).collect();
+        let rows: Vec<&CrossSurfaceConsumerRow> = packet
+            .rows
+            .iter()
+            .filter(|r| r.consumer_group == group)
+            .collect();
         assert!(!rows.is_empty(), "group {group:?} has no consumers");
         for row in rows {
             assert!(
@@ -197,8 +200,14 @@ fn a_performance_and_a_graph_family_both_reach_a_narrower_consumer() {
                     | M5ComponentFamily::ExplainerSectionCard
             )
     });
-    assert!(perf_family_narrowed, "no profiler family reaches a narrower consumer");
-    assert!(graph_family_narrowed, "no graph family reaches a narrower consumer");
+    assert!(
+        perf_family_narrowed,
+        "no profiler family reaches a narrower consumer"
+    );
+    assert!(
+        graph_family_narrowed,
+        "no graph family reaches a narrower consumer"
+    );
 }
 
 #[test]

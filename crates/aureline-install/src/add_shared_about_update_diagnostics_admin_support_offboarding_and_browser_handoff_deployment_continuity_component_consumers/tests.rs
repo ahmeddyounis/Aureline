@@ -9,7 +9,10 @@ fn packet() -> DeploymentConsumerPacket {
 #[test]
 fn seeded_packet_validates() {
     let violations = packet().validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -153,7 +156,10 @@ fn label_family_coverage_is_complete() {
     let p = packet();
     let covered = p.covered_label_families();
     for family in REQUIRED_LABEL_FAMILIES {
-        assert!(covered.contains(family), "label family {family} not covered");
+        assert!(
+            covered.contains(family),
+            "label family {family} not covered"
+        );
     }
     assert!(p.summary.label_family_coverage_complete);
 }
@@ -277,7 +283,8 @@ fn computed_summary_matches_stored_summary() {
 #[test]
 fn missing_consumer_group_is_rejected() {
     let mut p = packet();
-    p.rows.retain(|r| r.consumer_group != ConsumerGroup::DocsHelpRelease);
+    p.rows
+        .retain(|r| r.consumer_group != ConsumerGroup::DocsHelpRelease);
     p.summary = p.computed_summary();
     let violations = p.validate();
     assert!(violations
@@ -330,9 +337,10 @@ fn narrowed_without_banner_is_rejected() {
     p.rows[idx].reduced_capability_banner = None;
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, DeploymentConsumerViolation::NarrowedWithoutDisclosure { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        DeploymentConsumerViolation::NarrowedWithoutDisclosure { .. }
+    )));
 }
 
 #[test]
@@ -351,9 +359,10 @@ fn spurious_banner_on_full_row_is_rejected() {
     });
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, DeploymentConsumerViolation::NarrowedWithoutDisclosure { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        DeploymentConsumerViolation::NarrowedWithoutDisclosure { .. }
+    )));
 }
 
 #[test]
@@ -369,9 +378,10 @@ fn generic_banner_label_is_rejected() {
     }
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, DeploymentConsumerViolation::NarrowedWithoutDisclosure { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        DeploymentConsumerViolation::NarrowedWithoutDisclosure { .. }
+    )));
 }
 
 #[test]
@@ -385,20 +395,24 @@ fn missing_handoff_note_is_rejected() {
     p.rows[idx].handoff_note_ref = String::new();
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, DeploymentConsumerViolation::NarrowedWithoutDisclosure { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        DeploymentConsumerViolation::NarrowedWithoutDisclosure { .. }
+    )));
 }
 
 #[test]
 fn forbidden_material_in_export_is_rejected() {
     let mut p = packet();
-    p.rows[0].evidence_refs.push("bearer abc123def456".to_owned());
+    p.rows[0]
+        .evidence_refs
+        .push("bearer abc123def456".to_owned());
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, DeploymentConsumerViolation::RawBoundaryMaterialInExport { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        DeploymentConsumerViolation::RawBoundaryMaterialInExport { .. }
+    )));
 }
 
 #[test]
@@ -453,7 +467,11 @@ fn markdown_summary_lists_every_row() {
     let p = packet();
     let md = p.render_markdown_summary();
     for row in &p.rows {
-        assert!(md.contains(&row.row_id), "missing {} in markdown", row.row_id);
+        assert!(
+            md.contains(&row.row_id),
+            "missing {} in markdown",
+            row.row_id
+        );
     }
 }
 

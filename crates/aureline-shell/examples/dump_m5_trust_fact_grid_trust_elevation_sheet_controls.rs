@@ -55,7 +55,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", packet.export_safe_json());
         }
         Some("fixture-safe-mode-ui-preview-narrowed") => {
-            let packet = seeded_m5_trust_fact_grid_elevation_controls_safe_mode_ui_preview_narrowed();
+            let packet =
+                seeded_m5_trust_fact_grid_elevation_controls_safe_mode_ui_preview_narrowed();
             assert_valid(&packet)?;
             println!("{}", packet.export_safe_json());
         }

@@ -110,15 +110,21 @@ impl M5ComponentFamily {
     /// point at this schema instead of inventing a surface-local one.
     pub const fn canonical_schema_ref(self) -> &'static str {
         match self {
-            M5ComponentFamily::ProfileSessionCard => "schemas/ui/m5-profile-session-card.schema.json",
+            M5ComponentFamily::ProfileSessionCard => {
+                "schemas/ui/m5-profile-session-card.schema.json"
+            }
             // Flamegraph, icicle, and heap/profile-compare share the profile-cost
             // schema per the frozen matrix.
             M5ComponentFamily::FlamegraphView
             | M5ComponentFamily::IcicleView
-            | M5ComponentFamily::HeapProfileCompareCard => "schemas/ui/m5-flamegraph-view.schema.json",
+            | M5ComponentFamily::HeapProfileCompareCard => {
+                "schemas/ui/m5-flamegraph-view.schema.json"
+            }
             M5ComponentFamily::CallTreeRow => "schemas/ui/m5-call-tree-row.schema.json",
             M5ComponentFamily::TraceTimeline => "schemas/ui/m5-trace-timeline.schema.json",
-            M5ComponentFamily::WorksetSwitcherRow => "schemas/ui/m5-workset-switcher-row.schema.json",
+            M5ComponentFamily::WorksetSwitcherRow => {
+                "schemas/ui/m5-workset-switcher-row.schema.json"
+            }
             M5ComponentFamily::TopologyNodeCard => "schemas/ui/m5-topology-node-card.schema.json",
             M5ComponentFamily::OwnershipCard => "schemas/ui/m5-ownership-card.schema.json",
             M5ComponentFamily::ExplainerSectionCard => {
@@ -506,9 +512,11 @@ impl CrossSurfaceConsumerPacket {
         }
 
         // AC3: help/support/release artifacts reference the canonical components.
-        if !self.rows.iter().any(|r| {
-            r.is_help_support_release_surface() && r.references_canonical_not_local_prose
-        }) {
+        if !self
+            .rows
+            .iter()
+            .any(|r| r.is_help_support_release_surface() && r.references_canonical_not_local_prose)
+        {
             violations.push(CrossSurfaceConsumerViolation::MissingHelpSupportReleaseReference);
         }
 
@@ -521,8 +529,8 @@ impl CrossSurfaceConsumerPacket {
 }
 
 /// Loads the checked-in M05-802 packet.
-pub fn current_cross_surface_consumer_packet() -> Result<CrossSurfaceConsumerPacket, serde_json::Error>
-{
+pub fn current_cross_surface_consumer_packet(
+) -> Result<CrossSurfaceConsumerPacket, serde_json::Error> {
     serde_json::from_str(CROSS_SURFACE_CONSUMER_PACKET_JSON)
 }
 

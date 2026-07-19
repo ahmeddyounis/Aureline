@@ -23,8 +23,14 @@ fn resolver_blocks_lost_and_narrows_downgraded_before_launch() {
     assert!(resolved.launcher.narrowed_before_launch);
     assert!(resolved.capability_drop_present());
     // Debug was lost -> blocked.
-    assert!(resolved.drift_banner.lost_verbs.contains(&M5BuildVerb::Debug));
-    assert!(resolved.launcher.blocked_verbs.contains(&M5BuildVerb::Debug));
+    assert!(resolved
+        .drift_banner
+        .lost_verbs
+        .contains(&M5BuildVerb::Debug));
+    assert!(resolved
+        .launcher
+        .blocked_verbs
+        .contains(&M5BuildVerb::Debug));
     let debug = resolved
         .launcher
         .affordances
@@ -61,10 +67,15 @@ fn resolver_keeps_all_verbs_launchable_without_drift() {
 
 #[test]
 fn resolver_marks_gained_verbs_available_after_recompute() {
-    let resolved =
-        resolve_execution_confidence(&recompute_recovered_input()).expect("resolves");
-    assert!(resolved.drift_banner.gained_verbs.contains(&M5BuildVerb::Build));
-    assert!(resolved.drift_banner.gained_verbs.contains(&M5BuildVerb::Run));
+    let resolved = resolve_execution_confidence(&recompute_recovered_input()).expect("resolves");
+    assert!(resolved
+        .drift_banner
+        .gained_verbs
+        .contains(&M5BuildVerb::Build));
+    assert!(resolved
+        .drift_banner
+        .gained_verbs
+        .contains(&M5BuildVerb::Run));
     assert!(!resolved.launcher.narrowed_before_launch);
     assert!(resolved
         .launcher
@@ -99,11 +110,13 @@ fn resolver_makes_drift_and_affected_targets_visible() {
 
 #[test]
 fn resolver_detects_capability_drift_without_adapter_change() {
-    let resolved =
-        resolve_execution_confidence(&provider_overlay_gated_input()).expect("resolves");
+    let resolved = resolve_execution_confidence(&provider_overlay_gated_input()).expect("resolves");
     assert!(!resolved.drift_banner.adapter_changed);
     assert!(resolved.drift_banner.drift_detected);
-    assert!(resolved.drift_banner.downgraded_verbs.contains(&M5BuildVerb::Test));
+    assert!(resolved
+        .drift_banner
+        .downgraded_verbs
+        .contains(&M5BuildVerb::Test));
     assert!(resolved.drift_visible_and_actionable());
 }
 
@@ -178,8 +191,7 @@ fn resolver_records_explicit_downgrade_preserving_higher_truth() {
 
 #[test]
 fn resolver_promotes_higher_confidence_without_downgrade() {
-    let resolved =
-        resolve_execution_confidence(&recompute_recovered_input()).expect("resolves");
+    let resolved = resolve_execution_confidence(&recompute_recovered_input()).expect("resolves");
     assert_eq!(
         resolved.overwrite_guard.verdict,
         M5OverwriteVerdict::PromotedHigherConfidence
@@ -191,8 +203,7 @@ fn resolver_promotes_higher_confidence_without_downgrade() {
 
 #[test]
 fn resolver_matches_existing_confidence_without_downgrade() {
-    let resolved =
-        resolve_execution_confidence(&provider_overlay_gated_input()).expect("resolves");
+    let resolved = resolve_execution_confidence(&provider_overlay_gated_input()).expect("resolves");
     assert_eq!(
         resolved.overwrite_guard.verdict,
         M5OverwriteVerdict::MatchedExistingConfidence
@@ -489,7 +500,10 @@ fn drifted_case_is_flagged() {
 #[test]
 fn vocabulary_drift_is_flagged() {
     let mut packet = seeded_m5_execution_confidence_packet();
-    packet.vocabulary_set.overwrite_verdicts.push("bogus".to_owned());
+    packet
+        .vocabulary_set
+        .overwrite_verdicts
+        .push("bogus".to_owned());
     let violations = packet.validate();
     assert!(violations.contains(&M5ExecutionConfidenceViolation::VocabularySetDrift));
 }
@@ -515,5 +529,8 @@ fn export_is_free_of_forbidden_material() {
 fn record_kind_and_schema_version_are_stable() {
     let packet = seeded_m5_execution_confidence_packet();
     assert_eq!(packet.record_kind, M5_EXECUTION_CONFIDENCE_RECORD_KIND);
-    assert_eq!(packet.schema_version, M5_EXECUTION_CONFIDENCE_SCHEMA_VERSION);
+    assert_eq!(
+        packet.schema_version,
+        M5_EXECUTION_CONFIDENCE_SCHEMA_VERSION
+    );
 }

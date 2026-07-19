@@ -117,7 +117,10 @@ fn resolver_rollback_bounded_is_not_generic() {
     assert!(!view.revokes_trust_material);
     assert_eq!(view.affected_node_count, 2);
     assert!(view.node_targeting.is_partial());
-    assert!(!matches!(view.blast_radius, M5RollbackBlastRadius::SingleArtifact));
+    assert!(!matches!(
+        view.blast_radius,
+        M5RollbackBlastRadius::SingleArtifact
+    ));
 }
 
 #[test]
@@ -163,7 +166,10 @@ fn resolver_unattributed_break_glass_is_blocked() {
         M5ReleaseHistoryPosture::HistoryBlockedUnattributed
     );
     let banner = resolved.history_banner.expect("banner present");
-    assert_eq!(banner.reason, M5ReleaseHistoryBlockReason::EmergencyActionUnattributed);
+    assert_eq!(
+        banner.reason,
+        M5ReleaseHistoryBlockReason::EmergencyActionUnattributed
+    );
     assert_eq!(
         banner.next_action,
         M5ReleaseHistoryNextAction::AttributeEmergencyActor
@@ -376,7 +382,9 @@ fn every_derived_state_is_exercised_by_some_example() {
     }
     for posture in M5BreakGlassPosture::ALL {
         assert!(
-            cases.iter().any(|c| c.resolved.break_glass_posture == posture),
+            cases
+                .iter()
+                .any(|c| c.resolved.break_glass_posture == posture),
             "no worked resolution exercises break-glass posture {}",
             posture.as_str()
         );
@@ -698,7 +706,10 @@ fn narrowed_variants_validate_and_keep_consumers_visible() {
         .iter()
         .find(|r| r.consumer_surface == M5ReleaseHistoryConsumerSurface::CliHistoryInspect)
         .expect("cli row present");
-    assert_eq!(row.qualification, M5ReleaseCenterQualificationClass::Preview);
+    assert_eq!(
+        row.qualification,
+        M5ReleaseCenterQualificationClass::Preview
+    );
 }
 
 #[test]

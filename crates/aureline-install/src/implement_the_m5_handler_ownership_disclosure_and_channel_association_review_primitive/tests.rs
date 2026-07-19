@@ -93,7 +93,9 @@ fn resolver_keeps_bounded_actions_and_preview_for_changes() {
         .iter()
         .find(|row| row.change_state == M5HandlerChangeState::ReassignToThisInstall)
         .expect("reassign row exists");
-    assert!(reassign_row.actions.contains(&M5ChannelAssociationAction::Keep));
+    assert!(reassign_row
+        .actions
+        .contains(&M5ChannelAssociationAction::Keep));
     assert!(reassign_row
         .actions
         .contains(&M5ChannelAssociationAction::Reassign));
@@ -168,7 +170,11 @@ fn resolver_aligns_recovery_paths_with_rollback_identity() {
     assert!(resolved.has_recovery_path());
     assert_eq!(resolved.recovery_alignment.recovery_paths.len(), 4);
     assert!(resolved.recovery_alignment.all_paths_aligned_with_owner);
-    assert!(resolved.recovery_alignment.all_paths_carry_rollback_identity);
+    assert!(
+        resolved
+            .recovery_alignment
+            .all_paths_carry_rollback_identity
+    );
     for path in &resolved.recovery_alignment.recovery_paths {
         assert!(path.aligned_with_channel_owner);
         assert!(path.carries_rollback_identity);
@@ -378,7 +384,10 @@ fn drifted_case_is_flagged() {
 #[test]
 fn vocabulary_drift_is_flagged() {
     let mut packet = seeded_m5_handler_ownership_packet();
-    packet.vocabulary_set.precedence_states.push("bogus".to_owned());
+    packet
+        .vocabulary_set
+        .precedence_states
+        .push("bogus".to_owned());
     let violations = packet.validate();
     assert!(violations.contains(&M5HandlerOwnershipViolation::VocabularySetDrift));
 }

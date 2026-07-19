@@ -97,10 +97,12 @@ pub const M5_AI_REVIEW_ASSIST_ARTIFACT_REF: &str =
     "artifacts/review/m5-ai-review-publish-packets/support_export.json";
 
 /// Repo-relative path of the checked machine-readable matrix CSV.
-pub const M5_AI_REVIEW_ASSIST_CSV_REF: &str = "artifacts/review/m5-ai-review-publish-packets/matrix.csv";
+pub const M5_AI_REVIEW_ASSIST_CSV_REF: &str =
+    "artifacts/review/m5-ai-review-publish-packets/matrix.csv";
 
 /// Repo-relative path of the checked Markdown design report.
-pub const M5_AI_REVIEW_ASSIST_REPORT_REF: &str = "artifacts/review/m5-ai-review-assist-components.md";
+pub const M5_AI_REVIEW_ASSIST_REPORT_REF: &str =
+    "artifacts/review/m5-ai-review-assist-components.md";
 
 /// Repo-relative path of the checked AI-review-assist-health dashboard.
 pub const M5_AI_REVIEW_ASSIST_DASHBOARD_REF: &str = "dashboards/m5-ai-review-assist-health.json";
@@ -221,7 +223,10 @@ impl M5AiReviewAssistRole {
     pub const fn must_be_present_before_surfacing_as_ai_review_finding(self) -> bool {
         matches!(
             self,
-            Self::FindingClassification | Self::AnalyzedScopeDisclosure | Self::PublishDestinationDisclosure | Self::LocalVersusProviderState
+            Self::FindingClassification
+                | Self::AnalyzedScopeDisclosure
+                | Self::PublishDestinationDisclosure
+                | Self::LocalVersusProviderState
         )
     }
 }
@@ -273,9 +278,9 @@ impl M5AiReviewAssistPublishState {
         matches!(
             self,
             Self::PublishNowProviderComment
-            | Self::PublishNowSuggestedPatch
-            | Self::PublishNowCheckAnnotation
-            | Self::OpenInProvider
+                | Self::PublishNowSuggestedPatch
+                | Self::PublishNowCheckAnnotation
+                | Self::OpenInProvider
         )
     }
 }
@@ -364,7 +369,9 @@ impl M5AiReviewAssistFindingRowRole {
             Self::FindingLifecycleStateShown => "finding_lifecycle_state_shown",
             Self::ResolutionMemoryLinked => "resolution_memory_linked",
             Self::BoundToAiReviewAssistRegistry => "bound_to_ai_review_assist_registry",
-            Self::AutoApproveRequestChangesOrMergeFromFindingDisallowed => "auto_approve_request_changes_or_merge_from_finding_disallowed",
+            Self::AutoApproveRequestChangesOrMergeFromFindingDisallowed => {
+                "auto_approve_request_changes_or_merge_from_finding_disallowed"
+            }
         }
     }
 }
@@ -445,7 +452,9 @@ impl M5AiReviewAssistPublishSheetRole {
         match self {
             Self::PublishModeShown => "publish_mode_shown",
             Self::ProviderDestinationNamed => "provider_destination_named",
-            Self::LocalDraftVersusProviderCommittedShown => "local_draft_versus_provider_committed_shown",
+            Self::LocalDraftVersusProviderCommittedShown => {
+                "local_draft_versus_provider_committed_shown"
+            }
             Self::PublishOrExportFallbackOffered => "publish_or_export_fallback_offered",
             Self::BoundToAiReviewAssistRegistry => "bound_to_ai_review_assist_registry",
             Self::ImplicitPublishOrMergeDisallowed => "implicit_publish_or_merge_disallowed",
@@ -754,11 +763,7 @@ impl M5AiReviewAssistRequiredLabel {
         }
     }
     /// The three labels every claimed class must be able to show.
-    pub const MANDATORY: [Self; 3] = [
-        Self::Identity,
-        Self::FindingRole,
-        Self::CanonicalReference,
-    ];
+    pub const MANDATORY: [Self; 3] = [Self::Identity, Self::FindingRole, Self::CanonicalReference];
 }
 
 /// Qualification class for an M5 AI-review-assist row.
@@ -956,13 +961,15 @@ pub struct M5AiReviewAssistRow {
     /// Hard invariant: this class never lets AI review results publish or merge implicitly. MUST be `false`.
     pub lets_ai_review_results_publish_or_merge_implicitly: bool,
     /// Hard invariant: this class never hides whether output stays local or becomes a provider comment, a suggested patch, or a provider check annotation. MUST be `false`.
-    pub hides_whether_output_stays_local_or_becomes_a_provider_comment_suggested_patch_or_check_annotation: bool,
+    pub hides_whether_output_stays_local_or_becomes_a_provider_comment_suggested_patch_or_check_annotation:
+        bool,
     /// Hard invariant: this class never keeps stale findings looking current after diff or instruction drift. MUST be `false`.
     pub keeps_stale_findings_looking_current_after_diff_or_instruction_drift: bool,
     /// Hard invariant: this class never loses local drafts or evidence when provider write scope is missing or a publish fails. MUST be `false`.
     pub loses_local_drafts_or_evidence_when_provider_write_scope_is_missing_or_publish_fails: bool,
     /// Hard invariant: this class never presents an AI review finding without its analyzed scope, publish destination, or lifecycle state. MUST be `false`.
-    pub presents_an_ai_review_finding_without_its_analyzed_scope_publish_destination_or_lifecycle_state: bool,
+    pub presents_an_ai_review_finding_without_its_analyzed_scope_publish_destination_or_lifecycle_state:
+        bool,
 }
 
 impl M5AiReviewAssistRow {
@@ -1031,9 +1038,13 @@ impl M5AiReviewAssistVocabularySet {
             finding_row_roles: tokens(&M5AiReviewAssistFindingRowRole::ALL, |v| v.as_str()),
             scope_selector_roles: tokens(&M5AiReviewAssistScopeSelectorRole::ALL, |v| v.as_str()),
             publish_sheet_roles: tokens(&M5AiReviewAssistPublishSheetRole::ALL, |v| v.as_str()),
-            resolution_memory_roles: tokens(&M5AiReviewAssistResolutionMemoryRole::ALL, |v| v.as_str()),
+            resolution_memory_roles: tokens(&M5AiReviewAssistResolutionMemoryRole::ALL, |v| {
+                v.as_str()
+            }),
             surface_families: tokens(&M5AiReviewAssistSurfaceFamily::ALL, |v| v.as_str()),
-            classification_stages: tokens(&M5AiReviewAssistClassificationStage::ALL, |v| v.as_str()),
+            classification_stages: tokens(&M5AiReviewAssistClassificationStage::ALL, |v| {
+                v.as_str()
+            }),
             consumer_surfaces: tokens(&M5AiReviewAssistConsumerSurface::ALL, |v| v.as_str()),
             accessibility_routes: tokens(&M5AiReviewAssistAccessibilityRoute::ALL, |v| v.as_str()),
             degraded_reasons: tokens(&M5AiReviewAssistDegradedReason::ALL, |v| v.as_str()),
@@ -1315,7 +1326,8 @@ impl M5AiReviewAssistMatrixPacket {
             "downgrade_triggers": self.vocabulary_set.downgrade_triggers,
             "objects": objects,
         });
-        serde_json::to_string_pretty(&dashboard).expect("m5 ai-review-assist-health dashboard serializes")
+        serde_json::to_string_pretty(&dashboard)
+            .expect("m5 ai-review-assist-health dashboard serializes")
     }
 
     /// Deterministic Markdown report for support, docs, or review handoff.
@@ -1407,7 +1419,10 @@ impl fmt::Display for M5AiReviewAssistMatrixArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SupportExport(error) => {
-                write!(formatter, "m5 ai-review-assist matrix export parse failed: {error}")
+                write!(
+                    formatter,
+                    "m5 ai-review-assist matrix export parse failed: {error}"
+                )
             }
             Self::Validation(violations) => {
                 let tokens = violations
@@ -1543,7 +1558,11 @@ fn validate_source_contracts(
     packet: &M5AiReviewAssistMatrixPacket,
     violations: &mut Vec<M5AiReviewAssistMatrixViolation>,
 ) {
-    let refs: BTreeSet<&str> = packet.source_contract_refs.iter().map(String::as_str).collect();
+    let refs: BTreeSet<&str> = packet
+        .source_contract_refs
+        .iter()
+        .map(String::as_str)
+        .collect();
     for required in [
         M5_AI_REVIEW_ASSIST_MATRIX_SCHEMA_REF,
         M5_AI_REVIEW_ASSIST_MATRIX_DOC_REF,

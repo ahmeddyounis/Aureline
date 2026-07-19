@@ -72,7 +72,8 @@ use matrix::{M5NavigationContentComponentFamily, M5NavigationContentDowngradeTri
 pub const NAV_CONTENT_CERT_SCHEMA_VERSION: u32 = 1;
 
 /// Stable record-kind tag carried by [`NavContentProfileCertificationPacket`].
-pub const NAV_CONTENT_CERT_RECORD_KIND: &str = "m5_navigation_content_component_certification_packet";
+pub const NAV_CONTENT_CERT_RECORD_KIND: &str =
+    "m5_navigation_content_component_certification_packet";
 
 /// Stable record-kind tag carried by each [`NavContentProfileCertificationRow`].
 pub const NAV_CONTENT_CERT_ROW_RECORD_KIND: &str =
@@ -510,7 +511,9 @@ impl NavContentProfileCertificationRow {
 
     /// Whether every axis outcome is internally well-formed.
     pub fn axis_outcomes_well_formed(&self) -> bool {
-        self.axis_outcomes.iter().all(NavContentAxisOutcome::well_formed)
+        self.axis_outcomes
+            .iter()
+            .all(NavContentAxisOutcome::well_formed)
     }
 
     /// True when the profile narrows its navigation / content claim below what it asserts.
@@ -863,9 +866,11 @@ impl NavContentProfileCertificationPacket {
             }
 
             if row.canonical_bundle_ref != NAV_CONTENT_CERT_CANONICAL_BUNDLE_REF {
-                violations.push(NavContentCertificationViolation::RowMissingCanonicalBundle {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    NavContentCertificationViolation::RowMissingCanonicalBundle {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // Every B132 guardrail must hold.
@@ -899,9 +904,11 @@ impl NavContentProfileCertificationPacket {
 
             // Certification may never strengthen a claim.
             if row.certified_claim.capability_rank() > row.claimed_claim.capability_rank() {
-                violations.push(NavContentCertificationViolation::CertifiedClaimExceedsClaim {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    NavContentCertificationViolation::CertifiedClaimExceedsClaim {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // The stored verdict must match a fresh recomputation.
@@ -982,7 +989,10 @@ impl NavContentProfileCertificationPacket {
         out.push_str("# M5 Navigation-Content Component Surface Certification\n\n");
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
         out.push_str(&format!("- As of: `{}`\n", self.as_of));
-        out.push_str(&format!("- Canonical bundle: `{}`\n", self.canonical_bundle_ref));
+        out.push_str(&format!(
+            "- Canonical bundle: `{}`\n",
+            self.canonical_bundle_ref
+        ));
         out.push_str(&format!(
             "- Profiles: {} / {} certified ({} green, {} yellow, {} red)\n",
             self.summary.profile_count,
@@ -1084,7 +1094,10 @@ impl fmt::Display for NavContentCertificationViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SchemaVersion { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::RecordKind { expected, actual } => {
                 write!(f, "record kind mismatch: expected {expected}, got {actual}")
@@ -1099,7 +1112,10 @@ impl fmt::Display for NavContentCertificationViolation {
             Self::DuplicateId { id } => write!(f, "duplicate row id: {id}"),
             Self::IncompleteRow { id } => write!(f, "incomplete certification row: {id}"),
             Self::AxisCoverageIncomplete { id } => {
-                write!(f, "row {id} does not score every certification axis exactly once")
+                write!(
+                    f,
+                    "row {id} does not score every certification axis exactly once"
+                )
             }
             Self::MalformedAxisOutcome { id } => {
                 write!(
@@ -1134,10 +1150,16 @@ panel-header toolbar, or collapsed exact/loaded/all-matching count scopes"
                 )
             }
             Self::CertifiedClaimExceedsClaim { id } => {
-                write!(f, "row {id} certifies a claim stronger than the claimed one")
+                write!(
+                    f,
+                    "row {id} certifies a claim stronger than the claimed one"
+                )
             }
             Self::StatusDerivationStale { id } => {
-                write!(f, "row {id} stored status disagrees with a fresh derivation")
+                write!(
+                    f,
+                    "row {id} stored status disagrees with a fresh derivation"
+                )
             }
             Self::ProfileBlocked { id } => {
                 write!(
@@ -1397,7 +1419,10 @@ fn seed_row(
         canonical_bundle_ref: NAV_CONTENT_CERT_CANONICAL_BUNDLE_REF.to_owned(),
         derived_status: NavContentProfileClaimStatus::Green,
         export_parity: seed_export_parity(export_fields),
-        compatibility_notes: compatibility_notes.iter().map(|n| (*n).to_owned()).collect(),
+        compatibility_notes: compatibility_notes
+            .iter()
+            .map(|n| (*n).to_owned())
+            .collect(),
         source_refs: vec![
             NAV_CONTENT_CERT_MATRIX_REF.to_owned(),
             NAV_CONTENT_CERT_SCHEMA_REF.to_owned(),

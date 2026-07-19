@@ -74,9 +74,7 @@ fn resolver_keeps_control_plane_distinct_from_local_runtime() {
     assert!(resolved.status_strip.control_plane_state.is_impaired());
     assert!(!resolved.status_strip.local_runtime_impaired);
     assert!(resolved.status_strip.planes_distinct);
-    assert!(resolved
-        .status_strip
-        .control_impairment_not_masked_as_local);
+    assert!(resolved.status_strip.control_impairment_not_masked_as_local);
     assert!(resolved.status_strip.local_safe_next_step_visible);
     assert!(resolved.planes_distinguishable());
 }

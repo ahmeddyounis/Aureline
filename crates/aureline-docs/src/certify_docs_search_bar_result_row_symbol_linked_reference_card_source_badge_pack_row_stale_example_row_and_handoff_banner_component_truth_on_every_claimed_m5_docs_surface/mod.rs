@@ -969,7 +969,10 @@ impl fmt::Display for DocsCertificationViolation {
             }
             Self::MissingIdentity => write!(f, "packet identity fields are missing"),
             Self::WrongCanonicalBundle => {
-                write!(f, "packet does not cite the canonical docs-browser proof bundle")
+                write!(
+                    f,
+                    "packet does not cite the canonical docs-browser proof bundle"
+                )
             }
             Self::DuplicateId { id } => write!(f, "duplicate row id: {id}"),
             Self::IncompleteRow { id } => write!(f, "incomplete certification row: {id}"),
@@ -998,10 +1001,16 @@ impl fmt::Display for DocsCertificationViolation {
                 )
             }
             Self::CertifiedClaimExceedsClaim { id } => {
-                write!(f, "row {id} certifies a claim stronger than the claimed one")
+                write!(
+                    f,
+                    "row {id} certifies a claim stronger than the claimed one"
+                )
             }
             Self::StatusDerivationStale { id } => {
-                write!(f, "row {id} stored status disagrees with a fresh derivation")
+                write!(
+                    f,
+                    "row {id} stored status disagrees with a fresh derivation"
+                )
             }
             Self::SurfaceBlocked { id } => {
                 write!(
@@ -1222,8 +1231,14 @@ fn seed_row(
         canonical_bundle_ref: DOCS_CERT_CANONICAL_BUNDLE_REF.to_owned(),
         derived_status: DocsSurfaceClaimStatus::Green,
         export_parity: seed_export_parity(export_fields),
-        compatibility_notes: compatibility_notes.iter().map(|n| (*n).to_owned()).collect(),
-        source_refs: vec![DOCS_CERT_MATRIX_REF.to_owned(), DOCS_CERT_SCHEMA_REF.to_owned()],
+        compatibility_notes: compatibility_notes
+            .iter()
+            .map(|n| (*n).to_owned())
+            .collect(),
+        source_refs: vec![
+            DOCS_CERT_MATRIX_REF.to_owned(),
+            DOCS_CERT_SCHEMA_REF.to_owned(),
+        ],
         observed_at: "2026-07-06T00:00:00Z".to_owned(),
         evidence_refs: seed_evidence(row_id),
     };

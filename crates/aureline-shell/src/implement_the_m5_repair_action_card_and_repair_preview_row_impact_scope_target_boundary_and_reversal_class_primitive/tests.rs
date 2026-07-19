@@ -366,11 +366,10 @@ fn every_derived_state_is_exercised_by_some_example() {
     }
     for change in M5RepairChangeClass::ALL {
         assert!(
-            cases.iter().any(|c| c
-                .resolved
-                .changed_classes
-                .contains(&change)
-                || c.resolved.unchanged_classes.contains(&change)),
+            cases
+                .iter()
+                .any(|c| c.resolved.changed_classes.contains(&change)
+                    || c.resolved.unchanged_classes.contains(&change)),
             "no worked resolution exercises change class {}",
             change.as_str()
         );
@@ -626,7 +625,10 @@ fn matrix_csv_has_a_row_per_surface() {
 fn checked_support_export_validates_and_matches_seed() {
     let from_disk = current_stable_m5_repair_action_card_primitive_export()
         .expect("checked M5 repair-action-card primitive export validates");
-    assert_eq!(from_disk.packet_id, M5_REPAIR_ACTION_CARD_PRIMITIVE_PACKET_ID);
+    assert_eq!(
+        from_disk.packet_id,
+        M5_REPAIR_ACTION_CARD_PRIMITIVE_PACKET_ID
+    );
     assert_eq!(
         from_disk,
         seeded_m5_repair_action_card_primitive_packet(),

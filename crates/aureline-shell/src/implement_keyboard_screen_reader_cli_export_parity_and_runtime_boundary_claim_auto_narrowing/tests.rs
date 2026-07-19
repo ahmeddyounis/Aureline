@@ -18,7 +18,10 @@ fn row(id: &str) -> RuntimeAccessibilityRow {
 fn seeded_packet_validates_clean() {
     let packet = seeded_m5_runtime_a11y_fallback_packet();
     let violations = packet.validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -359,7 +362,9 @@ fn summary_mismatch_is_flagged() {
 #[test]
 fn forbidden_material_in_export_is_flagged() {
     let mut packet = seeded_m5_runtime_a11y_fallback_packet();
-    packet.rows[0].source_refs.push("api_key=hunter2".to_owned());
+    packet.rows[0]
+        .source_refs
+        .push("api_key=hunter2".to_owned());
     let violations = packet.validate();
     assert!(violations.iter().any(|v| matches!(
         v,
@@ -449,9 +454,8 @@ fn generate_artifacts() {
     let csv = packet.render_matrix_csv();
     let report = packet.render_markdown_summary();
 
-    let art = Path::new(manifest).join(
-        "../../artifacts/release/m5-runtime-boundary-component-accessibility-fallback-proof",
-    );
+    let art = Path::new(manifest)
+        .join("../../artifacts/release/m5-runtime-boundary-component-accessibility-fallback-proof");
     fs::create_dir_all(&art).expect("create artifact dir");
     fs::write(art.join("support_export.json"), &json).expect("write support export");
     fs::write(art.join("matrix.csv"), &csv).expect("write csv");

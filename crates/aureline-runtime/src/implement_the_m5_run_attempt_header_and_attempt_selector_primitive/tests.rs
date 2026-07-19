@@ -19,7 +19,8 @@ fn resolver_preserves_header_identity_across_surfaces() {
 
 #[test]
 fn resolver_keeps_run_and_attempt_distinct() {
-    let resolved = resolve_run_attempt_header(&task_running_multi_attempt_input()).expect("resolves");
+    let resolved =
+        resolve_run_attempt_header(&task_running_multi_attempt_input()).expect("resolves");
     assert!(resolved.run_and_attempt_distinct());
     assert_ne!(resolved.header.run_ref, resolved.header.attempt_ref);
     assert!(resolved.header.run_and_attempt_distinct);
@@ -27,7 +28,8 @@ fn resolver_keeps_run_and_attempt_distinct() {
 
 #[test]
 fn resolver_selector_distinguishes_multi_attempt_run_from_separate_runs() {
-    let resolved = resolve_run_attempt_header(&task_running_multi_attempt_input()).expect("resolves");
+    let resolved =
+        resolve_run_attempt_header(&task_running_multi_attempt_input()).expect("resolves");
     assert_eq!(resolved.selector.attempt_count, 2);
     assert!(resolved.selector.all_attempts_share_run);
     assert!(resolved.distinguishes_attempts_from_runs());
@@ -131,11 +133,16 @@ fn resolver_export_preserves_ids_and_states() {
     let resolved = resolve_run_attempt_header(&support_replay_input()).expect("resolves");
     assert_eq!(resolved.export.run_ref, resolved.header.run_ref);
     assert_eq!(resolved.export.attempt_ref, resolved.header.attempt_ref);
-    assert_eq!(resolved.export.attempt_ordinal, resolved.header.attempt_ordinal);
+    assert_eq!(
+        resolved.export.attempt_ordinal,
+        resolved.header.attempt_ordinal
+    );
     assert_eq!(resolved.export.outcome, resolved.header.outcome);
     assert_eq!(resolved.export.truth_mode, resolved.header.truth_mode);
     assert!(resolved.export_preserves_ids_and_states());
-    assert!(declares_mandatory_export_fields(&resolved.export.export_fields));
+    assert!(declares_mandatory_export_fields(
+        &resolved.export.export_fields
+    ));
 }
 
 // --- resolver: queue reason + admission-control disclosure ---
@@ -151,7 +158,10 @@ fn resolver_discloses_queue_reason_and_admission_class() {
     assert!(resolved.header.queue_reason.is_some());
     assert_eq!(resolved.selector.relative_ordering, Some(3));
     // The CLI line renders the admission class in the shared vocabulary.
-    assert!(resolved.cli_line.line.contains("admission=dependency_queued"));
+    assert!(resolved
+        .cli_line
+        .line
+        .contains("admission=dependency_queued"));
 }
 
 #[test]
@@ -349,7 +359,10 @@ fn drifted_case_is_flagged() {
 #[test]
 fn vocabulary_drift_is_flagged() {
     let mut packet = seeded_m5_run_attempt_header_packet();
-    packet.vocabulary_set.initiator_classes.push("bogus".to_owned());
+    packet
+        .vocabulary_set
+        .initiator_classes
+        .push("bogus".to_owned());
     let violations = packet.validate();
     assert!(violations.contains(&M5RunAttemptViolation::VocabularySetDrift));
 }

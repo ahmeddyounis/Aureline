@@ -78,7 +78,9 @@ use crate::m5_bundle_scorecards::{
     BundleScorecardClass, EvidenceFreshness, ImportedVsNativeConfidence,
 };
 use crate::m5_entry_and_bundle_governance::{BundleClass, SourceTrust};
-use crate::m5_workflow_bundle_manifests::{BundleComponentKind, CertificationTarget, LifecycleStage};
+use crate::m5_workflow_bundle_manifests::{
+    BundleComponentKind, CertificationTarget, LifecycleStage,
+};
 
 /// Stable record-kind tag carried by [`M5BundleDetailReviewPacket`].
 pub const M5_BUNDLE_REVIEW_RECORD_KIND: &str = "m5_bundle_detail_review_primitive";
@@ -651,7 +653,11 @@ impl M5BundleReviewResolutionError {
 
 impl fmt::Display for M5BundleReviewResolutionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "bundle-review resolution error: {}", self.as_str())
+        write!(
+            formatter,
+            "bundle-review resolution error: {}",
+            self.as_str()
+        )
     }
 }
 
@@ -732,7 +738,8 @@ pub fn resolve_bundle_review(
     // capability; a preview / labs / policy-gated / mirror-only / bounded component can never
     // be pulled in as if it were stable.
     for summary in &input.component_inventory {
-        if let Some(required) = M5BundleDependencyMarker::for_lifecycle_stage(summary.lifecycle_stage)
+        if let Some(required) =
+            M5BundleDependencyMarker::for_lifecycle_stage(summary.lifecycle_stage)
         {
             if !input.dependency_markers.contains(&required) {
                 return Err(M5BundleReviewResolutionError::DependencyMarkerHidden);
@@ -762,10 +769,7 @@ pub fn resolve_bundle_review(
         return Err(M5BundleReviewResolutionError::StaleClaimShownAsCurrent);
     }
 
-    let has_blocked_asset = input
-        .diff_rows
-        .iter()
-        .any(|row| row.ownership.is_blocked());
+    let has_blocked_asset = input.diff_rows.iter().any(|row| row.ownership.is_blocked());
     let review_posture = M5BundleReviewPosture::for_review(input.operation, has_blocked_asset);
     let creates_rollback_checkpoint = input.operation.is_mutating();
 
@@ -1257,7 +1261,10 @@ impl M5BundleDetailReviewPacket {
             out.push_str(&format!("- **{}**\n", row.surface_family.label()));
             out.push_str(&format!("  - Owner: {}\n", row.owner_role));
             out.push_str(&format!("  - Scope: {}\n", row.scope_summary));
-            out.push_str(&format!("  - Worked cases: {}\n", row.example_reviews.len()));
+            out.push_str(&format!(
+                "  - Worked cases: {}\n",
+                row.example_reviews.len()
+            ));
             for case in &row.example_reviews {
                 out.push_str(&format!(
                     "    - `{}` → op `{}` (posture `{}`), {} diff row(s), source `{}`, range `{}`\n",

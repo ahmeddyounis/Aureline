@@ -9,7 +9,10 @@ fn packet() -> EntryConsumerPacket {
 #[test]
 fn seeded_packet_validates() {
     let violations = packet().validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -48,7 +51,10 @@ fn every_entry_verb_is_exercised() {
     let p = packet();
     let verbs: BTreeSet<M5EntryVerb> = p.rows.iter().map(|r| r.entry_verb).collect();
     for verb in M5EntryVerb::ALL {
-        assert!(verbs.contains(&verb), "entry verb {verb:?} is not exercised");
+        assert!(
+            verbs.contains(&verb),
+            "entry verb {verb:?} is not exercised"
+        );
     }
     assert_eq!(p.summary.entry_verb_count, M5EntryVerb::ALL.len());
 }
@@ -132,7 +138,10 @@ fn canonical_schema_refs_are_per_family_and_distinct() {
         .collect();
     assert_eq!(refs.len(), M5ProjectEntryComponentFamily::ALL.len());
     for family in M5ProjectEntryComponentFamily::ALL {
-        assert_eq!(canonical_packet_ref_for(family), ENTRY_CONSUMER_CANONICAL_PACKET_REF);
+        assert_eq!(
+            canonical_packet_ref_for(family),
+            ENTRY_CONSUMER_CANONICAL_PACKET_REF
+        );
     }
 }
 
@@ -154,7 +163,10 @@ fn label_family_coverage_is_complete() {
     let p = packet();
     let covered = p.covered_label_families();
     for family in REQUIRED_LABEL_FAMILIES {
-        assert!(covered.contains(family), "label family {family} not covered");
+        assert!(
+            covered.contains(family),
+            "label family {family} not covered"
+        );
     }
     assert!(p.summary.label_family_coverage_complete);
 }
@@ -174,8 +186,14 @@ fn deep_link_and_system_open_rows_preserve_target_and_mode_truth() {
             "handoff row {} drops target/mode truth",
             row.row_id
         );
-        assert!(row.preserved_label_families.iter().any(|f| f == "literal_target"));
-        assert!(row.preserved_label_families.iter().any(|f| f == "resulting_mode"));
+        assert!(row
+            .preserved_label_families
+            .iter()
+            .any(|f| f == "literal_target"));
+        assert!(row
+            .preserved_label_families
+            .iter()
+            .any(|f| f == "resulting_mode"));
     }
     assert!(p.summary.all_handoff_rows_preserve_target_truth);
 }
@@ -374,9 +392,10 @@ fn missing_entry_object_ref_breaks_reconstruction() {
     p.rows[0].entry_object_ref = String::new();
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, EntryConsumerViolation::EntryPathNotReconstructable { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        EntryConsumerViolation::EntryPathNotReconstructable { .. }
+    )));
 }
 
 #[test]
@@ -475,12 +494,15 @@ fn missing_handoff_note_is_rejected() {
 #[test]
 fn forbidden_material_in_export_is_rejected() {
     let mut p = packet();
-    p.rows[0].evidence_refs.push("bearer abc123def456".to_owned());
+    p.rows[0]
+        .evidence_refs
+        .push("bearer abc123def456".to_owned());
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, EntryConsumerViolation::RawBoundaryMaterialInExport { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        EntryConsumerViolation::RawBoundaryMaterialInExport { .. }
+    )));
 }
 
 #[test]
@@ -536,14 +558,17 @@ fn markdown_summary_lists_every_row() {
     let p = packet();
     let md = p.render_markdown_summary();
     for row in &p.rows {
-        assert!(md.contains(&row.row_id), "missing {} in markdown", row.row_id);
+        assert!(
+            md.contains(&row.row_id),
+            "missing {} in markdown",
+            row.row_id
+        );
     }
 }
 
 #[test]
 fn checked_in_export_matches_seeded_builder() {
-    let on_disk =
-        current_m5_project_entry_component_consumers_export().expect("export is valid");
+    let on_disk = current_m5_project_entry_component_consumers_export().expect("export is valid");
     assert_eq!(
         on_disk.export_safe_json(),
         packet().export_safe_json(),

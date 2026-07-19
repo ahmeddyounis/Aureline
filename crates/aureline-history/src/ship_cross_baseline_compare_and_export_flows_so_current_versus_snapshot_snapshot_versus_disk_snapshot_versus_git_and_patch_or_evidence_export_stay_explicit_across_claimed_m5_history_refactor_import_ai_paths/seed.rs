@@ -412,9 +412,11 @@ pub fn seeded_m5_compare_export_packet() -> M5CompareExportPacket {
 /// Narrowed variant: the import/migration-session consumer is narrowed to Preview pending
 /// policy-restricted export parity proof across every headless import path; every consumer
 /// stays visible.
-pub fn seeded_m5_compare_export_import_migration_session_preview_narrowed() -> M5CompareExportPacket {
+pub fn seeded_m5_compare_export_import_migration_session_preview_narrowed() -> M5CompareExportPacket
+{
     let mut packet = seeded_m5_compare_export_packet();
-    packet.packet_id = "m5-retention-export-card-primitive:import-migration-session-preview:0001".to_owned();
+    packet.packet_id =
+        "m5-retention-export-card-primitive:import-migration-session-preview:0001".to_owned();
     let row = packet
         .rows
         .iter_mut()

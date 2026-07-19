@@ -573,7 +573,9 @@ impl M5ResolvedDeploymentSummary {
 
     /// True when the resolved summary carries at least one required residual dependency.
     pub fn has_required_residual(&self) -> bool {
-        self.residual_rows.iter().any(|row| row.required_for_operation)
+        self.residual_rows
+            .iter()
+            .any(|row| row.required_for_operation)
     }
 
     /// True when the claimed boundary is not stronger than reality (AC1).

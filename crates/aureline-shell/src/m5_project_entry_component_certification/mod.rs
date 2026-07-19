@@ -442,9 +442,7 @@ impl EntrySurfaceCertificationRow {
         let seen: BTreeSet<EntryCertificationAxis> =
             self.axis_outcomes.iter().map(|o| o.axis).collect();
         seen.len() == self.axis_outcomes.len()
-            && EntryCertificationAxis::ALL
-                .iter()
-                .all(|a| seen.contains(a))
+            && EntryCertificationAxis::ALL.iter().all(|a| seen.contains(a))
     }
 
     /// Whether every axis outcome is internally well-formed.
@@ -685,7 +683,10 @@ impl EntrySurfaceCertificationPacket {
             .filter(|r| r.derived_status == SurfaceClaimStatus::Red)
             .count();
         let all_publishable = self.rows.iter().all(|r| r.derived_status.is_publishable());
-        let all_fresh = self.rows.iter().all(EntrySurfaceCertificationRow::status_is_fresh);
+        let all_fresh = self
+            .rows
+            .iter()
+            .all(EntrySurfaceCertificationRow::status_is_fresh);
 
         EntrySurfaceCertificationSummary {
             row_count: self.rows.len(),
@@ -705,11 +706,7 @@ impl EntrySurfaceCertificationPacket {
                 .rows
                 .iter()
                 .all(EntrySurfaceCertificationRow::covers_all_axes),
-            narrowed_surface_count: self
-                .rows
-                .iter()
-                .filter(|r| r.is_tier_narrowed())
-                .count(),
+            narrowed_surface_count: self.rows.iter().filter(|r| r.is_tier_narrowed()).count(),
             report_clean: all_publishable && all_fresh && self.all_surfaces_present(),
         }
     }
@@ -863,7 +860,10 @@ impl EntrySurfaceCertificationPacket {
         out.push_str("# M5 Project-Entry Component Surface Certification\n\n");
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
         out.push_str(&format!("- As of: `{}`\n", self.as_of));
-        out.push_str(&format!("- Canonical bundle: `{}`\n", self.canonical_bundle_ref));
+        out.push_str(&format!(
+            "- Canonical bundle: `{}`\n",
+            self.canonical_bundle_ref
+        ));
         out.push_str(&format!(
             "- Surfaces: {} / {} certified ({} green, {} yellow, {} red)\n",
             self.summary.surface_count,
@@ -954,7 +954,10 @@ impl fmt::Display for EntryCertificationViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SchemaVersion { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::RecordKind { expected, actual } => {
                 write!(f, "record kind mismatch: expected {expected}, got {actual}")
@@ -966,7 +969,10 @@ impl fmt::Display for EntryCertificationViolation {
             Self::DuplicateId { id } => write!(f, "duplicate row id: {id}"),
             Self::IncompleteRow { id } => write!(f, "incomplete certification row: {id}"),
             Self::AxisCoverageIncomplete { id } => {
-                write!(f, "row {id} does not score every certification axis exactly once")
+                write!(
+                    f,
+                    "row {id} does not score every certification axis exactly once"
+                )
             }
             Self::MalformedAxisOutcome { id } => {
                 write!(
@@ -975,7 +981,10 @@ impl fmt::Display for EntryCertificationViolation {
                 )
             }
             Self::RowMissingCanonicalBundle { id } => {
-                write!(f, "row {id} does not cite the one canonical release-proof bundle")
+                write!(
+                    f,
+                    "row {id} does not cite the one canonical release-proof bundle"
+                )
             }
             Self::ExportParityNotCertified { id } => {
                 write!(
@@ -984,10 +993,16 @@ impl fmt::Display for EntryCertificationViolation {
                 )
             }
             Self::CertifiedTierExceedsClaim { id } => {
-                write!(f, "row {id} certifies a tier more capable than the claimed one")
+                write!(
+                    f,
+                    "row {id} certifies a tier more capable than the claimed one"
+                )
             }
             Self::StatusDerivationStale { id } => {
-                write!(f, "row {id} stored status disagrees with a fresh derivation")
+                write!(
+                    f,
+                    "row {id} stored status disagrees with a fresh derivation"
+                )
             }
             Self::SurfaceBlocked { id } => {
                 write!(
@@ -997,7 +1012,10 @@ export parity dropped, or the narrowing is inconsistent"
                 )
             }
             Self::SurfaceCoverageIncomplete => {
-                write!(f, "not every claimed M5 project-entry surface is certified exactly once")
+                write!(
+                    f,
+                    "not every claimed M5 project-entry surface is certified exactly once"
+                )
             }
             Self::SummaryMismatch => write!(f, "computed summary does not match stored summary"),
             Self::RawBoundaryMaterialInExport => {
@@ -1198,8 +1216,14 @@ fn seed_row(
         canonical_bundle_ref: ENTRY_CERT_CANONICAL_BUNDLE_REF.to_owned(),
         derived_status: SurfaceClaimStatus::Green,
         export_parity: seed_export_parity(export_fields),
-        compatibility_notes: compatibility_notes.iter().map(|n| (*n).to_owned()).collect(),
-        source_refs: vec![ENTRY_CERT_MATRIX_REF.to_owned(), ENTRY_CERT_SCHEMA_REF.to_owned()],
+        compatibility_notes: compatibility_notes
+            .iter()
+            .map(|n| (*n).to_owned())
+            .collect(),
+        source_refs: vec![
+            ENTRY_CERT_MATRIX_REF.to_owned(),
+            ENTRY_CERT_SCHEMA_REF.to_owned(),
+        ],
         observed_at: "2026-07-06T00:00:00Z".to_owned(),
         evidence_refs: seed_evidence(row_id),
     };

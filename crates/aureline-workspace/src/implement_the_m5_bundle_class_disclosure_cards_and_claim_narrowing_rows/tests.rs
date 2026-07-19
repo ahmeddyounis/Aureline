@@ -20,7 +20,10 @@ fn resolver_discloses_recommendation_and_strength() {
     let resolved = resolve_bundle_class_disclosure(&docs_community_input()).expect("resolves");
     assert!(resolved.recommendation_and_strength_disclosed());
     assert!(!resolved.card.reason_for_recommendation.trim().is_empty());
-    assert_eq!(resolved.row.support_claim_strength, BundleScorecardClass::Community);
+    assert_eq!(
+        resolved.row.support_claim_strength,
+        BundleScorecardClass::Community
+    );
 }
 
 #[test]
@@ -39,7 +42,10 @@ fn resolver_rejects_empty_recommendation_reason() {
 fn resolver_caps_support_strength_to_evidence() {
     // An imported, bridged, stale bundle can only present an imported-strength claim.
     let resolved = resolve_bundle_class_disclosure(&migration_imported_input()).expect("resolves");
-    assert_eq!(resolved.row.support_claim_strength, BundleScorecardClass::Imported);
+    assert_eq!(
+        resolved.row.support_claim_strength,
+        BundleScorecardClass::Imported
+    );
     assert!(resolved.row.is_narrowed);
     assert!(resolved.row.narrowing_reason.is_some());
 }
@@ -305,7 +311,10 @@ fn drifted_case_is_flagged() {
 #[test]
 fn vocabulary_drift_is_flagged() {
     let mut packet = seeded_m5_bundle_class_disclosure_packet();
-    packet.vocabulary_set.disclosure_classes.push("bogus".to_owned());
+    packet
+        .vocabulary_set
+        .disclosure_classes
+        .push("bogus".to_owned());
     let violations = packet.validate();
     assert!(violations.contains(&M5BundleDisclosureViolation::VocabularySetDrift));
 }
@@ -351,5 +360,8 @@ fn export_is_free_of_forbidden_material() {
 fn record_kind_and_schema_version_are_stable() {
     let packet = seeded_m5_bundle_class_disclosure_packet();
     assert_eq!(packet.record_kind, M5_BUNDLE_CLASS_DISCLOSURE_RECORD_KIND);
-    assert_eq!(packet.schema_version, M5_BUNDLE_CLASS_DISCLOSURE_SCHEMA_VERSION);
+    assert_eq!(
+        packet.schema_version,
+        M5_BUNDLE_CLASS_DISCLOSURE_SCHEMA_VERSION
+    );
 }

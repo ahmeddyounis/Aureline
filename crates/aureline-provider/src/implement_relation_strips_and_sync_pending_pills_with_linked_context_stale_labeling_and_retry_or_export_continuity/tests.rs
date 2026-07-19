@@ -124,7 +124,10 @@ fn pending_change_type_coverage_is_complete() {
         .map(|pill| pill.pending_change_type)
         .collect();
     for change_type in PendingChangeType::ALL {
-        assert!(covered.contains(&change_type), "missing type {change_type:?}");
+        assert!(
+            covered.contains(&change_type),
+            "missing type {change_type:?}"
+        );
     }
 }
 
@@ -186,7 +189,9 @@ fn collapsed_linked_label_fails() {
 fn duplicate_relation_labels_collapse_fails() {
     let mut packet = packet();
     // Give two relations the same label — that is a vague, collapsed context.
-    let label = packet.relation_strips[0].relations[0].reference_label.clone();
+    let label = packet.relation_strips[0].relations[0]
+        .reference_label
+        .clone();
     packet.relation_strips[0].relations[1].reference_label = label;
     assert!(packet
         .validate()

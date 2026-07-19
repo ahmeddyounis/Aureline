@@ -861,7 +861,10 @@ pub fn resolve_execution_confidence(
     }
 
     // AC3: a heuristic / imported / unknown source can never claim high confidence.
-    if !input.current_adapter.confidence_consistent(input.confidence) {
+    if !input
+        .current_adapter
+        .confidence_consistent(input.confidence)
+    {
         return Err(M5ExecutionConfidenceResolutionError::AdapterConfidenceInconsistent);
     }
 
@@ -938,7 +941,8 @@ pub fn resolve_execution_confidence(
     // AC3: the no-higher-confidence overwrite rule.
     let incoming_rank = input.confidence.rank();
     let existing_rank = input.existing_confidence.rank();
-    let would_mask_native = input.existing_adapter.is_native() && !input.current_adapter.is_native();
+    let would_mask_native =
+        input.existing_adapter.is_native() && !input.current_adapter.is_native();
     let lower_confidence = incoming_rank < existing_rank;
 
     if lower_confidence && !input.downgrade_acknowledged {
@@ -1224,7 +1228,8 @@ pub struct M5ExecutionSurfaceRow {
 impl M5ExecutionSurfaceRow {
     /// True when the row declares every mandatory export field.
     fn declares_mandatory_export_fields(&self) -> bool {
-        let present: BTreeSet<M5ExecutionExportField> = self.export_fields.iter().copied().collect();
+        let present: BTreeSet<M5ExecutionExportField> =
+            self.export_fields.iter().copied().collect();
         M5ExecutionExportField::MANDATORY
             .iter()
             .all(|field| present.contains(field))
@@ -1852,12 +1857,11 @@ fn validate_acceptance_criteria_covered(
 
     // AC1: some case exercises a capability drop and narrows the launcher, and every
     // case narrows affordances before launch whenever capability drops.
-    let affordance_proven = cases
+    let affordance_proven = cases.iter().any(|resolved| {
+        resolved.capability_drop_present() && resolved.affordances_narrowed_before_launch
+    }) && cases
         .iter()
-        .any(|resolved| resolved.capability_drop_present() && resolved.affordances_narrowed_before_launch)
-        && cases
-            .iter()
-            .all(|resolved| resolved.affordances_narrow_when_capability_drops());
+        .all(|resolved| resolved.affordances_narrow_when_capability_drops());
     if !affordance_proven {
         violations.push(M5ExecutionConfidenceViolation::AffordanceNarrowingUnproven);
     }

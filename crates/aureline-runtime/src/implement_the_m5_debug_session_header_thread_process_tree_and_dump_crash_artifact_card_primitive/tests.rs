@@ -326,10 +326,7 @@ fn resolver_rejects_generic_degraded_label() {
 fn cli_line_renders_mode_posture_and_counts() {
     let resolved = resolve_debug_hierarchy(&publish_core_symbolicated_input()).expect("resolves");
     assert!(resolved.cli_line.line.contains("mode=core"));
-    assert!(resolved
-        .cli_line
-        .line
-        .contains("posture=captured_analysis"));
+    assert!(resolved.cli_line.line.contains("posture=captured_analysis"));
     assert!(resolved.cli_line.line.contains("dumps=1"));
     assert!(resolved.cli_line.line.contains("nodes=2"));
 }
@@ -453,7 +450,10 @@ fn drifted_case_is_flagged() {
 #[test]
 fn vocabulary_drift_is_flagged() {
     let mut packet = seeded_m5_debug_hierarchy_packet();
-    packet.vocabulary_set.control_postures.push("bogus".to_owned());
+    packet
+        .vocabulary_set
+        .control_postures
+        .push("bogus".to_owned());
     let violations = packet.validate();
     assert!(violations.contains(&M5DebugViolation::VocabularySetDrift));
 }

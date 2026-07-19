@@ -284,7 +284,10 @@ fn drifted_case_is_flagged() {
 #[test]
 fn vocabulary_drift_is_flagged() {
     let mut packet = seeded_m5_start_center_launch_wedge_packet();
-    packet.vocabulary_set.source_classes.push("bogus".to_owned());
+    packet
+        .vocabulary_set
+        .source_classes
+        .push("bogus".to_owned());
     let violations = packet.validate();
     assert!(violations.contains(&M5LaunchWedgeViolation::VocabularySetDrift));
 }

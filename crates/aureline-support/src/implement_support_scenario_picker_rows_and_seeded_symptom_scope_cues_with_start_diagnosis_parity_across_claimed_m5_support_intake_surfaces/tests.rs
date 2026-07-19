@@ -295,9 +295,9 @@ fn every_worked_case_is_self_consistent_and_preserves_identity() {
 #[test]
 fn missing_consumer_surface_fails() {
     let mut packet = seeded_m5_support_scenario_picker_row_packet();
-    packet
-        .rows
-        .retain(|row| row.consumer_surface != M5ScenarioPickerConsumerSurface::RecoveryCenterIntake);
+    packet.rows.retain(|row| {
+        row.consumer_surface != M5ScenarioPickerConsumerSurface::RecoveryCenterIntake
+    });
     assert!(packet
         .validate()
         .contains(&M5ScenarioPickerRowViolation::RequiredConsumerMissing));
@@ -500,7 +500,10 @@ fn matrix_csv_has_a_row_per_consumer() {
 fn checked_support_export_validates_and_matches_seed() {
     let from_disk = current_stable_m5_support_scenario_picker_row_export()
         .expect("checked M5 picker row primitive export validates");
-    assert_eq!(from_disk.packet_id, M5_SUPPORT_SCENARIO_PICKER_ROW_PACKET_ID);
+    assert_eq!(
+        from_disk.packet_id,
+        M5_SUPPORT_SCENARIO_PICKER_ROW_PACKET_ID
+    );
     assert_eq!(
         from_disk,
         seeded_m5_support_scenario_picker_row_packet(),
@@ -525,8 +528,7 @@ fn narrowed_variants_validate_and_keep_consumers_visible() {
         );
     }
 
-    let recovery =
-        seeded_m5_support_scenario_picker_row_recovery_center_intake_preview_narrowed();
+    let recovery = seeded_m5_support_scenario_picker_row_recovery_center_intake_preview_narrowed();
     let row = recovery
         .rows
         .iter()

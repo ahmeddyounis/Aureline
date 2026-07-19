@@ -13,7 +13,10 @@ fn packet() -> NavContentProfileCertificationPacket {
 #[test]
 fn seeded_packet_validates() {
     let violations = packet().validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -31,7 +34,10 @@ fn every_claimed_profile_is_certified_exactly_once() {
         let count = p.rows.iter().filter(|r| r.profile == profile).count();
         assert_eq!(count, 1, "profile {profile:?} certified {count} times");
     }
-    assert_eq!(p.summary.profile_count, M5NavContentCertifiedProfile::ALL.len());
+    assert_eq!(
+        p.summary.profile_count,
+        M5NavContentCertifiedProfile::ALL.len()
+    );
 }
 
 #[test]
@@ -41,7 +47,10 @@ fn every_frozen_family_is_certified_on_some_profile() {
     assert!(p.summary.all_families_covered);
     let families = p.represented_families();
     for family in M5NavigationContentComponentFamily::ALL {
-        assert!(families.contains(&family), "family {family:?} not certified");
+        assert!(
+            families.contains(&family),
+            "family {family:?} not certified"
+        );
     }
 }
 
@@ -60,7 +69,10 @@ fn every_row_scores_every_axis_exactly_once() {
     let p = packet();
     for row in &p.rows {
         assert!(row.covers_all_axes(), "row {} misses an axis", row.row_id);
-        assert_eq!(row.axis_outcomes.len(), NavContentCertificationAxis::ALL.len());
+        assert_eq!(
+            row.axis_outcomes.len(),
+            NavContentCertificationAxis::ALL.len()
+        );
     }
     assert!(p.summary.every_axis_covered_on_every_row);
 }
@@ -81,9 +93,15 @@ fn cli_export_axis_is_certified_on_every_row() {
 #[test]
 fn every_row_cites_the_one_canonical_bundle() {
     let p = packet();
-    assert_eq!(p.canonical_bundle_ref, NAV_CONTENT_CERT_CANONICAL_BUNDLE_REF);
+    assert_eq!(
+        p.canonical_bundle_ref,
+        NAV_CONTENT_CERT_CANONICAL_BUNDLE_REF
+    );
     for row in &p.rows {
-        assert_eq!(row.canonical_bundle_ref, NAV_CONTENT_CERT_CANONICAL_BUNDLE_REF);
+        assert_eq!(
+            row.canonical_bundle_ref,
+            NAV_CONTENT_CERT_CANONICAL_BUNDLE_REF
+        );
     }
     assert!(p.summary.all_rows_cite_canonical_bundle);
 }
@@ -101,7 +119,11 @@ fn every_row_status_is_fresh() {
 fn every_row_holds_every_guardrail() {
     let p = packet();
     for row in &p.rows {
-        assert!(row.guardrails.all_held(), "row {} breaks a guardrail", row.row_id);
+        assert!(
+            row.guardrails.all_held(),
+            "row {} breaks a guardrail",
+            row.row_id
+        );
     }
     assert!(p.summary.all_guardrails_held);
 }
@@ -125,7 +147,11 @@ fn yellow_rows_narrow_their_claim_and_bind_to_a_narrowed_axis() {
         .iter()
         .filter(|r| r.derived_status == NavContentProfileClaimStatus::Yellow)
     {
-        assert!(row.is_claim_narrowed(), "yellow row {} did not narrow claim", row.row_id);
+        assert!(
+            row.is_claim_narrowed(),
+            "yellow row {} did not narrow claim",
+            row.row_id
+        );
         let narrow = row
             .claim_auto_narrow
             .as_ref()
@@ -202,7 +228,10 @@ fn axis_tokens_are_distinct() {
 #[test]
 fn only_cli_export_axis_is_always_on() {
     for axis in NavContentCertificationAxis::ALL {
-        assert_eq!(axis.is_always_on(), axis == NavContentCertificationAxis::CliExport);
+        assert_eq!(
+            axis.is_always_on(),
+            axis == NavContentCertificationAxis::CliExport
+        );
     }
 }
 
@@ -255,9 +284,10 @@ fn guardrail_breach_blocks_the_profile() {
     row.derived_status = row.derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, NavContentCertificationViolation::GuardrailViolated { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        NavContentCertificationViolation::GuardrailViolated { .. }
+    )));
 }
 
 #[test]
@@ -315,7 +345,8 @@ fn cli_export_drop_blocks_the_profile() {
     for outcome in &mut row.axis_outcomes {
         if outcome.axis == NavContentCertificationAxis::CliExport {
             outcome.state = NavContentAxisCertificationState::DisclosedNarrowed;
-            outcome.narrowing_reason = Some("export parity not current for this profile".to_owned());
+            outcome.narrowing_reason =
+                Some("export parity not current for this profile".to_owned());
             outcome.downgrade_trigger = Some(M5NavigationContentDowngradeTrigger::ProofStale);
         }
     }
@@ -459,9 +490,10 @@ fn missing_profile_is_rejected() {
         .retain(|r| r.profile != M5NavContentCertifiedProfile::PartialFreshnessPanel);
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, NavContentCertificationViolation::ProfileCoverageIncomplete)));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        NavContentCertificationViolation::ProfileCoverageIncomplete
+    )));
 }
 
 #[test]
@@ -476,9 +508,10 @@ fn missing_family_coverage_is_rejected() {
     p.summary = p.computed_summary();
     assert!(!p.all_families_covered());
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, NavContentCertificationViolation::FamilyCoverageIncomplete)));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        NavContentCertificationViolation::FamilyCoverageIncomplete
+    )));
 }
 
 #[test]
@@ -487,9 +520,10 @@ fn stale_derived_status_is_rejected() {
     p.rows[0].derived_status = NavContentProfileClaimStatus::Yellow; // it is really Green
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, NavContentCertificationViolation::StatusDerivationStale { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        NavContentCertificationViolation::StatusDerivationStale { .. }
+    )));
 }
 
 #[test]
@@ -499,9 +533,10 @@ fn wrong_canonical_bundle_is_rejected() {
     p.rows[0].derived_status = p.rows[0].derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, NavContentCertificationViolation::RowMissingCanonicalBundle { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        NavContentCertificationViolation::RowMissingCanonicalBundle { .. }
+    )));
 }
 
 #[test]
@@ -535,9 +570,10 @@ fn axis_coverage_gap_is_rejected() {
     p.rows[0].derived_status = p.rows[0].derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, NavContentCertificationViolation::AxisCoverageIncomplete { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        NavContentCertificationViolation::AxisCoverageIncomplete { .. }
+    )));
 }
 
 #[test]
@@ -553,13 +589,16 @@ fn summary_mismatch_is_rejected() {
 #[test]
 fn forbidden_material_in_export_is_rejected() {
     let mut p = packet();
-    p.rows[0].evidence_refs.push("bearer abc123def456".to_owned());
+    p.rows[0]
+        .evidence_refs
+        .push("bearer abc123def456".to_owned());
     p.rows[0].derived_status = p.rows[0].derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, NavContentCertificationViolation::RawNavContentMaterialInExport)));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        NavContentCertificationViolation::RawNavContentMaterialInExport
+    )));
 }
 
 // --------------------------------------------------------------------------
@@ -595,7 +634,11 @@ fn markdown_summary_lists_every_row() {
     let p = packet();
     let md = p.render_markdown_summary();
     for row in &p.rows {
-        assert!(md.contains(&row.row_id), "missing {} in markdown", row.row_id);
+        assert!(
+            md.contains(&row.row_id),
+            "missing {} in markdown",
+            row.row_id
+        );
     }
 }
 

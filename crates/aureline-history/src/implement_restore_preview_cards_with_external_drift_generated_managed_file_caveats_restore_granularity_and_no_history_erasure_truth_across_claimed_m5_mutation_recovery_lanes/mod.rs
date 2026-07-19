@@ -819,7 +819,10 @@ pub fn resolve_restore_preview_card(
         input.restore_path_ready,
     );
     let can_restore = preview_posture.can_restore();
-    let is_exportable = !matches!(input.export_posture, M5ExportRedactionPosture::ExportBlocked);
+    let is_exportable = !matches!(
+        input.export_posture,
+        M5ExportRedactionPosture::ExportBlocked
+    );
     let available_actions = derive_preview_actions(
         preview_posture,
         can_restore,
@@ -1028,15 +1031,17 @@ pub fn resolve_restore_granularity_selector(
     );
     let default_mode = default_selection_mode(selector_posture);
     let can_apply = selector_posture.can_apply();
-    let can_narrow = available_modes
-        .iter()
-        .any(|mode| !matches!(mode, M5RestoreSelectionMode::AllChanges | M5RestoreSelectionMode::DryRunOnly));
+    let can_narrow = available_modes.iter().any(|mode| {
+        !matches!(
+            mode,
+            M5RestoreSelectionMode::AllChanges | M5RestoreSelectionMode::DryRunOnly
+        )
+    });
     let excludes_generated = matches!(
         selector_posture,
         M5RestoreGranularitySelectorPosture::ExcludeGeneratedSelector
     );
-    let available_actions =
-        derive_selector_actions(&available_modes, can_apply);
+    let available_actions = derive_selector_actions(&available_modes, can_apply);
 
     Ok(M5ResolvedRestoreGranularitySelector {
         drift_state: input.drift_state,
@@ -1122,9 +1127,7 @@ fn derive_selection_modes(
 }
 
 /// The default restore-selection mode for a posture.
-fn default_selection_mode(
-    posture: M5RestoreGranularitySelectorPosture,
-) -> M5RestoreSelectionMode {
+fn default_selection_mode(posture: M5RestoreGranularitySelectorPosture) -> M5RestoreSelectionMode {
     use M5RestoreGranularitySelectorPosture as Posture;
     use M5RestoreSelectionMode as Mode;
     match posture {
@@ -1636,8 +1639,7 @@ impl M5RestorePreviewGranularityPacket {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self)
-            .expect("m5 preview/selector primitive packet serializes")
+        serde_json::to_string_pretty(self).expect("m5 preview/selector primitive packet serializes")
     }
 
     /// Deterministic, machine-readable matrix CSV: one row per mutation / recovery
@@ -2036,10 +2038,11 @@ fn validate_preview_drift_coverage(
     packet: &M5RestorePreviewGranularityPacket,
     violations: &mut Vec<M5RestorePreviewGranularityViolation>,
 ) {
-    let has_drift = packet
-        .rows
-        .iter()
-        .any(|row| row.preview_examples.iter().any(|case| case.resolved.has_external_drift));
+    let has_drift = packet.rows.iter().any(|row| {
+        row.preview_examples
+            .iter()
+            .any(|case| case.resolved.has_external_drift)
+    });
     let has_clean = packet.rows.iter().any(|row| {
         row.preview_examples.iter().any(|case| {
             matches!(
@@ -2066,8 +2069,7 @@ fn validate_preview_managed_caveat_coverage(
             .any(|case| case.resolved.touches_generated_or_managed)
     });
     if !proven {
-        violations
-            .push(M5RestorePreviewGranularityViolation::PreviewManagedCaveatCoverageUnproven);
+        violations.push(M5RestorePreviewGranularityViolation::PreviewManagedCaveatCoverageUnproven);
     }
 }
 
@@ -2105,14 +2107,16 @@ fn validate_preview_restore_coverage(
     packet: &M5RestorePreviewGranularityPacket,
     violations: &mut Vec<M5RestorePreviewGranularityViolation>,
 ) {
-    let has_restorable = packet
-        .rows
-        .iter()
-        .any(|row| row.preview_examples.iter().any(|case| case.resolved.can_restore));
-    let has_blocked = packet
-        .rows
-        .iter()
-        .any(|row| row.preview_examples.iter().any(|case| !case.resolved.can_restore));
+    let has_restorable = packet.rows.iter().any(|row| {
+        row.preview_examples
+            .iter()
+            .any(|case| case.resolved.can_restore)
+    });
+    let has_blocked = packet.rows.iter().any(|row| {
+        row.preview_examples
+            .iter()
+            .any(|case| !case.resolved.can_restore)
+    });
     if !(has_restorable && has_blocked) {
         violations.push(M5RestorePreviewGranularityViolation::PreviewRestoreCoverageUnproven);
     }
@@ -2142,9 +2146,11 @@ fn validate_preview_no_history_erasure(
     packet: &M5RestorePreviewGranularityPacket,
     violations: &mut Vec<M5RestorePreviewGranularityViolation>,
 ) {
-    let previews_ok = packet.rows.iter().flat_map(|row| row.preview_examples.iter()).all(|case| {
-        case.resolved.creates_new_checkpoint && case.resolved.preserves_history_trail
-    });
+    let previews_ok = packet
+        .rows
+        .iter()
+        .flat_map(|row| row.preview_examples.iter())
+        .all(|case| case.resolved.creates_new_checkpoint && case.resolved.preserves_history_trail);
     let selectors_ok = packet
         .rows
         .iter()
@@ -2170,12 +2176,15 @@ fn validate_selector_scope_coverage(
             )
         })
     });
-    let has_narrowed = packet
-        .rows
-        .iter()
-        .any(|row| row.selector_examples.iter().any(|case| case.resolved.can_narrow));
+    let has_narrowed = packet.rows.iter().any(|row| {
+        row.selector_examples
+            .iter()
+            .any(|case| case.resolved.can_narrow)
+    });
     let has_dry_run_only = packet.rows.iter().any(|row| {
-        row.selector_examples.iter().any(|case| !case.resolved.can_apply)
+        row.selector_examples
+            .iter()
+            .any(|case| !case.resolved.can_apply)
     });
     if !(has_whole && has_narrowed && has_dry_run_only) {
         violations.push(M5RestorePreviewGranularityViolation::SelectorScopeCoverageUnproven);

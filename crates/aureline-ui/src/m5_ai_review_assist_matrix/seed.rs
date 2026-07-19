@@ -203,7 +203,11 @@ fn ai_review_assist_rows() -> Vec<M5AiReviewAssistRow> {
         ]),
     );
     row.publish_sheet_roles = M5AiReviewAssistPublishSheetRole::ALL.to_vec();
-    row.semantic_roles = vec![R::PublishDestinationDisclosure, R::LocalVersusProviderState, R::PublishExportFallback];
+    row.semantic_roles = vec![
+        R::PublishDestinationDisclosure,
+        R::LocalVersusProviderState,
+        R::PublishExportFallback,
+    ];
     row.required_labels = labels_with(&[L::PublishDestination]);
     row.consumer_surfaces = vec![
         C::PublishToReviewSheet,

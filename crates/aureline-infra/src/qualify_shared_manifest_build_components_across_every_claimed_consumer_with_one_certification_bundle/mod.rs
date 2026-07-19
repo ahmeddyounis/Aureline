@@ -68,10 +68,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     CopyExportParity, M5ManifestBuildDowngradeTrigger, M5ManifestBuildRequiredLabel,
+    M5_BUILD_CONFIDENCE_ARTIFACT_REF, M5_EXECUTION_CONFIDENCE_ARTIFACT_REF,
+    M5_LIVE_RESOURCE_ARTIFACT_REF, M5_MANIFEST_AUTHORING_ARTIFACT_REF,
     MANIFEST_BUILD_A11Y_FALLBACK_ARTIFACT_REF, MANIFEST_BUILD_COMPONENT_MATRIX_ARTIFACT_REF,
-    MANIFEST_BUILD_CONSUMER_ARTIFACT_REF, M5_BUILD_CONFIDENCE_ARTIFACT_REF,
-    M5_EXECUTION_CONFIDENCE_ARTIFACT_REF, M5_LIVE_RESOURCE_ARTIFACT_REF,
-    M5_MANIFEST_AUTHORING_ARTIFACT_REF,
+    MANIFEST_BUILD_CONSUMER_ARTIFACT_REF,
 };
 
 /// Schema version stamped on the M05-819 qualification packet.
@@ -560,8 +560,9 @@ truth_layers={truth} adapter_source={adapter} accessibility={access} verdict={ve
             truth = self.dimension_token(M5ManifestBuildQualificationDimension::TruthLayerLabels),
             adapter =
                 self.dimension_token(M5ManifestBuildQualificationDimension::AdapterSourceKind),
-            access = self
-                .dimension_token(M5ManifestBuildQualificationDimension::AccessibilityExportBehavior),
+            access = self.dimension_token(
+                M5ManifestBuildQualificationDimension::AccessibilityExportBehavior
+            ),
             verdict = self.verdict().as_str(),
         )
     }
@@ -762,9 +763,11 @@ impl ManifestBuildQualificationPacket {
 
             // AC1: the consumer adopts the shared components, not a local fork.
             if !row.uses_shared_components {
-                violations.push(ManifestBuildQualificationViolation::SharedComponentsNotUsed {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    ManifestBuildQualificationViolation::SharedComponentsNotUsed {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // AC1: the target context stays visible.
@@ -849,8 +852,9 @@ impl ManifestBuildQualificationPacket {
         // Coverage: every claimed consumer is qualified at least once.
         for consumer in M5QualifiedManifestBuildConsumer::ALL {
             if !seen_consumers.contains(&consumer) {
-                violations
-                    .push(ManifestBuildQualificationViolation::MissingConsumerCoverage { consumer });
+                violations.push(
+                    ManifestBuildQualificationViolation::MissingConsumerCoverage { consumer },
+                );
             }
         }
 
@@ -871,7 +875,8 @@ impl ManifestBuildQualificationPacket {
         // The union of preserved required labels covers the frozen set.
         for label in M5ManifestBuildRequiredLabel::ALL {
             if !label_union.contains(&label) {
-                violations.push(ManifestBuildQualificationViolation::MissingLabelCoverage { label });
+                violations
+                    .push(ManifestBuildQualificationViolation::MissingLabelCoverage { label });
             }
         }
 
@@ -1152,7 +1157,10 @@ impl fmt::Display for ManifestBuildQualificationViolation {
                 )
             }
             Self::NarrowedReasonNotExported { id } => {
-                write!(f, "row {id} narrowed but does not export the narrowed reason")
+                write!(
+                    f,
+                    "row {id} narrowed but does not export the narrowed reason"
+                )
             }
             Self::BundleRefMismatch { id } => {
                 write!(
@@ -1186,7 +1194,10 @@ impl fmt::Display for ManifestBuildQualificationViolation {
                 )
             }
             Self::MissingDimensionUnion { dimension } => {
-                write!(f, "parity dimension {dimension:?} is not covered by any row")
+                write!(
+                    f,
+                    "parity dimension {dimension:?} is not covered by any row"
+                )
             }
             Self::MissingLabelCoverage { label } => {
                 write!(f, "required label {label:?} is not preserved by any row")

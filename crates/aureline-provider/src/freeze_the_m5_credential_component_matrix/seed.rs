@@ -7,8 +7,7 @@
 use super::*;
 
 /// Stable packet id for the canonical credential component matrix.
-pub const M5_CREDENTIAL_COMPONENT_MATRIX_PACKET_ID: &str =
-    "m5-credential-components:stable:0001";
+pub const M5_CREDENTIAL_COMPONENT_MATRIX_PACKET_ID: &str = "m5-credential-components:stable:0001";
 
 /// Mint / proof-refresh timestamp pinned by the seed builders.
 const SEED_TIMESTAMP: &str = "2026-07-09T00:00:00Z";

@@ -354,7 +354,8 @@ pub fn seeded_m5_support_intake_escalation_component_matrix_escalation_packet_su
         .component_rows
         .iter_mut()
         .find(|row| {
-            row.component_family == M5SupportIntakeEscalationComponentFamily::EscalationPacketSummary
+            row.component_family
+                == M5SupportIntakeEscalationComponentFamily::EscalationPacketSummary
         })
         .expect("escalation-packet-summary row present");
     row.qualification = M5SupportQualificationClass::Beta;

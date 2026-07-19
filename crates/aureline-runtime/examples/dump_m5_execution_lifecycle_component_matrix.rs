@@ -24,7 +24,10 @@ fn main() {
     let packet = seeded_execution_lifecycle_component_matrix();
 
     let violations = packet.validate();
-    assert!(violations.is_empty(), "packet must validate: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "packet must validate: {violations:?}"
+    );
 
     match which.as_str() {
         "support" => print!("{}", packet.export_safe_json()),

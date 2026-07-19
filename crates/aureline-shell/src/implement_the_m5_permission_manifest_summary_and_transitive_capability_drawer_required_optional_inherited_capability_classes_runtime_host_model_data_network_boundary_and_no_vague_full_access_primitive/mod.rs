@@ -485,7 +485,9 @@ impl M5TransitiveCapabilityDrawerDegradeReason {
             Self::TransitiveWideningHidden | Self::DependencyAttributionMissing => {
                 M5PermissionManifestNextAction::ReviewTransitiveWidening
             }
-            Self::FlattenedIntoFullAccess => M5PermissionManifestNextAction::ReviewCapabilityClasses,
+            Self::FlattenedIntoFullAccess => {
+                M5PermissionManifestNextAction::ReviewCapabilityClasses
+            }
             Self::ManifestDigestUnstated => M5PermissionManifestNextAction::ReviewManifestDigest,
             Self::ProofStale => M5PermissionManifestNextAction::ReviewPermissionPosture,
         }
@@ -712,9 +714,18 @@ pub fn resolve_permission_manifest_summary(
         || string_is_forbidden(&input.data_boundary)
         || string_is_forbidden(&input.network_boundary)
         || string_is_forbidden(&input.manifest_digest)
-        || input.required_capabilities.iter().any(|c| string_is_forbidden(c))
-        || input.optional_capabilities.iter().any(|c| string_is_forbidden(c))
-        || input.inherited_capabilities.iter().any(|c| string_is_forbidden(c))
+        || input
+            .required_capabilities
+            .iter()
+            .any(|c| string_is_forbidden(c))
+        || input
+            .optional_capabilities
+            .iter()
+            .any(|c| string_is_forbidden(c))
+        || input
+            .inherited_capabilities
+            .iter()
+            .any(|c| string_is_forbidden(c))
     {
         return Err(M5PermissionManifestResolutionError::ForbiddenMaterial);
     }
@@ -785,7 +796,10 @@ pub fn resolve_transitive_capability_drawer(
             .dependency_contributed_capabilities
             .iter()
             .any(|c| string_is_forbidden(c))
-        || input.dependency_attributions.iter().any(|c| string_is_forbidden(c))
+        || input
+            .dependency_attributions
+            .iter()
+            .any(|c| string_is_forbidden(c))
     {
         return Err(M5PermissionManifestResolutionError::ForbiddenMaterial);
     }
@@ -1555,8 +1569,7 @@ fn validate_acceptance_criteria(
     let digest_unstated_degrades = summaries().any(|ex| {
         ex.degrade_reason == Some(M5PermissionManifestSummaryDegradeReason::ManifestDigestUnstated)
     }) || drawers().any(|ex| {
-        ex.degrade_reason
-            == Some(M5TransitiveCapabilityDrawerDegradeReason::ManifestDigestUnstated)
+        ex.degrade_reason == Some(M5TransitiveCapabilityDrawerDegradeReason::ManifestDigestUnstated)
     });
     let no_clean_flatten = summaries().all(|ex| !(ex.is_clean() && ex.flattens_into_full_access))
         && drawers().all(|ex| !(ex.is_clean() && ex.flattens_into_full_access));
@@ -1572,9 +1585,8 @@ fn validate_acceptance_criteria(
     // AC: transitive widening is visible and attributable before trust silently continues. A clean
     // drawer discloses a transitively-widened posture, a hidden-widening drawer degrades, a
     // missing-attribution drawer degrades, and no clean drawer hides its widening.
-    let clean_drawer_discloses = drawers().any(|ex| {
-        ex.is_clean() && ex.widens_transitively && ex.transitive_widening_disclosed
-    });
+    let clean_drawer_discloses = drawers()
+        .any(|ex| ex.is_clean() && ex.widens_transitively && ex.transitive_widening_disclosed);
     let widening_hidden_degrades = drawers().any(|ex| {
         ex.degrade_reason
             == Some(M5TransitiveCapabilityDrawerDegradeReason::TransitiveWideningHidden)

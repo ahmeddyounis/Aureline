@@ -32,7 +32,8 @@ fn card(
 fn handoff_row(
     input: M5OpenInBrowserHandoffRowResolutionInput,
 ) -> M5ResolvedOpenInBrowserHandoffRow {
-    resolve_open_in_browser_handoff_row(input).expect("seed open-in-browser handoff row input resolves")
+    resolve_open_in_browser_handoff_row(input)
+        .expect("seed open-in-browser handoff row input resolves")
 }
 
 // -- Canonical marketplace/account boundary card examples -------------------------------------

@@ -115,8 +115,7 @@ fn resolver_rejects_structured_state_with_fallback_reason() {
 
 #[test]
 fn resolver_keeps_target_graph_identity_and_verbs_inspectable() {
-    let resolved =
-        resolve_build_confidence(&native_build_event_partial_input()).expect("resolves");
+    let resolved = resolve_build_confidence(&native_build_event_partial_input()).expect("resolves");
     assert!(resolved.target_graph_row.target_context_visible);
     assert!(resolved.target_graph_row.identity.is_stable());
     assert_eq!(
@@ -141,8 +140,7 @@ fn resolver_keeps_target_graph_identity_and_verbs_inspectable() {
 
 #[test]
 fn resolver_marks_downgraded_capability_cells() {
-    let resolved =
-        resolve_build_confidence(&native_build_event_partial_input()).expect("resolves");
+    let resolved = resolve_build_confidence(&native_build_event_partial_input()).expect("resolves");
     let debug_cell = resolved
         .capability_matrix
         .cells
@@ -196,7 +194,10 @@ fn resolver_reconstructs_support_reusable_raw_events() {
     let resolved = resolve_build_confidence(&support_replay_input()).expect("resolves");
     assert!(resolved.raw_event_drawer.redaction_applied);
     assert!(resolved.raw_event_drawer.preserves_event_identity);
-    assert_eq!(resolved.raw_event_drawer.adapter_version, "snapshot:2026-06-30");
+    assert_eq!(
+        resolved.raw_event_drawer.adapter_version,
+        "snapshot:2026-06-30"
+    );
     assert!(!resolved.raw_event_drawer.payload_lineage.is_empty());
     assert!(resolved
         .raw_event_drawer

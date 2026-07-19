@@ -43,13 +43,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", packet.export_safe_json());
         }
         Some("report") => {
-            print!("{}", seeded_m5_ai_review_assist_matrix().render_markdown_summary());
+            print!(
+                "{}",
+                seeded_m5_ai_review_assist_matrix().render_markdown_summary()
+            );
         }
         Some("csv") => {
-            print!("{}", seeded_m5_ai_review_assist_matrix().render_matrix_csv());
+            print!(
+                "{}",
+                seeded_m5_ai_review_assist_matrix().render_matrix_csv()
+            );
         }
         Some("dashboard") => {
-            println!("{}", seeded_m5_ai_review_assist_matrix().render_dashboard_json());
+            println!(
+                "{}",
+                seeded_m5_ai_review_assist_matrix().render_dashboard_json()
+            );
         }
         Some("fixture-publish-sheet-beta-narrowed") => {
             let packet = seeded_m5_ai_review_assist_matrix_publish_sheet_beta_narrowed();

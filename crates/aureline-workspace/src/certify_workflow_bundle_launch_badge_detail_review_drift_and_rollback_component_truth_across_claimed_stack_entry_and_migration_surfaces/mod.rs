@@ -63,8 +63,7 @@ use crate::implement_keyboard_screen_reader_cli_export_parity_and_bundle_claim_a
 pub const BUNDLE_SURFACE_CERT_SCHEMA_VERSION: u32 = 1;
 
 /// Stable record-kind tag carried by [`BundleSurfaceCertPacket`].
-pub const BUNDLE_SURFACE_CERT_RECORD_KIND: &str =
-    "m5_workflow_bundle_surface_certification_packet";
+pub const BUNDLE_SURFACE_CERT_RECORD_KIND: &str = "m5_workflow_bundle_surface_certification_packet";
 
 /// Stable record-kind tag carried by each [`BundleSurfaceCertRow`].
 pub const BUNDLE_SURFACE_CERT_ROW_RECORD_KIND: &str =
@@ -148,8 +147,11 @@ impl M5WorkflowBundleClaimedSurface {
 
     /// The release-evidence surfaces that must each be certified so claim publication
     /// and field triage stay anchored to the same component truth.
-    pub const EVIDENCE_SURFACES: [Self; 3] =
-        [Self::SupportExportReplay, Self::DocsHelpEmbeds, Self::ReleaseProof];
+    pub const EVIDENCE_SURFACES: [Self; 3] = [
+        Self::SupportExportReplay,
+        Self::DocsHelpEmbeds,
+        Self::ReleaseProof,
+    ];
 
     /// Returns true when the surface is a release-evidence surface rather than an
     /// interactive bundle consumer.
@@ -251,9 +253,7 @@ impl M5WorkflowBundleComponentGroup {
     pub const fn default_trigger(self) -> M5BundleComponentDowngradeTrigger {
         match self {
             Self::LaunchWedge => M5BundleComponentDowngradeTrigger::StaleCertification,
-            Self::DetailReview => {
-                M5BundleComponentDowngradeTrigger::EntitlementDependencyUnmet
-            }
+            Self::DetailReview => M5BundleComponentDowngradeTrigger::EntitlementDependencyUnmet,
             Self::DriftOverride => M5BundleComponentDowngradeTrigger::LocalOverrideDrift,
             Self::RollbackRemove => M5BundleComponentDowngradeTrigger::RollbackOnlyPath,
             Self::ClassDisclosure => M5BundleComponentDowngradeTrigger::ImportedNotNative,
@@ -1009,11 +1009,7 @@ impl BundleSurfaceCertPacket {
 
         BundleSurfaceCertSummary {
             surface_count: self.rows.len(),
-            evidence_surface_count: self
-                .rows
-                .iter()
-                .filter(|r| r.is_evidence_surface())
-                .count(),
+            evidence_surface_count: self.rows.iter().filter(|r| r.is_evidence_surface()).count(),
             green_count: green,
             yellow_count: yellow,
             red_count: red,
@@ -1167,7 +1163,8 @@ impl BundleSurfaceCertPacket {
         }
 
         if json_contains_forbidden_material(
-            &serde_json::to_value(self).expect("workflow-bundle surface certification packet serializes"),
+            &serde_json::to_value(self)
+                .expect("workflow-bundle surface certification packet serializes"),
         ) {
             violations.push(BundleSurfaceCertViolation::RawBoundaryMaterialInExport);
         }
@@ -1279,7 +1276,10 @@ impl fmt::Display for BundleSurfaceCertArtifactError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SupportExport(error) => {
-                write!(f, "workflow-bundle surface certification export parse failed: {error}")
+                write!(
+                    f,
+                    "workflow-bundle surface certification export parse failed: {error}"
+                )
             }
             Self::Validation(violations) => {
                 write!(
@@ -1297,23 +1297,57 @@ impl Error for BundleSurfaceCertArtifactError {}
 /// Validation failure for M05-851 workflow-bundle surface certification packets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BundleSurfaceCertViolation {
-    SchemaVersion { expected: u32, actual: u32 },
-    RecordKind { expected: String, actual: String },
+    SchemaVersion {
+        expected: u32,
+        actual: u32,
+    },
+    RecordKind {
+        expected: String,
+        actual: String,
+    },
     MissingIdentity,
-    DuplicateId { id: String },
-    IncompleteRow { id: String },
-    BundleRefMismatch { id: String },
-    AxisApplicabilityMismatch { id: String },
-    ClaimOverAsserted { id: String },
-    UnsupportedPathNotNarrowed { id: String },
-    CompatibilityNoteMalformed { id: String },
-    ExportDropsTruth { id: String },
-    NotAnchoredToCanonicalFamily { id: String },
-    BlockedSurface { id: String },
-    MissingSurfaceCoverage { surface: M5WorkflowBundleClaimedSurface },
-    MissingEvidenceSurface { surface: M5WorkflowBundleClaimedSurface },
-    MissingGroupCoverage { group: M5WorkflowBundleComponentGroup },
-    MissingPathCoverage { path: M5BundleDistributionPath },
+    DuplicateId {
+        id: String,
+    },
+    IncompleteRow {
+        id: String,
+    },
+    BundleRefMismatch {
+        id: String,
+    },
+    AxisApplicabilityMismatch {
+        id: String,
+    },
+    ClaimOverAsserted {
+        id: String,
+    },
+    UnsupportedPathNotNarrowed {
+        id: String,
+    },
+    CompatibilityNoteMalformed {
+        id: String,
+    },
+    ExportDropsTruth {
+        id: String,
+    },
+    NotAnchoredToCanonicalFamily {
+        id: String,
+    },
+    BlockedSurface {
+        id: String,
+    },
+    MissingSurfaceCoverage {
+        surface: M5WorkflowBundleClaimedSurface,
+    },
+    MissingEvidenceSurface {
+        surface: M5WorkflowBundleClaimedSurface,
+    },
+    MissingGroupCoverage {
+        group: M5WorkflowBundleComponentGroup,
+    },
+    MissingPathCoverage {
+        path: M5BundleDistributionPath,
+    },
     SummaryMismatch,
     RawBoundaryMaterialInExport,
 }
@@ -1322,7 +1356,10 @@ impl fmt::Display for BundleSurfaceCertViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SchemaVersion { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::RecordKind { expected, actual } => {
                 write!(f, "record kind mismatch: expected {expected}, got {actual}")
@@ -1331,7 +1368,10 @@ impl fmt::Display for BundleSurfaceCertViolation {
             Self::DuplicateId { id } => write!(f, "duplicate row id: {id}"),
             Self::IncompleteRow { id } => write!(f, "incomplete certification row: {id}"),
             Self::BundleRefMismatch { id } => {
-                write!(f, "row {id} does not cite the packet's canonical bundle ref")
+                write!(
+                    f,
+                    "row {id} does not cite the packet's canonical bundle ref"
+                )
             }
             Self::AxisApplicabilityMismatch { id } => {
                 write!(
@@ -1352,28 +1392,48 @@ impl fmt::Display for BundleSurfaceCertViolation {
                 )
             }
             Self::CompatibilityNoteMalformed { id } => {
-                write!(f, "row {id} has a missing or generic distribution-path compatibility note")
+                write!(
+                    f,
+                    "row {id} has a missing or generic distribution-path compatibility note"
+                )
             }
             Self::ExportDropsTruth { id } => {
-                write!(f, "row {id} export cannot preserve certified truth without a screenshot")
+                write!(
+                    f,
+                    "row {id} export cannot preserve certified truth without a screenshot"
+                )
             }
             Self::NotAnchoredToCanonicalFamily { id } => {
-                write!(f, "row {id} does not reference the canonical families of its consumed groups")
+                write!(
+                    f,
+                    "row {id} does not reference the canonical families of its consumed groups"
+                )
             }
             Self::BlockedSurface { id } => {
                 write!(f, "row {id} is blocked (red) and may not ship")
             }
             Self::MissingSurfaceCoverage { surface } => {
-                write!(f, "claimed surface {surface:?} is not certified in the packet")
+                write!(
+                    f,
+                    "claimed surface {surface:?} is not certified in the packet"
+                )
             }
             Self::MissingEvidenceSurface { surface } => {
                 write!(f, "release-evidence surface {surface:?} is missing")
             }
             Self::MissingGroupCoverage { group } => {
-                write!(f, "component group {} is not consumed in the packet", group.as_str())
+                write!(
+                    f,
+                    "component group {} is not consumed in the packet",
+                    group.as_str()
+                )
             }
             Self::MissingPathCoverage { path } => {
-                write!(f, "distribution path {} is not exercised in the packet", path.as_str())
+                write!(
+                    f,
+                    "distribution path {} is not exercised in the packet",
+                    path.as_str()
+                )
             }
             Self::SummaryMismatch => write!(f, "computed summary does not match stored summary"),
             Self::RawBoundaryMaterialInExport => {

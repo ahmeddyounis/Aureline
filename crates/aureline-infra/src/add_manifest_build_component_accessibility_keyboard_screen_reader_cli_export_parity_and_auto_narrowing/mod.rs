@@ -907,8 +907,11 @@ impl ComponentAccessibilityPacket {
             consumers.extend(row.consumer_surfaces.iter().copied());
         }
 
-        let visual_heavy: Vec<&ComponentAccessibilityRow> =
-            self.rows.iter().filter(|row| row.is_visual_heavy()).collect();
+        let visual_heavy: Vec<&ComponentAccessibilityRow> = self
+            .rows
+            .iter()
+            .filter(|row| row.is_visual_heavy())
+            .collect();
 
         let mut green = 0;
         let mut yellow = 0;
@@ -1199,20 +1202,48 @@ impl Error for ComponentAccessibilityArtifactError {}
 /// Validation failure for M05-818 accessibility fallback packets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ComponentAccessibilityViolation {
-    SchemaVersion { expected: u32, actual: u32 },
-    RecordKind { expected: String, actual: String },
+    SchemaVersion {
+        expected: u32,
+        actual: u32,
+    },
+    RecordKind {
+        expected: String,
+        actual: String,
+    },
     MissingIdentity,
-    DuplicateId { id: String },
-    IncompleteRow { id: String },
-    VisualHeavyMissingGraph { id: String },
-    OverclaimedExecutable { id: String },
-    AssistiveTechStranded { id: String },
-    ExportDropsTargetTruth { id: String },
-    MissingMandatoryLabels { id: String },
-    NarrowingDropsContextSilently { id: String },
-    MissingConsumerParity { id: String },
-    StrandedRow { id: String },
-    MissingFamilyCoverage { family: M5ManifestBuildComponentFamily },
+    DuplicateId {
+        id: String,
+    },
+    IncompleteRow {
+        id: String,
+    },
+    VisualHeavyMissingGraph {
+        id: String,
+    },
+    OverclaimedExecutable {
+        id: String,
+    },
+    AssistiveTechStranded {
+        id: String,
+    },
+    ExportDropsTargetTruth {
+        id: String,
+    },
+    MissingMandatoryLabels {
+        id: String,
+    },
+    NarrowingDropsContextSilently {
+        id: String,
+    },
+    MissingConsumerParity {
+        id: String,
+    },
+    StrandedRow {
+        id: String,
+    },
+    MissingFamilyCoverage {
+        family: M5ManifestBuildComponentFamily,
+    },
     TriagePublicationMisaligned,
     SummaryMismatch,
     RawBoundaryMaterialInExport,
@@ -1222,7 +1253,10 @@ impl fmt::Display for ComponentAccessibilityViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SchemaVersion { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::RecordKind { expected, actual } => {
                 write!(f, "record kind mismatch: expected {expected}, got {actual}")
@@ -1255,14 +1289,20 @@ impl fmt::Display for ComponentAccessibilityViolation {
                 write!(f, "row {id} is missing a mandatory required label")
             }
             Self::NarrowingDropsContextSilently { id } => {
-                write!(f, "row {id} narrows without disclosing or auto-narrowing honestly")
+                write!(
+                    f,
+                    "row {id} narrows without disclosing or auto-narrowing honestly"
+                )
             }
             Self::MissingConsumerParity { id } => {
                 write!(f, "row {id} is missing secondary consumer parity")
             }
             Self::StrandedRow { id } => write!(f, "row {id} is stranded (red) and may not ship"),
             Self::MissingFamilyCoverage { family } => {
-                write!(f, "component family {family:?} is not certified in the packet")
+                write!(
+                    f,
+                    "component family {family:?} is not certified in the packet"
+                )
             }
             Self::TriagePublicationMisaligned => {
                 write!(

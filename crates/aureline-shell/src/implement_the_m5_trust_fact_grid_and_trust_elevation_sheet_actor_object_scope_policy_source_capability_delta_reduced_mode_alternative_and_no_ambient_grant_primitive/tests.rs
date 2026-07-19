@@ -323,7 +323,9 @@ fn mandatory_export_field_missing_fails() {
 #[test]
 fn examples_missing_fails() {
     let mut packet = seeded_m5_trust_fact_grid_elevation_controls();
-    packet.controls_rows[0].trust_elevation_sheet_examples.clear();
+    packet.controls_rows[0]
+        .trust_elevation_sheet_examples
+        .clear();
     assert!(packet
         .validate()
         .contains(&M5TrustFactGridElevationControlsViolation::ExamplesMissing));

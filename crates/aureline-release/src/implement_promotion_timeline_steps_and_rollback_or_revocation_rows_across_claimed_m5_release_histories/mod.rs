@@ -111,7 +111,8 @@ pub const M5_RELEASE_HISTORY_PRIMITIVE_RECORD_KIND: &str =
 pub const M5_RELEASE_HISTORY_PRIMITIVE_SCHEMA_VERSION: u32 = 1;
 
 /// Repo-relative path of the promotion-timeline-step boundary schema.
-pub const M5_RELEASE_HISTORY_STEP_SCHEMA_REF: &str = "schemas/ui/m5-promotion-timeline-step.schema.json";
+pub const M5_RELEASE_HISTORY_STEP_SCHEMA_REF: &str =
+    "schemas/ui/m5-promotion-timeline-step.schema.json";
 
 /// Repo-relative path of the rollback-revocation-row boundary schema.
 pub const M5_RELEASE_HISTORY_ROW_SCHEMA_REF: &str =
@@ -371,7 +372,10 @@ impl M5ReversibleWindowState {
 
     /// True when the reversal window is still open (comfortable or closing).
     pub const fn is_reversible(self) -> bool {
-        matches!(self, Self::ReversibleWithinWindow | Self::ReversibleWindowClosing)
+        matches!(
+            self,
+            Self::ReversibleWithinWindow | Self::ReversibleWindowClosing
+        )
     }
 }
 
@@ -415,7 +419,9 @@ impl M5BreakGlassPosture {
     pub const fn is_emergency(self) -> bool {
         matches!(
             self,
-            Self::BreakGlassAttributed | Self::BreakGlassPendingReview | Self::BreakGlassUnattributed
+            Self::BreakGlassAttributed
+                | Self::BreakGlassPendingReview
+                | Self::BreakGlassUnattributed
         )
     }
 
@@ -462,7 +468,10 @@ impl M5NodeTargeting {
 
     /// True when the targeting is an explicit partial scope.
     pub const fn is_partial(self) -> bool {
-        matches!(self, Self::PartialNodeSetExplicit | Self::SingleNodeTargeted)
+        matches!(
+            self,
+            Self::PartialNodeSetExplicit | Self::SingleNodeTargeted
+        )
     }
 }
 
@@ -1027,13 +1036,16 @@ pub fn resolve_release_history_event(
 
     let history_posture = derive_history_posture(input, &non_empty_digests, &non_empty_actors);
 
-    let promotion_view = input.event_kind.is_promotion().then(|| M5PromotionStepView {
-        source_stage_repr: input.source_stage_repr.clone(),
-        destination_stage_repr: input.destination_stage_repr.clone(),
-        stage_state: input.stage_state,
-        reversible_window: input.reversible_window,
-        reversible: input.reversible_window.is_reversible(),
-    });
+    let promotion_view = input
+        .event_kind
+        .is_promotion()
+        .then(|| M5PromotionStepView {
+            source_stage_repr: input.source_stage_repr.clone(),
+            destination_stage_repr: input.destination_stage_repr.clone(),
+            stage_state: input.stage_state,
+            reversible_window: input.reversible_window,
+            reversible: input.reversible_window.is_reversible(),
+        });
 
     let rollback_view = input
         .event_kind
@@ -1058,7 +1070,10 @@ pub fn resolve_release_history_event(
         has_digest_refs,
         has_evidence_refs,
         has_effective_time,
-        is_reconstructable: has_actors && has_digest_refs && has_evidence_refs && has_effective_time,
+        is_reconstructable: has_actors
+            && has_digest_refs
+            && has_evidence_refs
+            && has_effective_time,
     };
 
     let is_recorded = history_posture.is_recorded();
@@ -1196,7 +1211,8 @@ impl M5ReleaseHistoryResolutionCase {
     ///
     /// Panics if `input` does not resolve; seed inputs are always valid.
     pub fn resolved(input: M5ReleaseHistoryEventInput) -> Self {
-        let resolved = resolve_release_history_event(&input).expect("seed resolution case is valid");
+        let resolved =
+            resolve_release_history_event(&input).expect("seed resolution case is valid");
         Self { input, resolved }
     }
 
@@ -1608,9 +1624,7 @@ impl M5ReleaseHistoryPrimitivePacket {
             .filter(|row| row.qualification.is_stable())
             .count();
         let mut out = String::new();
-        out.push_str(
-            "# M5 Promotion-Timeline-Step and Rollback/Revocation-Row Primitive\n\n",
-        );
+        out.push_str("# M5 Promotion-Timeline-Step and Rollback/Revocation-Row Primitive\n\n");
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
         out.push_str(&format!("- Label: `{}`\n", self.matrix_label));
         out.push_str(&format!(
@@ -1958,12 +1972,12 @@ fn validate_history_coverage(
     violations: &mut Vec<M5ReleaseHistoryPrimitiveViolation>,
 ) {
     let cases: Vec<&M5ReleaseHistoryResolutionCase> = all_cases(packet);
-    let has_promotion = cases.iter().any(|case| {
-        case.resolved.event_kind.is_promotion() && case.resolved.is_recorded
-    });
-    let has_rollback = cases.iter().any(|case| {
-        case.resolved.event_kind.is_rollback() && case.resolved.is_recorded
-    });
+    let has_promotion = cases
+        .iter()
+        .any(|case| case.resolved.event_kind.is_promotion() && case.resolved.is_recorded);
+    let has_rollback = cases
+        .iter()
+        .any(|case| case.resolved.event_kind.is_rollback() && case.resolved.is_recorded);
     let has_blocked = cases.iter().any(|case| case.resolved.is_blocked);
     if !(has_promotion && has_rollback && has_blocked) {
         violations.push(M5ReleaseHistoryPrimitiveViolation::HistoryCoverageUnproven);
@@ -2085,14 +2099,9 @@ fn validate_history_banner_self_contained(
 ) {
     let proven = all_cases(packet).iter().any(|case| {
         case.resolved.is_blocked
-            && case
-                .resolved
-                .history_banner
-                .as_ref()
-                .is_some_and(|banner| {
-                    !banner.headline.trim().is_empty()
-                        && !banner.bound_digest_repr.trim().is_empty()
-                })
+            && case.resolved.history_banner.as_ref().is_some_and(|banner| {
+                !banner.headline.trim().is_empty() && !banner.bound_digest_repr.trim().is_empty()
+            })
     });
     if !proven {
         violations.push(M5ReleaseHistoryPrimitiveViolation::BlockedBannerSelfContainedUnproven);

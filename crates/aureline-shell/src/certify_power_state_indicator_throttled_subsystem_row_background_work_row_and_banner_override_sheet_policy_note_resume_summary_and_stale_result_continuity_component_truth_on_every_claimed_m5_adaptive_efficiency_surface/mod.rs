@@ -432,7 +432,9 @@ impl EfficiencySurfaceCertificationRow {
 
     /// Whether every axis outcome is internally well-formed.
     pub fn axis_outcomes_well_formed(&self) -> bool {
-        self.axis_outcomes.iter().all(EfficiencyAxisOutcome::well_formed)
+        self.axis_outcomes
+            .iter()
+            .all(EfficiencyAxisOutcome::well_formed)
     }
 
     /// True when the surface narrows its efficiency-support claim below what it asserts.
@@ -769,9 +771,11 @@ impl EfficiencySurfaceCertificationPacket {
             }
 
             if row.canonical_bundle_ref != EFFICIENCY_CERT_CANONICAL_BUNDLE_REF {
-                violations.push(EfficiencyCertificationViolation::RowMissingCanonicalBundle {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    EfficiencyCertificationViolation::RowMissingCanonicalBundle {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // CLI/export parity is always-on.
@@ -787,9 +791,11 @@ impl EfficiencySurfaceCertificationPacket {
 
             // Certification may never strengthen a claim.
             if row.certified_claim.capability_rank() > row.claimed_claim.capability_rank() {
-                violations.push(EfficiencyCertificationViolation::CertifiedClaimExceedsClaim {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    EfficiencyCertificationViolation::CertifiedClaimExceedsClaim {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // The stored verdict must match a fresh recomputation.
@@ -870,7 +876,10 @@ impl EfficiencySurfaceCertificationPacket {
         out.push_str("# M5 Adaptive-Efficiency Component Surface Certification\n\n");
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
         out.push_str(&format!("- As of: `{}`\n", self.as_of));
-        out.push_str(&format!("- Canonical bundle: `{}`\n", self.canonical_bundle_ref));
+        out.push_str(&format!(
+            "- Canonical bundle: `{}`\n",
+            self.canonical_bundle_ref
+        ));
         out.push_str(&format!(
             "- Surfaces: {} / {} certified ({} green, {} yellow, {} red)\n",
             self.summary.surface_count,
@@ -966,19 +975,28 @@ impl fmt::Display for EfficiencyCertificationViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SchemaVersion { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::RecordKind { expected, actual } => {
                 write!(f, "record kind mismatch: expected {expected}, got {actual}")
             }
             Self::MissingIdentity => write!(f, "packet identity fields are missing"),
             Self::WrongCanonicalBundle => {
-                write!(f, "packet does not cite the canonical efficiency-proof bundle")
+                write!(
+                    f,
+                    "packet does not cite the canonical efficiency-proof bundle"
+                )
             }
             Self::DuplicateId { id } => write!(f, "duplicate row id: {id}"),
             Self::IncompleteRow { id } => write!(f, "incomplete certification row: {id}"),
             Self::AxisCoverageIncomplete { id } => {
-                write!(f, "row {id} does not score every certification axis exactly once")
+                write!(
+                    f,
+                    "row {id} does not score every certification axis exactly once"
+                )
             }
             Self::MalformedAxisOutcome { id } => {
                 write!(
@@ -987,7 +1005,10 @@ impl fmt::Display for EfficiencyCertificationViolation {
                 )
             }
             Self::RowMissingCanonicalBundle { id } => {
-                write!(f, "row {id} does not cite the one canonical efficiency-proof bundle")
+                write!(
+                    f,
+                    "row {id} does not cite the one canonical efficiency-proof bundle"
+                )
             }
             Self::ExportParityNotCertified { id } => {
                 write!(
@@ -996,10 +1017,16 @@ impl fmt::Display for EfficiencyCertificationViolation {
                 )
             }
             Self::CertifiedClaimExceedsClaim { id } => {
-                write!(f, "row {id} certifies a claim stronger than the claimed one")
+                write!(
+                    f,
+                    "row {id} certifies a claim stronger than the claimed one"
+                )
             }
             Self::StatusDerivationStale { id } => {
-                write!(f, "row {id} stored status disagrees with a fresh derivation")
+                write!(
+                    f,
+                    "row {id} stored status disagrees with a fresh derivation"
+                )
             }
             Self::SurfaceBlocked { id } => {
                 write!(
@@ -1198,7 +1225,13 @@ fn seed_certified_except(
     EfficiencyCertificationAxis::ALL
         .iter()
         .copied()
-        .map(|a| if a == axis { outcome.clone() } else { seed_certified(a) })
+        .map(|a| {
+            if a == axis {
+                outcome.clone()
+            } else {
+                seed_certified(a)
+            }
+        })
         .collect()
 }
 
@@ -1227,7 +1260,10 @@ fn seed_row(
         canonical_bundle_ref: EFFICIENCY_CERT_CANONICAL_BUNDLE_REF.to_owned(),
         derived_status: EfficiencySurfaceClaimStatus::Green,
         export_parity: seed_export_parity(export_fields),
-        compatibility_notes: compatibility_notes.iter().map(|n| (*n).to_owned()).collect(),
+        compatibility_notes: compatibility_notes
+            .iter()
+            .map(|n| (*n).to_owned())
+            .collect(),
         source_refs: vec![
             EFFICIENCY_CERT_MATRIX_REF.to_owned(),
             EFFICIENCY_CERT_SCHEMA_REF.to_owned(),

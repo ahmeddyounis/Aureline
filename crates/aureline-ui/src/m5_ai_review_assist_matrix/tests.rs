@@ -16,7 +16,11 @@ fn seeded_matrix_names_every_object_class() {
         .map(|r| r.object_class)
         .collect();
     for class in M5AiReviewAssistObject::ALL {
-        assert!(present.contains(&class), "missing object class {}", class.as_str());
+        assert!(
+            present.contains(&class),
+            "missing object class {}",
+            class.as_str()
+        );
     }
     assert_eq!(
         packet.ai_review_assist_rows.len(),
@@ -26,7 +30,10 @@ fn seeded_matrix_names_every_object_class() {
 
 #[test]
 fn frozen_ai_review_assist_role_vocabulary_is_exact() {
-    let tokens: Vec<&str> = M5AiReviewAssistRole::ALL.iter().map(|r| r.as_str()).collect();
+    let tokens: Vec<&str> = M5AiReviewAssistRole::ALL
+        .iter()
+        .map(|r| r.as_str())
+        .collect();
     assert_eq!(
         tokens,
         vec![
@@ -39,13 +46,20 @@ fn frozen_ai_review_assist_role_vocabulary_is_exact() {
             "resolution_memory_disclosure",
         ]
     );
-    assert!(M5AiReviewAssistRole::FindingClassification.must_be_present_before_surfacing_as_ai_review_finding());
-    assert!(M5AiReviewAssistRole::AnalyzedScopeDisclosure.must_be_present_before_surfacing_as_ai_review_finding());
-    assert!(M5AiReviewAssistRole::PublishDestinationDisclosure.must_be_present_before_surfacing_as_ai_review_finding());
-    assert!(M5AiReviewAssistRole::LocalVersusProviderState.must_be_present_before_surfacing_as_ai_review_finding());
-    assert!(!M5AiReviewAssistRole::LifecycleStateTracking.must_be_present_before_surfacing_as_ai_review_finding());
-    assert!(!M5AiReviewAssistRole::PublishExportFallback.must_be_present_before_surfacing_as_ai_review_finding());
-    assert!(!M5AiReviewAssistRole::ResolutionMemoryDisclosure.must_be_present_before_surfacing_as_ai_review_finding());
+    assert!(M5AiReviewAssistRole::FindingClassification
+        .must_be_present_before_surfacing_as_ai_review_finding());
+    assert!(M5AiReviewAssistRole::AnalyzedScopeDisclosure
+        .must_be_present_before_surfacing_as_ai_review_finding());
+    assert!(M5AiReviewAssistRole::PublishDestinationDisclosure
+        .must_be_present_before_surfacing_as_ai_review_finding());
+    assert!(M5AiReviewAssistRole::LocalVersusProviderState
+        .must_be_present_before_surfacing_as_ai_review_finding());
+    assert!(!M5AiReviewAssistRole::LifecycleStateTracking
+        .must_be_present_before_surfacing_as_ai_review_finding());
+    assert!(!M5AiReviewAssistRole::PublishExportFallback
+        .must_be_present_before_surfacing_as_ai_review_finding());
+    assert!(!M5AiReviewAssistRole::ResolutionMemoryDisclosure
+        .must_be_present_before_surfacing_as_ai_review_finding());
 }
 
 #[test]
@@ -141,7 +155,11 @@ fn every_class_declares_complete_visible_state() {
             &tr.lifecycle_state,
             &tr.publish_export_fallback,
         ] {
-            assert!(!field.trim().is_empty(), "visible-state field empty on {}", row.object_class.as_str());
+            assert!(
+                !field.trim().is_empty(),
+                "visible-state field empty on {}",
+                row.object_class.as_str()
+            );
         }
     }
 }
@@ -399,13 +417,16 @@ fn ai_review_assist_invariant_violation_fails() {
         .contains(&M5AiReviewAssistMatrixViolation::AiReviewAssistInvariantViolated));
 
     let mut packet = seeded_m5_ai_review_assist_matrix();
-    packet.ai_review_assist_rows[2].keeps_stale_findings_looking_current_after_diff_or_instruction_drift = true;
+    packet.ai_review_assist_rows[2]
+        .keeps_stale_findings_looking_current_after_diff_or_instruction_drift = true;
     assert!(packet
         .validate()
         .contains(&M5AiReviewAssistMatrixViolation::AiReviewAssistInvariantViolated));
 
     let mut packet = seeded_m5_ai_review_assist_matrix();
-    packet.ai_review_assist_rows[3].loses_local_drafts_or_evidence_when_provider_write_scope_is_missing_or_publish_fails = true;
+    packet.ai_review_assist_rows[3]
+        .loses_local_drafts_or_evidence_when_provider_write_scope_is_missing_or_publish_fails =
+        true;
     assert!(packet
         .validate()
         .contains(&M5AiReviewAssistMatrixViolation::AiReviewAssistInvariantViolated));
@@ -415,7 +436,6 @@ fn ai_review_assist_invariant_violation_fails() {
     assert!(packet
         .validate()
         .contains(&M5AiReviewAssistMatrixViolation::AiReviewAssistInvariantViolated));
-
 }
 
 #[test]
@@ -435,7 +455,9 @@ fn stable_class_missing_closure_artifact_fails() {
 #[test]
 fn missing_classification_stages_fails() {
     let mut packet = seeded_m5_ai_review_assist_matrix();
-    packet.ai_review_assist_rows[1].classification_stages.clear();
+    packet.ai_review_assist_rows[1]
+        .classification_stages
+        .clear();
     assert!(packet
         .validate()
         .contains(&M5AiReviewAssistMatrixViolation::ClassificationStageMissing));
@@ -503,7 +525,11 @@ fn release_posture_incomplete_fails() {
 fn markdown_summary_lists_every_class() {
     let summary = seeded_m5_ai_review_assist_matrix().render_markdown_summary();
     for class in M5AiReviewAssistObject::ALL {
-        assert!(summary.contains(class.as_str()), "summary missing class {}", class.as_str());
+        assert!(
+            summary.contains(class.as_str()),
+            "summary missing class {}",
+            class.as_str()
+        );
     }
 }
 
@@ -512,9 +538,15 @@ fn matrix_csv_has_a_row_per_class() {
     let csv = seeded_m5_ai_review_assist_matrix().render_matrix_csv();
     let lines: Vec<&str> = csv.lines().collect();
     assert_eq!(lines.len(), 1 + M5AiReviewAssistObject::ALL.len());
-    assert!(lines[0].starts_with("object_class,qualification,publish_state,owner,backup_owner,canonical_schema,"));
+    assert!(lines[0].starts_with(
+        "object_class,qualification,publish_state,owner,backup_owner,canonical_schema,"
+    ));
     for class in M5AiReviewAssistObject::ALL {
-        assert!(csv.contains(class.as_str()), "csv missing class {}", class.as_str());
+        assert!(
+            csv.contains(class.as_str()),
+            "csv missing class {}",
+            class.as_str()
+        );
         assert!(
             csv.contains(class.canonical_domain_schema_ref()),
             "csv missing canonical schema for {}",
@@ -599,7 +631,10 @@ fn narrowed_variants_validate_and_keep_classes_visible() {
         .iter()
         .find(|r| r.object_class == M5AiReviewAssistObject::ResolutionMemoryRow)
         .expect("resolution-memory-row row present");
-    assert_eq!(row.qualification, M5AiReviewAssistQualificationClass::Preview);
+    assert_eq!(
+        row.qualification,
+        M5AiReviewAssistQualificationClass::Preview
+    );
 }
 
 #[test]
@@ -641,7 +676,8 @@ fn export_carries_no_forbidden_raw_material() {
 #[test]
 fn injected_raw_material_is_rejected() {
     let mut packet = seeded_m5_ai_review_assist_matrix();
-    packet.ai_review_assist_rows[0].scope_summary = "raw endpoint https://line.example/evidence leaked".to_owned();
+    packet.ai_review_assist_rows[0].scope_summary =
+        "raw endpoint https://line.example/evidence leaked".to_owned();
     assert!(packet
         .validate()
         .contains(&M5AiReviewAssistMatrixViolation::RawMaterialInExport));

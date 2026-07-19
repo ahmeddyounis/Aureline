@@ -602,7 +602,8 @@ pub fn seeded_m5_repair_action_card_primitive_packet() -> M5RepairActionCardPrim
 pub fn seeded_m5_repair_action_card_primitive_remote_host_repair_card_beta_narrowed(
 ) -> M5RepairActionCardPrimitivePacket {
     let mut packet = seeded_m5_repair_action_card_primitive_packet();
-    packet.packet_id = "m5-repair-action-card-primitive:remote-host-repair-card-beta:0001".to_owned();
+    packet.packet_id =
+        "m5-repair-action-card-primitive:remote-host-repair-card-beta:0001".to_owned();
     let row = packet
         .consumer_rows
         .iter_mut()
@@ -618,7 +619,8 @@ pub fn seeded_m5_repair_action_card_primitive_remote_host_repair_card_beta_narro
 pub fn seeded_m5_repair_action_card_primitive_repair_preview_sheet_preview_narrowed(
 ) -> M5RepairActionCardPrimitivePacket {
     let mut packet = seeded_m5_repair_action_card_primitive_packet();
-    packet.packet_id = "m5-repair-action-card-primitive:repair-preview-sheet-preview:0001".to_owned();
+    packet.packet_id =
+        "m5-repair-action-card-primitive:repair-preview-sheet-preview:0001".to_owned();
     let row = packet
         .consumer_rows
         .iter_mut()

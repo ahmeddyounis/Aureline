@@ -17,7 +17,10 @@ fn row(id: &str) -> ExecutionSurfaceCertRow {
 #[test]
 fn seeded_packet_validates_clean() {
     let violations = packet().validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -26,14 +29,20 @@ fn packet_identity_is_stamped() {
     assert_eq!(p.record_kind, EXECUTION_SURFACE_CERT_RECORD_KIND);
     assert_eq!(p.schema_version, EXECUTION_SURFACE_CERT_SCHEMA_VERSION);
     assert_eq!(p.matrix_ref, EXECUTION_SURFACE_CERT_COMPONENT_MATRIX_REF);
-    assert_eq!(p.certification_bundle_ref, EXECUTION_SURFACE_CERT_BUNDLE_REF);
+    assert_eq!(
+        p.certification_bundle_ref,
+        EXECUTION_SURFACE_CERT_BUNDLE_REF
+    );
 }
 
 #[test]
 fn every_claimed_surface_is_certified() {
     let surfaces = packet().represented_surfaces();
     for surface in M5ExecutionClaimedSurface::ALL {
-        assert!(surfaces.contains(&surface), "surface {surface:?} not certified");
+        assert!(
+            surfaces.contains(&surface),
+            "surface {surface:?} not certified"
+        );
     }
     assert_eq!(surfaces.len(), M5ExecutionClaimedSurface::ALL.len());
 }
@@ -58,7 +67,10 @@ fn every_path_class_is_exercised() {
 fn evidence_surfaces_are_present() {
     let surfaces = packet().represented_surfaces();
     for surface in M5ExecutionClaimedSurface::EVIDENCE_SURFACES {
-        assert!(surfaces.contains(&surface), "evidence surface {surface:?} missing");
+        assert!(
+            surfaces.contains(&surface),
+            "evidence surface {surface:?} missing"
+        );
     }
 }
 
@@ -101,7 +113,10 @@ fn ac1_degraded_artifact_narrows_to_read_only() {
     let r = row("cert:database-execution");
     assert!(r.claim_narrowed());
     assert_eq!(r.effective_claim, M5ExecutionInteractiveClaim::ReadOnly);
-    assert_eq!(r.binding_group(), Some(M5ExecutionComponentGroup::ArtifactPublish));
+    assert_eq!(
+        r.binding_group(),
+        Some(M5ExecutionComponentGroup::ArtifactPublish)
+    );
     let narrow = r.claim_auto_narrow.as_ref().expect("narrow present");
     assert_eq!(
         narrow.trigger,
@@ -114,15 +129,24 @@ fn ac1_degraded_artifact_narrows_to_read_only() {
 #[test]
 fn ac1_provider_input_narrows_to_review_required() {
     let r = row("cert:ai-execution");
-    assert_eq!(r.binding_group(), Some(M5ExecutionComponentGroup::InputRequest));
-    assert_eq!(r.effective_claim, M5ExecutionInteractiveClaim::ReviewRequired);
+    assert_eq!(
+        r.binding_group(),
+        Some(M5ExecutionComponentGroup::InputRequest)
+    );
+    assert_eq!(
+        r.effective_claim,
+        M5ExecutionInteractiveClaim::ReviewRequired
+    );
     assert!(r.claim_is_honest());
 }
 
 #[test]
 fn ac1_debug_connector_loss_narrows_to_inspect_only() {
     let r = row("cert:debug-execution");
-    assert_eq!(r.binding_group(), Some(M5ExecutionComponentGroup::DebugHierarchy));
+    assert_eq!(
+        r.binding_group(),
+        Some(M5ExecutionComponentGroup::DebugHierarchy)
+    );
     assert_eq!(r.effective_claim, M5ExecutionInteractiveClaim::InspectOnly);
     let narrow = r.claim_auto_narrow.as_ref().expect("narrow present");
     assert_eq!(narrow.trigger, M5ExecutionDowngradeTrigger::ConnectorLost);
@@ -285,7 +309,8 @@ fn debug_hierarchy_group_maps_three_families() {
 #[test]
 fn missing_surface_coverage_is_flagged() {
     let mut p = packet();
-    p.rows.retain(|r| r.claimed_surface != M5ExecutionClaimedSurface::ReleaseProof);
+    p.rows
+        .retain(|r| r.claimed_surface != M5ExecutionClaimedSurface::ReleaseProof);
     p.summary = p.computed_summary();
     let violations = p.validate();
     assert!(violations.iter().any(|v| matches!(

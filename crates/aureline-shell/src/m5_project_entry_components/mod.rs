@@ -266,7 +266,11 @@ fn validate_destination_collision_sheets(components: &[Value], errors: &mut Vec<
         .iter()
         .filter_map(|sheet| sheet.get("collision_source_class").and_then(Value::as_str))
         .collect::<BTreeSet<_>>();
-    for required in ["existing_local_root", "prior_workspace_state", "duplicate_clone_target"] {
+    for required in [
+        "existing_local_root",
+        "prior_workspace_state",
+        "duplicate_clone_target",
+    ] {
         if !sources.contains(required) {
             errors.push(format!(
                 "destination collision sheets do not distinguish {required}"
@@ -343,7 +347,11 @@ fn validate_post_entry_handoff_cards(components: &[Value], errors: &mut Vec<Stri
         .iter()
         .filter_map(|card| card.get("follow_up_state_class").and_then(Value::as_str))
         .collect::<BTreeSet<_>>();
-    for required in ["setup_deferred_durable", "non_durable_staging", "open_minimal_available"] {
+    for required in [
+        "setup_deferred_durable",
+        "non_durable_staging",
+        "open_minimal_available",
+    ] {
         if !follow_up_states.contains(required) {
             errors.push(format!(
                 "post-entry handoff cards do not cover follow-up state {required}"
@@ -421,7 +429,11 @@ fn validate_admission_checkpoint_cards(components: &[Value], errors: &mut Vec<St
 
         // `Continue without` and `Set up later` must both stay reachable so an
         // admission checkpoint never monopolizes plain editing.
-        if card.get("continue_without_available").and_then(Value::as_bool) != Some(true) {
+        if card
+            .get("continue_without_available")
+            .and_then(Value::as_bool)
+            != Some(true)
+        {
             errors.push(format!("{id} does not keep continue-without available"));
         }
         if card.get("set_up_later_available").and_then(Value::as_bool) != Some(true) {
@@ -508,7 +520,9 @@ fn validate_admission_checkpoint_cards(components: &[Value], errors: &mut Vec<St
             .map(|values| values.iter().filter_map(Value::as_str).count())
             .unwrap_or(0);
         if blocking_total > 0 && blocked_reasons == 0 {
-            errors.push(format!("{id} has blocking work but no blocked reason class"));
+            errors.push(format!(
+                "{id} has blocking work but no blocked reason class"
+            ));
         }
     }
 }

@@ -879,8 +879,8 @@ pub fn resolve_live_resource_navigation(
         None
     };
 
-    let comparison_current =
-        matches!(input.compare_verdict, M5CompareVerdict::InSync) && input.freshness.is_live_fresh();
+    let comparison_current = matches!(input.compare_verdict, M5CompareVerdict::InSync)
+        && input.freshness.is_live_fresh();
 
     let to_side_navigable =
         !input.permission.is_disconnected() && !input.compare_verdict.is_comparison_unavailable();

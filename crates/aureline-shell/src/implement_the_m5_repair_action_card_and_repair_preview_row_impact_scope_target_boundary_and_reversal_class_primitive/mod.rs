@@ -122,7 +122,8 @@ pub const M5_REPAIR_ACTION_CARD_COMPONENT_MATRIX_REF: &str =
 
 /// Repo-relative path of the repair-transaction contract this primitive projects blast
 /// radius and reversibility truth from.
-pub const M5_REPAIR_ACTION_CARD_TRANSACTION_REF: &str = "schemas/support/repair_transaction.schema.json";
+pub const M5_REPAIR_ACTION_CARD_TRANSACTION_REF: &str =
+    "schemas/support/repair_transaction.schema.json";
 
 /// Repo-relative path of the repair-preview contract this primitive projects the preview
 /// truths from.
@@ -707,7 +708,10 @@ const fn blast_radius_is_write(blast_radius: M5RepairBlastRadius) -> bool {
 /// True when the reversibility class is an exact rollback (a checkpoint), so a card never
 /// overstates a backup, partial, irreversible, or manual reversal as exact.
 const fn reversibility_is_exact(reversibility: M5ReversibilityClass) -> bool {
-    matches!(reversibility, M5ReversibilityClass::FullyReversibleCheckpoint)
+    matches!(
+        reversibility,
+        M5ReversibilityClass::FullyReversibleCheckpoint
+    )
 }
 
 /// True when the reversibility class still offers some automatic reversal path (a
@@ -832,7 +836,11 @@ impl M5RepairActionResolutionError {
 
 impl fmt::Display for M5RepairActionResolutionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "repair-action resolution error: {}", self.as_str())
+        write!(
+            formatter,
+            "repair-action resolution error: {}",
+            self.as_str()
+        )
     }
 }
 
@@ -886,8 +894,7 @@ pub fn resolve_repair_action(
 
     let target_boundary = M5RepairTargetBoundary::from_host_boundary(input.host_boundary);
     let reversal_is_exact = reversibility_is_exact(input.reversibility);
-    let requires_approval =
-        input.approval_required || input.trust_requirement.requires_approval();
+    let requires_approval = input.approval_required || input.trust_requirement.requires_approval();
 
     let action_label_class = if input.factory_reset_out_of_band {
         M5RepairActionLabelClass::OpenFactoryResetOutOfBand

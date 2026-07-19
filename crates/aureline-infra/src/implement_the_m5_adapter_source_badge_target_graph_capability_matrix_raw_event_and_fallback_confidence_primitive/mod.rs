@@ -573,7 +573,11 @@ impl M5ResolvedBuildConfidence {
         self.raw_event_drawer.redaction_applied
             && self.raw_event_drawer.preserves_event_identity
             && !self.raw_event_drawer.payload_lineage.is_empty()
-            && self.raw_event_drawer.export_actions.iter().any(|a| a.is_export())
+            && self
+                .raw_event_drawer
+                .export_actions
+                .iter()
+                .any(|a| a.is_export())
     }
 }
 
@@ -638,9 +642,7 @@ impl M5BuildConfidenceResolutionError {
             Self::StructuredWithFallbackReason => "structured_with_fallback_reason",
             Self::FallbackWithoutNote => "fallback_without_note",
             Self::NoCapabilitiesDeclared => "no_capabilities_declared",
-            Self::SupportedCapabilityUnknownConfidence => {
-                "supported_capability_unknown_confidence"
-            }
+            Self::SupportedCapabilityUnknownConfidence => "supported_capability_unknown_confidence",
             Self::EmptyPayloadLineage => "empty_payload_lineage",
             Self::NoActionsOffered => "no_actions_offered",
             Self::NoExportActionOffered => "no_export_action_offered",
@@ -1341,8 +1343,7 @@ impl M5BuildConfidencePrimitivePacket {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self)
-            .expect("m5 build-confidence primitive packet serializes")
+        serde_json::to_string_pretty(self).expect("m5 build-confidence primitive packet serializes")
     }
 
     /// Deterministic, machine-readable matrix CSV: one row per surface family.
@@ -1658,11 +1659,12 @@ fn validate_acceptance_criteria_covered(
 
     // AC1: some case discloses a non-native fallback lane as a fallback (never
     // masked), and every case keeps provenance disclosed consistently.
-    let provenance_proven = cases.iter().any(|resolved| {
-        !resolved.adapter_badge.is_native && resolved.fallback_drawer.is_fallback
-    }) && cases
+    let provenance_proven = cases
         .iter()
-        .all(|resolved| resolved.provenance_disclosed_consistently());
+        .any(|resolved| !resolved.adapter_badge.is_native && resolved.fallback_drawer.is_fallback)
+        && cases
+            .iter()
+            .all(|resolved| resolved.provenance_disclosed_consistently());
     if !provenance_proven {
         violations.push(M5BuildConfidenceViolation::ProvenanceDisclosureUnproven);
     }

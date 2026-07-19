@@ -1138,8 +1138,7 @@ impl ExecutionLifecycleComponentMatrix {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self)
-            .expect("execution-lifecycle component matrix serializes")
+        serde_json::to_string_pretty(self).expect("execution-lifecycle component matrix serializes")
     }
 
     /// Deterministic CSV of the component rows for release / support handoff.

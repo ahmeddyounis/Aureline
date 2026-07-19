@@ -409,8 +409,12 @@ impl M5TrustFactGridDegradeReason {
             | Self::TrustDetailPathMissing => {
                 M5WorkspaceTrustRepairDowngradeTrigger::GenericChromeWordingUsed
             }
-            Self::GrantSourceUnstated => M5WorkspaceTrustRepairDowngradeTrigger::GrantSourceUnstated,
-            Self::PolicyEpochUnstated => M5WorkspaceTrustRepairDowngradeTrigger::PolicyEpochUnstated,
+            Self::GrantSourceUnstated => {
+                M5WorkspaceTrustRepairDowngradeTrigger::GrantSourceUnstated
+            }
+            Self::PolicyEpochUnstated => {
+                M5WorkspaceTrustRepairDowngradeTrigger::PolicyEpochUnstated
+            }
             Self::NarrowedCapabilityUnstated => {
                 M5WorkspaceTrustRepairDowngradeTrigger::NarrowedCapabilityUnstated
             }
@@ -516,8 +520,12 @@ impl M5TrustElevationSheetDegradeReason {
             | Self::TrustDetailPathMissing => {
                 M5WorkspaceTrustRepairDowngradeTrigger::GenericChromeWordingUsed
             }
-            Self::GrantSourceUnstated => M5WorkspaceTrustRepairDowngradeTrigger::GrantSourceUnstated,
-            Self::PolicyEpochUnstated => M5WorkspaceTrustRepairDowngradeTrigger::PolicyEpochUnstated,
+            Self::GrantSourceUnstated => {
+                M5WorkspaceTrustRepairDowngradeTrigger::GrantSourceUnstated
+            }
+            Self::PolicyEpochUnstated => {
+                M5WorkspaceTrustRepairDowngradeTrigger::PolicyEpochUnstated
+            }
             Self::CapabilityDeltaUnstated => {
                 M5WorkspaceTrustRepairDowngradeTrigger::NarrowedCapabilityUnstated
             }
@@ -759,7 +767,8 @@ pub fn resolve_trust_fact_grid(
         M5CapabilityNarrowState::FullCapability
     );
     let grant_resolved = grant_is_resolved(input.grant_source, input.grant_actor_stated);
-    let policy_epoch_required = matches!(input.grant_source, M5TrustGrantSourceClass::PolicyManaged);
+    let policy_epoch_required =
+        matches!(input.grant_source, M5TrustGrantSourceClass::PolicyManaged);
     let collapses_per_root_into_uniform = is_mixed_root && input.reads_as_uniform_trust;
 
     let degrade_reason = if input.object_identity.trim().is_empty() {
@@ -832,7 +841,8 @@ pub fn resolve_trust_elevation_sheet(
         M5CapabilityNarrowState::FullCapability
     );
     let grant_resolved = grant_is_resolved(input.grant_source, input.grant_actor_stated);
-    let policy_epoch_required = matches!(input.grant_source, M5TrustGrantSourceClass::PolicyManaged);
+    let policy_epoch_required =
+        matches!(input.grant_source, M5TrustGrantSourceClass::PolicyManaged);
 
     let degrade_reason = if input.object_identity.trim().is_empty() {
         Some(M5TrustElevationSheetDegradeReason::ObjectIdentityUnstated)
@@ -1469,7 +1479,8 @@ fn validate_controls_rows(
         {
             violations.push(M5TrustFactGridElevationControlsViolation::ComponentSchemaRefMissing);
         }
-        if row.trust_fact_grid_examples.is_empty() || row.trust_elevation_sheet_examples.is_empty() {
+        if row.trust_fact_grid_examples.is_empty() || row.trust_elevation_sheet_examples.is_empty()
+        {
             violations.push(M5TrustFactGridElevationControlsViolation::ExamplesMissing);
         }
         if !row.examples_are_honest() {
@@ -1517,7 +1528,8 @@ fn validate_consumer_projection(
         projection.support_export_reads_single_trust_source,
     ] {
         if !ok {
-            violations.push(M5TrustFactGridElevationControlsViolation::ConsumerProjectionIncomplete);
+            violations
+                .push(M5TrustFactGridElevationControlsViolation::ConsumerProjectionIncomplete);
             return;
         }
     }
@@ -1604,16 +1616,18 @@ fn validate_acceptance_criteria(
         .filter(|ex| ex.is_clean())
         .all(|ex| ex.reduced_mode_alternative_stated && ex.effect_class != "effect_unknown");
     let covers_lasting = sheets().any(|ex| ex.is_clean() && ex.effect_lasting);
-    let covers_one_time = sheets().any(|ex| {
-        ex.is_clean() && !ex.effect_lasting && ex.effect_class != "effect_unknown"
+    let covers_one_time = sheets()
+        .any(|ex| ex.is_clean() && !ex.effect_lasting && ex.effect_class != "effect_unknown");
+    let capability_delta_degrades = sheets().any(|ex| {
+        ex.degrade_reason == Some(M5TrustElevationSheetDegradeReason::CapabilityDeltaUnstated)
     });
-    let capability_delta_degrades = sheets()
-        .any(|ex| ex.degrade_reason == Some(M5TrustElevationSheetDegradeReason::CapabilityDeltaUnstated));
     let reduced_mode_degrades = sheets().any(|ex| {
-        ex.degrade_reason == Some(M5TrustElevationSheetDegradeReason::ReducedModeAlternativeUnstated)
+        ex.degrade_reason
+            == Some(M5TrustElevationSheetDegradeReason::ReducedModeAlternativeUnstated)
     });
-    let effect_degrades = sheets()
-        .any(|ex| ex.degrade_reason == Some(M5TrustElevationSheetDegradeReason::EffectDurationUnstated));
+    let effect_degrades = sheets().any(|ex| {
+        ex.degrade_reason == Some(M5TrustElevationSheetDegradeReason::EffectDurationUnstated)
+    });
     let detail_degrades = grids()
         .any(|ex| ex.degrade_reason == Some(M5TrustFactGridDegradeReason::TrustDetailPathMissing))
         || sheets().any(|ex| {

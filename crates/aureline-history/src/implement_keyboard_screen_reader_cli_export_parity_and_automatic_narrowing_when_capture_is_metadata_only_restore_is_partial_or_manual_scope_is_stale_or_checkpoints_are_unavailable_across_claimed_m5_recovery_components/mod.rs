@@ -1148,9 +1148,11 @@ impl HistoryComponentAccessibilityPacket {
 
             // Each row must preserve every mandatory history label.
             if !row.preserves_mandatory_labels() {
-                violations.push(HistoryComponentAccessibilityViolation::MissingMandatoryLabel {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    HistoryComponentAccessibilityViolation::MissingMandatoryLabel {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // A hierarchy-heavy family must render a structured tree *and* a non-visual path.
@@ -1176,9 +1178,11 @@ impl HistoryComponentAccessibilityPacket {
 
             // Assistive-tech / CLI reach the same canonical truth.
             if !row.reaches_canonical_truth_via_at() {
-                violations.push(HistoryComponentAccessibilityViolation::AssistiveTechStranded {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    HistoryComponentAccessibilityViolation::AssistiveTechStranded {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // Export preserves meaning without a screenshot.
@@ -1208,9 +1212,11 @@ impl HistoryComponentAccessibilityPacket {
 
             // Consumer parity: at least two consumer surfaces ingest the row.
             if row.consumer_surfaces.len() < 2 {
-                violations.push(HistoryComponentAccessibilityViolation::MissingConsumerParity {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    HistoryComponentAccessibilityViolation::MissingConsumerParity {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // No red rows may ship.
@@ -1224,9 +1230,8 @@ impl HistoryComponentAccessibilityPacket {
         // Coverage: every frozen family is certified at least once.
         for family in M5LocalHistoryWriteScopeComponentFamily::ALL {
             if !seen_families.contains(&family) {
-                violations.push(
-                    HistoryComponentAccessibilityViolation::MissingFamilyCoverage { family },
-                );
+                violations
+                    .push(HistoryComponentAccessibilityViolation::MissingFamilyCoverage { family });
             }
         }
 
@@ -1316,7 +1321,9 @@ impl HistoryComponentAccessibilityPacket {
     /// Deterministic Markdown report for support, docs, or release handoff.
     pub fn render_markdown_summary(&self) -> String {
         let mut out = String::new();
-        out.push_str("# M5 Local-History / Write-Scope Component Accessibility & Auto-Narrowing\n\n");
+        out.push_str(
+            "# M5 Local-History / Write-Scope Component Accessibility & Auto-Narrowing\n\n",
+        );
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
         out.push_str(&format!("- As of: `{}`\n", self.as_of));
         out.push_str(&format!(

@@ -469,7 +469,8 @@ pub fn seeded_m5_release_history_primitive_update_center_history_beta_narrowed(
 ) -> M5ReleaseHistoryPrimitivePacket {
     let mut packet = seeded_m5_release_history_primitive_packet();
     packet.packet_id =
-        "m5-promotion-timeline-and-rollback-revocation-primitive:update-center-beta:0001".to_owned();
+        "m5-promotion-timeline-and-rollback-revocation-primitive:update-center-beta:0001"
+            .to_owned();
     let row = packet
         .history_rows
         .iter_mut()

@@ -10,8 +10,14 @@ fn resolver_awaiting_prompt_resolves_to_awaiting_posture() {
     let resolved =
         resolve_execution_interaction(&request_awaiting_approval_input()).expect("resolves");
     let prompt = resolved.input_prompt.as_ref().expect("prompt present");
-    assert_eq!(prompt.disposition, M5InputRequestDisposition::AwaitingResponse);
-    assert_eq!(prompt.result_posture, M5InputResultPosture::AwaitingResponse);
+    assert_eq!(
+        prompt.disposition,
+        M5InputRequestDisposition::AwaitingResponse
+    );
+    assert_eq!(
+        prompt.result_posture,
+        M5InputResultPosture::AwaitingResponse
+    );
     assert!(prompt.is_attributable);
     assert!(resolved.discloses_input_consequence());
 }
@@ -21,7 +27,10 @@ fn resolver_dismissed_prompt_leaves_run_blocked_not_silent() {
     let resolved = resolve_execution_interaction(&ai_dismissed_input()).expect("resolves");
     let prompt = resolved.input_prompt.as_ref().expect("prompt present");
     assert_eq!(prompt.disposition, M5InputRequestDisposition::Dismissed);
-    assert_eq!(prompt.result_posture, M5InputResultPosture::RunBlockedWaiting);
+    assert_eq!(
+        prompt.result_posture,
+        M5InputResultPosture::RunBlockedWaiting
+    );
     assert!(prompt.disposition.is_negative());
     assert!(prompt.result_posture.is_dismissal_or_timeout_consequence());
     assert!(resolved.discloses_input_consequence());
@@ -118,7 +127,10 @@ fn resolver_evicted_artifact_stays_attributable() {
     let row = &resolved.artifact_rows[0];
     assert!(row.retention.is_evicted());
     assert!(row.is_attributable);
-    assert!(!row.is_openable, "evicted-recoverable report offers no open action");
+    assert!(
+        !row.is_openable,
+        "evicted-recoverable report offers no open action"
+    );
     assert!(row.export_action_ref.is_some());
     assert!(resolved.preserves_artifact_lineage());
 }

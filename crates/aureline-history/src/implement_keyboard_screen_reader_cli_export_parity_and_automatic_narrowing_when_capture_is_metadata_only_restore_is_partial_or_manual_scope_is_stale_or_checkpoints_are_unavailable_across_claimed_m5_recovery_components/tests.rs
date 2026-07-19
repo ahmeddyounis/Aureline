@@ -18,7 +18,10 @@ fn row(id: &str) -> HistoryComponentAccessibilityRow {
 fn seeded_packet_validates_clean() {
     let packet = seeded_m5_history_component_a11y_fallback_packet();
     let violations = packet.validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -164,7 +167,10 @@ fn stale_scope_narrows_to_stale_scope_history() {
         M5HistorySupportClaim::StaleScopeHistory
     );
     let narrow = tree.claim_narrow.as_ref().expect("narrow present");
-    assert_eq!(narrow.trigger, M5HistoryDowngradeTrigger::WriteScopeUnderstated);
+    assert_eq!(
+        narrow.trigger,
+        M5HistoryDowngradeTrigger::WriteScopeUnderstated
+    );
     assert!(tree.claim_is_honest());
 }
 
@@ -206,7 +212,10 @@ fn over_asserting_control_is_rejected() {
     let mut local = row("a11y:local-history-row");
     local.claim_narrow = None;
     assert!(!local.claim_is_honest());
-    assert_eq!(local.status(), HistoryComponentAccessibilityStatus::Stranded);
+    assert_eq!(
+        local.status(),
+        HistoryComponentAccessibilityStatus::Stranded
+    );
 }
 
 #[test]
@@ -265,7 +274,10 @@ fn permitted_ceilings_map_condition_states_one_to_one() {
 fn dimension_triggers_map_to_frozen_matrix_vocabulary() {
     use M5HistoryClaimDimension as D;
     use M5HistoryDowngradeTrigger as T;
-    assert_eq!(D::CaptureFidelity.default_trigger(), T::CaptureFidelityMasked);
+    assert_eq!(
+        D::CaptureFidelity.default_trigger(),
+        T::CaptureFidelityMasked
+    );
     assert_eq!(
         D::CheckpointAvailability.default_trigger(),
         T::CheckpointLineageUnstated
@@ -278,7 +290,10 @@ fn dimension_triggers_map_to_frozen_matrix_vocabulary() {
         D::ExportDisclosure.default_trigger(),
         T::RetentionOrRedactionUndisclosed
     );
-    assert_eq!(D::ScopeFreshness.default_trigger(), T::WriteScopeUnderstated);
+    assert_eq!(
+        D::ScopeFreshness.default_trigger(),
+        T::WriteScopeUnderstated
+    );
     assert_eq!(
         D::RestoreScopeSelection.default_trigger(),
         T::RestoreGranularityCollapsed
@@ -353,7 +368,10 @@ fn erased_history_strands_a_row() {
     let mut local = row("a11y:local-history-row");
     local.history_preserved = false;
     assert!(!local.preserves_history_integrity());
-    assert_eq!(local.status(), HistoryComponentAccessibilityStatus::Stranded);
+    assert_eq!(
+        local.status(),
+        HistoryComponentAccessibilityStatus::Stranded
+    );
 }
 
 #[test]
@@ -407,7 +425,9 @@ fn dropping_a_mandatory_label_strands_a_row() {
 #[test]
 fn missing_family_coverage_is_flagged() {
     let mut packet = seeded_m5_history_component_a11y_fallback_packet();
-    packet.rows.retain(|r| r.row_id != "a11y:restore-granularity-selector");
+    packet
+        .rows
+        .retain(|r| r.row_id != "a11y:restore-granularity-selector");
     let violations = packet.validate();
     assert!(violations.iter().any(|v| matches!(
         v,
@@ -451,7 +471,9 @@ fn summary_mismatch_is_flagged() {
 #[test]
 fn forbidden_material_in_export_is_flagged() {
     let mut packet = seeded_m5_history_component_a11y_fallback_packet();
-    packet.rows[0].source_refs.push("api_key=hunter2".to_owned());
+    packet.rows[0]
+        .source_refs
+        .push("api_key=hunter2".to_owned());
     let violations = packet.validate();
     assert!(violations.iter().any(|v| matches!(
         v,
@@ -472,7 +494,10 @@ fn chip_tokens_render_stable_fields() {
 #[test]
 fn record_kind_and_schema_version_are_stable() {
     let packet = seeded_m5_history_component_a11y_fallback_packet();
-    assert_eq!(packet.record_kind, HISTORY_COMPONENT_A11Y_FALLBACK_RECORD_KIND);
+    assert_eq!(
+        packet.record_kind,
+        HISTORY_COMPONENT_A11Y_FALLBACK_RECORD_KIND
+    );
     assert_eq!(
         packet.schema_version,
         HISTORY_COMPONENT_A11Y_FALLBACK_SCHEMA_VERSION
@@ -558,9 +583,8 @@ fn generate_artifacts() {
     )
     .expect("write report");
 
-    let fixtures = Path::new(manifest).join(
-        "../../fixtures/ui/m5-local-history-write-scope-component-accessibility-fallback",
-    );
+    let fixtures = Path::new(manifest)
+        .join("../../fixtures/ui/m5-local-history-write-scope-component-accessibility-fallback");
     fs::create_dir_all(&fixtures).expect("create fixture dir");
     fs::write(fixtures.join("support_export.json"), &json).expect("write fixture export");
     fs::write(fixtures.join("matrix.csv"), &csv).expect("write fixture csv");

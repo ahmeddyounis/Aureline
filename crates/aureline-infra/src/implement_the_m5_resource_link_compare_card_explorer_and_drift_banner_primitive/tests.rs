@@ -20,10 +20,13 @@ fn resolver_preserves_resource_identity_across_surfaces() {
 
 #[test]
 fn resolver_keeps_source_and_live_distinct() {
-    let resolved = resolve_live_resource_navigation(&source_to_live_in_sync_input())
-        .expect("resolves");
+    let resolved =
+        resolve_live_resource_navigation(&source_to_live_in_sync_input()).expect("resolves");
     assert_ne!(resolved.link_row.from_truth, resolved.link_row.to_truth);
-    assert_eq!(resolved.compare_card.rendered_side_truth, TruthMode::Rendered);
+    assert_eq!(
+        resolved.compare_card.rendered_side_truth,
+        TruthMode::Rendered
+    );
     assert_eq!(resolved.compare_card.live_side_truth, TruthMode::Live);
     assert!(resolved.source_and_live_distinct());
 }
@@ -116,8 +119,8 @@ fn resolver_never_shows_cached_permission_limited_as_current() {
 
 #[test]
 fn resolver_presents_live_fresh_full_access_as_current() {
-    let resolved = resolve_live_resource_navigation(&source_to_live_in_sync_input())
-        .expect("resolves");
+    let resolved =
+        resolve_live_resource_navigation(&source_to_live_in_sync_input()).expect("resolves");
     assert!(resolved.explorer_row.presents_as_current);
     assert!(resolved.compare_card.comparison_current);
     assert!(!resolved.drift_banner.banner_present);
@@ -324,7 +327,10 @@ fn drifted_case_is_flagged() {
 #[test]
 fn vocabulary_drift_is_flagged() {
     let mut packet = seeded_m5_live_resource_packet();
-    packet.vocabulary_set.resource_kinds.push("bogus".to_owned());
+    packet
+        .vocabulary_set
+        .resource_kinds
+        .push("bogus".to_owned());
     let violations = packet.validate();
     assert!(violations.contains(&M5LiveResourceViolation::VocabularySetDrift));
 }

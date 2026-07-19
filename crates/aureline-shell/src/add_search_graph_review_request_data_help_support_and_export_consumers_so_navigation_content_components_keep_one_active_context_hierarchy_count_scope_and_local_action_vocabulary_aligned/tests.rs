@@ -485,9 +485,10 @@ fn missing_nav_state_ref_breaks_reconstruction() {
     p.rows[0].nav_state_ref = String::new();
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, NavContentConsumerViolation::StateNotReconstructable { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        NavContentConsumerViolation::StateNotReconstructable { .. }
+    )));
 }
 
 #[test]

@@ -156,11 +156,7 @@ pub enum M5RetryScope {
 
 impl M5RetryScope {
     /// Every retry scope, in declaration order.
-    pub const ALL: [Self; 3] = [
-        Self::WholeRun,
-        Self::FailedStepOnly,
-        Self::SelectedSubset,
-    ];
+    pub const ALL: [Self; 3] = [Self::WholeRun, Self::FailedStepOnly, Self::SelectedSubset];
 
     /// Stable token recorded in the row.
     pub const fn as_str(self) -> &'static str {
@@ -679,7 +675,10 @@ impl M5ResolvedRerunReview {
             return true;
         }
         self.sheet.presents_distinct_actions
-            && self.sheet.available_modes.contains(&M5RerunMode::RerunExactly)
+            && self
+                .sheet
+                .available_modes
+                .contains(&M5RerunMode::RerunExactly)
             && self
                 .sheet
                 .available_modes
@@ -695,7 +694,8 @@ impl M5ResolvedRerunReview {
                 row.shown_before_dispatch
                     && (!row.state.requires_review() || !row.change_summary.trim().is_empty())
             })
-            && (!self.sheet.rerun_context.differs_from_exact() || self.sheet.discloses_context_delta)
+            && (!self.sheet.rerun_context.differs_from_exact()
+                || self.sheet.discloses_context_delta)
     }
 
     /// True when the sheet cites the prior attempt, the new attempt, and the reason the
@@ -793,7 +793,11 @@ impl M5RerunReviewError {
 
 impl fmt::Display for M5RerunReviewError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "rerun-review resolution error: {}", self.as_str())
+        write!(
+            formatter,
+            "rerun-review resolution error: {}",
+            self.as_str()
+        )
     }
 }
 
@@ -1080,12 +1084,19 @@ fn mode_scope_consistent(mode: M5RerunMode, scope: M5RetryScope) -> bool {
 
 /// True when a prior outcome can offer a retry of only the failed step / units.
 fn prior_supports_failed_step_retry(outcome: M5RunOutcome) -> bool {
-    matches!(outcome, M5RunOutcome::Failed | M5RunOutcome::PartiallyComplete)
+    matches!(
+        outcome,
+        M5RunOutcome::Failed | M5RunOutcome::PartiallyComplete
+    )
 }
 
 /// A deterministic, human-readable summary for one changed-context row.
 fn render_change_row_summary(change: &M5RerunChangeInput) -> String {
-    match (change.state, change.before_label.as_deref(), change.after_label.as_deref()) {
+    match (
+        change.state,
+        change.before_label.as_deref(),
+        change.after_label.as_deref(),
+    ) {
         (M5RerunChangeState::Changed, Some(before), Some(after)) => format!(
             "{} changed: {} → {} ({})",
             change.dimension.as_str(),
@@ -1105,10 +1116,18 @@ fn render_change_row_summary(change: &M5RerunChangeInput) -> String {
             change.detail
         ),
         (M5RerunChangeState::Unchanged, _, _) => {
-            format!("{} unchanged ({})", change.dimension.as_str(), change.detail)
+            format!(
+                "{} unchanged ({})",
+                change.dimension.as_str(),
+                change.detail
+            )
         }
         (M5RerunChangeState::NotApplicable, _, _) => {
-            format!("{} not applicable ({})", change.dimension.as_str(), change.detail)
+            format!(
+                "{} not applicable ({})",
+                change.dimension.as_str(),
+                change.detail
+            )
         }
         (M5RerunChangeState::Changed, _, _) => {
             format!("{} changed ({})", change.dimension.as_str(), change.detail)
@@ -1789,7 +1808,11 @@ fn validate_surface_rows(
         if row.example_reruns.is_empty() {
             violations.push(M5RerunViolation::ExampleRerunsMissing);
         }
-        if row.example_reruns.iter().any(|case| !case.is_self_consistent()) {
+        if row
+            .example_reruns
+            .iter()
+            .any(|case| !case.is_self_consistent())
+        {
             violations.push(M5RerunViolation::ExampleRerunDrift);
         }
         if !row.honours_invariants() {
@@ -1823,7 +1846,9 @@ fn validate_acceptance_criteria_covered(
     }) && cases
         .iter()
         .all(|resolved| resolved.distinguishes_rerun_actions() && resolved.identity_consistent())
-        && M5RerunMode::ALL.iter().all(|mode| modes_seen.contains(mode));
+        && M5RerunMode::ALL
+            .iter()
+            .all(|mode| modes_seen.contains(mode));
     if !distinct_proven {
         violations.push(M5RerunViolation::DistinctActionsUnproven);
     }
@@ -1857,7 +1882,10 @@ fn validate_acceptance_criteria_covered(
     let export_proven = cases.iter().all(|resolved| {
         resolved.preserves_prior_lineage()
             && !resolved.export.change_summary.trim().is_empty()
-            && resolved.export.export_fields.contains(&M5RerunExportField::RerunMode)
+            && resolved
+                .export
+                .export_fields
+                .contains(&M5RerunExportField::RerunMode)
     });
     if !export_proven {
         violations.push(M5RerunViolation::ExportPreservationUnproven);

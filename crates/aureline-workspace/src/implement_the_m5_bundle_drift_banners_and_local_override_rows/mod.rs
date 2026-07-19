@@ -88,7 +88,9 @@ use crate::m5_bundle_scorecards::{
     BundleScorecardClass, EvidenceFreshness, ImportedVsNativeConfidence,
 };
 use crate::m5_entry_and_bundle_governance::{BundleClass, SourceTrust};
-use crate::m5_workflow_bundle_manifests::{BundleComponentKind, CertificationTarget, LifecycleStage};
+use crate::m5_workflow_bundle_manifests::{
+    BundleComponentKind, CertificationTarget, LifecycleStage,
+};
 
 /// Stable record-kind tag carried by [`M5BundleDriftOverridePacket`].
 pub const M5_BUNDLE_DRIFT_RECORD_KIND: &str = "m5_bundle_drift_override_primitive";
@@ -717,7 +719,11 @@ impl M5BundleDriftResolutionError {
 
 impl fmt::Display for M5BundleDriftResolutionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "bundle-drift resolution error: {}", self.as_str())
+        write!(
+            formatter,
+            "bundle-drift resolution error: {}",
+            self.as_str()
+        )
     }
 }
 
@@ -842,8 +848,11 @@ pub fn resolve_bundle_drift(
     let distinct_drift_kinds: Vec<M5DriftKind> = drift_kinds.into_iter().collect();
 
     // Enumerate the granularities present across overrides, sorted.
-    let granularities: BTreeSet<M5DriftGranularity> =
-        input.local_overrides.iter().map(|o| o.granularity).collect();
+    let granularities: BTreeSet<M5DriftGranularity> = input
+        .local_overrides
+        .iter()
+        .map(|o| o.granularity)
+        .collect();
     let granularities_present: Vec<M5DriftGranularity> = granularities.into_iter().collect();
 
     let highest_significance = input
@@ -1576,7 +1585,11 @@ fn validate_surface_rows(
         if row.example_drifts.is_empty() {
             violations.push(M5BundleDriftViolation::ExampleDriftsMissing);
         }
-        if row.example_drifts.iter().any(|case| !case.is_self_consistent()) {
+        if row
+            .example_drifts
+            .iter()
+            .any(|case| !case.is_self_consistent())
+        {
             violations.push(M5BundleDriftViolation::ExampleDriftDrift);
         }
         if !row.honours_invariants() {

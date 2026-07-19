@@ -1115,9 +1115,11 @@ impl RuntimeAccessibilityPacket {
                     .fallback_modalities
                     .contains(&M5RuntimeFallbackModality::Structured)
             {
-                violations.push(RuntimeAccessibilityViolation::HierarchyHeavyMissingStructured {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    RuntimeAccessibilityViolation::HierarchyHeavyMissingStructured {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // AC1: claim never over-asserts a live / ready runtime for a weakened one.
@@ -1143,9 +1145,11 @@ impl RuntimeAccessibilityPacket {
 
             // Narrowing disclosed on every narrowed rendering surface.
             if !row.narrowing_disclosed() {
-                violations.push(RuntimeAccessibilityViolation::NarrowingDropsContextSilently {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    RuntimeAccessibilityViolation::NarrowingDropsContextSilently {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // Consumer parity: at least two consumer surfaces ingest the row.
@@ -1194,8 +1198,9 @@ impl RuntimeAccessibilityPacket {
         let consumers = self.represented_consumer_surfaces();
         for surface in M5_RUNTIME_A11Y_CONSUMER_SURFACES {
             if !consumers.contains(&surface) {
-                violations
-                    .push(RuntimeAccessibilityViolation::MissingConsumerSurfaceCoverage { surface });
+                violations.push(
+                    RuntimeAccessibilityViolation::MissingConsumerSurfaceCoverage { surface },
+                );
             }
         }
 
@@ -1414,7 +1419,10 @@ impl fmt::Display for RuntimeAccessibilityViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SchemaVersion { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::RecordKind { expected, actual } => {
                 write!(f, "record kind mismatch: expected {expected}, got {actual}")
@@ -1457,14 +1465,20 @@ impl fmt::Display for RuntimeAccessibilityViolation {
                 )
             }
             Self::NarrowingDropsContextSilently { id } => {
-                write!(f, "row {id} narrows a rendering surface without disclosing it")
+                write!(
+                    f,
+                    "row {id} narrows a rendering surface without disclosing it"
+                )
             }
             Self::MissingConsumerParity { id } => {
                 write!(f, "row {id} is missing secondary consumer parity")
             }
             Self::StrandedRow { id } => write!(f, "row {id} is stranded (red) and may not ship"),
             Self::MissingFamilyCoverage { family } => {
-                write!(f, "component family {family:?} is not certified in the packet")
+                write!(
+                    f,
+                    "component family {family:?} is not certified in the packet"
+                )
             }
             Self::MissingDimensionCoverage { dimension } => {
                 write!(

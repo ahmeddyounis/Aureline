@@ -17,7 +17,10 @@ fn row(id: &str) -> BundleSurfaceCertRow {
 #[test]
 fn seeded_packet_validates_clean() {
     let violations = packet().validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -33,7 +36,10 @@ fn packet_identity_is_stamped() {
 fn every_claimed_surface_is_certified() {
     let surfaces = packet().represented_surfaces();
     for surface in M5WorkflowBundleClaimedSurface::ALL {
-        assert!(surfaces.contains(&surface), "surface {surface:?} not certified");
+        assert!(
+            surfaces.contains(&surface),
+            "surface {surface:?} not certified"
+        );
     }
     assert_eq!(surfaces.len(), M5WorkflowBundleClaimedSurface::ALL.len());
 }
@@ -58,7 +64,10 @@ fn every_distribution_path_is_exercised() {
 fn evidence_surfaces_are_present() {
     let surfaces = packet().represented_surfaces();
     for surface in M5WorkflowBundleClaimedSurface::EVIDENCE_SURFACES {
-        assert!(surfaces.contains(&surface), "evidence surface {surface:?} missing");
+        assert!(
+            surfaces.contains(&surface),
+            "evidence surface {surface:?} missing"
+        );
     }
 }
 
@@ -106,7 +115,10 @@ fn ac1_imported_handoff_narrows_to_imported() {
         Some(M5WorkflowBundleComponentGroup::ClassDisclosure)
     );
     let narrow = r.claim_auto_narrow.as_ref().expect("narrow present");
-    assert_eq!(narrow.trigger, M5BundleComponentDowngradeTrigger::ImportedNotNative);
+    assert_eq!(
+        narrow.trigger,
+        M5BundleComponentDowngradeTrigger::ImportedNotNative
+    );
     assert!(r.claim_is_honest());
     assert_eq!(r.status(), M5BundleSurfaceCertStatus::NarrowedDisclosed);
 }
@@ -120,7 +132,10 @@ fn ac1_local_override_drift_narrows_to_limited() {
     );
     assert_eq!(r.effective_claim, M5BundleSupportClaim::Limited);
     let narrow = r.claim_auto_narrow.as_ref().expect("narrow present");
-    assert_eq!(narrow.trigger, M5BundleComponentDowngradeTrigger::LocalOverrideDrift);
+    assert_eq!(
+        narrow.trigger,
+        M5BundleComponentDowngradeTrigger::LocalOverrideDrift
+    );
     assert!(r.claim_is_honest());
 }
 
@@ -308,17 +323,16 @@ fn every_matrix_family_is_covered_by_a_group() {
 #[test]
 fn missing_surface_coverage_is_flagged() {
     let mut p = packet();
-    p.rows.retain(|r| r.claimed_surface != M5WorkflowBundleClaimedSurface::ReleaseProof);
+    p.rows
+        .retain(|r| r.claimed_surface != M5WorkflowBundleClaimedSurface::ReleaseProof);
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations.iter().any(|v| matches!(
-        v,
-        BundleSurfaceCertViolation::MissingSurfaceCoverage { .. }
-    )));
-    assert!(violations.iter().any(|v| matches!(
-        v,
-        BundleSurfaceCertViolation::MissingEvidenceSurface { .. }
-    )));
+    assert!(violations
+        .iter()
+        .any(|v| matches!(v, BundleSurfaceCertViolation::MissingSurfaceCoverage { .. })));
+    assert!(violations
+        .iter()
+        .any(|v| matches!(v, BundleSurfaceCertViolation::MissingEvidenceSurface { .. })));
 }
 
 #[test]
@@ -339,10 +353,9 @@ fn forbidden_material_in_export_is_flagged() {
     p.rows[0].source_refs.push("bearer abc123".to_owned());
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations.iter().any(|v| matches!(
-        v,
-        BundleSurfaceCertViolation::RawBoundaryMaterialInExport
-    )));
+    assert!(violations
+        .iter()
+        .any(|v| matches!(v, BundleSurfaceCertViolation::RawBoundaryMaterialInExport)));
 }
 
 #[test]

@@ -222,8 +222,7 @@ fn preview_rejects_malformed_input() {
 
 #[test]
 fn selector_whole_scope_applies_all_with_no_narrowing() {
-    let resolved =
-        resolve_restore_granularity_selector(&whole_scope_selector()).expect("resolves");
+    let resolved = resolve_restore_granularity_selector(&whole_scope_selector()).expect("resolves");
     assert_eq!(
         resolved.selector_posture,
         M5RestoreGranularitySelectorPosture::WholeScopeSelector
@@ -245,12 +244,13 @@ fn selector_whole_scope_applies_all_with_no_narrowing() {
 #[test]
 fn selector_posture_ladder_is_blocking_first() {
     // Selector-blocked wins even over a pending conflict.
-    let blocked = resolve_restore_granularity_selector(&M5RestoreGranularitySelectorResolutionInput {
-        restore_path_ready: false,
-        drift_state: M5RestoreDriftState::ConflictPending,
-        ..whole_scope_selector()
-    })
-    .expect("resolves");
+    let blocked =
+        resolve_restore_granularity_selector(&M5RestoreGranularitySelectorResolutionInput {
+            restore_path_ready: false,
+            drift_state: M5RestoreDriftState::ConflictPending,
+            ..whole_scope_selector()
+        })
+        .expect("resolves");
     assert_eq!(
         blocked.selector_posture,
         M5RestoreGranularitySelectorPosture::SelectorBlocked
@@ -262,11 +262,12 @@ fn selector_posture_ladder_is_blocking_first() {
     );
 
     // Dry-run-only next.
-    let dry_run = resolve_restore_granularity_selector(&M5RestoreGranularitySelectorResolutionInput {
-        drift_state: M5RestoreDriftState::ConflictPending,
-        ..whole_scope_selector()
-    })
-    .expect("resolves");
+    let dry_run =
+        resolve_restore_granularity_selector(&M5RestoreGranularitySelectorResolutionInput {
+            drift_state: M5RestoreDriftState::ConflictPending,
+            ..whole_scope_selector()
+        })
+        .expect("resolves");
     assert_eq!(
         dry_run.selector_posture,
         M5RestoreGranularitySelectorPosture::DryRunOnlySelector
@@ -275,12 +276,13 @@ fn selector_posture_ladder_is_blocking_first() {
     assert_eq!(dry_run.default_mode, M5RestoreSelectionMode::DryRunOnly);
 
     // Exclude-generated next.
-    let exclude = resolve_restore_granularity_selector(&M5RestoreGranularitySelectorResolutionInput {
-        touches_generated_or_managed: true,
-        is_multi_file: true,
-        ..whole_scope_selector()
-    })
-    .expect("resolves");
+    let exclude =
+        resolve_restore_granularity_selector(&M5RestoreGranularitySelectorResolutionInput {
+            touches_generated_or_managed: true,
+            is_multi_file: true,
+            ..whole_scope_selector()
+        })
+        .expect("resolves");
     assert_eq!(
         exclude.selector_posture,
         M5RestoreGranularitySelectorPosture::ExcludeGeneratedSelector
@@ -291,11 +293,12 @@ fn selector_posture_ladder_is_blocking_first() {
         .contains(&M5RestoreGranularitySelectorAction::ExcludeGenerated));
 
     // Range-scoped next.
-    let range = resolve_restore_granularity_selector(&M5RestoreGranularitySelectorResolutionInput {
-        selection_valid: true,
-        ..whole_scope_selector()
-    })
-    .expect("resolves");
+    let range =
+        resolve_restore_granularity_selector(&M5RestoreGranularitySelectorResolutionInput {
+            selection_valid: true,
+            ..whole_scope_selector()
+        })
+        .expect("resolves");
     assert_eq!(
         range.selector_posture,
         M5RestoreGranularitySelectorPosture::RangeScopedSelector
@@ -404,14 +407,18 @@ fn every_derived_state_is_exercised_by_some_example() {
 
     for posture in M5RestorePreviewPosture::ALL {
         assert!(
-            previews.iter().any(|c| c.resolved.preview_posture == posture),
+            previews
+                .iter()
+                .any(|c| c.resolved.preview_posture == posture),
             "no preview example exercises posture {}",
             posture.as_str()
         );
     }
     for posture in M5RestoreGranularitySelectorPosture::ALL {
         assert!(
-            selectors.iter().any(|c| c.resolved.selector_posture == posture),
+            selectors
+                .iter()
+                .any(|c| c.resolved.selector_posture == posture),
             "no selector example exercises posture {}",
             posture.as_str()
         );
@@ -568,8 +575,9 @@ fn selector_scope_coverage_unproven_fails() {
     // Replace every selector example with a whole-scope one so both the can-narrow and the
     // dry-run-only halves of the coverage lint fire.
     for row in &mut packet.rows {
-        row.selector_examples =
-            vec![M5RestoreGranularitySelectorResolutionCase::resolved(whole_scope_selector())];
+        row.selector_examples = vec![M5RestoreGranularitySelectorResolutionCase::resolved(
+            whole_scope_selector(),
+        )];
     }
     assert!(packet
         .validate()
@@ -615,7 +623,9 @@ fn governance_review_incomplete_fails() {
 #[test]
 fn consumer_projection_incomplete_fails() {
     let mut packet = seeded_m5_restore_preview_granularity_packet();
-    packet.consumer_projection.selector_posture_reads_single_source = false;
+    packet
+        .consumer_projection
+        .selector_posture_reads_single_source = false;
     assert!(packet
         .validate()
         .contains(&M5RestorePreviewGranularityViolation::ConsumerProjectionIncomplete));
@@ -670,7 +680,10 @@ fn matrix_csv_has_a_row_per_consumer() {
 fn checked_support_export_validates_and_matches_seed() {
     let from_disk = current_stable_m5_restore_preview_granularity_export()
         .expect("checked M5 preview/selector primitive export validates");
-    assert_eq!(from_disk.packet_id, M5_RESTORE_PREVIEW_GRANULARITY_PACKET_ID);
+    assert_eq!(
+        from_disk.packet_id,
+        M5_RESTORE_PREVIEW_GRANULARITY_PACKET_ID
+    );
     assert_eq!(
         from_disk,
         seeded_m5_restore_preview_granularity_packet(),

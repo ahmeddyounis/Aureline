@@ -38,13 +38,15 @@ fn fixture_copy_matches_checked_export() {
 
 #[test]
 fn matrix_carries_a_complete_degraded_row() {
-    let packet = current_m5_execution_lifecycle_component_matrix_export().expect("export validates");
+    let packet =
+        current_m5_execution_lifecycle_component_matrix_export().expect("export validates");
     assert!(packet.degraded_row_count() >= 1);
 }
 
 #[test]
 fn stale_output_is_captured_not_live() {
-    let packet = current_m5_execution_lifecycle_component_matrix_export().expect("export validates");
+    let packet =
+        current_m5_execution_lifecycle_component_matrix_export().expect("export validates");
     let stale = packet
         .components
         .iter()
@@ -57,7 +59,8 @@ fn stale_output_is_captured_not_live() {
 
 #[test]
 fn dump_cards_keep_producing_run_lineage() {
-    let packet = current_m5_execution_lifecycle_component_matrix_export().expect("export validates");
+    let packet =
+        current_m5_execution_lifecycle_component_matrix_export().expect("export validates");
     let dumps: Vec<_> = packet
         .components
         .iter()

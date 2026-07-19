@@ -89,6 +89,10 @@ fn assert_valid(packet: &M5ScenarioPickerRowPacket) -> Result<(), Box<dyn std::e
         Ok(())
     } else {
         let tokens: Vec<&str> = violations.iter().map(|v| v.as_str()).collect();
-        Err(format!("picker row primitive failed validation: {}", tokens.join(",")).into())
+        Err(format!(
+            "picker row primitive failed validation: {}",
+            tokens.join(",")
+        )
+        .into())
     }
 }

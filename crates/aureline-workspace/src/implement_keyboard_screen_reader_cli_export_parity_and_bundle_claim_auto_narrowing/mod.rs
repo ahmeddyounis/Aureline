@@ -513,9 +513,7 @@ impl M5BundleClaimConditionState {
             Self::Imported => M5BundleComponentDowngradeTrigger::ImportedNotNative,
             Self::MirrorStale => M5BundleComponentDowngradeTrigger::MirrorStale,
             Self::OfflineOnly => M5BundleComponentDowngradeTrigger::OfflineCacheOnly,
-            Self::PolicyBlocked => {
-                M5BundleComponentDowngradeTrigger::EntitlementDependencyUnmet
-            }
+            Self::PolicyBlocked => M5BundleComponentDowngradeTrigger::EntitlementDependencyUnmet,
         }
     }
 
@@ -1052,7 +1050,10 @@ impl BundleAccessibilityPacket {
                 .rows
                 .iter()
                 .all(BundleAccessibilityRow::reaches_canonical_truth_via_at),
-            all_claims_honest: self.rows.iter().all(BundleAccessibilityRow::claim_is_honest),
+            all_claims_honest: self
+                .rows
+                .iter()
+                .all(BundleAccessibilityRow::claim_is_honest),
             all_export_summaries_preserve_meaning: self
                 .rows
                 .iter()
@@ -1130,9 +1131,11 @@ impl BundleAccessibilityPacket {
                     .fallback_modalities
                     .contains(&M5BundleFallbackModality::Structured)
             {
-                violations.push(BundleAccessibilityViolation::HierarchyHeavyMissingStructured {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    BundleAccessibilityViolation::HierarchyHeavyMissingStructured {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // AC1: claim never over-asserts support for a weakened bundle.
@@ -1158,9 +1161,11 @@ impl BundleAccessibilityPacket {
 
             // AC3: narrowing disclosed on every narrowed rendering surface.
             if !row.narrowing_disclosed() {
-                violations.push(BundleAccessibilityViolation::NarrowingDropsContextSilently {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    BundleAccessibilityViolation::NarrowingDropsContextSilently {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // Consumer parity: at least two consumer surfaces ingest the row.
@@ -1234,8 +1239,7 @@ impl BundleAccessibilityPacket {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self)
-            .expect("bundle accessibility fallback packet serializes")
+        serde_json::to_string_pretty(self).expect("bundle accessibility fallback packet serializes")
     }
 
     /// Deterministic CSV of the certified rows for release / support handoff.
@@ -1328,7 +1332,10 @@ impl fmt::Display for BundleAccessibilityArtifactError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SupportExport(error) => {
-                write!(f, "bundle accessibility fallback export parse failed: {error}")
+                write!(
+                    f,
+                    "bundle accessibility fallback export parse failed: {error}"
+                )
             }
             Self::Validation(violations) => {
                 write!(
@@ -1346,24 +1353,61 @@ impl Error for BundleAccessibilityArtifactError {}
 /// Validation failure for M05-850 bundle accessibility fallback packets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BundleAccessibilityViolation {
-    SchemaVersion { expected: u32, actual: u32 },
-    RecordKind { expected: String, actual: String },
+    SchemaVersion {
+        expected: u32,
+        actual: u32,
+    },
+    RecordKind {
+        expected: String,
+        actual: String,
+    },
     MissingIdentity,
-    DuplicateId { id: String },
-    IncompleteRow { id: String },
-    MissingPrimaryDimension { id: String, dimension: M5BundleClaimDimension },
-    MissingMandatoryLabel { id: String },
-    HierarchyHeavyMissingStructured { id: String },
-    ClaimOverAsserted { id: String },
-    AssistiveTechStranded { id: String },
-    ExportRequiresScreenshot { id: String },
-    NarrowingDropsContextSilently { id: String },
-    MissingConsumerParity { id: String },
-    StrandedRow { id: String },
-    MissingFamilyCoverage { family: M5WorkflowBundleComponentFamily },
-    MissingDimensionCoverage { dimension: M5BundleClaimDimension },
-    MissingClaimTierCoverage { claim: M5BundleSupportClaim },
-    MissingConsumerSurfaceCoverage { surface: M5BundleDisclosureSurfaceFamily },
+    DuplicateId {
+        id: String,
+    },
+    IncompleteRow {
+        id: String,
+    },
+    MissingPrimaryDimension {
+        id: String,
+        dimension: M5BundleClaimDimension,
+    },
+    MissingMandatoryLabel {
+        id: String,
+    },
+    HierarchyHeavyMissingStructured {
+        id: String,
+    },
+    ClaimOverAsserted {
+        id: String,
+    },
+    AssistiveTechStranded {
+        id: String,
+    },
+    ExportRequiresScreenshot {
+        id: String,
+    },
+    NarrowingDropsContextSilently {
+        id: String,
+    },
+    MissingConsumerParity {
+        id: String,
+    },
+    StrandedRow {
+        id: String,
+    },
+    MissingFamilyCoverage {
+        family: M5WorkflowBundleComponentFamily,
+    },
+    MissingDimensionCoverage {
+        dimension: M5BundleClaimDimension,
+    },
+    MissingClaimTierCoverage {
+        claim: M5BundleSupportClaim,
+    },
+    MissingConsumerSurfaceCoverage {
+        surface: M5BundleDisclosureSurfaceFamily,
+    },
     SummaryMismatch,
     RawBoundaryMaterialInExport,
 }
@@ -1372,7 +1416,10 @@ impl fmt::Display for BundleAccessibilityViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SchemaVersion { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::RecordKind { expected, actual } => {
                 write!(f, "record kind mismatch: expected {expected}, got {actual}")
@@ -1391,7 +1438,10 @@ impl fmt::Display for BundleAccessibilityViolation {
                 write!(f, "row {id} drops a mandatory bundle label")
             }
             Self::HierarchyHeavyMissingStructured { id } => {
-                write!(f, "hierarchy-heavy row {id} does not render a structured modality")
+                write!(
+                    f,
+                    "hierarchy-heavy row {id} does not render a structured modality"
+                )
             }
             Self::ClaimOverAsserted { id } => {
                 write!(
@@ -1406,17 +1456,26 @@ impl fmt::Display for BundleAccessibilityViolation {
                 )
             }
             Self::ExportRequiresScreenshot { id } => {
-                write!(f, "row {id} export cannot preserve meaning without a screenshot")
+                write!(
+                    f,
+                    "row {id} export cannot preserve meaning without a screenshot"
+                )
             }
             Self::NarrowingDropsContextSilently { id } => {
-                write!(f, "row {id} narrows a rendering surface without disclosing it")
+                write!(
+                    f,
+                    "row {id} narrows a rendering surface without disclosing it"
+                )
             }
             Self::MissingConsumerParity { id } => {
                 write!(f, "row {id} is missing secondary consumer parity")
             }
             Self::StrandedRow { id } => write!(f, "row {id} is stranded (red) and may not ship"),
             Self::MissingFamilyCoverage { family } => {
-                write!(f, "component family {family:?} is not certified in the packet")
+                write!(
+                    f,
+                    "component family {family:?} is not certified in the packet"
+                )
             }
             Self::MissingDimensionCoverage { dimension } => {
                 write!(
@@ -1526,7 +1585,9 @@ fn condition(
 
 /// The two consumer surfaces every row ships to at minimum — diagnostics and
 /// support/export replay — so the narrowed state always reaches field triage.
-fn base_consumers(extra: &[M5BundleDisclosureSurfaceFamily]) -> Vec<M5BundleDisclosureSurfaceFamily> {
+fn base_consumers(
+    extra: &[M5BundleDisclosureSurfaceFamily],
+) -> Vec<M5BundleDisclosureSurfaceFamily> {
     let mut out = vec![
         M5BundleDisclosureSurfaceFamily::DiagnosticsClassReport,
         M5BundleDisclosureSurfaceFamily::SupportExportReplay,
@@ -1603,7 +1664,12 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
             cli_reach: BundleNonVisualReachState::ReachableAndLabeled,
             export_summary: BundleExportSummaryState::ReconstructableWithoutScreenshot,
             export_summary_ref: "summary:start-center-bundle-card:a11y".to_owned(),
-            copy_export: copy_export(&["bundle_id", "signer_source", "support_class", "cert_freshness"]),
+            copy_export: copy_export(&[
+                "bundle_id",
+                "signer_source",
+                "support_class",
+                "cert_freshness",
+            ]),
             full_support_claim: M5BundleSupportClaim::Certified,
             claim_conditions: vec![condition(
                 M5BundleClaimDimension::CertificationEvidence,
@@ -1611,7 +1677,11 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
             )],
             claim_narrow: None,
             rendering_surfaces: rendering_surfaces(),
-            narrowing_disclosures: parity_surfaces(&["bundle_id", "signer_source", "cert_freshness"]),
+            narrowing_disclosures: parity_surfaces(&[
+                "bundle_id",
+                "signer_source",
+                "cert_freshness",
+            ]),
             required_labels: all_required_labels(),
             consumer_surfaces: base_consumers(&[
                 M5BundleDisclosureSurfaceFamily::StartCenterClassCard,
@@ -1645,7 +1715,12 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
             cli_reach: BundleNonVisualReachState::ReachableAndLabeled,
             export_summary: BundleExportSummaryState::ReconstructableWithoutScreenshot,
             export_summary_ref: "summary:certified-archetype-badge-group:a11y".to_owned(),
-            copy_export: copy_export(&["archetype_family", "cert_target", "cert_freshness", "badge_count"]),
+            copy_export: copy_export(&[
+                "archetype_family",
+                "cert_target",
+                "cert_freshness",
+                "badge_count",
+            ]),
             full_support_claim: M5BundleSupportClaim::Certified,
             claim_conditions: vec![condition(
                 M5BundleClaimDimension::CertificationEvidence,
@@ -1660,7 +1735,11 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
                 preserves_canonical_identity: true,
             }),
             rendering_surfaces: rendering_surfaces(),
-            narrowing_disclosures: narrowed_surfaces(&["archetype_family", "cert_target", "cert_freshness"]),
+            narrowing_disclosures: narrowed_surfaces(&[
+                "archetype_family",
+                "cert_target",
+                "cert_freshness",
+            ]),
             required_labels: all_required_labels(),
             consumer_surfaces: base_consumers(&[
                 M5BundleDisclosureSurfaceFamily::StartCenterClassCard,
@@ -1695,7 +1774,12 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
             cli_reach: BundleNonVisualReachState::ReachableAndLabeled,
             export_summary: BundleExportSummaryState::ReconstructableWithoutScreenshot,
             export_summary_ref: "summary:bundle-detail-page:a11y".to_owned(),
-            copy_export: copy_export(&["bundle_id", "signer_source", "entitlement_deps", "mirror_posture"]),
+            copy_export: copy_export(&[
+                "bundle_id",
+                "signer_source",
+                "entitlement_deps",
+                "mirror_posture",
+            ]),
             full_support_claim: M5BundleSupportClaim::Certified,
             claim_conditions: vec![condition(
                 M5BundleClaimDimension::DependencyPosture,
@@ -1705,11 +1789,16 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
                 narrowed_to: M5BundleSupportClaim::PolicyBlocked,
                 binding_dimension: M5BundleClaimDimension::DependencyPosture,
                 trigger: M5BundleComponentDowngradeTrigger::EntitlementDependencyUnmet,
-                narrowed_label: "Entitlement dependency unmet — bundle blocked by policy".to_owned(),
+                narrowed_label: "Entitlement dependency unmet — bundle blocked by policy"
+                    .to_owned(),
                 preserves_canonical_identity: true,
             }),
             rendering_surfaces: rendering_surfaces(),
-            narrowing_disclosures: narrowed_surfaces(&["bundle_id", "signer_source", "entitlement_deps"]),
+            narrowing_disclosures: narrowed_surfaces(&[
+                "bundle_id",
+                "signer_source",
+                "entitlement_deps",
+            ]),
             required_labels: all_required_labels(),
             consumer_surfaces: base_consumers(&[
                 M5BundleDisclosureSurfaceFamily::BundleDetailClassPanel,
@@ -1742,7 +1831,12 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
             cli_reach: BundleNonVisualReachState::ReachableAndLabeled,
             export_summary: BundleExportSummaryState::ReconstructableWithoutScreenshot,
             export_summary_ref: "summary:bundle-install-update-review-sheet:a11y".to_owned(),
-            copy_export: copy_export(&["bundle_id", "diff_scope", "local_override_state", "resolution"]),
+            copy_export: copy_export(&[
+                "bundle_id",
+                "diff_scope",
+                "local_override_state",
+                "resolution",
+            ]),
             full_support_claim: M5BundleSupportClaim::Supported,
             claim_conditions: vec![condition(
                 M5BundleClaimDimension::ArtifactAvailability,
@@ -1784,7 +1878,12 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
             cli_reach: BundleNonVisualReachState::ReachableAndLabeled,
             export_summary: BundleExportSummaryState::ReconstructableWithoutScreenshot,
             export_summary_ref: "summary:bundle-drift-banner:a11y".to_owned(),
-            copy_export: copy_export(&["bundle_id", "drift_state", "override_state", "signer_source"]),
+            copy_export: copy_export(&[
+                "bundle_id",
+                "drift_state",
+                "override_state",
+                "signer_source",
+            ]),
             full_support_claim: M5BundleSupportClaim::Certified,
             claim_conditions: vec![condition(
                 M5BundleClaimDimension::BundleFreshness,
@@ -1794,12 +1893,17 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
                 narrowed_to: M5BundleSupportClaim::Limited,
                 binding_dimension: M5BundleClaimDimension::BundleFreshness,
                 trigger: M5BundleComponentDowngradeTrigger::LocalOverrideDrift,
-                narrowed_label: "Local overrides diverged — bundle support limited to unchanged scope"
-                    .to_owned(),
+                narrowed_label:
+                    "Local overrides diverged — bundle support limited to unchanged scope"
+                        .to_owned(),
                 preserves_canonical_identity: true,
             }),
             rendering_surfaces: rendering_surfaces(),
-            narrowing_disclosures: narrowed_surfaces(&["bundle_id", "drift_state", "override_state"]),
+            narrowing_disclosures: narrowed_surfaces(&[
+                "bundle_id",
+                "drift_state",
+                "override_state",
+            ]),
             required_labels: all_required_labels(),
             consumer_surfaces: base_consumers(&[
                 M5BundleDisclosureSurfaceFamily::BundleDetailClassPanel,
@@ -1848,7 +1952,8 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
                 narrowed_to: M5BundleSupportClaim::MirrorOnly,
                 binding_dimension: M5BundleClaimDimension::ArtifactAvailability,
                 trigger: M5BundleComponentDowngradeTrigger::MirrorStale,
-                narrowed_label: "Override asset served from a stale mirror — mirror-only".to_owned(),
+                narrowed_label: "Override asset served from a stale mirror — mirror-only"
+                    .to_owned(),
                 preserves_canonical_identity: true,
             }),
             rendering_surfaces: rendering_surfaces(),
@@ -1885,7 +1990,12 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
             cli_reach: BundleNonVisualReachState::ReachableAndLabeled,
             export_summary: BundleExportSummaryState::ReconstructableWithoutScreenshot,
             export_summary_ref: "summary:bundle-rollback-remove-card:a11y".to_owned(),
-            copy_export: copy_export(&["bundle_id", "rollback_path", "side_effects", "removable_ownership"]),
+            copy_export: copy_export(&[
+                "bundle_id",
+                "rollback_path",
+                "side_effects",
+                "removable_ownership",
+            ]),
             full_support_claim: M5BundleSupportClaim::Certified,
             claim_conditions: vec![condition(
                 M5BundleClaimDimension::ArtifactAvailability,
@@ -1899,7 +2009,11 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
                 preserves_canonical_identity: true,
             }),
             rendering_surfaces: rendering_surfaces(),
-            narrowing_disclosures: narrowed_surfaces(&["bundle_id", "rollback_path", "side_effects"]),
+            narrowing_disclosures: narrowed_surfaces(&[
+                "bundle_id",
+                "rollback_path",
+                "side_effects",
+            ]),
             required_labels: all_required_labels(),
             consumer_surfaces: base_consumers(&[
                 M5BundleDisclosureSurfaceFamily::BundleDetailClassPanel,
@@ -1932,7 +2046,12 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
             cli_reach: BundleNonVisualReachState::ReachableAndLabeled,
             export_summary: BundleExportSummaryState::ReconstructableWithoutScreenshot,
             export_summary_ref: "summary:bundle-class-disclosure-card:a11y".to_owned(),
-            copy_export: copy_export(&["bundle_class", "signer_source", "cert_target", "scorecard_class"]),
+            copy_export: copy_export(&[
+                "bundle_class",
+                "signer_source",
+                "cert_target",
+                "scorecard_class",
+            ]),
             full_support_claim: M5BundleSupportClaim::Certified,
             claim_conditions: vec![condition(
                 M5BundleClaimDimension::SourceProvenance,
@@ -1942,11 +2061,16 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
                 narrowed_to: M5BundleSupportClaim::Imported,
                 binding_dimension: M5BundleClaimDimension::SourceProvenance,
                 trigger: M5BundleComponentDowngradeTrigger::ImportedNotNative,
-                narrowed_label: "Imported user handoff — not a native first-party bundle".to_owned(),
+                narrowed_label: "Imported user handoff — not a native first-party bundle"
+                    .to_owned(),
                 preserves_canonical_identity: true,
             }),
             rendering_surfaces: rendering_surfaces(),
-            narrowing_disclosures: narrowed_surfaces(&["bundle_class", "signer_source", "cert_target"]),
+            narrowing_disclosures: narrowed_surfaces(&[
+                "bundle_class",
+                "signer_source",
+                "cert_target",
+            ]),
             required_labels: all_required_labels(),
             consumer_surfaces: base_consumers(&[
                 M5BundleDisclosureSurfaceFamily::MigrationClassDisclosureRow,
@@ -1979,7 +2103,12 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
             cli_reach: BundleNonVisualReachState::ReachableAndLabeled,
             export_summary: BundleExportSummaryState::ReconstructableWithoutScreenshot,
             export_summary_ref: "summary:bundle-claim-narrowing-row:a11y".to_owned(),
-            copy_export: copy_export(&["bundle_id", "cert_freshness", "imported_confidence", "narrowing_reason"]),
+            copy_export: copy_export(&[
+                "bundle_id",
+                "cert_freshness",
+                "imported_confidence",
+                "narrowing_reason",
+            ]),
             full_support_claim: M5BundleSupportClaim::Certified,
             claim_conditions: vec![condition(
                 M5BundleClaimDimension::CertificationEvidence,
@@ -1993,7 +2122,11 @@ fn seeded_rows() -> Vec<BundleAccessibilityRow> {
                 preserves_canonical_identity: true,
             }),
             rendering_surfaces: rendering_surfaces(),
-            narrowing_disclosures: narrowed_surfaces(&["bundle_id", "cert_freshness", "narrowing_reason"]),
+            narrowing_disclosures: narrowed_surfaces(&[
+                "bundle_id",
+                "cert_freshness",
+                "narrowing_reason",
+            ]),
             required_labels: all_required_labels(),
             consumer_surfaces: base_consumers(&[
                 M5BundleDisclosureSurfaceFamily::MigrationClassDisclosureRow,

@@ -539,7 +539,9 @@ impl M5TrustRepairComponentConditionState {
             Self::PerRootTrustMixed => M5TrustRepairComponentClaim::MixedRootProjection,
             Self::CapabilityNarrowed => M5TrustRepairComponentClaim::NarrowedCapabilityProjection,
             Self::CheckpointMissing => M5TrustRepairComponentClaim::MissingCheckpointProjection,
-            Self::ReversalEvidencePartial => M5TrustRepairComponentClaim::UnprovenReversalProjection,
+            Self::ReversalEvidencePartial => {
+                M5TrustRepairComponentClaim::UnprovenReversalProjection
+            }
         }
     }
 
@@ -1275,9 +1277,11 @@ impl TrustRepairComponentAccessibilityPacket {
 
             // AC: claim never over-asserts a full-trust / reviewable surface for a weakened one.
             if !row.claim_is_honest() {
-                violations.push(TrustRepairComponentAccessibilityViolation::ClaimOverAsserted {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    TrustRepairComponentAccessibilityViolation::ClaimOverAsserted {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // AC / full-trust honesty: a stale-lineage / expired-epoch / mixed-root / unproven-reversal
@@ -1710,14 +1714,20 @@ impl fmt::Display for TrustRepairComponentAccessibilityViolation {
                 )
             }
             Self::NarrowingDropsContextSilently { id } => {
-                write!(f, "row {id} narrows a rendering surface without disclosing it")
+                write!(
+                    f,
+                    "row {id} narrows a rendering surface without disclosing it"
+                )
             }
             Self::MissingConsumerParity { id } => {
                 write!(f, "row {id} is missing secondary consumer parity")
             }
             Self::StrandedRow { id } => write!(f, "row {id} is stranded (red) and may not ship"),
             Self::MissingFamilyCoverage { family } => {
-                write!(f, "component family {family:?} is not certified in the packet")
+                write!(
+                    f,
+                    "component family {family:?} is not certified in the packet"
+                )
             }
             Self::MissingDimensionCoverage { dimension } => {
                 write!(

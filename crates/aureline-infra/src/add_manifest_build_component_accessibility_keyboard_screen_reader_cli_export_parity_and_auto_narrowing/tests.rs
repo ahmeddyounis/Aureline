@@ -9,22 +9,34 @@ fn packet() -> ComponentAccessibilityPacket {
 #[test]
 fn seeded_packet_validates_clean() {
     let violations = packet().validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
 fn packet_identity_is_stamped() {
     let p = packet();
     assert_eq!(p.record_kind, MANIFEST_BUILD_A11Y_FALLBACK_RECORD_KIND);
-    assert_eq!(p.schema_version, MANIFEST_BUILD_A11Y_FALLBACK_SCHEMA_VERSION);
-    assert_eq!(p.matrix_ref, MANIFEST_BUILD_A11Y_FALLBACK_COMPONENT_MATRIX_REF);
+    assert_eq!(
+        p.schema_version,
+        MANIFEST_BUILD_A11Y_FALLBACK_SCHEMA_VERSION
+    );
+    assert_eq!(
+        p.matrix_ref,
+        MANIFEST_BUILD_A11Y_FALLBACK_COMPONENT_MATRIX_REF
+    );
 }
 
 #[test]
 fn every_frozen_family_is_certified() {
     let families = packet().represented_families();
     for family in M5ManifestBuildComponentFamily::ALL {
-        assert!(families.contains(&family), "family {family:?} is not certified");
+        assert!(
+            families.contains(&family),
+            "family {family:?} is not certified"
+        );
     }
     assert_eq!(families.len(), M5ManifestBuildComponentFamily::ALL.len());
 }
@@ -157,9 +169,10 @@ fn overclaimed_execution_on_weak_truth_is_stranded() {
     assert_eq!(row.status(), ComponentAccessibilityStatus::Stranded);
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, ComponentAccessibilityViolation::OverclaimedExecutable { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        ComponentAccessibilityViolation::OverclaimedExecutable { .. }
+    )));
     assert!(violations
         .iter()
         .any(|v| matches!(v, ComponentAccessibilityViolation::StrandedRow { .. })));

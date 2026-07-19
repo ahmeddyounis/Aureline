@@ -216,7 +216,9 @@ pub const fn family_canonical_artifact_ref(
             M5_RESTORE_PREVIEW_GRANULARITY_ARTIFACT_REF
         }
         Family::WriteScopePreviewTree => M5_WRITE_SCOPE_PREVIEW_TREE_ARTIFACT_REF,
-        Family::RetentionExportCard | Family::HistoryExportManifest => M5_COMPARE_EXPORT_ARTIFACT_REF,
+        Family::RetentionExportCard | Family::HistoryExportManifest => {
+            M5_COMPARE_EXPORT_ARTIFACT_REF
+        }
     }
 }
 
@@ -310,7 +312,12 @@ pub enum M5HistoryComponentDescriptor {
 
 impl M5HistoryComponentDescriptor {
     /// Every descriptor, in declaration order.
-    pub const ALL: [Self; 4] = [Self::Checkpoint, Self::Rollback, Self::Restore, Self::Export];
+    pub const ALL: [Self; 4] = [
+        Self::Checkpoint,
+        Self::Rollback,
+        Self::Restore,
+        Self::Export,
+    ];
 
     /// Every descriptor is required on every binding.
     pub const REQUIRED: [Self; 4] = Self::ALL;
@@ -375,9 +382,15 @@ impl M5HistoryConsumerParityHealth {
     pub const fn narrowing_reason(self) -> Option<M5HistoryConsumerNarrowingReason> {
         Some(match self {
             Self::PreviewOnlyNarrowed => M5HistoryConsumerNarrowingReason::PreviewOnlyWorkflow,
-            Self::ExternalDriftNarrowed => M5HistoryConsumerNarrowingReason::ExternalDriftUnreconciled,
-            Self::GeneratedManagedNarrowed => M5HistoryConsumerNarrowingReason::GeneratedOrManagedScope,
-            Self::ExportRedactedNarrowed => M5HistoryConsumerNarrowingReason::ExportRedactionApplied,
+            Self::ExternalDriftNarrowed => {
+                M5HistoryConsumerNarrowingReason::ExternalDriftUnreconciled
+            }
+            Self::GeneratedManagedNarrowed => {
+                M5HistoryConsumerNarrowingReason::GeneratedOrManagedScope
+            }
+            Self::ExportRedactedNarrowed => {
+                M5HistoryConsumerNarrowingReason::ExportRedactionApplied
+            }
             Self::FullParity => return None,
         })
     }
@@ -1547,8 +1560,11 @@ fn validate_consumer_rows(
     packet: &M5HistoryComponentConsumerPacket,
     violations: &mut Vec<M5HistoryComponentConsumerViolation>,
 ) {
-    let present: BTreeSet<M5HistoryComponentConsumer> =
-        packet.consumer_rows.iter().map(|row| row.consumer).collect();
+    let present: BTreeSet<M5HistoryComponentConsumer> = packet
+        .consumer_rows
+        .iter()
+        .map(|row| row.consumer)
+        .collect();
     for required in M5HistoryComponentConsumer::ALL {
         if !present.contains(&required) {
             violations.push(M5HistoryComponentConsumerViolation::RequiredConsumerMissing);

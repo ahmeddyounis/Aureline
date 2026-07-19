@@ -39,7 +39,10 @@ fn card_fully_shareable_offers_compare_and_export() {
     assert!(resolved.baseline_comparison_offered);
     assert!(resolved.discloses_retention_and_redaction);
     assert!(!resolved.hides_compare_baseline);
-    assert_eq!(resolved.available_baselines, M5CompareBaseline::ALL.to_vec());
+    assert_eq!(
+        resolved.available_baselines,
+        M5CompareBaseline::ALL.to_vec()
+    );
     assert_eq!(
         resolved.available_actions,
         vec![
@@ -182,7 +185,10 @@ fn manifest_full_evidence_is_shareable() {
             M5ExportManifestAction::ExportManifest,
         ]
     );
-    assert_eq!(resolved.manifest_label, "history manifest: session audit trail");
+    assert_eq!(
+        resolved.manifest_label,
+        "history manifest: session audit trail"
+    );
 }
 
 #[test]
@@ -429,9 +435,9 @@ fn every_worked_case_is_self_consistent_and_preserves_identity() {
 #[test]
 fn missing_consumer_surface_fails() {
     let mut packet = seeded_m5_compare_export_packet();
-    packet
-        .rows
-        .retain(|row| row.consumer_surface != M5CompareExportConsumerSurface::ImportMigrationSession);
+    packet.rows.retain(|row| {
+        row.consumer_surface != M5CompareExportConsumerSurface::ImportMigrationSession
+    });
     assert!(packet
         .validate()
         .contains(&M5CompareExportViolation::RequiredConsumerMissing));
@@ -495,7 +501,9 @@ fn card_baseline_coverage_unproven_fails() {
 fn card_retention_coverage_unproven_fails() {
     let mut packet = seeded_m5_compare_export_packet();
     for row in &mut packet.rows {
-        row.card_examples = vec![M5RetentionExportCardResolutionCase::resolved(shareable_card())];
+        row.card_examples = vec![M5RetentionExportCardResolutionCase::resolved(
+            shareable_card(),
+        )];
     }
     assert!(packet
         .validate()
@@ -506,7 +514,9 @@ fn card_retention_coverage_unproven_fails() {
 fn card_export_coverage_unproven_fails() {
     let mut packet = seeded_m5_compare_export_packet();
     for row in &mut packet.rows {
-        row.card_examples = vec![M5RetentionExportCardResolutionCase::resolved(shareable_card())];
+        row.card_examples = vec![M5RetentionExportCardResolutionCase::resolved(
+            shareable_card(),
+        )];
     }
     assert!(packet
         .validate()
@@ -517,8 +527,9 @@ fn card_export_coverage_unproven_fails() {
 fn manifest_shareable_coverage_unproven_fails() {
     let mut packet = seeded_m5_compare_export_packet();
     for row in &mut packet.rows {
-        row.manifest_examples =
-            vec![M5HistoryExportManifestResolutionCase::resolved(full_evidence_manifest())];
+        row.manifest_examples = vec![M5HistoryExportManifestResolutionCase::resolved(
+            full_evidence_manifest(),
+        )];
     }
     assert!(packet
         .validate()
@@ -529,8 +540,9 @@ fn manifest_shareable_coverage_unproven_fails() {
 fn manifest_baseline_coverage_unproven_fails() {
     let mut packet = seeded_m5_compare_export_packet();
     for row in &mut packet.rows {
-        row.manifest_examples =
-            vec![M5HistoryExportManifestResolutionCase::resolved(full_evidence_manifest())];
+        row.manifest_examples = vec![M5HistoryExportManifestResolutionCase::resolved(
+            full_evidence_manifest(),
+        )];
     }
     // Every manifest now shares the CurrentVsSnapshot baseline, so the disk / Git halves fail.
     assert!(packet
@@ -577,7 +589,9 @@ fn governance_review_incomplete_fails() {
 #[test]
 fn consumer_projection_incomplete_fails() {
     let mut packet = seeded_m5_compare_export_packet();
-    packet.consumer_projection.manifest_disposition_reads_single_source = false;
+    packet
+        .consumer_projection
+        .manifest_disposition_reads_single_source = false;
     assert!(packet
         .validate()
         .contains(&M5CompareExportViolation::ConsumerProjectionIncomplete));

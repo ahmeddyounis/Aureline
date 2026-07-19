@@ -436,9 +436,11 @@ impl OwnershipExplainerComponentPacket {
                 || card.authority_boundary_ref.trim().is_empty()
                 || !card.service_oncall_separation
             {
-                violations.push(OwnershipExplainerComponentViolation::IncompleteOwnershipCard {
-                    id: card.card_id.clone(),
-                });
+                violations.push(
+                    OwnershipExplainerComponentViolation::IncompleteOwnershipCard {
+                        id: card.card_id.clone(),
+                    },
+                );
             }
             // AC1: distinct roles are never collapsed into one ambiguous owner.
             if !card.distinguishes_roles() {
@@ -456,9 +458,11 @@ impl OwnershipExplainerComponentPacket {
             }
             // Role separation and provenance must survive the export.
             if !card.preserves_truth_in_export() {
-                violations.push(OwnershipExplainerComponentViolation::OwnershipTruthNotExported {
-                    id: card.card_id.clone(),
-                });
+                violations.push(
+                    OwnershipExplainerComponentViolation::OwnershipTruthNotExported {
+                        id: card.card_id.clone(),
+                    },
+                );
             }
             // AC3: generated ownership summaries narrow on stale/degraded truth.
             if card.generated_but_not_narrowed() {
@@ -478,10 +482,12 @@ impl OwnershipExplainerComponentPacket {
                     .consumer_surfaces
                     .contains(&ComponentConsumerSurface::OwnershipBrowser)
             {
-                violations.push(OwnershipExplainerComponentViolation::MissingConsumerParity {
-                    kind: "ownership_card",
-                    id: card.card_id.clone(),
-                });
+                violations.push(
+                    OwnershipExplainerComponentViolation::MissingConsumerParity {
+                        kind: "ownership_card",
+                        id: card.card_id.clone(),
+                    },
+                );
             }
         }
 
@@ -524,9 +530,11 @@ impl OwnershipExplainerComponentPacket {
             }
             // Citations and provenance must survive the export.
             if !card.preserves_truth_in_export() {
-                violations.push(OwnershipExplainerComponentViolation::ExplainerTruthNotExported {
-                    id: card.card_id.clone(),
-                });
+                violations.push(
+                    OwnershipExplainerComponentViolation::ExplainerTruthNotExported {
+                        id: card.card_id.clone(),
+                    },
+                );
             }
             // AC3: generated summaries narrow when citations/freshness/scope are
             // incomplete.
@@ -557,10 +565,12 @@ impl OwnershipExplainerComponentPacket {
                 .contains(&ComponentConsumerSurface::ArchitectureExplainer)
                 || !spans_secondary
             {
-                violations.push(OwnershipExplainerComponentViolation::MissingConsumerParity {
-                    kind: "explainer_section_card",
-                    id: card.card_id.clone(),
-                });
+                violations.push(
+                    OwnershipExplainerComponentViolation::MissingConsumerParity {
+                        kind: "explainer_section_card",
+                        id: card.card_id.clone(),
+                    },
+                );
             }
         }
 

@@ -76,14 +76,18 @@ use crate::implement_the_m5_bundle_detail_pages_and_install_update_review_sheets
 // Reused canonical review / rollback vocabulary — the removal primitive binds to the same
 // ownership, operation, and checkpoint model the install / update / remove / drift review flows
 // already carry.
-use crate::m5_bundle_review_and_rollback::{AssetOwnership, BundleReviewOperation, RollbackCheckpoint};
+use crate::m5_bundle_review_and_rollback::{
+    AssetOwnership, BundleReviewOperation, RollbackCheckpoint,
+};
 // Reused canonical bundle / scorecard / governance vocabulary already carried by the frozen
 // bundle-manifest, scorecard, and entry-governance contracts.
 use crate::m5_bundle_scorecards::{
     BundleScorecardClass, EvidenceFreshness, ImportedVsNativeConfidence,
 };
 use crate::m5_entry_and_bundle_governance::{BundleClass, SourceTrust};
-use crate::m5_workflow_bundle_manifests::{BundleComponentKind, CertificationTarget, LifecycleStage};
+use crate::m5_workflow_bundle_manifests::{
+    BundleComponentKind, CertificationTarget, LifecycleStage,
+};
 
 /// Stable record-kind tag carried by [`M5BundleRollbackRemovePacket`].
 pub const M5_BUNDLE_REMOVAL_RECORD_KIND: &str = "m5_bundle_rollback_remove_primitive";
@@ -714,7 +718,11 @@ impl M5BundleRemovalResolutionError {
 
 impl fmt::Display for M5BundleRemovalResolutionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "bundle-removal resolution error: {}", self.as_str())
+        write!(
+            formatter,
+            "bundle-removal resolution error: {}",
+            self.as_str()
+        )
     }
 }
 
@@ -836,8 +844,11 @@ pub fn resolve_bundle_removal(
     // Enumerate the origins and safe-to-remove classes present across the inventory, sorted.
     let origins: BTreeSet<M5RemovalAssetOrigin> = input.assets.iter().map(|a| a.origin).collect();
     let origins_present: Vec<M5RemovalAssetOrigin> = origins.into_iter().collect();
-    let classes: BTreeSet<M5SafeToRemoveClass> =
-        input.assets.iter().map(|a| a.safe_to_remove_class).collect();
+    let classes: BTreeSet<M5SafeToRemoveClass> = input
+        .assets
+        .iter()
+        .map(|a| a.safe_to_remove_class)
+        .collect();
     let safe_to_remove_classes_present: Vec<M5SafeToRemoveClass> = classes.into_iter().collect();
 
     let bundle_created_count = input
@@ -845,7 +856,11 @@ pub fn resolve_bundle_removal(
         .iter()
         .filter(|a| !a.origin.is_user_owned())
         .count();
-    let user_owned_count = input.assets.iter().filter(|a| a.origin.is_user_owned()).count();
+    let user_owned_count = input
+        .assets
+        .iter()
+        .filter(|a| a.origin.is_user_owned())
+        .count();
 
     let provides_checkpoint_restore = input.operation.is_mutating();
 
@@ -1333,7 +1348,10 @@ impl M5BundleRollbackRemovePacket {
             out.push_str(&format!("- **{}**\n", row.surface_family.label()));
             out.push_str(&format!("  - Owner: {}\n", row.owner_role));
             out.push_str(&format!("  - Scope: {}\n", row.scope_summary));
-            out.push_str(&format!("  - Worked cases: {}\n", row.example_removals.len()));
+            out.push_str(&format!(
+                "  - Worked cases: {}\n",
+                row.example_removals.len()
+            ));
             for case in &row.example_removals {
                 out.push_str(&format!(
                     "    - `{}` → op `{}`, {} asset(s): {} reverted / {} kept-local / {} manual\n",
@@ -1604,7 +1622,9 @@ fn validate_acceptance_criteria_covered(
 
     // AC2: every case states the partition, and the matrix demonstrates a reverted asset, a
     // kept-local asset, and a manual-follow-up asset.
-    let has_reverted = cases.iter().any(|resolved| !resolved.card.reverted.is_empty());
+    let has_reverted = cases
+        .iter()
+        .any(|resolved| !resolved.card.reverted.is_empty());
     let has_kept_local = cases
         .iter()
         .any(|resolved| !resolved.card.kept_local.is_empty());

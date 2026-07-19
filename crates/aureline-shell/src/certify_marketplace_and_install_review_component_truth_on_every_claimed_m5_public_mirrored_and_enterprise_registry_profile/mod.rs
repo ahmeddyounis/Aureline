@@ -877,9 +877,11 @@ impl MarketplaceInstallProfileCertificationPacket {
 
             // Every B131 guardrail must hold.
             if !row.guardrails.all_held() {
-                violations.push(MarketplaceInstallCertificationViolation::GuardrailViolated {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    MarketplaceInstallCertificationViolation::GuardrailViolated {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // Only a public first-party profile may certify an install-ready result.
@@ -949,7 +951,8 @@ impl MarketplaceInstallProfileCertificationPacket {
         if json_contains_forbidden_material(
             &serde_json::to_value(self).expect("certification packet serializes"),
         ) {
-            violations.push(MarketplaceInstallCertificationViolation::RawMarketplaceMaterialInExport);
+            violations
+                .push(MarketplaceInstallCertificationViolation::RawMarketplaceMaterialInExport);
         }
 
         violations
@@ -1029,9 +1032,10 @@ impl MarketplaceInstallProfileCertificationPacket {
 }
 
 /// Reads and validates the checked-in certification export.
-pub fn current_m5_marketplace_install_component_certification_export(
-) -> Result<MarketplaceInstallProfileCertificationPacket, MarketplaceInstallCertificationArtifactError>
-{
+pub fn current_m5_marketplace_install_component_certification_export() -> Result<
+    MarketplaceInstallProfileCertificationPacket,
+    MarketplaceInstallCertificationArtifactError,
+> {
     let packet: MarketplaceInstallProfileCertificationPacket = serde_json::from_str(include_str!(
         concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -1161,10 +1165,16 @@ class, or an incompatible / over-budget artifact presented as install-ready"
                 )
             }
             Self::CertifiedClaimExceedsClaim { id } => {
-                write!(f, "row {id} certifies a claim stronger than the claimed one")
+                write!(
+                    f,
+                    "row {id} certifies a claim stronger than the claimed one"
+                )
             }
             Self::StatusDerivationStale { id } => {
-                write!(f, "row {id} stored status disagrees with a fresh derivation")
+                write!(
+                    f,
+                    "row {id} stored status disagrees with a fresh derivation"
+                )
             }
             Self::ProfileBlocked { id } => {
                 write!(
@@ -1416,7 +1426,10 @@ fn seed_row(
         canonical_bundle_ref: MARKETPLACE_INSTALL_CERT_CANONICAL_BUNDLE_REF.to_owned(),
         derived_status: MarketplaceInstallProfileClaimStatus::Green,
         export_parity: seed_export_parity(export_fields),
-        compatibility_notes: compatibility_notes.iter().map(|n| (*n).to_owned()).collect(),
+        compatibility_notes: compatibility_notes
+            .iter()
+            .map(|n| (*n).to_owned())
+            .collect(),
         source_refs: vec![
             MARKETPLACE_INSTALL_CERT_MATRIX_REF.to_owned(),
             MARKETPLACE_INSTALL_CERT_SCHEMA_REF.to_owned(),

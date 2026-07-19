@@ -9,7 +9,10 @@ fn packet() -> ManifestBuildConsumerPacket {
 #[test]
 fn seeded_packet_is_valid() {
     let violations = packet().validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -62,21 +65,36 @@ fn a_family_is_reused_across_groups() {
 #[test]
 fn every_row_preserves_target_context_and_labels() {
     for row in packet().rows {
-        assert!(row.preserves_target_context(), "row {} dropped target context", row.row_id);
-        assert!(row.preserves_labels(), "row {} broke label parity", row.row_id);
+        assert!(
+            row.preserves_target_context(),
+            "row {} dropped target context",
+            row.row_id
+        );
+        assert!(
+            row.preserves_labels(),
+            "row {} broke label parity",
+            row.row_id
+        );
     }
 }
 
 #[test]
 fn narrowed_rows_carry_matching_banner() {
     for row in packet().rows {
-        assert!(row.discloses_narrowing(), "row {} narrowing not disclosed", row.row_id);
+        assert!(
+            row.discloses_narrowing(),
+            "row {} narrowing not disclosed",
+            row.row_id
+        );
         if row.is_narrowed() {
             let banner = row
                 .reduced_capability_banner
                 .as_ref()
                 .expect("narrowed row has banner");
-            assert_eq!(banner.capability_state, row.authority_mode.capability_state());
+            assert_eq!(
+                banner.capability_state,
+                row.authority_mode.capability_state()
+            );
             assert_eq!(row.label_parity, LabelParityState::DisclosedNarrowed);
         } else {
             assert!(row.reduced_capability_banner.is_none());
@@ -138,7 +156,11 @@ fn every_surface_matches_its_declared_group() {
 #[test]
 fn copy_export_is_screenshot_safe() {
     for row in packet().rows {
-        assert!(row.copy_export.is_export_safe(), "row {} not export-safe", row.row_id);
+        assert!(
+            row.copy_export.is_export_safe(),
+            "row {} not export-safe",
+            row.row_id
+        );
     }
 }
 
@@ -158,10 +180,10 @@ fn detects_dropped_target_context() {
     let mut p = packet();
     p.rows[0].target_context_ref = "  ".to_owned();
     p.summary = p.computed_summary();
-    assert!(p
-        .validate()
-        .iter()
-        .any(|v| matches!(v, ManifestBuildConsumerViolation::TargetContextDropped { .. })));
+    assert!(p.validate().iter().any(|v| matches!(
+        v,
+        ManifestBuildConsumerViolation::TargetContextDropped { .. }
+    )));
 }
 
 #[test]
@@ -175,10 +197,10 @@ fn detects_undisclosed_narrowing() {
         .expect("a narrowed row");
     p.rows[idx].reduced_capability_banner = None;
     p.summary = p.computed_summary();
-    assert!(p
-        .validate()
-        .iter()
-        .any(|v| matches!(v, ManifestBuildConsumerViolation::NarrowedWithoutDisclosure { .. })));
+    assert!(p.validate().iter().any(|v| matches!(
+        v,
+        ManifestBuildConsumerViolation::NarrowedWithoutDisclosure { .. }
+    )));
 }
 
 #[test]
@@ -192,10 +214,10 @@ fn detects_confidence_inconsistency() {
         .expect("a heuristic row");
     p.rows[idx].discovery_confidence = M5DiscoveryConfidence::High;
     p.summary = p.computed_summary();
-    assert!(p
-        .validate()
-        .iter()
-        .any(|v| matches!(v, ManifestBuildConsumerViolation::ConfidenceInconsistent { .. })));
+    assert!(p.validate().iter().any(|v| matches!(
+        v,
+        ManifestBuildConsumerViolation::ConfidenceInconsistent { .. }
+    )));
 }
 
 #[test]
@@ -213,10 +235,10 @@ fn detects_surface_group_mismatch() {
     let mut p = packet();
     p.rows[0].consumer_group = ConsumerGroup::AiExplanation;
     p.summary = p.computed_summary();
-    assert!(p
-        .validate()
-        .iter()
-        .any(|v| matches!(v, ManifestBuildConsumerViolation::SurfaceGroupMismatch { .. })));
+    assert!(p.validate().iter().any(|v| matches!(
+        v,
+        ManifestBuildConsumerViolation::SurfaceGroupMismatch { .. }
+    )));
 }
 
 #[test]

@@ -119,9 +119,7 @@ const fn family_is_hierarchy_heavy(family: M5ExecutionComponentFamily) -> bool {
 /// The execution-lifecycle dimension whose weakening a family primarily discloses.
 /// Every row must model at least this dimension so its key weakening axis is
 /// covered.
-const fn family_primary_dimension(
-    family: M5ExecutionComponentFamily,
-) -> M5ExecutionClaimDimension {
+const fn family_primary_dimension(family: M5ExecutionComponentFamily) -> M5ExecutionClaimDimension {
     match family {
         M5ExecutionComponentFamily::RunAttemptHeader
         | M5ExecutionComponentFamily::RerunComparisonSheet => {
@@ -1051,9 +1049,11 @@ impl ExecutionAccessibilityPacket {
                     .fallback_modalities
                     .contains(&M5FallbackModality::Structured)
             {
-                violations.push(ExecutionAccessibilityViolation::HierarchyHeavyMissingStructured {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    ExecutionAccessibilityViolation::HierarchyHeavyMissingStructured {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // AC1: claim never over-asserts control for a weakened lane.
@@ -1104,8 +1104,7 @@ impl ExecutionAccessibilityPacket {
         // Coverage: every frozen family is certified at least once.
         for family in M5ExecutionComponentFamily::ALL {
             if !seen_families.contains(&family) {
-                violations
-                    .push(ExecutionAccessibilityViolation::MissingFamilyCoverage { family });
+                violations.push(ExecutionAccessibilityViolation::MissingFamilyCoverage { family });
             }
         }
 
@@ -1134,7 +1133,8 @@ impl ExecutionAccessibilityPacket {
         }
 
         if json_contains_forbidden_material(
-            &serde_json::to_value(self).expect("execution accessibility fallback packet serializes"),
+            &serde_json::to_value(self)
+                .expect("execution accessibility fallback packet serializes"),
         ) {
             violations.push(ExecutionAccessibilityViolation::RawBoundaryMaterialInExport);
         }
@@ -1243,7 +1243,10 @@ impl fmt::Display for ExecutionAccessibilityArtifactError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SupportExport(error) => {
-                write!(f, "execution accessibility fallback export parse failed: {error}")
+                write!(
+                    f,
+                    "execution accessibility fallback export parse failed: {error}"
+                )
             }
             Self::Validation(violations) => {
                 write!(
@@ -1361,7 +1364,10 @@ impl fmt::Display for ExecutionAccessibilityViolation {
                 )
             }
             Self::NarrowingDropsContextSilently { id } => {
-                write!(f, "row {id} narrows a rendering surface without disclosing it")
+                write!(
+                    f,
+                    "row {id} narrows a rendering surface without disclosing it"
+                )
             }
             Self::MissingConsumerParity { id } => {
                 write!(f, "row {id} is missing secondary consumer parity")
@@ -1640,7 +1646,12 @@ fn seeded_rows() -> Vec<ExecutionAccessibilityRow> {
             cli_reach: NonVisualReachState::ReachableAndLabeled,
             export_summary: ExportSummaryState::ReconstructableWithoutScreenshot,
             export_summary_ref: "summary:artifact-publish-row:a11y".to_owned(),
-            copy_export: copy_export(&["artifact_id", "producing_run_ref", "retention", "freshness"]),
+            copy_export: copy_export(&[
+                "artifact_id",
+                "producing_run_ref",
+                "retention",
+                "freshness",
+            ]),
             full_interactive_claim: M5ExecutionInteractiveClaim::FullInteractive,
             claim_conditions: vec![condition(
                 M5ExecutionClaimDimension::ArtifactFreshness,

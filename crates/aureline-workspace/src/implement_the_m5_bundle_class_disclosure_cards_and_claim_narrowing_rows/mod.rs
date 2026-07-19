@@ -679,7 +679,8 @@ pub struct M5ResolvedBundleClassDisclosure {
 impl M5ResolvedBundleClassDisclosure {
     /// True when the disclosure identity is identical across the card and claim-narrowing row.
     pub fn identity_consistent(&self) -> bool {
-        self.card.disclosure_id == self.disclosure_id && self.row.disclosure_id == self.disclosure_id
+        self.card.disclosure_id == self.disclosure_id
+            && self.row.disclosure_id == self.disclosure_id
     }
 
     /// True when native-parity language is not over-claimed (AC2).
@@ -803,7 +804,10 @@ pub fn resolve_bundle_class_disclosure(
     }
 
     // The disclosure class must be honest for the certification target the manifest claims.
-    if !input.disclosure_class.permits_source_class(input.source_class) {
+    if !input
+        .disclosure_class
+        .permits_source_class(input.source_class)
+    {
         return Err(M5BundleClassDisclosureResolutionError::ClassSourceMismatch);
     }
 
@@ -930,10 +934,7 @@ fn build_narrowing_reason(
         ));
     }
     if strength.rank() < input.scorecard_class.rank() {
-        drivers.push(format!(
-            "support claim capped to {}",
-            strength.as_str()
-        ));
+        drivers.push(format!("support claim capped to {}", strength.as_str()));
     }
     if drivers.is_empty() {
         drivers.push("an external narrowing was observed".to_owned());
@@ -1298,7 +1299,8 @@ impl M5BundleClassDisclosurePacket {
         validate_release_posture(self, &mut violations);
 
         if json_contains_forbidden_material(
-            &serde_json::to_value(self).expect("m5 bundle class-disclosure primitive packet serializes"),
+            &serde_json::to_value(self)
+                .expect("m5 bundle class-disclosure primitive packet serializes"),
         ) {
             violations.push(M5BundleDisclosureViolation::RawMaterialInExport);
         }

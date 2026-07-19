@@ -217,7 +217,10 @@ fn profile_tokens_are_unique() {
         .iter()
         .map(|s| s.as_str())
         .collect();
-    assert_eq!(tokens.len(), M5MarketplaceInstallCertifiedProfile::ALL.len());
+    assert_eq!(
+        tokens.len(),
+        M5MarketplaceInstallCertifiedProfile::ALL.len()
+    );
 }
 
 #[test]
@@ -289,7 +292,10 @@ fn guardrail_breach_blocks_the_profile() {
     let row = &mut p.rows[idx];
     row.guardrails
         .collapses_registry_source_class_across_public_mirrored_enterprise = true;
-    assert_eq!(row.derive_status(), MarketplaceInstallProfileClaimStatus::Red);
+    assert_eq!(
+        row.derive_status(),
+        MarketplaceInstallProfileClaimStatus::Red
+    );
     row.derived_status = row.derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
@@ -312,7 +318,10 @@ fn non_public_profile_claiming_install_ready_blocks() {
     // block is the non-public rule, not a certified-exceeds-claim strengthening.
     row.claimed_claim = M5MarketplaceComponentClaim::InstallReadyResult;
     row.certified_claim = M5MarketplaceComponentClaim::InstallReadyResult;
-    assert_eq!(row.derive_status(), MarketplaceInstallProfileClaimStatus::Red);
+    assert_eq!(
+        row.derive_status(),
+        MarketplaceInstallProfileClaimStatus::Red
+    );
     row.derived_status = row.derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
@@ -346,7 +355,10 @@ fn degraded_axis_without_claim_narrowing_blocks() {
         }
     }
     // Claim stays ReviewableListingResult == certified, no claim_auto_narrow.
-    assert_eq!(row.derive_status(), MarketplaceInstallProfileClaimStatus::Red);
+    assert_eq!(
+        row.derive_status(),
+        MarketplaceInstallProfileClaimStatus::Red
+    );
 }
 
 #[test]
@@ -361,7 +373,10 @@ fn cli_export_drop_blocks_the_profile() {
             outcome.downgrade_trigger = Some(M5MarketplaceInstallDowngradeTrigger::ProofStale);
         }
     }
-    assert_eq!(row.derive_status(), MarketplaceInstallProfileClaimStatus::Red);
+    assert_eq!(
+        row.derive_status(),
+        MarketplaceInstallProfileClaimStatus::Red
+    );
 }
 
 #[test]
@@ -370,7 +385,10 @@ fn incomplete_copy_export_blocks_the_profile() {
     let row = &mut p.rows[0];
     row.export_parity.formats.retain(|f| f != "markdown");
     assert!(!row.export_parity.is_complete());
-    assert_eq!(row.derive_status(), MarketplaceInstallProfileClaimStatus::Red);
+    assert_eq!(
+        row.derive_status(),
+        MarketplaceInstallProfileClaimStatus::Red
+    );
 }
 
 #[test]
@@ -383,7 +401,10 @@ fn spurious_claim_auto_narrow_without_claim_reduction_blocks() {
         to_claim: M5MarketplaceComponentClaim::InstallReadyResult,
         visible_label: "a spurious narrowing that does not reduce the claim".to_owned(),
     });
-    assert_eq!(row.derive_status(), MarketplaceInstallProfileClaimStatus::Red);
+    assert_eq!(
+        row.derive_status(),
+        MarketplaceInstallProfileClaimStatus::Red
+    );
 }
 
 #[test]
@@ -392,7 +413,10 @@ fn claim_narrowed_without_disclosure_blocks() {
     let row = &mut p.rows[0];
     row.certified_claim = M5MarketplaceComponentClaim::CompatibilityUnverifiedProjection;
     row.claim_auto_narrow = None;
-    assert_eq!(row.derive_status(), MarketplaceInstallProfileClaimStatus::Red);
+    assert_eq!(
+        row.derive_status(),
+        MarketplaceInstallProfileClaimStatus::Red
+    );
 }
 
 #[test]
@@ -407,7 +431,10 @@ fn certified_claim_above_claim_blocks() {
     // claimed is ReviewableListingResult; certify a stronger install-ready result.
     row.certified_claim = M5MarketplaceComponentClaim::InstallReadyResult;
     assert!(row.certified_claim.capability_rank() > row.claimed_claim.capability_rank());
-    assert_eq!(row.derive_status(), MarketplaceInstallProfileClaimStatus::Red);
+    assert_eq!(
+        row.derive_status(),
+        MarketplaceInstallProfileClaimStatus::Red
+    );
     row.derived_status = row.derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
@@ -429,7 +456,10 @@ fn claim_auto_narrow_bound_to_wrong_axis_blocks() {
     if let Some(narrow) = row.claim_auto_narrow.as_mut() {
         narrow.binding_axis = MarketplaceInstallCertificationAxis::Visual;
     }
-    assert_eq!(row.derive_status(), MarketplaceInstallProfileClaimStatus::Red);
+    assert_eq!(
+        row.derive_status(),
+        MarketplaceInstallProfileClaimStatus::Red
+    );
 }
 
 #[test]
@@ -453,7 +483,10 @@ fn claim_auto_narrow_bound_to_always_on_axis_blocks() {
     if let Some(narrow) = row.claim_auto_narrow.as_mut() {
         narrow.binding_axis = MarketplaceInstallCertificationAxis::CliExport;
     }
-    assert_eq!(row.derive_status(), MarketplaceInstallProfileClaimStatus::Red);
+    assert_eq!(
+        row.derive_status(),
+        MarketplaceInstallProfileClaimStatus::Red
+    );
 }
 
 #[test]
@@ -468,7 +501,10 @@ fn generic_narrow_label_blocks() {
     if let Some(narrow) = row.claim_auto_narrow.as_mut() {
         narrow.visible_label = "incompatible".to_owned();
     }
-    assert_eq!(row.derive_status(), MarketplaceInstallProfileClaimStatus::Red);
+    assert_eq!(
+        row.derive_status(),
+        MarketplaceInstallProfileClaimStatus::Red
+    );
 }
 
 #[test]
@@ -497,8 +533,9 @@ fn disclosed_axis_missing_trigger_is_malformed() {
 #[test]
 fn missing_profile_is_rejected() {
     let mut p = packet();
-    p.rows
-        .retain(|r| r.profile != M5MarketplaceInstallCertifiedProfile::TransferredPublisherRegistry);
+    p.rows.retain(|r| {
+        r.profile != M5MarketplaceInstallCertifiedProfile::TransferredPublisherRegistry
+    });
     p.summary = p.computed_summary();
     let violations = p.validate();
     assert!(violations.iter().any(|v| matches!(
@@ -595,10 +632,9 @@ fn summary_mismatch_is_rejected() {
     let mut p = packet();
     p.summary.row_count += 1;
     let violations = p.validate();
-    assert!(violations.iter().any(|v| matches!(
-        v,
-        MarketplaceInstallCertificationViolation::SummaryMismatch
-    )));
+    assert!(violations
+        .iter()
+        .any(|v| matches!(v, MarketplaceInstallCertificationViolation::SummaryMismatch)));
 }
 
 #[test]
@@ -659,8 +695,8 @@ fn markdown_summary_lists_every_row() {
 
 #[test]
 fn checked_in_export_matches_seeded_builder() {
-    let on_disk = current_m5_marketplace_install_component_certification_export()
-        .expect("export is valid");
+    let on_disk =
+        current_m5_marketplace_install_component_certification_export().expect("export is valid");
     assert_eq!(
         on_disk.export_safe_json(),
         packet().export_safe_json(),

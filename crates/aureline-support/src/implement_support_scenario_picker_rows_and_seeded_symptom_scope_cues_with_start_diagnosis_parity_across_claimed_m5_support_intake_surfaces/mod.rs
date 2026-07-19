@@ -420,8 +420,13 @@ pub const fn scenario_is_unmapped(
     scenario_family: M5SupportScenarioFamily,
     doctor_finding_family: M5DoctorFindingFamily,
 ) -> bool {
-    matches!(scenario_family, M5SupportScenarioFamily::UncategorizedScenario)
-        || matches!(doctor_finding_family, M5DoctorFindingFamily::UncategorizedFinding)
+    matches!(
+        scenario_family,
+        M5SupportScenarioFamily::UncategorizedScenario
+    ) || matches!(
+        doctor_finding_family,
+        M5DoctorFindingFamily::UncategorizedFinding
+    )
 }
 
 // ---- support-scenario-picker-row resolver -------------------------------
@@ -1066,10 +1071,7 @@ impl M5ScenarioPickerRowPacket {
             ));
             out.push_str(&format!("  - Owner: {}\n", row.owner_role));
             out.push_str(&format!("  - Scope: {}\n", row.scope_summary));
-            out.push_str(&format!(
-                "  - Worked rows: {}\n",
-                row.picker_examples.len()
-            ));
+            out.push_str(&format!("  - Worked rows: {}\n", row.picker_examples.len()));
             for case in &row.picker_examples {
                 out.push_str(&format!(
                     "    - `{}` (`{}` / `{}`) → `{}` (start `{}`, local-only `{}`, mapped `{}`)\n",
@@ -1421,14 +1423,16 @@ fn validate_scenario_mapping_coverage(
     packet: &M5ScenarioPickerRowPacket,
     violations: &mut Vec<M5ScenarioPickerRowViolation>,
 ) {
-    let has_mapped = packet
-        .rows
-        .iter()
-        .any(|row| row.picker_examples.iter().any(|case| case.resolved.is_scenario_mapped));
-    let has_unmapped = packet
-        .rows
-        .iter()
-        .any(|row| row.picker_examples.iter().any(|case| !case.resolved.is_scenario_mapped));
+    let has_mapped = packet.rows.iter().any(|row| {
+        row.picker_examples
+            .iter()
+            .any(|case| case.resolved.is_scenario_mapped)
+    });
+    let has_unmapped = packet.rows.iter().any(|row| {
+        row.picker_examples
+            .iter()
+            .any(|case| !case.resolved.is_scenario_mapped)
+    });
     if !(has_mapped && has_unmapped) {
         violations.push(M5ScenarioPickerRowViolation::ScenarioMappingCoverageUnproven);
     }
@@ -1442,14 +1446,16 @@ fn validate_scope_coverage(
     packet: &M5ScenarioPickerRowPacket,
     violations: &mut Vec<M5ScenarioPickerRowViolation>,
 ) {
-    let has_focused = packet
-        .rows
-        .iter()
-        .any(|row| row.picker_examples.iter().any(|case| !case.resolved.needs_scope_confirmation));
-    let has_wide = packet
-        .rows
-        .iter()
-        .any(|row| row.picker_examples.iter().any(|case| case.resolved.needs_scope_confirmation));
+    let has_focused = packet.rows.iter().any(|row| {
+        row.picker_examples
+            .iter()
+            .any(|case| !case.resolved.needs_scope_confirmation)
+    });
+    let has_wide = packet.rows.iter().any(|row| {
+        row.picker_examples
+            .iter()
+            .any(|case| case.resolved.needs_scope_confirmation)
+    });
     if !(has_focused && has_wide) {
         violations.push(M5ScenarioPickerRowViolation::ScopeCoverageUnproven);
     }

@@ -1672,7 +1672,8 @@ fn validate_source_contracts(
         M5_SUPPORT_INTAKE_ESCALATION_COMPONENT_REDACTION_PROFILE_REF,
     ] {
         if !refs.contains(required) {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::MissingSourceContracts);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::MissingSourceContracts);
             return;
         }
     }
@@ -1711,78 +1712,96 @@ fn validate_component_rows(
             || row.source_contract_refs.is_empty()
             || row.required_labels.is_empty()
         {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::ComponentRowIncomplete);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::ComponentRowIncomplete);
         }
         if !row.declares_mandatory_labels() {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::MandatoryLabelMissing);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::MandatoryLabelMissing);
         }
         if family.is_support_scenario_picker_row() && row.scenario_families.is_empty() {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::ScenarioFamilyMissing);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::ScenarioFamilyMissing);
         }
         if family.is_support_scenario_picker_row() && row.incident_scopes.is_empty() {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::IncidentScopeMissing);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::IncidentScopeMissing);
         }
         if family.is_support_scenario_picker_row() && row.doctor_finding_families.is_empty() {
-            violations
-                .push(M5SupportIntakeEscalationComponentMatrixViolation::DoctorFindingFamilyMissing);
+            violations.push(
+                M5SupportIntakeEscalationComponentMatrixViolation::DoctorFindingFamilyMissing,
+            );
         }
         if family.is_issue_report_builder_step() && row.builder_step_kinds.is_empty() {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::BuilderStepKindMissing);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::BuilderStepKindMissing);
         }
         if family.is_issue_report_builder_step() && row.evidence_classes.is_empty() {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::EvidenceClassMissing);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::EvidenceClassMissing);
         }
         if family.is_escalation_packet_summary() && row.packet_destinations.is_empty() {
             violations
                 .push(M5SupportIntakeEscalationComponentMatrixViolation::PacketDestinationMissing);
         }
         if family.is_escalation_packet_summary() && row.redaction_states.is_empty() {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::RedactionStateMissing);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::RedactionStateMissing);
         }
         if family.is_handoff_timeline_row() && row.handoff_stages.is_empty() {
             violations.push(M5SupportIntakeEscalationComponentMatrixViolation::HandoffStageMissing);
         }
         if family.is_handoff_timeline_row() && row.next_human_steps.is_empty() {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::NextHumanStepMissing);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::NextHumanStepMissing);
         }
         if family.is_unsafe_fix_blocked_note() && row.unsafe_fix_block_reasons.is_empty() {
-            violations
-                .push(M5SupportIntakeEscalationComponentMatrixViolation::UnsafeFixBlockReasonMissing);
+            violations.push(
+                M5SupportIntakeEscalationComponentMatrixViolation::UnsafeFixBlockReasonMissing,
+            );
         }
         if family.is_unsafe_fix_blocked_note() && row.approved_repair_classes.is_empty() {
-            violations
-                .push(M5SupportIntakeEscalationComponentMatrixViolation::ApprovedRepairClassMissing);
+            violations.push(
+                M5SupportIntakeEscalationComponentMatrixViolation::ApprovedRepairClassMissing,
+            );
         }
         // Case disposition is shared by the escalation-packet summary and the
         // unsafe-fix blocked note.
         if (family.is_escalation_packet_summary() || family.is_unsafe_fix_blocked_note())
             && row.case_dispositions.is_empty()
         {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::CaseDispositionMissing);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::CaseDispositionMissing);
         }
         if row.surface_families.is_empty() {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::SurfaceFamilyMissing);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::SurfaceFamilyMissing);
         }
         if row.deployment_lines.is_empty() {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::DeploymentLineMissing);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::DeploymentLineMissing);
         }
         if row.accessibility_routes.is_empty() {
             violations
                 .push(M5SupportIntakeEscalationComponentMatrixViolation::AccessibilityRouteMissing);
         }
         if row.consumer_surfaces.is_empty() {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::ConsumerSurfacesMissing);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::ConsumerSurfacesMissing);
         }
         if row.downgrade_triggers.is_empty() {
-            violations.push(M5SupportIntakeEscalationComponentMatrixViolation::DowngradeTriggersMissing);
+            violations
+                .push(M5SupportIntakeEscalationComponentMatrixViolation::DowngradeTriggersMissing);
         }
         if row.qualification.is_stable() && row.required_proof_packet_refs.is_empty() {
-            violations
-                .push(M5SupportIntakeEscalationComponentMatrixViolation::StableComponentMissingProof);
+            violations.push(
+                M5SupportIntakeEscalationComponentMatrixViolation::StableComponentMissingProof,
+            );
         }
         if !row.honours_invariants() {
-            violations
-                .push(M5SupportIntakeEscalationComponentMatrixViolation::ComponentInvariantViolated);
+            violations.push(
+                M5SupportIntakeEscalationComponentMatrixViolation::ComponentInvariantViolated,
+            );
         }
     }
 }
@@ -1810,8 +1829,9 @@ fn validate_governance_review(
         review.later_rows_cannot_invent_parallel_vocabulary,
     ] {
         if !ok {
-            violations
-                .push(M5SupportIntakeEscalationComponentMatrixViolation::GovernanceReviewIncomplete);
+            violations.push(
+                M5SupportIntakeEscalationComponentMatrixViolation::GovernanceReviewIncomplete,
+            );
             return;
         }
     }
@@ -1846,7 +1866,8 @@ fn validate_proof_freshness(
     if packet.proof_freshness.proof_freshness_slo_hours == 0
         || packet.proof_freshness.last_proof_refresh.trim().is_empty()
     {
-        violations.push(M5SupportIntakeEscalationComponentMatrixViolation::ProofFreshnessIncomplete);
+        violations
+            .push(M5SupportIntakeEscalationComponentMatrixViolation::ProofFreshnessIncomplete);
     }
 }
 
@@ -1860,7 +1881,8 @@ fn validate_release_posture(
         || !posture.support_export_parity_required
         || !posture.accessibility_parity_required
     {
-        violations.push(M5SupportIntakeEscalationComponentMatrixViolation::ReleasePostureIncomplete);
+        violations
+            .push(M5SupportIntakeEscalationComponentMatrixViolation::ReleasePostureIncomplete);
     }
 }
 

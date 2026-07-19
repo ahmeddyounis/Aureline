@@ -521,7 +521,8 @@ pub fn seeded_m5_write_scope_preview_tree_packet() -> M5WriteScopePreviewTreePac
 pub fn seeded_m5_write_scope_preview_tree_import_preview_preview_narrowed(
 ) -> M5WriteScopePreviewTreePacket {
     let mut packet = seeded_m5_write_scope_preview_tree_packet();
-    packet.packet_id = "m5-write-scope-preview-tree-primitive:import-preview-preview:0001".to_owned();
+    packet.packet_id =
+        "m5-write-scope-preview-tree-primitive:import-preview-preview:0001".to_owned();
     let row = packet
         .rows
         .iter_mut()
@@ -537,7 +538,8 @@ pub fn seeded_m5_write_scope_preview_tree_import_preview_preview_narrowed(
 pub fn seeded_m5_write_scope_preview_tree_ai_apply_preview_beta_narrowed(
 ) -> M5WriteScopePreviewTreePacket {
     let mut packet = seeded_m5_write_scope_preview_tree_packet();
-    packet.packet_id = "m5-write-scope-preview-tree-primitive:ai-apply-preview-beta:0001".to_owned();
+    packet.packet_id =
+        "m5-write-scope-preview-tree-primitive:ai-apply-preview-beta:0001".to_owned();
     let row = packet
         .rows
         .iter_mut()

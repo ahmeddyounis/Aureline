@@ -1619,8 +1619,7 @@ fn validate_acceptance_criteria(
     let grammar_incomplete_degrades = sheets().any(|ex| {
         ex.degrade_reason == Some(M5InstallReviewSheetDegradeReason::TransactionGrammarIncomplete)
     });
-    let no_clean_without_grammar =
-        sheets().all(|ex| !ex.is_clean() || ex.has_transaction_grammar);
+    let no_clean_without_grammar = sheets().all(|ex| !ex.is_clean() || ex.has_transaction_grammar);
     if !(every_flow_has_clean_grammar && grammar_incomplete_degrades && no_clean_without_grammar) {
         violations.push(M5InstallReviewSheetControlsViolation::TransactionGrammarNotProven);
     }

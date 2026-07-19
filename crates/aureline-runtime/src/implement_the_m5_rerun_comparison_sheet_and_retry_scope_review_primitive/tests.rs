@@ -26,7 +26,10 @@ fn resolver_allows_single_action_for_equivalent_exact_replay() {
     let resolved = resolve_rerun_review(&publish_exact_replay_input()).expect("resolves");
     assert!(!resolved.sheet.context_has_changes);
     assert!(resolved.sheet.modes_semantically_equivalent);
-    assert_eq!(resolved.sheet.available_modes, vec![M5RerunMode::RerunExactly]);
+    assert_eq!(
+        resolved.sheet.available_modes,
+        vec![M5RerunMode::RerunExactly]
+    );
     assert!(resolved.distinguishes_rerun_actions());
 }
 
@@ -85,10 +88,7 @@ fn resolver_rejects_scope_inconsistent_with_mode() {
 #[test]
 fn resolver_rejects_chosen_mode_not_offered() {
     let mut input = task_current_context_input();
-    input.available_modes = vec![
-        M5RerunMode::RerunExactly,
-        M5RerunMode::RetryFailedStepOnly,
-    ];
+    input.available_modes = vec![M5RerunMode::RerunExactly, M5RerunMode::RetryFailedStepOnly];
     // chosen mode is RerunWithCurrentContext, which is no longer offered
     assert_eq!(
         resolve_rerun_review(&input),
@@ -174,7 +174,10 @@ fn resolver_rejects_duplicate_change_dimension() {
 fn resolver_discloses_side_effect_escalation() {
     let resolved = resolve_rerun_review(&ai_side_effect_escalates_input()).expect("resolves");
     assert!(resolved.sheet.side_effect_escalates);
-    assert!(resolved.sheet.change_summary.contains("side effects escalate"));
+    assert!(resolved
+        .sheet
+        .change_summary
+        .contains("side effects escalate"));
     assert!(resolved
         .change_rows
         .iter()
@@ -197,16 +200,24 @@ fn resolver_rejects_undisclosed_side_effect_escalation() {
 #[test]
 fn resolver_export_preserves_mode_and_summary() {
     let resolved = resolve_rerun_review(&notebook_environment_changed_input()).expect("resolves");
-    assert_eq!(resolved.export.rerun_mode, M5RerunMode::RerunWithCurrentContext);
+    assert_eq!(
+        resolved.export.rerun_mode,
+        M5RerunMode::RerunWithCurrentContext
+    );
     assert!(!resolved.export.change_summary.trim().is_empty());
     assert!(resolved
         .export
         .export_fields
         .contains(&M5RerunExportField::RerunMode));
-    assert!(declares_mandatory_export_fields(&resolved.export.export_fields));
+    assert!(declares_mandatory_export_fields(
+        &resolved.export.export_fields
+    ));
     assert_eq!(
         resolved.export.changed_dimensions,
-        vec![M5RerunChangeDimension::Runtime, M5RerunChangeDimension::Profile]
+        vec![
+            M5RerunChangeDimension::Runtime,
+            M5RerunChangeDimension::Profile
+        ]
     );
 }
 
@@ -214,7 +225,10 @@ fn resolver_export_preserves_mode_and_summary() {
 fn resolver_preserves_prior_lineage() {
     let resolved = resolve_rerun_review(&test_retry_failed_step_input()).expect("resolves");
     assert!(resolved.sheet.cites_prior_attempt);
-    assert_eq!(resolved.export.prior_attempt_ref, resolved.prior_attempt_ref);
+    assert_eq!(
+        resolved.export.prior_attempt_ref,
+        resolved.prior_attempt_ref
+    );
     assert!(resolved.export.new_attempt_ordinal > resolved.export.prior_attempt_ordinal);
     assert!(!resolved.export.difference_reason.trim().is_empty());
     assert!(resolved.preserves_prior_lineage());
@@ -389,8 +403,10 @@ fn invariant_violation_is_flagged() {
 #[test]
 fn drifted_case_is_flagged() {
     let mut packet = seeded_m5_rerun_review_packet();
-    packet.surface_rows[0].example_reruns[0].resolved.sheet.rerun_mode =
-        M5RerunMode::RerunExactly;
+    packet.surface_rows[0].example_reruns[0]
+        .resolved
+        .sheet
+        .rerun_mode = M5RerunMode::RerunExactly;
     let violations = packet.validate();
     assert!(violations.contains(&M5RerunViolation::ExampleRerunDrift));
 }

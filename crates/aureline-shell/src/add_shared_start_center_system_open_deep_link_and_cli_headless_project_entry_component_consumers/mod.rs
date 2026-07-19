@@ -78,7 +78,8 @@ pub const ENTRY_CONSUMER_MATRIX_REF: &str =
     crate::m5_project_entry_components::M5_PROJECT_ENTRY_COMPONENT_FIXTURE_REF;
 
 /// Repo-relative path of the shared frozen component schema.
-pub const ENTRY_CONSUMER_SHARED_SCHEMA_REF: &str = "schemas/ui/m5-project-entry-component.schema.json";
+pub const ENTRY_CONSUMER_SHARED_SCHEMA_REF: &str =
+    "schemas/ui/m5-project-entry-component.schema.json";
 
 /// Repo-relative path of the frozen release-proof packet every consumer points
 /// back to as the canonical first-resolved truth.
@@ -942,10 +943,7 @@ impl EntryConsumerPacket {
                 .rows
                 .iter()
                 .all(EntryConsumerRow::supports_entry_path_reconstruction),
-            all_narrowed_rows_disclose: self
-                .rows
-                .iter()
-                .all(EntryConsumerRow::discloses_narrowing),
+            all_narrowed_rows_disclose: self.rows.iter().all(EntryConsumerRow::discloses_narrowing),
             all_rows_have_copy_export: self.rows.iter().all(|r| r.copy_export.is_complete()),
             command_ids_stable_across_surfaces: self.command_ids_stable_across_surfaces(),
             start_center_palette_consumer_present: has_group(ConsumerGroup::StartCenterPalette),
@@ -1221,24 +1219,56 @@ impl Error for EntryConsumerArtifactError {}
 /// Validation failure for M05-842 consumer packets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EntryConsumerViolation {
-    SchemaVersion { expected: u32, actual: u32 },
-    RecordKind { expected: String, actual: String },
+    SchemaVersion {
+        expected: u32,
+        actual: u32,
+    },
+    RecordKind {
+        expected: String,
+        actual: String,
+    },
     MissingIdentity,
-    DuplicateId { id: String },
-    IncompleteRow { id: String },
-    SurfaceGroupMismatch { id: String },
-    NotCanonicalFamily { id: String },
-    NonCanonicalCommandId { id: String },
-    LabelParityBroken { id: String },
-    HandoffDropsTargetTruth { id: String },
-    EntryPathNotReconstructable { id: String },
-    NarrowedWithoutDisclosure { id: String },
-    MissingCopyExportParity { id: String },
-    MissingConsumerGroup { group: ConsumerGroup },
-    MissingFamilyCoverage { family: M5ProjectEntryComponentFamily },
+    DuplicateId {
+        id: String,
+    },
+    IncompleteRow {
+        id: String,
+    },
+    SurfaceGroupMismatch {
+        id: String,
+    },
+    NotCanonicalFamily {
+        id: String,
+    },
+    NonCanonicalCommandId {
+        id: String,
+    },
+    LabelParityBroken {
+        id: String,
+    },
+    HandoffDropsTargetTruth {
+        id: String,
+    },
+    EntryPathNotReconstructable {
+        id: String,
+    },
+    NarrowedWithoutDisclosure {
+        id: String,
+    },
+    MissingCopyExportParity {
+        id: String,
+    },
+    MissingConsumerGroup {
+        group: ConsumerGroup,
+    },
+    MissingFamilyCoverage {
+        family: M5ProjectEntryComponentFamily,
+    },
     NoFamilyReusedAcrossGroups,
     CommandIdForkedAcrossSurfaces,
-    MissingLabelFamily { family: String },
+    MissingLabelFamily {
+        family: String,
+    },
     MissingDocsHelpReference,
     SummaryMismatch,
     RawBoundaryMaterialInExport,

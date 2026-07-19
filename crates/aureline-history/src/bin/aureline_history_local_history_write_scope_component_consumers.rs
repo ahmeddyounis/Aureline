@@ -62,7 +62,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", packet.export_safe_json());
         }
         Some("fixture-ai-review-beta-narrowed") => {
-            let packet = seeded_m5_local_history_write_scope_component_consumer_ai_review_beta_narrowed();
+            let packet =
+                seeded_m5_local_history_write_scope_component_consumer_ai_review_beta_narrowed();
             assert_valid(&packet)?;
             println!("{}", packet.export_safe_json());
         }
@@ -83,7 +84,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn assert_valid(packet: &M5HistoryComponentConsumerPacket) -> Result<(), Box<dyn std::error::Error>> {
+fn assert_valid(
+    packet: &M5HistoryComponentConsumerPacket,
+) -> Result<(), Box<dyn std::error::Error>> {
     let violations = packet.validate();
     if violations.is_empty() {
         Ok(())

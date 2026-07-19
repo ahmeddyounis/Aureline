@@ -18,7 +18,10 @@ fn row(id: &str) -> TrustRepairComponentAccessibilityRow {
 fn seeded_packet_validates_clean() {
     let packet = seeded_m5_workspace_trust_repair_component_a11y_packet();
     let violations = packet.validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -294,7 +297,10 @@ fn dropping_a_family_reports_missing_coverage() {
 #[test]
 fn forbidden_material_in_export_is_rejected() {
     let mut packet = seeded_m5_workspace_trust_repair_component_a11y_packet();
-    packet.rows[0].copy_export.export_fields.push("bearer abc".to_owned());
+    packet.rows[0]
+        .copy_export
+        .export_fields
+        .push("bearer abc".to_owned());
     let tokens: Vec<&str> = packet.validate().iter().map(|v| v.as_str()).collect();
     assert!(tokens.contains(&"raw_trust_material_in_export"));
 }
@@ -343,7 +349,10 @@ fn checked_matrix_csv_matches_builder() {
         env!("CARGO_MANIFEST_DIR"),
         "/../../artifacts/release/m5-workspace-trust-repair-component-accessibility-parity/matrix.csv"
     ));
-    assert_eq!(on_disk, expected, "checked matrix CSV drifted from the builder");
+    assert_eq!(
+        on_disk, expected,
+        "checked matrix CSV drifted from the builder"
+    );
 }
 
 #[test]
@@ -366,7 +375,10 @@ fn checked_fixtures_mirror_the_release_artifacts() {
     let packet: TrustRepairComponentAccessibilityPacket =
         serde_json::from_str(fixture_export).expect("fixture export parses");
     assert!(packet.validate().is_empty());
-    assert_eq!(packet, seeded_m5_workspace_trust_repair_component_a11y_packet());
+    assert_eq!(
+        packet,
+        seeded_m5_workspace_trust_repair_component_a11y_packet()
+    );
 
     let fixture_csv = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

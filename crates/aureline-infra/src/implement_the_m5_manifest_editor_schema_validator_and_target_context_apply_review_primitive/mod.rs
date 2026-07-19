@@ -1571,7 +1571,9 @@ fn validate_acceptance_criteria_covered(
         violations.push(M5ManifestAuthoringViolation::IdentityPreservationUnproven);
     }
 
-    let environment_proven = cases.iter().any(|resolved| resolved.environment_disclosed());
+    let environment_proven = cases
+        .iter()
+        .any(|resolved| resolved.environment_disclosed());
     if !environment_proven {
         violations.push(M5ManifestAuthoringViolation::EnvironmentDisclosureUnproven);
     }

@@ -951,7 +951,8 @@ pub fn resolve_mirror_transition(
         if continuity_state.requires_action() {
             actions.push(M5MirrorArtifactAction::RefreshNow);
         }
-        if artifact.pinned_offline || continuity_state == M5MirrorContinuityState::OfflineCacheOnly {
+        if artifact.pinned_offline || continuity_state == M5MirrorContinuityState::OfflineCacheOnly
+        {
             actions.push(M5MirrorArtifactAction::PinOffline);
         }
 
@@ -1735,7 +1736,9 @@ fn validate_acceptance_criteria_covered(
             resolved.verification_accessible_across_profiles()
                 && resolved.artifact_rows.iter().all(|row| {
                     row.verification_accessible
-                        && row.actions.contains(&M5MirrorArtifactAction::VerifySignature)
+                        && row
+                            .actions
+                            .contains(&M5MirrorArtifactAction::VerifySignature)
                         && row.actions.contains(&M5MirrorArtifactAction::OpenManifest)
                 })
         });
@@ -1746,7 +1749,10 @@ fn validate_acceptance_criteria_covered(
     // AC3: at least one case is a durable change with a recoverable rollback path and an
     // export-before-change action, and every case preserves export and rollback truth.
     let export_proven = cases.iter().any(|resolved| {
-        resolved.mode_change_sheet.rollback_path_state.is_recoverable()
+        resolved
+            .mode_change_sheet
+            .rollback_path_state
+            .is_recoverable()
             && resolved.mode_change_sheet.export_before_change_available
     }) && cases
         .iter()

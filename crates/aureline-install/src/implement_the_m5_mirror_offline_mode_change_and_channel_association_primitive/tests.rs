@@ -10,7 +10,10 @@ fn resolver_preserves_transition_identity_across_surfaces() {
     let input = admin_disconnect_input();
     let resolved = resolve_mirror_transition(&input).expect("resolves");
     assert_eq!(resolved.transition_id, input.transition_id);
-    assert_eq!(resolved.mode_change_sheet.transition_id, input.transition_id);
+    assert_eq!(
+        resolved.mode_change_sheet.transition_id,
+        input.transition_id
+    );
     assert_eq!(resolved.channel_row.transition_id, input.transition_id);
     assert!(resolved
         .artifact_rows

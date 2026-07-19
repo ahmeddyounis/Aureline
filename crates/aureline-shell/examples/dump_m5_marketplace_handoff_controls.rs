@@ -76,7 +76,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn assert_valid(packet: &M5MarketplaceHandoffControlsPacket) -> Result<(), Box<dyn std::error::Error>> {
+fn assert_valid(
+    packet: &M5MarketplaceHandoffControlsPacket,
+) -> Result<(), Box<dyn std::error::Error>> {
     let violations = packet.validate();
     if violations.is_empty() {
         Ok(())

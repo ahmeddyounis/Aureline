@@ -18,7 +18,10 @@ fn row(id: &str) -> ExecutionAccessibilityRow {
 #[test]
 fn seeded_packet_validates_clean() {
     let violations = packet().validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -33,7 +36,10 @@ fn packet_identity_is_stamped() {
 fn every_frozen_family_is_certified() {
     let families = packet().represented_families();
     for family in M5ExecutionComponentFamily::ALL {
-        assert!(families.contains(&family), "family {family:?} is not certified");
+        assert!(
+            families.contains(&family),
+            "family {family:?} is not certified"
+        );
     }
     assert_eq!(families.len(), M5ExecutionComponentFamily::ALL.len());
 }
@@ -98,8 +104,14 @@ fn ac1_intact_lane_asserts_full_claim_without_narrowing() {
     let r = row("a11y:run-attempt-header");
     assert!(!r.has_weak_dimension());
     assert!(r.claim_narrow.is_none());
-    assert_eq!(r.permitted_claim(), M5ExecutionInteractiveClaim::FullInteractive);
-    assert_eq!(r.effective_claim(), M5ExecutionInteractiveClaim::FullInteractive);
+    assert_eq!(
+        r.permitted_claim(),
+        M5ExecutionInteractiveClaim::FullInteractive
+    );
+    assert_eq!(
+        r.effective_claim(),
+        M5ExecutionInteractiveClaim::FullInteractive
+    );
     assert!(r.claim_is_honest());
     assert_eq!(r.status(), ExecutionAccessibilityStatus::Parity);
 }
@@ -111,8 +123,14 @@ fn ac1_policy_blocked_input_narrows_to_inspect_only() {
         r.condition_for(M5ExecutionClaimDimension::InputState),
         M5ClaimConditionState::PolicyBlocked
     );
-    assert_eq!(r.permitted_claim(), M5ExecutionInteractiveClaim::InspectOnly);
-    assert_eq!(r.effective_claim(), M5ExecutionInteractiveClaim::InspectOnly);
+    assert_eq!(
+        r.permitted_claim(),
+        M5ExecutionInteractiveClaim::InspectOnly
+    );
+    assert_eq!(
+        r.effective_claim(),
+        M5ExecutionInteractiveClaim::InspectOnly
+    );
     assert!(!r.effective_claim().asserts_control());
     assert!(r.claim_is_honest());
 }
@@ -260,12 +278,14 @@ fn primary_dimension_must_be_modeled() {
 #[test]
 fn missing_family_coverage_is_flagged() {
     let mut p = packet();
-    p.rows.retain(|r| r.component_family != M5ExecutionComponentFamily::DumpCrashArtifactCard);
+    p.rows
+        .retain(|r| r.component_family != M5ExecutionComponentFamily::DumpCrashArtifactCard);
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, ExecutionAccessibilityViolation::MissingFamilyCoverage { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        ExecutionAccessibilityViolation::MissingFamilyCoverage { .. }
+    )));
 }
 
 #[test]
@@ -286,9 +306,10 @@ fn missing_consumer_parity_is_flagged() {
     p.rows[0].consumer_surfaces = vec![M5RunAttemptSurfaceFamily::TaskRunPane];
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, ExecutionAccessibilityViolation::MissingConsumerParity { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        ExecutionAccessibilityViolation::MissingConsumerParity { .. }
+    )));
 }
 
 #[test]
@@ -297,9 +318,10 @@ fn forbidden_material_in_export_is_flagged() {
     p.rows[0].source_refs.push("bearer abc123".to_owned());
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, ExecutionAccessibilityViolation::RawBoundaryMaterialInExport)));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        ExecutionAccessibilityViolation::RawBoundaryMaterialInExport
+    )));
 }
 
 #[test]
@@ -326,7 +348,10 @@ fn permitted_claim_takes_the_weakest_ceiling() {
         ),
     ];
     // Partial → review-required, Unavailable → inspect-only; the weakest wins.
-    assert_eq!(r.permitted_claim(), M5ExecutionInteractiveClaim::InspectOnly);
+    assert_eq!(
+        r.permitted_claim(),
+        M5ExecutionInteractiveClaim::InspectOnly
+    );
     assert_eq!(
         r.binding_dimension(),
         Some(M5ExecutionClaimDimension::TargetIdentity)
@@ -384,8 +409,7 @@ fn chip_tokens_are_deterministic_and_named() {
 
 #[test]
 fn on_disk_export_matches_builder() {
-    let disk = current_m5_execution_a11y_fallback_export()
-        .expect("checked-in export validates");
+    let disk = current_m5_execution_a11y_fallback_export().expect("checked-in export validates");
     assert_eq!(
         disk,
         seeded_m5_execution_a11y_fallback_packet(),

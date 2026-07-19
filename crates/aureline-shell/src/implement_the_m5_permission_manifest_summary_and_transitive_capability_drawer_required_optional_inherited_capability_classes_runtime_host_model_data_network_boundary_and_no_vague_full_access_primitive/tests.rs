@@ -520,7 +520,10 @@ fn markdown_summary_lists_every_consumer_surface() {
 fn checked_support_export_validates_and_matches_seed() {
     let from_disk = current_stable_m5_permission_manifest_controls_export()
         .expect("checked M5 permission-manifest controls export validates");
-    assert_eq!(from_disk.packet_id, M5_PERMISSION_MANIFEST_CONTROLS_PACKET_ID);
+    assert_eq!(
+        from_disk.packet_id,
+        M5_PERMISSION_MANIFEST_CONTROLS_PACKET_ID
+    );
     assert_eq!(
         from_disk,
         seeded_m5_permission_manifest_controls(),
@@ -538,7 +541,10 @@ fn narrowed_variants_validate_and_keep_rows_visible() {
         .iter()
         .find(|r| r.consumer_surface == M5MarketplaceInstallConsumerSurface::MarketplaceUi)
         .unwrap();
-    assert_eq!(row.qualification, M5MarketplaceInstallQualificationClass::Beta);
+    assert_eq!(
+        row.qualification,
+        M5MarketplaceInstallQualificationClass::Beta
+    );
 
     let preview = seeded_m5_permission_manifest_controls_install_review_ui_preview_narrowed();
     assert!(preview.validate().is_empty(), "{:?}", preview.validate());

@@ -22,7 +22,10 @@ fn resolver_preserves_authoring_identity_across_surfaces() {
 fn resolver_discloses_environment_and_schema_source() {
     let resolved = resolve_manifest_authoring(&apply_ready_input()).expect("resolves");
     assert!(resolved.environment_disclosed());
-    assert_eq!(resolved.context_chips.target_identity_ref, "target:prod-us-east");
+    assert_eq!(
+        resolved.context_chips.target_identity_ref,
+        "target:prod-us-east"
+    );
     assert!(resolved.schema_row.schema_source.is_explicit());
     assert!(resolved.context_chips.context_complete);
 }
@@ -90,7 +93,10 @@ fn resolver_blocks_apply_when_dry_run_policy_blocked() {
 fn resolver_keeps_schema_freshness_visible_on_header_and_row() {
     let resolved = resolve_manifest_authoring(&plan_preview_stale_input()).expect("resolves");
     assert_eq!(resolved.header.schema_freshness, M5SchemaFreshness::Stale);
-    assert_eq!(resolved.schema_row.schema_freshness, M5SchemaFreshness::Stale);
+    assert_eq!(
+        resolved.schema_row.schema_freshness,
+        M5SchemaFreshness::Stale
+    );
     assert!(resolved.schema_freshness_disclosed());
     assert!(!resolved.header.schema_freshness.is_current());
     // A stale (but resolvable) schema still permits apply — it is disclosed, not

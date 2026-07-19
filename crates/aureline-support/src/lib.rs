@@ -539,8 +539,8 @@ pub use m5_crash_intake_and_recovery::{
 };
 pub use m5_cross_surface_component_consumers::{
     current_cross_surface_consumer_packet, AuthorityMode as CrossSurfaceAuthorityMode,
-    ConsumerGroup as CrossSurfaceConsumerGroup, CrossSurfaceConsumerPacket, CrossSurfaceConsumerRow,
-    CrossSurfaceConsumerSummary, CrossSurfaceConsumerViolation,
+    ConsumerGroup as CrossSurfaceConsumerGroup, CrossSurfaceConsumerPacket,
+    CrossSurfaceConsumerRow, CrossSurfaceConsumerSummary, CrossSurfaceConsumerViolation,
     HandoffTarget as CrossSurfaceHandoffTarget, LabelParityState as CrossSurfaceLabelParityState,
     M5ComponentFamily as CrossSurfaceComponentFamily, CROSS_SURFACE_CONSUMER_MATRIX_REF,
     CROSS_SURFACE_CONSUMER_PACKET_JSON, CROSS_SURFACE_CONSUMER_PACKET_PATH,

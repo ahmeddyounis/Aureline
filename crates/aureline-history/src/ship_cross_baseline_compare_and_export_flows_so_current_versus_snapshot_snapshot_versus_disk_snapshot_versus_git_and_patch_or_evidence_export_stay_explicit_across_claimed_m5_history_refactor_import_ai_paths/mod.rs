@@ -104,7 +104,8 @@ pub const M5_COMPARE_EXPORT_RECORD_KIND: &str =
 pub const M5_COMPARE_EXPORT_SCHEMA_VERSION: u32 = 1;
 
 /// Repo-relative path of the retention/export-card boundary schema.
-pub const M5_COMPARE_EXPORT_CARD_SCHEMA_REF: &str = "schemas/ui/m5-retention-export-card.schema.json";
+pub const M5_COMPARE_EXPORT_CARD_SCHEMA_REF: &str =
+    "schemas/ui/m5-retention-export-card.schema.json";
 
 /// Repo-relative path of the history-export-manifest boundary schema.
 pub const M5_COMPARE_EXPORT_MANIFEST_SCHEMA_REF: &str =
@@ -810,7 +811,8 @@ pub fn resolve_retention_export_card(
     };
     let baseline_comparison_offered = !available_baselines.is_empty();
     let can_export = card_posture.can_export();
-    let available_actions = derive_card_actions(card_posture, can_export, baseline_comparison_offered);
+    let available_actions =
+        derive_card_actions(card_posture, can_export, baseline_comparison_offered);
 
     Ok(M5ResolvedRetentionExportCard {
         retention_posture: input.retention_posture,
@@ -874,7 +876,8 @@ fn derive_card_actions(
     }
     if matches!(
         posture,
-        M5RetentionExportCardPosture::PurgeScheduled | M5RetentionExportCardPosture::NothingRetained
+        M5RetentionExportCardPosture::PurgeScheduled
+            | M5RetentionExportCardPosture::NothingRetained
     ) {
         actions.push(Action::RequestRetentionExtension);
     }
@@ -1873,7 +1876,10 @@ fn validate_rows(packet: &M5CompareExportPacket, violations: &mut Vec<M5CompareE
         if row.manifest_examples.is_empty() {
             violations.push(M5CompareExportViolation::ManifestExampleMissing);
         }
-        if row.card_examples.iter().any(|case| !case.is_self_consistent())
+        if row
+            .card_examples
+            .iter()
+            .any(|case| !case.is_self_consistent())
             || row
                 .manifest_examples
                 .iter()
@@ -1964,14 +1970,16 @@ fn validate_card_export_coverage(
     packet: &M5CompareExportPacket,
     violations: &mut Vec<M5CompareExportViolation>,
 ) {
-    let has_exportable = packet
-        .rows
-        .iter()
-        .any(|row| row.card_examples.iter().any(|case| case.resolved.can_export));
-    let has_blocked = packet
-        .rows
-        .iter()
-        .any(|row| row.card_examples.iter().any(|case| !case.resolved.can_export));
+    let has_exportable = packet.rows.iter().any(|row| {
+        row.card_examples
+            .iter()
+            .any(|case| case.resolved.can_export)
+    });
+    let has_blocked = packet.rows.iter().any(|row| {
+        row.card_examples
+            .iter()
+            .any(|case| !case.resolved.can_export)
+    });
     if !(has_exportable && has_blocked) {
         violations.push(M5CompareExportViolation::CardExportCoverageUnproven);
     }
@@ -2004,14 +2012,16 @@ fn validate_manifest_shareable_coverage(
     packet: &M5CompareExportPacket,
     violations: &mut Vec<M5CompareExportViolation>,
 ) {
-    let has_shareable = packet
-        .rows
-        .iter()
-        .any(|row| row.manifest_examples.iter().any(|case| case.resolved.is_shareable));
-    let has_held = packet
-        .rows
-        .iter()
-        .any(|row| row.manifest_examples.iter().any(|case| !case.resolved.is_shareable));
+    let has_shareable = packet.rows.iter().any(|row| {
+        row.manifest_examples
+            .iter()
+            .any(|case| case.resolved.is_shareable)
+    });
+    let has_held = packet.rows.iter().any(|row| {
+        row.manifest_examples
+            .iter()
+            .any(|case| !case.resolved.is_shareable)
+    });
     if !(has_shareable && has_held) {
         violations.push(M5CompareExportViolation::ManifestShareableCoverageUnproven);
     }

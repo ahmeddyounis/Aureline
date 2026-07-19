@@ -316,7 +316,10 @@ impl M5WriteScopeFileCountBucket {
 
     /// True when this bucket spans more than one file.
     pub const fn is_multi_file(self) -> bool {
-        matches!(self, Self::Small | Self::Medium | Self::Large | Self::Sweeping)
+        matches!(
+            self,
+            Self::Small | Self::Medium | Self::Large | Self::Sweeping
+        )
     }
 }
 
@@ -1244,7 +1247,10 @@ pub fn resolve_write_scope_file_node(
     }
 
     let touches_generated_or_managed = caveat_is_managed(input.managed_caveat)
-        || matches!(input.content_class, M5WriteScopeFileContentClass::GeneratedOutput);
+        || matches!(
+            input.content_class,
+            M5WriteScopeFileContentClass::GeneratedOutput
+        );
     let node_disposition = derive_node_disposition(
         input.content_class,
         input.managed_caveat,
@@ -1824,8 +1830,7 @@ impl M5WriteScopePreviewTreePacket {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self)
-            .expect("m5 write-scope preview tree packet serializes")
+        serde_json::to_string_pretty(self).expect("m5 write-scope preview tree packet serializes")
     }
 
     /// Deterministic, machine-readable matrix CSV: one row per multi-file change consumer.
@@ -2188,8 +2193,14 @@ fn validate_rows(
         if row.node_examples.is_empty() {
             violations.push(M5WriteScopePreviewTreeViolation::NodeExampleMissing);
         }
-        if row.tree_examples.iter().any(|case| !case.is_self_consistent())
-            || row.node_examples.iter().any(|case| !case.is_self_consistent())
+        if row
+            .tree_examples
+            .iter()
+            .any(|case| !case.is_self_consistent())
+            || row
+                .node_examples
+                .iter()
+                .any(|case| !case.is_self_consistent())
         {
             violations.push(M5WriteScopePreviewTreeViolation::ExampleResolutionDrift);
         }
@@ -2284,10 +2295,11 @@ fn validate_tree_apply_coverage(
         .rows
         .iter()
         .any(|row| row.tree_examples.iter().any(|case| case.resolved.can_apply));
-    let has_blocked = packet
-        .rows
-        .iter()
-        .any(|row| row.tree_examples.iter().any(|case| !case.resolved.can_apply));
+    let has_blocked = packet.rows.iter().any(|row| {
+        row.tree_examples
+            .iter()
+            .any(|case| !case.resolved.can_apply)
+    });
     if !(has_appliable && has_blocked) {
         violations.push(M5WriteScopePreviewTreeViolation::TreeApplyCoverageUnproven);
     }

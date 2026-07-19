@@ -50,7 +50,11 @@ fn ownership_cards_keep_distinct_roles_separate() {
 
     // AC1: no card collapses distinct responsibilities into one ambiguous owner.
     for card in &packet.ownership_cards {
-        assert!(card.distinguishes_roles(), "card {} collapsed roles", card.card_id);
+        assert!(
+            card.distinguishes_roles(),
+            "card {} collapsed roles",
+            card.card_id
+        );
         assert!(card.service_oncall_separation);
         // Protected-path / change-control links are attached and survive export.
         assert!(!card.escalation_refs.is_empty());
@@ -113,7 +117,10 @@ fn explainer_cards_cite_sources_and_narrow_when_incomplete() {
         .iter()
         .find(|c| c.card_id == "explainer-section:billing-webhook-flow")
         .expect("narrowed explainer card must be present");
-    assert_eq!(narrowed.summary_generation_mode, SummaryGenerationMode::Generated);
+    assert_eq!(
+        narrowed.summary_generation_mode,
+        SummaryGenerationMode::Generated
+    );
     assert!(narrowed.truth_incomplete());
     assert!(narrowed.is_narrowed());
     assert!(!narrowed.generated_but_not_narrowed());

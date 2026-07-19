@@ -852,7 +852,10 @@ impl RelationStripSyncPendingControlsPacket {
 
         out.push_str("\n## Relation strips\n\n");
         for strip in &self.relation_strips {
-            out.push_str(&format!("- **{}** ({}):\n", strip.strip_id, strip.canonical_id));
+            out.push_str(&format!(
+                "- **{}** ({}):\n",
+                strip.strip_id, strip.canonical_id
+            ));
             for relation in &strip.relations {
                 out.push_str(&format!(
                     "  - {} → `{}` [{}]\n",
@@ -1124,7 +1127,8 @@ fn validate_relation_strips(
                 violations.push(RelationStripSyncPendingViolation::RelationHealthMisrepresented);
             }
             if disclosure.needs_relation_note && relation.relation_note.trim().is_empty() {
-                violations.push(RelationStripSyncPendingViolation::StaleOrBrokenRelationNoteMissing);
+                violations
+                    .push(RelationStripSyncPendingViolation::StaleOrBrokenRelationNoteMissing);
             }
             if !relation.declares_mandatory_actions() {
                 violations

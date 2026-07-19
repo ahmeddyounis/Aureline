@@ -332,9 +332,7 @@ pub fn seeded_m5_support_scenario_picker_row_recovery_center_intake_preview_narr
     let row = packet
         .rows
         .iter_mut()
-        .find(|row| {
-            row.consumer_surface == M5ScenarioPickerConsumerSurface::RecoveryCenterIntake
-        })
+        .find(|row| row.consumer_surface == M5ScenarioPickerConsumerSurface::RecoveryCenterIntake)
         .expect("recovery-center-intake row present");
     row.qualification = M5SupportQualificationClass::Preview;
     packet

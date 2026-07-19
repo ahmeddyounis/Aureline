@@ -158,8 +158,11 @@ impl M5ExecutionClaimedSurface {
 
     /// The release-evidence surfaces that must each be certified so claim publication
     /// and field triage stay anchored to the same component truth.
-    pub const EVIDENCE_SURFACES: [Self; 3] =
-        [Self::SupportExportReplay, Self::DocsHelpEmbeds, Self::ReleaseProof];
+    pub const EVIDENCE_SURFACES: [Self; 3] = [
+        Self::SupportExportReplay,
+        Self::DocsHelpEmbeds,
+        Self::ReleaseProof,
+    ];
 
     /// Returns true when the surface is a release-evidence surface rather than an
     /// interactive execution consumer.
@@ -1016,17 +1019,16 @@ impl ExecutionSurfaceCertPacket {
 
         ExecutionSurfaceCertSummary {
             surface_count: self.rows.len(),
-            evidence_surface_count: self
-                .rows
-                .iter()
-                .filter(|r| r.is_evidence_surface())
-                .count(),
+            evidence_surface_count: self.rows.iter().filter(|r| r.is_evidence_surface()).count(),
             green_count: green,
             yellow_count: yellow,
             red_count: red,
             consumed_group_count: consumed.len(),
             path_class_count: paths.len(),
-            all_claims_honest: self.rows.iter().all(ExecutionSurfaceCertRow::claim_is_honest),
+            all_claims_honest: self
+                .rows
+                .iter()
+                .all(ExecutionSurfaceCertRow::claim_is_honest),
             all_export_preserve_truth: self
                 .rows
                 .iter()
@@ -1126,9 +1128,11 @@ impl ExecutionSurfaceCertPacket {
 
             // AC3: anchored to the canonical component family.
             if !row.references_canonical_families() {
-                violations.push(ExecutionSurfaceCertViolation::NotAnchoredToCanonicalFamily {
-                    id: row.row_id.clone(),
-                });
+                violations.push(
+                    ExecutionSurfaceCertViolation::NotAnchoredToCanonicalFamily {
+                        id: row.row_id.clone(),
+                    },
+                );
             }
 
             // No blocked (red) surface may ship.
@@ -1142,16 +1146,14 @@ impl ExecutionSurfaceCertPacket {
         // Coverage: every claimed surface is certified at least once.
         for surface in M5ExecutionClaimedSurface::ALL {
             if !seen_surfaces.contains(&surface) {
-                violations
-                    .push(ExecutionSurfaceCertViolation::MissingSurfaceCoverage { surface });
+                violations.push(ExecutionSurfaceCertViolation::MissingSurfaceCoverage { surface });
             }
         }
 
         // Coverage: every release-evidence surface is present.
         for surface in M5ExecutionClaimedSurface::EVIDENCE_SURFACES {
             if !seen_surfaces.contains(&surface) {
-                violations
-                    .push(ExecutionSurfaceCertViolation::MissingEvidenceSurface { surface });
+                violations.push(ExecutionSurfaceCertViolation::MissingEvidenceSurface { surface });
             }
         }
 
@@ -1287,7 +1289,10 @@ impl fmt::Display for ExecutionSurfaceCertArtifactError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SupportExport(error) => {
-                write!(f, "execution surface certification export parse failed: {error}")
+                write!(
+                    f,
+                    "execution surface certification export parse failed: {error}"
+                )
             }
             Self::Validation(violations) => {
                 write!(
@@ -1330,7 +1335,10 @@ impl fmt::Display for ExecutionSurfaceCertViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SchemaVersion { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::RecordKind { expected, actual } => {
                 write!(f, "record kind mismatch: expected {expected}, got {actual}")
@@ -1339,7 +1347,10 @@ impl fmt::Display for ExecutionSurfaceCertViolation {
             Self::DuplicateId { id } => write!(f, "duplicate row id: {id}"),
             Self::IncompleteRow { id } => write!(f, "incomplete certification row: {id}"),
             Self::BundleRefMismatch { id } => {
-                write!(f, "row {id} does not cite the packet's canonical bundle ref")
+                write!(
+                    f,
+                    "row {id} does not cite the packet's canonical bundle ref"
+                )
             }
             Self::AxisApplicabilityMismatch { id } => {
                 write!(
@@ -1360,28 +1371,48 @@ impl fmt::Display for ExecutionSurfaceCertViolation {
                 )
             }
             Self::CompatibilityNoteMalformed { id } => {
-                write!(f, "row {id} has a missing or generic execution-path compatibility note")
+                write!(
+                    f,
+                    "row {id} has a missing or generic execution-path compatibility note"
+                )
             }
             Self::ExportDropsTruth { id } => {
-                write!(f, "row {id} export cannot preserve certified truth without a screenshot")
+                write!(
+                    f,
+                    "row {id} export cannot preserve certified truth without a screenshot"
+                )
             }
             Self::NotAnchoredToCanonicalFamily { id } => {
-                write!(f, "row {id} does not reference the canonical families of its consumed groups")
+                write!(
+                    f,
+                    "row {id} does not reference the canonical families of its consumed groups"
+                )
             }
             Self::BlockedSurface { id } => {
                 write!(f, "row {id} is blocked (red) and may not ship")
             }
             Self::MissingSurfaceCoverage { surface } => {
-                write!(f, "claimed surface {surface:?} is not certified in the packet")
+                write!(
+                    f,
+                    "claimed surface {surface:?} is not certified in the packet"
+                )
             }
             Self::MissingEvidenceSurface { surface } => {
                 write!(f, "release-evidence surface {surface:?} is missing")
             }
             Self::MissingGroupCoverage { group } => {
-                write!(f, "component group {} is not consumed in the packet", group.as_str())
+                write!(
+                    f,
+                    "component group {} is not consumed in the packet",
+                    group.as_str()
+                )
             }
             Self::MissingPathClassCoverage { path } => {
-                write!(f, "execution path class {} is not exercised in the packet", path.as_str())
+                write!(
+                    f,
+                    "execution path class {} is not exercised in the packet",
+                    path.as_str()
+                )
             }
             Self::SummaryMismatch => write!(f, "computed summary does not match stored summary"),
             Self::RawBoundaryMaterialInExport => {

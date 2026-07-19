@@ -1283,7 +1283,10 @@ impl M5RunAttemptHeaderPrimitivePacket {
             out.push_str(&format!("- **{}**\n", row.surface_family.label()));
             out.push_str(&format!("  - Owner: {}\n", row.owner_role));
             out.push_str(&format!("  - Scope: {}\n", row.scope_summary));
-            out.push_str(&format!("  - Worked cases: {}\n", row.example_headers.len()));
+            out.push_str(&format!(
+                "  - Worked cases: {}\n",
+                row.example_headers.len()
+            ));
             for case in &row.example_headers {
                 out.push_str(&format!(
                     "    - `{}` → run `{}` attempt #{} [{}] ({}), {} attempt(s)\n",

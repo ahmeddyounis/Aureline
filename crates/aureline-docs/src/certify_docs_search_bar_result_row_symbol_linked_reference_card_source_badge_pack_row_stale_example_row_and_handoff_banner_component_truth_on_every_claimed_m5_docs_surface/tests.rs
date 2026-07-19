@@ -13,7 +13,10 @@ fn packet() -> DocsSurfaceCertificationPacket {
 #[test]
 fn seeded_packet_validates() {
     let violations = packet().validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -31,7 +34,10 @@ fn every_claimed_surface_is_certified_exactly_once() {
         let count = p.rows.iter().filter(|r| r.surface == surface).count();
         assert_eq!(count, 1, "surface {surface:?} certified {count} times");
     }
-    assert_eq!(p.summary.surface_count, M5DocsBrowserCertifiedSurface::ALL.len());
+    assert_eq!(
+        p.summary.surface_count,
+        M5DocsBrowserCertifiedSurface::ALL.len()
+    );
 }
 
 #[test]
@@ -41,7 +47,10 @@ fn every_frozen_family_is_certified_on_some_surface() {
     assert!(p.summary.all_families_covered);
     let families = p.represented_families();
     for family in M5DocsBrowserComponentFamily::ALL {
-        assert!(families.contains(&family), "family {family:?} not certified");
+        assert!(
+            families.contains(&family),
+            "family {family:?} not certified"
+        );
     }
 }
 
@@ -69,7 +78,9 @@ fn every_row_scores_every_axis_exactly_once() {
 fn cli_export_axis_is_certified_on_every_row() {
     let p = packet();
     for row in &p.rows {
-        let export = row.axis(DocsCertificationAxis::CliExport).expect("cli axis");
+        let export = row
+            .axis(DocsCertificationAxis::CliExport)
+            .expect("cli axis");
         assert_eq!(export.state, DocsAxisCertificationState::Certified);
         assert!(row.export_parity.is_complete());
     }
@@ -169,7 +180,10 @@ fn axis_tokens_are_distinct() {
 #[test]
 fn only_cli_export_axis_is_always_on() {
     for axis in DocsCertificationAxis::ALL {
-        assert_eq!(axis.is_always_on(), axis == DocsCertificationAxis::CliExport);
+        assert_eq!(
+            axis.is_always_on(),
+            axis == DocsCertificationAxis::CliExport
+        );
     }
 }
 
@@ -240,7 +254,8 @@ fn cli_export_drop_blocks_the_surface() {
     for outcome in &mut row.axis_outcomes {
         if outcome.axis == DocsCertificationAxis::CliExport {
             outcome.state = DocsAxisCertificationState::DisclosedNarrowed;
-            outcome.narrowing_reason = Some("export parity not current for this surface".to_owned());
+            outcome.narrowing_reason =
+                Some("export parity not current for this surface".to_owned());
             outcome.downgrade_trigger = Some(M5DocsDowngradeTrigger::ProofStale);
         }
     }
@@ -327,7 +342,8 @@ fn claim_auto_narrow_bound_to_always_on_axis_blocks() {
     for outcome in &mut row.axis_outcomes {
         if outcome.axis == DocsCertificationAxis::CliExport {
             outcome.state = DocsAxisCertificationState::DisclosedNarrowed;
-            outcome.narrowing_reason = Some("export parity is not current for the AI view".to_owned());
+            outcome.narrowing_reason =
+                Some("export parity is not current for the AI view".to_owned());
             outcome.downgrade_trigger = Some(M5DocsDowngradeTrigger::ProofStale);
         }
     }
@@ -423,9 +439,10 @@ fn wrong_canonical_bundle_is_rejected() {
     p.rows[0].derived_status = p.rows[0].derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, DocsCertificationViolation::RowMissingCanonicalBundle { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        DocsCertificationViolation::RowMissingCanonicalBundle { .. }
+    )));
 }
 
 #[test]
@@ -477,7 +494,9 @@ fn summary_mismatch_is_rejected() {
 #[test]
 fn forbidden_material_in_export_is_rejected() {
     let mut p = packet();
-    p.rows[0].evidence_refs.push("bearer abc123def456".to_owned());
+    p.rows[0]
+        .evidence_refs
+        .push("bearer abc123def456".to_owned());
     p.rows[0].derived_status = p.rows[0].derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
@@ -518,7 +537,11 @@ fn markdown_summary_lists_every_row() {
     let p = packet();
     let md = p.render_markdown_summary();
     for row in &p.rows {
-        assert!(md.contains(&row.row_id), "missing {} in markdown", row.row_id);
+        assert!(
+            md.contains(&row.row_id),
+            "missing {} in markdown",
+            row.row_id
+        );
     }
 }
 
@@ -553,15 +576,15 @@ fn generate_artifacts() {
     let csv = packet.render_matrix_csv();
     let report = packet.render_markdown_summary();
 
-    let art = Path::new(manifest)
-        .join("../../artifacts/docs/m5/m5-docs-browser-component-certification");
+    let art =
+        Path::new(manifest).join("../../artifacts/docs/m5/m5-docs-browser-component-certification");
     fs::create_dir_all(&art).expect("create artifact dir");
     fs::write(art.join("support_export.json"), &json).expect("write support export");
     fs::write(art.join("matrix.csv"), &csv).expect("write csv");
     fs::write(art.join("report.md"), &report).expect("write report");
 
-    let fixtures = Path::new(manifest)
-        .join("../../fixtures/docs/m5/m5-docs-browser-component-certification");
+    let fixtures =
+        Path::new(manifest).join("../../fixtures/docs/m5/m5-docs-browser-component-certification");
     fs::create_dir_all(&fixtures).expect("create fixture dir");
     fs::write(fixtures.join("support_export.json"), &json).expect("write fixture export");
     fs::write(fixtures.join("matrix.csv"), &csv).expect("write fixture csv");

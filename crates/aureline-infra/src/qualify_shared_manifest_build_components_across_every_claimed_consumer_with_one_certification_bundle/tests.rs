@@ -9,15 +9,24 @@ fn packet() -> ManifestBuildQualificationPacket {
 #[test]
 fn seeded_packet_validates_clean() {
     let violations = packet().validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
 fn packet_identity_is_stamped() {
     let p = packet();
     assert_eq!(p.record_kind, MANIFEST_BUILD_QUALIFICATION_RECORD_KIND);
-    assert_eq!(p.schema_version, MANIFEST_BUILD_QUALIFICATION_SCHEMA_VERSION);
-    assert_eq!(p.matrix_ref, MANIFEST_BUILD_QUALIFICATION_COMPONENT_MATRIX_REF);
+    assert_eq!(
+        p.schema_version,
+        MANIFEST_BUILD_QUALIFICATION_SCHEMA_VERSION
+    );
+    assert_eq!(
+        p.matrix_ref,
+        MANIFEST_BUILD_QUALIFICATION_COMPONENT_MATRIX_REF
+    );
     assert_eq!(
         p.certification_bundle_ref,
         MANIFEST_BUILD_QUALIFICATION_BUNDLE_REF
@@ -85,8 +94,16 @@ fn seeded_status_split_is_five_green_three_yellow_zero_red() {
 #[test]
 fn ac1_every_consumer_uses_shared_components_and_tracks_truth() {
     for row in &packet().rows {
-        assert!(row.uses_shared_components, "{} forks components", row.row_id);
-        assert!(row.preserves_target_context(), "{} drops target", row.row_id);
+        assert!(
+            row.uses_shared_components,
+            "{} forks components",
+            row.row_id
+        );
+        assert!(
+            row.preserves_target_context(),
+            "{} drops target",
+            row.row_id
+        );
         assert!(!row.hides_drift(), "{} hides drift", row.row_id);
         assert!(row.dimensions_honest(), "{} dishonest", row.row_id);
     }
@@ -116,7 +133,11 @@ fn ac2_every_row_cites_the_one_bundle_and_consolidated_packets() {
 fn ac3_every_export_preserves_truth() {
     for row in &packet().rows {
         assert!(row.export_preserves_truth(), "{} drops truth", row.row_id);
-        assert!(row.narrowed_reason_exported(), "{} drops reason", row.row_id);
+        assert!(
+            row.narrowed_reason_exported(),
+            "{} drops reason",
+            row.row_id
+        );
         for field in M5ManifestBuildQualificationExportField::MANDATORY {
             assert!(
                 row.preserved_export_fields.contains(&field),
@@ -139,7 +160,10 @@ fn drift_narrows_the_truth_layer_dimension() {
         .dimension(M5ManifestBuildQualificationDimension::TruthLayerLabels)
         .expect("truth-layer dimension");
     assert_eq!(dim.state, M5ManifestBuildParityState::DisclosedNarrowed);
-    assert_eq!(dim.trigger, Some(M5ManifestBuildDowngradeTrigger::DriftFromSource));
+    assert_eq!(
+        dim.trigger,
+        Some(M5ManifestBuildDowngradeTrigger::DriftFromSource)
+    );
     assert_eq!(
         row.verdict(),
         M5ManifestBuildQualificationVerdict::QualifiedWithNarrowing
@@ -174,7 +198,10 @@ fn stale_schema_narrows_the_schema_freshness_dimension() {
         .dimension(M5ManifestBuildQualificationDimension::SchemaFreshness)
         .expect("schema-freshness dimension");
     assert_eq!(dim.state, M5ManifestBuildParityState::DisclosedNarrowed);
-    assert_eq!(dim.trigger, Some(M5ManifestBuildDowngradeTrigger::SchemaStale));
+    assert_eq!(
+        dim.trigger,
+        Some(M5ManifestBuildDowngradeTrigger::SchemaStale)
+    );
 }
 
 #[test]
@@ -406,9 +433,9 @@ fn missing_label_coverage_is_flagged() {
 #[test]
 fn missing_dimension_coverage_is_flagged() {
     let mut p = packet();
-    p.rows[0]
-        .dimensions
-        .retain(|d| d.dimension != M5ManifestBuildQualificationDimension::AccessibilityExportBehavior);
+    p.rows[0].dimensions.retain(|d| {
+        d.dimension != M5ManifestBuildQualificationDimension::AccessibilityExportBehavior
+    });
     p.summary = p.computed_summary();
     let violations = p.validate();
     assert!(violations.iter().any(|v| matches!(
@@ -469,7 +496,11 @@ fn csv_has_a_row_per_consumer() {
 fn markdown_summary_names_every_consumer() {
     let md = packet().render_markdown_summary();
     for consumer in M5QualifiedManifestBuildConsumer::ALL {
-        assert!(md.contains(consumer.as_str()), "missing {}", consumer.as_str());
+        assert!(
+            md.contains(consumer.as_str()),
+            "missing {}",
+            consumer.as_str()
+        );
     }
 }
 

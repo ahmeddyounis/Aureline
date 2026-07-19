@@ -622,7 +622,9 @@ fn missing_source_contracts_fails() {
 #[test]
 fn governance_review_incomplete_fails() {
     let mut packet = seeded_m5_local_history_row_group_card_packet();
-    packet.governance_review.row_posture_never_masks_unrestorable = false;
+    packet
+        .governance_review
+        .row_posture_never_masks_unrestorable = false;
     assert!(packet
         .validate()
         .contains(&M5LocalHistoryRowGroupCardViolation::GovernanceReviewIncomplete));
@@ -689,7 +691,10 @@ fn matrix_csv_has_a_row_per_consumer() {
 fn checked_support_export_validates_and_matches_seed() {
     let from_disk = current_stable_m5_local_history_row_group_card_export()
         .expect("checked M5 row/card primitive export validates");
-    assert_eq!(from_disk.packet_id, M5_LOCAL_HISTORY_ROW_GROUP_CARD_PACKET_ID);
+    assert_eq!(
+        from_disk.packet_id,
+        M5_LOCAL_HISTORY_ROW_GROUP_CARD_PACKET_ID
+    );
     assert_eq!(
         from_disk,
         seeded_m5_local_history_row_group_card_packet(),
@@ -718,9 +723,7 @@ fn narrowed_variants_validate_and_keep_consumers_visible() {
     let row = importer
         .rows
         .iter()
-        .find(|r| {
-            r.consumer_surface == M5LocalHistoryCheckpointConsumerSurface::ImporterActions
-        })
+        .find(|r| r.consumer_surface == M5LocalHistoryCheckpointConsumerSurface::ImporterActions)
         .expect("importer-actions row present");
     assert_eq!(row.qualification, M5HistoryQualificationClass::Preview);
 

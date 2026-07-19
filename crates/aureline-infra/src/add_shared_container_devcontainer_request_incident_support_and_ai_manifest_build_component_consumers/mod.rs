@@ -265,7 +265,10 @@ impl M5ManifestBuildConsumerSurface {
     /// True when this is a docs/help, support-export, or release-proof evidence
     /// surface that must reference the canonical component packets.
     pub const fn is_help_support_release(self) -> bool {
-        matches!(self, Self::DocsHelp | Self::SupportExport | Self::ReleaseProof)
+        matches!(
+            self,
+            Self::DocsHelp | Self::SupportExport | Self::ReleaseProof
+        )
     }
 }
 
@@ -505,7 +508,8 @@ impl ManifestBuildConsumerRow {
     /// Whether the adapter source and discovery confidence are consistent, so a
     /// heuristic or imported result never claims native / high-confidence truth.
     pub fn confidence_consistent(&self) -> bool {
-        self.adapter_source.confidence_consistent(self.discovery_confidence)
+        self.adapter_source
+            .confidence_consistent(self.discovery_confidence)
     }
 
     /// True when this is a docs/help, support-export, or release-proof evidence
@@ -732,9 +736,11 @@ impl ManifestBuildConsumerPacket {
         }
 
         // AC3: docs/help, support-export, and release-proof reference canonical.
-        if !self.rows.iter().any(|r| {
-            r.is_help_support_release_surface() && r.references_canonical_not_local_prose
-        }) {
+        if !self
+            .rows
+            .iter()
+            .any(|r| r.is_help_support_release_surface() && r.references_canonical_not_local_prose)
+        {
             violations.push(ManifestBuildConsumerViolation::MissingHelpSupportReleaseReference);
         }
 
@@ -859,19 +865,47 @@ impl Error for ManifestBuildConsumerArtifactError {}
 /// Validation failure for M05-817 manifest / build consumer packets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ManifestBuildConsumerViolation {
-    SchemaVersion { expected: u32, actual: u32 },
-    RecordKind { expected: String, actual: String },
-    DuplicateId { id: String },
-    IncompleteRow { id: String },
-    SurfaceGroupMismatch { id: String },
-    NotCanonicalFamily { id: String },
-    LabelParityBroken { id: String },
-    TargetContextDropped { id: String },
-    NarrowedWithoutDisclosure { id: String },
-    ConfidenceInconsistent { id: String },
-    MissingCopyExportParity { id: String },
-    MissingConsumerGroup { group: ConsumerGroup },
-    MissingComponentFamily { family: M5ManifestBuildComponentFamily },
+    SchemaVersion {
+        expected: u32,
+        actual: u32,
+    },
+    RecordKind {
+        expected: String,
+        actual: String,
+    },
+    DuplicateId {
+        id: String,
+    },
+    IncompleteRow {
+        id: String,
+    },
+    SurfaceGroupMismatch {
+        id: String,
+    },
+    NotCanonicalFamily {
+        id: String,
+    },
+    LabelParityBroken {
+        id: String,
+    },
+    TargetContextDropped {
+        id: String,
+    },
+    NarrowedWithoutDisclosure {
+        id: String,
+    },
+    ConfidenceInconsistent {
+        id: String,
+    },
+    MissingCopyExportParity {
+        id: String,
+    },
+    MissingConsumerGroup {
+        group: ConsumerGroup,
+    },
+    MissingComponentFamily {
+        family: M5ManifestBuildComponentFamily,
+    },
     NoFamilyReusedAcrossGroups,
     MissingHelpSupportReleaseReference,
     SummaryMismatch,
@@ -962,7 +996,10 @@ fn row(
                 authority.capability_state()
             ),
             capability_state: authority.capability_state().to_owned(),
-            missing_capabilities: missing_capabilities.iter().map(|s| (*s).to_owned()).collect(),
+            missing_capabilities: missing_capabilities
+                .iter()
+                .map(|s| (*s).to_owned())
+                .collect(),
         })
     } else {
         None
@@ -989,8 +1026,14 @@ fn row(
         schema_source,
         adapter_source,
         discovery_confidence: confidence,
-        preserved_badge_labels: preserved_badge_labels.iter().map(|s| (*s).to_owned()).collect(),
-        degraded_state_vocab: degraded_state_vocab.iter().map(|s| (*s).to_owned()).collect(),
+        preserved_badge_labels: preserved_badge_labels
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
+        degraded_state_vocab: degraded_state_vocab
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
         required_labels: M5ManifestBuildRequiredLabel::ALL.to_vec(),
         label_parity,
         handoff_target,
@@ -1028,7 +1071,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Fresh,
             Adapter::NativeBuildServer,
             Conf::High,
-            &["identity:devcontainer.json", "target_context:local-workspace", "truth_class:authored_desired"],
+            &[
+                "identity:devcontainer.json",
+                "target_context:local-workspace",
+                "truth_class:authored_desired",
+            ],
             &["schema_stale", "target_context_unresolved"],
             H::None,
             "",
@@ -1044,7 +1091,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Stale,
             Adapter::HeuristicParse,
             Conf::Medium,
-            &["identity:schema-validator", "target_context:local-workspace", "schema_source:stale"],
+            &[
+                "identity:schema-validator",
+                "target_context:local-workspace",
+                "schema_source:stale",
+            ],
             &["schema_stale"],
             H::None,
             "",
@@ -1060,7 +1111,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Fresh,
             Adapter::NativeBuildServer,
             Conf::High,
-            &["identity:target-graph-row", "target_context:build-graph", "adapter_source:native_build_server"],
+            &[
+                "identity:target-graph-row",
+                "target_context:build-graph",
+                "adapter_source:native_build_server",
+            ],
             &["adapter_unavailable", "drift_from_source"],
             H::None,
             "",
@@ -1076,7 +1131,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Fresh,
             Adapter::ImportedSnapshot,
             Conf::Low,
-            &["identity:target-context-chips", "target_context:build-graph", "freshness:cached_stale"],
+            &[
+                "identity:target-context-chips",
+                "target_context:build-graph",
+                "freshness:cached_stale",
+            ],
             &["drift_from_source", "low_confidence_discovery"],
             H::None,
             "",
@@ -1093,7 +1152,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Fresh,
             Adapter::NativeBuildEvent,
             Conf::High,
-            &["identity:resource-link-row", "target_context:ns-payments", "truth_class:rendered->live"],
+            &[
+                "identity:resource-link-row",
+                "target_context:ns-payments",
+                "truth_class:rendered->live",
+            ],
             &["drift_from_source", "connector_loss"],
             H::BrowserReadonly,
             "handoff.note.browser.resource-link",
@@ -1109,7 +1172,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Unversioned,
             Adapter::ImportedSnapshot,
             Conf::Low,
-            &["identity:resource-explorer-row", "target_context:ns-payments", "freshness:cached_stale"],
+            &[
+                "identity:resource-explorer-row",
+                "target_context:ns-payments",
+                "freshness:cached_stale",
+            ],
             &["connector_loss", "low_confidence_discovery"],
             H::None,
             "",
@@ -1125,7 +1192,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Fresh,
             Adapter::HeuristicParse,
             Conf::Medium,
-            &["identity:adapter-source-badge", "target_context:ns-payments", "adapter_source:heuristic_parse"],
+            &[
+                "identity:adapter-source-badge",
+                "target_context:ns-payments",
+                "adapter_source:heuristic_parse",
+            ],
             &["adapter_unavailable", "structured_channel_lost"],
             H::None,
             "",
@@ -1142,7 +1213,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Unavailable,
             Adapter::HeuristicParse,
             Conf::Low,
-            &["identity:fallback-confidence-drawer", "target_context:ns-payments", "confidence:low"],
+            &[
+                "identity:fallback-confidence-drawer",
+                "target_context:ns-payments",
+                "confidence:low",
+            ],
             &["structured_channel_lost", "adapter_unavailable"],
             H::HandoffPacket,
             "handoff.note.packet.support-bundle",
@@ -1158,7 +1233,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Fresh,
             Adapter::NativeBuildEvent,
             Conf::High,
-            &["identity:raw-event-drawer", "target_context:ns-payments", "adapter_source:native_build_event"],
+            &[
+                "identity:raw-event-drawer",
+                "target_context:ns-payments",
+                "adapter_source:native_build_event",
+            ],
             &["structured_channel_lost"],
             H::None,
             "",
@@ -1174,7 +1253,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Fresh,
             Adapter::ImportedSnapshot,
             Conf::Medium,
-            &["identity:capability-matrix", "target_context:ns-payments", "truth_class:live"],
+            &[
+                "identity:capability-matrix",
+                "target_context:ns-payments",
+                "truth_class:live",
+            ],
             &["policy_block", "adapter_unavailable"],
             H::None,
             "",
@@ -1190,7 +1273,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Fresh,
             Adapter::ProviderOverlay,
             Conf::Medium,
-            &["identity:target-context-chips", "target_context:build-graph", "truth_class:planned"],
+            &[
+                "identity:target-context-chips",
+                "target_context:build-graph",
+                "truth_class:planned",
+            ],
             &["target_context_unresolved", "drift_from_source"],
             H::None,
             "",
@@ -1207,7 +1294,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Fresh,
             Adapter::NativeBuildServer,
             Conf::High,
-            &["identity:adapter-source-badge", "target_context:ns-payments", "adapter_source:native_build_server"],
+            &[
+                "identity:adapter-source-badge",
+                "target_context:ns-payments",
+                "adapter_source:native_build_server",
+            ],
             &["adapter_unavailable", "structured_channel_lost"],
             H::None,
             "",
@@ -1223,7 +1314,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Stale,
             Adapter::HeuristicParse,
             Conf::Low,
-            &["identity:capability-matrix", "target_context:ns-payments", "confidence:low"],
+            &[
+                "identity:capability-matrix",
+                "target_context:ns-payments",
+                "confidence:low",
+            ],
             &["low_confidence_discovery", "policy_block"],
             H::None,
             "",
@@ -1239,7 +1334,11 @@ pub fn seeded_m5_manifest_build_consumer_packet() -> ManifestBuildConsumerPacket
             Schema::Fresh,
             Adapter::NativeBuildServer,
             Conf::High,
-            &["identity:manifest-editor-header", "target_context:local-workspace", "truth_class:authored_desired"],
+            &[
+                "identity:manifest-editor-header",
+                "target_context:local-workspace",
+                "truth_class:authored_desired",
+            ],
             &["schema_stale", "target_context_unresolved"],
             H::None,
             "",

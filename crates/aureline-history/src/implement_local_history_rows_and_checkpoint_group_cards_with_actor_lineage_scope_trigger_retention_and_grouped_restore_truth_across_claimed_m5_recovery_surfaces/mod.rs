@@ -241,7 +241,10 @@ impl M5LocalHistoryRowPosture {
 
     /// True when a snapshot at this posture can still restore its captured body.
     pub const fn can_restore(self) -> bool {
-        !matches!(self, Self::MetadataOnlyReference | Self::ExpiredUnrestorable)
+        !matches!(
+            self,
+            Self::MetadataOnlyReference | Self::ExpiredUnrestorable
+        )
     }
 
     /// True when the row needs operator attention before a restore or export.
@@ -1064,9 +1067,16 @@ pub fn resolve_checkpoint_group_card(
         input.restore_path_ready,
     );
     let can_restore = card_posture.can_restore();
-    let is_exportable = !matches!(input.export_posture, M5ExportRedactionPosture::ExportBlocked);
-    let available_actions =
-        derive_card_actions(can_restore, is_multi_file, touches_generated_or_managed, is_exportable);
+    let is_exportable = !matches!(
+        input.export_posture,
+        M5ExportRedactionPosture::ExportBlocked
+    );
+    let available_actions = derive_card_actions(
+        can_restore,
+        is_multi_file,
+        touches_generated_or_managed,
+        is_exportable,
+    );
 
     Ok(M5ResolvedCheckpointGroupCard {
         lineage_class: input.lineage_class,
@@ -1193,8 +1203,8 @@ impl M5CheckpointGroupCardResolutionCase {
     ///
     /// Panics if `input` does not resolve; seed inputs are always valid.
     pub fn resolved(input: M5CheckpointGroupCardResolutionInput) -> Self {
-        let resolved =
-            resolve_checkpoint_group_card(&input).expect("seed checkpoint group card case is valid");
+        let resolved = resolve_checkpoint_group_card(&input)
+            .expect("seed checkpoint group card case is valid");
         Self { input, resolved }
     }
 
@@ -1719,7 +1729,10 @@ impl fmt::Display for M5LocalHistoryRowGroupCardArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SupportExport(error) => {
-                write!(formatter, "m5 row/card primitive export parse failed: {error}")
+                write!(
+                    formatter,
+                    "m5 row/card primitive export parse failed: {error}"
+                )
             }
             Self::Validation(violations) => {
                 let tokens = violations
@@ -1962,7 +1975,10 @@ fn validate_rows(
         if row.card_examples.is_empty() {
             violations.push(M5LocalHistoryRowGroupCardViolation::CardExampleMissing);
         }
-        if row.row_examples.iter().any(|case| !case.is_self_consistent())
+        if row
+            .row_examples
+            .iter()
+            .any(|case| !case.is_self_consistent())
             || row
                 .card_examples
                 .iter()
@@ -1987,14 +2003,16 @@ fn validate_row_restore_coverage(
     packet: &M5LocalHistoryRowGroupCardPacket,
     violations: &mut Vec<M5LocalHistoryRowGroupCardViolation>,
 ) {
-    let has_restorable = packet
-        .rows
-        .iter()
-        .any(|row| row.row_examples.iter().any(|case| case.resolved.can_restore));
-    let has_unrestorable = packet
-        .rows
-        .iter()
-        .any(|row| row.row_examples.iter().any(|case| !case.resolved.can_restore));
+    let has_restorable = packet.rows.iter().any(|row| {
+        row.row_examples
+            .iter()
+            .any(|case| case.resolved.can_restore)
+    });
+    let has_unrestorable = packet.rows.iter().any(|row| {
+        row.row_examples
+            .iter()
+            .any(|case| !case.resolved.can_restore)
+    });
     if !(has_restorable && has_unrestorable) {
         violations.push(M5LocalHistoryRowGroupCardViolation::RowRestoreCoverageUnproven);
     }
@@ -2007,10 +2025,11 @@ fn validate_row_automated_disclosure(
     packet: &M5LocalHistoryRowGroupCardPacket,
     violations: &mut Vec<M5LocalHistoryRowGroupCardViolation>,
 ) {
-    let proven = packet
-        .rows
-        .iter()
-        .any(|row| row.row_examples.iter().any(|case| case.resolved.is_automated));
+    let proven = packet.rows.iter().any(|row| {
+        row.row_examples
+            .iter()
+            .any(|case| case.resolved.is_automated)
+    });
     if !proven {
         violations.push(M5LocalHistoryRowGroupCardViolation::RowAutomatedDisclosureUnproven);
     }
@@ -2049,10 +2068,11 @@ fn validate_row_actor_coverage(
             )
         })
     });
-    let has_attention = packet
-        .rows
-        .iter()
-        .any(|row| row.row_examples.iter().any(|case| case.resolved.needs_attention));
+    let has_attention = packet.rows.iter().any(|row| {
+        row.row_examples
+            .iter()
+            .any(|case| case.resolved.needs_attention)
+    });
     if !(has_attributed && has_attention) {
         violations.push(M5LocalHistoryRowGroupCardViolation::RowActorCoverageUnproven);
     }
@@ -2096,14 +2116,16 @@ fn validate_card_restore_coverage(
     packet: &M5LocalHistoryRowGroupCardPacket,
     violations: &mut Vec<M5LocalHistoryRowGroupCardViolation>,
 ) {
-    let has_restorable = packet
-        .rows
-        .iter()
-        .any(|row| row.card_examples.iter().any(|case| case.resolved.can_restore));
-    let has_blocked = packet
-        .rows
-        .iter()
-        .any(|row| row.card_examples.iter().any(|case| !case.resolved.can_restore));
+    let has_restorable = packet.rows.iter().any(|row| {
+        row.card_examples
+            .iter()
+            .any(|case| case.resolved.can_restore)
+    });
+    let has_blocked = packet.rows.iter().any(|row| {
+        row.card_examples
+            .iter()
+            .any(|case| !case.resolved.can_restore)
+    });
     if !(has_restorable && has_blocked) {
         violations.push(M5LocalHistoryRowGroupCardViolation::CardRestoreCoverageUnproven);
     }

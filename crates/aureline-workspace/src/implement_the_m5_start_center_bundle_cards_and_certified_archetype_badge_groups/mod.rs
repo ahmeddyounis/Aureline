@@ -542,7 +542,11 @@ impl M5LaunchWedgeResolutionError {
 
 impl fmt::Display for M5LaunchWedgeResolutionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "launch-wedge resolution error: {}", self.as_str())
+        write!(
+            formatter,
+            "launch-wedge resolution error: {}",
+            self.as_str()
+        )
     }
 }
 
@@ -824,7 +828,10 @@ impl M5LaunchWedgeVocabularySet {
                 ImportedVsNativeConfidence::as_str,
             ),
             truth_modes: tokens(&M5BundleTruthMode::ALL, M5BundleTruthMode::as_str),
-            downgrade_triggers: tokens(&DOWNGRADE_TRIGGER_ALL, M5BundleComponentDowngradeTrigger::as_str),
+            downgrade_triggers: tokens(
+                &DOWNGRADE_TRIGGER_ALL,
+                M5BundleComponentDowngradeTrigger::as_str,
+            ),
         }
     }
 
@@ -1019,7 +1026,9 @@ impl M5StartCenterLaunchWedgePacket {
     /// Deterministic, machine-readable matrix CSV: one row per surface family.
     pub fn render_matrix_csv(&self) -> String {
         let mut out = String::new();
-        out.push_str("surface_family,owner,source_classes,truth_modes,export_fields,example_count\n");
+        out.push_str(
+            "surface_family,owner,source_classes,truth_modes,export_fields,example_count\n",
+        );
         for row in &self.surface_rows {
             out.push_str(&format!(
                 "{},{},{},{},{},{}\n",
@@ -1287,7 +1296,11 @@ fn validate_surface_rows(
         if row.example_wedges.is_empty() {
             violations.push(M5LaunchWedgeViolation::ExampleWedgesMissing);
         }
-        if row.example_wedges.iter().any(|case| !case.is_self_consistent()) {
+        if row
+            .example_wedges
+            .iter()
+            .any(|case| !case.is_self_consistent())
+        {
             violations.push(M5LaunchWedgeViolation::ExampleWedgeDrift);
         }
         if !row.honours_invariants() {
@@ -1328,7 +1341,9 @@ fn validate_acceptance_criteria_covered(
     let badge_downgrade_proven = cases
         .iter()
         .any(|resolved| resolved.badge_group.downgrade_state.is_degraded())
-        && cases.iter().all(|resolved| resolved.badges_degrade_visibly());
+        && cases
+            .iter()
+            .all(|resolved| resolved.badges_degrade_visibly());
     if !badge_downgrade_proven {
         violations.push(M5LaunchWedgeViolation::BadgeDowngradeUnproven);
     }

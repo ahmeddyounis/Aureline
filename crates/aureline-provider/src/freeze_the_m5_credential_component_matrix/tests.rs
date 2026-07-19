@@ -41,8 +41,11 @@ fn every_component_declares_mandatory_labels_schema_and_deployment_lines() {
             );
         }
         assert!(
-            row.source_contract_refs
-                .contains(&row.component_family.canonical_component_schema_ref().to_owned()),
+            row.source_contract_refs.contains(
+                &row.component_family
+                    .canonical_component_schema_ref()
+                    .to_owned()
+            ),
             "component {} does not point at its canonical schema",
             row.component_family.as_str()
         );

@@ -64,8 +64,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::freeze_the_m5_tab_strip_breadcrumbs_tree_view_list_view_table_grid_and_panel_header_component_matrix as matrix;
 use crate::implement_the_m5_panel_header_and_local_action_cluster_stable_title_overflow_rule_source_freshness_cue_and_command_backed_action_primitive as panel_header_controls;
-use crate::implement_the_m5_table_grid_and_panel_header_sort_filter_provenance_selection_bar_pinned_column_identity_value_qualification_and_count_scope_primitive as table_grid_controls;
 use crate::implement_the_m5_tab_strip_and_breadcrumbs_active_context_item_state_hierarchy_path_source_aware_context_and_no_top_level_navigation_drift_primitive as tab_strip_controls;
+use crate::implement_the_m5_table_grid_and_panel_header_sort_filter_provenance_selection_bar_pinned_column_identity_value_qualification_and_count_scope_primitive as table_grid_controls;
 use crate::implement_the_m5_tree_view_and_list_view_virtualization_disclosure_selection_focus_inline_action_budget_and_exact_loaded_hidden_scope_primitive as tree_view_controls;
 
 pub use matrix::{
@@ -77,7 +77,8 @@ pub use matrix::{
 pub const NAV_CONTENT_CONSUMER_SCHEMA_VERSION: u32 = 1;
 
 /// Stable record-kind tag carried by [`NavContentConsumerPacket`].
-pub const NAV_CONTENT_CONSUMER_RECORD_KIND: &str = "m5_navigation_content_component_consumer_packet";
+pub const NAV_CONTENT_CONSUMER_RECORD_KIND: &str =
+    "m5_navigation_content_component_consumer_packet";
 
 /// Stable record-kind tag carried by each [`NavContentConsumerRow`].
 pub const NAV_CONTENT_CONSUMER_ROW_RECORD_KIND: &str =
@@ -157,9 +158,7 @@ pub fn is_canonical_navigation_disposition(token: &str) -> bool {
 }
 
 /// The canonical per-family matrix schema that defines a family's contract.
-pub fn canonical_family_schema_ref_for(
-    family: M5NavigationContentComponentFamily,
-) -> &'static str {
+pub fn canonical_family_schema_ref_for(family: M5NavigationContentComponentFamily) -> &'static str {
     family.canonical_component_schema_ref()
 }
 
@@ -958,7 +957,10 @@ impl NavContentConsumerPacket {
                 .rows
                 .iter()
                 .all(NavContentConsumerRow::points_to_canonical_family),
-            all_rows_preserve_labels: self.rows.iter().all(NavContentConsumerRow::preserves_labels),
+            all_rows_preserve_labels: self
+                .rows
+                .iter()
+                .all(NavContentConsumerRow::preserves_labels),
             all_rows_use_canonical_controls_lane: self
                 .rows
                 .iter()
@@ -1298,27 +1300,66 @@ impl Error for NavContentConsumerArtifactError {}
 /// Validation failure for M05-1113 consumer packets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NavContentConsumerViolation {
-    SchemaVersion { expected: u32, actual: u32 },
-    RecordKind { expected: String, actual: String },
+    SchemaVersion {
+        expected: u32,
+        actual: u32,
+    },
+    RecordKind {
+        expected: String,
+        actual: String,
+    },
     MissingIdentity,
-    DuplicateId { id: String },
-    IncompleteRow { id: String },
-    SurfaceClassMismatch { id: String },
-    NotCanonicalFamily { id: String },
-    NonCanonicalControlsLane { id: String },
-    LabelParityBroken { id: String },
-    PrimaryNavigationTruthDropped { id: String },
-    CountScopeDropped { id: String },
-    StateNotReconstructable { id: String },
-    NarrowedWithoutDisclosure { id: String },
-    MissingCopyExportParity { id: String },
-    GuardrailViolated { id: String, guardrail: &'static str },
-    MissingConsumerClass { class: ConsumerClass },
-    MissingFamilyCoverage { family: M5NavigationContentComponentFamily },
+    DuplicateId {
+        id: String,
+    },
+    IncompleteRow {
+        id: String,
+    },
+    SurfaceClassMismatch {
+        id: String,
+    },
+    NotCanonicalFamily {
+        id: String,
+    },
+    NonCanonicalControlsLane {
+        id: String,
+    },
+    LabelParityBroken {
+        id: String,
+    },
+    PrimaryNavigationTruthDropped {
+        id: String,
+    },
+    CountScopeDropped {
+        id: String,
+    },
+    StateNotReconstructable {
+        id: String,
+    },
+    NarrowedWithoutDisclosure {
+        id: String,
+    },
+    MissingCopyExportParity {
+        id: String,
+    },
+    GuardrailViolated {
+        id: String,
+        guardrail: &'static str,
+    },
+    MissingConsumerClass {
+        class: ConsumerClass,
+    },
+    MissingFamilyCoverage {
+        family: M5NavigationContentComponentFamily,
+    },
     NoFamilyReusedAcrossClasses,
     ControlsLaneForkedAcrossSurfaces,
-    MissingLabelFamily { family: String },
-    MissingNavigationDisposition { disposition: String },
+    MissingLabelFamily {
+        family: String,
+    },
+    MissingNavigationDisposition {
+        disposition: String,
+    },
     MissingHelpReference,
     MissingSupportExportReference,
     SummaryMismatch,

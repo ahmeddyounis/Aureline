@@ -13,7 +13,10 @@ fn packet() -> EntrySurfaceCertificationPacket {
 #[test]
 fn seeded_packet_validates() {
     let violations = packet().validate();
-    assert!(violations.is_empty(), "unexpected violations: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "unexpected violations: {violations:?}"
+    );
 }
 
 #[test]
@@ -31,7 +34,10 @@ fn every_claimed_surface_is_certified_exactly_once() {
         let count = p.rows.iter().filter(|r| r.surface == surface).count();
         assert_eq!(count, 1, "surface {surface:?} certified {count} times");
     }
-    assert_eq!(p.summary.surface_count, M5ProjectEntryCertifiedSurface::ALL.len());
+    assert_eq!(
+        p.summary.surface_count,
+        M5ProjectEntryCertifiedSurface::ALL.len()
+    );
 }
 
 #[test]
@@ -58,7 +64,9 @@ fn every_row_scores_every_axis_exactly_once() {
 fn export_parity_axis_is_certified_on_every_row() {
     let p = packet();
     for row in &p.rows {
-        let export = row.axis(EntryCertificationAxis::ExportParity).expect("export axis");
+        let export = row
+            .axis(EntryCertificationAxis::ExportParity)
+            .expect("export axis");
         assert_eq!(export.state, AxisCertificationState::Certified);
         assert!(row.export_parity.is_complete());
     }
@@ -87,15 +95,27 @@ fn every_row_status_is_fresh() {
 #[test]
 fn every_row_consumes_at_least_one_frozen_family() {
     for row in &packet().rows {
-        assert!(!row.consumed_families.is_empty(), "row {} consumes no family", row.row_id);
+        assert!(
+            !row.consumed_families.is_empty(),
+            "row {} consumes no family",
+            row.row_id
+        );
     }
 }
 
 #[test]
 fn yellow_rows_narrow_their_claim_and_bind_to_a_narrowed_axis() {
     let p = packet();
-    for row in p.rows.iter().filter(|r| r.derived_status == SurfaceClaimStatus::Yellow) {
-        assert!(row.is_tier_narrowed(), "yellow row {} did not narrow tier", row.row_id);
+    for row in p
+        .rows
+        .iter()
+        .filter(|r| r.derived_status == SurfaceClaimStatus::Yellow)
+    {
+        assert!(
+            row.is_tier_narrowed(),
+            "yellow row {} did not narrow tier",
+            row.row_id
+        );
         let narrow = row
             .claim_auto_narrow
             .as_ref()
@@ -114,7 +134,11 @@ fn yellow_rows_narrow_their_claim_and_bind_to_a_narrowed_axis() {
 
 #[test]
 fn green_rows_have_no_narrowing_and_deliver_their_claim() {
-    for row in packet().rows.iter().filter(|r| r.derived_status == SurfaceClaimStatus::Green) {
+    for row in packet()
+        .rows
+        .iter()
+        .filter(|r| r.derived_status == SurfaceClaimStatus::Green)
+    {
         assert_eq!(row.claimed_tier, row.certified_tier);
         assert!(row.claim_auto_narrow.is_none());
         assert!(row.narrowed_axes().is_empty());
@@ -132,9 +156,15 @@ fn surface_tokens_are_unique() {
 
 #[test]
 fn axis_tokens_and_tier_ranks_are_distinct() {
-    let axes: BTreeSet<&str> = EntryCertificationAxis::ALL.iter().map(|a| a.as_str()).collect();
+    let axes: BTreeSet<&str> = EntryCertificationAxis::ALL
+        .iter()
+        .map(|a| a.as_str())
+        .collect();
     assert_eq!(axes.len(), EntryCertificationAxis::ALL.len());
-    let ranks: BTreeSet<u8> = EntryClaimTier::ALL.iter().map(|t| t.capability_rank()).collect();
+    let ranks: BTreeSet<u8> = EntryClaimTier::ALL
+        .iter()
+        .map(|t| t.capability_rank())
+        .collect();
     assert_eq!(ranks.len(), EntryClaimTier::ALL.len());
 }
 
@@ -215,7 +245,8 @@ fn export_parity_drop_blocks_the_surface() {
     for outcome in &mut row.axis_outcomes {
         if outcome.axis == EntryCertificationAxis::ExportParity {
             outcome.state = AxisCertificationState::DisclosedNarrowed;
-            outcome.narrowing_reason = Some("export parity not current for this surface".to_owned());
+            outcome.narrowing_reason =
+                Some("export parity not current for this surface".to_owned());
             outcome.downgrade_trigger = Some("review_required_before_open".to_owned());
         }
     }
@@ -268,9 +299,10 @@ fn certified_tier_above_claim_blocks() {
     row.derived_status = row.derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, EntryCertificationViolation::CertifiedTierExceedsClaim { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        EntryCertificationViolation::CertifiedTierExceedsClaim { .. }
+    )));
 }
 
 #[test]
@@ -329,7 +361,8 @@ fn disclosed_axis_missing_trigger_is_malformed() {
 #[test]
 fn missing_surface_is_rejected() {
     let mut p = packet();
-    p.rows.retain(|r| r.surface != M5ProjectEntryCertifiedSurface::Restore);
+    p.rows
+        .retain(|r| r.surface != M5ProjectEntryCertifiedSurface::Restore);
     p.summary = p.computed_summary();
     let violations = p.validate();
     assert!(violations
@@ -355,9 +388,10 @@ fn wrong_canonical_bundle_is_rejected() {
     p.rows[0].derived_status = p.rows[0].derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, EntryCertificationViolation::RowMissingCanonicalBundle { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        EntryCertificationViolation::RowMissingCanonicalBundle { .. }
+    )));
 }
 
 #[test]
@@ -391,9 +425,10 @@ fn axis_coverage_gap_is_rejected() {
     p.rows[0].derived_status = p.rows[0].derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, EntryCertificationViolation::AxisCoverageIncomplete { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        EntryCertificationViolation::AxisCoverageIncomplete { .. }
+    )));
 }
 
 #[test]
@@ -409,7 +444,9 @@ fn summary_mismatch_is_rejected() {
 #[test]
 fn forbidden_material_in_export_is_rejected() {
     let mut p = packet();
-    p.rows[0].evidence_refs.push("bearer abc123def456".to_owned());
+    p.rows[0]
+        .evidence_refs
+        .push("bearer abc123def456".to_owned());
     p.rows[0].derived_status = p.rows[0].derive_status();
     p.summary = p.computed_summary();
     let violations = p.validate();
@@ -450,13 +487,18 @@ fn markdown_summary_lists_every_row() {
     let p = packet();
     let md = p.render_markdown_summary();
     for row in &p.rows {
-        assert!(md.contains(&row.row_id), "missing {} in markdown", row.row_id);
+        assert!(
+            md.contains(&row.row_id),
+            "missing {} in markdown",
+            row.row_id
+        );
     }
 }
 
 #[test]
 fn checked_in_export_matches_seeded_builder() {
-    let on_disk = current_m5_project_entry_component_certification_export().expect("export is valid");
+    let on_disk =
+        current_m5_project_entry_component_certification_export().expect("export is valid");
     assert_eq!(
         on_disk.export_safe_json(),
         packet().export_safe_json(),

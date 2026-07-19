@@ -197,15 +197,14 @@ pub use entry_flows::{
 
 pub use entry::{
     build_project_entry_review, AddRootEntryReviewSheet, CloneDepthClass, CloneEntryReviewSheet,
-    CloneReviewOptions, EntryCollisionSafeAction, EntryDeferredWorkClass,
-    EntryCollisionSourceClass, EntryDestinationCollisionClass, EntryDestinationCollisionReview,
-    EntryDestinationFacts, EntryExportShareState, EntryFailureRepairState,
-    EntryFollowUpStateClass, EntryPostEntryHandoffCard, EntryReviewRequirementClass,
-    EntryReviewSheet, EntryReviewSheetKind, EntrySourceAccessClass, EntrySurfaceParity,
-    EntryVocabularyReview, ImportEntryReviewSheet, ImportLossyMappingClass, ImportReviewOptions,
-    ImportWriteBehaviorClass, OpenEntryReviewSheet, OpenWorkspaceReviewSheet,
-    ProjectEntryReviewRecord, ProjectEntryReviewRecordKind, ProjectEntryReviewRequest,
-    RestoreEntryReviewSheet, ENTRY_REVIEW_SCHEMA_VERSION,
+    CloneReviewOptions, EntryCollisionSafeAction, EntryCollisionSourceClass,
+    EntryDeferredWorkClass, EntryDestinationCollisionClass, EntryDestinationCollisionReview,
+    EntryDestinationFacts, EntryExportShareState, EntryFailureRepairState, EntryFollowUpStateClass,
+    EntryPostEntryHandoffCard, EntryReviewRequirementClass, EntryReviewSheet, EntryReviewSheetKind,
+    EntrySourceAccessClass, EntrySurfaceParity, EntryVocabularyReview, ImportEntryReviewSheet,
+    ImportLossyMappingClass, ImportReviewOptions, ImportWriteBehaviorClass, OpenEntryReviewSheet,
+    OpenWorkspaceReviewSheet, ProjectEntryReviewRecord, ProjectEntryReviewRecordKind,
+    ProjectEntryReviewRequest, RestoreEntryReviewSheet, ENTRY_REVIEW_SCHEMA_VERSION,
 };
 
 pub use finalize_workflow_bundle_lifecycle_drift_and_overrides::{
@@ -274,12 +273,12 @@ pub use implement_the_m5_bundle_drift_banners_and_local_override_rows::{
 pub use implement_the_m5_bundle_rollback_remove_cards_and_asset_removal_truth::{
     current_stable_m5_bundle_rollback_remove_export, resolve_bundle_removal,
     seeded_m5_bundle_rollback_remove_packet, M5BundleRemovalArtifactError, M5BundleRemovalCase,
-    M5BundleRemovalConsumerProjection, M5BundleRemovalExportField,
-    M5BundleRemovalGovernanceReview, M5BundleRemovalInput, M5BundleRemovalReleasePosture,
-    M5BundleRemovalResolutionError, M5BundleRemovalSurfaceFamily, M5BundleRemovalSurfaceRow,
-    M5BundleRemovalViolation, M5BundleRemovalVocabularySet, M5BundleRollbackRemovePacket,
-    M5BundleRollbackRemovePacketInput, M5ExportBeforeRemove, M5RemovalAsset, M5RemovalAssetOrigin,
-    M5RemovalDisposition, M5ResolvedAssetInventory, M5ResolvedBundleRemoval, M5ResolvedRemovalCard,
+    M5BundleRemovalConsumerProjection, M5BundleRemovalExportField, M5BundleRemovalGovernanceReview,
+    M5BundleRemovalInput, M5BundleRemovalReleasePosture, M5BundleRemovalResolutionError,
+    M5BundleRemovalSurfaceFamily, M5BundleRemovalSurfaceRow, M5BundleRemovalViolation,
+    M5BundleRemovalVocabularySet, M5BundleRollbackRemovePacket, M5BundleRollbackRemovePacketInput,
+    M5ExportBeforeRemove, M5RemovalAsset, M5RemovalAssetOrigin, M5RemovalDisposition,
+    M5ResolvedAssetInventory, M5ResolvedBundleRemoval, M5ResolvedRemovalCard,
     M5ResolvedRestorePath, M5SafeToRemoveClass, M5_BUNDLE_REMOVAL_ARTIFACT_REF,
     M5_BUNDLE_REMOVAL_COMPONENT_MATRIX_REF, M5_BUNDLE_REMOVAL_CSV_REF, M5_BUNDLE_REMOVAL_DOC_REF,
     M5_BUNDLE_REMOVAL_FIXTURE_DIR, M5_BUNDLE_REMOVAL_RECORD_KIND, M5_BUNDLE_REMOVAL_REPORT_REF,

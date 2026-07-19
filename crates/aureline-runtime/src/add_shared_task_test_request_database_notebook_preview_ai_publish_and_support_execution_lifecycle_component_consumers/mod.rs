@@ -285,7 +285,9 @@ impl M5ExecutionConsumerSurface {
         match self {
             Self::TaskRunPane | Self::TestExplorer => ConsumerGroup::TaskTest,
             Self::RequestRunPane | Self::DatabaseExecutionPane => ConsumerGroup::RequestDatabase,
-            Self::NotebookExecutionCell | Self::PreviewRuntimeLane => ConsumerGroup::NotebookPreview,
+            Self::NotebookExecutionCell | Self::PreviewRuntimeLane => {
+                ConsumerGroup::NotebookPreview
+            }
             Self::AiMediatedRun | Self::PublishDeployFlow => ConsumerGroup::AiPublish,
             Self::SupportExportReplay | Self::HistoryActivityCenter | Self::HelpCenterDocs => {
                 ConsumerGroup::SupportExport
@@ -745,9 +747,9 @@ impl ExecutionConsumerPacket {
 
     /// Whether some docs / help surface references the canonical families (AC3).
     pub fn has_docs_help_reference(&self) -> bool {
-        self.rows.iter().any(|r| {
-            r.consumer_surface.is_docs_help() && r.references_canonical_not_local_prose
-        })
+        self.rows
+            .iter()
+            .any(|r| r.consumer_surface.is_docs_help() && r.references_canonical_not_local_prose)
     }
 
     /// Computes summary fields from the packet contents.
@@ -773,10 +775,7 @@ impl ExecutionConsumerPacket {
                 .rows
                 .iter()
                 .all(ExecutionConsumerRow::points_to_canonical_family),
-            all_rows_preserve_labels: self
-                .rows
-                .iter()
-                .all(ExecutionConsumerRow::preserves_labels),
+            all_rows_preserve_labels: self.rows.iter().all(ExecutionConsumerRow::preserves_labels),
             all_narrowed_rows_disclose: self
                 .rows
                 .iter()

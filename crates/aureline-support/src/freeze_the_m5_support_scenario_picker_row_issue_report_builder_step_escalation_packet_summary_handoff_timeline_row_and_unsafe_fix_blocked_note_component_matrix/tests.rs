@@ -403,7 +403,8 @@ fn unsafe_fix_blocked_note_vocab_missing_fails() {
             .component_rows
             .iter_mut()
             .find(|row| {
-                row.component_family == M5SupportIntakeEscalationComponentFamily::UnsafeFixBlockedNote
+                row.component_family
+                    == M5SupportIntakeEscalationComponentFamily::UnsafeFixBlockedNote
             })
             .expect("unsafe-fix blocked note present");
         let expected = match clear {
@@ -512,9 +513,9 @@ fn consumer_projection_incomplete_fails() {
     packet
         .consumer_projection
         .help_and_admin_surfaces_read_single_source = false;
-    assert!(packet
-        .validate()
-        .contains(&M5SupportIntakeEscalationComponentMatrixViolation::ConsumerProjectionIncomplete));
+    assert!(packet.validate().contains(
+        &M5SupportIntakeEscalationComponentMatrixViolation::ConsumerProjectionIncomplete
+    ));
 }
 
 #[test]

@@ -1026,7 +1026,11 @@ impl M5DebugHierarchyError {
 
 impl fmt::Display for M5DebugHierarchyError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "debug-hierarchy resolution error: {}", self.as_str())
+        write!(
+            formatter,
+            "debug-hierarchy resolution error: {}",
+            self.as_str()
+        )
     }
 }
 
@@ -1243,8 +1247,11 @@ fn resolve_tree_rows(
     }
 
     // At most one thread may be selected, and it must agree with the selected-thread ref.
-    let selected: Vec<&M5DebugTreeNodeInput> =
-        input.tree_nodes.iter().filter(|node| node.is_selected).collect();
+    let selected: Vec<&M5DebugTreeNodeInput> = input
+        .tree_nodes
+        .iter()
+        .filter(|node| node.is_selected)
+        .collect();
     if selected.len() > 1 {
         return Err(M5DebugHierarchyError::MultipleThreadsSelected);
     }
@@ -1849,7 +1856,10 @@ impl M5DebugHierarchyPrimitivePacket {
             out.push_str(&format!("- **{}**\n", row.surface_family.label()));
             out.push_str(&format!("  - Owner: {}\n", row.owner_role));
             out.push_str(&format!("  - Scope: {}\n", row.scope_summary));
-            out.push_str(&format!("  - Worked cases: {}\n", row.example_sessions.len()));
+            out.push_str(&format!(
+                "  - Worked cases: {}\n",
+                row.example_sessions.len()
+            ));
             for case in &row.example_sessions {
                 out.push_str(&format!(
                     "    - `{}` → target `{}` [{}], {} / {} ({} node(s), {} dump(s))\n",
@@ -2073,7 +2083,11 @@ fn validate_surface_rows(
         if row.example_sessions.is_empty() {
             violations.push(M5DebugViolation::ExampleSessionsMissing);
         }
-        if row.example_sessions.iter().any(|case| !case.is_self_consistent()) {
+        if row
+            .example_sessions
+            .iter()
+            .any(|case| !case.is_self_consistent())
+        {
             violations.push(M5DebugViolation::ExampleSessionDrift);
         }
         if !row.honours_invariants() {
@@ -2125,11 +2139,13 @@ fn validate_acceptance_criteria_covered(
     for resolved in &cases {
         postures_seen.insert(resolved.header.control_posture);
     }
-    let control_proven = cases
-        .iter()
-        .any(|resolved| resolved.header.is_live_control)
-        && cases.iter().any(|resolved| !resolved.header.is_live_control)
-        && cases.iter().all(|resolved| resolved.distinguishes_control())
+    let control_proven = cases.iter().any(|resolved| resolved.header.is_live_control)
+        && cases
+            .iter()
+            .any(|resolved| !resolved.header.is_live_control)
+        && cases
+            .iter()
+            .all(|resolved| resolved.distinguishes_control())
         && M5DebugControlPosture::ALL
             .iter()
             .all(|posture| postures_seen.contains(posture));
@@ -2145,9 +2161,7 @@ fn validate_acceptance_criteria_covered(
             symbolication_seen.insert(card.symbolication);
         }
     }
-    let provenance_proven = cases
-        .iter()
-        .any(|resolved| !resolved.dump_cards.is_empty())
+    let provenance_proven = cases.iter().any(|resolved| !resolved.dump_cards.is_empty())
         && cases
             .iter()
             .all(|resolved| resolved.preserves_mapping_and_provenance())

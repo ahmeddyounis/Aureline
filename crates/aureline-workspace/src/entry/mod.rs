@@ -378,7 +378,8 @@ impl ProjectEntryReviewRecord {
                         | EntryCollisionSafeAction::AddExistingToWorkspace
                         | EntryCollisionSafeAction::CloneElsewhere
                 )
-            }) && collision.collision_source_class != EntryCollisionSourceClass::PolicyBlockedDestination
+            }) && collision.collision_source_class
+                != EntryCollisionSourceClass::PolicyBlockedDestination
             {
                 findings.push(
                     "destination collision must offer safe reuse, add, or clone-elsewhere choices"
@@ -392,13 +393,21 @@ impl ProjectEntryReviewRecord {
                 findings.push("destination collision must offer reveal in filesystem".to_string());
             }
         }
-        if self.post_entry_handoff_card.opened_object_label.trim().is_empty() {
+        if self
+            .post_entry_handoff_card
+            .opened_object_label
+            .trim()
+            .is_empty()
+        {
             findings.push("post-entry handoff must name the opened object".to_string());
         }
-        if self.post_entry_handoff_card.pending_trust_or_setup_tasks.is_empty() {
-            findings.push(
-                "post-entry handoff must declare pending trust or setup tasks".to_string(),
-            );
+        if self
+            .post_entry_handoff_card
+            .pending_trust_or_setup_tasks
+            .is_empty()
+        {
+            findings
+                .push("post-entry handoff must declare pending trust or setup tasks".to_string());
         }
         if self.post_entry_handoff_card.recommended_next_action
             != self.post_entry_handoff_card.primary_next_action
@@ -1505,7 +1514,8 @@ fn post_entry_handoff_card_for(
         .map(|task| task.task_class)
         .collect();
     let primary_next_action = primary_next_action_for(request.entry_verb, request.resulting_mode);
-    let follow_up_state_class = follow_up_state_class_for(request.entry_verb, request.resulting_mode);
+    let follow_up_state_class =
+        follow_up_state_class_for(request.entry_verb, request.resulting_mode);
     let export_or_share_state = export_share_state_for(follow_up_state_class);
     EntryPostEntryHandoffCard {
         handoff_card_id: format!("handoff.{}", route.checkpoint.admission_checkpoint_id),

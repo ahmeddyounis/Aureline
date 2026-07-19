@@ -42,7 +42,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", packet.export_safe_json());
         }
         Some("report") => {
-            print!("{}", seeded_m5_compare_export_packet().render_markdown_summary());
+            print!(
+                "{}",
+                seeded_m5_compare_export_packet().render_markdown_summary()
+            );
         }
         Some("csv") => {
             print!("{}", seeded_m5_compare_export_packet().render_matrix_csv());

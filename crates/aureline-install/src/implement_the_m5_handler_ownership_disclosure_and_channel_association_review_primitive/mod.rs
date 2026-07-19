@@ -1591,7 +1591,11 @@ fn validate_surface_rows(
         if row.example_cases.is_empty() {
             violations.push(M5HandlerOwnershipViolation::ExampleCasesMissing);
         }
-        if row.example_cases.iter().any(|case| !case.is_self_consistent()) {
+        if row
+            .example_cases
+            .iter()
+            .any(|case| !case.is_self_consistent())
+        {
             violations.push(M5HandlerOwnershipViolation::ExampleCaseDrift);
         }
         if !row.honours_invariants() {
@@ -1666,7 +1670,9 @@ fn validate_acceptance_criteria_covered(
     }) && cases.iter().all(|resolved| {
         resolved.ownership_precedence_preserved_in_export()
             && resolved.recovery_alignment.all_paths_aligned_with_owner
-            && resolved.recovery_alignment.all_paths_carry_rollback_identity
+            && resolved
+                .recovery_alignment
+                .all_paths_carry_rollback_identity
     });
     if !preservation_proven {
         violations.push(M5HandlerOwnershipViolation::OwnershipPrecedencePreservationUnproven);

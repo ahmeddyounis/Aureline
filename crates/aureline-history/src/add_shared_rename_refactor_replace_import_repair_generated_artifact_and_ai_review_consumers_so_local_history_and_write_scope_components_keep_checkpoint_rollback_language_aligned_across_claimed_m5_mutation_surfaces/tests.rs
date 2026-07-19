@@ -584,7 +584,8 @@ fn narrowed_variants_validate_and_keep_consumers_visible() {
         );
     }
 
-    let import = seeded_m5_local_history_write_scope_component_consumer_import_migration_preview_narrowed();
+    let import =
+        seeded_m5_local_history_write_scope_component_consumer_import_migration_preview_narrowed();
     let row = import
         .consumer_rows
         .iter()
@@ -628,8 +629,7 @@ fn checked_narrowed_fixtures_validate_and_match_seed_builders() {
 
 #[test]
 fn export_carries_no_forbidden_material() {
-    let json =
-        seeded_m5_local_history_write_scope_component_consumer_packet().export_safe_json();
+    let json = seeded_m5_local_history_write_scope_component_consumer_packet().export_safe_json();
     let lower = json.to_lowercase();
     assert!(!lower.contains("api_key"));
     assert!(!lower.contains("password"));

@@ -50,7 +50,10 @@ fn relation_entry(
         is_reference_current,
         health_class: disclosure.health_class,
         relation_note: if disclosure.needs_relation_note {
-            format!("Relation is {}; verify before relying on it", disclosure.health_class.as_str())
+            format!(
+                "Relation is {}; verify before relying on it",
+                disclosure.health_class.as_str()
+            )
         } else {
             String::new()
         },
@@ -58,7 +61,11 @@ fn relation_entry(
     }
 }
 
-fn relation_strip(strip_id: &str, canonical_id: &str, relations: Vec<RelationEntry>) -> RelationStrip {
+fn relation_strip(
+    strip_id: &str,
+    canonical_id: &str,
+    relations: Vec<RelationEntry>,
+) -> RelationStrip {
     RelationStrip {
         component: M5WorkItemComponentFamily::RelationStrip,
         strip_id: strip_id.to_owned(),

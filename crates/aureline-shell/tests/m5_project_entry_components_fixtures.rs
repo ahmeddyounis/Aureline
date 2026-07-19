@@ -123,7 +123,11 @@ fn destination_collision_sheets_distinguish_sources_and_offer_safe_actions() {
         })
         .collect::<Vec<_>>();
 
-    for source in ["existing_local_root", "prior_workspace_state", "duplicate_clone_target"] {
+    for source in [
+        "existing_local_root",
+        "prior_workspace_state",
+        "duplicate_clone_target",
+    ] {
         let sheet = sheets
             .iter()
             .find(|sheet| {
@@ -177,7 +181,11 @@ fn post_entry_handoff_cards_state_deferred_work_and_keep_setup_recoverable() {
         })
         .collect::<Vec<_>>();
 
-    for follow_up in ["setup_deferred_durable", "non_durable_staging", "open_minimal_available"] {
+    for follow_up in [
+        "setup_deferred_durable",
+        "non_durable_staging",
+        "open_minimal_available",
+    ] {
         let card = cards
             .iter()
             .find(|card| {
@@ -264,7 +272,10 @@ fn admission_checkpoint_cards_state_identity_recommendation_and_keep_plain_editi
             row.get("component_family").and_then(Value::as_str) == Some("admission_checkpoint_card")
         })
         .collect::<Vec<_>>();
-    assert!(cards.len() >= 2, "admission cards cover more than one class");
+    assert!(
+        cards.len() >= 2,
+        "admission cards cover more than one class"
+    );
 
     for card in &cards {
         for field in ["root_identity_label", "recommendation_source"] {
@@ -274,7 +285,8 @@ fn admission_checkpoint_cards_state_identity_recommendation_and_keep_plain_editi
                 .is_some_and(|value| !value.trim().is_empty()));
         }
         assert_eq!(
-            card.get("continue_without_available").and_then(Value::as_bool),
+            card.get("continue_without_available")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
@@ -432,7 +444,8 @@ fn validator_flags_readiness_summary_mismatch() {
         .iter_mut()
         .find(|row| {
             row.get("component_family").and_then(Value::as_str) == Some("admission_checkpoint_card")
-                && row.get("admission_class").and_then(Value::as_str) == Some("trust_review_required")
+                && row.get("admission_class").and_then(Value::as_str)
+                    == Some("trust_review_required")
         })
         .expect("trust-review admission card");
     admission["readiness_bucket_summary"]["blocking_now_total"] = Value::from(4u64);

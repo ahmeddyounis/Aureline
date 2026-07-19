@@ -730,7 +730,8 @@ impl M5ResolvedExecutionInteraction {
     pub fn discloses_input_consequence(&self) -> bool {
         self.input_prompt.as_ref().map_or(true, |prompt| {
             prompt.is_attributable
-                && prompt.result_posture == input_result_posture(prompt.disposition, prompt.consequence)
+                && prompt.result_posture
+                    == input_result_posture(prompt.disposition, prompt.consequence)
                 && (!prompt.disposition.is_negative()
                     || prompt.result_posture.is_dismissal_or_timeout_consequence())
         })
@@ -1084,8 +1085,8 @@ fn resolve_artifact_rows(
             return Err(M5ExecutionInteractionError::ArtifactMissingAction);
         }
 
-        let is_openable =
-            artifact.open_action_ref.is_some() && artifact.retention != M5RetentionClass::EvictedGone;
+        let is_openable = artifact.open_action_ref.is_some()
+            && artifact.retention != M5RetentionClass::EvictedGone;
         rows.push(M5ResolvedArtifactPublishRow {
             interaction_id: input.interaction_id.clone(),
             run_ref: input.run_ref.clone(),
@@ -1130,7 +1131,9 @@ fn input_result_posture(
                 }
                 M5InputConsequence::RequiresApproval
                 | M5InputConsequence::BlocksUntilAnswered
-                | M5InputConsequence::DismissLeavesWaiting => M5InputResultPosture::RunBlockedWaiting,
+                | M5InputConsequence::DismissLeavesWaiting => {
+                    M5InputResultPosture::RunBlockedWaiting
+                }
             }
         }
     }
@@ -1220,8 +1223,8 @@ impl M5ExecutionInteractionCase {
     ///
     /// Panics if `input` does not resolve; seed inputs are always valid.
     pub fn resolved(input: M5ExecutionInteractionInput) -> Self {
-        let resolved =
-            resolve_execution_interaction(&input).expect("seed execution-interaction case is valid");
+        let resolved = resolve_execution_interaction(&input)
+            .expect("seed execution-interaction case is valid");
         Self { input, resolved }
     }
 
