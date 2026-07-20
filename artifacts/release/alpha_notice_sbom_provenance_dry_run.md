@@ -13,7 +13,7 @@ state lives in
 | --- | --- | --- |
 | Third-party notice projection | `artifacts/governance/release_notice_seed.yaml` and `artifacts/governance/third_party_import_manifest.yaml` | Reviewable, but reserved imports have pending notice text until real bytes are admitted. |
 | Human notice delta | `artifacts/release/reuse_spdx_notice_delta_alpha.md` | Review required; names explicit exceptions and blocks stronger publication copy. |
-| SBOM placeholder | `ci/sbom_provenance.sh` | Emits a structural workspace summary. It is not SPDX or CycloneDX. |
+| SBOM placeholder | `ci/sbom_provenance.sh` | Emits a checksum-complete structural `Cargo.lock` projection. It is not a conformant SPDX or CycloneDX document. |
 | Provenance seed | `artifacts/release/provenance_capture_seed.json` | Records clean-room provenance capture shape and known limitations. |
 | Trust-domain context | `artifacts/release/pipeline_trust_domains.yaml` | Names release and mirror/offline trust boundaries for review. |
 
@@ -22,7 +22,7 @@ state lives in
 | Family | What remains verifiable without vendor reachability | What degrades |
 | --- | --- | --- |
 | Notices | The notice seed, import manifest rows, and notice delta packet remain locally readable. | Reserved imports still require future notice text; mirror/offline review must show the pending state. |
-| SBOM | The placeholder script and generated structural format are identifiable. | Standards conformance is unavailable and must not be implied. |
+| SBOM | The placeholder script, source-input digests, and resolved external package identities/checksums remain locally verifiable. | Standards conformance and reviewed license conclusions for every transitive package are unavailable and must not be implied. |
 | Provenance | The provenance capture seed names inputs, output refs, and known limitations. | Final signing, in-toto or SLSA-style attestations, and trust-root receipts are absent. |
 | Advisory/revocation metadata | The manifest declares snapshot freshness limits. | Live advisory and revocation truth becomes stale after the declared limits and blocks stronger claims. |
 

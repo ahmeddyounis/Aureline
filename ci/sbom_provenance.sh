@@ -1,29 +1,11 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Aureline contributors
+# SPDX-License-Identifier: Apache-2.0
 #
-# Placeholder SBOM and provenance lane.
-#
-# This script makes the provenance / SBOM lane observable in CI from day
-# one without claiming release-grade SBOM or attestation conformance.
-# Real generators replace it incrementally:
-#   - tools/governance/spdx_sbom.sh    — SPDX SBOM emission for the
-#                                        workspace + transitive Cargo graph.
-#   - tools/governance/cyclonedx.sh    — CycloneDX export when a security-
-#                                        tooling consumer requires it.
-#   - tools/governance/attest.sh       — in-toto / SLSA-style attestation
-#                                        once release signing exists.
-#
-# Until those land, this script:
-#   1. resolves the workspace build identity (the anchor that real SBOM
-#      and provenance documents will reference);
-#   2. emits a minimal structural SBOM stub describing the workspace
-#      crates declared in Cargo.toml;
-#   3. records a placeholder provenance summary that names the build
-#      identity, the toolchain pin, and the canonical dependency/import
-#      register revisions it consumed;
-#   4. exits zero on success.
-#
-# See docs/governance/provenance_and_compliance_baseline.md for the
-# governance baseline this script implements.
+# Emit the structural Cargo.lock SBOM projection and unsigned provenance
+# summary. The lane deliberately remains narrower than release-grade SPDX,
+# CycloneDX, or signed-attestation generation, but every field it does emit is
+# derived from validated, content-digested repository inputs.
 
 set -euo pipefail
 
@@ -32,169 +14,112 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
 
 OUT_DIR="${CI_ARTIFACT_DIR:-${REPO_ROOT}/target/ci-artifacts}"
-mkdir -p "${OUT_DIR}"
+BUILD_IDENTITY_FILE="${OUT_DIR}/build_identity.json"
+SBOM_FILE="${OUT_DIR}/sbom_workspace.json"
+PROVENANCE_FILE="${OUT_DIR}/provenance_summary.json"
 
 log() { printf '[sbom-provenance] %s\n' "$*"; }
+die() { printf '[sbom-provenance] error: %s\n' "$*" >&2; exit 1; }
 
-# ---------------------------------------------------------------------------
-# 1. Build identity.
-# ---------------------------------------------------------------------------
-BUILD_IDENTITY_FILE="${OUT_DIR}/build_identity.json"
+mkdir -p "${OUT_DIR}"
+
+STAGING_DIR="$(mktemp -d "${OUT_DIR}/.sbom-provenance.XXXXXX")"
+cleanup() {
+  rm -rf -- "${STAGING_DIR}"
+}
+trap cleanup EXIT
+
+# Remove exact generated outputs before validating any input. A failed rerun
+# must not leave a stale artifact that a later step could mistake for current
+# evidence.
+rm -f -- "${SBOM_FILE}" "${PROVENANCE_FILE}"
+
 if [[ ! -s "${BUILD_IDENTITY_FILE}" ]]; then
   log "writing build identity to ${BUILD_IDENTITY_FILE}"
   "${REPO_ROOT}/tools/build/print_build_identity.sh" > "${BUILD_IDENTITY_FILE}"
 else
-  log "reusing build identity at ${BUILD_IDENTITY_FILE}"
+  log "validating existing build identity at ${BUILD_IDENTITY_FILE}"
 fi
 
-# Pull a couple of fields out of the build identity for downstream stubs.
-# Avoid jq: this script must run on a stock CI host without extra deps.
-extract_field() {
-  local field="$1"
-  local file="$2"
-  awk -v key="\"${field}\"" '
-    {
-      for (i = 1; i <= NF; i++) {
-        if ($i == key ":" || $i == key) {
-          # Find the value: everything after the colon on this line.
-          line = $0
-          sub(/^[^:]*:[[:space:]]*/, "", line)
-          sub(/,[[:space:]]*$/, "", line)
-          gsub(/^"|"$/, "", line)
-          print line
-          exit
-        }
-      }
-    }
-  ' "${file}"
-}
+if command -v sha256sum >/dev/null 2>&1; then
+  SHA256_PROGRAM="$(command -v sha256sum)"
+  SHA256_ARGS=()
+elif command -v shasum >/dev/null 2>&1; then
+  SHA256_PROGRAM="$(command -v shasum)"
+  SHA256_ARGS=(--sha256-arg=-a --sha256-arg=256)
+else
+  die "sha256sum or shasum is required; refusing to emit undigested provenance"
+fi
+[[ "${SHA256_PROGRAM}" == /* ]] || die \
+  "SHA-256 program did not resolve to an absolute path: ${SHA256_PROGRAM}"
 
-extract_yaml_schema_version() {
-  local file="$1"
-  awk -F ':' '
-    /^schema_version[[:space:]]*:/ {
-      val = $2
-      gsub(/[[:space:]]/, "", val)
-      print val
-      exit
-    }
-  ' "${file}" 2>/dev/null || echo "0"
-}
+if grep -Eq '"profile"[[:space:]]*:[[:space:]]*"release"' \
+  "${BUILD_IDENTITY_FILE}"; then
+  BUILD_PROFILE="release"
+  CARGO_PROFILE_ARGS=(--release)
+  PROFILE_DIR="release"
+elif grep -Eq '"profile"[[:space:]]*:[[:space:]]*"dev"' \
+  "${BUILD_IDENTITY_FILE}"; then
+  BUILD_PROFILE="dev"
+  CARGO_PROFILE_ARGS=()
+  PROFILE_DIR="debug"
+else
+  die "build identity does not declare profile dev or release"
+fi
 
-COMMIT="$(extract_field commit "${BUILD_IDENTITY_FILE}")"
-COMMIT_SHORT="$(extract_field commit_short "${BUILD_IDENTITY_FILE}")"
-TOOLCHAIN_CHANNEL="$(extract_field toolchain_channel "${BUILD_IDENTITY_FILE}")"
-WORKSPACE_VERSION="$(extract_field workspace_version "${BUILD_IDENTITY_FILE}")"
-SOURCE_DATE_EPOCH_VAL="$(extract_field source_date_epoch "${BUILD_IDENTITY_FILE}")"
-BUILD_TIMESTAMP_UTC="$(extract_field build_timestamp_utc "${BUILD_IDENTITY_FILE}")"
+# A structurally valid identity can still have come from a previous checkout.
+# Reproduce it with the same profile and require byte-for-byte equality before
+# allowing it to anchor current provenance.
+CURRENT_BUILD_IDENTITY="${STAGING_DIR}/current_build_identity.json"
+"${REPO_ROOT}/tools/build/print_build_identity.sh" \
+  --profile "${BUILD_PROFILE}" > "${CURRENT_BUILD_IDENTITY}"
+cmp -s "${CURRENT_BUILD_IDENTITY}" "${BUILD_IDENTITY_FILE}" || die \
+  "existing build identity does not match the current checkout and build environment"
 
-# ---------------------------------------------------------------------------
-# 2. Workspace SBOM stub.
-#
-# Enumerates the workspace crates declared in Cargo.toml. Deliberately
-# does NOT claim SPDX or CycloneDX conformance — this is a structural
-# placeholder. The real SBOM emitter will replace this file with an
-# SPDX document of the same name.
-# ---------------------------------------------------------------------------
-SBOM_FILE="${OUT_DIR}/sbom_workspace.json"
-log "writing workspace SBOM stub to ${SBOM_FILE}"
+CARGO_TARGET_ROOT="${CARGO_TARGET_DIR:-${REPO_ROOT}/target}"
+TARGET_SUBDIR=""
+if [[ -n "${CARGO_BUILD_TARGET:-}" ]]; then
+  TARGET_SUBDIR="${CARGO_BUILD_TARGET}/"
+fi
+BIN_SUFFIX=""
+if [[ "${OS:-}" == "Windows_NT" ]]; then
+  BIN_SUFFIX=".exe"
+fi
+GENERATOR_BIN="${CARGO_TARGET_ROOT}/${TARGET_SUBDIR}${PROFILE_DIR}/aureline-sbom-provenance${BIN_SUFFIX}"
 
-# Read workspace member paths from Cargo.toml without invoking cargo, so
-# this step is independent of toolchain availability on minimal CI hosts.
-WORKSPACE_MEMBERS=()
-while IFS= read -r member; do
-  [[ -n "${member}" ]] && WORKSPACE_MEMBERS+=("${member}")
-done < <(awk '
-  /^\[workspace\]/ { in_ws = 1; next }
-  /^\[/ && !/^\[workspace\]/ { in_ws = 0 }
-  in_ws && /members[[:space:]]*=/ { in_members = 1 }
-  in_members {
-    while (match($0, /"[^"]+"/)) {
-      print substr($0, RSTART + 1, RLENGTH - 2)
-      $0 = substr($0, RSTART + RLENGTH)
-    }
-    if ($0 ~ /\]/) { in_members = 0 }
-  }
-' "${REPO_ROOT}/Cargo.toml")
+if [[ ! -x "${GENERATOR_BIN}" ]]; then
+  log "building the locked provenance generator"
+  CARGO_ARGS=(build --locked -p aureline-notices --bin aureline-sbom-provenance)
+  if [[ ${#CARGO_PROFILE_ARGS[@]} -gt 0 ]]; then
+    CARGO_ARGS+=("${CARGO_PROFILE_ARGS[@]}")
+  fi
+  if [[ "${AURELINE_SBOM_PROVENANCE_OFFLINE:-0}" == "1" ]]; then
+    CARGO_ARGS+=(--offline)
+  fi
+  cargo "${CARGO_ARGS[@]}"
+fi
+[[ -x "${GENERATOR_BIN}" ]] || die \
+  "provenance generator was not produced at ${GENERATOR_BIN}"
 
-{
-  printf '{\n'
-  printf '  "schema_version": 1,\n'
-  printf '  "format": "aureline-workspace-sbom-stub",\n'
-  printf '  "format_note": "Structural placeholder. Not an SPDX or CycloneDX document. Replaced by tools/governance/spdx_sbom.sh when the real SBOM lane lands.",\n'
-  printf '  "build_identity": {\n'
-  printf '    "commit": "%s",\n' "${COMMIT}"
-  printf '    "commit_short": "%s",\n' "${COMMIT_SHORT}"
-  printf '    "workspace_version": "%s",\n' "${WORKSPACE_VERSION}"
-  printf '    "toolchain_channel": "%s",\n' "${TOOLCHAIN_CHANNEL}"
-  printf '    "source_date_epoch": %s,\n' "${SOURCE_DATE_EPOCH_VAL:-0}"
-  printf '    "build_timestamp_utc": "%s"\n' "${BUILD_TIMESTAMP_UTC}"
-  printf '  },\n'
-  printf '  "workspace_license": "Apache-2.0",\n'
-  printf '  "external_dependencies": [],\n'
-  printf '  "external_dependencies_note": "Placeholder. The workspace now includes external Cargo dependencies, but this stub does not enumerate them yet; authoritative selections, imports, and notice classes live in artifacts/governance/dependency_register.yaml, artifacts/governance/third_party_import_register.yaml, and artifacts/governance/release_notice_seed.yaml.",\n'
-  printf '  "workspace_members": [\n'
-  total="${#WORKSPACE_MEMBERS[@]}"
-  i=0
-  for member in "${WORKSPACE_MEMBERS[@]}"; do
-    i=$((i + 1))
-    sep=","
-    [[ ${i} -eq ${total} ]] && sep=""
-    printf '    { "path": "%s" }%s\n' "${member}" "${sep}"
-  done
-  printf '  ]\n'
-  printf '}\n'
-} > "${SBOM_FILE}"
+GENERATOR_ARGS=(
+  --repo-root "${REPO_ROOT}"
+  --out-dir "${STAGING_DIR}"
+  --build-identity "${BUILD_IDENTITY_FILE}"
+  --sha256-program "${SHA256_PROGRAM}"
+)
+if [[ ${#SHA256_ARGS[@]} -gt 0 ]]; then
+  GENERATOR_ARGS+=("${SHA256_ARGS[@]}")
+fi
 
-# ---------------------------------------------------------------------------
-# 3. Provenance summary stub.
-# ---------------------------------------------------------------------------
-PROVENANCE_FILE="${OUT_DIR}/provenance_summary.json"
-log "writing provenance summary stub to ${PROVENANCE_FILE}"
+log "validating registers, lockfile checksums, and build identity"
+"${GENERATOR_BIN}" "${GENERATOR_ARGS[@]}"
 
-DEPENDENCY_REGISTER_PATH="artifacts/governance/dependency_register.yaml"
-IMPORT_REGISTER_PATH="artifacts/governance/third_party_import_register.yaml"
-NOTICE_SEED_PATH="artifacts/governance/release_notice_seed.yaml"
-CHECKLIST_PATH="artifacts/governance/compliance_checklist.yaml"
-DEPENDENCY_REGISTER_SCHEMA_VERSION="$(extract_yaml_schema_version "${REPO_ROOT}/${DEPENDENCY_REGISTER_PATH}")"
-IMPORT_REGISTER_SCHEMA_VERSION="$(extract_yaml_schema_version "${REPO_ROOT}/${IMPORT_REGISTER_PATH}")"
-NOTICE_SEED_SCHEMA_VERSION="$(extract_yaml_schema_version "${REPO_ROOT}/${NOTICE_SEED_PATH}")"
-CHECKLIST_SCHEMA_VERSION="$(extract_yaml_schema_version "${REPO_ROOT}/${CHECKLIST_PATH}")"
+[[ -s "${STAGING_DIR}/sbom_workspace.json" ]] || die \
+  "generator did not emit sbom_workspace.json"
+[[ -s "${STAGING_DIR}/provenance_summary.json" ]] || die \
+  "generator did not emit provenance_summary.json"
 
-{
-  printf '{\n'
-  printf '  "schema_version": 1,\n'
-  printf '  "format": "aureline-provenance-summary-stub",\n'
-  printf '  "format_note": "Placeholder. Replaced by tools/governance/attest.sh when the release signing and attestation lane lands.",\n'
-  printf '  "build_identity_ref": "%s",\n' "$(basename "${BUILD_IDENTITY_FILE}")"
-  printf '  "sbom_ref": "%s",\n' "$(basename "${SBOM_FILE}")"
-  printf '  "build_identity": {\n'
-  printf '    "commit": "%s",\n' "${COMMIT}"
-  printf '    "commit_short": "%s",\n' "${COMMIT_SHORT}"
-  printf '    "toolchain_channel": "%s",\n' "${TOOLCHAIN_CHANNEL}"
-  printf '    "workspace_version": "%s",\n' "${WORKSPACE_VERSION}"
-  printf '    "source_date_epoch": %s,\n' "${SOURCE_DATE_EPOCH_VAL:-0}"
-  printf '    "build_timestamp_utc": "%s"\n' "${BUILD_TIMESTAMP_UTC}"
-  printf '  },\n'
-  printf '  "dependency_register": {\n'
-  printf '    "path": "%s",\n' "${DEPENDENCY_REGISTER_PATH}"
-  printf '    "schema_version": %s\n' "${DEPENDENCY_REGISTER_SCHEMA_VERSION:-0}"
-  printf '  },\n'
-  printf '  "third_party_import_register": {\n'
-  printf '    "path": "%s",\n' "${IMPORT_REGISTER_PATH}"
-  printf '    "schema_version": %s\n' "${IMPORT_REGISTER_SCHEMA_VERSION:-0}"
-  printf '  },\n'
-  printf '  "release_notice_seed": {\n'
-  printf '    "path": "%s",\n' "${NOTICE_SEED_PATH}"
-  printf '    "schema_version": %s\n' "${NOTICE_SEED_SCHEMA_VERSION:-0}"
-  printf '  },\n'
-  printf '  "compliance_checklist": {\n'
-  printf '    "path": "%s",\n' "${CHECKLIST_PATH}"
-  printf '    "schema_version": %s\n' "${CHECKLIST_SCHEMA_VERSION:-0}"
-  printf '  },\n'
-  printf '  "attestations": [],\n'
-  printf '  "signatures": []\n'
-  printf '}\n'
-} > "${PROVENANCE_FILE}"
-
-log "done"
+mv -- "${STAGING_DIR}/sbom_workspace.json" "${SBOM_FILE}"
+mv -- "${STAGING_DIR}/provenance_summary.json" "${PROVENANCE_FILE}"
+log "wrote checksum-complete Cargo.lock projection to ${SBOM_FILE}"
+log "wrote input-digested provenance summary to ${PROVENANCE_FILE}"

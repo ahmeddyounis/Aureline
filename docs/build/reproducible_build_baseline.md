@@ -174,10 +174,11 @@ below.
   clean-room / provenance work.
 - **Release signing and transparency.** Out of scope; only the identity
   surface that a future signing pipeline will consume is established here.
-- **SBOM and license review.** The workspace has no external dependencies
-  yet; dependency-level provenance now lands through the dependency
-  review policy and the canonical dependency/import registers when the
-  first external crate or imported asset is introduced.
+- **Release-grade SBOM and license conclusions.** The structural provenance
+  lane enumerates the resolved external Cargo graph and its lockfile
+  checksums, but it is not yet a conformant SPDX/CycloneDX document and leaves
+  unreviewed license conclusions as `NOASSERTION`. Reviewed dependency and
+  import posture remains anchored in the canonical governance registers.
 - **Remote build cache policy.** Deliberately absent: remote caches must
   not substitute for rebuildability, so the baseline does not even enable
   one.

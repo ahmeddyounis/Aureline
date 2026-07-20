@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Typed notice, SBOM, and critical-upstream projections for repository compliance.
 //!
 //! The crate reads the workspace manifests, `Cargo.lock`, and the checked-in
@@ -54,6 +57,13 @@ pub enum NoticeError {
         /// Reviewer-facing validation message.
         message: String,
     },
+    /// A governance register parsed but violated the provenance contract.
+    Governance {
+        /// Path containing the invalid register or bridge artifact.
+        path: PathBuf,
+        /// Reviewer-facing validation message.
+        message: String,
+    },
 }
 
 impl fmt::Display for NoticeError {
@@ -65,6 +75,13 @@ impl fmt::Display for NoticeError {
                 write!(f, "invalid manifest {}: {message}", path.display())
             }
             Self::CargoLock { message } => write!(f, "invalid Cargo.lock: {message}"),
+            Self::Governance { path, message } => {
+                write!(
+                    f,
+                    "invalid governance artifact {}: {message}",
+                    path.display()
+                )
+            }
         }
     }
 }
@@ -74,7 +91,7 @@ impl Error for NoticeError {
         match self {
             Self::Io { source, .. } => Some(source),
             Self::Yaml { source, .. } => Some(source),
-            Self::Manifest { .. } | Self::CargoLock { .. } => None,
+            Self::Manifest { .. } | Self::CargoLock { .. } | Self::Governance { .. } => None,
         }
     }
 }
@@ -129,6 +146,7 @@ pub fn generate_notice_bundle(repo_root: impl AsRef<Path>) -> Result<NoticeBundl
     let cargo_lock = CargoLockSnapshot::parse(&lock_text)?;
 
     let governance = GovernanceInputs::read(repo_root)?;
+    validate_lockfile_coverage(&cargo_lock, &workspace)?;
     let package_context = PackageContext::new(&workspace, &governance);
     let spdx_sbom = SpdxSbomRecordSet::from_lockfile(&cargo_lock, &package_context);
     let cyclonedx = CycloneDxProjection::from_lockfile(&cargo_lock, &package_context);
@@ -143,8 +161,10 @@ pub fn generate_notice_bundle(repo_root: impl AsRef<Path>) -> Result<NoticeBundl
             "Cargo.toml".to_owned(),
             "crates/*/Cargo.toml".to_owned(),
             "artifacts/governance/dependency_register.yaml".to_owned(),
+            "artifacts/governance/third_party_import_register.yaml".to_owned(),
             "artifacts/governance/third_party_import_manifest.yaml".to_owned(),
             "artifacts/governance/release_notice_seed.yaml".to_owned(),
+            "artifacts/governance/compliance_checklist.yaml".to_owned(),
             "artifacts/governance/critical_upstream_health_register.yaml".to_owned(),
         ],
         workspace,
@@ -967,16 +987,21 @@ struct LicenseAttribution {
 
 struct GovernanceInputs {
     dependency_register: DependencyRegister,
+    third_party_import_register: ThirdPartyImportRegister,
     release_notice_seed: ReleaseNoticeSeed,
     third_party_import_manifest: ThirdPartyImportManifest,
     critical_upstream_health: CriticalUpstreamHealthSource,
+    compliance_checklist: ComplianceChecklist,
 }
 
 impl GovernanceInputs {
     fn read(repo_root: &Path) -> Result<Self, NoticeError> {
-        Ok(Self {
+        let inputs = Self {
             dependency_register: read_yaml(
                 &repo_root.join("artifacts/governance/dependency_register.yaml"),
+            )?,
+            third_party_import_register: read_yaml(
+                &repo_root.join("artifacts/governance/third_party_import_register.yaml"),
             )?,
             release_notice_seed: read_yaml(
                 &repo_root.join("artifacts/governance/release_notice_seed.yaml"),
@@ -987,13 +1012,288 @@ impl GovernanceInputs {
             critical_upstream_health: read_yaml(
                 &repo_root.join("artifacts/governance/critical_upstream_health_register.yaml"),
             )?,
-        })
+            compliance_checklist: read_yaml(
+                &repo_root.join("artifacts/governance/compliance_checklist.yaml"),
+            )?,
+        };
+        inputs.validate(repo_root)?;
+        Ok(inputs)
+    }
+
+    fn validate(&self, repo_root: &Path) -> Result<(), NoticeError> {
+        const DEPENDENCY_REGISTER: &str = "artifacts/governance/dependency_register.yaml";
+        const IMPORT_REGISTER: &str = "artifacts/governance/third_party_import_register.yaml";
+        const NOTICE_SEED: &str = "artifacts/governance/release_notice_seed.yaml";
+        const IMPORT_MANIFEST: &str = "artifacts/governance/third_party_import_manifest.yaml";
+        const HEALTH_REGISTER: &str = "artifacts/governance/critical_upstream_health_register.yaml";
+        const COMPLIANCE_CHECKLIST: &str = "artifacts/governance/compliance_checklist.yaml";
+
+        ensure_schema_version(
+            repo_root,
+            DEPENDENCY_REGISTER,
+            self.dependency_register.schema_version,
+            1,
+        )?;
+        ensure_schema_version(
+            repo_root,
+            IMPORT_REGISTER,
+            self.third_party_import_register.schema_version,
+            1,
+        )?;
+        ensure_schema_version(
+            repo_root,
+            NOTICE_SEED,
+            self.release_notice_seed.schema_version,
+            1,
+        )?;
+        ensure_schema_version(
+            repo_root,
+            IMPORT_MANIFEST,
+            self.third_party_import_manifest.schema_version,
+            1,
+        )?;
+        ensure_schema_version(
+            repo_root,
+            HEALTH_REGISTER,
+            self.critical_upstream_health.schema_version,
+            1,
+        )?;
+        ensure_schema_version(
+            repo_root,
+            COMPLIANCE_CHECKLIST,
+            self.compliance_checklist.schema_version,
+            2,
+        )?;
+
+        if self.dependency_register.rows.is_empty() {
+            return governance_error(
+                repo_root,
+                DEPENDENCY_REGISTER,
+                "rows must not be empty while the workspace has governed build inputs",
+            );
+        }
+
+        let mut source_keys = BTreeSet::new();
+        let mut dependency_ids = BTreeSet::new();
+        for row in &self.dependency_register.rows {
+            ensure_nonempty_governance_fields(
+                repo_root,
+                DEPENDENCY_REGISTER,
+                &row.id,
+                &[
+                    ("id", &row.id),
+                    ("name", &row.name),
+                    ("dependency_kind", &row.dependency_kind),
+                    ("admission_state", &row.admission_state),
+                    ("license_class", &row.license_class),
+                    ("provenance_status", &row.provenance_status),
+                    ("sbom_inclusion_class", &row.sbom_inclusion_class),
+                ],
+            )?;
+            if !row.id.starts_with("dep.") {
+                return governance_error(
+                    repo_root,
+                    DEPENDENCY_REGISTER,
+                    format!("dependency row id must start with dep.: {}", row.id),
+                );
+            }
+            if !dependency_ids.insert(row.id.clone()) {
+                return governance_error(
+                    repo_root,
+                    DEPENDENCY_REGISTER,
+                    format!("duplicate dependency row id: {}", row.id),
+                );
+            }
+            source_keys.insert(("dependency_register".to_owned(), row.id.clone()));
+        }
+
+        let mut import_ids = BTreeSet::new();
+        for row in &self.third_party_import_register.rows {
+            ensure_nonempty_governance_fields(
+                repo_root,
+                IMPORT_REGISTER,
+                &row.id,
+                &[
+                    ("id", &row.id),
+                    ("name", &row.name),
+                    ("import_kind", &row.import_kind),
+                    ("admission_state", &row.admission_state),
+                    ("license_class", &row.license_class),
+                    ("provenance_status", &row.provenance_status),
+                    ("sbom_inclusion_class", &row.sbom_inclusion_class),
+                ],
+            )?;
+            if !row.id.starts_with("import.") {
+                return governance_error(
+                    repo_root,
+                    IMPORT_REGISTER,
+                    format!("import row id must start with import.: {}", row.id),
+                );
+            }
+            if !import_ids.insert(row.id.clone()) {
+                return governance_error(
+                    repo_root,
+                    IMPORT_REGISTER,
+                    format!("duplicate import row id: {}", row.id),
+                );
+            }
+            source_keys.insert(("third_party_import_register".to_owned(), row.id.clone()));
+        }
+
+        let mut notice_keys = BTreeSet::new();
+        for row in &self.release_notice_seed.rows {
+            ensure_nonempty_governance_fields(
+                repo_root,
+                NOTICE_SEED,
+                &row.source_id,
+                &[
+                    ("source_register", &row.source_register),
+                    ("source_id", &row.source_id),
+                ],
+            )?;
+            if row.publication_targets.is_empty() {
+                return governance_error(
+                    repo_root,
+                    NOTICE_SEED,
+                    format!(
+                        "notice row {} must name at least one publication target",
+                        row.source_id
+                    ),
+                );
+            }
+            let key = (row.source_register.clone(), row.source_id.clone());
+            if !source_keys.contains(&key) {
+                return governance_error(
+                    repo_root,
+                    NOTICE_SEED,
+                    format!(
+                        "notice row references an unknown source: {}:{}",
+                        row.source_register, row.source_id
+                    ),
+                );
+            }
+            if !notice_keys.insert(key) {
+                return governance_error(
+                    repo_root,
+                    NOTICE_SEED,
+                    format!("duplicate notice source row: {}", row.source_id),
+                );
+            }
+        }
+        if notice_keys != source_keys {
+            let missing = source_keys
+                .difference(&notice_keys)
+                .cloned()
+                .collect::<Vec<_>>();
+            return governance_error(
+                repo_root,
+                NOTICE_SEED,
+                format!("notice coverage is incomplete for source rows: {missing:?}"),
+            );
+        }
+
+        let mut manifest_row_ids = BTreeSet::new();
+        for row in &self.third_party_import_manifest.rows {
+            ensure_nonempty_governance_fields(
+                repo_root,
+                IMPORT_MANIFEST,
+                &row.row_id,
+                &[
+                    ("row_id", &row.row_id),
+                    ("source_class", &row.source_class),
+                    ("license_expression", &row.license_expression),
+                    ("reuse_spdx_state", &row.reuse_spdx_state),
+                ],
+            )?;
+            if !manifest_row_ids.insert(row.row_id.clone()) {
+                return governance_error(
+                    repo_root,
+                    IMPORT_MANIFEST,
+                    format!("duplicate import-manifest row id: {}", row.row_id),
+                );
+            }
+            if row.source_register == "repository" {
+                if row.source_id.is_some() {
+                    return governance_error(
+                        repo_root,
+                        IMPORT_MANIFEST,
+                        format!(
+                            "first-party repository row {} must not carry a third-party source id",
+                            row.row_id
+                        ),
+                    );
+                }
+                continue;
+            }
+            let source_id = row
+                .source_id
+                .as_ref()
+                .ok_or_else(|| NoticeError::Governance {
+                    path: repo_root.join(IMPORT_MANIFEST),
+                    message: format!(
+                        "third-party import-manifest row {} is missing source_id",
+                        row.row_id
+                    ),
+                })?;
+            if !source_keys.contains(&(row.source_register.clone(), source_id.clone())) {
+                return governance_error(
+                    repo_root,
+                    IMPORT_MANIFEST,
+                    format!(
+                        "import-manifest row {} references unknown source {}:{}",
+                        row.row_id, row.source_register, source_id
+                    ),
+                );
+            }
+        }
+
+        for row in &self.critical_upstream_health.rows {
+            if !dependency_ids.contains(&row.dependency_id) {
+                return governance_error(
+                    repo_root,
+                    HEALTH_REGISTER,
+                    format!(
+                        "critical-upstream row references unknown dependency: {}",
+                        row.dependency_id
+                    ),
+                );
+            }
+        }
+
+        let canonical = &self.compliance_checklist.canonical_registers;
+        for (field, actual, expected) in [
+            (
+                "dependency_register",
+                canonical.dependency_register.as_str(),
+                DEPENDENCY_REGISTER,
+            ),
+            (
+                "third_party_import_register",
+                canonical.third_party_import_register.as_str(),
+                IMPORT_REGISTER,
+            ),
+            (
+                "release_notice_seed",
+                canonical.release_notice_seed.as_str(),
+                NOTICE_SEED,
+            ),
+        ] {
+            if actual != expected {
+                return governance_error(
+                    repo_root,
+                    COMPLIANCE_CHECKLIST,
+                    format!("canonical_registers.{field} must be {expected}, got {actual}"),
+                );
+            }
+        }
+
+        Ok(())
     }
 }
 
 #[derive(Debug, Deserialize)]
 struct DependencyRegister {
-    #[serde(default)]
+    schema_version: u32,
     rows: Vec<DependencyRegisterRow>,
 }
 
@@ -1002,25 +1302,47 @@ struct DependencyRegisterRow {
     id: String,
     name: String,
     dependency_kind: String,
+    admission_state: String,
     license_class: String,
+    provenance_status: String,
+    sbom_inclusion_class: String,
     #[serde(default)]
     protected_path: bool,
 }
 
 #[derive(Debug, Deserialize)]
 struct ReleaseNoticeSeed {
-    #[serde(default)]
+    schema_version: u32,
     rows: Vec<ReleaseNoticeSeedRow>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ReleaseNoticeSeedRow {
+    source_register: String,
     source_id: String,
+    publication_targets: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ThirdPartyImportRegister {
+    schema_version: u32,
+    rows: Vec<ThirdPartyImportRegisterRow>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ThirdPartyImportRegisterRow {
+    id: String,
+    name: String,
+    import_kind: String,
+    admission_state: String,
+    license_class: String,
+    provenance_status: String,
+    sbom_inclusion_class: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct ThirdPartyImportManifest {
-    #[serde(default)]
+    schema_version: u32,
     rows: Vec<ThirdPartyImportManifestRow>,
 }
 
@@ -1028,6 +1350,7 @@ struct ThirdPartyImportManifest {
 struct ThirdPartyImportManifestRow {
     row_id: String,
     source_class: String,
+    source_register: String,
     #[serde(default)]
     source_id: Option<String>,
     license_expression: String,
@@ -1040,6 +1363,7 @@ struct ThirdPartyImportManifestRow {
 
 #[derive(Debug, Deserialize)]
 struct CriticalUpstreamHealthSource {
+    schema_version: u32,
     #[serde(default)]
     register_id: String,
     #[serde(default)]
@@ -1048,6 +1372,19 @@ struct CriticalUpstreamHealthSource {
     status: String,
     #[serde(default)]
     rows: Vec<CriticalHealthSourceRow>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ComplianceChecklist {
+    schema_version: u32,
+    canonical_registers: ComplianceCanonicalRegisters,
+}
+
+#[derive(Debug, Deserialize)]
+struct ComplianceCanonicalRegisters {
+    dependency_register: String,
+    third_party_import_register: String,
+    release_notice_seed: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1300,6 +1637,122 @@ fn derive_red_risk_classes(
     }
 
     classes.into_iter().collect()
+}
+
+fn validate_lockfile_coverage(
+    lock: &CargoLockSnapshot,
+    workspace: &WorkspaceSummary,
+) -> Result<(), NoticeError> {
+    if lock.packages.is_empty() {
+        return Err(NoticeError::CargoLock {
+            message: "package set must not be empty".to_owned(),
+        });
+    }
+
+    let workspace_names = workspace
+        .members
+        .iter()
+        .map(|member| member.package_name.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut observed_workspace_names = BTreeSet::new();
+
+    for package in &lock.packages {
+        match (&package.source, &package.checksum) {
+            (Some(_), Some(checksum)) if is_sha256_hex(checksum) => {}
+            (Some(source), Some(checksum)) => {
+                return Err(NoticeError::CargoLock {
+                    message: format!(
+                        "external package {}@{} from {source} has an invalid SHA-256 checksum: {checksum}",
+                        package.name, package.version
+                    ),
+                });
+            }
+            (Some(source), None) => {
+                return Err(NoticeError::CargoLock {
+                    message: format!(
+                        "external package {}@{} from {source} is missing a content checksum",
+                        package.name, package.version
+                    ),
+                });
+            }
+            (None, _) => {
+                if !workspace_names.contains(package.name.as_str()) {
+                    return Err(NoticeError::CargoLock {
+                        message: format!(
+                            "source-less package {}@{} is not a declared workspace member",
+                            package.name, package.version
+                        ),
+                    });
+                }
+                observed_workspace_names.insert(package.name.as_str());
+            }
+        }
+    }
+
+    let missing_members = workspace_names
+        .difference(&observed_workspace_names)
+        .copied()
+        .collect::<Vec<_>>();
+    if !missing_members.is_empty() {
+        return Err(NoticeError::CargoLock {
+            message: format!(
+                "declared workspace members are missing from the lockfile: {missing_members:?}"
+            ),
+        });
+    }
+    Ok(())
+}
+
+fn is_sha256_hex(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn ensure_schema_version(
+    repo_root: &Path,
+    relative_path: &str,
+    actual: u32,
+    expected: u32,
+) -> Result<(), NoticeError> {
+    if actual == expected {
+        return Ok(());
+    }
+    governance_error(
+        repo_root,
+        relative_path,
+        format!("schema_version must be {expected}, got {actual}"),
+    )
+}
+
+fn ensure_nonempty_governance_fields(
+    repo_root: &Path,
+    relative_path: &str,
+    row_id: &str,
+    fields: &[(&str, &String)],
+) -> Result<(), NoticeError> {
+    for (field, value) in fields {
+        if value.trim().is_empty() {
+            return governance_error(
+                repo_root,
+                relative_path,
+                format!("row {row_id:?} has an empty required field: {field}"),
+            );
+        }
+    }
+    Ok(())
+}
+
+fn governance_error<T>(
+    repo_root: &Path,
+    relative_path: &str,
+    message: impl Into<String>,
+) -> Result<T, NoticeError> {
+    Err(NoticeError::Governance {
+        path: repo_root.join(relative_path),
+        message: message.into(),
+    })
 }
 
 fn sanitized_spdx_id(package: &CargoLockPackage, index: usize) -> String {

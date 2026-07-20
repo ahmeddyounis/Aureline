@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 Aureline contributors
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Provenance and compliance baseline
 
 This document is the authoritative description of what the repository
@@ -131,12 +136,13 @@ Companion artifacts:
   source, local-path home, local modifications, provenance, and the
   publication targets that will eventually emit notices, SBOM entries,
   or provenance statements.
-- The workspace still has zero external Cargo dependencies admitted in
-  `Cargo.toml`; the seeded dependency rows are a mix of repo tooling
-  already required today and protected-path choices selected by ADR
-  but not yet manifested.
-- Adding the first external Cargo dependency still requires a truthful
-  `Cargo.lock` update in the same change.
+- The workspace has external Cargo dependencies. `Cargo.lock` is the
+  authoritative resolved package set, while the dependency register records
+  reviewed direct choices, protected-path selections, and host/build inputs;
+  the register is not a hand-maintained copy of every transitive package.
+- Adding or changing an external Cargo dependency requires a truthful
+  `Cargo.lock` update and the applicable reviewed dependency-register row in
+  the same change.
 
 ## Generated code provenance
 
@@ -179,17 +185,23 @@ The placeholder:
 1. Resolves the build identity by invoking
    `tools/build/print_build_identity.sh`. The build identity is the
    anchor that real SBOM and provenance documents will reference.
-2. Emits a deterministic, minimal SBOM stub describing the workspace
-   crates declared in `Cargo.toml` to
-   `target/ci-artifacts/sbom_workspace.json`. The stub deliberately
-   does **not** claim SPDX or CycloneDX conformance; it is a
-   structural placeholder that downstream lanes can extend.
-3. Records the placeholder provenance summary to
+2. Parses the checked-in `Cargo.lock` and emits a deterministic structural
+   SBOM projection to `target/ci-artifacts/sbom_workspace.json`. Every
+   external package is included with its resolved version, source, and
+   Cargo-recorded SHA-256 checksum. The projection deliberately does **not**
+   claim SPDX or CycloneDX conformance; unreviewed license conclusions remain
+   `NOASSERTION`.
+3. Records the unsigned provenance summary to
    `target/ci-artifacts/provenance_summary.json`. The summary names
-   the build identity, the toolchain pin, and the canonical
-   dependency/import register revisions it consumed.
-4. Exits zero on success. Failures of the underlying scripts surface
-   as CI failures; the script does not swallow errors.
+   the build identity, the SBOM projection digest, and SHA-256 digests for the
+   toolchain, lockfile, workspace manifests, and canonical dependency/import/
+   notice inputs it consumed.
+4. Validates the build identity, governance schema versions, stable source-id
+   joins, compliance-bridge refs, workspace membership, and every external
+   package checksum before publishing either output.
+5. Exits zero only after both outputs are complete. Missing or malformed
+   registers, lockfile rows, build identity fields, digest tooling, artifacts,
+   or checksums fail the lane and remove stale generated outputs.
 
 The replacement plan (out of scope here, named so the home is
 reserved):

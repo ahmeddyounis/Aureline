@@ -72,8 +72,8 @@ are:
 | File | Purpose |
 |---|---|
 | `build_identity.json` | Baseline deterministic build identity emitted by the pinned build command. |
-| `sbom_workspace.json` | Placeholder workspace SBOM stub emitted by the existing provenance lane. |
-| `provenance_summary.json` | Placeholder provenance summary anchored on the build identity. |
+| `sbom_workspace.json` | Non-conformant structural projection of every workspace and external `Cargo.lock` package, including external package checksums. |
+| `provenance_summary.json` | Unsigned provenance summary anchored to digests of the build identity, SBOM, lockfile, manifests, and canonical governance inputs. |
 | `cleanroom_input_manifest.json` | Machine-readable list of source refs, pinned files, mirror settings, commands, and trust assumptions. |
 | `artifact_digests.json` | Digest manifest for the top-level release-profile outputs built in this lane. |
 | `provenance_capture.json` | Capture summary linking producer lane, exact-build linkage, artifact-family refs, publishability classes, and known limitations. |
