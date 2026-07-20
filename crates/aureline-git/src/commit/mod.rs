@@ -8,14 +8,18 @@
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
 use crate::status::{
     ChangeKind, ChangeSummary, ConsumerProjectionBundle, GitChange, GitServiceState,
-    GitStatusRequest, GitStatusService,
+    GitStatusRequest, GitStatusService, HeadIdentity, RepositoryIdentity,
+};
+use crate::{
+    hardened_git,
+    preview_authority::{same_repository_identity, PreviewAuthorityStore},
 };
 
 /// Stable record-kind tag for [`GitCommitPreview`].
@@ -418,7 +422,11 @@ pub struct GitCommitStagedScopeReview {
     pub scope_ref: String,
     /// Stable basis snapshot ref used to compute the staged scope.
     pub basis_snapshot_ref: String,
-    /// Current Git index tree object observed at preview time.
+    /// Content digest of the exact Git index and logical staged entries.
+    ///
+    /// The legacy field name remains stable for schema compatibility; preview
+    /// no longer calls the mutating `git write-tree` command. Logical stage
+    /// entries are included so split-index storage cannot escape the digest.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub index_tree_oid: Option<String>,
     /// Number of staged paths included in the commit.
@@ -685,9 +693,7 @@ pub struct GitCommitPreview {
     /// Reasons that block commit from this preview.
     pub blocked_reasons: Vec<String>,
     #[serde(skip)]
-    message_body: String,
-    #[serde(skip)]
-    squash_target_for_apply: Option<String>,
+    authority_token: Option<u128>,
 }
 
 impl GitCommitPreview {
@@ -701,6 +707,7 @@ impl GitCommitPreview {
             && self.scope.staged_scope_is_visible()
             && self.scope.index_tree_oid.is_some()
             && self.history_guardrail.is_satisfied()
+            && self.authority_token.is_some()
     }
 }
 
@@ -838,13 +845,9 @@ impl GitCommitBackend for SystemGitCommitBackend {
         root: &Path,
         args: &[String],
     ) -> Result<GitCommitCommandOutput, GitCommitBackendError> {
-        let output = Command::new(&self.git_binary)
-            .arg("-C")
-            .arg(root)
-            .args(args)
-            .output()
-            .map_err(|err| GitCommitBackendError {
-                message: format!("git command failed to launch: {err}"),
+        let output = hardened_git::run(hardened_git::command(&self.git_binary, root, args))
+            .map_err(|_| GitCommitBackendError {
+                message: "Git commit command could not be completed safely".to_string(),
             })?;
         Ok(GitCommitCommandOutput {
             success: output.status.success(),
@@ -855,10 +858,75 @@ impl GitCommitBackend for SystemGitCommitBackend {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GitCommitApplyAuthority {
+    workspace_ref: String,
+    repository: RepositoryIdentity,
+    source_head: HeadIdentity,
+    mode: GitCommitMode,
+    message_body: String,
+    author_name: String,
+    author_email: String,
+    index_evidence: GitCommitIndexEvidence,
+    squash_target_oid: Option<String>,
+    expected_result_parents: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GitCommitIndexEvidence {
+    index_len: u64,
+    index_content_id: String,
+    index_identity_token: String,
+    staged_entries_len: usize,
+    staged_entries_id: String,
+}
+
+impl GitCommitIndexEvidence {
+    fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.index_content_id.len()
+            + self.index_identity_token.len()
+            + self.staged_entries_id.len()
+    }
+}
+
+impl GitCommitApplyAuthority {
+    fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.workspace_ref.len()
+            + self.repository.repo_ref.len()
+            + self.repository.worktree_ref.len()
+            + self.repository.repo_label.len()
+            + self.repository.repo_root.as_os_str().len()
+            + self.repository.git_dir.as_os_str().len()
+            + self.repository.common_dir.as_os_str().len()
+            + self.source_head.branch_label.as_deref().map_or(0, str::len)
+            + self.source_head.branch_ref.as_deref().map_or(0, str::len)
+            + self.source_head.head_oid.as_deref().map_or(0, str::len)
+            + self
+                .source_head
+                .head_short_oid
+                .as_deref()
+                .map_or(0, str::len)
+            + self.source_head.upstream.as_deref().map_or(0, str::len)
+            + self.message_body.len()
+            + self.author_name.len()
+            + self.author_email.len()
+            + self.index_evidence.retained_bytes()
+            + self.squash_target_oid.as_deref().map_or(0, str::len)
+            + self
+                .expected_result_parents
+                .iter()
+                .map(String::len)
+                .sum::<usize>()
+    }
+}
+
 /// Service that creates and applies local Git commit previews.
 #[derive(Debug, Clone)]
 pub struct GitCommitService<B = SystemGitCommitBackend> {
     backend: B,
+    authority: Arc<PreviewAuthorityStore<GitCommitApplyAuthority>>,
 }
 
 impl Default for GitCommitService<SystemGitCommitBackend> {
@@ -870,11 +938,16 @@ impl Default for GitCommitService<SystemGitCommitBackend> {
 impl<B: GitCommitBackend> GitCommitService<B> {
     /// Creates a service backed by `backend`.
     pub fn new(backend: B) -> Self {
-        Self { backend }
+        Self {
+            backend,
+            authority: Arc::new(PreviewAuthorityStore::default()),
+        }
     }
 
     /// Builds a reviewable commit preview without mutating Git state.
     pub fn preview(&self, request: &GitCommitRequest) -> GitCommitPreview {
+        let preview_ref = preview_ref(&request.workspace_ref, request.mode, &request.requested_at);
+        self.authority.revoke(&preview_ref);
         let status_request = GitStatusRequest::with_observed_at(
             request.workspace_ref.clone(),
             request.root_path.clone(),
@@ -889,15 +962,39 @@ impl<B: GitCommitBackend> GitCommitService<B> {
             .as_ref()
             .map(|repo| repo.repo_root.clone())
             .unwrap_or_else(|| request.root_path.clone());
-        let preview_ref = preview_ref(&request.workspace_ref, request.mode, &request.requested_at);
-
         if snapshot.service_state != GitServiceState::Current {
             return self.degraded_preview(request, repo_root, truth_source_ref, preview_ref);
         }
+        let Some(repository) = snapshot.repository.clone() else {
+            return self.degraded_preview(request, repo_root, truth_source_ref, preview_ref);
+        };
+        let index_before_status_verification = self.capture_index_evidence(&repository);
+        let verified_snapshot = GitStatusService::default().snapshot(&status_request);
+        let verified_repository = verified_snapshot.repository.clone();
+        let index_after_status_verification = verified_repository
+            .as_ref()
+            .and_then(|repository| self.capture_index_evidence(repository));
+        let preview_basis_is_stable = verified_snapshot.service_state == GitServiceState::Current
+            && verified_snapshot.head == snapshot.head
+            && verified_snapshot.changes == snapshot.changes
+            && verified_snapshot.change_summary == snapshot.change_summary
+            && verified_repository
+                .as_ref()
+                .is_some_and(|verified| same_repository_identity(&repository, verified))
+            && index_before_status_verification.is_some()
+            && index_before_status_verification == index_after_status_verification;
+        if !preview_basis_is_stable {
+            return self.degraded_preview(request, repo_root, truth_source_ref, preview_ref);
+        }
+        let snapshot = verified_snapshot;
+        let Some(repository) = verified_repository else {
+            return self.degraded_preview(request, repo_root, truth_source_ref, preview_ref);
+        };
 
         let author = self.author_identity(&repo_root, &request.workspace_ref, &request.author);
         let message = message_review_for(&preview_ref, &request.message);
-        let index_tree_oid = self.index_tree_oid(&repo_root);
+        let index_evidence = index_after_status_verification;
+        let index_tree_oid = index_evidence.as_ref().map(index_evidence_id);
         let scope = staged_scope_for(
             &request.workspace_ref,
             &preview_ref,
@@ -906,14 +1003,28 @@ impl<B: GitCommitBackend> GitCommitService<B> {
             &snapshot.changes,
             &snapshot.change_summary,
         );
+        let squash_target_oid = if request.mode == GitCommitMode::Squash {
+            request
+                .squash_target
+                .as_deref()
+                .and_then(|target| self.resolve_commit_oid(&repo_root, target))
+        } else {
+            None
+        };
         let history_guardrail = self.history_guardrail_for(
             request,
             &preview_ref,
-            &repo_root,
             snapshot.head.head_oid.as_deref(),
+            squash_target_oid.as_deref(),
         );
         let mut blocked_reasons = blocked_reasons_for(&author, &message, &scope);
         blocked_reasons.extend(history_guardrail.blocked_reasons.clone());
+        let expected_result_parents =
+            self.expected_result_parents(&repository, request.mode, &snapshot.head);
+        if expected_result_parents.is_none() {
+            blocked_reasons
+                .push("reviewed commit parent identity could not be resolved safely".to_string());
+        }
         let preview_state = if blocked_reasons.is_empty() {
             GitCommitPreviewState::ReadyToCommit
         } else {
@@ -941,13 +1052,13 @@ impl<B: GitCommitBackend> GitCommitService<B> {
             &support_export.support_export_ref,
         );
 
-        GitCommitPreview {
+        let mut preview = GitCommitPreview {
             record_kind: GIT_COMMIT_PREVIEW_RECORD_KIND.to_string(),
             schema_version: GIT_COMMIT_PREVIEW_SCHEMA_VERSION,
             preview_ref,
             generated_at: request.requested_at.clone(),
             workspace_ref: request.workspace_ref.clone(),
-            repo_root,
+            repo_root: repo_root.clone(),
             truth_source_ref,
             mode: request.mode,
             command_id: request.mode.command_id().to_string(),
@@ -963,9 +1074,43 @@ impl<B: GitCommitBackend> GitCommitService<B> {
             activity,
             support_export,
             blocked_reasons,
-            message_body: request.message.clone(),
-            squash_target_for_apply: request.squash_target.clone(),
+            authority_token: None,
+        };
+        if preview.preview_state == GitCommitPreviewState::ReadyToCommit {
+            let (Some(index_evidence), Some(expected_result_parents)) =
+                (index_evidence, expected_result_parents)
+            else {
+                preview.preview_state = GitCommitPreviewState::Blocked;
+                preview
+                    .blocked_reasons
+                    .push("commit preview evidence became unavailable".to_string());
+                return preview;
+            };
+            let authority = GitCommitApplyAuthority {
+                workspace_ref: request.workspace_ref.clone(),
+                repository,
+                source_head: snapshot.head,
+                mode: request.mode,
+                message_body: request.message.clone(),
+                author_name: preview.author.display_name.clone().unwrap_or_default(),
+                author_email: preview.author.email.clone().unwrap_or_default(),
+                index_evidence,
+                squash_target_oid,
+                expected_result_parents,
+            };
+            let authority_bytes = authority.retained_bytes();
+            preview.authority_token = serde_json::to_vec(&preview).ok().and_then(|projection| {
+                self.authority
+                    .issue(&preview.preview_ref, projection, authority, authority_bytes)
+            });
+            if preview.authority_token.is_none() {
+                preview.preview_state = GitCommitPreviewState::Blocked;
+                preview
+                    .blocked_reasons
+                    .push("commit preview authority could not be retained".to_string());
+            }
         }
+        preview
     }
 
     /// Applies an admitted preview and returns an attributable result packet.
@@ -985,8 +1130,50 @@ impl<B: GitCommitBackend> GitCommitService<B> {
                 preview.blocked_reasons.clone(),
             );
         }
-
-        if self.index_tree_oid(&preview.repo_root) != preview.scope.index_tree_oid {
+        let authority = serde_json::to_vec(preview).ok().and_then(|projection| {
+            self.authority
+                .consume(&preview.preview_ref, preview.authority_token, &projection)
+        });
+        let Some(authority) = authority else {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitCommitOutcomeState::BlockedNoChangesMade,
+                None,
+                Some("commit preview authority is unavailable; reopen commit review".to_string()),
+                vec!["commit preview authority is unavailable".to_string()],
+            );
+        };
+        let status_request = GitStatusRequest::with_observed_at(
+            authority.workspace_ref.clone(),
+            authority.repository.repo_root.clone(),
+            resolved_at.clone(),
+        );
+        let current_snapshot = GitStatusService::default().snapshot(&status_request);
+        if current_snapshot.service_state != GitServiceState::Current
+            || !current_snapshot
+                .repository
+                .as_ref()
+                .is_some_and(|repository| {
+                    same_repository_identity(&authority.repository, repository)
+                })
+            || current_snapshot.head != authority.source_head
+        {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitCommitOutcomeState::BlockedNoChangesMade,
+                None,
+                Some(
+                    "repository or source HEAD changed after preview; reopen commit review"
+                        .to_string(),
+                ),
+                vec!["repository or source HEAD changed after preview".to_string()],
+            );
+        }
+        if self.capture_index_evidence(&authority.repository)
+            != Some(authority.index_evidence.clone())
+        {
             return result_for_preview(
                 preview,
                 &resolved_at,
@@ -996,19 +1183,71 @@ impl<B: GitCommitBackend> GitCommitService<B> {
                 vec!["staged scope drifted after preview".to_string()],
             );
         }
+        let squash_target_is_current = authority.mode != GitCommitMode::Squash
+            || authority
+                .squash_target_oid
+                .as_deref()
+                .is_some_and(|expected| {
+                    self.resolve_commit_oid(&authority.repository.repo_root, expected)
+                        .as_deref()
+                        == Some(expected)
+                });
+        if !squash_target_is_current {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitCommitOutcomeState::BlockedNoChangesMade,
+                None,
+                Some("squash target changed after preview; reopen commit review".to_string()),
+                vec!["squash target changed after preview".to_string()],
+            );
+        }
+        if self.expected_result_parents(
+            &authority.repository,
+            authority.mode,
+            &authority.source_head,
+        ) != Some(authority.expected_result_parents.clone())
+        {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitCommitOutcomeState::BlockedNoChangesMade,
+                None,
+                Some("commit parent state changed after preview; reopen commit review".to_string()),
+                vec!["commit parent state changed after preview".to_string()],
+            );
+        }
 
-        let output = self.apply_preview(preview);
+        let output = self.apply_preview(&authority);
         let (outcome_state, failure_reason, commit_oid) = match output {
             Ok(output) if output.success => {
-                let commit_oid = self.head_oid(&preview.repo_root);
-                (GitCommitOutcomeState::Committed, None, commit_oid)
+                let commit_oid = self.head_oid(&authority.repository.repo_root);
+                if commit_oid
+                    .as_deref()
+                    .is_some_and(|oid| self.commit_postcondition_holds(&authority, oid))
+                {
+                    (GitCommitOutcomeState::Committed, None, commit_oid)
+                } else {
+                    (
+                        GitCommitOutcomeState::Failed,
+                        Some(
+                            "commit completed but its reviewed HEAD/parent postcondition did not hold; inspect reflog and reopen review"
+                                .to_string(),
+                        ),
+                        commit_oid,
+                    )
+                }
             }
             Ok(output) => (
                 GitCommitOutcomeState::Failed,
                 Some(stderr_or_status(&output)),
                 None,
             ),
-            Err(err) => (GitCommitOutcomeState::Failed, Some(err.message), None),
+            Err(_) => (
+                GitCommitOutcomeState::Failed,
+                Some("Git commit command could not be completed safely".to_string()),
+                None,
+            ),
         };
         let blocked_reasons = failure_reason.clone().into_iter().collect();
         result_for_preview(
@@ -1097,8 +1336,7 @@ impl<B: GitCommitBackend> GitCommitService<B> {
             activity,
             support_export,
             blocked_reasons: vec!["Git service degraded before commit preview".to_string()],
-            message_body: request.message.clone(),
-            squash_target_for_apply: request.squash_target.clone(),
+            authority_token: None,
         }
     }
 
@@ -1130,7 +1368,7 @@ impl<B: GitCommitBackend> GitCommitService<B> {
         if !output.success {
             return None;
         }
-        let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let value = String::from_utf8(output.stdout).ok()?.trim().to_string();
         (!value.is_empty()).then_some(value)
     }
 
@@ -1138,8 +1376,8 @@ impl<B: GitCommitBackend> GitCommitService<B> {
         &self,
         request: &GitCommitRequest,
         preview_ref: &str,
-        repo_root: &Path,
         head_oid: Option<&str>,
+        squash_target_oid: Option<&str>,
     ) -> GitCommitHistoryGuardrail {
         let explicit_ack_required = request.mode.requires_guardrail_ack();
         let mut blocked_reasons = Vec::new();
@@ -1158,13 +1396,11 @@ impl<B: GitCommitBackend> GitCommitService<B> {
             target_commit_ref = head_oid.map(commit_ref);
         } else if request.mode == GitCommitMode::Squash {
             match request.squash_target.as_deref().map(str::trim) {
-                Some(target) if !target.is_empty() => {
-                    match self.resolve_commit_oid(repo_root, target) {
-                        Some(oid) => target_commit_ref = Some(commit_ref(&oid)),
-                        None => blocked_reasons
-                            .push("squash target commit could not be verified".to_string()),
-                    }
-                }
+                Some(target) if !target.is_empty() => match squash_target_oid {
+                    Some(oid) => target_commit_ref = Some(commit_ref(oid)),
+                    None => blocked_reasons
+                        .push("squash target commit could not be verified".to_string()),
+                },
                 _ => blocked_reasons.push("squash target commit is required".to_string()),
             }
         }
@@ -1205,65 +1441,195 @@ impl<B: GitCommitBackend> GitCommitService<B> {
     }
 
     fn resolve_commit_oid(&self, repo_root: &Path, target: &str) -> Option<String> {
+        if !valid_revision_input(target) {
+            return None;
+        }
         let args = vec![
             "rev-parse".to_string(),
             "--verify".to_string(),
+            "--end-of-options".to_string(),
             format!("{target}^{{commit}}"),
         ];
         let output = self.backend.run_git(repo_root, &args).ok()?;
         if !output.success {
             return None;
         }
-        let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        (!value.is_empty()).then_some(value)
+        let value = String::from_utf8(output.stdout).ok()?.trim().to_string();
+        valid_object_id(&value).then_some(value)
     }
 
-    fn index_tree_oid(&self, repo_root: &Path) -> Option<String> {
-        let args = vec!["write-tree".to_string()];
-        let output = self.backend.run_git(repo_root, &args).ok()?;
-        if !output.success {
+    fn capture_index_evidence(
+        &self,
+        repository: &RepositoryIdentity,
+    ) -> Option<GitCommitIndexEvidence> {
+        const MAX_STAGED_ENTRY_BYTES: usize = 16 * 1024 * 1024;
+
+        let index = capture_index_evidence(repository)?;
+        let args = vec![
+            "ls-files".to_string(),
+            "--stage".to_string(),
+            "-z".to_string(),
+            "--".to_string(),
+        ];
+        let output = self.backend.run_git(&repository.repo_root, &args).ok()?;
+        if !output.success || output.stdout.len() > MAX_STAGED_ENTRY_BYTES {
             return None;
         }
-        let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        (!value.is_empty()).then_some(value)
+        let staged_entries_len = output.stdout.len();
+        let staged_entries_id = aureline_history::body_object_id(&output.stdout);
+        Some(GitCommitIndexEvidence {
+            index_len: index.index_len,
+            index_content_id: index.index_content_id,
+            index_identity_token: index.index_identity_token,
+            staged_entries_len,
+            staged_entries_id,
+        })
     }
 
     fn head_oid(&self, repo_root: &Path) -> Option<String> {
         self.resolve_commit_oid(repo_root, "HEAD")
     }
 
+    fn expected_result_parents(
+        &self,
+        repository: &RepositoryIdentity,
+        mode: GitCommitMode,
+        source_head: &HeadIdentity,
+    ) -> Option<Vec<String>> {
+        match (mode, source_head.head_oid.as_deref()) {
+            (GitCommitMode::Amend, Some(oid)) => {
+                self.commit_parent_oids(&repository.repo_root, oid)
+            }
+            (GitCommitMode::Amend, None) => None,
+            (GitCommitMode::Normal, Some(oid)) if valid_object_id(oid) => {
+                let mut parents = vec![oid.to_string()];
+                parents.extend(self.pending_merge_parent_oids(repository)?);
+                Some(parents)
+            }
+            (_, Some(oid)) if valid_object_id(oid) => Some(vec![oid.to_string()]),
+            (_, None) if source_head.state == crate::status::BranchState::Unborn => {
+                Some(Vec::new())
+            }
+            _ => None,
+        }
+    }
+
+    fn pending_merge_parent_oids(&self, repository: &RepositoryIdentity) -> Option<Vec<String>> {
+        const MAX_MERGE_HEAD_BYTES: u64 = 8 * 1024;
+        const MAX_MERGE_PARENTS: usize = 64;
+
+        let merge_head_path = repository.git_dir.join("MERGE_HEAD");
+        match std::fs::symlink_metadata(&merge_head_path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Some(Vec::new()),
+            Err(_) => None,
+            Ok(metadata)
+                if metadata.file_type().is_file()
+                    && !metadata.file_type().is_symlink()
+                    && metadata.len() <= MAX_MERGE_HEAD_BYTES =>
+            {
+                let read = crate::status::read_regular_file_nofollow(
+                    &merge_head_path,
+                    &repository.git_dir,
+                    MAX_MERGE_HEAD_BYTES,
+                )
+                .ok()?;
+                let text = String::from_utf8(read.bytes).ok()?;
+                let parents = text
+                    .lines()
+                    .map(|line| valid_object_id(line).then(|| line.to_string()))
+                    .collect::<Option<Vec<_>>>()?;
+                (!parents.is_empty() && parents.len() <= MAX_MERGE_PARENTS).then_some(parents)
+            }
+            Ok(_) => None,
+        }
+    }
+
+    fn commit_parent_oids(&self, repo_root: &Path, oid: &str) -> Option<Vec<String>> {
+        if !valid_object_id(oid) {
+            return None;
+        }
+        let args = vec![
+            "rev-list".to_string(),
+            "--parents".to_string(),
+            "-n".to_string(),
+            "1".to_string(),
+            oid.to_string(),
+        ];
+        let output = self.backend.run_git(repo_root, &args).ok()?;
+        if !output.success {
+            return None;
+        }
+        let text = String::from_utf8(output.stdout).ok()?;
+        let mut values = text.split_whitespace();
+        if values.next() != Some(oid) {
+            return None;
+        }
+        values
+            .map(|value| valid_object_id(value).then(|| value.to_string()))
+            .collect()
+    }
+
+    fn commit_postcondition_holds(
+        &self,
+        authority: &GitCommitApplyAuthority,
+        commit_oid: &str,
+    ) -> bool {
+        let logical_index_is_unchanged = self
+            .capture_index_evidence(&authority.repository)
+            .is_some_and(|observed| {
+                observed.staged_entries_len == authority.index_evidence.staged_entries_len
+                    && observed.staged_entries_id == authority.index_evidence.staged_entries_id
+            });
+        if authority.source_head.head_oid.as_deref() == Some(commit_oid)
+            || !logical_index_is_unchanged
+            || self.commit_parent_oids(&authority.repository.repo_root, commit_oid)
+                != Some(authority.expected_result_parents.clone())
+        {
+            return false;
+        }
+        let status_request = GitStatusRequest::with_observed_at(
+            authority.workspace_ref.clone(),
+            authority.repository.repo_root.clone(),
+            "post-commit-verification",
+        );
+        let snapshot = GitStatusService::default().snapshot(&status_request);
+        let expected_state = if authority.source_head.state == crate::status::BranchState::Unborn {
+            crate::status::BranchState::Attached
+        } else {
+            authority.source_head.state
+        };
+        snapshot.service_state == GitServiceState::Current
+            && snapshot.repository.as_ref().is_some_and(|repository| {
+                same_repository_identity(&authority.repository, repository)
+            })
+            && snapshot.head.state == expected_state
+            && snapshot.head.branch_ref == authority.source_head.branch_ref
+            && snapshot.head.head_oid.as_deref() == Some(commit_oid)
+    }
+
     fn apply_preview(
         &self,
-        preview: &GitCommitPreview,
+        authority: &GitCommitApplyAuthority,
     ) -> Result<GitCommitCommandOutput, GitCommitBackendError> {
-        let name = preview
-            .author
-            .display_name
-            .as_deref()
-            .ok_or_else(|| GitCommitBackendError {
-                message: "commit author name missing".to_string(),
-            })?;
-        let email = preview
-            .author
-            .email
-            .as_deref()
-            .ok_or_else(|| GitCommitBackendError {
-                message: "commit author email missing".to_string(),
-            })?;
+        let name = &authority.author_name;
+        let email = &authority.author_email;
         let mut args = vec![
             "-c".to_string(),
             format!("user.name={name}"),
             "-c".to_string(),
             format!("user.email={email}"),
             "commit".to_string(),
+            "--no-verify".to_string(),
+            "--no-gpg-sign".to_string(),
+            "--cleanup=verbatim".to_string(),
             "--author".to_string(),
             format!("{name} <{email}>"),
         ];
-        match preview.mode {
+        match authority.mode {
             GitCommitMode::Normal => {}
             GitCommitMode::Amend => args.push("--amend".to_string()),
             GitCommitMode::Squash => {
-                let target = preview.squash_target_for_apply.as_deref().ok_or_else(|| {
+                let target = authority.squash_target_oid.as_deref().ok_or_else(|| {
                     GitCommitBackendError {
                         message: "squash target missing".to_string(),
                     }
@@ -1272,9 +1638,45 @@ impl<B: GitCommitBackend> GitCommitService<B> {
             }
         }
         args.push("-m".to_string());
-        args.push(preview.message_body.clone());
-        self.backend.run_git(&preview.repo_root, &args)
+        args.push(authority.message_body.clone());
+        self.backend.run_git(&authority.repository.repo_root, &args)
     }
+}
+
+fn capture_index_evidence(repository: &RepositoryIdentity) -> Option<GitCommitIndexEvidence> {
+    const MAX_INDEX_BYTES: u64 = 16 * 1024 * 1024;
+
+    let index_path = repository.git_dir.join("index");
+    let read = crate::status::read_regular_file_nofollow(
+        &index_path,
+        &repository.git_dir,
+        MAX_INDEX_BYTES,
+    )
+    .ok()?;
+    Some(GitCommitIndexEvidence {
+        index_len: read.bytes.len() as u64,
+        index_content_id: aureline_history::body_object_id(&read.bytes),
+        index_identity_token: read.identity_token,
+        staged_entries_len: 0,
+        staged_entries_id: String::new(),
+    })
+}
+
+fn index_evidence_id(evidence: &GitCommitIndexEvidence) -> String {
+    let mut bytes = Vec::with_capacity(
+        64 + evidence.index_content_id.len()
+            + evidence.index_identity_token.len()
+            + evidence.staged_entries_id.len(),
+    );
+    bytes.extend_from_slice(b"aureline.git.index-evidence.v1\0");
+    bytes.extend_from_slice(&evidence.index_len.to_be_bytes());
+    bytes.extend_from_slice(evidence.index_content_id.as_bytes());
+    bytes.push(0);
+    bytes.extend_from_slice(evidence.index_identity_token.as_bytes());
+    bytes.push(0);
+    bytes.extend_from_slice(&(evidence.staged_entries_len as u64).to_be_bytes());
+    bytes.extend_from_slice(evidence.staged_entries_id.as_bytes());
+    aureline_history::body_object_id(&bytes)
 }
 
 fn explicit_or_missing_author(
@@ -1342,6 +1744,7 @@ fn author_identity_from_parts(
 fn valid_author_name(value: &str) -> bool {
     let trimmed = value.trim();
     !trimmed.is_empty()
+        && trimmed.len() <= 256
         && !trimmed
             .chars()
             .any(|ch| matches!(ch, '\n' | '\r' | '<' | '>'))
@@ -1351,6 +1754,7 @@ fn valid_author_name(value: &str) -> bool {
 fn valid_author_email(value: &str) -> bool {
     let trimmed = value.trim();
     !trimmed.is_empty()
+        && trimmed.len() <= 320
         && trimmed.contains('@')
         && !trimmed
             .chars()
@@ -1368,6 +1772,15 @@ fn message_review_for(preview_ref: &str, message: &str) -> GitCommitMessageRevie
     }
     if summary.chars().count() > 120 {
         validation_errors.push("commit summary must be 120 characters or fewer".to_string());
+    }
+    if message.len() > 64 * 1024 {
+        validation_errors.push("commit message exceeds the 64 KiB review limit".to_string());
+    }
+    if message
+        .chars()
+        .any(|ch| (ch.is_control() && !matches!(ch, '\n' | '\t')) || ch == '\u{7f}')
+    {
+        validation_errors.push("commit message contains unsupported control bytes".to_string());
     }
     GitCommitMessageReview {
         message_ref: format!("{}.message", preview_ref),
@@ -1398,7 +1811,7 @@ fn staged_scope_for(
                 || change.change_kind == ChangeKind::Untracked
                 || change.is_conflicted
         })
-        .map(|change| change.path.to_string_lossy().to_string())
+        .map(|change| strict_path_label(&change.path))
         .collect::<Vec<_>>();
     GitCommitStagedScopeReview {
         scope_ref: format!("{}.scope", preview_ref),
@@ -1415,7 +1828,7 @@ fn staged_scope_for(
 }
 
 fn commit_scope_target(workspace_ref: &str, change: &GitChange) -> GitCommitScopeTarget {
-    let path_label = change.path.to_string_lossy().to_string();
+    let path_label = strict_path_label(&change.path);
     let workspace_id = sanitize_id(workspace_ref);
     let path_id = sanitize_id(&path_label);
     GitCommitScopeTarget {
@@ -1427,6 +1840,10 @@ fn commit_scope_target(workspace_ref: &str, change: &GitChange) -> GitCommitScop
         file_state_token: file_state_token(change).to_string(),
         included_in_commit: true,
     }
+}
+
+fn strict_path_label(path: &Path) -> String {
+    path.to_str().map(str::to_string).unwrap_or_default()
 }
 
 fn file_state_token(change: &GitChange) -> &'static str {
@@ -1830,15 +2247,25 @@ fn short_oid(value: &str) -> String {
         .collect()
 }
 
+fn valid_object_id(value: &str) -> bool {
+    matches!(value.len(), 40 | 64) && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn valid_revision_input(value: &str) -> bool {
+    let value = value.trim();
+    !value.is_empty()
+        && value.len() <= 1024
+        && !value.starts_with('-')
+        && value
+            .chars()
+            .all(|ch| !ch.is_control() && !ch.is_whitespace())
+}
+
 fn stderr_or_status(output: &GitCommitCommandOutput) -> String {
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    if !stderr.is_empty() {
-        return stderr;
-    }
     output
         .status_code
-        .map(|code| format!("git exited with status {code}"))
-        .unwrap_or_else(|| "git exited unsuccessfully".to_string())
+        .map(|code| format!("Git commit command failed with exit status {code}"))
+        .unwrap_or_else(|| "Git commit command failed without an exit status".to_string())
 }
 
 fn sanitize_id(value: &str) -> String {
@@ -1869,4 +2296,25 @@ fn observed_at_now() -> String {
         .map(|duration| duration.as_millis())
         .unwrap_or(0);
     format!("unix:{millis}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hostile_revision_message_and_failure_output_fail_closed() {
+        assert!(!valid_revision_input("--exec-path=/tmp/hostile"));
+        let review = message_review_for("preview", "subject\nbody\u{1b}[31m");
+        assert!(!review.message_valid);
+        let output = GitCommitCommandOutput {
+            success: false,
+            status_code: Some(128),
+            stdout: Vec::new(),
+            stderr: b"secret author or hook output".to_vec(),
+        };
+        let failure = stderr_or_status(&output);
+        assert_eq!(failure, "Git commit command failed with exit status 128");
+        assert!(!failure.contains("secret author"));
+    }
 }

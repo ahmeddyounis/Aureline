@@ -250,8 +250,8 @@ fn run_fixture(path: &Path) {
     assert_eq!(
         result.outcome_state,
         parse_result_state(&fixture.expected.result_state),
-        "{}: result state",
-        fixture.case_name
+        "{}: result state: {result:#?}",
+        fixture.case_name,
     );
     assert_eq!(
         result.activity.state_class, fixture.expected.activity_state_class,
@@ -341,4 +341,281 @@ fn current_work_drift_blocks_apply_without_switching() {
     );
     let snapshot = final_snapshot("branch-drift", dir.path());
     assert_eq!(snapshot.head.branch_label.as_deref(), Some("main"));
+}
+
+#[test]
+fn changed_bytes_with_the_same_status_shape_block_apply() {
+    let dir = build_case_root("main_dirty");
+    run_git(dir.path(), &["branch", "feature"]);
+    let service = GitBranchService::default();
+    let request = GitBranchRequest::with_observed_at(
+        "workspace.fixture.byte-drift",
+        dir.path(),
+        GitBranchOperationKind::Switch,
+        "feature",
+        "2026-05-13T00:20:00Z",
+    );
+    let preview = service.preview(&request);
+    assert!(preview.ready_to_apply());
+
+    fs::write(
+        dir.path().join("src/lib.rs"),
+        "pub fn answer() -> u32 {\n    43\n}\n",
+    )
+    .expect("drift bytes without changing status shape");
+    let result = service.apply(&preview, "2026-05-13T00:20:01Z");
+    assert_eq!(
+        result.outcome_state,
+        GitBranchOutcomeState::BlockedNoChangesMade
+    );
+    assert_eq!(
+        final_snapshot("byte-drift", dir.path())
+            .head
+            .branch_label
+            .as_deref(),
+        Some("main")
+    );
+}
+
+#[test]
+fn repository_config_drift_blocks_apply_without_switching() {
+    let dir = build_case_root("two_branches_clean");
+    let service = GitBranchService::default();
+    let preview = service.preview(&GitBranchRequest::with_observed_at(
+        "workspace.fixture.config-drift",
+        dir.path(),
+        GitBranchOperationKind::Switch,
+        "feature",
+        "2026-05-13T00:25:00Z",
+    ));
+    assert!(preview.ready_to_apply(), "{preview:#?}");
+
+    run_git(dir.path(), &["config", "status.relativePaths", "false"]);
+    let result = service.apply(&preview, "2026-05-13T00:25:01Z");
+    assert_eq!(
+        result.outcome_state,
+        GitBranchOutcomeState::BlockedNoChangesMade
+    );
+    assert_eq!(
+        final_snapshot("config-drift", dir.path())
+            .head
+            .branch_label
+            .as_deref(),
+        Some("main")
+    );
+}
+
+#[test]
+fn retargeted_branch_and_non_live_previews_cannot_apply() {
+    let dir = build_case_root("two_commits_clean");
+    run_git(dir.path(), &["branch", "feature"]);
+    let service = GitBranchService::default();
+    let request = GitBranchRequest::with_observed_at(
+        "workspace.fixture.target-drift",
+        dir.path(),
+        GitBranchOperationKind::Switch,
+        "feature",
+        "2026-05-13T00:30:00Z",
+    );
+    let preview = service.preview(&request);
+    assert!(preview.ready_to_apply());
+
+    let exported = serde_json::to_string(&preview).expect("serialize inspection record");
+    let restored = serde_json::from_str(&exported).expect("deserialize inspection record");
+    assert!(!GitBranchService::default()
+        .apply(&restored, "2026-05-13T00:30:01Z")
+        .outcome_state
+        .eq(&GitBranchOutcomeState::Applied));
+
+    let mut tampered = preview.clone();
+    tampered.workspace_ref = "workspace.tampered".to_string();
+    assert_eq!(
+        service
+            .apply(&tampered, "2026-05-13T00:30:02Z")
+            .outcome_state,
+        GitBranchOutcomeState::BlockedNoChangesMade
+    );
+
+    let fresh = service.preview(&request);
+    run_git(dir.path(), &["branch", "-f", "feature", "HEAD~1"]);
+    assert_eq!(
+        service.apply(&fresh, "2026-05-13T00:30:03Z").outcome_state,
+        GitBranchOutcomeState::BlockedNoChangesMade
+    );
+    assert_eq!(
+        final_snapshot("target-drift", dir.path())
+            .head
+            .branch_label
+            .as_deref(),
+        Some("main")
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn branch_apply_does_not_execute_repository_checkout_hooks() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = build_case_root("two_branches_clean");
+    let sentinel = dir.path().join("hook-ran");
+    let hook = dir.path().join(".git/hooks/post-checkout");
+    fs::write(
+        &hook,
+        format!("#!/bin/sh\ntouch '{}'\n", sentinel.display()),
+    )
+    .expect("write hook");
+    let mut permissions = fs::metadata(&hook).expect("hook metadata").permissions();
+    permissions.set_mode(0o700);
+    fs::set_permissions(&hook, permissions).expect("make hook executable");
+
+    let service = GitBranchService::default();
+    let preview = service.preview(&GitBranchRequest::with_observed_at(
+        "workspace.fixture.hook",
+        dir.path(),
+        GitBranchOperationKind::Switch,
+        "feature",
+        "2026-05-13T00:40:00Z",
+    ));
+    let result = service.apply(&preview, "2026-05-13T00:40:01Z");
+    assert_eq!(
+        result.outcome_state,
+        GitBranchOutcomeState::Applied,
+        "{result:#?}"
+    );
+    assert!(!sentinel.exists(), "repository hook must not execute");
+}
+
+#[cfg(unix)]
+#[test]
+fn branch_apply_never_overwrites_an_ignored_worktree_file() {
+    let dir = build_case_root("main_clean");
+    fs::write(dir.path().join(".gitignore"), "ignored.txt\n").expect("write ignore rule");
+    run_git(dir.path(), &["add", ".gitignore"]);
+    run_git(dir.path(), &["commit", "-q", "-m", "ignore local artifact"]);
+    run_git(dir.path(), &["switch", "-q", "-c", "feature"]);
+    fs::write(dir.path().join("ignored.txt"), "tracked target bytes\n").expect("write target file");
+    run_git(dir.path(), &["add", "-f", "ignored.txt"]);
+    run_git(dir.path(), &["commit", "-q", "-m", "track target artifact"]);
+    run_git(dir.path(), &["switch", "-q", "main"]);
+    fs::write(dir.path().join("ignored.txt"), "private local bytes\n")
+        .expect("write ignored local file");
+
+    let service = GitBranchService::default();
+    let preview = service.preview(&GitBranchRequest::with_observed_at(
+        "workspace.fixture.ignored-collision",
+        dir.path(),
+        GitBranchOperationKind::Switch,
+        "feature",
+        "2026-05-13T00:50:00Z",
+    ));
+    assert!(preview.ready_to_apply(), "{preview:#?}");
+
+    let result = service.apply(&preview, "2026-05-13T00:50:01Z");
+    assert_eq!(result.outcome_state, GitBranchOutcomeState::Failed);
+    assert_eq!(
+        fs::read_to_string(dir.path().join("ignored.txt")).expect("read preserved file"),
+        "private local bytes\n"
+    );
+    assert_eq!(
+        final_snapshot("ignored-collision", dir.path())
+            .head
+            .branch_label
+            .as_deref(),
+        Some("main")
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn symlink_evidence_hashes_the_link_payload_without_following_its_target() {
+    use std::os::unix::fs::symlink;
+
+    let dir = build_case_root("two_branches_clean");
+    let external = tempfile::tempdir().expect("external tempdir");
+    let first_target = external.path().join("first-target");
+    let second_target = external.path().join("second-target");
+    fs::write(&first_target, "outside v1\n").expect("write first external target");
+    fs::write(&second_target, "outside v2\n").expect("write second external target");
+    symlink(&first_target, dir.path().join("reviewed-link")).expect("create reviewed symlink");
+
+    let service = GitBranchService::default();
+    let request = GitBranchRequest::with_observed_at(
+        "workspace.fixture.symlink-payload",
+        dir.path(),
+        GitBranchOperationKind::Switch,
+        "feature",
+        "2026-05-13T00:52:00Z",
+    );
+    let preview = service.preview(&request);
+    assert!(preview.ready_to_apply(), "{preview:#?}");
+    fs::write(&first_target, "outside target changed after review\n")
+        .expect("mutate followed target only");
+    assert_eq!(
+        service
+            .apply(&preview, "2026-05-13T00:52:01Z")
+            .outcome_state,
+        GitBranchOutcomeState::Applied,
+        "changing only followed bytes must not change symlink payload evidence"
+    );
+
+    run_git(dir.path(), &["switch", "-q", "main"]);
+    let fresh = service.preview(&request);
+    assert!(fresh.ready_to_apply(), "{fresh:#?}");
+    fs::remove_file(dir.path().join("reviewed-link")).expect("remove reviewed symlink");
+    symlink(&second_target, dir.path().join("reviewed-link")).expect("retarget reviewed symlink");
+    assert_eq!(
+        service.apply(&fresh, "2026-05-13T00:52:02Z").outcome_state,
+        GitBranchOutcomeState::BlockedNoChangesMade,
+        "changing the symlink payload must invalidate review"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn special_worktree_files_are_rejected_from_branch_authority() {
+    let dir = build_case_root("two_branches_clean");
+    fs::remove_file(dir.path().join("src/lib.rs")).expect("remove tracked regular file");
+    assert!(Command::new("mkfifo")
+        .arg(dir.path().join("src/lib.rs"))
+        .status()
+        .expect("mkfifo launches")
+        .success());
+
+    let preview = GitBranchService::default().preview(&GitBranchRequest::with_observed_at(
+        "workspace.fixture.special-file",
+        dir.path(),
+        GitBranchOperationKind::Switch,
+        "feature",
+        "2026-05-13T00:53:00Z",
+    ));
+    assert_eq!(preview.preview_state, GitBranchPreviewState::Blocked);
+    assert!(!preview.ready_to_apply());
+}
+
+#[cfg(unix)]
+#[test]
+fn non_utf8_status_paths_degrade_branch_review_before_apply() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let dir = build_case_root("two_branches_clean");
+    let invalid_name = OsString::from_vec(b"invalid-\xff-name".to_vec());
+    if let Err(error) = fs::write(dir.path().join(invalid_name), "unreviewable path bytes\n") {
+        if cfg!(target_os = "macos") {
+            // APFS rejects this fixture before Git can observe it. The raw
+            // parser unit test covers the fail-closed path on this platform.
+            return;
+        }
+        panic!("write non-UTF-8 path: {error}");
+    }
+
+    let preview = GitBranchService::default().preview(&GitBranchRequest::with_observed_at(
+        "workspace.fixture.non-utf8-path",
+        dir.path(),
+        GitBranchOperationKind::Switch,
+        "feature",
+        "2026-05-13T00:55:00Z",
+    ));
+    assert_eq!(preview.preview_state, GitBranchPreviewState::Degraded);
+    assert!(!preview.ready_to_apply());
 }

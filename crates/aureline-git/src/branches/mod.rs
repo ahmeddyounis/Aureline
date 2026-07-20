@@ -6,15 +6,19 @@
 //! detached-head posture, then applies only if the reviewed basis still matches.
 
 use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::{Component, Path, PathBuf};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
 use crate::status::{
     BranchState, ChangeSummary, ConsumerProjectionBundle, GitServiceState, GitShellStatusRecord,
-    GitStatusRequest, GitStatusService, HeadIdentity,
+    GitStatusRequest, GitStatusService, HeadIdentity, RepositoryConfigEvidence, RepositoryIdentity,
+};
+use crate::{
+    hardened_git,
+    preview_authority::{same_repository_identity, PreviewAuthorityStore},
 };
 
 /// Stable record-kind tag for [`GitBranchPreview`].
@@ -37,6 +41,12 @@ const GIT_BRANCH_RESULT_SCHEMA_VERSION: u32 = 1;
 const GIT_BRANCH_ACTIVITY_SCHEMA_VERSION: u32 = 1;
 const GIT_BRANCH_SUPPORT_EXPORT_SCHEMA_VERSION: u32 = 1;
 const GIT_BRANCH_JOURNAL_SCHEMA_VERSION: u32 = 1;
+const MAX_BRANCH_EVIDENCE_PATHS: usize = 4096;
+const MAX_BRANCH_INDEX_ENTRY_BYTES: usize = 1024 * 1024;
+const MAX_BRANCH_INDEX_TOTAL_BYTES: usize = 16 * 1024 * 1024;
+const MAX_BRANCH_WORKTREE_FILE_BYTES: u64 = 16 * 1024 * 1024;
+const MAX_BRANCH_WORKTREE_TOTAL_BYTES: u64 = 64 * 1024 * 1024;
+const MAX_BRANCH_SYMLINK_BYTES: usize = 16 * 1024;
 
 /// Branch operation requested by the local branch-management lane.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -575,11 +585,7 @@ pub struct GitBranchPreview {
     /// Reasons that block apply from this preview.
     pub blocked_reasons: Vec<String>,
     #[serde(skip)]
-    target_for_apply: String,
-    #[serde(skip)]
-    start_point_for_apply: Option<String>,
-    #[serde(skip)]
-    track_remote_for_apply: bool,
+    authority_token: Option<u128>,
 }
 
 impl GitBranchPreview {
@@ -589,7 +595,8 @@ impl GitBranchPreview {
             && self.blocked_reasons.is_empty()
             && self.target.is_satisfied()
             && !self.current_work.apply_blocked_by_current_work
-            && !self.target_for_apply.trim().is_empty()
+            && !self.target.requested_target.trim().is_empty()
+            && self.authority_token.is_some()
     }
 }
 
@@ -732,13 +739,9 @@ impl GitBranchBackend for SystemGitBranchBackend {
         root: &Path,
         args: &[String],
     ) -> Result<GitBranchCommandOutput, GitBranchBackendError> {
-        let output = Command::new(&self.git_binary)
-            .arg("-C")
-            .arg(root)
-            .args(args)
-            .output()
-            .map_err(|err| GitBranchBackendError {
-                message: format!("git command failed to launch: {err}"),
+        let output = hardened_git::run(hardened_git::command(&self.git_binary, root, args))
+            .map_err(|_| GitBranchBackendError {
+                message: "Git branch command could not be completed safely".to_string(),
             })?;
         Ok(GitBranchCommandOutput {
             success: output.status.success(),
@@ -749,10 +752,104 @@ impl GitBranchBackend for SystemGitBranchBackend {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GitBranchApplyAuthority {
+    workspace_ref: String,
+    repository: RepositoryIdentity,
+    source_head: HeadIdentity,
+    operation: GitBranchOperationKind,
+    target: String,
+    start_point: Option<String>,
+    track_remote: bool,
+    target_review: GitBranchTargetReview,
+    current_work_evidence: Vec<GitBranchPathEvidence>,
+    repository_config_evidence: RepositoryConfigEvidence,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GitBranchPathEvidence {
+    path: PathBuf,
+    index_entry_len: usize,
+    index_entry_id: String,
+    worktree_state: GitBranchWorktreeState,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum GitBranchWorktreeState {
+    Missing,
+    Directory(String),
+    RegularFile {
+        content_len: u64,
+        content_id: String,
+        identity_token: String,
+    },
+    Symlink {
+        payload_len: usize,
+        payload_id: String,
+        identity_token: String,
+    },
+}
+
+impl GitBranchApplyAuthority {
+    fn retained_bytes(&self) -> usize {
+        let repository_bytes = self.repository.repo_ref.len()
+            + self.repository.worktree_ref.len()
+            + self.repository.repo_label.len()
+            + self.repository.repo_root.as_os_str().len()
+            + self.repository.git_dir.as_os_str().len()
+            + self.repository.common_dir.as_os_str().len();
+        let head_bytes = self.source_head.branch_label.as_deref().map_or(0, str::len)
+            + self.source_head.branch_ref.as_deref().map_or(0, str::len)
+            + self.source_head.head_oid.as_deref().map_or(0, str::len)
+            + self
+                .source_head
+                .head_short_oid
+                .as_deref()
+                .map_or(0, str::len)
+            + self.source_head.upstream.as_deref().map_or(0, str::len);
+        std::mem::size_of::<Self>()
+            + self.workspace_ref.len()
+            + repository_bytes
+            + head_bytes
+            + self.target.len()
+            + self.start_point.as_deref().map_or(0, str::len)
+            + serde_json::to_vec(&self.target_review).map_or(0, |bytes| bytes.len())
+            + self
+                .current_work_evidence
+                .iter()
+                .map(GitBranchPathEvidence::retained_bytes)
+                .sum::<usize>()
+            + self.repository_config_evidence.retained_bytes()
+    }
+}
+
+impl GitBranchPathEvidence {
+    fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.path.as_os_str().len()
+            + self.index_entry_id.len()
+            + match &self.worktree_state {
+                GitBranchWorktreeState::Missing => 0,
+                GitBranchWorktreeState::Directory(identity) => identity.len(),
+                GitBranchWorktreeState::RegularFile {
+                    content_id,
+                    identity_token,
+                    ..
+                } => content_id.len() + identity_token.len(),
+                GitBranchWorktreeState::Symlink {
+                    payload_id,
+                    identity_token,
+                    ..
+                } => payload_id.len() + identity_token.len(),
+            }
+    }
+}
+
 /// Service that creates and applies branch operation previews.
 #[derive(Debug, Clone)]
 pub struct GitBranchService<B = SystemGitBranchBackend> {
     backend: B,
+    authority: Arc<PreviewAuthorityStore<GitBranchApplyAuthority>>,
 }
 
 impl Default for GitBranchService<SystemGitBranchBackend> {
@@ -764,11 +861,16 @@ impl Default for GitBranchService<SystemGitBranchBackend> {
 impl<B: GitBranchBackend> GitBranchService<B> {
     /// Creates a service backed by `backend`.
     pub fn new(backend: B) -> Self {
-        Self { backend }
+        Self {
+            backend,
+            authority: Arc::new(PreviewAuthorityStore::default()),
+        }
     }
 
     /// Builds a reviewable branch preview without mutating Git state.
     pub fn preview(&self, request: &GitBranchRequest) -> GitBranchPreview {
+        let preview_ref = preview_ref(request);
+        self.authority.revoke(&preview_ref);
         let status_request = GitStatusRequest::with_observed_at(
             request.workspace_ref.clone(),
             request.root_path.clone(),
@@ -783,8 +885,6 @@ impl<B: GitBranchBackend> GitBranchService<B> {
             .as_ref()
             .map(|repo| repo.repo_root.clone())
             .unwrap_or_else(|| request.root_path.clone());
-        let preview_ref = preview_ref(request);
-
         if snapshot.service_state != GitServiceState::Current {
             return degraded_preview(
                 request,
@@ -796,10 +896,36 @@ impl<B: GitBranchBackend> GitBranchService<B> {
                 snapshot.service_state.as_str(),
             );
         }
+        let Some(repository) = snapshot.repository.clone() else {
+            return degraded_preview(
+                request,
+                repo_root,
+                truth_source_ref,
+                preview_ref,
+                snapshot.head,
+                bundle.shell,
+                "repository_identity_unavailable",
+            );
+        };
 
         let current_work = current_work_review(&preview_ref, &truth_source_ref, &snapshot);
         let target = self.target_review(request, &preview_ref, &repo_root, &snapshot);
         let mut blocked_reasons = target.blocked_reasons.clone();
+        let current_work_evidence = self.capture_current_work_evidence(&repo_root, &snapshot);
+        let repository_config_evidence =
+            crate::status::repository_config_evidence(&repository).ok();
+        if current_work_evidence.is_none() {
+            blocked_reasons.push(
+                "exact current-work evidence could not be captured; reopen branch review"
+                    .to_string(),
+            );
+        }
+        if repository_config_evidence.is_none() {
+            blocked_reasons.push(
+                "repository configuration could not be bound safely; reopen branch review"
+                    .to_string(),
+            );
+        }
         if current_work.apply_blocked_by_current_work {
             blocked_reasons.push(
                 "conflicted current work requires conflict review before changing branches"
@@ -823,7 +949,7 @@ impl<B: GitBranchBackend> GitBranchService<B> {
             &truth_source_ref,
         );
 
-        GitBranchPreview {
+        let mut preview = GitBranchPreview {
             record_kind: GIT_BRANCH_PREVIEW_RECORD_KIND.to_string(),
             schema_version: GIT_BRANCH_PREVIEW_SCHEMA_VERSION,
             preview_ref,
@@ -838,20 +964,53 @@ impl<B: GitBranchBackend> GitBranchService<B> {
             preview_state,
             actor: request.actor.clone(),
             launch_source_ref: request.launch_source_ref.clone(),
-            current_head: snapshot.head,
+            current_head: snapshot.head.clone(),
             target,
             current_work,
             before_shell: bundle.shell,
             activity,
             support_export,
             blocked_reasons,
-            target_for_apply: request.target.trim().to_string(),
-            start_point_for_apply: request
-                .start_point
-                .as_ref()
-                .map(|value| value.trim().to_string()),
-            track_remote_for_apply: request.track_remote,
+            authority_token: None,
+        };
+        if preview.preview_state == GitBranchPreviewState::ReadyToApply {
+            let (Some(current_work_evidence), Some(repository_config_evidence)) =
+                (current_work_evidence, repository_config_evidence)
+            else {
+                preview.preview_state = GitBranchPreviewState::Blocked;
+                preview
+                    .blocked_reasons
+                    .push("branch preview evidence became unavailable".to_string());
+                return preview;
+            };
+            let authority = GitBranchApplyAuthority {
+                workspace_ref: request.workspace_ref.clone(),
+                repository,
+                source_head: snapshot.head,
+                operation: request.operation,
+                target: request.target.trim().to_string(),
+                start_point: request
+                    .start_point
+                    .as_ref()
+                    .map(|value| value.trim().to_string()),
+                track_remote: request.track_remote,
+                target_review: preview.target.clone(),
+                current_work_evidence,
+                repository_config_evidence,
+            };
+            let authority_bytes = authority.retained_bytes();
+            preview.authority_token = serde_json::to_vec(&preview).ok().and_then(|projection| {
+                self.authority
+                    .issue(&preview.preview_ref, projection, authority, authority_bytes)
+            });
+            if preview.authority_token.is_none() {
+                preview.preview_state = GitBranchPreviewState::Blocked;
+                preview
+                    .blocked_reasons
+                    .push("branch preview authority could not be retained".to_string());
+            }
         }
+        preview
     }
 
     /// Applies an admitted branch preview and returns an attributable result packet.
@@ -871,10 +1030,24 @@ impl<B: GitBranchBackend> GitBranchService<B> {
                 None,
             );
         }
+        let authority = serde_json::to_vec(preview).ok().and_then(|projection| {
+            self.authority
+                .consume(&preview.preview_ref, preview.authority_token, &projection)
+        });
+        let Some(authority) = authority else {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitBranchOutcomeState::BlockedNoChangesMade,
+                Some("branch preview authority is unavailable; reopen branch review".to_string()),
+                vec!["branch preview authority is unavailable".to_string()],
+                None,
+            );
+        };
 
         let status_request = GitStatusRequest::with_observed_at(
-            preview.workspace_ref.clone(),
-            preview.repo_root.clone(),
+            authority.workspace_ref.clone(),
+            authority.repository.repo_root.clone(),
             resolved_at.clone(),
         );
         let pre_apply_snapshot = GitStatusService::default().snapshot(&status_request);
@@ -885,6 +1058,30 @@ impl<B: GitBranchBackend> GitBranchService<B> {
                 GitBranchOutcomeState::BlockedNoChangesMade,
                 Some("Git status became unavailable before branch apply".to_string()),
                 vec!["Git status became unavailable before branch apply".to_string()],
+                None,
+            );
+        }
+        if !pre_apply_snapshot
+            .repository
+            .as_ref()
+            .is_some_and(|repository| same_repository_identity(&authority.repository, repository))
+        {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitBranchOutcomeState::BlockedNoChangesMade,
+                Some("repository identity changed after preview; reopen branch review".to_string()),
+                vec!["repository identity changed after preview".to_string()],
+                None,
+            );
+        }
+        if pre_apply_snapshot.head != authority.source_head {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitBranchOutcomeState::BlockedNoChangesMade,
+                Some("source HEAD changed after preview; reopen branch review".to_string()),
+                vec!["source HEAD changed after preview".to_string()],
                 None,
             );
         }
@@ -900,16 +1097,70 @@ impl<B: GitBranchBackend> GitBranchService<B> {
                 None,
             );
         }
+        if self.capture_current_work_evidence(&authority.repository.repo_root, &pre_apply_snapshot)
+            != Some(authority.current_work_evidence.clone())
+        {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitBranchOutcomeState::BlockedNoChangesMade,
+                Some("current work bytes changed after preview; reopen branch review".to_string()),
+                vec!["current work bytes changed after preview".to_string()],
+                None,
+            );
+        }
+        if !self.target_is_current(&authority, &preview.preview_ref, &pre_apply_snapshot) {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitBranchOutcomeState::BlockedNoChangesMade,
+                Some("branch target changed after preview; reopen branch review".to_string()),
+                vec!["branch target changed after preview".to_string()],
+                None,
+            );
+        }
+        if crate::status::repository_config_evidence(&authority.repository)
+            != Ok(authority.repository_config_evidence.clone())
+        {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitBranchOutcomeState::BlockedNoChangesMade,
+                Some(
+                    "repository configuration changed after preview; reopen branch review"
+                        .to_string(),
+                ),
+                vec!["repository configuration changed after preview".to_string()],
+                None,
+            );
+        }
 
-        let output = self.apply_preview(preview);
+        let output = self.apply_preview(&authority);
         let after_bundle = self.after_bundle(preview, &resolved_at);
         let (outcome_state, failure_reason) = match output {
-            Ok(output) if output.success => (GitBranchOutcomeState::Applied, None),
+            Ok(output)
+                if output.success
+                    && after_bundle
+                        .as_ref()
+                        .is_some_and(|after| self.apply_postcondition_holds(&authority, after)) =>
+            {
+                (GitBranchOutcomeState::Applied, None)
+            }
+            Ok(output) if output.success => (
+                GitBranchOutcomeState::Failed,
+                Some(
+                    "branch mutation completed but its reviewed HEAD postcondition did not hold; inspect reflog and reopen review"
+                        .to_string(),
+                ),
+            ),
             Ok(output) => (
                 GitBranchOutcomeState::Failed,
                 Some(stderr_or_status(&output)),
             ),
-            Err(err) => (GitBranchOutcomeState::Failed, Some(err.message)),
+            Err(_) => (
+                GitBranchOutcomeState::Failed,
+                Some("Git branch command could not be completed safely".to_string()),
+            ),
         };
         let blocked_reasons = failure_reason.clone().into_iter().collect();
         result_for_preview(
@@ -920,6 +1171,31 @@ impl<B: GitBranchBackend> GitBranchService<B> {
             blocked_reasons,
             after_bundle,
         )
+    }
+
+    fn apply_postcondition_holds(
+        &self,
+        authority: &GitBranchApplyAuthority,
+        after: &BranchAfterBundle,
+    ) -> bool {
+        if !same_repository_identity(&authority.repository, &after.repository)
+            || after.head.head_oid != authority.target_review.target_oid
+        {
+            return false;
+        }
+        match authority.operation {
+            GitBranchOperationKind::Switch | GitBranchOperationKind::Create => {
+                after.head.state == BranchState::Attached
+                    && after.head.branch_label.as_deref() == Some(authority.target.as_str())
+            }
+            GitBranchOperationKind::Checkout
+                if authority.target_review.target_kind == GitBranchTargetKind::LocalBranch =>
+            {
+                after.head.state == BranchState::Attached
+                    && after.head.branch_label.as_deref() == Some(authority.target.as_str())
+            }
+            GitBranchOperationKind::Checkout => after.head.state == BranchState::Detached,
+        }
     }
 
     fn target_review(
@@ -1058,7 +1334,13 @@ impl<B: GitBranchBackend> GitBranchService<B> {
             .filter(|value| !value.is_empty())
             .unwrap_or("HEAD")
             .to_string();
-        let target_oid = self.resolve_commit_oid(repo_root, &start_point);
+        if !valid_revision_input(&start_point) {
+            blocked_reasons.push("branch start point is invalid".to_string());
+        }
+        let target_oid = blocked_reasons
+            .is_empty()
+            .then(|| self.resolve_commit_oid(repo_root, &start_point))
+            .flatten();
         let remotes = self.remote_names(repo_root);
         let remote = if target_oid.is_some() {
             remote_name_from_candidate(&start_point, &remotes)
@@ -1072,6 +1354,11 @@ impl<B: GitBranchBackend> GitBranchService<B> {
             } else {
                 blocked_reasons.push("branch start point could not be resolved".to_string());
             }
+        }
+        if request.track_remote && remote.state != GitBranchRemoteState::TargetRemoteAvailable {
+            blocked_reasons.push(
+                "remote tracking requires an available remote branch start point".to_string(),
+            );
         }
 
         GitBranchTargetReview {
@@ -1107,6 +1394,8 @@ impl<B: GitBranchBackend> GitBranchService<B> {
         let mut blocked_reasons = Vec::new();
         if requested_target.is_empty() {
             blocked_reasons.push("checkout target is required".to_string());
+        } else if !valid_revision_input(&requested_target) {
+            blocked_reasons.push("checkout target is invalid".to_string());
         }
         let target_oid = if blocked_reasons.is_empty() {
             self.resolve_commit_oid(repo_root, &requested_target)
@@ -1187,7 +1476,10 @@ impl<B: GitBranchBackend> GitBranchService<B> {
         ];
         match self.backend.run_git(repo_root, &args) {
             Ok(output) if output.success => {
-                let normalized = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                let normalized = String::from_utf8(output.stdout)
+                    .map_err(|_| "Git returned a non-UTF-8 branch name".to_string())?
+                    .trim()
+                    .to_string();
                 if normalized.is_empty() {
                     Ok(trimmed.to_string())
                 } else {
@@ -1195,7 +1487,7 @@ impl<B: GitBranchBackend> GitBranchService<B> {
                 }
             }
             Ok(output) => Err(stderr_or_status(&output)),
-            Err(err) => Err(err.message),
+            Err(_) => Err("Git branch validation could not be completed safely".to_string()),
         }
     }
 
@@ -1212,17 +1504,21 @@ impl<B: GitBranchBackend> GitBranchService<B> {
     }
 
     fn resolve_commit_oid(&self, repo_root: &Path, target: &str) -> Option<String> {
+        if !valid_revision_input(target) {
+            return None;
+        }
         let args = vec![
             "rev-parse".to_string(),
             "--verify".to_string(),
+            "--end-of-options".to_string(),
             format!("{target}^{{commit}}"),
         ];
         let output = self.backend.run_git(repo_root, &args).ok()?;
         if !output.success {
             return None;
         }
-        let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        (!value.is_empty()).then_some(value)
+        let value = String::from_utf8(output.stdout).ok()?.trim().to_string();
+        valid_object_id(&value).then_some(value)
     }
 
     fn upstream_for_branch(&self, repo_root: &Path, branch: &str) -> Option<String> {
@@ -1235,7 +1531,7 @@ impl<B: GitBranchBackend> GitBranchService<B> {
         if !output.success {
             return None;
         }
-        let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let value = String::from_utf8(output.stdout).ok()?.trim().to_string();
         (!value.is_empty()).then_some(value)
     }
 
@@ -1245,48 +1541,195 @@ impl<B: GitBranchBackend> GitBranchService<B> {
             Ok(output) if output.success => output,
             _ => return Vec::new(),
         };
-        String::from_utf8_lossy(&output.stdout)
-            .lines()
-            .map(str::trim)
-            .filter(|line| !line.is_empty())
-            .map(str::to_string)
-            .collect()
+        let Ok(value) = String::from_utf8(output.stdout) else {
+            return Vec::new();
+        };
+        let remotes = value.lines().collect::<Vec<_>>();
+        if remotes.iter().any(|remote| {
+            remote.is_empty()
+                || remote.trim() != *remote
+                || remote.len() > 255
+                || remote.starts_with('-')
+                || remote.chars().any(char::is_control)
+        }) {
+            return Vec::new();
+        }
+        remotes.into_iter().map(str::to_string).collect()
+    }
+
+    fn capture_current_work_evidence(
+        &self,
+        repo_root: &Path,
+        snapshot: &crate::status::GitStatusSnapshot,
+    ) -> Option<Vec<GitBranchPathEvidence>> {
+        let mut paths = snapshot
+            .changes
+            .iter()
+            .flat_map(|change| {
+                std::iter::once(change.path.clone()).chain(change.original_path.clone())
+            })
+            .collect::<Vec<_>>();
+        paths.sort();
+        paths.dedup();
+        if paths.len() > MAX_BRANCH_EVIDENCE_PATHS {
+            return None;
+        }
+        let mut index_total = 0_usize;
+        let mut worktree_total = 0_u64;
+        let mut evidence = Vec::with_capacity(paths.len());
+        for path in paths {
+            if !safe_repository_relative_path(&path) {
+                return None;
+            }
+            let path_arg = path.to_str()?.to_string();
+            let index_args = vec![
+                "ls-files".to_string(),
+                "--stage".to_string(),
+                "-z".to_string(),
+                "--".to_string(),
+                path_arg,
+            ];
+            let index_output = self.backend.run_git(repo_root, &index_args).ok()?;
+            if !index_output.success || index_output.stdout.len() > MAX_BRANCH_INDEX_ENTRY_BYTES {
+                return None;
+            }
+            index_total = index_total.checked_add(index_output.stdout.len())?;
+            if index_total > MAX_BRANCH_INDEX_TOTAL_BYTES {
+                return None;
+            }
+            let index_entry_len = index_output.stdout.len();
+            let index_entry_id = aureline_history::body_object_id(&index_output.stdout);
+            let absolute = repo_root.join(&path);
+            let worktree_state = match std::fs::symlink_metadata(&absolute) {
+                Ok(metadata) if metadata.file_type().is_symlink() => {
+                    capture_symlink_evidence(&absolute, repo_root, &metadata, &mut worktree_total)?
+                }
+                Ok(metadata) if metadata.file_type().is_file() => {
+                    let read = crate::status::read_regular_file_nofollow(
+                        &absolute,
+                        repo_root,
+                        MAX_BRANCH_WORKTREE_FILE_BYTES,
+                    )
+                    .ok()?;
+                    let content_len = read.bytes.len() as u64;
+                    worktree_total = worktree_total.checked_add(content_len)?;
+                    if worktree_total > MAX_BRANCH_WORKTREE_TOTAL_BYTES {
+                        return None;
+                    }
+                    GitBranchWorktreeState::RegularFile {
+                        content_len,
+                        content_id: aureline_history::body_object_id(&read.bytes),
+                        identity_token: read.identity_token,
+                    }
+                }
+                Ok(metadata) if metadata.file_type().is_dir() => {
+                    capture_directory_evidence(&absolute, repo_root, &metadata)?
+                }
+                Ok(_) => return None,
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::NotFound
+                        && missing_path_is_within_repository(&absolute, repo_root) =>
+                {
+                    GitBranchWorktreeState::Missing
+                }
+                Err(_) => return None,
+            };
+            evidence.push(GitBranchPathEvidence {
+                path,
+                index_entry_len,
+                index_entry_id,
+                worktree_state,
+            });
+        }
+        Some(evidence)
+    }
+
+    fn target_is_current(
+        &self,
+        authority: &GitBranchApplyAuthority,
+        preview_ref: &str,
+        snapshot: &crate::status::GitStatusSnapshot,
+    ) -> bool {
+        let request = GitBranchRequest {
+            workspace_ref: authority.workspace_ref.clone(),
+            root_path: authority.repository.repo_root.clone(),
+            operation: authority.operation,
+            target: authority.target.clone(),
+            start_point: authority.start_point.clone(),
+            track_remote: authority.track_remote,
+            actor: GitBranchActorRef::default(),
+            launch_source_ref: None,
+            requested_at: String::new(),
+        };
+        self.target_review(
+            &request,
+            preview_ref,
+            &authority.repository.repo_root,
+            snapshot,
+        ) == authority.target_review
     }
 
     fn apply_preview(
         &self,
-        preview: &GitBranchPreview,
+        authority: &GitBranchApplyAuthority,
     ) -> Result<GitBranchCommandOutput, GitBranchBackendError> {
-        let args = match preview.operation {
+        let args = match authority.operation {
             GitBranchOperationKind::Switch => vec![
                 "switch".to_string(),
+                "--no-guess".to_string(),
+                "--no-overwrite-ignore".to_string(),
+                "--no-recurse-submodules".to_string(),
                 "--".to_string(),
-                preview.target_for_apply.clone(),
+                authority.target.clone(),
             ],
             GitBranchOperationKind::Create => {
-                let mut args = vec!["switch".to_string()];
-                if preview.track_remote_for_apply {
+                let mut args = vec![
+                    "switch".to_string(),
+                    "--no-guess".to_string(),
+                    "--no-overwrite-ignore".to_string(),
+                    "--no-recurse-submodules".to_string(),
+                ];
+                if authority.track_remote {
                     args.push("--track".to_string());
                 }
-                args.extend(["-c".to_string(), preview.target_for_apply.clone()]);
-                if let Some(start_point) = preview.start_point_for_apply.as_ref() {
-                    args.push(start_point.clone());
+                args.extend(["-c".to_string(), authority.target.clone()]);
+                args.push("--".to_string());
+                if authority.track_remote {
+                    if let Some(start_point) = authority.start_point.as_ref() {
+                        args.push(start_point.clone());
+                    }
+                } else if let Some(target_oid) = authority.target_review.target_oid.as_ref() {
+                    args.push(target_oid.clone());
                 }
                 args
             }
             GitBranchOperationKind::Checkout => {
-                if preview.target.target_kind == GitBranchTargetKind::LocalBranch {
-                    vec!["checkout".to_string(), preview.target_for_apply.clone()]
+                if authority.target_review.target_kind == GitBranchTargetKind::LocalBranch {
+                    vec![
+                        "switch".to_string(),
+                        "--no-guess".to_string(),
+                        "--no-overwrite-ignore".to_string(),
+                        "--no-recurse-submodules".to_string(),
+                        "--".to_string(),
+                        authority.target.clone(),
+                    ]
                 } else {
                     vec![
-                        "checkout".to_string(),
+                        "switch".to_string(),
+                        "--no-guess".to_string(),
+                        "--no-overwrite-ignore".to_string(),
+                        "--no-recurse-submodules".to_string(),
                         "--detach".to_string(),
-                        preview.target_for_apply.clone(),
+                        authority
+                            .target_review
+                            .target_oid
+                            .clone()
+                            .unwrap_or_default(),
                     ]
                 }
             }
         };
-        self.backend.run_git(&preview.repo_root, &args)
+        self.backend.run_git(&authority.repository.repo_root, &args)
     }
 
     fn after_bundle(
@@ -1304,10 +1747,12 @@ impl<B: GitBranchBackend> GitBranchService<B> {
             return None;
         }
         let bundle = ConsumerProjectionBundle::from_snapshot(resolved_at.to_string(), &snapshot);
+        let repository = snapshot.repository?;
         Some(BranchAfterBundle {
             truth_source_ref: bundle.truth_source_ref,
             shell: bundle.shell,
             head: snapshot.head,
+            repository,
         })
     }
 }
@@ -1323,6 +1768,7 @@ struct BranchAfterBundle {
     truth_source_ref: String,
     shell: GitShellStatusRecord,
     head: HeadIdentity,
+    repository: RepositoryIdentity,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1403,9 +1849,7 @@ fn degraded_preview(
         activity,
         support_export,
         blocked_reasons,
-        target_for_apply: request.target.trim().to_string(),
-        start_point_for_apply: request.start_point.clone(),
-        track_remote_for_apply: request.track_remote,
+        authority_token: None,
     }
 }
 
@@ -1436,7 +1880,7 @@ fn current_work_review(
     let changed_path_labels = snapshot
         .changes
         .iter()
-        .map(|change| change.path.to_string_lossy().to_string())
+        .map(|change| strict_path_label(&change.path))
         .collect::<Vec<_>>();
 
     GitBranchCurrentWorkReview {
@@ -1489,13 +1933,17 @@ fn current_work_fingerprint(snapshot: &crate::status::GitStatusSnapshot) -> Stri
             format!(
                 "{}:{}",
                 change.status_code,
-                change.path.to_string_lossy().replace('\\', "/")
+                strict_path_label(&change.path).replace('\\', "/")
             )
         })
         .collect::<Vec<_>>();
     changes.sort();
     parts.extend(changes);
     parts.join("|")
+}
+
+fn strict_path_label(path: &Path) -> String {
+    path.to_str().map(str::to_string).unwrap_or_default()
 }
 
 fn remote_name_from_candidate(candidate: &str, remotes: &[String]) -> RemoteInspection {
@@ -1850,15 +2298,139 @@ fn short_oid(value: &str) -> String {
         .collect()
 }
 
-fn stderr_or_status(output: &GitBranchCommandOutput) -> String {
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    if !stderr.is_empty() {
-        return stderr;
+fn valid_object_id(value: &str) -> bool {
+    matches!(value.len(), 40 | 64) && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn valid_revision_input(value: &str) -> bool {
+    let value = value.trim();
+    !value.is_empty()
+        && value.len() <= 1024
+        && !value.starts_with('-')
+        && value
+            .chars()
+            .all(|ch| !ch.is_control() && !ch.is_whitespace())
+}
+
+fn safe_repository_relative_path(path: &Path) -> bool {
+    !path.as_os_str().is_empty()
+        && !path.is_absolute()
+        && path
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+}
+
+fn capture_directory_evidence(
+    path: &Path,
+    repo_root: &Path,
+    before: &std::fs::Metadata,
+) -> Option<GitBranchWorktreeState> {
+    let identity = worktree_metadata_token(before);
+    let canonical_before = std::fs::canonicalize(path).ok()?;
+    if !canonical_before.starts_with(repo_root) {
+        return None;
     }
+    let after = std::fs::symlink_metadata(path).ok()?;
+    let canonical_after = std::fs::canonicalize(path).ok()?;
+    if !after.file_type().is_dir()
+        || worktree_metadata_token(&after) != identity
+        || canonical_after != canonical_before
+        || !canonical_after.starts_with(repo_root)
+    {
+        return None;
+    }
+    Some(GitBranchWorktreeState::Directory(identity))
+}
+
+fn capture_symlink_evidence(
+    path: &Path,
+    repo_root: &Path,
+    before: &std::fs::Metadata,
+    worktree_total: &mut u64,
+) -> Option<GitBranchWorktreeState> {
+    let parent = path.parent()?;
+    let canonical_parent_before = std::fs::canonicalize(parent).ok()?;
+    if !canonical_parent_before.starts_with(repo_root) {
+        return None;
+    }
+    let identity_token = worktree_metadata_token(before);
+    let payload = symlink_payload_bytes(&std::fs::read_link(path).ok()?)?;
+    if payload.len() > MAX_BRANCH_SYMLINK_BYTES {
+        return None;
+    }
+    let after = std::fs::symlink_metadata(path).ok()?;
+    let canonical_parent_after = std::fs::canonicalize(parent).ok()?;
+    if !after.file_type().is_symlink()
+        || worktree_metadata_token(&after) != identity_token
+        || canonical_parent_after != canonical_parent_before
+        || !canonical_parent_after.starts_with(repo_root)
+    {
+        return None;
+    }
+    *worktree_total = worktree_total.checked_add(payload.len() as u64)?;
+    if *worktree_total > MAX_BRANCH_WORKTREE_TOTAL_BYTES {
+        return None;
+    }
+    Some(GitBranchWorktreeState::Symlink {
+        payload_len: payload.len(),
+        payload_id: aureline_history::body_object_id(&payload),
+        identity_token,
+    })
+}
+
+fn symlink_payload_bytes(target: &Path) -> Option<Vec<u8>> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+        return Some(target.as_os_str().as_bytes().to_vec());
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        return Some(
+            target
+                .as_os_str()
+                .encode_wide()
+                .flat_map(u16::to_le_bytes)
+                .collect(),
+        );
+    }
+    #[allow(unreachable_code)]
+    target.to_str().map(|value| value.as_bytes().to_vec())
+}
+
+fn missing_path_is_within_repository(path: &Path, repo_root: &Path) -> bool {
+    let mut ancestor = path.parent();
+    while let Some(candidate) = ancestor {
+        match std::fs::canonicalize(candidate) {
+            Ok(canonical) => return canonical.starts_with(repo_root),
+            Err(_) => ancestor = candidate.parent(),
+        }
+    }
+    false
+}
+
+fn worktree_metadata_token(metadata: &std::fs::Metadata) -> String {
+    let file_type = if metadata.file_type().is_symlink() {
+        "symlink"
+    } else if metadata.is_file() {
+        "file"
+    } else if metadata.is_dir() {
+        "directory"
+    } else {
+        "other"
+    };
+    format!(
+        "{file_type}:{}",
+        crate::status::file_identity_token(metadata)
+    )
+}
+
+fn stderr_or_status(output: &GitBranchCommandOutput) -> String {
     output
         .status_code
-        .map(|code| format!("git exited with status {code}"))
-        .unwrap_or_else(|| "git exited unsuccessfully".to_string())
+        .map(|code| format!("Git branch command failed with exit status {code}"))
+        .unwrap_or_else(|| "Git branch command failed without an exit status".to_string())
 }
 
 fn sanitize_id(value: &str) -> String {
@@ -1897,12 +2469,168 @@ fn observed_at_now() -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
     use super::*;
+
+    #[derive(Debug, Clone, Default)]
+    struct RecordingBackend {
+        calls: Arc<Mutex<Vec<Vec<String>>>>,
+    }
+
+    impl GitBranchBackend for RecordingBackend {
+        fn run_git(
+            &self,
+            _root: &Path,
+            args: &[String],
+        ) -> Result<GitBranchCommandOutput, GitBranchBackendError> {
+            self.calls
+                .lock()
+                .expect("recording lock")
+                .push(args.to_vec());
+            Ok(GitBranchCommandOutput {
+                success: true,
+                status_code: Some(0),
+                stdout: Vec::new(),
+                stderr: Vec::new(),
+            })
+        }
+    }
+
+    fn argv_authority(
+        operation: GitBranchOperationKind,
+        target: &str,
+        target_kind: GitBranchTargetKind,
+    ) -> GitBranchApplyAuthority {
+        let oid = "1111111111111111111111111111111111111111".to_string();
+        GitBranchApplyAuthority {
+            workspace_ref: "workspace.argv".to_string(),
+            repository: RepositoryIdentity {
+                repo_ref: "repo.argv".to_string(),
+                worktree_ref: "worktree.argv".to_string(),
+                repo_label: "argv".to_string(),
+                repo_root: PathBuf::from("/repo"),
+                git_dir: PathBuf::from("/repo/.git"),
+                common_dir: PathBuf::from("/repo/.git"),
+            },
+            source_head: HeadIdentity {
+                state: BranchState::Attached,
+                branch_label: Some("main".to_string()),
+                branch_ref: Some("refs/heads/main".to_string()),
+                head_oid: Some(oid.clone()),
+                head_short_oid: Some("111111111111".to_string()),
+                upstream: None,
+                ahead: None,
+                behind: None,
+            },
+            operation,
+            target: target.to_string(),
+            start_point: None,
+            track_remote: false,
+            target_review: GitBranchTargetReview {
+                target_ref: "target.argv".to_string(),
+                requested_target: target.to_string(),
+                target_kind,
+                branch_ref: None,
+                start_point: None,
+                target_oid: Some(oid),
+                target_short_oid: Some("111111111111".to_string()),
+                upstream_ref: None,
+                remote_name: None,
+                remote_state: GitBranchRemoteState::NotApplicable,
+                detached_head_disclosed: target_kind == GitBranchTargetKind::DetachedHead,
+                missing_remote_disclosed: false,
+                target_resolved: true,
+                blocked_reasons: Vec::new(),
+            },
+            current_work_evidence: Vec::new(),
+            repository_config_evidence: RepositoryConfigEvidence::empty_for_tests(),
+        }
+    }
 
     #[test]
     fn common_missing_remote_is_disclosed_for_unresolved_origin_ref() {
         let remote = remote_name_from_unresolved_candidate("origin/feature", &[]);
         assert_eq!(remote.name.as_deref(), Some("origin"));
         assert_eq!(remote.state, GitBranchRemoteState::TargetRemoteMissing);
+    }
+
+    #[test]
+    fn hostile_revision_and_failure_output_are_not_forwarded() {
+        assert!(!valid_revision_input("--upload-pack=malicious"));
+        let output = GitBranchCommandOutput {
+            success: false,
+            status_code: Some(129),
+            stdout: Vec::new(),
+            stderr: b"secret-path-and-command".to_vec(),
+        };
+        let failure = stderr_or_status(&output);
+        assert_eq!(failure, "Git branch command failed with exit status 129");
+        assert!(!failure.contains("secret-path-and-command"));
+    }
+
+    #[test]
+    fn branch_apply_argv_disables_guess_submodules_and_ignored_overwrites() {
+        let backend = RecordingBackend::default();
+        let service = GitBranchService::new(backend.clone());
+
+        service
+            .apply_preview(&argv_authority(
+                GitBranchOperationKind::Switch,
+                "feature",
+                GitBranchTargetKind::LocalBranch,
+            ))
+            .expect("record switch");
+        let mut create = argv_authority(
+            GitBranchOperationKind::Create,
+            "topic",
+            GitBranchTargetKind::NewBranch,
+        );
+        create.start_point = Some("origin/topic".to_string());
+        create.track_remote = true;
+        service.apply_preview(&create).expect("record create");
+        service
+            .apply_preview(&argv_authority(
+                GitBranchOperationKind::Checkout,
+                "HEAD~1",
+                GitBranchTargetKind::DetachedHead,
+            ))
+            .expect("record detached checkout");
+
+        assert_eq!(
+            *backend.calls.lock().expect("recorded calls"),
+            vec![
+                vec![
+                    "switch",
+                    "--no-guess",
+                    "--no-overwrite-ignore",
+                    "--no-recurse-submodules",
+                    "--",
+                    "feature",
+                ],
+                vec![
+                    "switch",
+                    "--no-guess",
+                    "--no-overwrite-ignore",
+                    "--no-recurse-submodules",
+                    "--track",
+                    "-c",
+                    "topic",
+                    "--",
+                    "origin/topic",
+                ],
+                vec![
+                    "switch",
+                    "--no-guess",
+                    "--no-overwrite-ignore",
+                    "--no-recurse-submodules",
+                    "--detach",
+                    "1111111111111111111111111111111111111111",
+                ],
+            ]
+            .into_iter()
+            .map(|args| args.into_iter().map(str::to_string).collect::<Vec<_>>())
+            .collect::<Vec<_>>()
+        );
     }
 }

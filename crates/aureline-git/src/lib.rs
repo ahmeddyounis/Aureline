@@ -19,6 +19,7 @@ pub mod finalize_sequence_edit_conflict_session_stash_entry_and_ref_update_truth
 pub mod freeze_the_m5_git_history_sequence_component_matrix;
 pub mod freeze_the_m5_repository_topology_worktree_scope_history_surgery_and_checkpoint_recovery_matrix;
 pub mod harden_conflict_resolution_external_change_reconciliation_and_merge;
+mod hardened_git;
 pub mod history_rewrite;
 pub mod history_sessions;
 pub mod history_surgery_review;
@@ -28,6 +29,7 @@ pub mod implement_mutation_review_sheets_conflict_checkpoints_and_force_push_dia
 pub mod implement_rebase_todo_rows_and_sequence_editor_headers;
 pub mod implement_stash_entries_and_reflog_recovery_banners;
 pub mod mutations;
+mod preview_authority;
 pub mod publish;
 pub mod stabilize_repository_topology_truth;
 pub mod stabilize_the_daily_git_loop_status_diff_stage;

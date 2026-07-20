@@ -3,10 +3,13 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 use aureline_git::{
-    GitCommitAuthorInput, GitCommitAuthorState, GitCommitMode, GitCommitOutcomeState,
-    GitCommitPreviewState, GitCommitRequest, GitCommitService,
+    GitCommitAuthorInput, GitCommitAuthorState, GitCommitBackend, GitCommitBackendError,
+    GitCommitCommandOutput, GitCommitMode, GitCommitOutcomeState, GitCommitPreviewState,
+    GitCommitRequest, GitCommitService,
 };
 use serde::Deserialize;
 
@@ -47,6 +50,91 @@ struct ExpectedCommit {
     activity_state_class: String,
     support_export_phase: String,
     journal_source_class: String,
+}
+
+#[derive(Debug, Clone, Default)]
+struct InspectingGitBackend {
+    calls: Arc<Mutex<Vec<Vec<String>>>>,
+    stage_calls: Arc<AtomicUsize>,
+    corrupt_stage_at: Option<usize>,
+}
+
+impl InspectingGitBackend {
+    fn with_corrupt_stage_at(corrupt_stage_at: usize) -> Self {
+        Self {
+            corrupt_stage_at: Some(corrupt_stage_at),
+            ..Self::default()
+        }
+    }
+}
+
+impl GitCommitBackend for InspectingGitBackend {
+    fn run_git(
+        &self,
+        root: &Path,
+        args: &[String],
+    ) -> Result<GitCommitCommandOutput, GitCommitBackendError> {
+        self.calls.lock().expect("calls lock").push(args.to_vec());
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(args)
+            .output()
+            .map_err(|_| GitCommitBackendError {
+                message: "test Git backend failed".to_string(),
+            })?;
+        let mut stdout = output.stdout;
+        if args.first().is_some_and(|arg| arg == "ls-files")
+            && args.iter().any(|arg| arg == "--stage")
+        {
+            let stage_call = self.stage_calls.fetch_add(1, Ordering::SeqCst) + 1;
+            if self
+                .corrupt_stage_at
+                .is_some_and(|corrupt_at| stage_call >= corrupt_at)
+            {
+                stdout.extend_from_slice(b"tampered-logical-stage\0");
+            }
+        }
+        Ok(GitCommitCommandOutput {
+            success: output.status.success(),
+            status_code: output.status.code(),
+            stdout,
+            stderr: output.stderr,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct CommitIndexRaceBackend {
+    injected: Arc<AtomicBool>,
+}
+
+impl GitCommitBackend for CommitIndexRaceBackend {
+    fn run_git(
+        &self,
+        root: &Path,
+        args: &[String],
+    ) -> Result<GitCommitCommandOutput, GitCommitBackendError> {
+        if args.iter().any(|arg| arg == "commit") && !self.injected.swap(true, Ordering::SeqCst) {
+            fs::write(root.join("raced.txt"), "unreviewed staged bytes\n")
+                .expect("inject raced file");
+            run_git(root, &["add", "raced.txt"]);
+        }
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(args)
+            .output()
+            .map_err(|_| GitCommitBackendError {
+                message: "test Git backend failed".to_string(),
+            })?;
+        Ok(GitCommitCommandOutput {
+            success: output.status.success(),
+            status_code: output.status.code(),
+            stdout: output.stdout,
+            stderr: output.stderr,
+        })
+    }
 }
 
 fn fixtures_dir() -> PathBuf {
@@ -396,4 +484,293 @@ fn staged_scope_drift_blocks_apply_without_creating_commit() {
         .blocked_reasons
         .iter()
         .any(|reason| reason.contains("staged scope drifted")));
+}
+
+#[test]
+fn preview_is_non_mutating_and_exported_or_tampered_records_have_no_authority() {
+    let dir = build_case_root("staged_only");
+    let service = GitCommitService::default();
+    let request = GitCommitRequest::with_observed_at(
+        "workspace.fixture.authority",
+        dir.path(),
+        GitCommitMode::Normal,
+        "reviewed commit",
+        "2026-05-13T00:20:00Z",
+    );
+    let objects_before = git_output(dir.path(), &["count-objects", "-v"]);
+    let preview = service.preview(&request);
+    assert!(preview.ready_to_commit());
+    assert_eq!(
+        git_output(dir.path(), &["count-objects", "-v"]),
+        objects_before,
+        "preview must not write tree objects"
+    );
+
+    let exported = serde_json::to_string(&preview).expect("serialize inspection record");
+    let restored = serde_json::from_str(&exported).expect("deserialize inspection record");
+    assert_eq!(
+        GitCommitService::default()
+            .apply(&restored, "2026-05-13T00:20:01Z")
+            .outcome_state,
+        GitCommitOutcomeState::BlockedNoChangesMade
+    );
+
+    let mut tampered = preview.clone();
+    tampered.workspace_ref = "workspace.tampered".to_string();
+    assert_eq!(
+        service
+            .apply(&tampered, "2026-05-13T00:20:02Z")
+            .outcome_state,
+        GitCommitOutcomeState::BlockedNoChangesMade
+    );
+    assert_eq!(commit_count(dir.path()), 1);
+}
+
+#[test]
+fn source_head_drift_blocks_even_when_index_bytes_are_unchanged() {
+    let dir = build_case_root("two_commits_staged");
+    let service = GitCommitService::default();
+    let request = GitCommitRequest::with_observed_at(
+        "workspace.fixture.head-drift",
+        dir.path(),
+        GitCommitMode::Normal,
+        "must not land on a different head",
+        "2026-05-13T00:30:00Z",
+    );
+    let preview = service.preview(&request);
+    assert!(preview.ready_to_commit());
+    let parent = git_output(dir.path(), &["rev-parse", "HEAD~1"]);
+    run_git(
+        dir.path(),
+        &["update-ref", "refs/heads/main", parent.trim()],
+    );
+
+    assert_eq!(
+        service
+            .apply(&preview, "2026-05-13T00:30:01Z")
+            .outcome_state,
+        GitCommitOutcomeState::BlockedNoChangesMade
+    );
+}
+
+#[test]
+fn last_moment_index_race_fails_the_postcondition_after_commit() {
+    let dir = build_case_root("staged_only");
+    let service = GitCommitService::new(CommitIndexRaceBackend::default());
+    let preview = service.preview(&GitCommitRequest::with_observed_at(
+        "workspace.fixture.index-race",
+        dir.path(),
+        GitCommitMode::Normal,
+        "reviewed staged content only",
+        "2026-05-13T00:35:00Z",
+    ));
+    assert!(preview.ready_to_commit(), "{preview:#?}");
+
+    let result = service.apply(&preview, "2026-05-13T00:35:01Z");
+    assert_eq!(result.outcome_state, GitCommitOutcomeState::Failed);
+    assert_eq!(
+        commit_count(dir.path()),
+        2,
+        "Git completed the raced commit"
+    );
+    assert_eq!(
+        git_output(dir.path(), &["show", "HEAD:raced.txt"]),
+        "unreviewed staged bytes\n",
+        "the failed result must disclose a recoverable post-mutation race"
+    );
+    assert!(result
+        .failure_reason
+        .as_deref()
+        .is_some_and(|reason| reason.contains("postcondition")));
+}
+
+#[cfg(unix)]
+#[test]
+fn commit_apply_does_not_execute_repository_hooks() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = build_case_root("staged_only");
+    let sentinel = dir.path().join("hook-ran");
+    for hook_name in ["pre-commit", "post-commit"] {
+        let hook = dir.path().join(".git/hooks").join(hook_name);
+        fs::write(
+            &hook,
+            format!("#!/bin/sh\ntouch '{}'\n", sentinel.display()),
+        )
+        .expect("write hook");
+        let mut permissions = fs::metadata(&hook).expect("hook metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&hook, permissions).expect("make hook executable");
+    }
+
+    let service = GitCommitService::default();
+    let preview = service.preview(&GitCommitRequest::with_observed_at(
+        "workspace.fixture.hook",
+        dir.path(),
+        GitCommitMode::Normal,
+        "hook-free commit",
+        "2026-05-13T00:40:00Z",
+    ));
+    assert_eq!(
+        service
+            .apply(&preview, "2026-05-13T00:40:01Z")
+            .outcome_state,
+        GitCommitOutcomeState::Committed
+    );
+    assert!(!sentinel.exists(), "repository hooks must not execute");
+}
+
+#[test]
+fn split_index_logical_stage_is_reviewed_and_committed() {
+    let dir = build_case_root("staged_only");
+    run_git(dir.path(), &["config", "core.splitIndex", "true"]);
+    run_git(dir.path(), &["update-index", "--split-index"]);
+    assert!(
+        fs::read_dir(dir.path().join(".git"))
+            .expect("read Git directory")
+            .filter_map(Result::ok)
+            .any(|entry| entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("sharedindex.")),
+        "fixture must use split-index storage"
+    );
+
+    let service = GitCommitService::default();
+    let preview = service.preview(&GitCommitRequest::with_observed_at(
+        "workspace.fixture.split-index",
+        dir.path(),
+        GitCommitMode::Normal,
+        "commit split index",
+        "2026-05-13T00:50:00Z",
+    ));
+    assert!(preview.ready_to_commit(), "{preview:#?}");
+    assert_eq!(
+        service
+            .apply(&preview, "2026-05-13T00:50:01Z")
+            .outcome_state,
+        GitCommitOutcomeState::Committed
+    );
+}
+
+#[test]
+fn logical_stage_drift_blocks_even_when_raw_index_bytes_match() {
+    let dir = build_case_root("staged_only");
+    let index_path = dir.path().join(".git/index");
+    let index_before = fs::read(&index_path).expect("read index before preview");
+    let backend = InspectingGitBackend::with_corrupt_stage_at(3);
+    let service = GitCommitService::new(backend);
+    let preview = service.preview(&GitCommitRequest::with_observed_at(
+        "workspace.fixture.logical-stage-drift",
+        dir.path(),
+        GitCommitMode::Normal,
+        "must bind logical stage",
+        "2026-05-13T00:55:00Z",
+    ));
+    assert!(preview.ready_to_commit(), "{preview:#?}");
+    assert_eq!(
+        fs::read(&index_path).expect("read stable index"),
+        index_before
+    );
+
+    let result = service.apply(&preview, "2026-05-13T00:55:01Z");
+    assert_eq!(
+        result.outcome_state,
+        GitCommitOutcomeState::BlockedNoChangesMade
+    );
+    assert_eq!(
+        fs::read(index_path).expect("read unchanged index"),
+        index_before
+    );
+    assert_eq!(commit_count(dir.path()), 1);
+}
+
+#[test]
+fn squash_target_is_resolved_once_during_preview() {
+    let dir = build_case_root("two_commits_staged");
+    let backend = InspectingGitBackend::default();
+    let service = GitCommitService::new(backend.clone());
+    let preview = service.preview(
+        &GitCommitRequest::with_observed_at(
+            "workspace.fixture.single-squash-resolution",
+            dir.path(),
+            GitCommitMode::Squash,
+            "follow-up details",
+            "2026-05-13T01:00:00Z",
+        )
+        .acknowledge_history_guardrail()
+        .with_squash_target("HEAD~1"),
+    );
+    assert!(preview.ready_to_commit(), "{preview:#?}");
+    let squash_resolutions = backend
+        .calls
+        .lock()
+        .expect("calls lock")
+        .iter()
+        .filter(|args| {
+            args.first().is_some_and(|arg| arg == "rev-parse")
+                && args.last().is_some_and(|arg| arg == "HEAD~1^{commit}")
+        })
+        .count();
+    assert_eq!(squash_resolutions, 1);
+}
+
+#[test]
+fn initial_commit_transitions_reviewed_unborn_head_to_attached_branch() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    init_repo(dir.path());
+    fs::write(dir.path().join("README.md"), "initial contents\n").expect("write initial file");
+    run_git(dir.path(), &["add", "README.md"]);
+
+    let service = GitCommitService::default();
+    let preview = service.preview(&GitCommitRequest::with_observed_at(
+        "workspace.fixture.initial-commit",
+        dir.path(),
+        GitCommitMode::Normal,
+        "initial reviewed commit",
+        "2026-05-13T01:10:00Z",
+    ));
+    assert!(preview.ready_to_commit(), "{preview:#?}");
+
+    let result = service.apply(&preview, "2026-05-13T01:10:01Z");
+    assert_eq!(result.outcome_state, GitCommitOutcomeState::Committed);
+    assert_eq!(commit_count(dir.path()), 1);
+    assert_eq!(
+        git_output(dir.path(), &["symbolic-ref", "--short", "HEAD"]).trim(),
+        "main"
+    );
+}
+
+#[test]
+fn merge_commit_verifies_every_reviewed_parent() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    seed_committed_repo(dir.path());
+    run_git(dir.path(), &["switch", "-q", "-c", "side"]);
+    fs::write(dir.path().join("side.txt"), "side\n").expect("write side file");
+    run_git(dir.path(), &["add", "side.txt"]);
+    run_git(dir.path(), &["commit", "-q", "-m", "side commit"]);
+    let side_oid = git_output(dir.path(), &["rev-parse", "HEAD"]);
+
+    run_git(dir.path(), &["switch", "-q", "main"]);
+    fs::write(dir.path().join("main.txt"), "main\n").expect("write main file");
+    run_git(dir.path(), &["add", "main.txt"]);
+    run_git(dir.path(), &["commit", "-q", "-m", "main commit"]);
+    let main_oid = git_output(dir.path(), &["rev-parse", "HEAD"]);
+    run_git(dir.path(), &["merge", "--no-commit", "side"]);
+
+    let service = GitCommitService::default();
+    let preview = service.preview(&GitCommitRequest::with_observed_at(
+        "workspace.fixture.merge-parents",
+        dir.path(),
+        GitCommitMode::Normal,
+        "reviewed merge commit",
+        "2026-05-13T01:20:00Z",
+    ));
+    assert!(preview.ready_to_commit(), "{preview:#?}");
+    let result = service.apply(&preview, "2026-05-13T01:20:01Z");
+    assert_eq!(result.outcome_state, GitCommitOutcomeState::Committed);
+
+    let parent_line = git_output(dir.path(), &["rev-list", "--parents", "-n", "1", "HEAD"]);
+    let parents = parent_line.split_whitespace().skip(1).collect::<Vec<_>>();
+    assert_eq!(parents, vec![main_oid.trim(), side_oid.trim()]);
 }

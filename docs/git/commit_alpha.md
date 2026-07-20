@@ -15,9 +15,28 @@ the resulting commit is only local or ready for a later publish review.
 - Author identity is resolved before apply from explicit input or local Git
   config. Missing or invalid author state blocks the commit before Git mutates
   history.
-- Commit apply compares the current index tree with the previewed tree. If the
+- Commit apply compares the current index evidence with the previewed evidence. If the
   staged scope drifted after review, apply is blocked and the user must reopen
   commit review.
+- Preview reads and digests the exact index bytes plus the exact logical
+  `ls-files --stage -z` entries without calling `git write-tree`, so opening
+  commit review does not create repository objects and split-index storage is
+  covered. Raw index and staged-entry buffers are discarded after hashing;
+  authority retains only bounded lengths, digests, and no-follow file identity.
+  Apply also revalidates repository/worktree identity and source `HEAD`.
+- The full message, author operands, exact index evidence, and once-resolved
+  squash target remain process-local one-shot authority. Exported,
+  deserialized, cross-service, replayed, or publicly tampered previews cannot
+  commit.
+- The expected result-parent list is resolved during preview. After Git commit
+  succeeds, apply verifies repository/worktree identity, attached/detached HEAD
+  state, exact branch ref, resulting oid, parents, and the reviewed logical index
+  entries before reporting `committed`. Git porcelain does not offer one atomic
+  compare-and-swap over both the index and HEAD, so an external Git writer can
+  race the last preflight; detected postcondition drift is reported as failed
+  and points back to reflog recovery rather than claiming the raced commit.
+- Process-local authority expires after ten minutes and is capped by entry
+  count, per-entry bytes, and total retained bytes with deterministic eviction.
 - Amend and squash modes require explicit guardrail acknowledgement. Amend
   discloses the preflight `HEAD` and reflog recovery route. Squash creates an
   autosquash marker commit and keeps publish-later state blocked until sequence
@@ -68,4 +87,3 @@ by:
 ```sh
 cargo test -p aureline-git --test commit_alpha
 ```
-

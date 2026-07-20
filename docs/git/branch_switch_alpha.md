@@ -19,8 +19,33 @@ HEAD, and missing remote state stay visible.
   Missing upstreams, missing remotes, and missing remote branches are explicit
   remote-state tokens instead of hidden fallback behavior.
 - Apply checks that current work still matches the previewed basis. If branch,
-  revision, or changed-path state drifts, apply is blocked and branch review
-  must be reopened.
+  revision, changed-path state, index entries, or changed worktree bytes drift,
+  apply is blocked and branch review must be reopened.
+- Changed-path evidence is bounded by path count and total bytes. Index entries
+  and regular files are retained as length/digest/identity evidence rather than
+  raw bodies; regular files are opened no-follow and checked before/open/after.
+  Symlinks hash the link payload itself without following its target, directory
+  identities are checked, and sockets/FIFOs/devices or oversized evidence block.
+- The exact safe repository-config evidence is bound to the preview and read
+  again immediately before checkout. Benign or hostile config drift both
+  invalidate authority; legacy `[filter.name]` process declarations are treated
+  the same as quoted filter subsections.
+- Non-UTF-8 porcelain path/ref bytes degrade review before lossy path parsing.
+  Apply disables Git target guessing, submodule recursion, and the default
+  overwrite of ignored worktree files.
+- Raw byte evidence and apply operands remain process-local. A serialized,
+  deserialized, cross-service, replayed, or publicly tampered preview is an
+  inspection record and cannot authorize a branch mutation.
+- Apply uses reviewed object ids wherever Git accepts an immutable revision
+  (new-branch and detached checkout) and verifies the resulting HEAD oid/state.
+  Named-branch switching and `--track` creation remain Git porcelain operations:
+  Git exposes no single compare-and-swap primitive that atomically updates the
+  worktree and attaches HEAD. A concurrent external Git writer can still race
+  the final check; the postcondition converts detected drift to a failed,
+  reflog-recoverable result instead of claiming success.
+- Process-local authority expires after ten minutes and is capped by entry
+  count, per-entry bytes, and total retained bytes with deterministic oldest
+  eviction.
 - Results include the after-apply shell status projection and activity row so
   title/context, status, activity, support, and CLI surfaces quote one branch
   identity.

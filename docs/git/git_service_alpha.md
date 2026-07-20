@@ -8,6 +8,11 @@ SPDX-License-Identifier: Apache-2.0
 The Git service alpha gives launch-wedge surfaces one local source of truth for
 repository identity, branch state, and changed paths.
 
+Reviewed network/local clone subprocesses are owned separately by
+[`clone_execution_contract.md`](./clone_execution_contract.md); they reuse the
+same fail-closed process posture but carry source-acquisition, transport, and
+credential authority that passive local status never receives.
+
 ## Contract
 
 - `aureline-git` owns the canonical `git_status_snapshot` record.
@@ -23,6 +28,22 @@ repository identity, branch state, and changed paths.
   status runs, repository config files are bounded and inspected; includes,
   hooks, filters, external diff/merge drivers, credential helpers, and other
   process-capable declarations fail closed as `refresh_failed`.
+- Every Git subprocess receives closed standard input, a 60-second deadline,
+  and independent 16 MiB stdout/stderr limits. Crossing a deadline or output
+  bound terminates the child process group and fails closed instead of waiting
+  for a helper or grandchild to finish draining pipes.
+- Local status, branch, and commit commands receive no SSH agent socket or SSH
+  command authority. Protocol defaults deny unknown transports and remote
+  helpers; only the direct publish lane can add a reviewed SSH socket.
+- Repository discovery, porcelain paths, branch/ref names, object ids, remote
+  names, URLs, and divergence counts must be valid UTF-8 and structurally
+  complete. Identity bytes are never repaired with lossy conversion, and
+  repository-supplied path names are always passed back to Git as literal
+  pathspecs rather than pathspec-magic expressions.
+- Config inspection recognizes both quoted subsections and legacy dotted
+  subsection syntax. Includes, URL rewrites, protocol overrides, SSH/proxy
+  routing, remote receive/upload-pack overrides, shell submodule updaters, and
+  process-capable filter/diff/merge/credential settings all fail closed.
 - Degraded records carry stable, export-safe failure summaries. Raw Git stderr,
   repository paths, and malformed porcelain records are never copied into
   shell, activity, review, or support projections.

@@ -6,15 +6,20 @@
 //! mutation runs. Result packets keep failed publishes reopenable and local
 //! state recoverable without implying hosted-review or merge-queue maturity.
 
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
 use crate::status::{
     BranchState, ConsumerProjectionBundle, GitServiceState, GitStatusRequest, GitStatusService,
+    HeadIdentity, RepositoryConfigEvidence, RepositoryIdentity,
+};
+use crate::{
+    hardened_git,
+    preview_authority::{same_repository_identity, PreviewAuthorityStore},
 };
 
 /// Stable record-kind tag for [`GitPublishPreview`].
@@ -724,15 +729,7 @@ pub struct GitPublishPreview {
     /// Review-platform maturity label for this local Git lane.
     pub review_platform_state: String,
     #[serde(skip)]
-    remote_for_apply: Option<String>,
-    #[serde(skip)]
-    local_ref_for_apply: Option<String>,
-    #[serde(skip)]
-    remote_ref_for_apply: Option<String>,
-    #[serde(skip)]
-    expected_local_oid_for_apply: Option<String>,
-    #[serde(skip)]
-    force_with_lease_for_apply: Option<String>,
+    authority_token: Option<u128>,
 }
 
 impl GitPublishPreview {
@@ -742,10 +739,11 @@ impl GitPublishPreview {
             && self.blocked_reasons.is_empty()
             && self.route.labels_are_complete()
             && self.target.is_satisfied()
-            && self.remote_for_apply.is_some()
-            && self.local_ref_for_apply.is_some()
-            && self.remote_ref_for_apply.is_some()
-            && self.expected_local_oid_for_apply.is_some()
+            && self.target.remote_name.is_some()
+            && self.target.local_ref.is_some()
+            && self.target.remote_ref.is_some()
+            && self.target.local_oid.is_some()
+            && self.authority_token.is_some()
     }
 }
 
@@ -846,6 +844,17 @@ pub trait GitPublishBackend {
         root: &Path,
         args: &[String],
     ) -> Result<GitPublishCommandOutput, GitPublishBackendError>;
+
+    /// Runs the one admitted remote mutation. System execution uses this
+    /// separate path so only a reviewed SSH route can receive an agent socket.
+    fn run_git_publish(
+        &self,
+        root: &Path,
+        args: &[String],
+        _ssh_auth_sock: Option<&OsStr>,
+    ) -> Result<GitPublishCommandOutput, GitPublishBackendError> {
+        self.run_git(root, args)
+    }
 }
 
 /// Git backend that shells out to the system `git` executable.
@@ -875,14 +884,32 @@ impl GitPublishBackend for SystemGitPublishBackend {
         root: &Path,
         args: &[String],
     ) -> Result<GitPublishCommandOutput, GitPublishBackendError> {
-        let output = Command::new(&self.git_binary)
-            .arg("-C")
-            .arg(root)
-            .args(args)
-            .output()
-            .map_err(|err| GitPublishBackendError {
-                message: format!("git command failed to launch: {err}"),
+        let output = hardened_git::run(hardened_git::command(&self.git_binary, root, args))
+            .map_err(|_| GitPublishBackendError {
+                message: "Git publish command could not be completed safely".to_string(),
             })?;
+        Ok(GitPublishCommandOutput {
+            success: output.status.success(),
+            status_code: output.status.code(),
+            stdout: output.stdout,
+            stderr: output.stderr,
+        })
+    }
+
+    fn run_git_publish(
+        &self,
+        root: &Path,
+        args: &[String],
+        ssh_auth_sock: Option<&OsStr>,
+    ) -> Result<GitPublishCommandOutput, GitPublishBackendError> {
+        let command = if ssh_auth_sock.is_some() {
+            hardened_git::command_for_publish(&self.git_binary, root, args, ssh_auth_sock)
+        } else {
+            hardened_git::command(&self.git_binary, root, args)
+        };
+        let output = hardened_git::run(command).map_err(|_| GitPublishBackendError {
+            message: "Git publish command could not be completed safely".to_string(),
+        })?;
         Ok(GitPublishCommandOutput {
             success: output.status.success(),
             status_code: output.status.code(),
@@ -892,10 +919,76 @@ impl GitPublishBackend for SystemGitPublishBackend {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GitRemoteTransport {
+    LocalPath,
+    File,
+    Https,
+    Ssh,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct AdmittedRemoteUrl {
+    transport: GitRemoteTransport,
+}
+
+impl GitRemoteTransport {
+    const fn uses_ssh(self) -> bool {
+        matches!(self, Self::Ssh)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GitPublishApplyAuthority {
+    workspace_ref: String,
+    repository: RepositoryIdentity,
+    source_head: HeadIdentity,
+    mode: GitPublishMode,
+    remote: String,
+    local_ref: String,
+    remote_ref: String,
+    expected_local_oid: String,
+    remote_tracking_ref: Option<String>,
+    expected_remote_tracking_oid: Option<String>,
+    push_url: String,
+    transport: GitRemoteTransport,
+    ssh_auth_sock: Option<OsString>,
+    force_with_lease: Option<String>,
+    repository_config_evidence: RepositoryConfigEvidence,
+}
+
+impl GitPublishApplyAuthority {
+    fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.workspace_ref.len()
+            + self.repository.repo_ref.len()
+            + self.repository.worktree_ref.len()
+            + self.repository.repo_label.len()
+            + self.repository.repo_root.as_os_str().len()
+            + self.repository.git_dir.as_os_str().len()
+            + self.repository.common_dir.as_os_str().len()
+            + head_identity_retained_bytes(&self.source_head)
+            + self.remote.len()
+            + self.local_ref.len()
+            + self.remote_ref.len()
+            + self.expected_local_oid.len()
+            + self.remote_tracking_ref.as_deref().map_or(0, str::len)
+            + self
+                .expected_remote_tracking_oid
+                .as_deref()
+                .map_or(0, str::len)
+            + self.push_url.len()
+            + self.ssh_auth_sock.as_deref().map_or(0, |value| value.len())
+            + self.force_with_lease.as_deref().map_or(0, str::len)
+            + self.repository_config_evidence.retained_bytes()
+    }
+}
+
 /// Service that creates and applies Git publish previews.
 #[derive(Debug, Clone)]
 pub struct GitPublishService<B = SystemGitPublishBackend> {
     backend: B,
+    authority: Arc<PreviewAuthorityStore<GitPublishApplyAuthority>>,
 }
 
 impl Default for GitPublishService<SystemGitPublishBackend> {
@@ -907,11 +1000,16 @@ impl Default for GitPublishService<SystemGitPublishBackend> {
 impl<B: GitPublishBackend> GitPublishService<B> {
     /// Creates a service backed by `backend`.
     pub fn new(backend: B) -> Self {
-        Self { backend }
+        Self {
+            backend,
+            authority: Arc::new(PreviewAuthorityStore::default()),
+        }
     }
 
     /// Builds a reviewable publish preview without mutating remote state.
     pub fn preview(&self, request: &GitPublishRequest) -> GitPublishPreview {
+        let preview_ref = preview_ref(request);
+        self.authority.revoke(&preview_ref);
         let status_request = GitStatusRequest::with_observed_at(
             request.workspace_ref.clone(),
             request.root_path.clone(),
@@ -926,8 +1024,6 @@ impl<B: GitPublishBackend> GitPublishService<B> {
             .as_ref()
             .map(|repo| repo.repo_root.clone())
             .unwrap_or_else(|| request.root_path.clone());
-        let preview_ref = preview_ref(request);
-
         if snapshot.service_state != GitServiceState::Current {
             return degraded_preview(
                 request,
@@ -937,14 +1033,62 @@ impl<B: GitPublishBackend> GitPublishService<B> {
                 snapshot.service_state.as_str(),
             );
         }
+        let Some(repository) = snapshot.repository.clone() else {
+            return degraded_preview(
+                request,
+                repo_root,
+                truth_source_ref,
+                preview_ref,
+                "repository_identity_unavailable",
+            );
+        };
 
         let target = self.target_review(request, &preview_ref, &repo_root, &snapshot);
-        let route = self.route_review(request, &preview_ref, &repo_root, &target);
+        let push_urls = target
+            .remote_name
+            .as_deref()
+            .filter(|_| target.remote_configured)
+            .and_then(|remote| self.remote_push_urls(&repo_root, remote))
+            .unwrap_or_default();
+        let admitted_route = match push_urls.as_slice() {
+            [url] => admit_remote_url(url),
+            _ => None,
+        };
+        let ssh_auth_sock = admitted_route
+            .filter(|route| route.transport.uses_ssh())
+            .and_then(|_| std::env::var_os("SSH_AUTH_SOCK"));
+        let route = self.route_review(
+            request,
+            &preview_ref,
+            &target,
+            &push_urls,
+            ssh_auth_sock.is_some(),
+        );
         let mut blocked_reasons = target.blocked_reasons.clone();
+        let repository_config_evidence =
+            crate::status::repository_config_evidence(&repository).ok();
+        if push_urls.len() != 1 {
+            blocked_reasons
+                .push("publish requires exactly one explicit configured push URL".to_string());
+        } else if admitted_route.is_none() {
+            blocked_reasons.push(
+                "publish URL protocol is not admitted for direct local Git publication".to_string(),
+            );
+        }
+        if repository_config_evidence.is_none() {
+            blocked_reasons.push(
+                "repository configuration could not be bound safely; reopen publish review"
+                    .to_string(),
+            );
+        }
         if !route.labels_are_complete() {
             if route.route_class == GitPublishRouteClass::BrowserHandoff {
                 blocked_reasons.push(
                     "browser handoff is inspect-only for this local Git publish lane".to_string(),
+                );
+            } else if route.auth_posture == "ssh_agent_unavailable" {
+                blocked_reasons.push(
+                    "publish SSH route requires a current noninteractive SSH agent".to_string(),
                 );
             } else {
                 blocked_reasons.push("publish route labels are incomplete".to_string());
@@ -968,7 +1112,7 @@ impl<B: GitPublishBackend> GitPublishService<B> {
             &failure_recovery.recovery_ref,
         );
 
-        GitPublishPreview {
+        let mut preview = GitPublishPreview {
             record_kind: GIT_PUBLISH_PREVIEW_RECORD_KIND.to_string(),
             schema_version: GIT_PUBLISH_PREVIEW_SCHEMA_VERSION,
             preview_ref,
@@ -984,11 +1128,6 @@ impl<B: GitPublishBackend> GitPublishService<B> {
             actor: request.actor.clone(),
             launch_source_ref: request.launch_source_ref.clone(),
             route,
-            remote_for_apply: target.remote_name.clone(),
-            local_ref_for_apply: target.local_ref.clone(),
-            remote_ref_for_apply: target.remote_ref.clone(),
-            expected_local_oid_for_apply: target.local_oid.clone(),
-            force_with_lease_for_apply: target.force_with_lease_expected_oid.clone(),
             target,
             failure_recovery,
             activity,
@@ -996,7 +1135,50 @@ impl<B: GitPublishBackend> GitPublishService<B> {
             blocked_reasons,
             merge_queue_supported: false,
             review_platform_state: "local_git_publish_only".to_string(),
+            authority_token: None,
+        };
+        if preview.preview_state == GitPublishPreviewState::ReadyToPublish {
+            let (Some(admitted_route), Some(repository_config_evidence), [push_url]) = (
+                admitted_route,
+                repository_config_evidence,
+                push_urls.as_slice(),
+            ) else {
+                preview.preview_state = GitPublishPreviewState::Blocked;
+                preview
+                    .blocked_reasons
+                    .push("publish preview evidence became unavailable".to_string());
+                return preview;
+            };
+            let authority = GitPublishApplyAuthority {
+                workspace_ref: request.workspace_ref.clone(),
+                repository,
+                source_head: snapshot.head,
+                mode: request.mode,
+                remote: preview.target.remote_name.clone().unwrap_or_default(),
+                local_ref: preview.target.local_ref.clone().unwrap_or_default(),
+                remote_ref: preview.target.remote_ref.clone().unwrap_or_default(),
+                expected_local_oid: preview.target.local_oid.clone().unwrap_or_default(),
+                remote_tracking_ref: preview.target.remote_tracking_ref.clone(),
+                expected_remote_tracking_oid: preview.target.remote_oid.clone(),
+                push_url: push_url.clone(),
+                transport: admitted_route.transport,
+                ssh_auth_sock,
+                force_with_lease: preview.target.force_with_lease_expected_oid.clone(),
+                repository_config_evidence,
+            };
+            let authority_bytes = authority.retained_bytes();
+            preview.authority_token = serde_json::to_vec(&preview).ok().and_then(|projection| {
+                self.authority
+                    .issue(&preview.preview_ref, projection, authority, authority_bytes)
+            });
+            if preview.authority_token.is_none() {
+                preview.preview_state = GitPublishPreviewState::Blocked;
+                preview
+                    .blocked_reasons
+                    .push("publish preview authority could not be retained".to_string());
+            }
         }
+        preview
     }
 
     /// Applies an admitted publish preview and returns an attributable result packet.
@@ -1015,10 +1197,48 @@ impl<B: GitPublishBackend> GitPublishService<B> {
                 preview.blocked_reasons.clone(),
             );
         }
-
-        let local_ref = preview.local_ref_for_apply.as_deref().unwrap_or_default();
-        let current_oid = self.resolve_commit_oid(&preview.repo_root, local_ref);
-        if current_oid != preview.expected_local_oid_for_apply {
+        let authority = serde_json::to_vec(preview).ok().and_then(|projection| {
+            self.authority
+                .consume(&preview.preview_ref, preview.authority_token, &projection)
+        });
+        let Some(authority) = authority else {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitPublishOutcomeState::BlockedNoChangesMade,
+                Some("publish preview authority is unavailable; reopen publish review".to_string()),
+                vec!["publish preview authority is unavailable".to_string()],
+            );
+        };
+        let status_request = GitStatusRequest::with_observed_at(
+            authority.workspace_ref.clone(),
+            authority.repository.repo_root.clone(),
+            resolved_at.clone(),
+        );
+        let current_snapshot = GitStatusService::default().snapshot(&status_request);
+        if current_snapshot.service_state != GitServiceState::Current
+            || !current_snapshot
+                .repository
+                .as_ref()
+                .is_some_and(|repository| {
+                    same_repository_identity(&authority.repository, repository)
+                })
+            || current_snapshot.head != authority.source_head
+        {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitPublishOutcomeState::BlockedNoChangesMade,
+                Some(
+                    "repository or source HEAD changed after preview; reopen publish review"
+                        .to_string(),
+                ),
+                vec!["repository or source HEAD changed after preview".to_string()],
+            );
+        }
+        let current_oid =
+            self.resolve_commit_oid(&authority.repository.repo_root, &authority.local_ref);
+        if current_oid.as_deref() != Some(authority.expected_local_oid.as_str()) {
             return result_for_preview(
                 preview,
                 &resolved_at,
@@ -1029,15 +1249,75 @@ impl<B: GitPublishBackend> GitPublishService<B> {
                 vec!["local publish source changed after preview".to_string()],
             );
         }
+        let current_remote_oid = authority
+            .remote_tracking_ref
+            .as_deref()
+            .and_then(|remote_ref| {
+                self.resolve_commit_oid(&authority.repository.repo_root, remote_ref)
+            });
+        if current_remote_oid != authority.expected_remote_tracking_oid {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitPublishOutcomeState::BlockedNoChangesMade,
+                Some(
+                    "last-known remote target changed after preview; reopen publish review"
+                        .to_string(),
+                ),
+                vec!["last-known remote target changed after preview".to_string()],
+            );
+        }
+        if authority.transport.uses_ssh()
+            && std::env::var_os("SSH_AUTH_SOCK") != authority.ssh_auth_sock
+        {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitPublishOutcomeState::BlockedNoChangesMade,
+                Some("publish authentication source changed; reopen publish review".to_string()),
+                vec!["publish authentication source changed after preview".to_string()],
+            );
+        }
+        if crate::status::repository_config_evidence(&authority.repository)
+            != Ok(authority.repository_config_evidence.clone())
+        {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitPublishOutcomeState::BlockedNoChangesMade,
+                Some(
+                    "repository configuration changed after preview; reopen publish review"
+                        .to_string(),
+                ),
+                vec!["repository configuration changed after preview".to_string()],
+            );
+        }
+        if !self.remote_exists(&authority.repository.repo_root, &authority.remote)
+            || self.remote_push_urls(&authority.repository.repo_root, &authority.remote)
+                != Some(vec![authority.push_url.clone()])
+            || admit_remote_url(&authority.push_url).map(|route| route.transport)
+                != Some(authority.transport)
+        {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitPublishOutcomeState::BlockedNoChangesMade,
+                Some("publish route changed after preview; reopen publish review".to_string()),
+                vec!["publish route changed after preview".to_string()],
+            );
+        }
 
-        let output = self.apply_preview(preview);
+        let output = self.apply_preview(&authority);
         let (outcome_state, failure_reason) = match output {
             Ok(output) if output.success => (GitPublishOutcomeState::Published, None),
             Ok(output) => (
                 GitPublishOutcomeState::Failed,
                 Some(stderr_or_status(&output)),
             ),
-            Err(err) => (GitPublishOutcomeState::Failed, Some(err.message)),
+            Err(_) => (
+                GitPublishOutcomeState::Failed,
+                Some("Git publish command could not be completed safely".to_string()),
+            ),
         };
         let blocked_reasons = failure_reason.clone().into_iter().collect();
         result_for_preview(
@@ -1070,6 +1350,14 @@ impl<B: GitPublishBackend> GitPublishService<B> {
             blocked_reasons
                 .push("publish remote requires upstream or explicit remote selection".to_string());
         }
+        let remote_name = remote_name.and_then(|remote| {
+            if valid_remote_name(&remote) {
+                Some(remote)
+            } else {
+                blocked_reasons.push("publish remote name is invalid".to_string());
+                None
+            }
+        });
 
         let source_branch = match request.local_branch.as_deref() {
             Some(value) => normalized_branch_name(value),
@@ -1155,6 +1443,15 @@ impl<B: GitPublishBackend> GitPublishService<B> {
             }
             _ => (None, None),
         };
+        if remote_oid.is_some()
+            && local_oid.is_some()
+            && (behind_count.is_none() || ahead_count.is_none())
+        {
+            blocked_reasons.push(
+                "local and remote divergence could not be verified; fetch and reopen publish review"
+                    .to_string(),
+            );
+        }
         if request.mode == GitPublishMode::Push && behind_count.unwrap_or(0) > 0 {
             blocked_reasons.push(
                 "remote target contains commits missing from the local source; fetch and review before publish"
@@ -1234,24 +1531,24 @@ impl<B: GitPublishBackend> GitPublishService<B> {
         &self,
         request: &GitPublishRequest,
         preview_ref: &str,
-        repo_root: &Path,
         target: &GitPublishTargetReview,
+        push_urls: &[String],
+        ssh_agent_available: bool,
     ) -> GitPublishRouteReview {
         let remote_name = target
             .remote_name
             .clone()
             .unwrap_or_else(|| "<remote not selected>".to_string());
-        let raw_url = target
-            .remote_name
-            .as_deref()
-            .filter(|_| target.remote_configured)
-            .and_then(|remote| self.remote_url(repo_root, remote));
+        let raw_url = (push_urls.len() == 1).then(|| push_urls[0].as_str());
         let remote_url_label = raw_url
-            .as_deref()
             .map(redacted_remote_url_label)
             .unwrap_or_else(|| "<remote url unavailable>".to_string());
-        let target_host_label = raw_url.as_deref().and_then(remote_host_label);
-        let executable_in_alpha = request.route_class != GitPublishRouteClass::BrowserHandoff;
+        let target_host_label = raw_url.and_then(remote_host_label);
+        let auth_posture = auth_posture_for_remote_url(raw_url, ssh_agent_available);
+        let executable_in_alpha = request.route_class != GitPublishRouteClass::BrowserHandoff
+            && push_urls.len() == 1
+            && raw_url.and_then(admit_remote_url).is_some()
+            && auth_posture != "ssh_agent_unavailable";
         GitPublishRouteReview {
             route_ref: format!("{}.route", preview_ref),
             origin_scope: request.origin_scope,
@@ -1261,7 +1558,7 @@ impl<B: GitPublishBackend> GitPublishService<B> {
             remote_url_label,
             target_host_label,
             exposure_posture: "git_remote_write".to_string(),
-            auth_posture: "git_credential_helper_or_remote_config".to_string(),
+            auth_posture: auth_posture.to_string(),
             policy_source: "workspace_git_policy_alpha".to_string(),
             route_disclosed: true,
             remote_disclosed: true,
@@ -1284,7 +1581,10 @@ impl<B: GitPublishBackend> GitPublishService<B> {
         ];
         match self.backend.run_git(repo_root, &args) {
             Ok(output) if output.success => {
-                let normalized = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                let normalized = String::from_utf8(output.stdout)
+                    .map_err(|_| "Git returned a non-UTF-8 branch name".to_string())?
+                    .trim()
+                    .to_string();
                 let value = if normalized.is_empty() {
                     trimmed.to_string()
                 } else {
@@ -1296,7 +1596,7 @@ impl<B: GitPublishBackend> GitPublishService<B> {
                     .to_string())
             }
             Ok(output) => Err(stderr_or_status(&output)),
-            Err(err) => Err(err.message),
+            Err(_) => Err("Git branch validation could not be completed safely".to_string()),
         }
     }
 
@@ -1306,38 +1606,57 @@ impl<B: GitPublishBackend> GitPublishService<B> {
             Ok(output) if output.success => output,
             _ => return false,
         };
-        String::from_utf8_lossy(&output.stdout)
-            .lines()
-            .map(str::trim)
-            .any(|line| line == remote)
+        String::from_utf8(output.stdout).is_ok_and(|value| {
+            let remotes = value.lines().collect::<Vec<_>>();
+            remotes
+                .iter()
+                .all(|line| !line.is_empty() && line.trim() == *line && valid_remote_name(line))
+                && remotes.into_iter().any(|line| line == remote)
+        })
     }
 
-    fn remote_url(&self, repo_root: &Path, remote: &str) -> Option<String> {
+    fn remote_push_urls(&self, repo_root: &Path, remote: &str) -> Option<Vec<String>> {
         let args = vec![
             "remote".to_string(),
             "get-url".to_string(),
+            "--push".to_string(),
+            "--all".to_string(),
+            "--".to_string(),
             remote.to_string(),
         ];
         let output = self.backend.run_git(repo_root, &args).ok()?;
         if !output.success {
             return None;
         }
-        let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        (!value.is_empty()).then_some(value)
+        let text = String::from_utf8(output.stdout).ok()?;
+        let values = text.lines().map(str::to_string).collect::<Vec<_>>();
+        if values.iter().any(|value| {
+            value.is_empty()
+                || value.trim() != value
+                || value.len() > 4096
+                || value.chars().any(char::is_control)
+        }) {
+            return None;
+        }
+        (!values.is_empty()).then_some(values)
     }
 
     fn resolve_commit_oid(&self, repo_root: &Path, target: &str) -> Option<String> {
+        if !valid_revision_input(target) {
+            return None;
+        }
         let args = vec![
             "rev-parse".to_string(),
             "--verify".to_string(),
+            "--end-of-options".to_string(),
             format!("{target}^{{commit}}"),
         ];
         let output = self.backend.run_git(repo_root, &args).ok()?;
         if !output.success {
             return None;
         }
-        let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        (!value.is_empty()).then_some(value)
+        let value = String::from_utf8(output.stdout).ok()?.trim().to_string();
+        valid_object_id(&value).then_some(value)
     }
 
     fn rev_list_counts(
@@ -1356,49 +1675,59 @@ impl<B: GitPublishBackend> GitPublishService<B> {
             Ok(output) if output.success => output,
             _ => return (None, None),
         };
-        let text = String::from_utf8_lossy(&output.stdout);
+        let text = match String::from_utf8(output.stdout) {
+            Ok(text) => text,
+            Err(_) => return (None, None),
+        };
         let mut parts = text.split_whitespace();
         let behind = parts.next().and_then(|value| value.parse::<u32>().ok());
         let ahead = parts.next().and_then(|value| value.parse::<u32>().ok());
+        if parts.next().is_some() {
+            return (None, None);
+        }
         (behind, ahead)
     }
 
     fn apply_preview(
         &self,
-        preview: &GitPublishPreview,
+        authority: &GitPublishApplyAuthority,
     ) -> Result<GitPublishCommandOutput, GitPublishBackendError> {
-        let remote = preview
-            .remote_for_apply
-            .as_ref()
-            .ok_or_else(|| GitPublishBackendError {
-                message: "publish remote missing".to_string(),
-            })?;
-        let local_ref =
-            preview
-                .local_ref_for_apply
-                .as_ref()
-                .ok_or_else(|| GitPublishBackendError {
-                    message: "publish local ref missing".to_string(),
-                })?;
-        let remote_ref =
-            preview
-                .remote_ref_for_apply
-                .as_ref()
-                .ok_or_else(|| GitPublishBackendError {
-                    message: "publish remote ref missing".to_string(),
-                })?;
-        let mut args = vec!["push".to_string(), "--porcelain".to_string()];
-        if preview.mode == GitPublishMode::ForceWithLease {
-            let expected = preview.force_with_lease_for_apply.as_ref().ok_or_else(|| {
-                GitPublishBackendError {
-                    message: "force-with-lease expected remote object missing".to_string(),
-                }
-            })?;
-            args.push(format!("--force-with-lease={remote_ref}:{expected}"));
+        let mut args = vec![
+            "push".to_string(),
+            "--porcelain".to_string(),
+            "--no-verify".to_string(),
+            "--no-recurse-submodules".to_string(),
+            "--receive-pack=git-receive-pack".to_string(),
+        ];
+        if authority.mode == GitPublishMode::ForceWithLease {
+            let expected =
+                authority
+                    .force_with_lease
+                    .as_ref()
+                    .ok_or_else(|| GitPublishBackendError {
+                        message: "force-with-lease expected remote object missing".to_string(),
+                    })?;
+            args.push(format!(
+                "--force-with-lease={}:{}",
+                authority.remote_ref, expected
+            ));
         }
-        args.push(remote.clone());
-        args.push(format!("{local_ref}:{remote_ref}"));
-        self.backend.run_git(&preview.repo_root, &args)
+        args.push("--".to_string());
+        args.push(authority.push_url.clone());
+        args.push(format!(
+            "{}:{}",
+            authority.expected_local_oid, authority.remote_ref
+        ));
+        let reviewed_ssh_auth_sock = if authority.transport.uses_ssh() {
+            authority.ssh_auth_sock.as_deref()
+        } else {
+            None
+        };
+        self.backend.run_git_publish(
+            &authority.repository.repo_root,
+            &args,
+            reviewed_ssh_auth_sock,
+        )
     }
 }
 
@@ -1497,11 +1826,7 @@ fn degraded_preview(
         blocked_reasons,
         merge_queue_supported: false,
         review_platform_state: "local_git_publish_only".to_string(),
-        remote_for_apply: None,
-        local_ref_for_apply: None,
-        remote_ref_for_apply: None,
-        expected_local_oid_for_apply: None,
-        force_with_lease_for_apply: None,
+        authority_token: None,
     }
 }
 
@@ -1862,57 +2187,227 @@ fn normalize_oid(value: &str) -> &str {
     value.trim()
 }
 
-fn redacted_remote_url_label(value: &str) -> String {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return "<remote url unavailable>".to_string();
+fn valid_object_id(value: &str) -> bool {
+    matches!(value.len(), 40 | 64) && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn valid_revision_input(value: &str) -> bool {
+    let value = value.trim();
+    !value.is_empty()
+        && value.len() <= 1024
+        && !value.starts_with('-')
+        && value
+            .chars()
+            .all(|ch| !ch.is_control() && !ch.is_whitespace())
+}
+
+fn valid_remote_name(value: &str) -> bool {
+    let value = value.trim();
+    value.len() <= 255
+        && value
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_alphanumeric())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+}
+
+fn head_identity_retained_bytes(head: &HeadIdentity) -> usize {
+    std::mem::size_of::<HeadIdentity>()
+        + head.branch_label.as_deref().map_or(0, str::len)
+        + head.branch_ref.as_deref().map_or(0, str::len)
+        + head.head_oid.as_deref().map_or(0, str::len)
+        + head.head_short_oid.as_deref().map_or(0, str::len)
+        + head.upstream.as_deref().map_or(0, str::len)
+}
+
+fn admit_remote_url(value: &str) -> Option<AdmittedRemoteUrl> {
+    const MAX_REMOTE_URL_BYTES: usize = 4096;
+
+    if value.is_empty()
+        || value.len() > MAX_REMOTE_URL_BYTES
+        || value.trim() != value
+        || value.chars().any(char::is_control)
+    {
+        return None;
     }
-    if let Some((scheme, rest)) = trimmed.split_once("://") {
-        let host = rest
-            .split('/')
-            .next()
-            .unwrap_or("")
-            .rsplit('@')
-            .next()
-            .unwrap_or("");
-        if host.is_empty() {
-            format!("{scheme}://<redacted>")
-        } else {
-            format!("{scheme}://{host}/<redacted>")
-        }
-    } else if let Some((user_host, _path)) = trimmed.split_once(':') {
-        if user_host.contains('@') {
-            let host = user_host.rsplit('@').next().unwrap_or(user_host);
-            format!("ssh://{host}/<redacted>")
-        } else {
-            "local_path_remote".to_string()
-        }
-    } else if trimmed.starts_with('/') || trimmed.starts_with('.') {
-        "local_path_remote".to_string()
-    } else {
-        "<remote url redacted>".to_string()
+    if let Some((scheme, rest)) = value.split_once("://") {
+        let transport = match scheme.to_ascii_lowercase().as_str() {
+            "file" if rest.starts_with('/') && !rest.contains('?') && !rest.contains('#') => {
+                GitRemoteTransport::File
+            }
+            "https" if network_host(rest).is_some() => GitRemoteTransport::Https,
+            "ssh" | "git+ssh" | "ssh+git" if ssh_network_host(rest).is_some() => {
+                GitRemoteTransport::Ssh
+            }
+            _ => return None,
+        };
+        return Some(AdmittedRemoteUrl { transport });
+    }
+    if Path::new(value).is_absolute() || value.starts_with("./") || value.starts_with("../") {
+        return Some(AdmittedRemoteUrl {
+            transport: GitRemoteTransport::LocalPath,
+        });
+    }
+    if value.contains("::") {
+        return None;
+    }
+    split_scp_remote(value).map(|_| AdmittedRemoteUrl {
+        transport: GitRemoteTransport::Ssh,
+    })
+}
+
+fn redacted_remote_url_label(value: &str) -> String {
+    let Some(admitted) = admit_remote_url(value) else {
+        return "<remote url unavailable>".to_string();
+    };
+    match admitted.transport {
+        GitRemoteTransport::LocalPath => "local_path_remote".to_string(),
+        GitRemoteTransport::File => "file://<local>/<redacted>".to_string(),
+        GitRemoteTransport::Https => remote_host_label(value)
+            .map(|host| format!("https://{host}/<redacted>"))
+            .unwrap_or_else(|| "https://<redacted>".to_string()),
+        GitRemoteTransport::Ssh => remote_host_label(value)
+            .map(|host| format!("ssh://{host}/<redacted>"))
+            .unwrap_or_else(|| "ssh://<redacted>".to_string()),
     }
 }
 
 fn remote_host_label(value: &str) -> Option<String> {
-    let trimmed = value.trim();
-    if let Some((_scheme, rest)) = trimmed.split_once("://") {
-        let host = rest
-            .split('/')
-            .next()
-            .unwrap_or("")
-            .rsplit('@')
-            .next()
-            .unwrap_or("");
-        return (!host.is_empty()).then(|| host.to_string());
+    let admitted = admit_remote_url(value)?;
+    if !matches!(
+        admitted.transport,
+        GitRemoteTransport::Https | GitRemoteTransport::Ssh
+    ) {
+        return None;
     }
-    if let Some((user_host, _path)) = trimmed.split_once(':') {
-        if user_host.contains('@') {
-            let host = user_host.rsplit('@').next().unwrap_or(user_host);
-            return (!host.is_empty()).then(|| host.to_string());
+    if let Some((_scheme, rest)) = value.split_once("://") {
+        return match admitted.transport {
+            GitRemoteTransport::Ssh => ssh_network_host(rest),
+            _ => network_host(rest),
         }
+        .map(str::to_string);
     }
-    None
+    split_scp_remote(value).map(|(host, _)| host.to_string())
+}
+
+fn auth_posture_for_remote_url(value: Option<&str>, ssh_agent_available: bool) -> &'static str {
+    let Some(value) = value else {
+        return "unavailable";
+    };
+    let Some(admitted) = admit_remote_url(value) else {
+        return "unsupported_transport";
+    };
+    match admitted.transport {
+        GitRemoteTransport::Ssh => {
+            if ssh_agent_available {
+                "ssh_agent_noninteractive"
+            } else {
+                "ssh_agent_unavailable"
+            }
+        }
+        GitRemoteTransport::Https
+            if network_authority(value).is_some_and(|url| url.contains('@')) =>
+        {
+            "remote_url_userinfo_noninteractive"
+        }
+        GitRemoteTransport::Https => "noninteractive_no_credential_helper",
+        GitRemoteTransport::File | GitRemoteTransport::LocalPath => "local_filesystem_no_auth",
+    }
+}
+
+fn network_authority(value: &str) -> Option<&str> {
+    let (_, rest) = value.split_once("://")?;
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    (!authority.is_empty()).then_some(authority)
+}
+
+fn network_host(rest: &str) -> Option<&str> {
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    let host = authority.rsplit('@').next().unwrap_or("");
+    valid_host_label(host).then_some(host)
+}
+
+fn ssh_network_host(rest: &str) -> Option<&str> {
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    let (user, host) = authority
+        .rsplit_once('@')
+        .map_or((None, authority), |(user, host)| (Some(user), host));
+    if user.is_some_and(|user| !valid_ssh_user(user)) || !valid_host_label(host) {
+        return None;
+    }
+    Some(host)
+}
+
+fn split_scp_remote(value: &str) -> Option<(&str, &str)> {
+    let (authority, path) = if let Some(bracket_end) = value.find("]:") {
+        value.split_at(bracket_end + 1)
+    } else {
+        value.split_once(':')?
+    };
+    let path = path.strip_prefix(':').unwrap_or(path);
+    if authority.is_empty()
+        || authority.contains('/')
+        || authority.contains('\\')
+        || path.is_empty()
+        || path.chars().any(char::is_control)
+    {
+        return None;
+    }
+    let (user, host) = authority
+        .rsplit_once('@')
+        .map_or((None, authority), |(user, host)| (Some(user), host));
+    if user.is_some_and(|user| !valid_ssh_user(user)) || !valid_host_label(host) {
+        return None;
+    }
+    Some((host, path))
+}
+
+fn valid_host_label(value: &str) -> bool {
+    if value.is_empty() || value.len() > 255 {
+        return false;
+    }
+    if let Some(bracketed) = value.strip_prefix('[') {
+        let Some((address, suffix)) = bracketed.split_once(']') else {
+            return false;
+        };
+        return !address.is_empty()
+            && address
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() || matches!(byte, b':' | b'.'))
+            && (suffix.is_empty()
+                || suffix.strip_prefix(':').is_some_and(|port| {
+                    !port.is_empty() && port.bytes().all(|byte| byte.is_ascii_digit())
+                }));
+    }
+    let (host, port) = value
+        .split_once(':')
+        .map_or((value, None), |(host, port)| (host, Some(port)));
+    !host.is_empty()
+        && host
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_alphanumeric())
+        && host
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-'))
+        && match port {
+            Some(port) => !port.is_empty() && port.bytes().all(|byte| byte.is_ascii_digit()),
+            None => true,
+        }
+}
+
+fn valid_ssh_user(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 255
+        && value
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_alphanumeric())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
 }
 
 fn preview_ref(request: &GitPublishRequest) -> String {
@@ -1940,17 +2435,9 @@ fn short_oid(value: &str) -> String {
 }
 
 fn stderr_or_status(output: &GitPublishCommandOutput) -> String {
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    if !stderr.is_empty() {
-        return stderr;
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if !stdout.is_empty() {
-        return stdout;
-    }
     match output.status_code {
-        Some(code) => format!("git exited with status {code}"),
-        None => "git process terminated without a status code".to_string(),
+        Some(code) => format!("Git publish command failed with exit status {code}"),
+        None => "Git publish command failed without an exit status".to_string(),
     }
 }
 
@@ -1975,5 +2462,204 @@ fn observed_at_now() -> String {
     match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(duration) => format!("unix:{}", duration.as_secs()),
         Err(_) => "unix:0".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+
+    use super::*;
+
+    type RecordedPublishCall = (Vec<String>, Option<OsString>);
+
+    #[derive(Debug, Clone, Default)]
+    struct RecordingBackend {
+        publish_calls: Arc<Mutex<Vec<RecordedPublishCall>>>,
+    }
+
+    impl GitPublishBackend for RecordingBackend {
+        fn run_git(
+            &self,
+            _root: &Path,
+            _args: &[String],
+        ) -> Result<GitPublishCommandOutput, GitPublishBackendError> {
+            Ok(GitPublishCommandOutput {
+                success: true,
+                status_code: Some(0),
+                stdout: Vec::new(),
+                stderr: Vec::new(),
+            })
+        }
+
+        fn run_git_publish(
+            &self,
+            _root: &Path,
+            args: &[String],
+            ssh_auth_sock: Option<&OsStr>,
+        ) -> Result<GitPublishCommandOutput, GitPublishBackendError> {
+            self.publish_calls
+                .lock()
+                .expect("publish calls lock")
+                .push((args.to_vec(), ssh_auth_sock.map(OsStr::to_os_string)));
+            Ok(GitPublishCommandOutput {
+                success: true,
+                status_code: Some(0),
+                stdout: Vec::new(),
+                stderr: Vec::new(),
+            })
+        }
+    }
+
+    #[test]
+    fn hostile_remote_revision_and_failure_output_fail_closed() {
+        assert!(!valid_remote_name("--upload-pack=malicious"));
+        assert!(!valid_remote_name("origin/../../escape"));
+        assert!(!valid_revision_input("--help"));
+        let output = GitPublishCommandOutput {
+            success: false,
+            status_code: Some(1),
+            stdout: b"secret remote response".to_vec(),
+            stderr: b"credential or private path".to_vec(),
+        };
+        let failure = stderr_or_status(&output);
+        assert_eq!(failure, "Git publish command failed with exit status 1");
+        assert!(!failure.contains("secret"));
+        assert!(!failure.contains("credential"));
+        let label = redacted_remote_url_label("https://user:secret@example.invalid?token=private");
+        assert_eq!(label, "https://example.invalid/<redacted>");
+        assert!(!label.contains("secret"));
+        assert!(!label.contains("private"));
+        assert_eq!(
+            auth_posture_for_remote_url(Some("git@example.invalid:team/repo.git"), true),
+            "ssh_agent_noninteractive"
+        );
+        assert_eq!(
+            auth_posture_for_remote_url(Some("git@example.invalid:team/repo.git"), false),
+            "ssh_agent_unavailable"
+        );
+        assert_eq!(
+            auth_posture_for_remote_url(Some("https://example.invalid/team/repo.git"), false),
+            "noninteractive_no_credential_helper"
+        );
+        assert_eq!(
+            auth_posture_for_remote_url(Some("https://token@example.invalid/team/repo.git"), false,),
+            "remote_url_userinfo_noninteractive"
+        );
+        assert_eq!(
+            auth_posture_for_remote_url(Some("/tmp/remote.git"), false),
+            "local_filesystem_no_auth"
+        );
+        for ssh_url in [
+            "example.invalid:team/repo.git",
+            "git@example.invalid:team/repo.git",
+            "ssh://git@example.invalid/team/repo.git",
+            "git+ssh://git@example.invalid/team/repo.git",
+            "ssh+git://git@example.invalid/team/repo.git",
+        ] {
+            assert_eq!(
+                admit_remote_url(ssh_url).map(|route| route.transport),
+                Some(GitRemoteTransport::Ssh),
+                "{ssh_url}"
+            );
+        }
+        for rejected in [
+            "ext::sh -c hostile",
+            "hg::https://example.invalid/repo",
+            "git://example.invalid/repo.git",
+            "http://example.invalid/repo.git",
+            "ftp://example.invalid/repo.git",
+            "relative/path.git",
+            " ssh://example.invalid/repo.git",
+            "ssh://-oProxyCommand=hostile@example.invalid/repo.git",
+            "-oProxyCommand=hostile:repo.git",
+            "ssh://example.invalid:22:33/repo.git",
+        ] {
+            assert_eq!(admit_remote_url(rejected), None, "{rejected}");
+        }
+        assert_eq!(
+            remote_host_label("example.invalid:team/repo.git").as_deref(),
+            Some("example.invalid")
+        );
+        assert_eq!(
+            auth_posture_for_remote_url(Some("example.invalid:team/repo.git"), false),
+            "ssh_agent_unavailable"
+        );
+    }
+
+    #[test]
+    fn publish_argv_uses_reviewed_oid_url_refspec_and_fixed_receive_pack() {
+        let backend = RecordingBackend::default();
+        let service = GitPublishService::new(backend.clone());
+        let oid = "1111111111111111111111111111111111111111".to_string();
+        let socket = OsString::from("/tmp/reviewed-agent.sock");
+        let authority = GitPublishApplyAuthority {
+            workspace_ref: "workspace.argv".to_string(),
+            repository: RepositoryIdentity {
+                repo_ref: "repo.argv".to_string(),
+                worktree_ref: "worktree.argv".to_string(),
+                repo_label: "argv".to_string(),
+                repo_root: PathBuf::from("/repo"),
+                git_dir: PathBuf::from("/repo/.git"),
+                common_dir: PathBuf::from("/repo/.git"),
+            },
+            source_head: HeadIdentity {
+                state: BranchState::Attached,
+                branch_label: Some("main".to_string()),
+                branch_ref: Some("refs/heads/main".to_string()),
+                head_oid: Some(oid.clone()),
+                head_short_oid: Some("111111111111".to_string()),
+                upstream: Some("origin/main".to_string()),
+                ahead: Some(1),
+                behind: Some(0),
+            },
+            mode: GitPublishMode::Push,
+            remote: "origin".to_string(),
+            local_ref: "refs/heads/main".to_string(),
+            remote_ref: "refs/heads/main".to_string(),
+            expected_local_oid: oid.clone(),
+            remote_tracking_ref: Some("refs/remotes/origin/main".to_string()),
+            expected_remote_tracking_oid: Some(oid.clone()),
+            push_url: "example.invalid:team/repo.git".to_string(),
+            transport: GitRemoteTransport::Ssh,
+            ssh_auth_sock: Some(socket.clone()),
+            force_with_lease: None,
+            repository_config_evidence: RepositoryConfigEvidence::empty_for_tests(),
+        };
+
+        service
+            .apply_preview(&authority)
+            .expect("record immutable publish argv");
+        let calls = backend.publish_calls.lock().expect("publish calls lock");
+        let (args, observed_socket) = calls.first().expect("one publish call");
+        assert_eq!(observed_socket.as_ref(), Some(&socket));
+        assert!(args
+            .iter()
+            .any(|arg| arg == "--receive-pack=git-receive-pack"));
+        let separator = args.iter().position(|arg| arg == "--").expect("separator");
+        assert_eq!(
+            &args[separator + 1..],
+            &[
+                "example.invalid:team/repo.git".to_string(),
+                format!("{oid}:refs/heads/main"),
+            ]
+        );
+        assert!(!args
+            .iter()
+            .any(|arg| arg == "refs/heads/main:refs/heads/main"));
+
+        drop(calls);
+        let mut non_ssh_authority = authority;
+        non_ssh_authority.transport = GitRemoteTransport::Https;
+        non_ssh_authority.push_url = "https://example.invalid/team/repo.git".to_string();
+        service
+            .apply_preview(&non_ssh_authority)
+            .expect("record non-SSH publish argv");
+        let calls = backend.publish_calls.lock().expect("publish calls lock");
+        assert_eq!(
+            calls.get(1).and_then(|(_, socket)| socket.as_ref()),
+            None,
+            "a retained socket is never forwarded to a non-SSH transport"
+        );
     }
 }

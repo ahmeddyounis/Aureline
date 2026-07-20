@@ -9,12 +9,14 @@
 //! these records instead of invoking Git independently.
 
 use std::ffi::OsStr;
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+
+use crate::hardened_git;
 
 /// Stable record-kind tag for [`GitStatusSnapshot`].
 pub const GIT_STATUS_SNAPSHOT_RECORD_KIND: &str = "git_status_snapshot";
@@ -781,75 +783,35 @@ impl SystemGitStatusBackend {
 
 impl GitStatusBackend for SystemGitStatusBackend {
     fn run_git(&self, root: &Path, args: &[&str]) -> Result<GitCommandOutput, GitBackendError> {
-        let mut command = Command::new(&self.git_binary);
-        command.env_clear();
-        if let Some(path) = std::env::var_os("PATH") {
-            command.env("PATH", path);
-        }
-        #[cfg(windows)]
-        if let Some(system_root) = std::env::var_os("SystemRoot") {
-            command.env("SystemRoot", system_root);
-        }
-        command
-            .env("LC_ALL", "C")
-            .env("LANG", "C")
-            .env("GIT_CONFIG_NOSYSTEM", "1")
-            .env("GIT_CONFIG_GLOBAL", null_device_path())
-            .env("GIT_ATTR_NOSYSTEM", "1")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_OPTIONAL_LOCKS", "0")
-            .env("GIT_PAGER", "")
-            .env("GIT_ASKPASS", "")
-            .env("SSH_ASKPASS", "")
-            .arg("-c")
-            .arg("core.fsmonitor=false")
-            .arg("-c")
-            .arg("core.untrackedCache=false")
-            .arg("-c")
-            .arg("submodule.recurse=false")
-            .arg("-c")
-            .arg(format!("core.attributesFile={}", null_device_path()))
-            .arg("-c")
-            .arg("diff.external=")
-            .arg("-c")
-            .arg("credential.helper=")
-            .arg("-c")
-            .arg("credential.interactive=never")
-            .arg("-C")
-            .arg(root)
-            .args(args);
-        let output = command.output().map_err(|err| {
-            if err.kind() == std::io::ErrorKind::NotFound {
-                GitBackendError::new(
-                    GitBackendErrorClass::GitNotInstalled,
-                    "git binary was not found",
-                )
-            } else if err.kind() == std::io::ErrorKind::PermissionDenied {
-                GitBackendError::new(
-                    GitBackendErrorClass::PermissionDenied,
-                    format!("git could not be launched: {err}"),
-                )
-            } else {
-                GitBackendError::new(
-                    GitBackendErrorClass::Io,
-                    format!("git process launch failed: {err}"),
-                )
-            }
-        })?;
+        let args = args
+            .iter()
+            .map(|arg| (*arg).to_string())
+            .collect::<Vec<_>>();
+        let output = hardened_git::run(hardened_git::command(&self.git_binary, root, &args))
+            .map_err(|err| {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    GitBackendError::new(
+                        GitBackendErrorClass::GitNotInstalled,
+                        "git binary was not found",
+                    )
+                } else if err.kind() == std::io::ErrorKind::PermissionDenied {
+                    GitBackendError::new(
+                        GitBackendErrorClass::PermissionDenied,
+                        "git executable permission was denied",
+                    )
+                } else {
+                    GitBackendError::new(
+                        GitBackendErrorClass::Io,
+                        "git command could not be completed safely",
+                    )
+                }
+            })?;
         Ok(GitCommandOutput {
             stdout: output.stdout,
             stderr: output.stderr,
             status_code: output.status.code(),
             success: output.status.success(),
         })
-    }
-}
-
-const fn null_device_path() -> &'static str {
-    if cfg!(windows) {
-        "NUL"
-    } else {
-        "/dev/null"
     }
 }
 
@@ -1047,22 +1009,37 @@ impl<B: GitStatusBackend> GitStatusService<B> {
             )));
         }
 
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let mut lines = stdout.lines();
-        let repo_root = lines
-            .next()
-            .map(PathBuf::from)
-            .ok_or_else(|| ReadMetadataError::RefreshFailed("missing repository root".into()))?;
-        let git_dir = lines
-            .next()
-            .map(|line| resolve_git_path(&request.root_path, line))
-            .ok_or_else(|| ReadMetadataError::RefreshFailed("missing git dir".into()))?;
-        let common_dir = lines
-            .next()
-            .map(|line| resolve_git_path(&request.root_path, line))
-            .ok_or_else(|| ReadMetadataError::RefreshFailed("missing common git dir".into()))?;
-        let inside_work_tree = lines.next().unwrap_or("false").trim() == "true";
-        let is_bare = lines.next().unwrap_or("true").trim() == "true";
+        let stdout = String::from_utf8(output.stdout).map_err(|_| {
+            ReadMetadataError::RefreshFailed(
+                "repository discovery returned non-UTF-8 identity bytes".into(),
+            )
+        })?;
+        let stdout = stdout.strip_suffix('\n').unwrap_or(&stdout);
+        let lines = stdout.split('\n').collect::<Vec<_>>();
+        if lines.len() != 5
+            || lines
+                .iter()
+                .any(|line| line.is_empty() || line.chars().any(char::is_control))
+        {
+            return Err(ReadMetadataError::RefreshFailed(
+                "repository discovery returned malformed identity fields".into(),
+            ));
+        }
+        let repo_root = std::fs::canonicalize(PathBuf::from(lines[0])).map_err(|_| {
+            ReadMetadataError::RefreshFailed("repository root could not be canonicalized".into())
+        })?;
+        let git_dir = std::fs::canonicalize(resolve_git_path(&request.root_path, lines[1]))
+            .map_err(|_| {
+                ReadMetadataError::RefreshFailed("Git directory could not be canonicalized".into())
+            })?;
+        let common_dir = std::fs::canonicalize(resolve_git_path(&request.root_path, lines[2]))
+            .map_err(|_| {
+                ReadMetadataError::RefreshFailed(
+                    "common Git directory could not be canonicalized".into(),
+                )
+            })?;
+        let inside_work_tree = lines[3] == "true";
+        let is_bare = lines[4] == "true";
         if !inside_work_tree || is_bare {
             return Err(ReadMetadataError::RefreshFailed(
                 "selected Git repository is not an editable worktree".into(),
@@ -1072,9 +1049,16 @@ impl<B: GitStatusBackend> GitStatusService<B> {
         let repo_label = repo_root
             .file_name()
             .and_then(OsStr::to_str)
-            .unwrap_or("repository")
+            .filter(|label| !label.is_empty())
+            .ok_or_else(|| {
+                ReadMetadataError::RefreshFailed(
+                    "repository label is not valid UTF-8 identity".into(),
+                )
+            })?
             .to_string();
-        let repo_id = sanitize_id(&repo_root.to_string_lossy());
+        let repo_id = sanitize_id(repo_root.to_str().ok_or_else(|| {
+            ReadMetadataError::RefreshFailed("repository path is not valid UTF-8 identity".into())
+        })?);
         Ok(RepositoryIdentity {
             repo_ref: format!("repo.local.{repo_id}"),
             worktree_ref: format!("worktree.local.{repo_id}"),
@@ -1122,7 +1106,7 @@ impl std::fmt::Display for StatusPorcelainParseError {
 impl std::error::Error for StatusPorcelainParseError {}
 
 fn parse_porcelain_v2(input: &[u8]) -> Result<ParsedPorcelain, StatusPorcelainParseError> {
-    let records = split_porcelain_records(input);
+    let records = split_porcelain_records(input)?;
     let mut head = HeadIdentity::unknown();
     let mut changes = Vec::new();
     let mut i = 0usize;
@@ -1168,23 +1152,24 @@ fn parse_porcelain_v2(input: &[u8]) -> Result<ParsedPorcelain, StatusPorcelainPa
     Ok(ParsedPorcelain { head, changes })
 }
 
-fn split_porcelain_records(input: &[u8]) -> Vec<String> {
+fn split_porcelain_records(input: &[u8]) -> Result<Vec<String>, StatusPorcelainParseError> {
     let has_nul = input.contains(&0);
     let parts: Vec<&[u8]> = if has_nul {
         input.split(|byte| *byte == 0).collect()
     } else {
         input.split(|byte| *byte == b'\n').collect()
     };
-    parts
-        .into_iter()
-        .filter(|part| !part.is_empty())
-        .map(|part| {
-            String::from_utf8_lossy(part)
-                .trim_end_matches('\r')
-                .to_string()
-        })
-        .filter(|part| !part.is_empty())
-        .collect()
+    let mut records = Vec::new();
+    for part in parts.into_iter().filter(|part| !part.is_empty()) {
+        let record = std::str::from_utf8(part).map_err(|_| {
+            StatusPorcelainParseError::new("porcelain status contains a non-UTF-8 path or ref")
+        })?;
+        let record = record.trim_end_matches('\r');
+        if !record.is_empty() {
+            records.push(record.to_string());
+        }
+    }
+    Ok(records)
 }
 
 fn parse_branch_header(record: &str, head: &mut HeadIdentity) {
@@ -1353,7 +1338,64 @@ fn resolve_git_path(root: &Path, value: &str) -> PathBuf {
 
 const MAX_REPOSITORY_CONFIG_BYTES: u64 = 1024 * 1024;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RepositoryConfigEvidence {
+    files: Vec<RepositoryConfigFileEvidence>,
+}
+
+impl RepositoryConfigEvidence {
+    pub(crate) fn retained_bytes(&self) -> usize {
+        self.files
+            .iter()
+            .map(|file| match file {
+                RepositoryConfigFileEvidence::Missing { path } => path.as_os_str().len(),
+                RepositoryConfigFileEvidence::File {
+                    path,
+                    content_len,
+                    content_id,
+                    identity_token,
+                } => {
+                    path.as_os_str().len()
+                        + std::mem::size_of_val(content_len)
+                        + content_id.len()
+                        + identity_token.len()
+                }
+            })
+            .sum()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn empty_for_tests() -> Self {
+        Self { files: Vec::new() }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum RepositoryConfigFileEvidence {
+    Missing {
+        path: PathBuf,
+    },
+    File {
+        path: PathBuf,
+        content_len: u64,
+        content_id: String,
+        identity_token: String,
+    },
+}
+
+#[derive(Debug)]
+pub(crate) struct BoundedRegularFile {
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) identity_token: String,
+}
+
 fn repository_config_allows_passive_status(metadata: &RepositoryIdentity) -> Result<(), String> {
+    repository_config_evidence(metadata).map(|_| ())
+}
+
+pub(crate) fn repository_config_evidence(
+    metadata: &RepositoryIdentity,
+) -> Result<RepositoryConfigEvidence, String> {
     let mut config_paths = vec![
         metadata.common_dir.join("config"),
         metadata.git_dir.join("config"),
@@ -1362,10 +1404,19 @@ fn repository_config_allows_passive_status(metadata: &RepositoryIdentity) -> Res
     config_paths.sort();
     config_paths.dedup();
 
+    let mut files = Vec::with_capacity(config_paths.len());
     for config_path in config_paths {
-        let file_metadata = match fs::metadata(&config_path) {
+        let boundary = if config_path.starts_with(&metadata.git_dir) {
+            &metadata.git_dir
+        } else {
+            &metadata.common_dir
+        };
+        let file_metadata = match fs::symlink_metadata(&config_path) {
             Ok(file_metadata) => file_metadata,
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                files.push(RepositoryConfigFileEvidence::Missing { path: config_path });
+                continue;
+            }
             Err(_) => {
                 return Err(
                     "repository configuration could not be inspected safely; passive refresh was blocked"
@@ -1373,15 +1424,28 @@ fn repository_config_allows_passive_status(metadata: &RepositoryIdentity) -> Res
                 )
             }
         };
-        if !file_metadata.is_file() || file_metadata.len() > MAX_REPOSITORY_CONFIG_BYTES {
+        if file_metadata.file_type().is_symlink()
+            || !file_metadata.is_file()
+            || file_metadata.len() > MAX_REPOSITORY_CONFIG_BYTES
+        {
             return Err(
                 "repository configuration exceeded passive inspection limits; passive refresh was blocked"
                     .to_string(),
             );
         }
-        let config = fs::read_to_string(&config_path).map_err(|_| {
+        let read = read_regular_file_nofollow(
+            &config_path,
+            boundary,
+            MAX_REPOSITORY_CONFIG_BYTES,
+        )
+        .map_err(|_| {
             "repository configuration could not be inspected safely; passive refresh was blocked"
                 .to_string()
+        })?;
+        let content_len = read.bytes.len() as u64;
+        let content_id = aureline_history::body_object_id(&read.bytes);
+        let config = String::from_utf8(read.bytes).map_err(|_| {
+            "repository configuration is not valid UTF-8; passive refresh was blocked".to_string()
         })?;
         if git_config_declares_process_surface(&config) {
             return Err(
@@ -1389,12 +1453,25 @@ fn repository_config_allows_passive_status(metadata: &RepositoryIdentity) -> Res
                     .to_string(),
             );
         }
+        files.push(RepositoryConfigFileEvidence::File {
+            path: config_path,
+            content_len,
+            content_id,
+            identity_token: read.identity_token,
+        });
     }
-    Ok(())
+    Ok(RepositoryConfigEvidence { files })
 }
 
 fn git_config_declares_process_surface(config: &str) -> bool {
-    let mut section = String::new();
+    if config.starts_with('\u{feff}')
+        || config
+            .chars()
+            .any(|ch| ch == '\0' || (ch.is_control() && !matches!(ch, '\n' | '\r' | '\t')))
+    {
+        return true;
+    }
+    let mut section_family = String::new();
     for raw_line in config.lines() {
         let line = raw_line.trim();
         if line.is_empty() || line.starts_with('#') || line.starts_with(';') {
@@ -1404,52 +1481,196 @@ fn git_config_declares_process_surface(config: &str) -> bool {
             let Some(end) = line.find(']') else {
                 return true;
             };
-            section = line[1..end]
-                .split_ascii_whitespace()
+            let suffix = line[end + 1..].trim_start();
+            if !suffix.is_empty() && !suffix.starts_with('#') && !suffix.starts_with(';') {
+                return true;
+            }
+            section_family = line[1..end]
+                .split(|ch: char| ch == '.' || ch.is_ascii_whitespace())
                 .next()
                 .unwrap_or_default()
                 .trim_matches('"')
                 .to_ascii_lowercase();
-            if matches!(section.as_str(), "include" | "includeif") {
+            if section_family.is_empty()
+                || matches!(section_family.as_str(), "include" | "includeif")
+            {
                 return true;
             }
             continue;
         }
 
-        let key = line
+        let (raw_key, raw_value) = line
             .split_once('=')
-            .map_or(line, |(key, _)| key)
+            .map_or_else(|| (line, ""), |(key, value)| (key, value));
+        let key = raw_key
             .split_ascii_whitespace()
             .next()
             .unwrap_or_default()
             .trim()
             .to_ascii_lowercase();
-        if key.is_empty() {
-            continue;
+        if key.is_empty() || key.chars().any(char::is_control) {
+            return true;
         }
         if key == "include.path" || key.starts_with("includeif.") {
             return true;
         }
-        let effective_section = if section.is_empty() {
+        let effective_section = if section_family.is_empty() {
             key.split('.').next().unwrap_or_default()
         } else {
-            section.as_str()
+            section_family.as_str()
         };
         let effective_key = key.rsplit('.').next().unwrap_or_default();
         if matches!(effective_section, "include" | "includeif")
+            || matches!(effective_section, "protocol" | "url")
             || matches!(
                 (effective_section, effective_key),
-                ("core", "fsmonitor" | "hookspath")
-                    | ("filter", "clean" | "smudge" | "process" | "required")
-                    | ("diff", "command" | "textconv")
+                (
+                    "core",
+                    "fsmonitor" | "hookspath" | "sshcommand" | "gitproxy"
+                ) | ("filter", "clean" | "smudge" | "process" | "required")
+                    | ("diff", "command" | "textconv" | "external")
                     | ("merge", "driver" | "recursive")
                     | ("credential", "helper")
+                    | ("remote", "receivepack" | "uploadpack" | "proxy" | "vcs")
+                    | ("http", "proxy" | "proxyauthmethod")
             )
+            || (effective_section == "submodule"
+                && effective_key == "update"
+                && config_value_starts_shell_command(raw_value))
         {
             return true;
         }
     }
     false
+}
+
+fn config_value_starts_shell_command(value: &str) -> bool {
+    let value = value.trim_start();
+    value.starts_with('!')
+        || value
+            .strip_prefix('"')
+            .is_some_and(|quoted| quoted.trim_start().starts_with('!'))
+}
+
+pub(crate) fn read_regular_file_nofollow(
+    path: &Path,
+    canonical_boundary: &Path,
+    max_bytes: u64,
+) -> Result<BoundedRegularFile, ()> {
+    let before = fs::symlink_metadata(path).map_err(|_| ())?;
+    if before.file_type().is_symlink() || !before.file_type().is_file() || before.len() > max_bytes
+    {
+        return Err(());
+    }
+    let canonical_before = fs::canonicalize(path).map_err(|_| ())?;
+    if !canonical_before.starts_with(canonical_boundary) {
+        return Err(());
+    }
+    let mut options = OpenOptions::new();
+    options.read(true);
+    configure_no_follow(&mut options)?;
+    let file = options.open(path).map_err(|_| ())?;
+    let opened = file.metadata().map_err(|_| ())?;
+    if !opened.file_type().is_file() || file_identity_token(&before) != file_identity_token(&opened)
+    {
+        return Err(());
+    }
+    let mut bytes = Vec::with_capacity(before.len() as usize);
+    (&file)
+        .take(max_bytes.saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|_| ())?;
+    if bytes.len() as u64 > max_bytes {
+        return Err(());
+    }
+    let opened_after = file.metadata().map_err(|_| ())?;
+    let after = fs::symlink_metadata(path).map_err(|_| ())?;
+    let canonical_after = fs::canonicalize(path).map_err(|_| ())?;
+    let identity_token = file_identity_token(&opened);
+    if after.file_type().is_symlink()
+        || !after.file_type().is_file()
+        || file_identity_token(&opened_after) != identity_token
+        || file_identity_token(&after) != identity_token
+        || canonical_after != canonical_before
+        || !canonical_after.starts_with(canonical_boundary)
+    {
+        return Err(());
+    }
+    Ok(BoundedRegularFile {
+        bytes,
+        identity_token,
+    })
+}
+
+fn configure_no_follow(options: &mut OpenOptions) -> Result<(), ()> {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        const O_NOFOLLOW: i32 = 0x20_000;
+        options.custom_flags(O_NOFOLLOW);
+        return Ok(());
+    }
+    #[cfg(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "freebsd",
+        target_os = "openbsd",
+        target_os = "netbsd",
+        target_os = "dragonfly"
+    ))]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        const O_NOFOLLOW: i32 = 0x100;
+        options.custom_flags(O_NOFOLLOW);
+        return Ok(());
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+        options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+        return Ok(());
+    }
+    #[allow(unreachable_code)]
+    Err(())
+}
+
+pub(crate) fn file_identity_token(metadata: &fs::Metadata) -> String {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        format!(
+            "dev:{}:ino:{}:mode:{}:len:{}:mtime:{}:{}:ctime:{}:{}",
+            metadata.dev(),
+            metadata.ino(),
+            metadata.mode(),
+            metadata.len(),
+            metadata.mtime(),
+            metadata.mtime_nsec(),
+            metadata.ctime(),
+            metadata.ctime_nsec(),
+        )
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        format!(
+            "attributes:{}:len:{}:created:{}:accessed:{}:written:{}",
+            metadata.file_attributes(),
+            metadata.file_size(),
+            metadata.creation_time(),
+            metadata.last_access_time(),
+            metadata.last_write_time(),
+        )
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        format!(
+            "len:{}:readonly:{}",
+            metadata.len(),
+            metadata.permissions().readonly()
+        )
+    }
 }
 
 fn classify_failed_status(output: &GitCommandOutput) -> GitServiceState {
@@ -1548,6 +1769,8 @@ fn observed_at_now() -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::process::Command;
+
     use super::*;
 
     #[test]
@@ -1590,6 +1813,16 @@ mod tests {
     }
 
     #[test]
+    fn rejects_non_utf8_porcelain_before_path_parsing() {
+        let raw = b"# branch.head main\0? invalid-\xff-name\0";
+        let error = parse_porcelain_v2(raw).expect_err("non-UTF-8 path must fail closed");
+        assert_eq!(
+            error.to_string(),
+            "porcelain status contains a non-UTF-8 path or ref"
+        );
+    }
+
+    #[test]
     fn projections_share_truth_source() {
         let request =
             GitStatusRequest::with_observed_at("workspace.alpha", "/tmp/project", "mono:git:1");
@@ -1610,16 +1843,25 @@ mod tests {
     fn detects_repository_config_that_can_start_processes() {
         for config in [
             "[core]\n\tfsmonitor = ./watcher\n",
+            "[core]\n\tsshCommand = ./hostile-ssh\n",
             "[includeIf \"gitdir:~/work\"]\n\tpath = ../shared.config\n",
             "[filter \"secret\"]\n\tprocess = ./filter\n",
+            "[filter.secret]\n\tclean = ./old-style-filter\n",
             "diff.binary.textconv = ./decoder\n",
             "[merge \"custom\"]\n\tdriver = ./merge %O %A %B\n",
             "[credential]\n\thelper = ./credential-helper\n",
+            "[url \"ssh://replacement.invalid/\"]\n\tinsteadOf = https://example.invalid/\n",
+            "[protocol \"ext\"]\n\tallow = always\n",
+            "[remote \"origin\"]\n\treceivepack = ./fake-receive-pack\n",
+            "[http]\n\tproxy = http://proxy.invalid\n",
+            "[submodule \"nested\"]\n\tupdate = !./updater\n",
+            "[submodule \"nested\"]\n\tupdate = \"!./quoted-updater\"\n",
+            "\u{feff}[include]\n\tpath = ../hidden.config\n",
         ] {
             assert!(git_config_declares_process_surface(config), "{config}");
         }
         assert!(!git_config_declares_process_surface(
-            "[core]\n\trepositoryformatversion = 0\n[status]\n\tshowuntrackedfiles = all\n"
+            "[core]\n\trepositoryformatversion = 0\n[status]\n\tshowuntrackedfiles = all\n[remote \"origin\"]\n\turl = /tmp/remote.git\n"
         ));
     }
 
