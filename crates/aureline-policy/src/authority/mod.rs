@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Runtime authority tickets for credential projection, privileged attach,
 //! and root-authority changes.
 //!
@@ -1569,7 +1572,7 @@ fn check_spend(
                     )
                     || ticket.sandbox_binding != spend.current_sandbox_binding
                     || ticket.lineage.authority_source_ref != spend.current_authority_source_ref
-                    || evaluated_after_expires(spend, ticket)
+                    || !admitted_timestamp_lineage_is_current(spend, ticket)
                     || admitted_credential_projection_missing(ticket, projections_by_id)
                     || admitted_root_proof_missing(ticket)
                 {
@@ -1577,7 +1580,7 @@ fn check_spend(
                         AuthorityTicketDefectKind::SpendAdmittedUnderDrift,
                         spend.spend_attempt_id.clone(),
                         "evaluation_outcome",
-                        "admitted spend must match ticket class, actor, target, sandbox, policy epoch, authority source, expiry, and privileged lineage",
+                        "admitted spend must match ticket class, actor, target, sandbox, policy epoch, authority source, valid timestamp lineage, and privileged lineage",
                     ));
                 }
             }
@@ -1945,7 +1948,12 @@ fn check_ticket_lifetime(defects: &mut Vec<AuthorityTicketDefect>, ticket: &Auth
             "expires_at",
             "expires_at must be after issued_at",
         )),
-        _ => {}
+        _ => defects.push(AuthorityTicketDefect::new(
+            AuthorityTicketDefectKind::TicketLifetimeMismatch,
+            ticket.ticket_id.clone(),
+            "issued_at/expires_at",
+            "issued_at and expires_at must be valid UTC timestamps",
+        )),
     }
 }
 
@@ -1979,29 +1987,45 @@ fn check_remembered_rule(defects: &mut Vec<AuthorityTicketDefect>, ticket: &Auth
     }
 }
 
-fn evaluated_after_expires(
+fn admitted_timestamp_lineage_is_current(
     spend: &AuthorityTicketSpendAttempt,
     ticket: &AuthorityTicketRecord,
 ) -> bool {
     match (
+        parse_timestamp(&ticket.issued_at),
         parse_timestamp(&spend.evaluated_at),
         parse_timestamp(&ticket.expires_at),
     ) {
-        (Some(evaluated), Some(expires)) => evaluated > expires,
+        (Some(issued), Some(evaluated), Some(expires)) => {
+            issued <= evaluated && evaluated <= expires
+        }
         _ => false,
     }
 }
 
-/// Minimal strict UTC timestamp parser for `YYYY-MM-DDTHH:MM:SSZ`.
+/// Minimal RFC 3339 parser that returns the timestamp as seconds since the
+/// Unix epoch. The parser is deliberately strict: timestamps must use the
+/// `YYYY-MM-DDTHH:MM:SSZ` shape (UTC, second precision) so authority fixtures
+/// and drift drills stay reviewer-legible without pulling chrono into this
+/// crate.
 fn parse_timestamp(value: &str) -> Option<i64> {
     let bytes = value.as_bytes();
-    if bytes.len() != 20
-        || bytes[4] != b'-'
+    if bytes.len() != 20 {
+        return None;
+    }
+    if bytes[4] != b'-'
         || bytes[7] != b'-'
         || bytes[10] != b'T'
         || bytes[13] != b':'
         || bytes[16] != b':'
         || bytes[19] != b'Z'
+    {
+        return None;
+    }
+    if bytes
+        .iter()
+        .enumerate()
+        .any(|(index, byte)| !matches!(index, 4 | 7 | 10 | 13 | 16 | 19) && !byte.is_ascii_digit())
     {
         return None;
     }
@@ -2011,23 +2035,35 @@ fn parse_timestamp(value: &str) -> Option<i64> {
     let hour: i64 = std::str::from_utf8(&bytes[11..13]).ok()?.parse().ok()?;
     let minute: i64 = std::str::from_utf8(&bytes[14..16]).ok()?.parse().ok()?;
     let second: i64 = std::str::from_utf8(&bytes[17..19]).ok()?.parse().ok()?;
-    if !(1..=12).contains(&month)
-        || !(1..=31).contains(&day)
-        || hour > 23
-        || minute > 59
-        || second > 60
-    {
+    if year == 0 || !(1..=12).contains(&month) || day < 1 {
+        return None;
+    }
+    if hour > 23 || minute > 59 || second > 59 {
         return None;
     }
     let days_per_month: [i64; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    let mut days_before_year = 0;
-    for y in 1970..year {
-        days_before_year += 365;
-        if is_leap(y) {
-            days_before_year += 1;
+    let max_day =
+        days_per_month[(month - 1) as usize] + if month == 2 && is_leap(year) { 1 } else { 0 };
+    if day > max_day {
+        return None;
+    }
+    let mut days_before_year: i64 = 0;
+    if year >= 1970 {
+        for y in 1970..year {
+            days_before_year += 365;
+            if is_leap(y) {
+                days_before_year += 1;
+            }
+        }
+    } else {
+        for y in year..1970 {
+            days_before_year -= 365;
+            if is_leap(y) {
+                days_before_year -= 1;
+            }
         }
     }
-    let mut days_before_month = 0;
+    let mut days_before_month: i64 = 0;
     for (m, &count) in days_per_month.iter().enumerate() {
         if (m as i64) + 1 >= month {
             break;
@@ -2037,12 +2073,9 @@ fn parse_timestamp(value: &str) -> Option<i64> {
             days_before_month += 1;
         }
     }
-    Some(
-        (days_before_year + days_before_month + day - 1) * 86_400
-            + hour * 3600
-            + minute * 60
-            + second,
-    )
+    let day_of_year = days_before_month + (day - 1);
+    let total_days = days_before_year + day_of_year;
+    Some(total_days * 86_400 + hour * 3600 + minute * 60 + second)
 }
 
 const fn is_leap(year: i64) -> bool {
@@ -2843,6 +2876,75 @@ mod tests {
             .iter()
             .any(|defect| defect.defect_kind
                 == AuthorityTicketDefectKind::SpendAdmittedWithoutTicket));
+    }
+
+    #[test]
+    fn validator_flags_admitted_spend_before_ticket_issuance() {
+        let mut page = seeded_authority_ticket_page();
+        let spend = page
+            .spend_attempts
+            .iter_mut()
+            .find(|spend| spend.evaluation_outcome == AuthorityEvaluationOutcome::Admitted)
+            .expect("seeded admitted spend");
+        spend.evaluated_at = "2026-05-18T09:59:59Z".to_owned();
+
+        let defects = validate_authority_ticket_page(&page)
+            .expect_err("admitted spend before ticket issuance must be rejected");
+        assert!(
+            defects
+                .iter()
+                .any(|defect| defect.defect_kind
+                    == AuthorityTicketDefectKind::SpendAdmittedUnderDrift)
+        );
+    }
+
+    #[test]
+    fn validator_flags_admitted_spend_with_invalid_evaluated_at() {
+        let mut page = seeded_authority_ticket_page();
+        let spend = page
+            .spend_attempts
+            .iter_mut()
+            .find(|spend| spend.evaluation_outcome == AuthorityEvaluationOutcome::Admitted)
+            .expect("seeded admitted spend");
+        spend.evaluated_at = "2026-02-30T10:01:00Z".to_owned();
+
+        let defects = validate_authority_ticket_page(&page)
+            .expect_err("admitted spend with an invalid evaluated_at must be rejected");
+        assert!(
+            defects
+                .iter()
+                .any(|defect| defect.defect_kind
+                    == AuthorityTicketDefectKind::SpendAdmittedUnderDrift)
+        );
+    }
+
+    #[test]
+    fn validator_flags_admitted_spend_with_invalid_ticket_expiry() {
+        let mut page = seeded_authority_ticket_page();
+        let ticket_ref = page
+            .spend_attempts
+            .iter()
+            .find(|spend| spend.evaluation_outcome == AuthorityEvaluationOutcome::Admitted)
+            .and_then(|spend| spend.presented_ticket_ref.clone())
+            .expect("seeded admitted spend ticket ref");
+        let ticket = page
+            .tickets
+            .iter_mut()
+            .find(|ticket| ticket.ticket_id == ticket_ref)
+            .expect("seeded admitted spend ticket");
+        ticket.expires_at = "2026-02-30T10:03:00Z".to_owned();
+
+        let defects = validate_authority_ticket_page(&page)
+            .expect_err("admitted spend with an invalid ticket expiry must be rejected");
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind == AuthorityTicketDefectKind::TicketLifetimeMismatch));
+        assert!(
+            defects
+                .iter()
+                .any(|defect| defect.defect_kind
+                    == AuthorityTicketDefectKind::SpendAdmittedUnderDrift)
+        );
     }
 
     #[test]
