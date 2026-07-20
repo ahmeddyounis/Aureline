@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 use aureline_recovery::crash_journal::{CrashJournalCaptureInput, CrashJournalStore, ObjectClass};
 use aureline_recovery::session_restore::records::{
     DowngradeTriggerClass, ProducerBuildStamp, RestoreClass, SurfaceClass, SurfaceRole,
@@ -22,6 +25,7 @@ fn capture_layout(store: &mut SessionRestoreStore, with_terminal: bool) {
     let mut tabs = vec![TabItemCaptureInput {
         tab_id: "tab-edit-router".to_string(),
         tab_label: Some("router.ts".to_string()),
+        surface_binding_ref: Some("document:router".to_string()),
         pinned: false,
         dirty_badge_visible: true,
         surface_role: SurfaceRole::Editor,
@@ -32,6 +36,7 @@ fn capture_layout(store: &mut SessionRestoreStore, with_terminal: bool) {
         tabs.push(TabItemCaptureInput {
             tab_id: "tab-terminal".to_string(),
             tab_label: Some("zsh".to_string()),
+            surface_binding_ref: None,
             pinned: false,
             dirty_badge_visible: false,
             surface_role: SurfaceRole::Terminal,
@@ -72,6 +77,8 @@ fn capture_layout(store: &mut SessionRestoreStore, with_terminal: bool) {
                 ordered_tabs: tabs,
                 active_tab_id: Some("tab-edit-router".to_string()),
             }],
+            pane_tree_layout: None,
+            focused_group_id: Some("tg-main".to_string()),
             emitted_at: "mono:test:00001".to_string(),
             notes: None,
         })
@@ -79,14 +86,23 @@ fn capture_layout(store: &mut SessionRestoreStore, with_terminal: bool) {
 }
 
 fn capture_dirty_buffer(store: &mut CrashJournalStore, bytes: &[u8]) {
+    capture_dirty_buffer_for_workspace(store, "ws-restore-execute", "router", bytes);
+}
+
+fn capture_dirty_buffer_for_workspace(
+    store: &mut CrashJournalStore,
+    workspace_ref: &str,
+    document: &str,
+    bytes: &[u8],
+) {
     store
         .capture_minimal_full_snapshot(CrashJournalCaptureInput {
-            journal_id: "journal:ws-restore-execute".to_string(),
-            workspace_ref: "ws-restore-execute".to_string(),
-            logical_document_id: "ld:router".to_string(),
-            object_ref: "aureline-ws://ws-shell_proto/root-local/src/router.ts".to_string(),
+            journal_id: format!("journal:{workspace_ref}"),
+            workspace_ref: workspace_ref.to_string(),
+            logical_document_id: format!("ld:{document}"),
+            object_ref: format!("document:{document}"),
             object_class: ObjectClass::CanonicalFile,
-            presentation_hint: Some("router.ts".to_string()),
+            presentation_hint: Some(format!("{document}.ts")),
             emitted_at: "mono:test:00002".to_string(),
             bytes: bytes.to_vec(),
         })
@@ -100,10 +116,21 @@ fn exact_restore_reopens_panes_and_replays_verified_dirty_buffer() {
     let mut crash_store = CrashJournalStore::new(dir.path());
     capture_layout(&mut session_store, false);
     capture_dirty_buffer(&mut crash_store, b"restored bytes\n");
+    capture_dirty_buffer_for_workspace(
+        &mut crash_store,
+        "ws-foreign",
+        "foreign-secret",
+        b"foreign bytes must never cross scope\n",
+    );
 
     let mut proposal =
         RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
     proposal.restore_class = RestoreClass::ExactRestore;
+    assert_eq!(
+        proposal.pane_plans[0].surface_binding_ref.as_deref(),
+        Some("document:router"),
+        "capture binding must survive the joined pane-tree proposal"
+    );
     let mut runtime = RestoreRuntime::new(&session_store, &crash_store);
     let outcome = proposal.execute(&mut runtime);
 
@@ -114,8 +141,25 @@ fn exact_restore_reopens_panes_and_replays_verified_dirty_buffer() {
         outcome.pane_outcomes[0].execution_kind,
         RestorePaneExecutionKind::Reopened
     );
+    assert_eq!(
+        outcome.pane_outcomes[0].surface_binding_ref.as_deref(),
+        Some("document:router"),
+        "validated clean-editor binding must survive execution"
+    );
     assert_eq!(outcome.dirty_buffer_replays.len(), 1);
     assert_eq!(outcome.dirty_buffer_replays[0].bytes, b"restored bytes\n");
+    assert_eq!(
+        outcome.dirty_buffer_replays[0].object_ref,
+        "document:router"
+    );
+    assert_eq!(
+        outcome.pane_outcomes[0].surface_binding_ref.as_deref(),
+        Some(outcome.dirty_buffer_replays[0].object_ref.as_str()),
+        "clean editor binding and dirty replay must share an opaque logical identity"
+    );
+    assert!(!outcome.dirty_buffer_replays[0].object_ref.contains('/'));
+    assert!(!outcome.dirty_buffer_replays[0].object_ref.contains("\\"));
+    assert!(!outcome.dirty_buffer_replays[0].object_ref.contains("://"));
 }
 
 #[test]
@@ -143,8 +187,9 @@ fn layout_only_reopens_layout_without_dirty_buffer_replay() {
 #[test]
 fn manual_repair_required_keeps_corrupt_dirty_buffer_out_of_replay() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let session_store = SessionRestoreStore::new(dir.path());
+    let mut session_store = SessionRestoreStore::new(dir.path());
     let mut crash_store = CrashJournalStore::new(dir.path());
+    capture_layout(&mut session_store, false);
     capture_dirty_buffer(&mut crash_store, b"unsafe bytes\n");
 
     let mut proposal =
@@ -170,6 +215,12 @@ fn side_effectful_terminal_surface_stays_blocked_and_inactive() {
 
     let proposal =
         RestoreProposal::build(&session_store, &crash_store, false).expect("build proposal");
+    let terminal_plan = proposal
+        .pane_plans
+        .iter()
+        .find(|pane| pane.surface_role == SurfaceRole::Terminal)
+        .expect("terminal pane plan");
+    assert!(terminal_plan.surface_binding_ref.is_none());
     let mut runtime = RestoreRuntime::new(&session_store, &crash_store);
     let outcome = proposal.execute(&mut runtime);
 
@@ -183,6 +234,7 @@ fn side_effectful_terminal_surface_stays_blocked_and_inactive() {
         terminal.execution_kind,
         RestorePaneExecutionKind::BlockedSideEffectful
     );
+    assert!(terminal.surface_binding_ref.is_none());
     let metadata = terminal
         .restore_metadata
         .as_ref()

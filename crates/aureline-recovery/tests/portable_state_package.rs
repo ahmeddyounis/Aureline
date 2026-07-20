@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 use aureline_recovery::crash_journal::{
     FrameIntegrityState, GuidedChoiceClass, ReplayPostureClass,
 };
@@ -374,6 +377,7 @@ fn restore_proposal() -> RestoreProposal {
                 surface_class: SurfaceClass::TextEditor,
                 plan_kind: RestoreProposalPlanKind::LiveSkeleton,
                 title_hint: Some("src/main.rs".to_string()),
+                surface_binding_ref: Some("document:main".to_string()),
                 restore_metadata: None,
                 note: "Editor can reopen as a lightweight skeleton.".to_string(),
             },
@@ -383,6 +387,7 @@ fn restore_proposal() -> RestoreProposal {
                 surface_class: SurfaceClass::TerminalView,
                 plan_kind: RestoreProposalPlanKind::BlockedSideEffectful,
                 title_hint: Some("zsh".to_string()),
+                surface_binding_ref: None,
                 restore_metadata: Some(TerminalPaneRestoreMetadata {
                     restore_metadata_ref: "terminal-restore-metadata:fixture".to_string(),
                     working_directory: Some("workspace-root-ref:fixture".to_string()),

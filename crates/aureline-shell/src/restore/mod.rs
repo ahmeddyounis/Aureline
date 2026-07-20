@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Restore-prompt projection for the live shell.
 //!
 //! The restore prompt is the protected pre-rehydration surface shown after
@@ -29,6 +32,7 @@ use aureline_recovery::session_restore::proposal::{
 };
 use aureline_recovery::session_restore::records::{DowngradeTriggerClass, RestoreClass};
 
+pub mod capture;
 pub mod placeholders;
 pub mod provenance;
 
@@ -479,6 +483,7 @@ mod tests {
                 ordered_tabs: vec![TabItemCaptureInput {
                     tab_id: "tab-edit-router".to_string(),
                     tab_label: Some("router.ts".to_string()),
+                    surface_binding_ref: None,
                     pinned: false,
                     dirty_badge_visible: true,
                     surface_role: SurfaceRole::Editor,
@@ -487,6 +492,8 @@ mod tests {
                 }],
                 active_tab_id: Some("tab-edit-router".to_string()),
             }],
+            pane_tree_layout: None,
+            focused_group_id: Some("tg-main".to_string()),
             emitted_at: "mono:test:00001".to_string(),
             notes: None,
         };

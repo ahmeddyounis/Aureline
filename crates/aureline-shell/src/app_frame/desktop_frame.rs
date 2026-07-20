@@ -1,4 +1,7 @@
-use crate::layout::split_tree::{PaneId, SplitAxis, SplitTree};
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::layout::split_tree::{PaneId, SplitAxis, SplitTopologyNode, SplitTree};
 use crate::layout::zone_registry::{
     Rect, ShellZoneId, ZoneDefaults, ZoneRegistry, ZoneRegistryInput, ZoneRegistryLayout,
 };
@@ -131,6 +134,21 @@ impl DesktopFrame {
 
     pub const fn focused_editor_group(&self) -> PaneId {
         self.focused_editor_group
+    }
+
+    /// Returns every editor group in pane-tree order, including groups that
+    /// are temporarily hidden by a responsive layout fallback.
+    ///
+    /// Session persistence must use this structural order rather than
+    /// [`Self::editor_group_layouts`], because the latter intentionally
+    /// projects only groups that fit in the current window width.
+    pub fn editor_group_ids_in_order(&self) -> Vec<PaneId> {
+        self.editor_splits.leaf_ids_in_order()
+    }
+
+    /// Returns a content-free structural snapshot of the editor split tree.
+    pub fn editor_split_topology(&self) -> SplitTopologyNode {
+        self.editor_splits.structural_snapshot()
     }
 
     pub fn editor_group_layouts(&self) -> Vec<EditorGroupLayout> {

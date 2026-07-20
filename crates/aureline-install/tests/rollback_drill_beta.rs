@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Beta rollback-drill tests.
 //!
 //! The beta drill matures the alpha synthetic state-root rollback into a
@@ -270,6 +273,7 @@ fn seed_session_restore(driver: &RollbackDrillDriver, root_ref: &str) {
                 ordered_tabs: vec![TabItemCaptureInput {
                     tab_id: "tab:editor".to_string(),
                     tab_label: Some("main.rs".to_string()),
+                    surface_binding_ref: None,
                     pinned: false,
                     dirty_badge_visible: false,
                     surface_role: SurfaceRole::Editor,
@@ -278,6 +282,8 @@ fn seed_session_restore(driver: &RollbackDrillDriver, root_ref: &str) {
                 }],
                 active_tab_id: Some("tab:editor".to_string()),
             }],
+            pane_tree_layout: None,
+            focused_group_id: Some("group:main".to_string()),
             emitted_at: "2026-05-15T00:00:00Z".to_string(),
             notes: Some("synthetic beta rollback drill restore seed".to_string()),
         })

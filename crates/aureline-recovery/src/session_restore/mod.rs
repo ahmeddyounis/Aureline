@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Session-restore skeleton persistence.
 //!
 //! Session restore is split into two durable packet families:
@@ -21,5 +24,5 @@ pub use proposal::{
 };
 pub use store::{
     SessionRestoreCaptureInput, SessionRestoreError, SessionRestoreLatestRefs, SessionRestoreStore,
-    SessionRestoreSummary, TabGroupCaptureInput, TabItemCaptureInput,
+    SessionRestoreSummary, TabGroupCaptureInput, TabGroupLayoutCapture, TabItemCaptureInput,
 };

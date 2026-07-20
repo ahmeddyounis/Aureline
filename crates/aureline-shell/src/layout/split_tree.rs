@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::layout::zone_registry::Rect;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -9,9 +12,39 @@ impl PaneId {
     }
 }
 
+/// Stable identifier for one live split node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SplitId(u64);
+
+impl SplitId {
+    pub const fn value(self) -> u64 {
+        self.0
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SplitAxis {
     Vertical,
+}
+
+/// Read-only structural snapshot of a live split tree.
+///
+/// The snapshot carries no pane contents or authority. It exists so session
+/// restore can preserve split identity, nesting, child order, orientation,
+/// and weights without reaching into the mutable layout tree.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SplitTopologyNode {
+    Leaf {
+        pane_id: PaneId,
+    },
+    Split {
+        split_id: SplitId,
+        axis: SplitAxis,
+        first_weight: u16,
+        second_weight: u16,
+        first: Box<SplitTopologyNode>,
+        second: Box<SplitTopologyNode>,
+    },
 }
 
 impl SplitAxis {
@@ -28,6 +61,7 @@ enum Node {
         pane_id: PaneId,
     },
     Split {
+        split_id: SplitId,
         axis: SplitAxis,
         first_weight: u16,
         second_weight: u16,
@@ -63,7 +97,13 @@ impl Node {
         }
     }
 
-    fn split_leaf(&mut self, leaf: PaneId, axis: SplitAxis, new_leaf: PaneId) -> bool {
+    fn split_leaf(
+        &mut self,
+        leaf: PaneId,
+        axis: SplitAxis,
+        new_leaf: PaneId,
+        new_split: SplitId,
+    ) -> bool {
         match self {
             Self::Leaf { pane_id } => {
                 if *pane_id != leaf {
@@ -71,6 +111,7 @@ impl Node {
                 }
                 let old_leaf = *pane_id;
                 *self = Self::Split {
+                    split_id: new_split,
                     axis,
                     first_weight: 1,
                     second_weight: 1,
@@ -80,12 +121,33 @@ impl Node {
                 true
             }
             Self::Split { first, second, .. } => {
-                if first.split_leaf(leaf, axis, new_leaf) {
+                if first.split_leaf(leaf, axis, new_leaf, new_split) {
                     true
                 } else {
-                    second.split_leaf(leaf, axis, new_leaf)
+                    second.split_leaf(leaf, axis, new_leaf, new_split)
                 }
             }
+        }
+    }
+
+    fn structural_snapshot(&self) -> SplitTopologyNode {
+        match self {
+            Self::Leaf { pane_id } => SplitTopologyNode::Leaf { pane_id: *pane_id },
+            Self::Split {
+                split_id,
+                axis,
+                first_weight,
+                second_weight,
+                first,
+                second,
+            } => SplitTopologyNode::Split {
+                split_id: *split_id,
+                axis: *axis,
+                first_weight: *first_weight,
+                second_weight: *second_weight,
+                first: Box::new(first.structural_snapshot()),
+                second: Box::new(second.structural_snapshot()),
+            },
         }
     }
 
@@ -127,6 +189,7 @@ impl Node {
                 second_weight,
                 first,
                 second,
+                ..
             } => match axis {
                 SplitAxis::Vertical => {
                     let first_required = (first.leaf_count() as u32).saturating_mul(min_leaf_width);
@@ -191,6 +254,7 @@ pub enum SplitLayoutError {
 #[derive(Debug, Clone)]
 pub struct SplitTree {
     next_pane_id: u64,
+    next_split_id: u64,
     root: Node,
 }
 
@@ -198,6 +262,7 @@ impl SplitTree {
     pub fn single() -> Self {
         Self {
             next_pane_id: 2,
+            next_split_id: 1,
             root: Node::Leaf { pane_id: PaneId(1) },
         }
     }
@@ -219,6 +284,10 @@ impl SplitTree {
         out
     }
 
+    pub fn structural_snapshot(&self) -> SplitTopologyNode {
+        self.root.structural_snapshot()
+    }
+
     pub fn contains_leaf(&self, leaf: PaneId) -> bool {
         self.root.contains_leaf(leaf)
     }
@@ -233,7 +302,9 @@ impl SplitTree {
         }
         let new_leaf = PaneId(self.next_pane_id);
         self.next_pane_id = self.next_pane_id.saturating_add(1);
-        if self.root.split_leaf(leaf, axis, new_leaf) {
+        let new_split = SplitId(self.next_split_id);
+        self.next_split_id = self.next_split_id.saturating_add(1);
+        if self.root.split_leaf(leaf, axis, new_leaf, new_split) {
             Some(new_leaf)
         } else {
             None
@@ -274,6 +345,57 @@ mod tests {
         assert_eq!(second.value(), 2);
         assert_eq!(tree.leaf_count(), 2);
         assert_eq!(tree.leaf_ids_in_order(), vec![root, second]);
+    }
+
+    #[test]
+    fn structural_snapshot_preserves_nested_split_ids_order_and_weights() {
+        let mut tree = SplitTree::single();
+        let first = tree.root_leaf();
+        let second = tree
+            .split_leaf(first, SplitAxis::Vertical)
+            .expect("outer split");
+        let third = tree
+            .split_leaf(second, SplitAxis::Vertical)
+            .expect("inner split");
+
+        let SplitTopologyNode::Split {
+            split_id,
+            first_weight,
+            second_weight,
+            first: outer_first,
+            second: outer_second,
+            ..
+        } = tree.structural_snapshot()
+        else {
+            panic!("outer split snapshot")
+        };
+        assert_eq!(split_id.value(), 1);
+        assert_eq!((first_weight, second_weight), (1, 1));
+        assert!(matches!(
+            *outer_first,
+            SplitTopologyNode::Leaf { pane_id } if pane_id == first
+        ));
+        let SplitTopologyNode::Split {
+            split_id,
+            first_weight,
+            second_weight,
+            first: inner_first,
+            second: inner_second,
+            ..
+        } = *outer_second
+        else {
+            panic!("inner split snapshot")
+        };
+        assert_eq!(split_id.value(), 2);
+        assert_eq!((first_weight, second_weight), (1, 1));
+        assert!(matches!(
+            *inner_first,
+            SplitTopologyNode::Leaf { pane_id } if pane_id == second
+        ));
+        assert!(matches!(
+            *inner_second,
+            SplitTopologyNode::Leaf { pane_id } if pane_id == third
+        ));
     }
 
     #[test]

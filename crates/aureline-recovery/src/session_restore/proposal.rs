@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Restore-proposal builder.
 //!
 //! A `RestoreProposal` is the canonical pre-rehydration summary that recovery
@@ -31,10 +34,11 @@ use crate::crash_journal::{
 };
 
 use super::records::{
-    DowngradeTriggerClass, RestoreClass, StablePaneInventoryEntry, SurfaceClass, SurfaceRole,
-    TerminalPaneRestoreMetadata, WindowTopologySnapshotRecord, WorkspaceAuthorityCheckpointRecord,
+    DowngradeTriggerClass, PaneNode, PaneSurfaceDescriptor, RestoreClass, StablePaneInventoryEntry,
+    SurfaceClass, SurfaceRole, TerminalPaneRestoreMetadata, WindowTopologySnapshotBodyRecord,
+    WindowTopologySnapshotRecord, WorkspaceAuthorityCheckpointRecord,
 };
-use super::store::{SessionRestoreError, SessionRestoreStore};
+use super::store::{is_bounded_opaque_ref, SessionRestoreError, SessionRestoreStore};
 
 /// Schema version for `RestoreProposalRecord`.
 pub type RestoreProposalSchemaVersion = u32;
@@ -88,6 +92,10 @@ pub struct RestoreProposalPanePlan {
     pub plan_kind: RestoreProposalPlanKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title_hint: Option<String>,
+    /// Opaque durable surface identity resolved from the joined pane-tree body.
+    /// It is never a path, URL, or live capability handle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub surface_binding_ref: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub restore_metadata: Option<TerminalPaneRestoreMetadata>,
     pub note: String,
@@ -167,6 +175,9 @@ pub struct RestorePaneOutcome {
     pub execution_kind: RestorePaneExecutionKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title_hint: Option<String>,
+    /// Validated opaque surface identity for a non-side-effectful outcome.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub surface_binding_ref: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub restore_metadata: Option<TerminalPaneRestoreMetadata>,
     pub note: String,
@@ -252,9 +263,9 @@ impl RestoreProposal {
     /// Builds the canonical pre-rehydration proposal from persisted state.
     ///
     /// Reads at most one workspace-authority checkpoint, one topology
-    /// snapshot, and the live crash-journal entries. Missing or corrupt
-    /// records downgrade the `restore_class` and record the trigger; the
-    /// builder never invents counts or plans for things it cannot read.
+    /// snapshot, its joined pane-tree body, and the live crash-journal entries.
+    /// Missing or corrupt records downgrade the `restore_class` and record the
+    /// trigger; the builder never invents counts or bindings it cannot read.
     pub fn build(
         session_store: &SessionRestoreStore,
         crash_store: &CrashJournalStore,
@@ -268,6 +279,7 @@ impl RestoreProposal {
         let latest_refs = session_store.latest_refs()?;
         let mut checkpoint: Option<WorkspaceAuthorityCheckpointRecord> = None;
         let mut snapshot: Option<WindowTopologySnapshotRecord> = None;
+        let mut joined_workspace_ref: Option<String> = None;
 
         if let Some(latest) = latest_refs.as_ref() {
             artifact_refs.checkpoint_id = Some(latest.checkpoint_id.clone());
@@ -306,11 +318,55 @@ impl RestoreProposal {
                         .iter()
                         .filter(|pane| is_transient_task(pane.surface_role, pane.surface_class))
                         .count();
-                    pane_plans = record
-                        .stable_pane_id_inventory
-                        .iter()
-                        .map(materialize_pane_plan)
-                        .collect();
+                    pane_plans = match session_store.load_pane_tree_body(&latest.snapshot_id) {
+                        Ok(body) => match checkpoint
+                            .as_ref()
+                            .ok_or("workspace checkpoint is unavailable")
+                            .and_then(|checkpoint| {
+                                joined_pane_surfaces(&record, &body, checkpoint).map(|surfaces| {
+                                    (
+                                        surfaces,
+                                        joined_workspace_ref_from_records(
+                                            checkpoint, &record, &body,
+                                        )
+                                        .map(str::to_string),
+                                    )
+                                })
+                            }) {
+                            Ok((surfaces, Some(workspace_ref))) => {
+                                joined_workspace_ref = Some(workspace_ref);
+                                record
+                                    .stable_pane_id_inventory
+                                    .iter()
+                                    .map(|pane| {
+                                        materialize_pane_plan(
+                                            pane,
+                                            surfaces.get(&pane.pane_id).and_then(|surface| {
+                                                surface.surface_binding_ref.as_deref()
+                                            }),
+                                            true,
+                                        )
+                                    })
+                                    .collect()
+                            }
+                            Ok((_, None)) | Err(_) => {
+                                push_manual_repair_once(&mut downgrade_triggers);
+                                record
+                                    .stable_pane_id_inventory
+                                    .iter()
+                                    .map(|pane| materialize_pane_plan(pane, None, false))
+                                    .collect()
+                            }
+                        },
+                        Err(_) => {
+                            push_manual_repair_once(&mut downgrade_triggers);
+                            record
+                                .stable_pane_id_inventory
+                                .iter()
+                                .map(|pane| materialize_pane_plan(pane, None, false))
+                                .collect()
+                        }
+                    };
                     snapshot = Some(record);
                 }
                 Err(_) => {
@@ -319,9 +375,16 @@ impl RestoreProposal {
             }
         }
 
-        let crash_entries = crash_store
-            .load_entries()
-            .map_err(|err| SessionRestoreError::MissingRecord(err.to_string()))?;
+        let crash_entries = match joined_workspace_ref.as_deref() {
+            Some(workspace_ref) => crash_store
+                .load_entries_for_workspace(workspace_ref)
+                .map_err(|_| {
+                    SessionRestoreError::MissingRecord(
+                        "scoped crash journal unavailable".to_string(),
+                    )
+                })?,
+            None => Vec::new(),
+        };
         let dirty_buffer_entries = collect_dirty_buffer_entries(&crash_entries);
         counts.dirty_buffer_journals = dirty_buffer_entries.len();
 
@@ -422,20 +485,26 @@ impl RestoreProposal {
             return outcome;
         }
 
-        if let Some(snapshot_id) = self.artifact_refs.snapshot_id.as_deref() {
-            if runtime
-                .session_store
-                .load_pane_tree_body(snapshot_id)
-                .is_err()
-            {
-                outcome.manual_repair_required = true;
-            }
+        let joined_workspace_ref =
+            resolve_joined_workspace_ref(runtime.session_store, &self.artifact_refs);
+        if self.artifact_refs.snapshot_id.is_some() && joined_workspace_ref.is_none() {
+            outcome.manual_repair_required = true;
         }
 
         let evidence_only_restore = matches!(
             self.restore_class,
             RestoreClass::EvidenceOnly | RestoreClass::NoRestore
         );
+
+        if self.pane_plans.iter().any(|plan| {
+            !pane_binding_is_admissible(plan)
+                || plan
+                    .restore_metadata
+                    .as_ref()
+                    .is_some_and(|metadata| !terminal_metadata_is_safe(metadata))
+        }) {
+            outcome.manual_repair_required = true;
+        }
 
         outcome.pane_outcomes = self
             .pane_plans
@@ -447,15 +516,30 @@ impl RestoreProposal {
             return outcome;
         }
 
-        let crash_entries = match runtime.crash_store.load_entries() {
+        let Some(workspace_ref) = joined_workspace_ref.as_deref() else {
+            outcome.manual_repair_required = true;
+            for entry in self.dirty_buffer_entries {
+                outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
+                    &entry,
+                    RestoreDirtyBufferFailureKind::StoreUnavailable,
+                    "exact workspace recovery scope is unavailable".to_string(),
+                ));
+            }
+            return outcome;
+        };
+
+        let crash_entries = match runtime
+            .crash_store
+            .load_entries_for_workspace(workspace_ref)
+        {
             Ok(entries) => entries,
-            Err(err) => {
+            Err(_) => {
                 outcome.manual_repair_required = true;
                 for entry in self.dirty_buffer_entries {
                     outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
                         &entry,
                         RestoreDirtyBufferFailureKind::StoreUnavailable,
-                        err.to_string(),
+                        "scoped crash journal unavailable".to_string(),
                     ));
                 }
                 return outcome;
@@ -487,6 +571,24 @@ impl RestoreProposal {
                 ));
                 continue;
             };
+
+            if record.workspace_ref != workspace_ref
+                || record.journal_id != entry.journal_id
+                || record.object_identity.object_ref != entry.object_ref
+                || record.object_identity.presentation_hint != entry.presentation_hint
+                || record.replay_posture.object_class_replay_posture != entry.replay_posture
+                || record.integrity.frame_integrity_state != entry.frame_integrity
+                || record.replay_posture.recommended_choice_class != entry.recommended_choice
+            {
+                outcome.manual_repair_required = true;
+                outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
+                    &entry,
+                    RestoreDirtyBufferFailureKind::ManualRepairRequired,
+                    "proposal dirty-buffer row does not match its scoped journal record"
+                        .to_string(),
+                ));
+                continue;
+            }
 
             if !record.capture_descriptor.body_available {
                 outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
@@ -554,10 +656,13 @@ fn execute_pane_plan(
     plan: RestoreProposalPanePlan,
     evidence_only_restore: bool,
 ) -> RestorePaneOutcome {
-    let execution_kind = if matches!(
-        plan.plan_kind,
-        RestoreProposalPlanKind::BlockedSideEffectful
-    ) {
+    let side_effectful = is_terminal_like(plan.surface_role, plan.surface_class)
+        || is_transient_task(plan.surface_role, plan.surface_class);
+    let execution_kind = if side_effectful
+        || matches!(
+            plan.plan_kind,
+            RestoreProposalPlanKind::BlockedSideEffectful
+        ) {
         RestorePaneExecutionKind::BlockedSideEffectful
     } else if evidence_only_restore
         || matches!(plan.plan_kind, RestoreProposalPlanKind::EvidenceOnly)
@@ -587,13 +692,18 @@ fn execute_pane_plan(
             "side-effectful surface restored inactive; no commands rerun".to_string()
         }
     };
+    let surface_binding_ref = plan
+        .surface_binding_ref
+        .filter(|binding| !side_effectful && is_bounded_opaque_ref(binding));
+    let restore_metadata = plan.restore_metadata.filter(terminal_metadata_is_safe);
     RestorePaneOutcome {
         pane_id: plan.pane_id,
         surface_role: plan.surface_role,
         surface_class: plan.surface_class,
         execution_kind,
         title_hint: plan.title_hint,
-        restore_metadata: plan.restore_metadata,
+        surface_binding_ref,
+        restore_metadata,
         note,
     }
 }
@@ -643,8 +753,199 @@ fn collect_dirty_buffer_entries(
     out
 }
 
-fn materialize_pane_plan(pane: &StablePaneInventoryEntry) -> RestoreProposalPanePlan {
-    let plan_kind = classify_pane_plan(pane.surface_role, pane.surface_class);
+const MAX_JOINED_PANE_NODES: usize = 2_048;
+const MAX_JOINED_PANES: usize = 1_024;
+const MAX_JOINED_TABS_PER_GROUP: usize = 256;
+
+fn resolve_joined_workspace_ref(
+    session_store: &SessionRestoreStore,
+    artifact_refs: &RestoreProposalArtifactRefs,
+) -> Option<String> {
+    let checkpoint_id = artifact_refs.checkpoint_id.as_deref()?;
+    let snapshot_id = artifact_refs.snapshot_id.as_deref()?;
+    let checkpoint = session_store.load_checkpoint(checkpoint_id).ok()?;
+    let snapshot = session_store
+        .load_window_topology_snapshot(snapshot_id)
+        .ok()?;
+    let body = session_store.load_pane_tree_body(snapshot_id).ok()?;
+    if artifact_refs.workspace_authority_ref.as_deref()
+        != Some(checkpoint.workspace_authority_ref.as_str())
+        || artifact_refs.window_id.as_deref() != Some(snapshot.window_id.as_str())
+        || joined_pane_surfaces(&snapshot, &body, &checkpoint).is_err()
+    {
+        return None;
+    }
+    joined_workspace_ref_from_records(&checkpoint, &snapshot, &body).map(str::to_string)
+}
+
+fn joined_workspace_ref_from_records<'a>(
+    checkpoint: &'a WorkspaceAuthorityCheckpointRecord,
+    snapshot: &WindowTopologySnapshotRecord,
+    body: &WindowTopologySnapshotBodyRecord,
+) -> Option<&'a str> {
+    if snapshot.workspace_authority_checkpoint_ref != checkpoint.checkpoint_id
+        || body.snapshot_id != snapshot.snapshot_id
+        || body.scope_refs.workspace_authority_ref != checkpoint.workspace_authority_ref
+    {
+        return None;
+    }
+    let workspace_ref = checkpoint
+        .workspace_authority_ref
+        .strip_prefix("workspace-authority:")?;
+    is_bounded_opaque_ref(workspace_ref).then_some(workspace_ref)
+}
+
+fn joined_pane_surfaces(
+    snapshot: &WindowTopologySnapshotRecord,
+    body: &WindowTopologySnapshotBodyRecord,
+    checkpoint: &WorkspaceAuthorityCheckpointRecord,
+) -> Result<HashMap<String, PaneSurfaceDescriptor>, &'static str> {
+    if joined_workspace_ref_from_records(checkpoint, snapshot, body).is_none()
+        || body.snapshot_id != snapshot.snapshot_id
+        || body.window_id != snapshot.window_id
+        || body.window_role != snapshot.window_role
+        || body.topology_family_ref != snapshot.topology_family_ref
+        || body.sibling_window_refs != snapshot.sibling_window_refs
+        || body.pane_tree_schema_version != snapshot.pane_tree_schema_version
+        || body.emitted_at != snapshot.emitted_at
+    {
+        return Err("pane-tree body does not belong to the topology snapshot");
+    }
+
+    let mut surfaces = HashMap::new();
+    let mut nodes = vec![&body.pane_tree.root_node];
+    let mut visited_nodes = 0_usize;
+    while let Some(node) = nodes.pop() {
+        visited_nodes = visited_nodes.saturating_add(1);
+        if visited_nodes > MAX_JOINED_PANE_NODES {
+            return Err("pane-tree body exceeds the node bound");
+        }
+        match node {
+            PaneNode::Leaf { pane_id, surface } => {
+                insert_joined_surface(&mut surfaces, pane_id, surface)?;
+            }
+            PaneNode::Split { children, .. } => {
+                if children.len() < 2 || children.len() > MAX_JOINED_PANE_NODES {
+                    return Err("pane-tree split cardinality is invalid");
+                }
+                nodes.extend(children.iter().rev());
+            }
+            PaneNode::TabGroup { tabs, .. } => {
+                if tabs.is_empty() || tabs.len() > MAX_JOINED_TABS_PER_GROUP {
+                    return Err("pane-tree tab-group cardinality is invalid");
+                }
+                for tab in tabs {
+                    if tab.pane.node_kind != "leaf" {
+                        return Err("tab pane has an invalid node kind");
+                    }
+                    insert_joined_surface(&mut surfaces, &tab.pane.pane_id, &tab.pane.surface)?;
+                }
+            }
+        }
+        if surfaces.len() > MAX_JOINED_PANES {
+            return Err("pane-tree body exceeds the pane bound");
+        }
+    }
+
+    if surfaces.len() != snapshot.stable_pane_id_inventory.len() {
+        return Err("pane-tree and stable pane inventory cardinality differ");
+    }
+    for pane in &snapshot.stable_pane_id_inventory {
+        let Some(surface) = surfaces.get(&pane.pane_id) else {
+            return Err("stable pane id is absent from the pane-tree body");
+        };
+        if surface.surface_role != pane.surface_role
+            || surface.surface_class != pane.surface_class
+            || surface.hydration_behavior != pane.hydration_behavior
+            || surface.availability_state != pane.availability_state
+            || surface.title_hint != pane.title_hint
+            || surface.restore_metadata != pane.restore_metadata
+            || surface.follow_anchor_candidate != pane.follow_anchor_candidate
+            || surface.presentation_spotlighted != pane.presentation_spotlighted
+        {
+            return Err("pane-tree descriptor does not match stable pane inventory");
+        }
+        if surface
+            .surface_binding_ref
+            .as_ref()
+            .is_some_and(|binding| !is_bounded_opaque_ref(binding))
+        {
+            return Err("pane-tree surface binding is not a bounded opaque id");
+        }
+        if (is_terminal_like(pane.surface_role, pane.surface_class)
+            || is_transient_task(pane.surface_role, pane.surface_class))
+            && surface.surface_binding_ref.is_some()
+        {
+            return Err("side-effectful pane must not carry a surface binding");
+        }
+        if pane
+            .restore_metadata
+            .as_ref()
+            .is_some_and(|metadata| !terminal_metadata_is_safe(metadata))
+        {
+            return Err("pane restore metadata violates no-rerun posture");
+        }
+    }
+    Ok(surfaces)
+}
+
+fn insert_joined_surface(
+    surfaces: &mut HashMap<String, PaneSurfaceDescriptor>,
+    pane_id: &str,
+    surface: &PaneSurfaceDescriptor,
+) -> Result<(), &'static str> {
+    if pane_id.is_empty()
+        || pane_id == "."
+        || pane_id == ".."
+        || pane_id.len() > 2_048
+        || !pane_id.chars().all(|ch| {
+            ch.is_ascii_alphanumeric() || matches!(ch, ':' | '.' | '_' | '-' | '#' | '@' | '|')
+        })
+        || surfaces
+            .insert(pane_id.to_string(), surface.clone())
+            .is_some()
+    {
+        return Err("pane ids must be bounded and unique");
+    }
+    Ok(())
+}
+
+fn push_manual_repair_once(downgrade_triggers: &mut Vec<DowngradeTriggerClass>) {
+    if !downgrade_triggers.contains(&DowngradeTriggerClass::ManualRepairRequired) {
+        downgrade_triggers.push(DowngradeTriggerClass::ManualRepairRequired);
+    }
+}
+
+fn pane_binding_is_admissible(plan: &RestoreProposalPanePlan) -> bool {
+    plan.surface_binding_ref.as_ref().map_or(true, |binding| {
+        is_bounded_opaque_ref(binding)
+            && !is_terminal_like(plan.surface_role, plan.surface_class)
+            && !is_transient_task(plan.surface_role, plan.surface_class)
+    })
+}
+
+fn terminal_metadata_is_safe(metadata: &TerminalPaneRestoreMetadata) -> bool {
+    is_bounded_opaque_ref(&metadata.restore_metadata_ref)
+        && metadata.auto_rerun_forbidden
+        && !metadata.raw_command_body_present
+        && !metadata.raw_environment_body_present
+}
+
+fn materialize_pane_plan(
+    pane: &StablePaneInventoryEntry,
+    surface_binding_ref: Option<&str>,
+    joined_body_valid: bool,
+) -> RestoreProposalPanePlan {
+    let classified_kind = classify_pane_plan(pane.surface_role, pane.surface_class);
+    let plan_kind = if joined_body_valid
+        || matches!(
+            classified_kind,
+            RestoreProposalPlanKind::BlockedSideEffectful
+        ) {
+        classified_kind
+    } else {
+        RestoreProposalPlanKind::PlaceholderOnly
+    };
     let note = match plan_kind {
         RestoreProposalPlanKind::LiveSkeleton => {
             "skeleton restored; user opens content explicitly".to_string()
@@ -665,6 +966,12 @@ fn materialize_pane_plan(pane: &StablePaneInventoryEntry) -> RestoreProposalPane
         surface_class: pane.surface_class,
         plan_kind,
         title_hint: pane.title_hint.clone(),
+        surface_binding_ref: surface_binding_ref
+            .filter(|binding| {
+                !matches!(plan_kind, RestoreProposalPlanKind::BlockedSideEffectful)
+                    && is_bounded_opaque_ref(binding)
+            })
+            .map(str::to_string),
         restore_metadata: pane.restore_metadata.clone(),
         note,
     }
@@ -796,6 +1103,7 @@ mod tests {
         let mut tabs = vec![TabItemCaptureInput {
             tab_id: "tab-edit-router".to_string(),
             tab_label: Some("router.ts".to_string()),
+            surface_binding_ref: None,
             pinned: false,
             dirty_badge_visible: true,
             surface_role: SurfaceRole::Editor,
@@ -806,6 +1114,7 @@ mod tests {
             tabs.push(TabItemCaptureInput {
                 tab_id: "tab-terminal-shell".to_string(),
                 tab_label: Some("zsh".to_string()),
+                surface_binding_ref: None,
                 pinned: false,
                 dirty_badge_visible: false,
                 surface_role: SurfaceRole::Terminal,
@@ -834,6 +1143,8 @@ mod tests {
                 ordered_tabs: tabs,
                 active_tab_id: Some("tab-edit-router".to_string()),
             }],
+            pane_tree_layout: None,
+            focused_group_id: Some("tg-main".to_string()),
             emitted_at: "mono:test:00001".to_string(),
             notes: None,
         };
@@ -841,14 +1152,23 @@ mod tests {
     }
 
     fn capture_one_dirty_buffer(store: &mut CrashJournalStore) {
+        capture_dirty_buffer_for_workspace(store, "ws-test", "router", "mono:test:00002");
+    }
+
+    fn capture_dirty_buffer_for_workspace(
+        store: &mut CrashJournalStore,
+        workspace_ref: &str,
+        document: &str,
+        emitted_at: &str,
+    ) {
         let input = CrashJournalCaptureInput {
-            journal_id: "journal:ws-test".to_string(),
-            workspace_ref: "ws-test".to_string(),
-            logical_document_id: "ld:router".to_string(),
-            object_ref: "buffer:router".to_string(),
+            journal_id: format!("journal:{workspace_ref}"),
+            workspace_ref: workspace_ref.to_string(),
+            logical_document_id: format!("ld:{document}"),
+            object_ref: format!("buffer:{document}"),
             object_class: ObjectClass::CanonicalFile,
-            presentation_hint: Some("router.ts".to_string()),
-            emitted_at: "mono:test:00002".to_string(),
+            presentation_hint: Some(format!("{document}.ts")),
+            emitted_at: emitted_at.to_string(),
             bytes: b"hello world".to_vec(),
         };
         store
@@ -907,6 +1227,37 @@ mod tests {
     }
 
     #[test]
+    fn proposal_excludes_crash_journals_from_other_workspaces() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut session_store = SessionRestoreStore::new(dir.path());
+        let mut crash_store = CrashJournalStore::new(dir.path());
+
+        capture_one_layout(&mut session_store, false);
+        capture_dirty_buffer_for_workspace(
+            &mut crash_store,
+            "ws-foreign",
+            "foreign-secret",
+            "mono:test:00001",
+        );
+        capture_dirty_buffer_for_workspace(
+            &mut crash_store,
+            "ws-test",
+            "router",
+            "mono:test:00002",
+        );
+
+        let proposal =
+            RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
+        assert_eq!(proposal.counts.dirty_buffer_journals, 1);
+        assert_eq!(proposal.dirty_buffer_entries.len(), 1);
+        assert_eq!(proposal.dirty_buffer_entries[0].object_ref, "buffer:router");
+        assert!(proposal
+            .dirty_buffer_entries
+            .iter()
+            .all(|entry| !entry.object_ref.contains("foreign")));
+    }
+
+    #[test]
     fn terminals_classified_as_blocked_side_effectful() {
         let dir = tempfile::tempdir().expect("tempdir");
         let mut session_store = SessionRestoreStore::new(dir.path());
@@ -928,7 +1279,7 @@ mod tests {
     }
 
     #[test]
-    fn drafts_only_proposal_without_layout() {
+    fn unscoped_drafts_are_not_admitted_without_joined_workspace_authority() {
         let dir = tempfile::tempdir().expect("tempdir");
         let session_store = SessionRestoreStore::new(dir.path());
         let mut crash_store = CrashJournalStore::new(dir.path());
@@ -936,10 +1287,10 @@ mod tests {
         capture_one_dirty_buffer(&mut crash_store);
 
         let proposal = RestoreProposal::build(&session_store, &crash_store, true).expect("build");
-        assert_eq!(proposal.restore_class, RestoreClass::RecoveredDrafts);
+        assert_eq!(proposal.restore_class, RestoreClass::NoRestore);
         assert_eq!(proposal.counts.windows, 0);
-        assert_eq!(proposal.counts.dirty_buffer_journals, 1);
-        assert!(proposal.has_dirty_buffers());
+        assert_eq!(proposal.counts.dirty_buffer_journals, 0);
+        assert!(!proposal.has_dirty_buffers());
     }
 
     #[test]

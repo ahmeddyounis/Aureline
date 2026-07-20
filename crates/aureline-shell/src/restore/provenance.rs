@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Restore provenance records and fidelity projections for shell recovery.
 //!
 //! The module is the shell-side implementation of the shared restore
@@ -1505,6 +1508,7 @@ mod tests {
             surface_class: SurfaceClass::TerminalView,
             plan_kind: RestoreProposalPlanKind::BlockedSideEffectful,
             title_hint: Some("deploy".to_string()),
+            surface_binding_ref: None,
             restore_metadata: None,
             note: "side-effectful surface; never auto-rerun".to_string(),
         };

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 use aureline_recovery::session_restore::proposal::{
     RestoreProposal, RestoreProposalArtifactRefs, RestoreProposalCounts, RestoreProposalPanePlan,
     RestoreProposalPlanKind,
@@ -58,6 +61,7 @@ fn proposal_with_terminal() -> RestoreProposal {
                 surface_class: SurfaceClass::TextEditor,
                 plan_kind: RestoreProposalPlanKind::LiveSkeleton,
                 title_hint: Some("lib.rs".to_string()),
+                surface_binding_ref: Some("document:lib".to_string()),
                 restore_metadata: None,
                 note: "skeleton restored".to_string(),
             },
@@ -67,6 +71,7 @@ fn proposal_with_terminal() -> RestoreProposal {
                 surface_class: SurfaceClass::TerminalView,
                 plan_kind: RestoreProposalPlanKind::BlockedSideEffectful,
                 title_hint: Some("cargo test".to_string()),
+                surface_binding_ref: None,
                 restore_metadata: None,
                 note: "side-effectful surface; never auto-rerun".to_string(),
             },

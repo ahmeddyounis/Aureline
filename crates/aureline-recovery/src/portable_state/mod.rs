@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Portable-state package projection for recovery, profile, layout, and transfer metadata.
 //!
 //! The projection is the recovery-owned aggregate that joins shell layout
@@ -18,8 +21,8 @@ use aureline_workspace::{
 use serde::{Deserialize, Serialize};
 
 use crate::session_restore::{
-    records::{ProducerBuildStamp, RestoreClass},
-    RestoreProposal,
+    records::{ProducerBuildStamp, RestoreClass, SurfaceClass, SurfaceRole},
+    RestoreProposal, RestoreProposalPlanKind,
 };
 
 /// Record-kind discriminator for portable-state package projections.
@@ -1259,7 +1262,44 @@ fn validate_restore_proposal(proposal: &RestoreProposal) -> Result<(), PortableS
             "artifact_refs",
         ));
     }
+    if proposal.pane_plans.iter().any(|plan| {
+        plan.surface_binding_ref.as_ref().is_some_and(|binding| {
+            !is_bounded_portable_opaque_ref(binding)
+                || matches!(
+                    plan.plan_kind,
+                    RestoreProposalPlanKind::BlockedSideEffectful
+                )
+                || matches!(
+                    plan.surface_role,
+                    SurfaceRole::Terminal
+                        | SurfaceRole::Debugger
+                        | SurfaceRole::Notebook
+                        | SurfaceRole::AiPanel
+                        | SurfaceRole::Test
+                )
+                || matches!(
+                    plan.surface_class,
+                    SurfaceClass::TerminalView
+                        | SurfaceClass::DebugView
+                        | SurfaceClass::NotebookView
+                        | SurfaceClass::AiPanel
+                        | SurfaceClass::TestResults
+                )
+        })
+    }) {
+        return Err(PortableStatePackageError::InvalidRestoreProposal(
+            "surface_binding_ref",
+        ));
+    }
     Ok(())
+}
+
+fn is_bounded_portable_opaque_ref(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 512
+        && value.chars().all(|ch| {
+            ch.is_ascii_alphanumeric() || matches!(ch, ':' | '.' | '_' | '-' | '#' | '@' | '|')
+        })
 }
 
 fn require_non_empty(field: &'static str, value: &str) -> Result<(), PortableStatePackageError> {
