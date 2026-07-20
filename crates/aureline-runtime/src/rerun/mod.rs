@@ -261,6 +261,10 @@ pub fn built_in_rerun_command_bindings() -> [RerunCommandBinding; 2] {
 }
 
 /// Run-contract payload stored or prepared by the rerun loop.
+// The variants intentionally retain their stable, unboxed public Rust API;
+// boxing one would force every constructor and pattern-matching caller through
+// a compatibility migration even though the serde representation is unchanged.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "contract_kind", content = "contract", rename_all = "snake_case")]
 pub enum RerunRunContract {

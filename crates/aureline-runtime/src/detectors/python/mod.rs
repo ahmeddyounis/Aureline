@@ -7,10 +7,18 @@
 //! flows depend on that environment.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+
+use crate::discovery::bounded_file::{
+    is_safe_reference_text, read_bounded_workspace_utf8, workspace_path_is_present,
+    workspace_regular_directory_exists, workspace_regular_file_exists,
+};
+
+const MAX_PYTHON_DISCOVERY_FILE_BYTES: u64 = 2 * 1024 * 1024;
+const MAX_PYTHON_METADATA_TOKEN_BYTES: usize = 512;
+const MAX_PYTHON_INTERPRETER_REF_BYTES: usize = 4_096;
 
 /// Stable record-kind tag emitted by [`PythonEnvironmentDetection`].
 pub const PYTHON_ENVIRONMENT_DETECTION_RECORD_KIND: &str = "python_environment_detection_record";
@@ -451,28 +459,34 @@ impl PythonEnvironmentDetector {
         let pyproject = read_pyproject(workspace_root);
         let pyvenv_cfg = read_pyvenv_cfg(workspace_root);
 
-        let mut unreadable_cards = Vec::new();
-        if let Some(summary) = pyproject.error {
-            unreadable_cards.push(PythonEnvironmentProvenanceCard {
-                card_id: "python_detector.card.unreadable.pyproject".to_owned(),
-                subject: PythonEnvironmentSubject::Interpreter,
-                source_kind: PythonEnvironmentSourceKind::UnreadableSource,
-                source_ref: Some("pyproject.toml".to_owned()),
-                disposition: PythonEnvironmentProvenanceDisposition::Unsupported,
-                value_token: None,
-                summary,
-            });
+        let mut unreadable_cards = unreadable_python_source_cards(workspace_root);
+        if let Some(summary) = pyproject.error.as_ref() {
+            unreadable_cards.push(unreadable_source_card(
+                PythonEnvironmentSubject::Interpreter,
+                "pyproject.toml",
+                0,
+                summary.clone(),
+            ));
+            unreadable_cards.push(unreadable_source_card(
+                PythonEnvironmentSubject::EnvironmentManager,
+                "pyproject.toml",
+                0,
+                summary.clone(),
+            ));
         }
-        if let Some(summary) = pyvenv_cfg.error {
-            unreadable_cards.push(PythonEnvironmentProvenanceCard {
-                card_id: "python_detector.card.unreadable.pyvenv_cfg".to_owned(),
-                subject: PythonEnvironmentSubject::Interpreter,
-                source_kind: PythonEnvironmentSourceKind::UnreadableSource,
-                source_ref: Some(".venv/pyvenv.cfg".to_owned()),
-                disposition: PythonEnvironmentProvenanceDisposition::Unsupported,
-                value_token: None,
-                summary,
-            });
+        if let Some(summary) = pyvenv_cfg.error.as_ref() {
+            unreadable_cards.push(unreadable_source_card(
+                PythonEnvironmentSubject::Interpreter,
+                ".venv/pyvenv.cfg",
+                1,
+                summary.clone(),
+            ));
+            unreadable_cards.push(unreadable_source_card(
+                PythonEnvironmentSubject::EnvironmentManager,
+                ".venv/pyvenv.cfg",
+                1,
+                summary.clone(),
+            ));
         }
 
         let interpreter_candidates = collect_interpreter_candidates(
@@ -487,13 +501,29 @@ impl PythonEnvironmentDetector {
             &pyproject.value,
             &pyvenv_cfg.value,
         );
+        unreadable_cards.extend(unreadable_python_source_cards(workspace_root));
+        unreadable_cards.sort_by(|left, right| left.card_id.cmp(&right.card_id));
+        unreadable_cards.dedup_by(|left, right| left.card_id == right.card_id);
 
-        let interpreter = resolve_interpreter(interpreter_candidates, &self.config);
-        let manager = resolve_environment_manager(
+        let mut interpreter = resolve_interpreter(interpreter_candidates, &self.config);
+        let mut manager = resolve_environment_manager(
             manager_candidates,
             &self.config,
             interpreter.resolution.resolution_state,
         );
+
+        if unreadable_cards
+            .iter()
+            .any(|card| card.subject == PythonEnvironmentSubject::Interpreter)
+        {
+            invalidate_interpreter_resolution(&mut interpreter);
+        }
+        if unreadable_cards
+            .iter()
+            .any(|card| card.subject == PythonEnvironmentSubject::EnvironmentManager)
+        {
+            invalidate_manager_resolution(&mut manager);
+        }
 
         let mut provenance_cards = Vec::new();
         provenance_cards.extend(interpreter.cards);
@@ -514,6 +544,132 @@ impl PythonEnvironmentDetector {
             environment_manager: manager.resolution,
             provenance_cards,
             unresolved_ambiguities,
+        }
+    }
+}
+
+fn unreadable_python_source_cards(workspace_root: &Path) -> Vec<PythonEnvironmentProvenanceCard> {
+    let mut cards = Vec::new();
+    for (relative_path, index) in [
+        (".python-version", 2),
+        (".tool-versions", 3),
+        ("mise.toml", 4),
+    ] {
+        if let Err(error) = read_bounded_workspace_utf8(
+            workspace_root,
+            Path::new(relative_path),
+            MAX_PYTHON_DISCOVERY_FILE_BYTES,
+        ) {
+            cards.push(unreadable_source_card(
+                PythonEnvironmentSubject::Interpreter,
+                relative_path,
+                index,
+                format!("{relative_path} could not be read safely: {error}"),
+            ));
+        }
+    }
+    for (relative_path, index) in [
+        ("uv.lock", 2),
+        ("poetry.lock", 3),
+        ("environment.yml", 4),
+        ("environment.yaml", 5),
+    ] {
+        let relative_path = Path::new(relative_path);
+        if workspace_path_is_present(workspace_root, relative_path)
+            && !workspace_regular_file_exists(workspace_root, relative_path)
+        {
+            let source_ref = relative_path.to_string_lossy();
+            cards.push(unreadable_source_card(
+                PythonEnvironmentSubject::EnvironmentManager,
+                &source_ref,
+                index,
+                format!("{source_ref} was present but was not a stable, contained regular file"),
+            ));
+        }
+    }
+    if workspace_path_is_present(workspace_root, Path::new(".python-version"))
+        && read_first_line(workspace_root, ".python-version")
+            .and_then(normalize_python_version)
+            .is_none()
+    {
+        cards.push(unreadable_source_card(
+            PythonEnvironmentSubject::Interpreter,
+            ".python-version",
+            2,
+            ".python-version did not contain a safe Python version token".to_owned(),
+        ));
+    }
+    if read_tool_versions(workspace_root, "python")
+        .is_some_and(|value| normalize_python_version(value).is_none())
+    {
+        cards.push(unreadable_source_card(
+            PythonEnvironmentSubject::Interpreter,
+            ".tool-versions",
+            3,
+            ".tool-versions contained an unsafe Python version token".to_owned(),
+        ));
+    }
+    if read_mise_tool(workspace_root, &["python"])
+        .is_some_and(|value| normalize_python_version(value).is_none())
+    {
+        cards.push(unreadable_source_card(
+            PythonEnvironmentSubject::Interpreter,
+            "mise.toml",
+            4,
+            "mise.toml contained an unsafe Python version token".to_owned(),
+        ));
+    }
+    cards
+}
+
+fn unreadable_source_card(
+    subject: PythonEnvironmentSubject,
+    source_ref: &str,
+    index: usize,
+    summary: String,
+) -> PythonEnvironmentProvenanceCard {
+    PythonEnvironmentProvenanceCard {
+        card_id: card_id(
+            subject,
+            PythonEnvironmentSourceKind::UnreadableSource,
+            index,
+        ),
+        subject,
+        source_kind: PythonEnvironmentSourceKind::UnreadableSource,
+        source_ref: Some(source_ref.to_owned()),
+        disposition: PythonEnvironmentProvenanceDisposition::Unsupported,
+        value_token: None,
+        summary,
+    }
+}
+
+fn invalidate_interpreter_resolution(output: &mut InterpreterResolveOutput) {
+    output.resolution.resolution_state = PythonEnvironmentResolutionState::Unsupported;
+    output.resolution.winning_source = None;
+    output.resolution.resolved_requirement = None;
+    output.resolution.interpreter_ref = None;
+    output.resolution.fallback_path = None;
+    invalidate_candidate_cards(&mut output.cards);
+}
+
+fn invalidate_manager_resolution(output: &mut ManagerResolveOutput) {
+    output.resolution.resolution_state = PythonEnvironmentResolutionState::Unsupported;
+    output.resolution.winning_source = None;
+    output.resolution.kind = None;
+    output.resolution.version = None;
+    output.resolution.environment_ref = None;
+    output.resolution.fallback_path = None;
+    invalidate_candidate_cards(&mut output.cards);
+}
+
+fn invalidate_candidate_cards(cards: &mut [PythonEnvironmentProvenanceCard]) {
+    for card in cards {
+        if matches!(
+            card.disposition,
+            PythonEnvironmentProvenanceDisposition::Winning
+                | PythonEnvironmentProvenanceDisposition::Fallback
+        ) {
+            card.disposition = PythonEnvironmentProvenanceDisposition::Ignored;
         }
     }
 }
@@ -606,19 +762,22 @@ struct ManagerResolveOutput {
 }
 
 fn read_pyproject(workspace_root: &Path) -> TomlRead {
-    let path = workspace_root.join("pyproject.toml");
-    let payload = match fs::read_to_string(&path) {
-        Ok(payload) => payload,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+    let payload = match read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new("pyproject.toml"),
+        MAX_PYTHON_DISCOVERY_FILE_BYTES,
+    ) {
+        Ok(Some(payload)) => payload,
+        Ok(None) => {
             return TomlRead {
                 value: None,
                 error: None,
             };
         }
-        Err(err) => {
+        Err(error) => {
             return TomlRead {
                 value: None,
-                error: Some(format!("pyproject.toml could not be read: {err}")),
+                error: Some(format!("pyproject.toml could not be read safely: {error}")),
             };
         }
     };
@@ -626,9 +785,23 @@ fn read_pyproject(workspace_root: &Path) -> TomlRead {
         &payload,
         &["project.requires-python", "tool.poetry.dependencies.python"],
     ) {
-        Ok(value) => TomlRead {
-            value: Some(value),
-            error: None,
+        Ok(value)
+            if ["project.requires-python", "tool.poetry.dependencies.python"]
+                .iter()
+                .filter_map(|key| value.value(key))
+                .all(|token| normalize_python_version(token).is_some()) =>
+        {
+            TomlRead {
+                value: Some(value),
+                error: None,
+            }
+        }
+        Ok(_) => TomlRead {
+            value: None,
+            error: Some(
+                "pyproject.toml contains an empty, oversized, or unsafe Python version token"
+                    .to_owned(),
+            ),
         },
         Err(err) => TomlRead {
             value: None,
@@ -638,19 +811,24 @@ fn read_pyproject(workspace_root: &Path) -> TomlRead {
 }
 
 fn read_pyvenv_cfg(workspace_root: &Path) -> PyvenvCfgRead {
-    let path = workspace_root.join(".venv").join("pyvenv.cfg");
-    let payload = match fs::read_to_string(&path) {
-        Ok(payload) => payload,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+    let payload = match read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new(".venv/pyvenv.cfg"),
+        MAX_PYTHON_DISCOVERY_FILE_BYTES,
+    ) {
+        Ok(Some(payload)) => payload,
+        Ok(None) => {
             return PyvenvCfgRead {
                 value: None,
                 error: None,
             };
         }
-        Err(err) => {
+        Err(error) => {
             return PyvenvCfgRead {
                 value: None,
-                error: Some(format!(".venv/pyvenv.cfg could not be read: {err}")),
+                error: Some(format!(
+                    ".venv/pyvenv.cfg could not be read safely: {error}"
+                )),
             };
         }
     };
@@ -667,8 +845,30 @@ fn read_pyvenv_cfg(workspace_root: &Path) -> PyvenvCfgRead {
         let key = key.trim();
         let value = value.trim();
         match key {
-            "version" => cfg.version = normalize_python_version(value),
-            "executable" => cfg.executable = non_empty(value),
+            "version" => match normalize_python_version(value) {
+                Some(version) => cfg.version = Some(version),
+                None => {
+                    return PyvenvCfgRead {
+                        value: None,
+                        error: Some(
+                            ".venv/pyvenv.cfg contains an empty, oversized, or unsafe version token"
+                                .to_owned(),
+                        ),
+                    };
+                }
+            },
+            "executable" => match normalize_interpreter_ref(value) {
+                Some(executable) => cfg.executable = Some(executable),
+                None => {
+                    return PyvenvCfgRead {
+                        value: None,
+                        error: Some(
+                            ".venv/pyvenv.cfg contains an empty, oversized, or unsafe executable reference"
+                                .to_owned(),
+                        ),
+                    };
+                }
+            },
             _ => {}
         }
     }
@@ -686,15 +886,20 @@ fn collect_interpreter_candidates(
     pyvenv_cfg: &Option<PyvenvCfg>,
 ) -> Vec<PythonInterpreterCandidate> {
     let mut candidates = Vec::new();
-    if config.explicit_interpreter_ref.is_some() || config.explicit_python_version.is_some() {
+    let explicit_interpreter_ref = config
+        .explicit_interpreter_ref
+        .as_deref()
+        .and_then(normalize_interpreter_ref);
+    let explicit_python_version = config
+        .explicit_python_version
+        .as_deref()
+        .and_then(normalize_python_version);
+    if explicit_interpreter_ref.is_some() || explicit_python_version.is_some() {
         candidates.push(interpreter_candidate(
             PythonEnvironmentSourceKind::ExplicitOverride,
             None,
-            config
-                .explicit_python_version
-                .as_deref()
-                .and_then(normalize_python_version),
-            config.explicit_interpreter_ref.clone(),
+            explicit_python_version,
+            explicit_interpreter_ref,
             0,
             0,
         ));
@@ -769,28 +974,38 @@ fn collect_interpreter_candidates(
             1,
         ));
     }
-    if config.profile_interpreter_ref.is_some() || config.profile_python_version.is_some() {
+    let profile_interpreter_ref = config
+        .profile_interpreter_ref
+        .as_deref()
+        .and_then(normalize_interpreter_ref);
+    let profile_python_version = config
+        .profile_python_version
+        .as_deref()
+        .and_then(normalize_python_version);
+    if profile_interpreter_ref.is_some() || profile_python_version.is_some() {
         candidates.push(interpreter_candidate(
             PythonEnvironmentSourceKind::UserProfileDefault,
             None,
-            config
-                .profile_python_version
-                .as_deref()
-                .and_then(normalize_python_version),
-            config.profile_interpreter_ref.clone(),
+            profile_python_version,
+            profile_interpreter_ref,
             4,
             0,
         ));
     }
-    if config.ambient_interpreter_ref.is_some() || config.ambient_python_version.is_some() {
+    let ambient_interpreter_ref = config
+        .ambient_interpreter_ref
+        .as_deref()
+        .and_then(normalize_interpreter_ref);
+    let ambient_python_version = config
+        .ambient_python_version
+        .as_deref()
+        .and_then(normalize_python_version);
+    if ambient_interpreter_ref.is_some() || ambient_python_version.is_some() {
         candidates.push(interpreter_candidate(
             PythonEnvironmentSourceKind::AmbientPath,
             None,
-            config
-                .ambient_python_version
-                .as_deref()
-                .and_then(normalize_python_version),
-            config.ambient_interpreter_ref.clone(),
+            ambient_python_version,
+            ambient_interpreter_ref,
             5,
             0,
         ));
@@ -805,16 +1020,20 @@ fn collect_manager_candidates(
     pyvenv_cfg: &Option<PyvenvCfg>,
 ) -> Vec<PythonManagerCandidate> {
     let mut candidates = Vec::new();
-    if let Some(requirement) = &config.explicit_environment_manager {
+    if let Some(requirement) = config
+        .explicit_environment_manager
+        .as_ref()
+        .and_then(normalize_manager_requirement)
+    {
         candidates.push(manager_candidate(
             PythonEnvironmentSourceKind::ExplicitOverride,
             None,
-            requirement.clone(),
+            requirement,
             0,
             0,
         ));
     }
-    if workspace_root.join("uv.lock").is_file() {
+    if workspace_regular_file_exists(workspace_root, Path::new("uv.lock")) {
         candidates.push(manager_candidate(
             PythonEnvironmentSourceKind::UvLockfile,
             Some("uv.lock"),
@@ -844,7 +1063,7 @@ fn collect_manager_candidates(
             1,
         ));
     }
-    if workspace_root.join("poetry.lock").is_file() {
+    if workspace_regular_file_exists(workspace_root, Path::new("poetry.lock")) {
         candidates.push(manager_candidate(
             PythonEnvironmentSourceKind::PoetryLockfile,
             Some("poetry.lock"),
@@ -874,7 +1093,7 @@ fn collect_manager_candidates(
             3,
         ));
     }
-    if workspace_root.join("environment.yml").is_file() {
+    if workspace_regular_file_exists(workspace_root, Path::new("environment.yml")) {
         candidates.push(manager_candidate(
             PythonEnvironmentSourceKind::CondaEnvironmentFile,
             Some("environment.yml"),
@@ -887,7 +1106,7 @@ fn collect_manager_candidates(
             4,
         ));
     }
-    if workspace_root.join("environment.yaml").is_file() {
+    if workspace_regular_file_exists(workspace_root, Path::new("environment.yaml")) {
         candidates.push(manager_candidate(
             PythonEnvironmentSourceKind::CondaEnvironmentFile,
             Some("environment.yaml"),
@@ -912,7 +1131,7 @@ fn collect_manager_candidates(
             2,
             0,
         ));
-    } else if workspace_root.join(".venv").is_dir() {
+    } else if workspace_regular_directory_exists(workspace_root, Path::new(".venv")) {
         candidates.push(manager_candidate(
             PythonEnvironmentSourceKind::VenvDirectory,
             Some(".venv"),
@@ -925,11 +1144,15 @@ fn collect_manager_candidates(
             1,
         ));
     }
-    if let Some(requirement) = &config.profile_environment_manager {
+    if let Some(requirement) = config
+        .profile_environment_manager
+        .as_ref()
+        .and_then(normalize_manager_requirement)
+    {
         candidates.push(manager_candidate(
             PythonEnvironmentSourceKind::UserProfileDefault,
             None,
-            requirement.clone(),
+            requirement,
             4,
             0,
         ));
@@ -1166,14 +1389,18 @@ fn manager_candidate(
 }
 
 fn interpreter_fallback(config: &PythonEnvironmentDetectorConfig) -> PythonEnvironmentFallbackPath {
-    if config.ambient_interpreter_ref.is_some() || config.ambient_python_version.is_some() {
+    let ambient_interpreter_ref = config
+        .ambient_interpreter_ref
+        .as_deref()
+        .and_then(normalize_interpreter_ref);
+    let ambient_python_version = config
+        .ambient_python_version
+        .as_deref()
+        .and_then(normalize_python_version);
+    if ambient_interpreter_ref.is_some() || ambient_python_version.is_some() {
         let value_token = python_interpreter_token(
-            config
-                .ambient_python_version
-                .as_deref()
-                .and_then(normalize_python_version)
-                .as_deref(),
-            config.ambient_interpreter_ref.as_deref(),
+            ambient_python_version.as_deref(),
+            ambient_interpreter_ref.as_deref(),
         );
         PythonEnvironmentFallbackPath {
             subject: PythonEnvironmentSubject::Interpreter,
@@ -1509,7 +1736,12 @@ fn pyproject_value<'a>(pyproject: &'a Option<SimpleToml>, key: &str) -> Option<&
 }
 
 fn read_first_line(workspace_root: &Path, rel: &str) -> Option<String> {
-    let payload = fs::read_to_string(workspace_root.join(rel)).ok()?;
+    let payload = read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new(rel),
+        MAX_PYTHON_DISCOVERY_FILE_BYTES,
+    )
+    .ok()??;
     payload
         .lines()
         .map(str::trim)
@@ -1518,7 +1750,12 @@ fn read_first_line(workspace_root: &Path, rel: &str) -> Option<String> {
 }
 
 fn read_tool_versions(workspace_root: &Path, tool: &str) -> Option<String> {
-    let payload = fs::read_to_string(workspace_root.join(".tool-versions")).ok()?;
+    let payload = read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new(".tool-versions"),
+        MAX_PYTHON_DISCOVERY_FILE_BYTES,
+    )
+    .ok()??;
     for line in payload.lines().map(str::trim) {
         if line.is_empty() || line.starts_with('#') {
             continue;
@@ -1535,7 +1772,12 @@ fn read_tool_versions(workspace_root: &Path, tool: &str) -> Option<String> {
 }
 
 fn read_mise_tool(workspace_root: &Path, tools: &[&str]) -> Option<String> {
-    let payload = fs::read_to_string(workspace_root.join("mise.toml")).ok()?;
+    let payload = read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new("mise.toml"),
+        MAX_PYTHON_DISCOVERY_FILE_BYTES,
+    )
+    .ok()??;
     let mut in_tools = false;
     for raw_line in payload.lines() {
         let line = raw_line.split('#').next().unwrap_or_default().trim();
@@ -1641,13 +1883,62 @@ fn parse_simple_toml_value(raw: &str) -> Option<String> {
 
 fn normalize_python_version(raw: impl AsRef<str>) -> Option<String> {
     let mut value = raw.as_ref().trim();
-    if value.is_empty() {
-        return None;
-    }
     value = value.strip_prefix("Python ").unwrap_or(value);
     value = value.strip_prefix("python ").unwrap_or(value);
     value = value.strip_prefix('v').unwrap_or(value);
-    non_empty(value)
+    is_safe_version_token(value).then(|| value.to_owned())
+}
+
+fn normalize_interpreter_ref(raw: impl AsRef<str>) -> Option<String> {
+    let value = raw.as_ref().trim();
+    is_safe_metadata_token(value, MAX_PYTHON_INTERPRETER_REF_BYTES).then(|| value.to_owned())
+}
+
+fn normalize_manager_requirement(
+    requirement: &PythonEnvironmentManagerRequirement,
+) -> Option<PythonEnvironmentManagerRequirement> {
+    let version = match requirement.version.as_deref() {
+        Some(value) => Some(is_safe_version_token(value.trim()).then(|| value.trim().to_owned())?),
+        None => None,
+    };
+    let environment_ref = match requirement.environment_ref.as_deref() {
+        Some(value) => Some(normalize_interpreter_ref(value)?),
+        None => None,
+    };
+    Some(PythonEnvironmentManagerRequirement::new(
+        requirement.kind,
+        version,
+        environment_ref,
+    ))
+}
+
+fn is_safe_metadata_token(value: &str, max_bytes: usize) -> bool {
+    !value.is_empty() && value.len() <= max_bytes && is_safe_reference_text(value)
+}
+
+fn is_safe_version_token(value: &str) -> bool {
+    is_safe_metadata_token(value, MAX_PYTHON_METADATA_TOKEN_BYTES)
+        && value.chars().all(|character| {
+            character.is_ascii_alphanumeric()
+                || matches!(
+                    character,
+                    '.' | '-'
+                        | '+'
+                        | '^'
+                        | '~'
+                        | '<'
+                        | '>'
+                        | '='
+                        | '*'
+                        | '/'
+                        | '_'
+                        | ':'
+                        | ','
+                        | '!'
+                        | '|'
+                        | ' '
+                )
+        })
 }
 
 fn non_empty(raw: impl AsRef<str>) -> Option<String> {
@@ -1798,5 +2089,94 @@ mod tests {
                 && card.disposition == PythonEnvironmentProvenanceDisposition::Unsupported
                 && card.summary.contains("pyproject.toml could not be parsed")
         }));
+        assert_eq!(
+            report.interpreter.resolution_state,
+            PythonEnvironmentResolutionState::Unsupported
+        );
+        assert_eq!(
+            report.environment_manager.resolution_state,
+            PythonEnvironmentResolutionState::Unsupported
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unsafe_python_pin_fails_closed_instead_of_using_ambient_interpreter() {
+        use std::os::unix::fs::symlink;
+
+        let workspace = TempWorkspace::new("unsafe-python-pin");
+        let outside = TempWorkspace::new("unsafe-python-pin-outside");
+        std::fs::write(outside.path().join("python-version"), "9.9.9\n").expect("outside pin");
+        symlink(
+            outside.path().join("python-version"),
+            workspace.path().join(".python-version"),
+        )
+        .expect("version symlink");
+
+        let report = detector().detect_workspace(workspace.path(), "mono:0");
+
+        assert_eq!(
+            report.interpreter.resolution_state,
+            PythonEnvironmentResolutionState::Unsupported
+        );
+        assert_eq!(report.interpreter.winning_source, None);
+        assert!(report.provenance_cards.iter().any(|card| {
+            card.subject == PythonEnvironmentSubject::Interpreter
+                && card.source_kind == PythonEnvironmentSourceKind::UnreadableSource
+                && card.source_ref.as_deref() == Some(".python-version")
+        }));
+    }
+
+    #[test]
+    fn unsafe_python_metadata_tokens_fail_closed_without_echoing_payloads() {
+        let workspace = TempWorkspace::new("unsafe-python-token");
+        std::fs::write(
+            workspace.path().join(".python-version"),
+            "3.12\u{202e}spoof\n",
+        )
+        .expect("python version metadata");
+
+        let report = detector().detect_workspace(workspace.path(), "mono:0");
+
+        assert_eq!(
+            report.interpreter.resolution_state,
+            PythonEnvironmentResolutionState::Unsupported
+        );
+        assert!(report.has_detector_failure());
+        assert!(report
+            .provenance_cards
+            .iter()
+            .all(|card| { !card.summary.contains("spoof") && !card.summary.contains('\u{202e}') }));
+    }
+
+    struct TempWorkspace {
+        path: std::path::PathBuf,
+    }
+
+    impl TempWorkspace {
+        fn new(label: &str) -> Self {
+            let unique = format!(
+                "aureline-python-detector-{label}-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("clock after epoch")
+                    .as_nanos()
+            );
+            let path = std::env::temp_dir().join(unique);
+            let _ = std::fs::remove_dir_all(&path);
+            std::fs::create_dir_all(&path).expect("temp workspace");
+            Self { path }
+        }
+
+        fn path(&self) -> &Path {
+            &self.path
+        }
+    }
+
+    impl Drop for TempWorkspace {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
     }
 }

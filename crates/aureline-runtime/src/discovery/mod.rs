@@ -4,6 +4,7 @@
 //! bind findings to an [`crate::execution_context::ExecutionContext`], and
 //! emit explicit launch contracts for downstream task/test/debug surfaces.
 
+pub(crate) mod bounded_file;
 pub mod package_scripts;
 pub mod pytest;
 pub mod toolchains;

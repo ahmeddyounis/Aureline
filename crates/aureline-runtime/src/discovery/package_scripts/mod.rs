@@ -8,8 +8,9 @@
 //! and lets the package manager own the script lifecycle it already defines.
 
 use std::collections::BTreeMap;
-use std::fs;
+use std::fmt;
 use std::path::Path;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -18,6 +19,7 @@ use crate::detectors::node::{
     NodePackageManagerKind, NodeToolchainDetection, NodeToolchainDetectorConfig,
     NodeToolchainResolutionState, NodeToolchainSourceKind,
 };
+use crate::discovery::bounded_file::{is_safe_reference_text, read_bounded_workspace_utf8};
 use crate::discovery::toolchains::{WorkspaceToolchainDetector, WorkspaceToolchainDetectorConfig};
 use crate::execution_context::{DegradedFieldReason, ExecutionContext, ReachabilityState};
 use crate::provenance::ExecutionEventProvenance;
@@ -32,7 +34,13 @@ use crate::TrustState;
 
 /// Schema version for [`PackageScriptDiscovery`] and
 /// [`PackageScriptRunContract`] records.
-pub const PACKAGE_SCRIPT_DISCOVERY_SCHEMA_VERSION: u32 = 1;
+pub const PACKAGE_SCRIPT_DISCOVERY_SCHEMA_VERSION: u32 = 2;
+
+const MAX_PACKAGE_MANIFEST_BYTES: u64 = 2 * 1024 * 1024;
+const MAX_PACKAGE_SCRIPTS: usize = 4_096;
+const MAX_PACKAGE_SCRIPT_NAME_BYTES: usize = 256;
+const MAX_PACKAGE_SCRIPT_BODY_BYTES: usize = 16 * 1024;
+const MAX_PACKAGE_EXPORT_FIELD_BYTES: usize = 4_096;
 
 /// Stable record-kind tag for a package-script discovery result.
 pub const PACKAGE_SCRIPT_DISCOVERY_RECORD_KIND: &str = "package_script_discovery_record";
@@ -42,7 +50,7 @@ pub const PACKAGE_SCRIPT_RUN_CONTRACT_RECORD_KIND: &str = "package_script_run_co
 
 /// Stable implementation version recorded in discovery reports and task
 /// event provenance.
-pub const PACKAGE_SCRIPT_DISCOVERER_VERSION: &str = "package_scripts.discovery.alpha.v1";
+pub const PACKAGE_SCRIPT_DISCOVERER_VERSION: &str = "package_scripts.discovery.alpha.v2";
 
 /// Configuration for [`PackageScriptDiscoverer`].
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -107,8 +115,8 @@ impl PackageScriptDiscoverer {
 
         let scripts = read
             .scripts
-            .iter()
-            .map(|(name, body)| PackageScriptDescriptor::from_script(name, body))
+            .keys()
+            .map(|name| PackageScriptDescriptor::from_script(name))
             .collect::<Vec<_>>();
 
         let contract_scripts = scripts
@@ -122,6 +130,7 @@ impl PackageScriptDiscoverer {
             &runtime_status,
             &scripts,
             &contract_scripts,
+            &read.scripts,
             &self.config.workspace_revision,
         );
         let discovery_state = discovery_state_for(
@@ -417,8 +426,6 @@ pub struct PackageScriptDescriptor {
     pub script_id: String,
     /// Script name from `package.json#scripts`.
     pub name: String,
-    /// Script body from the manifest.
-    pub script_body: String,
     /// Source information for this script.
     pub source: PackageScriptSource,
     /// True when this script is in the bounded TS/JS launch-wedge set.
@@ -428,12 +435,11 @@ pub struct PackageScriptDescriptor {
 }
 
 impl PackageScriptDescriptor {
-    fn from_script(name: &str, body: &str) -> Self {
+    fn from_script(name: &str) -> Self {
         let json_pointer = format!("/scripts/{}", json_pointer_segment(name));
         Self {
             script_id: format!("package-script:{}", stable_token(name)),
             name: name.to_owned(),
-            script_body: body.to_owned(),
             source: PackageScriptSource {
                 source_kind: PackageScriptSourceKind::PackageJsonScripts,
                 manifest_ref: "package.json".to_owned(),
@@ -680,7 +686,7 @@ pub struct PackageScriptRunContract {
     pub runner: Option<PackageScriptRunner>,
     /// Direct-process dispatch when runnable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub dispatch: Option<PackageScriptDispatch>,
+    dispatch: Option<PackageScriptDispatch>,
     /// Launch readiness.
     pub readiness: PackageScriptLaunchReadiness,
     /// Blocking reasons.
@@ -692,12 +698,67 @@ pub struct PackageScriptRunContract {
     /// Workspace revision captured by the caller, when known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workspace_revision: Option<String>,
+    /// In-memory authority used to prove that the script map has not changed
+    /// between discovery and dispatch. This deliberately never crosses a
+    /// serialization boundary because it contains raw manifest script bodies.
+    #[doc(hidden)]
+    #[serde(skip)]
+    manifest_authority: Option<PackageScriptManifestAuthority>,
     /// Rerun lineage when this contract represents a retry/rerun attempt.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rerun_lineage: Option<PackageScriptRerunLineage>,
 }
 
 impl PackageScriptRunContract {
+    /// Returns the serialized dispatch shape for review and rendering only.
+    /// Execution callers must use [`Self::validated_dispatch`].
+    pub fn dispatch_preview(&self) -> Option<&PackageScriptDispatch> {
+        self.dispatch.as_ref()
+    }
+
+    /// Returns a dispatch only after proving that the complete current script
+    /// map still matches the private discovery authority.
+    pub fn validated_dispatch(
+        &self,
+        workspace_root: &Path,
+    ) -> Result<Option<&PackageScriptDispatch>, PackageScriptManifestRevalidationError> {
+        self.revalidate_workspace_manifest(workspace_root)?;
+        Ok(self.dispatch.as_ref())
+    }
+
+    /// Revalidates the complete script map immediately before dispatch.
+    ///
+    /// A deserialized contract has no in-memory authority and therefore fails
+    /// closed. Callers must rediscover the workspace rather than treating a
+    /// portable record as executable authority.
+    pub fn revalidate_workspace_manifest(
+        &self,
+        workspace_root: &Path,
+    ) -> Result<(), PackageScriptManifestRevalidationError> {
+        let authority = self
+            .manifest_authority
+            .as_ref()
+            .ok_or(PackageScriptManifestRevalidationError::MissingAuthority)?;
+        let current = read_package_scripts(workspace_root);
+        if current.manifest_state != PackageScriptManifestState::Present
+            || &current.scripts != authority.scripts.as_ref()
+        {
+            return Err(PackageScriptManifestRevalidationError::ManifestChanged);
+        }
+        Ok(())
+    }
+
+    /// Builds canonical task events only after revalidating the workspace
+    /// manifest against this contract's private discovery authority.
+    pub fn launch_event_stream_for_workspace(
+        &self,
+        workspace_root: &Path,
+        observed_at: &str,
+    ) -> Result<TaskEventStream, PackageScriptLaunchValidationError> {
+        self.revalidate_workspace_manifest(workspace_root)?;
+        self.launch_event_stream(observed_at).map_err(Into::into)
+    }
+
     /// Builds canonical task events for this attempt.
     ///
     /// Ready contracts emit queued and started events. Blocked contracts emit
@@ -864,19 +925,30 @@ impl PackageScriptRunContract {
         event_kind: TaskEventKind,
         observed_at: &str,
     ) -> RawTaskEventEnvelope {
+        let script_name = safe_script_label(&self.script.name);
+        let script_source_ref = safe_export_reference(
+            &self.script.source.source_ref,
+            "package.json#/scripts/<unsafe>",
+        );
         let dispatch_program = self
             .dispatch
             .as_ref()
-            .map(|dispatch| dispatch.program.clone());
+            .map(|dispatch| safe_export_reference(&dispatch.program, "<unsafe-program>"));
         let dispatch_args = self
             .dispatch
             .as_ref()
-            .map(|dispatch| dispatch.args.clone())
+            .map(|dispatch| {
+                dispatch
+                    .args
+                    .iter()
+                    .map(|argument| safe_export_reference(argument, "<unsafe-argument>"))
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
         let retained_payload = serde_json::json!({
             "event_kind": event_kind.as_str(),
-            "script_name": self.script.name,
-            "script_source_ref": self.script.source.source_ref,
+            "script_name": script_name,
+            "script_source_ref": script_source_ref,
             "readiness": self.readiness.as_str(),
             "dispatch_program": dispatch_program,
             "dispatch_args": dispatch_args,
@@ -918,6 +990,96 @@ impl PackageScriptRunContract {
     }
 }
 
+/// Private, non-portable package-script authority captured at discovery time.
+#[derive(Clone)]
+struct PackageScriptManifestAuthority {
+    scripts: Arc<BTreeMap<String, String>>,
+}
+
+impl PartialEq for PackageScriptManifestAuthority {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.scripts, &other.scripts)
+    }
+}
+
+impl Eq for PackageScriptManifestAuthority {}
+
+impl PackageScriptManifestAuthority {
+    fn new(scripts: &BTreeMap<String, String>) -> Self {
+        Self {
+            scripts: Arc::new(scripts.clone()),
+        }
+    }
+}
+
+impl fmt::Debug for PackageScriptManifestAuthority {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PackageScriptManifestAuthority")
+            .field("script_count", &self.scripts.len())
+            .field("script_bodies", &"<redacted>")
+            .finish()
+    }
+}
+
+/// Failure returned when a run contract cannot prove current manifest truth.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PackageScriptManifestRevalidationError {
+    /// The contract crossed a serialization boundary or otherwise lost its
+    /// private discovery authority.
+    MissingAuthority,
+    /// The manifest is missing, unreadable, invalid, or no longer matches the
+    /// script map captured during discovery.
+    ManifestChanged,
+}
+
+impl fmt::Display for PackageScriptManifestRevalidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::MissingAuthority => {
+                "package-script dispatch authority is unavailable; rediscovery is required"
+            }
+            Self::ManifestChanged => {
+                "package.json scripts changed after discovery; review and rediscovery are required"
+            }
+        })
+    }
+}
+
+impl std::error::Error for PackageScriptManifestRevalidationError {}
+
+/// Validation failure produced before a package-script event stream may start.
+#[derive(Debug)]
+pub enum PackageScriptLaunchValidationError {
+    /// Manifest authority could not be revalidated.
+    Manifest(PackageScriptManifestRevalidationError),
+    /// Canonical task-event construction failed.
+    TaskEvent(TaskEventStreamError),
+}
+
+impl fmt::Display for PackageScriptLaunchValidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Manifest(error) => error.fmt(formatter),
+            Self::TaskEvent(_) => formatter.write_str("canonical task-event construction failed"),
+        }
+    }
+}
+
+impl std::error::Error for PackageScriptLaunchValidationError {}
+
+impl From<PackageScriptManifestRevalidationError> for PackageScriptLaunchValidationError {
+    fn from(error: PackageScriptManifestRevalidationError) -> Self {
+        Self::Manifest(error)
+    }
+}
+
+impl From<TaskEventStreamError> for PackageScriptLaunchValidationError {
+    fn from(error: TaskEventStreamError) -> Self {
+        Self::TaskEvent(error)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PackageScriptManifestState {
     Present,
@@ -935,21 +1097,24 @@ struct PackageScriptRead {
 }
 
 fn read_package_scripts(workspace_root: &Path) -> PackageScriptRead {
-    let path = workspace_root.join("package.json");
-    let payload = match fs::read_to_string(&path) {
-        Ok(payload) => payload,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+    let payload = match read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new("package.json"),
+        MAX_PACKAGE_MANIFEST_BYTES,
+    ) {
+        Ok(Some(payload)) => payload,
+        Ok(None) => {
             return PackageScriptRead {
                 manifest_state: PackageScriptManifestState::Missing,
                 scripts: BTreeMap::new(),
                 error: None,
             };
         }
-        Err(err) => {
+        Err(error) => {
             return PackageScriptRead {
                 manifest_state: PackageScriptManifestState::Unreadable,
                 scripts: BTreeMap::new(),
-                error: Some(format!("package.json could not be read: {err}")),
+                error: Some(format!("package.json could not be read safely: {error}")),
             };
         }
     };
@@ -980,12 +1145,48 @@ fn read_package_scripts(workspace_root: &Path) -> PackageScriptRead {
         };
     };
 
+    if scripts_object.len() > MAX_PACKAGE_SCRIPTS {
+        return PackageScriptRead {
+            manifest_state: PackageScriptManifestState::Unreadable,
+            scripts: BTreeMap::new(),
+            error: Some(format!(
+                "package.json#scripts exceeds the {MAX_PACKAGE_SCRIPTS}-entry discovery limit"
+            )),
+        };
+    }
+
+    if scripts_object.iter().any(|(name, value)| {
+        name.len() > MAX_PACKAGE_SCRIPT_NAME_BYTES
+            || !is_safe_reference_text(name)
+            || value
+                .as_str()
+                .is_some_and(|body| body.len() > MAX_PACKAGE_SCRIPT_BODY_BYTES)
+    }) {
+        return PackageScriptRead {
+            manifest_state: PackageScriptManifestState::Unreadable,
+            scripts: BTreeMap::new(),
+            error: Some(
+                "package.json#scripts contains an unsafe name or a name/body that exceeds discovery limits"
+                    .to_owned(),
+            ),
+        };
+    }
+
+    if scripts_object.values().any(|value| !value.is_string()) {
+        return PackageScriptRead {
+            manifest_state: PackageScriptManifestState::ScriptsInvalid,
+            scripts: BTreeMap::new(),
+            error: Some("package.json#scripts values must be strings".to_owned()),
+        };
+    }
+
     let scripts = scripts_object
         .iter()
-        .filter_map(|(name, value)| {
-            value
-                .as_str()
-                .map(|body| (name.to_owned(), body.to_owned()))
+        .map(|(name, value)| {
+            (
+                name.to_owned(),
+                value.as_str().unwrap_or_default().to_owned(),
+            )
         })
         .collect::<BTreeMap<_, _>>();
 
@@ -1002,9 +1203,11 @@ fn build_run_contracts(
     runtime_status: &PackageScriptRuntimeStatus,
     all_scripts: &[PackageScriptDescriptor],
     contract_scripts: &[PackageScriptDescriptor],
+    script_authority: &BTreeMap<String, String>,
     workspace_revision: &Option<String>,
 ) -> Vec<PackageScriptRunContract> {
     let runner = runner_from_status(runtime_status);
+    let manifest_authority = PackageScriptManifestAuthority::new(script_authority);
     contract_scripts
         .iter()
         .map(|script| {
@@ -1047,6 +1250,7 @@ fn build_run_contracts(
                 blockers,
                 warnings,
                 workspace_revision: workspace_revision.clone(),
+                manifest_authority: Some(manifest_authority.clone()),
                 rerun_lineage: None,
             }
         })
@@ -1303,9 +1507,15 @@ fn stable_token(raw: &str) -> String {
 }
 
 fn safe_script_label(raw: &str) -> String {
-    raw.chars()
-        .filter(|ch| !ch.is_control())
-        .collect::<String>()
+    safe_export_reference(raw, "unsafe-script-name")
+}
+
+fn safe_export_reference(raw: &str, fallback: &str) -> String {
+    if raw.len() <= MAX_PACKAGE_EXPORT_FIELD_BYTES && is_safe_reference_text(raw) {
+        raw.to_owned()
+    } else {
+        fallback.to_owned()
+    }
 }
 
 fn json_pointer_segment(raw: &str) -> String {
@@ -1411,6 +1621,9 @@ mod tests {
             .scripts
             .iter()
             .any(|script| script.name == "prebuild" && !script.runnable_in_launch_wedge));
+        let serialized = serde_json::to_string(&discovery).expect("serialize discovery");
+        assert!(!serialized.contains("script_body"));
+        assert!(!serialized.contains("vite build"));
 
         let build = discovery
             .contract_for_script("build")
@@ -1641,5 +1854,176 @@ mod tests {
             rerun_stream.events[0].identity.attempt_id,
             initial_stream.events[0].identity.attempt_id
         );
+    }
+
+    #[test]
+    fn package_script_discovery_rejects_oversized_and_invalid_script_maps() {
+        let oversized = TempWorkspace::new("oversized-package");
+        std::fs::File::create(oversized.path().join("package.json"))
+            .and_then(|file| file.set_len(MAX_PACKAGE_MANIFEST_BYTES + 1))
+            .expect("oversized manifest");
+        let read = read_package_scripts(oversized.path());
+        assert_eq!(read.manifest_state, PackageScriptManifestState::Unreadable);
+        assert!(read.scripts.is_empty());
+
+        let invalid = TempWorkspace::new("invalid-package-scripts");
+        std::fs::write(
+            invalid.path().join("package.json"),
+            r#"{"scripts":{"test":{"command":"pytest"}}}"#,
+        )
+        .expect("invalid scripts manifest");
+        let read = read_package_scripts(invalid.path());
+        assert_eq!(
+            read.manifest_state,
+            PackageScriptManifestState::ScriptsInvalid
+        );
+        assert!(read.scripts.is_empty());
+
+        let too_many = TempWorkspace::new("too-many-package-scripts");
+        let scripts = (0..=MAX_PACKAGE_SCRIPTS)
+            .map(|index| format!(r#""script-{index}":"true""#))
+            .collect::<Vec<_>>()
+            .join(",");
+        std::fs::write(
+            too_many.path().join("package.json"),
+            format!(r#"{{"scripts":{{{scripts}}}}}"#),
+        )
+        .expect("large script map");
+        let read = read_package_scripts(too_many.path());
+        assert_eq!(read.manifest_state, PackageScriptManifestState::Unreadable);
+        assert!(read.scripts.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn package_script_discovery_never_follows_manifest_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let workspace = TempWorkspace::new("package-symlink-workspace");
+        let outside = TempWorkspace::new("package-symlink-outside");
+        std::fs::write(
+            outside.path().join("package.json"),
+            r#"{"scripts":{"test":"private-command"}}"#,
+        )
+        .expect("outside manifest");
+        symlink(
+            outside.path().join("package.json"),
+            workspace.path().join("package.json"),
+        )
+        .expect("manifest symlink");
+
+        let read = read_package_scripts(workspace.path());
+
+        assert_eq!(read.manifest_state, PackageScriptManifestState::Unreadable);
+        assert!(read.scripts.is_empty());
+    }
+
+    #[test]
+    fn package_script_dispatch_revalidates_private_manifest_authority() {
+        let workspace = TempWorkspace::new("revalidation");
+        let initial_manifest =
+            std::fs::read_to_string(fixture_root("ready_pnpm").join("package.json"))
+                .expect("fixture package.json");
+        std::fs::write(workspace.path().join("package.json"), &initial_manifest)
+            .expect("initial package.json");
+        let mut resolver = baseline_resolver();
+        let context = package_script_context(&mut resolver, "2026-05-13T16:25:00Z");
+        let discovery = discoverer_with_ambient().discover_workspace(
+            workspace.path(),
+            context,
+            "2026-05-13T16:25:01Z",
+        );
+        let contract = discovery
+            .contract_for_script("build")
+            .expect("build contract");
+
+        contract
+            .launch_event_stream_for_workspace(workspace.path(), "2026-05-13T16:25:02Z")
+            .expect("unchanged manifest remains authorized");
+        assert!(contract
+            .validated_dispatch(workspace.path())
+            .expect("validated dispatch")
+            .is_some());
+
+        let serialized = serde_json::to_string(contract).expect("serialize contract");
+        assert!(!serialized.contains("script_bodies"));
+        assert!(!serialized.contains("vite build"));
+        let restored: PackageScriptRunContract =
+            serde_json::from_str(&serialized).expect("deserialize contract");
+        assert_eq!(
+            restored.revalidate_workspace_manifest(workspace.path()),
+            Err(PackageScriptManifestRevalidationError::MissingAuthority)
+        );
+
+        std::fs::write(
+            workspace.path().join("package.json"),
+            initial_manifest.replace("vite build", "printf changed"),
+        )
+        .expect("mutated package.json");
+        assert_eq!(
+            contract.revalidate_workspace_manifest(workspace.path()),
+            Err(PackageScriptManifestRevalidationError::ManifestChanged)
+        );
+        assert_eq!(
+            contract.validated_dispatch(workspace.path()),
+            Err(PackageScriptManifestRevalidationError::ManifestChanged)
+        );
+    }
+
+    #[test]
+    fn package_script_discovery_rejects_control_and_bidi_names() {
+        let control = TempWorkspace::new("control-name");
+        std::fs::write(
+            control.path().join("package.json"),
+            "{\"scripts\":{\"test\\nspoof\":\"true\"}}",
+        )
+        .expect("control package.json");
+        let bidi = TempWorkspace::new("bidi-name");
+        std::fs::write(
+            bidi.path().join("package.json"),
+            "{\"scripts\":{\"test\\u202espoof\":\"true\"}}",
+        )
+        .expect("bidi package.json");
+
+        for workspace in [&control, &bidi] {
+            let read = read_package_scripts(workspace.path());
+            assert_eq!(read.manifest_state, PackageScriptManifestState::Unreadable);
+            assert!(read.scripts.is_empty());
+            assert!(read
+                .error
+                .as_deref()
+                .is_some_and(|error| error.contains("unsafe name")));
+        }
+    }
+
+    struct TempWorkspace {
+        path: std::path::PathBuf,
+    }
+
+    impl TempWorkspace {
+        fn new(label: &str) -> Self {
+            let unique = format!(
+                "aureline-package-discovery-{label}-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("clock after epoch")
+                    .as_nanos()
+            );
+            let path = std::env::temp_dir().join(unique);
+            let _ = std::fs::remove_dir_all(&path);
+            std::fs::create_dir_all(&path).expect("temp workspace");
+            Self { path }
+        }
+
+        fn path(&self) -> &Path {
+            &self.path
+        }
+    }
+
+    impl Drop for TempWorkspace {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
     }
 }

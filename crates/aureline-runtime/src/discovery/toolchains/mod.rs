@@ -6,11 +6,14 @@
 //! the task, test, debug, terminal, and AI surfaces that consume the canonical
 //! execution context.
 
-use std::fs;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use super::bounded_file::{
+    read_bounded_workspace_utf8, workspace_regular_directory_exists, workspace_regular_file_exists,
+};
 
 use crate::detectors::node::{
     NodePackageManagerKind, NodeToolchainDetection, NodeToolchainDetector,
@@ -29,6 +32,8 @@ pub const WORKSPACE_TOOLCHAIN_DISCOVERY_SCHEMA_VERSION: u32 = 1;
 
 /// Detector implementation version recorded on every discovery report.
 pub const WORKSPACE_TOOLCHAIN_DETECTOR_VERSION: &str = "workspace.toolchains.discovery.alpha.v1";
+
+const MAX_TOOLCHAIN_DISCOVERY_FILE_BYTES: u64 = 2 * 1024 * 1024;
 
 /// Tool or environment family recorded by the workspace detector.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -557,14 +562,14 @@ fn package_manager_entry(
 
     match manager {
         NodePackageManagerKind::Npm => {
-            if workspace_root.join("package-lock.json").is_file() {
+            if workspace_regular_file_exists(workspace_root, Path::new("package-lock.json")) {
                 evidence.push(lockfile_evidence(
                     ToolchainDetectionSourceKind::NpmLockfile,
                     "package-lock.json",
                     version.clone().or_else(|| ambient_version.clone()),
                 ));
             }
-            if workspace_root.join("npm-shrinkwrap.json").is_file() {
+            if workspace_regular_file_exists(workspace_root, Path::new("npm-shrinkwrap.json")) {
                 evidence.push(lockfile_evidence(
                     ToolchainDetectionSourceKind::NpmLockfile,
                     "npm-shrinkwrap.json",
@@ -573,7 +578,7 @@ fn package_manager_entry(
             }
         }
         NodePackageManagerKind::Yarn => {
-            if workspace_root.join("yarn.lock").is_file() {
+            if workspace_regular_file_exists(workspace_root, Path::new("yarn.lock")) {
                 evidence.push(lockfile_evidence(
                     ToolchainDetectionSourceKind::YarnLockfile,
                     "yarn.lock",
@@ -582,7 +587,7 @@ fn package_manager_entry(
             }
         }
         NodePackageManagerKind::Pnpm => {
-            if workspace_root.join("pnpm-lock.yaml").is_file() {
+            if workspace_regular_file_exists(workspace_root, Path::new("pnpm-lock.yaml")) {
                 evidence.push(lockfile_evidence(
                     ToolchainDetectionSourceKind::PnpmLockfile,
                     "pnpm-lock.yaml",
@@ -698,7 +703,7 @@ fn venv_entry(workspace_root: &Path) -> ToolchainDetectionEntry {
             )],
         );
     }
-    if workspace_root.join(".venv").is_dir() {
+    if workspace_regular_directory_exists(workspace_root, Path::new(".venv")) {
         return ToolchainDetectionEntry::present(
             WorkspaceToolchainKind::Venv,
             None,
@@ -720,7 +725,7 @@ fn poetry_entry(
     ambient_version: Option<String>,
 ) -> ToolchainDetectionEntry {
     let mut evidence = Vec::new();
-    if workspace_root.join("poetry.lock").is_file() {
+    if workspace_regular_file_exists(workspace_root, Path::new("poetry.lock")) {
         evidence.push(ToolchainDetectionEvidence::new(
             ToolchainDetectionSourceKind::PoetryLockfile,
             "poetry.lock",
@@ -754,7 +759,7 @@ fn uv_entry(
     ambient_version: Option<String>,
 ) -> ToolchainDetectionEntry {
     let mut evidence = Vec::new();
-    if workspace_root.join("uv.lock").is_file() {
+    if workspace_regular_file_exists(workspace_root, Path::new("uv.lock")) {
         evidence.push(ToolchainDetectionEvidence::new(
             ToolchainDetectionSourceKind::UvLockfile,
             "uv.lock",
@@ -837,7 +842,7 @@ fn python_tool_entry(
                     "pyproject.toml has pytest configuration.",
                 ));
             }
-            if workspace_root.join("pytest.ini").is_file() {
+            if workspace_regular_file_exists(workspace_root, Path::new("pytest.ini")) {
                 evidence.push(ToolchainDetectionEvidence::new(
                     ToolchainDetectionSourceKind::PytestConfig,
                     "pytest.ini",
@@ -856,7 +861,7 @@ fn python_tool_entry(
                 ));
             }
             for rel in ["ruff.toml", ".ruff.toml"] {
-                if workspace_root.join(rel).is_file() {
+                if workspace_regular_file_exists(workspace_root, Path::new(rel)) {
                     evidence.push(ToolchainDetectionEvidence::new(
                         ToolchainDetectionSourceKind::RuffConfig,
                         rel,
@@ -909,12 +914,23 @@ fn lockfile_evidence(
 }
 
 fn read_package_json(workspace_root: &Path) -> Option<Value> {
-    let payload = fs::read_to_string(workspace_root.join("package.json")).ok()?;
+    let payload = read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new("package.json"),
+        MAX_TOOLCHAIN_DISCOVERY_FILE_BYTES,
+    )
+    .ok()??;
     serde_json::from_str(&payload).ok()
 }
 
 fn read_to_string_if_present(workspace_root: &Path, rel: &str) -> Option<String> {
-    fs::read_to_string(workspace_root.join(rel)).ok()
+    read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new(rel),
+        MAX_TOOLCHAIN_DISCOVERY_FILE_BYTES,
+    )
+    .ok()
+    .flatten()
 }
 
 fn read_first_line(workspace_root: &Path, rel: &str) -> Option<String> {

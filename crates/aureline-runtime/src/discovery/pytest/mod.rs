@@ -7,8 +7,8 @@
 //! stable pytest selector; it does not rely on shell-only command text or ask
 //! users to re-enter selectors for reruns.
 
+use std::collections::VecDeque;
 use std::fs;
-use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,10 @@ use serde::{Deserialize, Serialize};
 use crate::detectors::python::{
     PythonEnvironmentDetection, PythonEnvironmentDetectorConfig, PythonEnvironmentManagerKind,
     PythonEnvironmentResolutionState, PythonEnvironmentSourceKind,
+};
+use crate::discovery::bounded_file::{
+    is_safe_reference_text, read_bounded_workspace_utf8, workspace_regular_directory_exists,
+    workspace_regular_file_exists,
 };
 use crate::discovery::toolchains::{WorkspaceToolchainDetector, WorkspaceToolchainDetectorConfig};
 use crate::execution_context::{
@@ -34,6 +38,15 @@ use crate::TrustState;
 
 /// Schema version for [`PytestDiscovery`] and [`PytestRunContract`] records.
 pub const PYTEST_DISCOVERY_SCHEMA_VERSION: u32 = 1;
+
+const MAX_PYTEST_SCAN_ENTRIES: usize = 100_000;
+const MAX_PYTEST_SCAN_DIRECTORIES: usize = 20_000;
+const MAX_PYTEST_FILES: usize = 10_000;
+const MAX_PYTEST_FILE_BYTES: u64 = 2 * 1024 * 1024;
+const MAX_PYTEST_TOTAL_SOURCE_BYTES: u64 = 32 * 1024 * 1024;
+const MAX_PYTEST_ITEMS: usize = 20_000;
+const MAX_PYTEST_RELATIVE_PATH_BYTES: usize = 2_048;
+const MAX_PYTEST_DISCOVERY_ISSUES: usize = 256;
 
 /// Stable record-kind tag for a pytest discovery result.
 pub const PYTEST_DISCOVERY_RECORD_KIND: &str = "pytest_discovery_record";
@@ -1046,42 +1059,130 @@ struct PytestWorkspaceRead {
     issues: Vec<PytestDiscoveryIssue>,
 }
 
-fn read_pytest_workspace(workspace_root: &Path) -> PytestWorkspaceRead {
-    let mut paths = Vec::new();
-    let mut issues = Vec::new();
-    match collect_test_files(workspace_root, &mut paths) {
-        Ok(()) => {}
-        Err(err) => {
-            return PytestWorkspaceRead {
-                discovery_state: PytestDiscoveryState::WorkspaceUnreadable,
-                test_files: Vec::new(),
-                test_items: Vec::new(),
-                issues: vec![PytestDiscoveryIssue {
-                    issue_kind: PytestDiscoveryIssueKind::WorkspaceUnreadable,
-                    source_ref: None,
-                    summary: format!("workspace root could not be read: {err}"),
-                }],
-            };
+#[derive(Debug, Clone, Copy)]
+struct PytestDiscoveryLimits {
+    max_entries: usize,
+    max_directories: usize,
+    max_files: usize,
+    max_file_bytes: u64,
+    max_total_source_bytes: u64,
+    max_items: usize,
+}
+
+impl Default for PytestDiscoveryLimits {
+    fn default() -> Self {
+        Self {
+            max_entries: MAX_PYTEST_SCAN_ENTRIES,
+            max_directories: MAX_PYTEST_SCAN_DIRECTORIES,
+            max_files: MAX_PYTEST_FILES,
+            max_file_bytes: MAX_PYTEST_FILE_BYTES,
+            max_total_source_bytes: MAX_PYTEST_TOTAL_SOURCE_BYTES,
+            max_items: MAX_PYTEST_ITEMS,
         }
     }
-    paths.sort_by_key(|path| relative_path(workspace_root, path));
+}
+
+fn read_pytest_workspace(workspace_root: &Path) -> PytestWorkspaceRead {
+    read_pytest_workspace_with_limits(workspace_root, PytestDiscoveryLimits::default())
+}
+
+fn read_pytest_workspace_with_limits(
+    workspace_root: &Path,
+    limits: PytestDiscoveryLimits,
+) -> PytestWorkspaceRead {
+    let canonical_root = match workspace_root.canonicalize() {
+        Ok(root) if root.is_dir() => root,
+        _ => return workspace_unreadable(),
+    };
+    let mut paths = Vec::new();
+    let mut issues = Vec::new();
+    if !collect_test_files(&canonical_root, &mut paths, &mut issues, limits) {
+        return workspace_unreadable();
+    }
+    paths.sort_by_key(|path| relative_path(&canonical_root, path).unwrap_or_default());
 
     let mut test_files = Vec::new();
     let mut test_items = Vec::new();
-    for path in paths {
-        let rel = relative_path(workspace_root, &path);
-        let payload = match fs::read_to_string(&path) {
-            Ok(payload) => payload,
-            Err(err) => {
-                issues.push(PytestDiscoveryIssue {
+    let mut source_bytes = 0_u64;
+    let path_count = paths.len();
+    for (path_index, path) in paths.into_iter().enumerate() {
+        let Some(rel) = relative_path(&canonical_root, &path) else {
+            push_pytest_issue(
+                &mut issues,
+                PytestDiscoveryIssue {
                     issue_kind: PytestDiscoveryIssueKind::TestFileUnreadable,
-                    source_ref: Some(rel.clone()),
-                    summary: format!("{rel} could not be read: {err}"),
-                });
+                    source_ref: None,
+                    summary:
+                        "A pytest-compatible path could not be represented safely and was omitted."
+                            .to_owned(),
+                },
+            );
+            continue;
+        };
+        let metadata_len = match fs::symlink_metadata(&path) {
+            Ok(metadata)
+                if metadata.is_file()
+                    && !metadata.file_type().is_symlink()
+                    && metadata.len() <= limits.max_file_bytes =>
+            {
+                metadata.len()
+            }
+            _ => {
+                push_pytest_issue(
+                    &mut issues,
+                    pytest_file_issue(
+                        &rel,
+                        "could not be read within the per-file discovery limit",
+                    ),
+                );
                 continue;
             }
         };
-        let mut items = parse_pytest_file(&rel, &payload);
+        if metadata_len > limits.max_total_source_bytes.saturating_sub(source_bytes) {
+            push_pytest_issue(
+                &mut issues,
+                pytest_limit_issue(
+                    "Pytest source discovery reached its total byte limit; remaining files were omitted.",
+                ),
+            );
+            break;
+        }
+        let payload = match read_bounded_workspace_utf8(
+            &canonical_root,
+            Path::new(&rel),
+            limits.max_file_bytes,
+        ) {
+            Ok(Some(payload)) => payload,
+            _ => {
+                push_pytest_issue(
+                    &mut issues,
+                    pytest_file_issue(&rel, "could not be read safely and was omitted"),
+                );
+                continue;
+            }
+        };
+        let Some(next_total) = source_bytes.checked_add(payload.len() as u64) else {
+            push_pytest_issue(
+                &mut issues,
+                pytest_limit_issue(
+                    "Pytest source-byte accounting overflowed; remaining files were omitted.",
+                ),
+            );
+            break;
+        };
+        if next_total > limits.max_total_source_bytes {
+            push_pytest_issue(
+                &mut issues,
+                pytest_limit_issue(
+                    "Pytest source discovery reached its total byte limit; remaining files were omitted.",
+                ),
+            );
+            break;
+        }
+        source_bytes = next_total;
+        let remaining_items = limits.max_items.saturating_sub(test_items.len());
+        let (mut items, items_truncated) =
+            parse_pytest_file_bounded(&rel, &payload, remaining_items);
         let test_count = items.len() as u32;
         test_files.push(PytestTestFileDescriptor {
             file_id: format!("pytest-file:{}", stable_token(&rel)),
@@ -1090,6 +1191,16 @@ fn read_pytest_workspace(workspace_root: &Path) -> PytestWorkspaceRead {
             test_count,
         });
         test_items.append(&mut items);
+        if items_truncated || (test_items.len() >= limits.max_items && path_index + 1 < path_count)
+        {
+            push_pytest_issue(
+                &mut issues,
+                pytest_limit_issue(
+                    "Pytest item discovery reached its item limit; remaining items were omitted.",
+                ),
+            );
+            break;
+        }
     }
 
     let discovery_state = if !issues.is_empty() {
@@ -1108,21 +1219,215 @@ fn read_pytest_workspace(workspace_root: &Path) -> PytestWorkspaceRead {
     }
 }
 
-fn collect_test_files(current: &Path, out: &mut Vec<PathBuf>) -> io::Result<()> {
-    for entry in fs::read_dir(current)? {
-        let entry = entry?;
-        let path = entry.path();
-        let file_type = entry.file_type()?;
-        if file_type.is_dir() {
-            if should_skip_dir(&path) {
+fn workspace_unreadable() -> PytestWorkspaceRead {
+    PytestWorkspaceRead {
+        discovery_state: PytestDiscoveryState::WorkspaceUnreadable,
+        test_files: Vec::new(),
+        test_items: Vec::new(),
+        issues: vec![PytestDiscoveryIssue {
+            issue_kind: PytestDiscoveryIssueKind::WorkspaceUnreadable,
+            source_ref: None,
+            summary: "workspace root could not be read safely".to_owned(),
+        }],
+    }
+}
+
+fn collect_test_files(
+    canonical_root: &Path,
+    out: &mut Vec<PathBuf>,
+    issues: &mut Vec<PytestDiscoveryIssue>,
+    limits: PytestDiscoveryLimits,
+) -> bool {
+    if fs::read_dir(canonical_root).is_err() {
+        return false;
+    }
+    let mut queue = VecDeque::from([canonical_root.to_path_buf()]);
+    let mut scanned_entries = 0_usize;
+    let mut discovered_directories = 1_usize;
+
+    while let Some(current) = queue.pop_front() {
+        let entries = match fs::read_dir(&current) {
+            Ok(entries) => entries,
+            Err(_) => {
+                push_pytest_issue(
+                    issues,
+                    PytestDiscoveryIssue {
+                        issue_kind: PytestDiscoveryIssueKind::WorkspaceUnreadable,
+                        source_ref: relative_path(canonical_root, &current),
+                        summary:
+                            "A workspace directory could not be read; its test scope was omitted."
+                                .to_owned(),
+                    },
+                );
                 continue;
             }
-            collect_test_files(&path, out)?;
-        } else if file_type.is_file() && is_pytest_file(&path) {
-            out.push(path);
+        };
+        for entry in entries {
+            if scanned_entries >= limits.max_entries {
+                push_pytest_issue(
+                    issues,
+                    pytest_limit_issue(
+                        "Pytest discovery reached its entry limit; remaining workspace scope was omitted.",
+                    ),
+                );
+                return true;
+            }
+            scanned_entries += 1;
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(_) => {
+                    push_pytest_issue(
+                        issues,
+                        PytestDiscoveryIssue {
+                            issue_kind: PytestDiscoveryIssueKind::WorkspaceUnreadable,
+                            source_ref: relative_path(canonical_root, &current),
+                            summary: "A workspace directory entry could not be inspected and was omitted."
+                                .to_owned(),
+                        },
+                    );
+                    continue;
+                }
+            };
+            let path = entry.path();
+            let file_type = match entry.file_type() {
+                Ok(file_type) => file_type,
+                Err(_) => {
+                    push_pytest_issue(
+                        issues,
+                        PytestDiscoveryIssue {
+                            issue_kind: PytestDiscoveryIssueKind::WorkspaceUnreadable,
+                            source_ref: relative_path(canonical_root, &path),
+                            summary:
+                                "A workspace entry type could not be inspected and was omitted."
+                                    .to_owned(),
+                        },
+                    );
+                    continue;
+                }
+            };
+            if file_type.is_symlink() {
+                continue;
+            }
+            if file_type.is_dir() {
+                if should_skip_dir(&path) {
+                    continue;
+                }
+                let Some(relative) = relative_path(canonical_root, &path) else {
+                    push_pytest_issue(
+                        issues,
+                        pytest_limit_issue(
+                            "A workspace directory path could not be represented safely and was omitted.",
+                        ),
+                    );
+                    continue;
+                };
+                if discovered_directories >= limits.max_directories {
+                    push_pytest_issue(
+                        issues,
+                        pytest_limit_issue(
+                            "Pytest discovery reached its directory limit; additional directories were omitted.",
+                        ),
+                    );
+                    continue;
+                }
+                if !workspace_regular_directory_exists(canonical_root, Path::new(&relative)) {
+                    push_pytest_issue(
+                        issues,
+                        pytest_limit_issue(
+                            "A workspace directory changed identity or crossed a symlink boundary and was omitted.",
+                        ),
+                    );
+                    continue;
+                }
+                let canonical_path = match path.canonicalize() {
+                    Ok(canonical_path)
+                        if canonical_path.starts_with(canonical_root)
+                            && fs::symlink_metadata(&path)
+                                .map(|metadata| {
+                                    metadata.is_dir() && !metadata.file_type().is_symlink()
+                                })
+                                .unwrap_or(false) =>
+                    {
+                        canonical_path
+                    }
+                    _ => {
+                        push_pytest_issue(
+                            issues,
+                            pytest_limit_issue(
+                                "A workspace directory crossed the admitted root and was omitted.",
+                            ),
+                        );
+                        continue;
+                    }
+                };
+                discovered_directories += 1;
+                queue.push_back(canonical_path);
+            } else if file_type.is_file() && is_pytest_file(&path) {
+                if out.len() >= limits.max_files {
+                    push_pytest_issue(
+                        issues,
+                        pytest_limit_issue(
+                            "Pytest discovery reached its file limit; remaining test files were omitted.",
+                        ),
+                    );
+                    return true;
+                }
+                let Some(relative) = relative_path(canonical_root, &path) else {
+                    push_pytest_issue(
+                        issues,
+                        pytest_limit_issue(
+                            "A pytest-compatible path could not be represented safely and was omitted.",
+                        ),
+                    );
+                    continue;
+                };
+                if !workspace_regular_file_exists(canonical_root, Path::new(&relative)) {
+                    push_pytest_issue(
+                        issues,
+                        pytest_limit_issue(
+                            "A pytest-compatible file changed identity or crossed a symlink boundary and was omitted.",
+                        ),
+                    );
+                    continue;
+                }
+                out.push(path);
+            }
         }
     }
-    Ok(())
+    true
+}
+
+fn pytest_file_issue(relative_path: &str, reason: &str) -> PytestDiscoveryIssue {
+    PytestDiscoveryIssue {
+        issue_kind: PytestDiscoveryIssueKind::TestFileUnreadable,
+        source_ref: Some(relative_path.to_owned()),
+        summary: format!("{relative_path} {reason}."),
+    }
+}
+
+fn pytest_limit_issue(summary: &str) -> PytestDiscoveryIssue {
+    PytestDiscoveryIssue {
+        issue_kind: PytestDiscoveryIssueKind::TestFileUnreadable,
+        source_ref: None,
+        summary: summary.to_owned(),
+    }
+}
+
+fn push_pytest_issue(issues: &mut Vec<PytestDiscoveryIssue>, issue: PytestDiscoveryIssue) {
+    match issues
+        .len()
+        .cmp(&MAX_PYTEST_DISCOVERY_ISSUES.saturating_sub(1))
+    {
+        std::cmp::Ordering::Less => issues.push(issue),
+        std::cmp::Ordering::Equal => issues.push(PytestDiscoveryIssue {
+            issue_kind: PytestDiscoveryIssueKind::TestFileUnreadable,
+            source_ref: None,
+            summary:
+                "Additional pytest discovery issues were omitted at the issue-retention limit."
+                    .to_owned(),
+        }),
+        std::cmp::Ordering::Greater => {}
+    }
 }
 
 fn should_skip_dir(path: &Path) -> bool {
@@ -1155,7 +1460,11 @@ fn is_pytest_file(path: &Path) -> bool {
         && (file_name.starts_with("test_") || file_name.ends_with("_test.py"))
 }
 
-fn parse_pytest_file(rel_path: &str, payload: &str) -> Vec<PytestTestDescriptor> {
+fn parse_pytest_file_bounded(
+    rel_path: &str,
+    payload: &str,
+    max_items: usize,
+) -> (Vec<PytestTestDescriptor>, bool) {
     let mut items = Vec::new();
     let mut current_class: Option<(String, usize)> = None;
     for (idx, raw_line) in payload.lines().enumerate() {
@@ -1178,6 +1487,9 @@ fn parse_pytest_file(rel_path: &str, payload: &str) -> Vec<PytestTestDescriptor>
         let Some(function_name) = parse_test_function_name(trimmed) else {
             continue;
         };
+        if items.len() >= max_items {
+            return (items, true);
+        }
         let line_number = (idx + 1) as u32;
         let (kind, node_id, label) = match &current_class {
             Some((class_name, class_indent)) if indent > *class_indent => (
@@ -1203,7 +1515,7 @@ fn parse_pytest_file(rel_path: &str, payload: &str) -> Vec<PytestTestDescriptor>
             wedge: TaskWedgeClass::Test,
         });
     }
-    items
+    (items, false)
 }
 
 fn build_run_contracts(
@@ -1521,27 +1833,39 @@ fn version_from_token(token: Option<&str>) -> Option<String> {
 
 fn pytest_config_refs(workspace_root: &Path) -> Vec<String> {
     let mut refs = Vec::new();
-    let pyproject = workspace_root.join("pyproject.toml");
-    if fs::read_to_string(&pyproject)
-        .map(|payload| payload.contains("[tool.pytest.ini_options]"))
-        .unwrap_or(false)
+    if read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new("pyproject.toml"),
+        MAX_PYTEST_FILE_BYTES,
+    )
+    .ok()
+    .flatten()
+    .map(|payload| payload.contains("[tool.pytest.ini_options]"))
+    .unwrap_or(false)
     {
         refs.push("pyproject.toml#tool.pytest.ini_options".to_owned());
     }
     for rel in ["pytest.ini", "tox.ini", "setup.cfg"] {
-        if workspace_root.join(rel).is_file() {
+        if workspace_regular_file_exists(workspace_root, Path::new(rel)) {
             refs.push(rel.to_owned());
         }
     }
     refs
 }
 
-fn relative_path(workspace_root: &Path, path: &Path) -> String {
-    path.strip_prefix(workspace_root)
-        .unwrap_or(path)
-        .display()
-        .to_string()
-        .replace('\\', "/")
+fn relative_path(workspace_root: &Path, path: &Path) -> Option<String> {
+    let relative = path.strip_prefix(workspace_root).ok()?;
+    if !relative
+        .components()
+        .all(|component| matches!(component, std::path::Component::Normal(_)))
+    {
+        return None;
+    }
+    let relative = relative.to_str()?;
+    (!relative.is_empty()
+        && relative.len() <= MAX_PYTEST_RELATIVE_PATH_BYTES
+        && is_safe_reference_text(relative))
+    .then(|| relative.replace('\\', "/"))
 }
 
 fn leading_spaces(line: &str) -> usize {
@@ -1926,5 +2250,138 @@ mod tests {
             rerun_stream.events[0].identity.attempt_id,
             initial_stream.events[0].identity.attempt_id
         );
+    }
+
+    #[test]
+    fn pytest_discovery_reports_partial_truth_at_resource_limits() {
+        let workspace = TempWorkspace::new("pytest-limits");
+        for index in 0..4 {
+            std::fs::write(
+                workspace.path().join(format!("test_case_{index}.py")),
+                "def test_first():\n    pass\n\ndef test_second():\n    pass\n",
+            )
+            .expect("test source");
+        }
+        let limits = PytestDiscoveryLimits {
+            max_entries: 3,
+            max_directories: 2,
+            max_files: 2,
+            max_file_bytes: 128,
+            max_total_source_bytes: 128,
+            max_items: 2,
+        };
+
+        let read = read_pytest_workspace_with_limits(workspace.path(), limits);
+
+        assert_eq!(read.discovery_state, PytestDiscoveryState::Partial);
+        assert!(read.test_files.len() <= limits.max_files);
+        assert!(read.test_items.len() <= limits.max_items);
+        assert!(!read.issues.is_empty());
+        assert!(read
+            .issues
+            .iter()
+            .any(|issue| issue.summary.contains("limit")));
+    }
+
+    #[test]
+    fn pytest_discovery_omits_oversized_test_sources() {
+        let workspace = TempWorkspace::new("pytest-oversized");
+        std::fs::write(
+            workspace.path().join("test_large.py"),
+            "def test_too_large():\n    pass\n",
+        )
+        .expect("test source");
+        let limits = PytestDiscoveryLimits {
+            max_file_bytes: 8,
+            ..PytestDiscoveryLimits::default()
+        };
+
+        let read = read_pytest_workspace_with_limits(workspace.path(), limits);
+
+        assert_eq!(read.discovery_state, PytestDiscoveryState::Partial);
+        assert!(read.test_files.is_empty());
+        assert!(read.test_items.is_empty());
+        assert!(read
+            .issues
+            .iter()
+            .any(|issue| issue.summary.contains("per-file discovery limit")));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn pytest_discovery_never_follows_directory_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let workspace = TempWorkspace::new("pytest-symlink-workspace");
+        let outside = TempWorkspace::new("pytest-symlink-outside");
+        std::fs::write(
+            outside.path().join("test_private.py"),
+            "def test_private():\n    pass\n",
+        )
+        .expect("outside test");
+        symlink(outside.path(), workspace.path().join("linked-tests"))
+            .expect("outside directory symlink");
+
+        let read = read_pytest_workspace(workspace.path());
+
+        assert_eq!(
+            read.discovery_state,
+            PytestDiscoveryState::NoTestsDiscovered
+        );
+        assert!(read.test_files.is_empty());
+        assert!(read.test_items.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn pytest_discovery_rejects_control_characters_in_source_refs() {
+        let workspace = TempWorkspace::new("pytest-control-path");
+        std::fs::write(
+            workspace.path().join("test_spoof\n.py"),
+            "def test_private():\n    pass\n",
+        )
+        .expect("control-character test path");
+
+        let read = read_pytest_workspace(workspace.path());
+
+        assert_eq!(read.discovery_state, PytestDiscoveryState::Partial);
+        assert!(read.test_files.is_empty());
+        assert!(read.test_items.is_empty());
+        assert!(read.issues.iter().all(|issue| issue.source_ref.is_none()));
+        assert!(read
+            .issues
+            .iter()
+            .any(|issue| issue.summary.contains("represented safely")));
+    }
+
+    struct TempWorkspace {
+        path: PathBuf,
+    }
+
+    impl TempWorkspace {
+        fn new(label: &str) -> Self {
+            let unique = format!(
+                "aureline-pytest-discovery-{label}-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("clock after epoch")
+                    .as_nanos()
+            );
+            let path = std::env::temp_dir().join(unique);
+            let _ = std::fs::remove_dir_all(&path);
+            std::fs::create_dir_all(&path).expect("temp workspace");
+            Self { path }
+        }
+
+        fn path(&self) -> &Path {
+            &self.path
+        }
+    }
+
+    impl Drop for TempWorkspace {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
     }
 }

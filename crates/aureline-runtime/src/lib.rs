@@ -568,7 +568,8 @@ pub use detectors::python::{
 pub use discovery::package_scripts::{
     PackageScriptBlockReason, PackageScriptDescriptor, PackageScriptDiscoverer,
     PackageScriptDiscovererConfig, PackageScriptDiscovery, PackageScriptDiscoveryState,
-    PackageScriptDispatch, PackageScriptLaunchReadiness, PackageScriptLifecycleHook,
+    PackageScriptDispatch, PackageScriptLaunchReadiness, PackageScriptLaunchValidationError,
+    PackageScriptLifecycleHook, PackageScriptManifestRevalidationError,
     PackageScriptMissingRuntimeState, PackageScriptRerunLineage, PackageScriptRerunMode,
     PackageScriptRunContract, PackageScriptRunner, PackageScriptRuntimeStatus,
     PackageScriptShellMode, PackageScriptSource, PackageScriptSourceKind,

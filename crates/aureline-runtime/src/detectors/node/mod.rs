@@ -7,11 +7,18 @@
 //! test, or debug launch is dispatched.
 
 use std::collections::BTreeSet;
-use std::fs;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::discovery::bounded_file::{
+    is_safe_reference_text, read_bounded_workspace_utf8, workspace_path_is_present,
+    workspace_regular_file_exists,
+};
+
+const MAX_NODE_DISCOVERY_FILE_BYTES: u64 = 2 * 1024 * 1024;
+const MAX_NODE_METADATA_TOKEN_BYTES: usize = 512;
 
 /// Stable record-kind tag emitted by [`NodeToolchainDetection`].
 pub const NODE_TOOLCHAIN_DETECTION_RECORD_KIND: &str = "node_toolchain_detection_record";
@@ -355,6 +362,14 @@ impl NodeToolchainDetection {
             || self.node_runtime.resolution_state == NodeToolchainResolutionState::Ambiguous
             || self.package_manager.resolution_state == NodeToolchainResolutionState::Ambiguous
     }
+
+    /// True when a workspace-owned source existed but could not be inspected
+    /// within the detector's containment and resource boundary.
+    pub fn has_detector_failure(&self) -> bool {
+        self.provenance_cards
+            .iter()
+            .any(|card| card.source_kind == NodeToolchainSourceKind::UnreadableSource)
+    }
 }
 
 /// Caller-provided facts and overrides for [`NodeToolchainDetector`].
@@ -406,31 +421,49 @@ impl NodeToolchainDetector {
     ) -> NodeToolchainDetection {
         let workspace_root_ref = workspace_root.display().to_string();
         let package_json = read_package_json(workspace_root);
-        let mut unreadable_cards = package_json
-            .error
-            .into_iter()
-            .map(|summary| NodeToolchainProvenanceCard {
-                card_id: "node_detector.card.unreadable.package_json".to_owned(),
-                subject: NodeToolchainSubject::PackageManager,
-                source_kind: NodeToolchainSourceKind::UnreadableSource,
-                source_ref: Some("package.json".to_owned()),
-                disposition: NodeToolchainProvenanceDisposition::Unsupported,
-                value_token: None,
-                summary,
-            })
-            .collect::<Vec<_>>();
+        let mut unreadable_cards = unreadable_node_source_cards(workspace_root);
+        if let Some(summary) = package_json.error.as_ref() {
+            unreadable_cards.push(unreadable_source_card(
+                NodeToolchainSubject::NodeRuntime,
+                "package.json",
+                0,
+                summary.clone(),
+            ));
+            unreadable_cards.push(unreadable_source_card(
+                NodeToolchainSubject::PackageManager,
+                "package.json",
+                0,
+                summary.clone(),
+            ));
+        }
 
         let runtime_candidates =
             collect_runtime_candidates(workspace_root, &self.config, &package_json.value);
         let package_candidates =
             collect_package_manager_candidates(workspace_root, &self.config, &package_json.value);
+        unreadable_cards.extend(unreadable_node_source_cards(workspace_root));
+        unreadable_cards.sort_by(|left, right| left.card_id.cmp(&right.card_id));
+        unreadable_cards.dedup_by(|left, right| left.card_id == right.card_id);
 
-        let runtime = resolve_runtime(runtime_candidates, &self.config);
-        let package_manager = resolve_package_manager(
+        let mut runtime = resolve_runtime(runtime_candidates, &self.config);
+        let mut package_manager = resolve_package_manager(
             package_candidates,
             &self.config,
             runtime.resolution.resolution_state,
         );
+
+        if unreadable_cards
+            .iter()
+            .any(|card| card.subject == NodeToolchainSubject::NodeRuntime)
+        {
+            invalidate_runtime_resolution(&mut runtime);
+        }
+        if unreadable_cards
+            .iter()
+            .any(|card| card.subject == NodeToolchainSubject::PackageManager)
+        {
+            invalidate_package_manager_resolution(&mut package_manager);
+        }
 
         let mut provenance_cards = Vec::new();
         provenance_cards.extend(runtime.cards);
@@ -451,6 +484,153 @@ impl NodeToolchainDetector {
             package_manager: package_manager.resolution,
             provenance_cards,
             unresolved_ambiguities,
+        }
+    }
+}
+
+fn unreadable_node_source_cards(workspace_root: &Path) -> Vec<NodeToolchainProvenanceCard> {
+    let mut cards = Vec::new();
+    for (relative_path, subject, index) in [
+        (".nvmrc", NodeToolchainSubject::NodeRuntime, 1),
+        (".node-version", NodeToolchainSubject::NodeRuntime, 2),
+        (".tool-versions", NodeToolchainSubject::NodeRuntime, 3),
+        ("mise.toml", NodeToolchainSubject::NodeRuntime, 4),
+        (".tool-versions", NodeToolchainSubject::PackageManager, 1),
+        ("mise.toml", NodeToolchainSubject::PackageManager, 2),
+    ] {
+        if let Err(error) = read_bounded_workspace_utf8(
+            workspace_root,
+            Path::new(relative_path),
+            MAX_NODE_DISCOVERY_FILE_BYTES,
+        ) {
+            cards.push(unreadable_source_card(
+                subject,
+                relative_path,
+                index,
+                format!("{relative_path} could not be read safely: {error}"),
+            ));
+        }
+    }
+    for (relative_path, index) in [
+        ("pnpm-lock.yaml", 3),
+        ("yarn.lock", 4),
+        ("package-lock.json", 5),
+        ("npm-shrinkwrap.json", 6),
+    ] {
+        let relative_path = Path::new(relative_path);
+        if workspace_path_is_present(workspace_root, relative_path)
+            && !workspace_regular_file_exists(workspace_root, relative_path)
+        {
+            let source_ref = relative_path.to_string_lossy();
+            cards.push(unreadable_source_card(
+                NodeToolchainSubject::PackageManager,
+                &source_ref,
+                index,
+                format!("{source_ref} was present but was not a stable, contained regular file"),
+            ));
+        }
+    }
+    for (relative_path, index) in [(".nvmrc", 1), (".node-version", 2)] {
+        if workspace_path_is_present(workspace_root, Path::new(relative_path))
+            && read_first_line(workspace_root, relative_path)
+                .and_then(normalize_version)
+                .is_none()
+        {
+            cards.push(unreadable_source_card(
+                NodeToolchainSubject::NodeRuntime,
+                relative_path,
+                index,
+                format!("{relative_path} did not contain a safe Node version token"),
+            ));
+        }
+    }
+    if read_tool_versions(workspace_root, "nodejs")
+        .is_some_and(|value| normalize_version(value).is_none())
+    {
+        cards.push(unreadable_source_card(
+            NodeToolchainSubject::NodeRuntime,
+            ".tool-versions",
+            3,
+            ".tool-versions contained an unsafe Node version token".to_owned(),
+        ));
+    }
+    if ["pnpm", "npm"].iter().any(|tool| {
+        read_tool_versions(workspace_root, tool)
+            .is_some_and(|value| normalize_version(value).is_none())
+    }) {
+        cards.push(unreadable_source_card(
+            NodeToolchainSubject::PackageManager,
+            ".tool-versions",
+            1,
+            ".tool-versions contained an unsafe package-manager version token".to_owned(),
+        ));
+    }
+    if read_mise_tool(workspace_root, &["node", "nodejs"])
+        .is_some_and(|value| normalize_version(value).is_none())
+    {
+        cards.push(unreadable_source_card(
+            NodeToolchainSubject::NodeRuntime,
+            "mise.toml",
+            4,
+            "mise.toml contained an unsafe Node version token".to_owned(),
+        ));
+    }
+    if ["pnpm", "npm"].iter().any(|tool| {
+        read_mise_tool(workspace_root, &[*tool])
+            .is_some_and(|value| normalize_version(value).is_none())
+    }) {
+        cards.push(unreadable_source_card(
+            NodeToolchainSubject::PackageManager,
+            "mise.toml",
+            2,
+            "mise.toml contained an unsafe package-manager version token".to_owned(),
+        ));
+    }
+    cards
+}
+
+fn unreadable_source_card(
+    subject: NodeToolchainSubject,
+    source_ref: &str,
+    index: usize,
+    summary: String,
+) -> NodeToolchainProvenanceCard {
+    NodeToolchainProvenanceCard {
+        card_id: card_id(subject, NodeToolchainSourceKind::UnreadableSource, index),
+        subject,
+        source_kind: NodeToolchainSourceKind::UnreadableSource,
+        source_ref: Some(source_ref.to_owned()),
+        disposition: NodeToolchainProvenanceDisposition::Unsupported,
+        value_token: None,
+        summary,
+    }
+}
+
+fn invalidate_runtime_resolution(output: &mut RuntimeResolveOutput) {
+    output.resolution.resolution_state = NodeToolchainResolutionState::Unsupported;
+    output.resolution.winning_source = None;
+    output.resolution.resolved_requirement = None;
+    output.resolution.fallback_path = None;
+    invalidate_candidate_cards(&mut output.cards);
+}
+
+fn invalidate_package_manager_resolution(output: &mut PackageManagerResolveOutput) {
+    output.resolution.resolution_state = NodeToolchainResolutionState::Unsupported;
+    output.resolution.winning_source = None;
+    output.resolution.kind = None;
+    output.resolution.version = None;
+    output.resolution.fallback_path = None;
+    invalidate_candidate_cards(&mut output.cards);
+}
+
+fn invalidate_candidate_cards(cards: &mut [NodeToolchainProvenanceCard]) {
+    for card in cards {
+        if matches!(
+            card.disposition,
+            NodeToolchainProvenanceDisposition::Winning
+                | NodeToolchainProvenanceDisposition::Fallback
+        ) {
+            card.disposition = NodeToolchainProvenanceDisposition::Ignored;
         }
     }
 }
@@ -494,32 +674,75 @@ struct PackageManagerResolveOutput {
 }
 
 fn read_package_json(workspace_root: &Path) -> PackageJsonRead {
-    let path = workspace_root.join("package.json");
-    let payload = match fs::read_to_string(&path) {
-        Ok(payload) => payload,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+    let payload = match read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new("package.json"),
+        MAX_NODE_DISCOVERY_FILE_BYTES,
+    ) {
+        Ok(Some(payload)) => payload,
+        Ok(None) => {
             return PackageJsonRead {
                 value: None,
                 error: None,
             };
         }
-        Err(err) => {
+        Err(error) => {
             return PackageJsonRead {
                 value: None,
-                error: Some(format!("package.json could not be read: {err}")),
+                error: Some(format!("package.json could not be read safely: {error}")),
             };
         }
     };
     match serde_json::from_str(&payload) {
-        Ok(value) => PackageJsonRead {
-            value: Some(value),
-            error: None,
+        Ok(value) => match package_json_toolchain_error(&value) {
+            Some(error) => PackageJsonRead {
+                value: None,
+                error: Some(error),
+            },
+            None => PackageJsonRead {
+                value: Some(value),
+                error: None,
+            },
         },
         Err(err) => PackageJsonRead {
             value: None,
             error: Some(format!("package.json could not be parsed: {err}")),
         },
     }
+}
+
+fn package_json_toolchain_error(value: &Value) -> Option<String> {
+    for (label, path) in [
+        ("packageManager", &["packageManager"][..]),
+        ("engines.node", &["engines", "node"][..]),
+        ("volta.node", &["volta", "node"][..]),
+        ("volta.npm", &["volta", "npm"][..]),
+        ("volta.pnpm", &["volta", "pnpm"][..]),
+    ] {
+        let mut current = value;
+        let mut present = true;
+        for segment in path {
+            let Some(next) = current.get(*segment) else {
+                present = false;
+                break;
+            };
+            current = next;
+        }
+        if !present {
+            continue;
+        }
+        let Some(token) = current.as_str() else {
+            return Some(format!(
+                "package.json#{label} must be a bounded string when present"
+            ));
+        };
+        if !is_safe_metadata_token(token) {
+            return Some(format!(
+                "package.json#{label} contains an empty, oversized, or unsafe token"
+            ));
+        }
+    }
+    None
 }
 
 fn collect_runtime_candidates(
@@ -635,11 +858,15 @@ fn collect_package_manager_candidates(
     package_json: &Option<Value>,
 ) -> Vec<PackageManagerCandidate> {
     let mut candidates = Vec::new();
-    if let Some(requirement) = &config.explicit_package_manager {
+    if let Some(requirement) = config
+        .explicit_package_manager
+        .as_ref()
+        .and_then(normalize_package_manager_requirement)
+    {
         candidates.push(package_candidate(
             NodeToolchainSourceKind::ExplicitOverride,
             None,
-            requirement.clone(),
+            requirement,
             0,
             0,
         ));
@@ -711,7 +938,7 @@ fn collect_package_manager_candidates(
             3,
         ));
     }
-    if workspace_root.join("pnpm-lock.yaml").is_file() {
+    if workspace_regular_file_exists(workspace_root, Path::new("pnpm-lock.yaml")) {
         candidates.push(package_candidate(
             NodeToolchainSourceKind::PnpmLockfile,
             Some("pnpm-lock.yaml"),
@@ -720,7 +947,7 @@ fn collect_package_manager_candidates(
             0,
         ));
     }
-    if workspace_root.join("yarn.lock").is_file() {
+    if workspace_regular_file_exists(workspace_root, Path::new("yarn.lock")) {
         candidates.push(package_candidate(
             NodeToolchainSourceKind::YarnLockfile,
             Some("yarn.lock"),
@@ -729,7 +956,7 @@ fn collect_package_manager_candidates(
             1,
         ));
     }
-    if workspace_root.join("package-lock.json").is_file() {
+    if workspace_regular_file_exists(workspace_root, Path::new("package-lock.json")) {
         candidates.push(package_candidate(
             NodeToolchainSourceKind::NpmLockfile,
             Some("package-lock.json"),
@@ -738,7 +965,7 @@ fn collect_package_manager_candidates(
             2,
         ));
     }
-    if workspace_root.join("npm-shrinkwrap.json").is_file() {
+    if workspace_regular_file_exists(workspace_root, Path::new("npm-shrinkwrap.json")) {
         candidates.push(package_candidate(
             NodeToolchainSourceKind::NpmLockfile,
             Some("npm-shrinkwrap.json"),
@@ -747,11 +974,15 @@ fn collect_package_manager_candidates(
             3,
         ));
     }
-    if let Some(requirement) = &config.profile_package_manager {
+    if let Some(requirement) = config
+        .profile_package_manager
+        .as_ref()
+        .and_then(normalize_package_manager_requirement)
+    {
         candidates.push(package_candidate(
             NodeToolchainSourceKind::UserProfileDefault,
             None,
-            requirement.clone(),
+            requirement,
             4,
             0,
         ));
@@ -1297,7 +1528,12 @@ fn json_string<'a>(package_json: &'a Option<Value>, path: &[&str]) -> Option<&'a
 }
 
 fn read_first_line(workspace_root: &Path, rel: &str) -> Option<String> {
-    let payload = fs::read_to_string(workspace_root.join(rel)).ok()?;
+    let payload = read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new(rel),
+        MAX_NODE_DISCOVERY_FILE_BYTES,
+    )
+    .ok()??;
     payload
         .lines()
         .map(str::trim)
@@ -1306,7 +1542,12 @@ fn read_first_line(workspace_root: &Path, rel: &str) -> Option<String> {
 }
 
 fn read_tool_versions(workspace_root: &Path, tool: &str) -> Option<String> {
-    let payload = fs::read_to_string(workspace_root.join(".tool-versions")).ok()?;
+    let payload = read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new(".tool-versions"),
+        MAX_NODE_DISCOVERY_FILE_BYTES,
+    )
+    .ok()??;
     for line in payload.lines().map(str::trim) {
         if line.is_empty() || line.starts_with('#') {
             continue;
@@ -1323,7 +1564,12 @@ fn read_tool_versions(workspace_root: &Path, tool: &str) -> Option<String> {
 }
 
 fn read_mise_tool(workspace_root: &Path, tools: &[&str]) -> Option<String> {
-    let payload = fs::read_to_string(workspace_root.join("mise.toml")).ok()?;
+    let payload = read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new("mise.toml"),
+        MAX_NODE_DISCOVERY_FILE_BYTES,
+    )
+    .ok()??;
     let mut in_tools = false;
     for raw_line in payload.lines() {
         let line = raw_line.split('#').next().unwrap_or_default().trim();
@@ -1350,15 +1596,58 @@ fn read_mise_tool(workspace_root: &Path, tools: &[&str]) -> Option<String> {
 
 fn normalize_version(raw: impl AsRef<str>) -> Option<String> {
     let value = raw.as_ref().trim();
-    if value.is_empty() {
+    if !is_safe_metadata_token(value) {
         return None;
     }
     Some(value.strip_prefix('v').unwrap_or(value).to_owned())
 }
 
+fn is_safe_metadata_token(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= MAX_NODE_METADATA_TOKEN_BYTES
+        && is_safe_reference_text(value)
+        && value.chars().all(is_safe_version_character)
+}
+
+fn is_safe_version_character(character: char) -> bool {
+    character.is_ascii_alphanumeric()
+        || matches!(
+            character,
+            '.' | '-'
+                | '+'
+                | '^'
+                | '~'
+                | '<'
+                | '>'
+                | '='
+                | '*'
+                | '/'
+                | '_'
+                | ':'
+                | '@'
+                | ','
+                | '!'
+                | '|'
+                | ' '
+        )
+}
+
+fn normalize_package_manager_requirement(
+    requirement: &NodePackageManagerRequirement,
+) -> Option<NodePackageManagerRequirement> {
+    let version = match requirement.version.as_deref() {
+        Some(value) => Some(normalize_version(value)?),
+        None => None,
+    };
+    Some(NodePackageManagerRequirement::new(
+        requirement.kind,
+        version,
+    ))
+}
+
 fn parse_package_manager_requirement(raw: &str) -> Option<NodePackageManagerRequirement> {
     let value = raw.trim();
-    if value.is_empty() {
+    if !is_safe_metadata_token(value) {
         return None;
     }
     let (name, version) = match value.rsplit_once('@') {
@@ -1505,5 +1794,86 @@ mod tests {
         let npm = parse_package_manager_requirement("npm@10.9.0").expect("npm parses");
         assert_eq!(npm.kind, NodePackageManagerKind::Npm);
         assert_eq!(npm.version.as_deref(), Some("10.9.0"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unsafe_workspace_pins_fail_closed_instead_of_using_ambient_tools() {
+        use std::os::unix::fs::symlink;
+
+        let workspace = TempWorkspace::new("unsafe-node-pin");
+        let outside = TempWorkspace::new("unsafe-node-pin-outside");
+        std::fs::write(outside.path().join("node-version"), "99.0.0\n").expect("outside pin");
+        symlink(
+            outside.path().join("node-version"),
+            workspace.path().join(".nvmrc"),
+        )
+        .expect("version symlink");
+
+        let report = detector().detect_workspace(workspace.path(), "mono:0");
+
+        assert_eq!(
+            report.node_runtime.resolution_state,
+            NodeToolchainResolutionState::Unsupported
+        );
+        assert_eq!(report.node_runtime.winning_source, None);
+        assert!(report.provenance_cards.iter().any(|card| {
+            card.subject == NodeToolchainSubject::NodeRuntime
+                && card.source_kind == NodeToolchainSourceKind::UnreadableSource
+                && card.source_ref.as_deref() == Some(".nvmrc")
+        }));
+    }
+
+    #[test]
+    fn unsafe_package_metadata_tokens_fail_closed_without_echoing_payloads() {
+        let workspace = TempWorkspace::new("unsafe-package-token");
+        std::fs::write(
+            workspace.path().join("package.json"),
+            "{\"volta\":{\"node\":\"22\\u202espoof\"}}",
+        )
+        .expect("package metadata");
+
+        let report = detector().detect_workspace(workspace.path(), "mono:0");
+
+        assert_eq!(
+            report.node_runtime.resolution_state,
+            NodeToolchainResolutionState::Unsupported
+        );
+        assert!(report.has_detector_failure());
+        assert!(report
+            .provenance_cards
+            .iter()
+            .all(|card| { !card.summary.contains("spoof") && !card.summary.contains('\u{202e}') }));
+    }
+
+    struct TempWorkspace {
+        path: std::path::PathBuf,
+    }
+
+    impl TempWorkspace {
+        fn new(label: &str) -> Self {
+            let unique = format!(
+                "aureline-node-detector-{label}-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("clock after epoch")
+                    .as_nanos()
+            );
+            let path = std::env::temp_dir().join(unique);
+            let _ = std::fs::remove_dir_all(&path);
+            std::fs::create_dir_all(&path).expect("temp workspace");
+            Self { path }
+        }
+
+        fn path(&self) -> &Path {
+            &self.path
+        }
+    }
+
+    impl Drop for TempWorkspace {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
     }
 }
