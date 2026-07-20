@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Aureline contributors
+# SPDX-License-Identifier: Apache-2.0
+
 # Source seed completion matrix.
 #
 # This matrix maps seed artifacts promised by appendix sections in the source
@@ -11,15 +14,20 @@
 # Rules:
 # - Every `seed_families[]` row marked `required: true` MUST either:
 #   - name at least one `artifact_refs[]` path that exists on disk, OR
-#   - carry an unexpired `waiver`.
+#   - carry a complete, approved, unexpired `waiver` with explicit scope,
+#     justification, risk, owner, mitigation, approval, expiry, and exit plan.
 # - If a required seed family is missing and not waived, the gate fails.
 # - If a tracked source document changes, update `source_documents[].sha256`
-#   (or add a time-boxed `source_drift_waiver`).
+#   (or add a fully governed, time-boxed `source_drift_waiver`).
+# - The canonical clean-checkout lane uses the checker's `if-present` source
+#   policy because `.t2` is intentionally untracked. That policy skips digest
+#   checks only when none of the source documents are provisioned; a partial
+#   source pack still fails, and a fully provisioned pack is checked strictly.
 
 schema_version: 1
 artifact_id: aureline.source_seed_completion_matrix
-artifact_revision: 1
-generated_on: "2026-05-06T08:09:25Z"
+artifact_revision: 2
+generated_on: "2026-07-20T08:16:05Z"
 status: seeded
 
 overview_page: docs/governance/source_appendix_completion_audit.md
@@ -242,14 +250,30 @@ seed_families:
         canonical ledger file is not yet checked in.
     waiver:
       waiver_id: waiver.source_seed.waiver_register_index
-      reason: >
+      scope: >
+        Covers only seed.waiver_register_index and only the absence of the
+        first canonical artifacts/governance/waiver_register.yaml ledger.
+        It does not waive the waiver schemas, ownership records, expiry rules,
+        or any release-readiness requirement.
+      justification: >
         Defer the initial waiver ledger until the first packet family adopts
         waiver rows beyond the ownership-matrix and decision-index seeds.
+      risk: >
+        Waiver state remains split across the ownership matrix and decision
+        index, increasing review effort and the chance that a consumer misses
+        a deferral until the unified register is present.
+      owner: "@ahmeddyounis"
+      mitigation: >
+        Keep the source-seed claim narrowed, retain the explicit gap row here,
+        and require consumers to inspect the ownership-matrix waiver map and
+        decision-index rows as the interim record.
       opened_on: "2026-05-06"
+      approval:
+        approved_by:
+          - "@ahmeddyounis"
+        forum: architecture_council
       expires_on: "2026-08-06"
-      accepted_by: "@ahmeddyounis"
-      forum: architecture_council
-      notes: >
-        Consumers SHOULD continue to use the ownership-matrix waiver map and
-        decision-index rows as the interim record until the unified waiver
-        register lands.
+      exit_plan: >
+        Check in artifacts/governance/waiver_register.yaml against the
+        governed waiver-register schema, update artifact_refs to the verified
+        ledger, remove the gap block, and remove this waiver before expiry.

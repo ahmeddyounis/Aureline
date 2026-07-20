@@ -152,4 +152,7 @@ printf '\n[contract-validation] validating M5 public-contract certification regi
 python3 "${REPO_ROOT}/tools/validate_m5_public_contract_certification.py" | tee -a "${SUMMARY_PATH}"
 
 printf '\n[contract-validation] validating source seed completion matrix\n' | tee -a "${SUMMARY_PATH}"
-python3 "${REPO_ROOT}/ci/check_source_seed_completion.py" --repo-root "${REPO_ROOT}" | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/ci/check_source_seed_completion.py" --self-test | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/ci/check_source_seed_completion.py" \
+  --repo-root "${REPO_ROOT}" \
+  --source-doc-policy if-present | tee -a "${SUMMARY_PATH}"

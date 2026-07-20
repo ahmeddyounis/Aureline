@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 Aureline contributors
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Contract-artifact validation lane
 
 This lane turns the repository's contract-bearing governance artifacts into a
@@ -30,8 +35,14 @@ Companion artifacts:
   and
   [`/artifacts/governance/source_seed_completion_matrix.yaml`](../../artifacts/governance/source_seed_completion_matrix.yaml)
   - validates the source-appendix seed completion matrix (required seed
-    families must have at least one checked-in artifact ref or an active
-    waiver).
+  families must have at least one checked-in artifact ref or a complete,
+  approved, active waiver). The canonical wrapper uses the explicit
+  `if-present` source-document policy because `.t2` is intentionally absent
+  from clean checkouts: no provisioned source pack emits a warning, partial
+  provisioning fails, and a complete provisioned pack receives strict digest
+  verification. Direct invocation defaults to `required` for authoritative
+  local verification. The wrapper also runs the checker's fail-closed
+  regression drills.
 - [`/tools/ci/validate_geometry_cases.py`](../../tools/ci/validate_geometry_cases.py)
   — validates geometry token ledger and worked cases.
 - [`/tools/ci/validate_motion_cases.py`](../../tools/ci/validate_motion_cases.py)
