@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Preview-pane payloads and action-footer affordances for the command palette.
 //!
 //! The palette preview is a structured projection over the canonical command
@@ -6,6 +9,7 @@
 //! identity, arguments, enablement reasons, or preview/approval posture.
 
 use std::collections::HashMap;
+use std::path::Path;
 
 use aureline_commands::invocation::ArgumentProvenanceEntry;
 use aureline_commands::{
@@ -128,16 +132,6 @@ fn preflight_decision_token(decision: PreflightDecisionClass) -> &'static str {
         PreflightDecisionClass::PreviewRequired => "preview_required",
         PreflightDecisionClass::ApprovalRequired => "approval_required",
     }
-}
-
-fn sanitize_filename(value: &str) -> String {
-    value
-        .chars()
-        .map(|ch| match ch {
-            ':' | '/' | '\\' | ' ' | '\t' | '\n' | '\r' => '_',
-            other => other,
-        })
-        .collect()
 }
 
 /// Returns the argument provenance map the palette should use for enablement
@@ -295,22 +289,118 @@ pub fn materialize_palette_preview_record_with_arguments(
     }
 }
 
-/// Writes a palette preview record into `.logs/palette_previews/`.
+#[derive(Debug, Serialize)]
+struct PalettePreviewLogRecord {
+    record_kind: &'static str,
+    schema_version: u32,
+    redaction_policy: &'static str,
+    command_ref: String,
+    typed_argument_count: usize,
+    required_argument_count: usize,
+    resolved_argument_count: usize,
+    shortcut_count: usize,
+    client_scope_count: usize,
+    preflight_decision: String,
+    enablement_decision: String,
+    disabled_reason_code: Option<String>,
+    repair_hook_present: bool,
+    cli_skeleton_available: bool,
+}
+
+fn opaque_metadata_ref(class: &str, value: &str) -> String {
+    format!(
+        "{class}:{}",
+        aureline_history::body_object_id(value.as_bytes())
+    )
+}
+
+fn opaque_filename_id(value: &str) -> String {
+    aureline_history::body_object_id(value.as_bytes())
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
+        .collect()
+}
+
+fn closed_preflight_decision(value: &str) -> String {
+    match value {
+        "allowed"
+        | "blocked_by_policy"
+        | "disabled_with_reason"
+        | "preview_required"
+        | "approval_required" => value.to_string(),
+        _ => "unknown".to_string(),
+    }
+}
+
+fn palette_preview_log_record(command: &PaletteCommandPreview) -> PalettePreviewLogRecord {
+    PalettePreviewLogRecord {
+        record_kind: "palette_preview_log_record",
+        schema_version: 1,
+        redaction_policy: "local_metadata_only_v1",
+        command_ref: opaque_metadata_ref("command", &command.command_id),
+        typed_argument_count: command.typed_arguments.len(),
+        required_argument_count: command
+            .typed_arguments
+            .iter()
+            .filter(|argument| argument.is_required)
+            .count(),
+        resolved_argument_count: command
+            .argument_provenance_map
+            .iter()
+            .filter(|entry| entry.resolved_value_ref.is_some())
+            .count(),
+        shortcut_count: command.shortcuts.len(),
+        client_scope_count: command.client_scopes.len(),
+        preflight_decision: closed_preflight_decision(&command.preflight.decision_class),
+        enablement_decision: command
+            .preflight
+            .enablement_snapshot
+            .decision_class
+            .as_str()
+            .to_string(),
+        disabled_reason_code: command
+            .preflight
+            .enablement_snapshot
+            .disabled_reason_code
+            .map(|code| code.as_str().to_string()),
+        repair_hook_present: command
+            .preflight
+            .enablement_snapshot
+            .repair_hook_ref
+            .is_some(),
+        cli_skeleton_available: command.copy.cli_skeleton.is_some(),
+    }
+}
+
+/// Writes a metadata-only palette preview record under the configured logs root.
 pub fn write_preview_log(record: &PalettePreviewRecord) {
     let PalettePreviewSelection::Command(command) = &record.selection else {
         return;
     };
-    let root = std::path::PathBuf::from(".logs").join("palette_previews");
+    write_preview_log_at_root(
+        record,
+        command,
+        &aureline_workspace::state_paths::logs_root(),
+    );
+}
+
+fn write_preview_log_at_root(
+    record: &PalettePreviewRecord,
+    command: &PaletteCommandPreview,
+    logs_root: &Path,
+) {
+    let root = logs_root.join("palette_previews");
     if std::fs::create_dir_all(&root).is_err() {
         return;
     }
 
+    let file_identity = format!("{}\0{}", command.command_id, record.generated_at);
     let filename = format!(
-        "{}.{}.palette_preview.json",
-        sanitize_filename(&command.command_id),
-        sanitize_filename(&record.generated_at)
+        "{}.palette_preview.json",
+        opaque_filename_id(&file_identity)
     );
-    let Ok(json) = serde_json::to_string_pretty(record) else {
+    let projection = palette_preview_log_record(command);
+    let Ok(json) = serde_json::to_string_pretty(&projection) else {
         return;
     };
     let _ = std::fs::write(root.join(filename), json);
@@ -393,5 +483,68 @@ mod tests {
                 path.display()
             );
         }
+    }
+
+    #[test]
+    fn durable_palette_preview_excludes_labels_paths_and_argument_values() {
+        let registry = seeded_registry();
+        let command = registry
+            .get("cmd:workspace.open_folder")
+            .expect("seeded command");
+        let selection = PaletteItemKey::Command {
+            command_id: command.command_id().to_string(),
+        };
+        let runtime = PalettePreviewRuntimeInputs {
+            client_scope: "desktop_product",
+            workspace_trust_state: "trusted",
+            execution_context_available: true,
+            provider_linked: None,
+            credential_available: None,
+            policy_disabled: false,
+            policy_blocked_in_context: false,
+            labs_enabled: false,
+        };
+        let sentinel = "PRIVATE-PREVIEW-SENTINEL/user/repository/secret.rs";
+        let mut record = materialize_palette_preview_record_with_arguments(
+            Some(&selection),
+            registry,
+            &HashMap::new(),
+            runtime,
+            Some(vec![ArgumentProvenanceEntry {
+                argument_name: sentinel.to_string(),
+                provenance: sentinel.to_string(),
+                resolved_value_ref: Some(sentinel.to_string()),
+            }]),
+        );
+        record.generated_at = sentinel.to_string();
+        {
+            let PalettePreviewSelection::Command(command) = &mut record.selection else {
+                panic!("expected command preview");
+            };
+            command.command_id = sentinel.to_string();
+            command.command_revision_ref = sentinel.to_string();
+            command.canonical_verb = sentinel.to_string();
+            command.title = sentinel.to_string();
+            command.summary = sentinel.to_string();
+            command.shortcuts = vec![sentinel.to_string()];
+            command.copy.command_id = sentinel.to_string();
+            command.copy.cli_skeleton = Some(sentinel.to_string());
+        }
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        let PalettePreviewSelection::Command(command) = &record.selection else {
+            panic!("expected command preview");
+        };
+        write_preview_log_at_root(&record, command, temp.path());
+        let path = std::fs::read_dir(temp.path().join("palette_previews"))
+            .expect("preview log directory")
+            .next()
+            .expect("preview log entry")
+            .expect("read preview log entry")
+            .path();
+        let json = std::fs::read_to_string(path).expect("read preview metadata log");
+
+        assert!(json.contains("local_metadata_only_v1"));
+        assert_eq!(json.matches(sentinel).count(), 0);
     }
 }

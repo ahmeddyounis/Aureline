@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Title/context bar identity tuple and projection record.
 //!
 //! This module materializes the canonical `title_context_bar_state_record`
@@ -67,7 +70,7 @@ struct TitleContextBarLogKey {
 impl TitleContextBarRuntimeState {
     /// Creates a new runtime state rooted at the empty-shell identity tuple.
     pub fn new() -> Self {
-        let base = PathBuf::from(".logs").join("ux");
+        let base = aureline_workspace::state_paths::logs_root().join("ux");
         Self {
             record: materialize_identity_tuple(TitleContextBarRuntimeInputs {
                 workspace_label: None,
@@ -77,7 +80,7 @@ impl TitleContextBarRuntimeState {
                 workspace_trust_state_token: "trusted",
             }),
             last_logged: None,
-            state_path: base.join("title_context_bar_state.json"),
+            state_path: base.join("title_context_bar_state.metadata.json"),
             last_error: None,
         }
     }
@@ -138,7 +141,8 @@ impl TitleContextBarRuntimeState {
                 return;
             }
         }
-        match serde_json::to_string_pretty(&self.record) {
+        let projection = title_context_bar_log_record(&self.record);
+        match serde_json::to_string_pretty(&projection) {
             Ok(payload) => {
                 if let Err(err) = std::fs::write(&self.state_path, payload) {
                     self.last_error = Some(format!("title/context bar record write failed: {err}"));
@@ -148,6 +152,76 @@ impl TitleContextBarRuntimeState {
                 self.last_error = Some(format!("title/context bar record serialize failed: {err}"));
             }
         }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct TitleContextBarLogRecord {
+    record_kind: &'static str,
+    schema_version: u32,
+    redaction_policy: &'static str,
+    state_ref: String,
+    workspace_ref: String,
+    workspace_kind: WorkspaceKind,
+    workspace_lifecycle_state: WorkspaceLifecycleState,
+    root_count: i64,
+    ready_root_count: i64,
+    root_readiness: RootReadinessClass,
+    repo_state_class: RepoStateClass,
+    repo_identity_present: bool,
+    branch_identity_present: bool,
+    revision_identity_present: bool,
+    trust_state: TrustState,
+    trust_source: TrustSourceClass,
+    host_class: HostClass,
+    host_state: HostStateClass,
+    route_kind: RouteKind,
+    route_freshness: RouteFreshnessClass,
+    degraded_token_count: usize,
+    recovery_mode: RecoveryModeClass,
+    last_failure_present: bool,
+    field_visibility_rule_count: usize,
+    surface_projection_count: usize,
+}
+
+fn opaque_metadata_ref(class: &str, value: &str) -> String {
+    format!(
+        "{class}:{}",
+        aureline_history::body_object_id(value.as_bytes())
+    )
+}
+
+fn title_context_bar_log_record(record: &TitleContextBarStateRecord) -> TitleContextBarLogRecord {
+    TitleContextBarLogRecord {
+        record_kind: "title_context_bar_log_record",
+        schema_version: 1,
+        redaction_policy: "local_metadata_only_v1",
+        state_ref: opaque_metadata_ref("title-context-state", &record.state_id),
+        workspace_ref: opaque_metadata_ref("workspace", &record.workspace_identity.workspace_ref),
+        workspace_kind: record.workspace_identity.workspace_kind,
+        workspace_lifecycle_state: record.workspace_identity.lifecycle_state,
+        root_count: record.workspace_identity.root_summary.root_count,
+        ready_root_count: record.workspace_identity.root_summary.ready_root_count,
+        root_readiness: record.workspace_identity.root_summary.root_readiness,
+        repo_state_class: record.repo_identity.repo_state_class,
+        repo_identity_present: record.repo_identity.repo_ref.is_some(),
+        branch_identity_present: record.repo_identity.branch_ref.is_some()
+            || record.repo_identity.branch_label.is_some(),
+        revision_identity_present: record.repo_identity.revision_ref.is_some(),
+        trust_state: record.trust_identity.trust_state,
+        trust_source: record.trust_identity.trust_source,
+        host_class: record.host_identity.host_class,
+        host_state: record.host_identity.host_state,
+        route_kind: record.route_state.route_kind,
+        route_freshness: record.route_state.route_freshness,
+        degraded_token_count: record.degraded_or_recovery_state.degraded_tokens.len(),
+        recovery_mode: record.degraded_or_recovery_state.recovery_mode,
+        last_failure_present: record
+            .degraded_or_recovery_state
+            .last_failure_summary
+            .is_some(),
+        field_visibility_rule_count: record.field_visibility.len(),
+        surface_projection_count: record.surface_projections.len(),
     }
 }
 
@@ -1687,5 +1761,50 @@ mod tests {
                 assert!(record.route_state.route_label.contains("SSH tunnel"));
             }
         }
+    }
+
+    #[test]
+    fn durable_title_context_log_excludes_workspace_repo_and_branch_labels() {
+        let sentinel = "PRIVATE-TITLE-SENTINEL/user/repository/secret.rs";
+        let mut runtime = TitleContextBarRuntimeState::new();
+        runtime.record.state_id = sentinel.to_string();
+        runtime.record.workspace_identity.workspace_ref = sentinel.to_string();
+        runtime.record.workspace_identity.display_label = sentinel.to_string();
+        runtime
+            .record
+            .workspace_identity
+            .root_summary
+            .primary_root_label = Some(sentinel.to_string());
+        runtime
+            .record
+            .workspace_identity
+            .root_summary
+            .root_detail_refs = vec![sentinel.to_string()];
+        runtime.record.repo_identity.repo_ref = Some(sentinel.to_string());
+        runtime.record.repo_identity.repo_label = Some(sentinel.to_string());
+        runtime.record.repo_identity.branch_label = Some(sentinel.to_string());
+        runtime.record.repo_identity.branch_ref = Some(sentinel.to_string());
+        runtime.record.repo_identity.revision_ref = Some(sentinel.to_string());
+        runtime.record.host_identity.target_ref = Some(sentinel.to_string());
+        runtime.record.host_identity.target_label = Some(sentinel.to_string());
+        runtime.record.host_identity.boundary_note = sentinel.to_string();
+        runtime.record.profile_identity.profile_label = sentinel.to_string();
+        runtime.record.route_state.route_label = sentinel.to_string();
+        runtime
+            .record
+            .degraded_or_recovery_state
+            .last_failure_summary = Some(sentinel.to_string());
+        runtime.record.updated_at = sentinel.to_string();
+        for projection in &mut runtime.record.surface_projections {
+            projection.render_label = sentinel.to_string();
+        }
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        runtime.state_path = temp.path().join("title_context_bar_state.metadata.json");
+        runtime.flush_state_log();
+        let json = std::fs::read_to_string(&runtime.state_path).expect("read title metadata log");
+
+        assert!(json.contains("local_metadata_only_v1"));
+        assert!(!json.contains(sentinel));
     }
 }

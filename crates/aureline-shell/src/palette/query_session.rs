@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Command palette query-session state and grouped results.
 //!
 //! This module owns the live, runtime palette session: query text, selected row,
@@ -51,16 +54,6 @@ fn contains_case_insensitive(haystack: &str, needle: &str) -> bool {
         return true;
     }
     haystack.to_ascii_lowercase().contains(needle)
-}
-
-fn sanitize_filename(value: &str) -> String {
-    value
-        .chars()
-        .map(|ch| match ch {
-            ':' | '/' | '\\' | ' ' | '\t' | '\n' | '\r' => '_',
-            other => other,
-        })
-        .collect()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -268,6 +261,107 @@ pub enum CommandPaletteSnapshotSelectedKey {
     Command { command_id: String },
     /// Selected file key.
     File { relative_path: String },
+}
+
+#[derive(Debug, Serialize)]
+struct CommandPaletteSessionLogRecord {
+    record_kind: &'static str,
+    schema_version: u32,
+    redaction_policy: &'static str,
+    palette_session_ref: String,
+    query_present: bool,
+    query_length_class: &'static str,
+    selected_kind: &'static str,
+    provider_summaries: Vec<CommandPaletteProviderLogSummary>,
+    group_count: usize,
+    command_result_count: usize,
+    file_result_count: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct CommandPaletteProviderLogSummary {
+    provider_class: String,
+    state_class: String,
+    visible_result_count: usize,
+}
+
+fn opaque_metadata_ref(class: &str, value: &str) -> String {
+    format!(
+        "{class}:{}",
+        aureline_history::body_object_id(value.as_bytes())
+    )
+}
+
+fn opaque_filename_id(value: &str) -> String {
+    aureline_history::body_object_id(value.as_bytes())
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
+        .collect()
+}
+
+fn closed_palette_provider(value: &str) -> String {
+    match value {
+        "recent_history"
+        | "lexical_command_index"
+        | "semantic_command_index"
+        | "file_index"
+        | "keybinding_resolver" => value.to_string(),
+        _ => "unknown".to_string(),
+    }
+}
+
+fn closed_palette_provider_state(value: &str) -> String {
+    match value {
+        "not_requested" | "warming" | "ready" | "streaming" | "partial" | "stale"
+        | "policy_blocked" | "unavailable" | "complete" => value.to_string(),
+        _ => "unknown".to_string(),
+    }
+}
+
+fn query_length_class(query: &str) -> &'static str {
+    match query.chars().count() {
+        0 => "empty",
+        1..=8 => "short",
+        9..=32 => "medium",
+        _ => "long",
+    }
+}
+
+fn palette_session_log_record(snapshot: &CommandPaletteSnapshot) -> CommandPaletteSessionLogRecord {
+    let mut command_result_count = 0usize;
+    let mut file_result_count = 0usize;
+    for item in snapshot.groups.iter().flat_map(|group| group.items.iter()) {
+        match item {
+            CommandPaletteSnapshotItem::Command { .. } => command_result_count += 1,
+            CommandPaletteSnapshotItem::File { .. } => file_result_count += 1,
+        }
+    }
+
+    CommandPaletteSessionLogRecord {
+        record_kind: "command_palette_session_log_record",
+        schema_version: 1,
+        redaction_policy: "local_metadata_only_v1",
+        palette_session_ref: opaque_metadata_ref("palette-session", &snapshot.palette_session_id),
+        query_present: !snapshot.query.is_empty(),
+        query_length_class: query_length_class(&snapshot.query),
+        selected_kind: match snapshot.selected_key.as_ref() {
+            None => "none",
+            Some(CommandPaletteSnapshotSelectedKey::Command { .. }) => "command",
+            Some(CommandPaletteSnapshotSelectedKey::File { .. }) => "file",
+        },
+        provider_summaries: snapshot
+            .providers
+            .iter()
+            .map(|provider| CommandPaletteProviderLogSummary {
+                provider_class: closed_palette_provider(&provider.provider_class),
+                state_class: closed_palette_provider_state(&provider.state_class),
+                visible_result_count: provider.visible_result_count,
+            })
+            .collect(),
+        group_count: snapshot.groups.len(),
+        command_result_count,
+        file_result_count,
+    }
 }
 
 /// Maximum recent-target rows surfaced in the quick-open recents lane.
@@ -1735,19 +1829,7 @@ impl CommandPaletteState {
         }
 
         let snapshot = self.export_snapshot(registry, shortcuts_by_command_id);
-        let root = std::path::PathBuf::from(".logs").join("palette_sessions");
-        if std::fs::create_dir_all(&root).is_err() {
-            return;
-        }
-
-        let filename = format!(
-            "{}.palette_session.json",
-            sanitize_filename(&snapshot.palette_session_id)
-        );
-        let Ok(json) = serde_json::to_string_pretty(&snapshot) else {
-            return;
-        };
-        let _ = std::fs::write(root.join(filename), json);
+        write_palette_session_log_at_root(&snapshot, &aureline_workspace::state_paths::logs_root());
     }
 
     pub fn handle_backspace(
@@ -2171,6 +2253,23 @@ impl CommandPaletteState {
     }
 }
 
+fn write_palette_session_log_at_root(snapshot: &CommandPaletteSnapshot, logs_root: &Path) {
+    let root = logs_root.join("palette_sessions");
+    if std::fs::create_dir_all(&root).is_err() {
+        return;
+    }
+
+    let filename = format!(
+        "{}.palette_session.json",
+        opaque_filename_id(&snapshot.palette_session_id)
+    );
+    let projection = palette_session_log_record(snapshot);
+    let Ok(json) = serde_json::to_string_pretty(&projection) else {
+        return;
+    };
+    let _ = std::fs::write(root.join(filename), json);
+}
+
 fn match_command(
     entry: &CommandRegistryEntryRecord,
     normalized_query: &str,
@@ -2324,5 +2423,61 @@ mod tests {
         let now = Instant::now() + Duration::from_millis(300);
         let _ = palette.tick(registry, &shortcuts, now);
         assert_eq!(palette.selected_key(), selected_key.as_ref());
+    }
+
+    #[test]
+    fn durable_palette_session_log_excludes_queries_labels_and_paths() {
+        let sentinel = "PRIVATE-PALETTE-SENTINEL/user/repository/secret.rs";
+        let snapshot = CommandPaletteSnapshot {
+            record_kind: "command_palette_snapshot_record",
+            schema_version: 1,
+            palette_session_id: sentinel.to_string(),
+            generated_at: sentinel.to_string(),
+            query: sentinel.to_string(),
+            selected_key: Some(CommandPaletteSnapshotSelectedKey::File {
+                relative_path: sentinel.to_string(),
+            }),
+            providers: vec![CommandPaletteSnapshotProvider {
+                provider_class: sentinel.to_string(),
+                state_class: sentinel.to_string(),
+                visible_result_count: 2,
+            }],
+            groups: vec![CommandPaletteSnapshotGroup {
+                label: sentinel.to_string(),
+                provider_class: sentinel.to_string(),
+                provider_state: sentinel.to_string(),
+                items: vec![
+                    CommandPaletteSnapshotItem::Command {
+                        command_id: sentinel.to_string(),
+                        title: sentinel.to_string(),
+                        summary: sentinel.to_string(),
+                        dominant_side_effect_class: sentinel.to_string(),
+                        shortcuts: sentinel.to_string(),
+                        provider_class: sentinel.to_string(),
+                        provider_state: sentinel.to_string(),
+                        ranking_sources: vec![sentinel.to_string()],
+                    },
+                    CommandPaletteSnapshotItem::File {
+                        relative_path: sentinel.to_string(),
+                        provider_class: sentinel.to_string(),
+                        provider_state: sentinel.to_string(),
+                    },
+                ],
+            }],
+        };
+        let temp = tempfile::tempdir().expect("tempdir");
+
+        write_palette_session_log_at_root(&snapshot, temp.path());
+        let path = std::fs::read_dir(temp.path().join("palette_sessions"))
+            .expect("palette log directory")
+            .next()
+            .expect("palette log entry")
+            .expect("read palette log entry")
+            .path();
+        let json = std::fs::read_to_string(path).expect("read palette metadata log");
+
+        assert!(json.contains("local_metadata_only_v1"));
+        assert!(json.contains("\"selected_kind\": \"file\""));
+        assert!(!json.contains(sentinel));
     }
 }

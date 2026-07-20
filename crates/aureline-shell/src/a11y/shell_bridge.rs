@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Shell accessibility-tree bridge.
 //!
 //! The bridge converts live shell state into `accessibility_tree_node_record`
@@ -6,7 +9,7 @@
 //! output.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::Path;
 
 use aureline_commands::{CommandEnablementContext, CommandRegistry, EnablementDecisionClass};
 
@@ -52,22 +55,106 @@ pub struct ShellA11yTreeRecord {
 
 impl ShellA11yTreeRecord {}
 
+#[derive(Debug, serde::Serialize)]
+struct ShellA11yTreeLogRecord {
+    record_kind: &'static str,
+    schema_version: u32,
+    redaction_policy: &'static str,
+    root_node_ref: String,
+    tree_epoch_ref: String,
+    node_count: usize,
+    focusable_node_count: usize,
+    focused_node_count: usize,
+    selected_node_count: usize,
+    disabled_node_count: usize,
+    degraded_node_count: usize,
+    support_notice_count: usize,
+    all_nodes_exclude_raw_private_material: bool,
+}
+
+fn opaque_metadata_ref(class: &str, value: &str) -> String {
+    format!(
+        "{class}:{}",
+        aureline_history::body_object_id(value.as_bytes())
+    )
+}
+
+fn opaque_filename_id(value: &str) -> String {
+    aureline_history::body_object_id(value.as_bytes())
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
+        .collect()
+}
+
+fn shell_a11y_log_record(record: &ShellA11yTreeRecord) -> ShellA11yTreeLogRecord {
+    ShellA11yTreeLogRecord {
+        record_kind: "shell_accessibility_tree_log_record",
+        schema_version: 1,
+        redaction_policy: "local_metadata_only_v1",
+        root_node_ref: opaque_metadata_ref("a11y-node", &record.root_node_id),
+        tree_epoch_ref: opaque_metadata_ref("a11y-tree-epoch", &record.tree_epoch_ref),
+        node_count: record.nodes.len(),
+        focusable_node_count: record
+            .nodes
+            .iter()
+            .filter(|node| node.states.focusable)
+            .count(),
+        focused_node_count: record
+            .nodes
+            .iter()
+            .filter(|node| node.states.focused)
+            .count(),
+        selected_node_count: record
+            .nodes
+            .iter()
+            .filter(|node| node.states.selected)
+            .count(),
+        disabled_node_count: record
+            .nodes
+            .iter()
+            .filter(|node| node.states.disabled)
+            .count(),
+        degraded_node_count: record
+            .nodes
+            .iter()
+            .filter(|node| node.states.degraded)
+            .count(),
+        support_notice_count: record
+            .nodes
+            .iter()
+            .filter(|node| node.support_status.user_visible_notice_required)
+            .count(),
+        all_nodes_exclude_raw_private_material: record
+            .nodes
+            .iter()
+            .all(|node| node.privacy.raw_private_material_excluded),
+    }
+}
+
 const DEFAULT_TREE_EPOCH_REF: &str = "tree.epoch.shell.bridge.1";
 const ROOT_NODE_ID: &str = "node.app.root";
 const SHELL_A11Y_LOG_DIR: &str = "accessibility_trees";
 
-/// Writes a shell accessibility-tree snapshot into `.logs/accessibility_trees/`.
+/// Writes a metadata-only accessibility-tree summary under the configured logs root.
 pub fn write_shell_accessibility_tree_log(record: &ShellA11yTreeRecord) {
-    let root = PathBuf::from(".logs").join(SHELL_A11Y_LOG_DIR);
+    write_shell_accessibility_tree_log_at_root(
+        record,
+        &aureline_workspace::state_paths::logs_root(),
+    );
+}
+
+fn write_shell_accessibility_tree_log_at_root(record: &ShellA11yTreeRecord, logs_root: &Path) {
+    let root = logs_root.join(SHELL_A11Y_LOG_DIR);
     if std::fs::create_dir_all(&root).is_err() {
         return;
     }
 
     let filename = format!(
         "{}.shell_accessibility_tree.json",
-        sanitize_for_node_id(&record.minted_at)
+        opaque_filename_id(&record.minted_at)
     );
-    let Ok(json) = serde_json::to_string_pretty(record) else {
+    let projection = shell_a11y_log_record(record);
+    let Ok(json) = serde_json::to_string_pretty(&projection) else {
         return;
     };
     let _ = std::fs::write(root.join(filename), json);
@@ -1428,6 +1515,61 @@ mod tests {
             !selected_node.states.focused,
             "selected result rows should not be the focus owner while the searchbox is focused"
         );
+    }
+
+    #[test]
+    fn durable_accessibility_log_excludes_visible_labels_and_relationship_refs() {
+        let registry = seeded_registry();
+        let shortcuts_by_command_id: HashMap<String, Vec<String>> = HashMap::new();
+        let frame = DesktopFrame::new(1920, 1080);
+        let palette = CommandPaletteState::new(registry);
+        let start_center = StartCenterState::new();
+        let docs_help_boundary_card =
+            crate::embedded::docs_help::seeded_docs_help_boundary_card("id:build:test:01");
+        let enablement = ShellA11yEnablementContext {
+            client_scope: "desktop_product",
+            workspace_trust_state: "trusted",
+            execution_context_available: true,
+            provider_linked: None,
+            credential_available: None,
+            policy_disabled: false,
+            policy_blocked_in_context: false,
+            labs_enabled: false,
+        };
+        let sentinel = "PRIVATE-A11Y-SENTINEL/user/repository/secret.rs";
+        let mut snapshot = materialize_shell_accessibility_tree(
+            registry,
+            &shortcuts_by_command_id,
+            &frame,
+            &palette,
+            &start_center,
+            &docs_help_boundary_card,
+            enablement,
+        );
+        snapshot.root_node_id = sentinel.to_string();
+        snapshot.tree_epoch_ref = sentinel.to_string();
+        snapshot.minted_at = sentinel.to_string();
+        for node in &mut snapshot.nodes {
+            node.node_id = sentinel.to_string();
+            node.tree_epoch_ref = sentinel.to_string();
+            node.accessible_name.name = sentinel.to_string();
+            node.accessible_name.description = Some(sentinel.to_string());
+            node.relationships.parent_node_ref = Some(sentinel.to_string());
+            node.relationships.source_anchor_refs = vec![sentinel.to_string()];
+        }
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_shell_accessibility_tree_log_at_root(&snapshot, temp.path());
+        let path = std::fs::read_dir(temp.path().join(SHELL_A11Y_LOG_DIR))
+            .expect("accessibility log directory")
+            .next()
+            .expect("accessibility log entry")
+            .expect("read accessibility log entry")
+            .path();
+        let json = std::fs::read_to_string(path).expect("read accessibility metadata log");
+
+        assert!(json.contains("local_metadata_only_v1"));
+        assert!(!json.contains(sentinel));
     }
 
     fn temp_palette_root() -> PathBuf {

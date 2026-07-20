@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Workspace entry vocabulary and recent-work registry.
 //!
 //! This crate owns the canonical target-kind model and the persisted recent-work
@@ -73,6 +76,7 @@ pub mod stabilize_migration_wizard_import_fidelity_for_editor_launch_paths;
 pub mod stabilize_source_locator_checkout_plan_bootstrap_result_and_queue;
 pub mod stabilize_workspace_archetype_detection_readiness_preflight;
 pub mod state_packages;
+pub mod state_paths;
 pub mod state_root_certification_lineage;
 pub mod templates;
 pub mod trust_gating_lineage;

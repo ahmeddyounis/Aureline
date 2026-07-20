@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Recent-work registry and entry vocabulary.
 //!
 //! The recent-work registry is the canonical source for "resume / reopen"
@@ -471,11 +474,9 @@ pub fn project_searchable_recent_work_lists(
 }
 
 impl RecentWorkRegistry {
-    /// Returns the default on-disk location under the repository-local log root.
+    /// Returns the default on-disk location for recent-work continuity state.
     pub fn default_store_path() -> PathBuf {
-        PathBuf::from(".logs")
-            .join("recent_work")
-            .join("recent_work_registry.json")
+        crate::state_paths::recent_work_root().join("recent_work_registry.json")
     }
 
     /// Loads the registry from `path` when present, otherwise returns an empty registry.

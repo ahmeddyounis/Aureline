@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Path-truth, alias inspector, and save-target review projections.
 //!
 //! These projections turn the pure
@@ -26,6 +29,7 @@ use aureline_vfs::identity::{
 };
 use aureline_vfs::{IdentityRecord, SaveTargetToken, TrustState};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// Path-truth chip record — projection of [`PathTruthChip`] plus
 /// shell-side schema metadata.
@@ -391,26 +395,181 @@ pub fn save_target_review_lines(record: &SaveTargetReviewRecord) -> Vec<String> 
     lines
 }
 
-fn sanitize_filename(value: &str) -> String {
-    value
+#[derive(Debug, Serialize)]
+struct PathTruthProjectionLogRecord {
+    record_kind: &'static str,
+    schema_version: u32,
+    redaction_policy: &'static str,
+    label_ref: String,
+    presentation_uri_ref: String,
+    canonical_uri_ref: String,
+    logical_uri_ref: String,
+    write_target_ref: String,
+    path_truth_class: String,
+    trust_state: String,
+    atomic_write_mode: String,
+    pinned_generation_token_kind: String,
+    opens_via_alias_kind: Option<String>,
+    alias_count: u32,
+    distinct_alias_kinds: Vec<String>,
+    permission_writable: bool,
+    permission_owner_present: bool,
+    permission_group_present: bool,
+    review_required_before_save: bool,
+    review_required_before_rename: bool,
+    save_redirects_target: bool,
+    blocker_count: usize,
+    explainer_count: usize,
+}
+
+fn opaque_metadata_ref(class: &str, value: &str) -> String {
+    format!(
+        "{class}:{}",
+        aureline_history::body_object_id(value.as_bytes())
+    )
+}
+
+fn opaque_filename_id(value: &str) -> String {
+    aureline_history::body_object_id(value.as_bytes())
         .chars()
-        .map(|ch| match ch {
-            ':' | '/' | '\\' | ' ' | '\t' | '\n' | '\r' => '_',
-            other => other,
-        })
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
         .collect()
 }
 
-/// Persist a path-truth projection to `.logs/path_truth/`. Used by
+fn closed_class(value: &str, allowed: &[&str]) -> String {
+    if allowed.contains(&value) {
+        value.to_string()
+    } else {
+        "unknown".to_string()
+    }
+}
+
+fn path_truth_log_record(
+    record: &PathTruthProjection,
+    label: &str,
+) -> PathTruthProjectionLogRecord {
+    let review = &record.save_target_review;
+    PathTruthProjectionLogRecord {
+        record_kind: "path_truth_projection_log_record",
+        schema_version: 1,
+        redaction_policy: "local_metadata_only_v1",
+        label_ref: opaque_metadata_ref("path-label", label),
+        presentation_uri_ref: opaque_metadata_ref(
+            "path-presentation",
+            &record.chip.presentation_uri,
+        ),
+        canonical_uri_ref: opaque_metadata_ref("path-canonical", &record.chip.canonical_uri),
+        logical_uri_ref: opaque_metadata_ref("path-logical", &record.chip.logical_uri),
+        write_target_ref: opaque_metadata_ref("path-write-target", &review.writes_to_canonical_uri),
+        path_truth_class: closed_class(
+            &review.path_truth_class,
+            &[
+                "direct",
+                "via_symlink",
+                "via_junction",
+                "via_hardlink_sibling",
+                "via_case_only_variant",
+                "via_unicode_normalization_variant",
+                "via_remote_alias",
+                "via_bind_mount_alias",
+                "via_container_mount_alias",
+                "via_archive_inner_alias",
+            ],
+        ),
+        trust_state: closed_class(
+            &review.trust_state,
+            &["trusted", "restricted", "pending_evaluation"],
+        ),
+        atomic_write_mode: closed_class(
+            &review.atomic_write_mode,
+            &[
+                "atomic_replace",
+                "in_place",
+                "conditional_remote",
+                "blocked",
+            ],
+        ),
+        pinned_generation_token_kind: closed_class(
+            &review.pinned_generation_token_kind,
+            &[
+                "device_inode_generation",
+                "etag",
+                "remote_version",
+                "content_hash_generation",
+            ],
+        ),
+        opens_via_alias_kind: review.opens_via_alias_kind.as_deref().map(|value| {
+            closed_class(
+                value,
+                &[
+                    "symlink",
+                    "junction",
+                    "hardlink_sibling",
+                    "case_only_variant",
+                    "unicode_normalization_variant",
+                    "remote_alias",
+                    "bind_mount_alias",
+                    "container_mount_alias",
+                    "archive_inner_alias",
+                ],
+            )
+        }),
+        alias_count: record.chip.alias_count,
+        distinct_alias_kinds: record
+            .alias_inspector
+            .distinct_alias_kinds
+            .iter()
+            .map(|value| {
+                closed_class(
+                    value,
+                    &[
+                        "symlink",
+                        "junction",
+                        "hardlink_sibling",
+                        "case_only_variant",
+                        "unicode_normalization_variant",
+                        "remote_alias",
+                        "bind_mount_alias",
+                        "container_mount_alias",
+                        "archive_inner_alias",
+                    ],
+                )
+            })
+            .collect(),
+        permission_writable: review.permission_summary.writable,
+        permission_owner_present: review.permission_summary.owner.is_some(),
+        permission_group_present: review.permission_summary.group.is_some(),
+        review_required_before_save: review.review_required_before_save,
+        review_required_before_rename: review.review_required_before_rename,
+        save_redirects_target: review.save_redirects_target,
+        blocker_count: review.blockers.len(),
+        explainer_count: review.explainers.len(),
+    }
+}
+
+/// Persist a metadata-only path-truth projection under the configured logs root. Used by
 /// the support / save-review surfaces when they want a replayable
 /// record without taking a hard dependency on telemetry.
 pub fn write_path_truth_projection_log(record: &PathTruthProjection, label: &str) {
-    let root = std::path::PathBuf::from(".logs").join("path_truth");
+    write_path_truth_projection_log_at_root(
+        record,
+        label,
+        &aureline_workspace::state_paths::logs_root(),
+    );
+}
+
+fn write_path_truth_projection_log_at_root(
+    record: &PathTruthProjection,
+    label: &str,
+    logs_root: &Path,
+) {
+    let root = logs_root.join("path_truth");
     if std::fs::create_dir_all(&root).is_err() {
         return;
     }
-    let filename = format!("{}.path_truth_projection.json", sanitize_filename(label),);
-    let Ok(json) = serde_json::to_string_pretty(record) else {
+    let projection = path_truth_log_record(record, label);
+    let filename = format!("{}.path_truth_projection.json", opaque_filename_id(label));
+    let Ok(json) = serde_json::to_string_pretty(&projection) else {
         return;
     };
     let _ = std::fs::write(root.join(filename), json);
@@ -661,5 +820,58 @@ mod tests {
             count >= 3,
             "expected at least 3 path_truth fixtures, found {count}"
         );
+    }
+
+    #[test]
+    fn durable_path_truth_log_excludes_private_path_material() {
+        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/vfs/path_truth_cases/direct_canonical_writable.json");
+        let fixture: PathTruthFixture = serde_json::from_str(
+            &std::fs::read_to_string(fixture_path).expect("path-truth fixture must read"),
+        )
+        .expect("path-truth fixture must parse");
+        let mut record = fixture.expected;
+        let sentinel = "PRIVATE-PATH-SENTINEL/user/repository/secret.rs";
+
+        record.chip.presentation_uri = sentinel.to_string();
+        record.chip.canonical_uri = sentinel.to_string();
+        record.chip.logical_uri = sentinel.to_string();
+        record.chip.display_label = sentinel.to_string();
+        record.chip.root_badge = sentinel.to_string();
+        record.chip.summary = sentinel.to_string();
+        record.alias_inspector.presentation_uri = sentinel.to_string();
+        record.alias_inspector.canonical_uri = sentinel.to_string();
+        record.alias_inspector.logical_uri = sentinel.to_string();
+        record.alias_inspector.display_label = sentinel.to_string();
+        record.alias_inspector.root_badge = sentinel.to_string();
+        for entry in &mut record.alias_inspector.entries {
+            entry.alias_uri = sentinel.to_string();
+            entry.resolution_chain = vec![sentinel.to_string()];
+        }
+        record.save_target_review.presentation_uri = sentinel.to_string();
+        record.save_target_review.canonical_uri = sentinel.to_string();
+        record.save_target_review.logical_uri = sentinel.to_string();
+        record.save_target_review.display_label = sentinel.to_string();
+        record.save_target_review.root_badge = sentinel.to_string();
+        record.save_target_review.writes_to_canonical_uri = sentinel.to_string();
+        record.save_target_review.permission_summary.mode = sentinel.to_string();
+        record.save_target_review.permission_summary.owner = Some(sentinel.to_string());
+        record.save_target_review.permission_summary.group = Some(sentinel.to_string());
+        record.save_target_review.pinned_generation_token_value = sentinel.to_string();
+        record.save_target_review.explainers = vec![sentinel.to_string()];
+        record.save_target_review.detail_target = sentinel.to_string();
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_path_truth_projection_log_at_root(&record, sentinel, temp.path());
+        let path = std::fs::read_dir(temp.path().join("path_truth"))
+            .expect("log directory")
+            .next()
+            .expect("log entry")
+            .expect("read log entry")
+            .path();
+        let json = std::fs::read_to_string(path).expect("read metadata log");
+
+        assert!(json.contains("local_metadata_only_v1"));
+        assert!(!json.contains(sentinel));
     }
 }

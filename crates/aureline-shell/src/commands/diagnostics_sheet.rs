@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Command diagnostics sheet projection.
 //!
 //! The diagnostics sheet explains why a command is currently unavailable using
@@ -9,6 +12,7 @@ use aureline_commands::enablement::{DisabledReasonCode, EnablementDecisionClass}
 use aureline_commands::invocation::ArgumentProvenanceEntry;
 use aureline_commands::CommandRegistryEntryRecord;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 use super::{
     materialize_command_review_packet, materialize_command_review_packet_with_arguments,
@@ -109,28 +113,154 @@ fn diagnostics_sheet_record_from_packet(
     }
 }
 
-fn sanitize_filename(value: &str) -> String {
-    value
+#[derive(Debug, Serialize)]
+struct CommandDiagnosticsLogRecord {
+    record_kind: &'static str,
+    schema_version: u32,
+    redaction_policy: &'static str,
+    command_ref: String,
+    client_scope_class: String,
+    workspace_trust_state: String,
+    execution_context_available: bool,
+    provider_linked: Option<bool>,
+    credential_available: Option<bool>,
+    policy_disabled: bool,
+    policy_blocked_in_context: bool,
+    typed_argument_count: usize,
+    resolved_argument_count: usize,
+    preflight_decision: String,
+    enablement_decision: String,
+    disabled_reason_code: Option<String>,
+    repair_hook_present: bool,
+    owner_boundary_present: bool,
+    explanation_present: bool,
+    fallback_command_present: bool,
+}
+
+fn opaque_metadata_ref(class: &str, value: &str) -> String {
+    format!(
+        "{class}:{}",
+        aureline_history::body_object_id(value.as_bytes())
+    )
+}
+
+fn opaque_filename_id(value: &str) -> String {
+    aureline_history::body_object_id(value.as_bytes())
         .chars()
-        .map(|ch| match ch {
-            ':' | '/' | '\\' | ' ' | '\t' | '\n' | '\r' => '_',
-            other => other,
-        })
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
         .collect()
 }
 
-/// Writes a diagnostics sheet record into `.logs/review_sheets/`.
+fn closed_class(value: &str, allowed: &[&str]) -> String {
+    if allowed.contains(&value) {
+        value.to_string()
+    } else {
+        "unknown".to_string()
+    }
+}
+
+fn diagnostics_log_record(record: &CommandDiagnosticsSheetRecord) -> CommandDiagnosticsLogRecord {
+    CommandDiagnosticsLogRecord {
+        record_kind: "command_diagnostics_log_record",
+        schema_version: 1,
+        redaction_policy: "local_metadata_only_v1",
+        command_ref: opaque_metadata_ref("command", &record.packet.command_id),
+        client_scope_class: closed_class(
+            &record.runtime_context.client_scope,
+            &[
+                "desktop_product",
+                "cli",
+                "headless",
+                "automation",
+                "web",
+                "mobile",
+            ],
+        ),
+        workspace_trust_state: closed_class(
+            &record.runtime_context.workspace_trust_state,
+            &[
+                "trusted",
+                "restricted",
+                "pending_evaluation",
+                "untrusted_unknown",
+            ],
+        ),
+        execution_context_available: record.runtime_context.execution_context_available,
+        provider_linked: record.runtime_context.provider_linked,
+        credential_available: record.runtime_context.credential_available,
+        policy_disabled: record.runtime_context.policy_disabled,
+        policy_blocked_in_context: record.runtime_context.policy_blocked_in_context,
+        typed_argument_count: record.packet.typed_arguments.len(),
+        resolved_argument_count: record
+            .packet
+            .argument_provenance_map
+            .iter()
+            .filter(|entry| entry.resolved_value_ref.is_some())
+            .count(),
+        preflight_decision: closed_class(
+            &record.packet.preflight.decision_class,
+            &[
+                "allowed",
+                "blocked_by_policy",
+                "disabled_with_reason",
+                "preview_required",
+                "approval_required",
+            ],
+        ),
+        enablement_decision: record
+            .packet
+            .preflight
+            .enablement_snapshot
+            .decision_class
+            .as_str()
+            .to_string(),
+        disabled_reason_code: record
+            .packet
+            .preflight
+            .enablement_snapshot
+            .disabled_reason_code
+            .map(|code| code.as_str().to_string()),
+        repair_hook_present: record
+            .packet
+            .preflight
+            .enablement_snapshot
+            .repair_hook_ref
+            .is_some(),
+        owner_boundary_present: record
+            .disabled_reason
+            .as_ref()
+            .and_then(|reason| reason.owner_boundary_class.as_ref())
+            .is_some(),
+        explanation_present: record
+            .disabled_reason
+            .as_ref()
+            .and_then(|reason| reason.explanation_ref.as_ref())
+            .is_some(),
+        fallback_command_present: record
+            .disabled_reason
+            .as_ref()
+            .and_then(|reason| reason.fallback_command_id.as_ref())
+            .is_some(),
+    }
+}
+
+/// Writes a metadata-only diagnostics record under the configured logs root.
 pub fn write_diagnostics_sheet_log(record: &CommandDiagnosticsSheetRecord) {
-    let root = std::path::PathBuf::from(".logs").join("review_sheets");
+    write_diagnostics_sheet_log_at_root(record, &aureline_workspace::state_paths::logs_root());
+}
+
+fn write_diagnostics_sheet_log_at_root(record: &CommandDiagnosticsSheetRecord, logs_root: &Path) {
+    let root = logs_root.join("review_sheets");
     if std::fs::create_dir_all(&root).is_err() {
         return;
     }
+    let file_identity = format!("{}\0{}", record.packet.command_id, record.generated_at);
     let filename = format!(
-        "{}.{}.command_diagnostics_sheet.json",
-        sanitize_filename(&record.packet.command_id),
-        sanitize_filename(&record.generated_at)
+        "{}.command_diagnostics_sheet.json",
+        opaque_filename_id(&file_identity)
     );
-    let Ok(json) = serde_json::to_string_pretty(record) else {
+    let projection = diagnostics_log_record(record);
+    let Ok(json) = serde_json::to_string_pretty(&projection) else {
         return;
     };
     let _ = std::fs::write(root.join(filename), json);
@@ -282,5 +412,51 @@ mod tests {
                 path.display()
             );
         }
+    }
+
+    #[test]
+    fn durable_diagnostics_log_excludes_labels_and_argument_values() {
+        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../../fixtures/commands/review_sheets/diagnostics/workspace_clone_repository.exec_ctx_unavailable.json",
+        );
+        let fixture: DiagnosticsFixtureRecord = serde_json::from_str(
+            &std::fs::read_to_string(fixture_path).expect("diagnostics fixture must read"),
+        )
+        .expect("diagnostics fixture must parse");
+        let sentinel = "PRIVATE-DIAGNOSTICS-SENTINEL/user/repository/secret.rs";
+        let mut record = fixture.expected;
+        record.generated_at = sentinel.to_string();
+        record.packet.generated_at = sentinel.to_string();
+        record.packet.command_id = sentinel.to_string();
+        record.packet.command_revision_ref = sentinel.to_string();
+        record.packet.canonical_verb = sentinel.to_string();
+        record.packet.title = sentinel.to_string();
+        record.packet.summary = sentinel.to_string();
+        record.packet.automation_labels = vec![sentinel.to_string()];
+        record.runtime_context.client_scope = sentinel.to_string();
+        record.runtime_context.workspace_trust_state = sentinel.to_string();
+        for entry in &mut record.packet.argument_provenance_map {
+            entry.argument_name = sentinel.to_string();
+            entry.provenance = sentinel.to_string();
+            entry.resolved_value_ref = Some(sentinel.to_string());
+        }
+        if let Some(reason) = &mut record.disabled_reason {
+            reason.owner_boundary_class = Some(sentinel.to_string());
+            reason.explanation_ref = Some(sentinel.to_string());
+            reason.fallback_command_id = Some(sentinel.to_string());
+        }
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_diagnostics_sheet_log_at_root(&record, temp.path());
+        let path = std::fs::read_dir(temp.path().join("review_sheets"))
+            .expect("diagnostics log directory")
+            .next()
+            .expect("diagnostics log entry")
+            .expect("read diagnostics log entry")
+            .path();
+        let json = std::fs::read_to_string(path).expect("read diagnostics metadata log");
+
+        assert!(json.contains("local_metadata_only_v1"));
+        assert!(!json.contains(sentinel));
     }
 }

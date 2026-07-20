@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Display-topology and mixed-DPI safety guards for native windows.
 //!
 //! The shell's windowing layer must not strand windows off-screen when monitor
@@ -314,7 +317,7 @@ impl DisplaySafetyGuard {
 }
 
 pub(crate) fn write_display_safety_log(record: &DisplaySafetyAdjustmentRecord) {
-    let root = std::path::PathBuf::from(".logs").join("window_display_safety");
+    let root = aureline_workspace::state_paths::logs_root().join("window_display_safety");
     if std::fs::create_dir_all(&root).is_err() {
         return;
     }
@@ -331,7 +334,7 @@ pub(crate) fn write_display_safety_log(record: &DisplaySafetyAdjustmentRecord) {
 }
 
 pub(crate) fn write_display_safety_topology_log(record: &DisplaySafetyTopologyRecord) {
-    let root = std::path::PathBuf::from(".logs").join("window_display_safety");
+    let root = aureline_workspace::state_paths::logs_root().join("window_display_safety");
     if std::fs::create_dir_all(&root).is_err() {
         return;
     }
@@ -547,5 +550,45 @@ mod tests {
                 entry.path()
             );
         }
+    }
+
+    #[test]
+    fn display_safety_record_shape_contains_only_platform_metadata() {
+        let record = DisplaySafetyTopologyRecord {
+            record_kind: "window_display_safety_topology_record".to_string(),
+            schema_version: 1,
+            generated_at: "2026-01-01T00:00:00Z".to_string(),
+            window_ref: "window:opaque:1".to_string(),
+            topology_change_classes: vec!["display_added".to_string()],
+            scale_factor: 2.0,
+            scale_bucket: "2x".to_string(),
+            window_bounds: Some(PhysicalRect::new(0, 0, 1280, 720)),
+            display_fingerprints: vec![42],
+        };
+        let value = serde_json::to_value(record).expect("serialize display metadata");
+        let keys = value
+            .as_object()
+            .expect("display record must be an object")
+            .keys()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected = [
+            "display_fingerprints",
+            "generated_at",
+            "record_kind",
+            "scale_bucket",
+            "scale_factor",
+            "schema_version",
+            "topology_change_classes",
+            "window_bounds",
+            "window_ref",
+        ]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+
+        assert_eq!(keys, expected);
+        assert!(keys.iter().all(|key| !key.contains("path")
+            && !key.contains("query")
+            && !key.contains("content")));
     }
 }

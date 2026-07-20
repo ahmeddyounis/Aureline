@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Invocation preview sheet projection.
 //!
 //! The invocation preview sheet is a protected review surface shown before a
@@ -8,6 +11,7 @@
 use aureline_commands::invocation::CommandInvocationSession;
 use aureline_commands::CommandRegistryEntryRecord;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 use super::{
     materialize_command_review_packet_with_arguments, CommandReviewPacketRecord,
@@ -46,28 +50,181 @@ pub fn materialize_command_invocation_preview_sheet_record(
     }
 }
 
-fn sanitize_filename(value: &str) -> String {
-    value
+#[derive(Debug, Serialize)]
+struct CommandInvocationPreviewLogRecord {
+    record_kind: &'static str,
+    schema_version: u32,
+    redaction_policy: &'static str,
+    command_ref: String,
+    invocation_session_ref: String,
+    issuing_surface_class: String,
+    authority_class: String,
+    execution_intent_class: String,
+    workspace_trust_state: String,
+    typed_argument_count: usize,
+    resolved_argument_count: usize,
+    context_object_count: usize,
+    focused_entity_present: bool,
+    selection_present: bool,
+    execution_context_present: bool,
+    preflight_decision: String,
+    enablement_decision: String,
+    disabled_reason_code: Option<String>,
+    preview_shown: bool,
+    approval_state: String,
+    approval_ticket_present: bool,
+}
+
+fn opaque_metadata_ref(class: &str, value: &str) -> String {
+    format!(
+        "{class}:{}",
+        aureline_history::body_object_id(value.as_bytes())
+    )
+}
+
+fn opaque_filename_id(value: &str) -> String {
+    aureline_history::body_object_id(value.as_bytes())
         .chars()
-        .map(|ch| match ch {
-            ':' | '/' | '\\' | ' ' | '\t' | '\n' | '\r' => '_',
-            other => other,
-        })
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
         .collect()
 }
 
-/// Writes an invocation preview sheet record into `.logs/review_sheets/`.
+fn closed_class(value: &str, allowed: &[&str]) -> String {
+    if allowed.contains(&value) {
+        value.to_string()
+    } else {
+        "unknown".to_string()
+    }
+}
+
+fn invocation_preview_log_record(
+    record: &CommandInvocationPreviewSheetRecord,
+) -> CommandInvocationPreviewLogRecord {
+    let session = &record.invocation_session;
+    CommandInvocationPreviewLogRecord {
+        record_kind: "command_invocation_preview_log_record",
+        schema_version: 1,
+        redaction_policy: "local_metadata_only_v1",
+        command_ref: opaque_metadata_ref("command", &record.packet.command_id),
+        invocation_session_ref: opaque_metadata_ref(
+            "invocation-session",
+            &session.invocation_session_id,
+        ),
+        issuing_surface_class: closed_class(
+            &session.issuing_surface,
+            &[
+                "command_palette",
+                "command_form",
+                "menu",
+                "keybinding",
+                "start_center",
+                "cli",
+                "headless",
+                "automation",
+            ],
+        ),
+        authority_class: closed_class(
+            &session.authority_class,
+            &[
+                "user_initiated_local",
+                "user_initiated_remote",
+                "automation_user_approved",
+                "admin_initiated",
+                "managed_policy",
+            ],
+        ),
+        execution_intent_class: closed_class(
+            &session.execution_intent,
+            &[
+                "inspect_only",
+                "preview_only",
+                "apply",
+                "apply_after_preview",
+                "apply_after_approval",
+            ],
+        ),
+        workspace_trust_state: closed_class(
+            &session.context_snapshot.workspace_trust_state,
+            &[
+                "trusted",
+                "restricted",
+                "pending_evaluation",
+                "untrusted_unknown",
+            ],
+        ),
+        typed_argument_count: record.packet.typed_arguments.len(),
+        resolved_argument_count: session
+            .argument_provenance_map
+            .iter()
+            .filter(|entry| entry.resolved_value_ref.is_some())
+            .count(),
+        context_object_count: session.context_refs.context_object_refs.len(),
+        focused_entity_present: session.context_snapshot.focused_entity_ref.is_some(),
+        selection_present: session.context_snapshot.selection_ref.is_some(),
+        execution_context_present: session.context_snapshot.execution_context_id.is_some(),
+        preflight_decision: closed_class(
+            &record.packet.preflight.decision_class,
+            &[
+                "allowed",
+                "blocked_by_policy",
+                "disabled_with_reason",
+                "preview_required",
+                "approval_required",
+            ],
+        ),
+        enablement_decision: session
+            .enablement_decision
+            .decision_class
+            .as_str()
+            .to_string(),
+        disabled_reason_code: session
+            .enablement_decision
+            .disabled_reason_code
+            .map(|code| code.as_str().to_string()),
+        preview_shown: session.preview_posture.preview_shown,
+        approval_state: closed_class(
+            &session.approval_posture.approval_state,
+            &[
+                "not_required",
+                "approval_pending",
+                "approved",
+                "denied",
+                "expired",
+                "revoked",
+            ],
+        ),
+        approval_ticket_present: session.approval_posture.approval_ticket_ref.is_some(),
+    }
+}
+
+/// Writes a metadata-only invocation preview under the configured logs root.
 pub fn write_invocation_preview_sheet_log(record: &CommandInvocationPreviewSheetRecord) {
-    let root = std::path::PathBuf::from(".logs").join("review_sheets");
+    write_invocation_preview_sheet_log_at_root(
+        record,
+        &aureline_workspace::state_paths::logs_root(),
+    );
+}
+
+fn write_invocation_preview_sheet_log_at_root(
+    record: &CommandInvocationPreviewSheetRecord,
+    logs_root: &Path,
+) {
+    let root = logs_root.join("review_sheets");
     if std::fs::create_dir_all(&root).is_err() {
         return;
     }
-    let filename = format!(
-        "{}.{}.invocation_preview_sheet.json",
-        sanitize_filename(&record.packet.command_id),
-        sanitize_filename(&record.generated_at)
+    let file_identity = format!(
+        "{}\0{}\0{}",
+        record.packet.command_id,
+        record.invocation_session.invocation_session_id,
+        record.generated_at
     );
-    let Ok(json) = serde_json::to_string_pretty(record) else {
+    let filename = format!(
+        "{}.invocation_preview_sheet.json",
+        opaque_filename_id(&file_identity)
+    );
+    let projection = invocation_preview_log_record(record);
+    let Ok(json) = serde_json::to_string_pretty(&projection) else {
         return;
     };
     let _ = std::fs::write(root.join(filename), json);
@@ -326,6 +483,60 @@ mod tests {
                 path.display()
             );
         }
+    }
+
+    #[test]
+    fn durable_invocation_preview_excludes_context_and_argument_values() {
+        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../../fixtures/commands/review_sheets/invocation_preview/workspace_import_profile.preview.json",
+        );
+        let fixture: PreviewFixtureRecord = serde_json::from_str(
+            &std::fs::read_to_string(fixture_path).expect("invocation fixture must read"),
+        )
+        .expect("invocation fixture must parse");
+        let sentinel = "PRIVATE-INVOCATION-SENTINEL/user/repository/secret.rs";
+        let mut record = fixture.expected;
+        record.generated_at = sentinel.to_string();
+        record.packet.generated_at = sentinel.to_string();
+        record.packet.command_id = sentinel.to_string();
+        record.packet.command_revision_ref = sentinel.to_string();
+        record.packet.canonical_verb = sentinel.to_string();
+        record.packet.title = sentinel.to_string();
+        record.packet.summary = sentinel.to_string();
+        record.packet.automation_labels = vec![sentinel.to_string()];
+        for entry in &mut record.packet.argument_provenance_map {
+            entry.argument_name = sentinel.to_string();
+            entry.provenance = sentinel.to_string();
+            entry.resolved_value_ref = Some(sentinel.to_string());
+        }
+        let session = &mut record.invocation_session;
+        session.invocation_session_id = sentinel.to_string();
+        session.canonical_command_id = sentinel.to_string();
+        session.command_revision_ref = sentinel.to_string();
+        session.canonical_verb = sentinel.to_string();
+        session.context_snapshot.focused_entity_ref = Some(sentinel.to_string());
+        session.context_snapshot.selection_ref = Some(sentinel.to_string());
+        session.context_snapshot.execution_context_id = Some(sentinel.to_string());
+        session.context_snapshot.basis_snapshot_ref = sentinel.to_string();
+        session.context_refs.context_object_refs = vec![sentinel.to_string()];
+        for entry in &mut session.argument_provenance_map {
+            entry.argument_name = sentinel.to_string();
+            entry.provenance = sentinel.to_string();
+            entry.resolved_value_ref = Some(sentinel.to_string());
+        }
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_invocation_preview_sheet_log_at_root(&record, temp.path());
+        let path = std::fs::read_dir(temp.path().join("review_sheets"))
+            .expect("review log directory")
+            .next()
+            .expect("review log entry")
+            .expect("read review log entry")
+            .path();
+        let json = std::fs::read_to_string(path).expect("read invocation metadata log");
+
+        assert!(json.contains("local_metadata_only_v1"));
+        assert!(!json.contains(sentinel));
     }
 
     fn record_packet_argument_map(
