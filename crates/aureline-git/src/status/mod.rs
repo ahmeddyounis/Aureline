@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Repository status, branch identity, and shared Git consumer projections.
 //!
 //! The service in this module gathers local Git truth once through a bounded
@@ -6,6 +9,7 @@
 //! these records instead of invoking Git independently.
 
 use std::ffi::OsStr;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -777,35 +781,75 @@ impl SystemGitStatusBackend {
 
 impl GitStatusBackend for SystemGitStatusBackend {
     fn run_git(&self, root: &Path, args: &[&str]) -> Result<GitCommandOutput, GitBackendError> {
-        let output = Command::new(&self.git_binary)
+        let mut command = Command::new(&self.git_binary);
+        command.env_clear();
+        if let Some(path) = std::env::var_os("PATH") {
+            command.env("PATH", path);
+        }
+        #[cfg(windows)]
+        if let Some(system_root) = std::env::var_os("SystemRoot") {
+            command.env("SystemRoot", system_root);
+        }
+        command
+            .env("LC_ALL", "C")
+            .env("LANG", "C")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_GLOBAL", null_device_path())
+            .env("GIT_ATTR_NOSYSTEM", "1")
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .env("GIT_OPTIONAL_LOCKS", "0")
+            .env("GIT_PAGER", "")
+            .env("GIT_ASKPASS", "")
+            .env("SSH_ASKPASS", "")
+            .arg("-c")
+            .arg("core.fsmonitor=false")
+            .arg("-c")
+            .arg("core.untrackedCache=false")
+            .arg("-c")
+            .arg("submodule.recurse=false")
+            .arg("-c")
+            .arg(format!("core.attributesFile={}", null_device_path()))
+            .arg("-c")
+            .arg("diff.external=")
+            .arg("-c")
+            .arg("credential.helper=")
+            .arg("-c")
+            .arg("credential.interactive=never")
             .arg("-C")
             .arg(root)
-            .args(args)
-            .output()
-            .map_err(|err| {
-                if err.kind() == std::io::ErrorKind::NotFound {
-                    GitBackendError::new(
-                        GitBackendErrorClass::GitNotInstalled,
-                        "git binary was not found",
-                    )
-                } else if err.kind() == std::io::ErrorKind::PermissionDenied {
-                    GitBackendError::new(
-                        GitBackendErrorClass::PermissionDenied,
-                        format!("git could not be launched: {err}"),
-                    )
-                } else {
-                    GitBackendError::new(
-                        GitBackendErrorClass::Io,
-                        format!("git process launch failed: {err}"),
-                    )
-                }
-            })?;
+            .args(args);
+        let output = command.output().map_err(|err| {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                GitBackendError::new(
+                    GitBackendErrorClass::GitNotInstalled,
+                    "git binary was not found",
+                )
+            } else if err.kind() == std::io::ErrorKind::PermissionDenied {
+                GitBackendError::new(
+                    GitBackendErrorClass::PermissionDenied,
+                    format!("git could not be launched: {err}"),
+                )
+            } else {
+                GitBackendError::new(
+                    GitBackendErrorClass::Io,
+                    format!("git process launch failed: {err}"),
+                )
+            }
+        })?;
         Ok(GitCommandOutput {
             stdout: output.stdout,
             stderr: output.stderr,
             status_code: output.status.code(),
             success: output.status.success(),
         })
+    }
+}
+
+const fn null_device_path() -> &'static str {
+    if cfg!(windows) {
+        "NUL"
+    } else {
+        "/dev/null"
     }
 }
 
@@ -896,7 +940,7 @@ impl<B: GitStatusBackend> GitStatusService<B> {
                 return GitStatusSnapshot::degraded(
                     request,
                     GitServiceState::GitUnavailable,
-                    err.message,
+                    backend_failure_reason(&err),
                 )
             }
             Err(ReadMetadataError::NotRepository(reason)) => {
@@ -907,6 +951,10 @@ impl<B: GitStatusBackend> GitStatusService<B> {
             }
         };
 
+        if let Err(reason) = repository_config_allows_passive_status(&metadata) {
+            return GitStatusSnapshot::degraded(request, GitServiceState::RefreshFailed, reason);
+        }
+
         let output = match self.backend.run_git(
             &request.root_path,
             &[
@@ -916,6 +964,7 @@ impl<B: GitStatusBackend> GitStatusService<B> {
                 "--porcelain=v2",
                 "--branch",
                 "--untracked-files=all",
+                "--ignore-submodules=all",
                 "-z",
             ],
         ) {
@@ -924,7 +973,7 @@ impl<B: GitStatusBackend> GitStatusService<B> {
                 return GitStatusSnapshot::degraded(
                     request,
                     GitServiceState::GitUnavailable,
-                    err.message,
+                    backend_failure_reason(&err),
                 )
             }
         };
@@ -933,7 +982,7 @@ impl<B: GitStatusBackend> GitStatusService<B> {
             return GitStatusSnapshot::degraded(
                 request,
                 classify_failed_status(&output),
-                stderr_or_status(&output),
+                git_failure_reason("status refresh", &output),
             );
         }
 
@@ -987,14 +1036,15 @@ impl<B: GitStatusBackend> GitStatusService<B> {
             .map_err(ReadMetadataError::Backend)?;
 
         if !output.success {
-            let message = stderr_or_status(&output);
-            if message
-                .to_ascii_lowercase()
-                .contains("not a git repository")
-            {
-                return Err(ReadMetadataError::NotRepository(message));
+            if output_mentions_not_repository(&output) {
+                return Err(ReadMetadataError::NotRepository(
+                    "selected root is not a Git repository".to_string(),
+                ));
             }
-            return Err(ReadMetadataError::RefreshFailed(message));
+            return Err(ReadMetadataError::RefreshFailed(git_failure_reason(
+                "repository discovery",
+                &output,
+            )));
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -1110,9 +1160,9 @@ fn parse_porcelain_v2(input: &[u8]) -> Result<ParsedPorcelain, StatusPorcelainPa
             i += 1;
             continue;
         }
-        return Err(StatusPorcelainParseError::new(format!(
-            "unsupported porcelain record: {record}"
-        )));
+        return Err(StatusPorcelainParseError::new(
+            "unsupported porcelain status record",
+        ));
     }
 
     Ok(ParsedPorcelain { head, changes })
@@ -1181,9 +1231,9 @@ fn parse_branch_header(record: &str, head: &mut HeadIdentity) {
 fn parse_ordinary_change(record: &str) -> Result<GitChange, StatusPorcelainParseError> {
     let parts: Vec<&str> = record.splitn(9, ' ').collect();
     if parts.len() < 9 {
-        return Err(StatusPorcelainParseError::new(format!(
-            "ordinary status record missing path: {record}"
-        )));
+        return Err(StatusPorcelainParseError::new(
+            "ordinary status record is missing its path field",
+        ));
     }
     let status_code = parts[1];
     let path = parts[8];
@@ -1197,9 +1247,9 @@ fn parse_rename_or_copy_change(
 ) -> Result<(GitChange, bool), StatusPorcelainParseError> {
     let parts: Vec<&str> = record.splitn(10, ' ').collect();
     if parts.len() < 10 {
-        return Err(StatusPorcelainParseError::new(format!(
-            "rename/copy status record missing path: {record}"
-        )));
+        return Err(StatusPorcelainParseError::new(
+            "rename/copy status record is missing its path field",
+        ));
     }
     let status_code = parts[1];
     let score = parts[8];
@@ -1229,9 +1279,9 @@ fn parse_rename_or_copy_change(
 fn parse_unmerged_change(record: &str) -> Result<GitChange, StatusPorcelainParseError> {
     let parts: Vec<&str> = record.splitn(11, ' ').collect();
     if parts.len() < 11 {
-        return Err(StatusPorcelainParseError::new(format!(
-            "unmerged status record missing path: {record}"
-        )));
+        return Err(StatusPorcelainParseError::new(
+            "unmerged status record is missing its path field",
+        ));
     }
     Ok(change_for_path(
         parts[1],
@@ -1301,24 +1351,134 @@ fn resolve_git_path(root: &Path, value: &str) -> PathBuf {
     }
 }
 
+const MAX_REPOSITORY_CONFIG_BYTES: u64 = 1024 * 1024;
+
+fn repository_config_allows_passive_status(metadata: &RepositoryIdentity) -> Result<(), String> {
+    let mut config_paths = vec![
+        metadata.common_dir.join("config"),
+        metadata.git_dir.join("config"),
+        metadata.git_dir.join("config.worktree"),
+    ];
+    config_paths.sort();
+    config_paths.dedup();
+
+    for config_path in config_paths {
+        let file_metadata = match fs::metadata(&config_path) {
+            Ok(file_metadata) => file_metadata,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(_) => {
+                return Err(
+                    "repository configuration could not be inspected safely; passive refresh was blocked"
+                        .to_string(),
+                )
+            }
+        };
+        if !file_metadata.is_file() || file_metadata.len() > MAX_REPOSITORY_CONFIG_BYTES {
+            return Err(
+                "repository configuration exceeded passive inspection limits; passive refresh was blocked"
+                    .to_string(),
+            );
+        }
+        let config = fs::read_to_string(&config_path).map_err(|_| {
+            "repository configuration could not be inspected safely; passive refresh was blocked"
+                .to_string()
+        })?;
+        if git_config_declares_process_surface(&config) {
+            return Err(
+                "repository configuration declares a process-capable Git extension; passive refresh was blocked"
+                    .to_string(),
+            );
+        }
+    }
+    Ok(())
+}
+
+fn git_config_declares_process_surface(config: &str) -> bool {
+    let mut section = String::new();
+    for raw_line in config.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') || line.starts_with(';') {
+            continue;
+        }
+        if line.starts_with('[') {
+            let Some(end) = line.find(']') else {
+                return true;
+            };
+            section = line[1..end]
+                .split_ascii_whitespace()
+                .next()
+                .unwrap_or_default()
+                .trim_matches('"')
+                .to_ascii_lowercase();
+            if matches!(section.as_str(), "include" | "includeif") {
+                return true;
+            }
+            continue;
+        }
+
+        let key = line
+            .split_once('=')
+            .map_or(line, |(key, _)| key)
+            .split_ascii_whitespace()
+            .next()
+            .unwrap_or_default()
+            .trim()
+            .to_ascii_lowercase();
+        if key.is_empty() {
+            continue;
+        }
+        if key == "include.path" || key.starts_with("includeif.") {
+            return true;
+        }
+        let effective_section = if section.is_empty() {
+            key.split('.').next().unwrap_or_default()
+        } else {
+            section.as_str()
+        };
+        let effective_key = key.rsplit('.').next().unwrap_or_default();
+        if matches!(effective_section, "include" | "includeif")
+            || matches!(
+                (effective_section, effective_key),
+                ("core", "fsmonitor" | "hookspath")
+                    | ("filter", "clean" | "smudge" | "process" | "required")
+                    | ("diff", "command" | "textconv")
+                    | ("merge", "driver" | "recursive")
+                    | ("credential", "helper")
+            )
+        {
+            return true;
+        }
+    }
+    false
+}
+
 fn classify_failed_status(output: &GitCommandOutput) -> GitServiceState {
-    let message = stderr_or_status(output).to_ascii_lowercase();
-    if message.contains("not a git repository") {
+    if output_mentions_not_repository(output) {
         GitServiceState::NotRepository
     } else {
         GitServiceState::RefreshFailed
     }
 }
 
-fn stderr_or_status(output: &GitCommandOutput) -> String {
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    if !stderr.is_empty() {
-        return stderr;
+fn output_mentions_not_repository(output: &GitCommandOutput) -> bool {
+    String::from_utf8_lossy(&output.stderr)
+        .to_ascii_lowercase()
+        .contains("not a git repository")
+}
+
+fn backend_failure_reason(error: &GitBackendError) -> &'static str {
+    match error.class {
+        GitBackendErrorClass::GitNotInstalled => "Git executable is unavailable",
+        GitBackendErrorClass::PermissionDenied => "Git executable permission was denied",
+        GitBackendErrorClass::Io => "Git executable could not be launched",
     }
+}
+
+fn git_failure_reason(operation: &str, output: &GitCommandOutput) -> String {
     output
         .status_code
-        .map(|code| format!("git exited with status {code}"))
-        .unwrap_or_else(|| "git exited unsuccessfully".to_string())
+        .map(|code| format!("Git {operation} failed (status {code})"))
+        .unwrap_or_else(|| format!("Git {operation} failed"))
 }
 
 fn consumer_refs_for(workspace_ref: &str) -> Vec<GitConsumerRef> {
@@ -1444,5 +1604,102 @@ mod tests {
         assert_eq!(bundle.activity.truth_source_ref, bundle.truth_source_ref);
         assert_eq!(bundle.review.truth_source_ref, bundle.truth_source_ref);
         assert!(bundle.shell.current_claim_narrowed);
+    }
+
+    #[test]
+    fn detects_repository_config_that_can_start_processes() {
+        for config in [
+            "[core]\n\tfsmonitor = ./watcher\n",
+            "[includeIf \"gitdir:~/work\"]\n\tpath = ../shared.config\n",
+            "[filter \"secret\"]\n\tprocess = ./filter\n",
+            "diff.binary.textconv = ./decoder\n",
+            "[merge \"custom\"]\n\tdriver = ./merge %O %A %B\n",
+            "[credential]\n\thelper = ./credential-helper\n",
+        ] {
+            assert!(git_config_declares_process_surface(config), "{config}");
+        }
+        assert!(!git_config_declares_process_surface(
+            "[core]\n\trepositoryformatversion = 0\n[status]\n\tshowuntrackedfiles = all\n"
+        ));
+    }
+
+    #[test]
+    fn degraded_reason_does_not_expose_git_stderr() {
+        let output = GitCommandOutput {
+            stdout: Vec::new(),
+            stderr: b"\x1b[31m/private/project/secret-value\x1b[0m".to_vec(),
+            status_code: Some(128),
+            success: false,
+        };
+
+        let reason = git_failure_reason("status refresh", &output);
+
+        assert_eq!(reason, "Git status refresh failed (status 128)");
+        assert!(!reason.contains("secret-value"));
+        assert!(!reason.contains('\u{1b}'));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn passive_status_does_not_run_repository_fsmonitor() {
+        use std::os::unix::fs::PermissionsExt;
+
+        if Command::new("git").arg("--version").output().is_err() {
+            return;
+        }
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock after epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "aureline-git-passive-status-{}-{unique}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).expect("create repository fixture");
+        let init = Command::new("git")
+            .arg("init")
+            .arg("--quiet")
+            .arg(&root)
+            .output()
+            .expect("launch git init");
+        assert!(init.status.success(), "git init failed");
+
+        let current_request = GitStatusRequest::with_observed_at(
+            "workspace.passive-status",
+            &root,
+            "mono:git:current",
+        );
+        let current_snapshot = GitStatusService::default().snapshot(&current_request);
+        assert_eq!(current_snapshot.service_state, GitServiceState::Current);
+
+        let marker = root.join("fsmonitor-ran");
+        let hook = root.join("fsmonitor-probe.sh");
+        fs::write(
+            &hook,
+            "#!/bin/sh\n: > \"$(dirname \"$0\")/fsmonitor-ran\"\n",
+        )
+        .expect("write probe hook");
+        let mut permissions = fs::metadata(&hook).expect("probe metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&hook, permissions).expect("make probe executable");
+        let configure = Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(["config", "core.fsmonitor"])
+            .arg(&hook)
+            .output()
+            .expect("configure fixture fsmonitor");
+        assert!(configure.status.success(), "git config failed");
+
+        let request = GitStatusRequest::with_observed_at(
+            "workspace.passive-status",
+            &root,
+            "mono:git:passive",
+        );
+        let snapshot = GitStatusService::default().snapshot(&request);
+        assert_eq!(snapshot.service_state, GitServiceState::RefreshFailed);
+        assert!(!marker.exists(), "passive status started repository code");
+
+        fs::remove_dir_all(root).expect("remove repository fixture");
     }
 }

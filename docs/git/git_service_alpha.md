@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 Aureline contributors
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Git Service Alpha
 
 The Git service alpha gives launch-wedge surfaces one local source of truth for
@@ -12,6 +17,15 @@ repository identity, branch state, and changed paths.
   metadata later, but they do not overwrite local diff truth.
 - Non-repository and unavailable-Git states remain visible as degraded records
   instead of disappearing from shell chrome.
+- Passive status starts Git with a minimal environment, system/global config
+  disabled, optional locks disabled, submodule recursion disabled, and
+  repository-triggered helpers such as file-system monitors disabled. Before
+  status runs, repository config files are bounded and inspected; includes,
+  hooks, filters, external diff/merge drivers, credential helpers, and other
+  process-capable declarations fail closed as `refresh_failed`.
+- Degraded records carry stable, export-safe failure summaries. Raw Git stderr,
+  repository paths, and malformed porcelain records are never copied into
+  shell, activity, review, or support projections.
 
 ## Records
 
@@ -50,8 +64,8 @@ failure recovery before a push can run.
 - `git_unavailable`: the Git executable or backend is missing; local editing
   can continue while Git surfaces show the missing dependency.
 - `refresh_failed`: Git exists but could not produce current worktree status;
-  the stale or failure reason is preserved in shell, activity, and review
-  records.
+  an export-safe failure class is preserved in shell, activity, and review
+  records without exposing raw command output.
 
 ## Inspection
 
