@@ -198,6 +198,35 @@ impl PolicyPackSignatureStateClass {
                 | Self::NotRequiredLocalOrigin
         )
     }
+
+    /// True when this state is valid for the pack's declared origin lane.
+    ///
+    /// A generic "verified" label is not enough at this boundary: a mirror,
+    /// manual import, or air-gapped transfer must carry the verifier result
+    /// for that exact lane. Local advisory and runtime-preload origins may be
+    /// unsigned, but a managed origin may never borrow that exemption.
+    pub const fn is_valid_for_source(self, source: PolicyPackSourceClass) -> bool {
+        match source {
+            PolicyPackSourceClass::LocalAdvisoryFile
+            | PolicyPackSourceClass::RuntimePreloadOrigin => matches!(
+                self,
+                Self::NotRequiredLocalOrigin
+                    | Self::VerifiedLive
+                    | Self::VerifiedMirror
+                    | Self::VerifiedManualImport
+                    | Self::VerifiedAirGapped
+            ),
+            PolicyPackSourceClass::CustomerSelfHostedOrigin
+            | PolicyPackSourceClass::VendorManagedOrigin => matches!(self, Self::VerifiedLive),
+            PolicyPackSourceClass::SignedMirrorOrigin => matches!(self, Self::VerifiedMirror),
+            PolicyPackSourceClass::ManualSignedFileImport => {
+                matches!(self, Self::VerifiedManualImport)
+            }
+            PolicyPackSourceClass::AirGappedSignedTransfer => {
+                matches!(self, Self::VerifiedAirGapped)
+            }
+        }
+    }
 }
 
 /// Apply state for a policy pack.
@@ -857,12 +886,12 @@ pub fn audit_policy_pack_beta_page(
                 "signature_state_token must match signature_state",
             ));
         }
-        if narrows_managed_authority(pack) && !pack.signature_state.is_verified() {
+        if !pack.signature_state.is_valid_for_source(pack.source_class) {
             defects.push(PolicyPackBetaDefect::new(
                 PolicyPackBetaDefectKind::UnsignedManagedAuthority,
                 pack.pack_id.clone(),
                 "signature_state",
-                "managed-authority pack must present a verified signature",
+                "policy-pack signature state must be valid for its declared source lane",
             ));
         }
         if !pack.no_public_endpoint_fallback {
@@ -1034,11 +1063,6 @@ pub fn audit_policy_pack_beta_page(
     }
 
     defects
-}
-
-fn narrows_managed_authority(pack: &PolicyPackBetaPack) -> bool {
-    pack.source_class.requires_signature()
-        && pack.rules.iter().any(|rule| rule.effect.surfaces_denial())
 }
 
 fn seed_base_pack() -> PolicyPackBetaPack {
@@ -1544,6 +1568,62 @@ mod tests {
         );
         assert!(defects.iter().any(|defect| defect.defect_kind
             == PolicyPackBetaDefectKind::MirrorOrImportSignatureBlobDropped));
+    }
+
+    #[test]
+    fn validator_requires_signature_for_allow_only_managed_pack() {
+        let mut page = seeded_policy_pack_beta_page();
+        let pack = page
+            .packs
+            .iter_mut()
+            .find(|pack| pack.source_class == PolicyPackSourceClass::VendorManagedOrigin)
+            .expect("managed pack");
+        for rule in &mut pack.rules {
+            rule.effect = PolicyPackRuleEffectClass::AllowMatrixDefault;
+            rule.effect_token = rule.effect.as_str().to_owned();
+            rule.applied_authority = rule.effect.applied_authority();
+            rule.applied_authority_token = rule.applied_authority.as_str().to_owned();
+        }
+        pack.signature_state = PolicyPackSignatureStateClass::MissingForRequiredOrigin;
+        pack.signature_state_token = pack.signature_state.as_str().to_owned();
+        let pack_id = pack.pack_id.clone();
+
+        let defects = audit_policy_pack_beta_page(
+            &page.packs,
+            &page.diffs,
+            &page.denial_traces,
+            &page.import_receipts,
+        );
+
+        assert!(defects.iter().any(|defect| {
+            defect.defect_kind == PolicyPackBetaDefectKind::UnsignedManagedAuthority
+                && defect.subject_id == pack_id
+        }));
+    }
+
+    #[test]
+    fn validator_rejects_signature_from_a_different_origin_lane() {
+        let mut page = seeded_policy_pack_beta_page();
+        let pack = page
+            .packs
+            .iter_mut()
+            .find(|pack| pack.source_class == PolicyPackSourceClass::SignedMirrorOrigin)
+            .expect("mirror pack");
+        pack.signature_state = PolicyPackSignatureStateClass::VerifiedLive;
+        pack.signature_state_token = pack.signature_state.as_str().to_owned();
+        let pack_id = pack.pack_id.clone();
+
+        let defects = audit_policy_pack_beta_page(
+            &page.packs,
+            &page.diffs,
+            &page.denial_traces,
+            &page.import_receipts,
+        );
+
+        assert!(defects.iter().any(|defect| {
+            defect.defect_kind == PolicyPackBetaDefectKind::UnsignedManagedAuthority
+                && defect.subject_id == pack_id
+        }));
     }
 
     #[test]
