@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Aureline contributors
+# SPDX-License-Identifier: Apache-2.0
 #
 # Deterministic developer bootstrap.
 #
@@ -66,14 +68,15 @@ if [[ "${ACTIVE_CHANNEL}" != "${CHANNEL}" ]]; then
 fi
 log "toolchain: $(rustc --version)"
 
-# --- 4. Resolve and lock dependencies --------------------------------------
+# --- 4. Resolve locked dependencies ----------------------------------------
+
+[[ -f Cargo.lock ]] || die \
+  "Cargo.lock is missing; restore or regenerate it in an intentional dependency update"
 
 if [[ "${OFFLINE}" -eq 0 ]]; then
-  log "resolving dependency graph (cargo fetch)"
-  cargo fetch --locked 2>/dev/null || cargo fetch
-  if [[ ! -f Cargo.lock ]]; then
-    cargo generate-lockfile
-  fi
+  log "materializing locked dependency graph (cargo fetch --locked)"
+  cargo fetch --locked || die \
+    "cargo fetch --locked failed; refusing to rewrite Cargo.lock during bootstrap"
 else
   log "offline mode: skipping cargo fetch"
 fi
@@ -81,6 +84,10 @@ fi
 # --- 5. Smoke-check that every workspace crate is resolvable ---------------
 
 log "validating workspace via cargo metadata"
-cargo metadata --format-version=1 --no-deps >/dev/null
+METADATA_ARGS=(--locked --format-version=1 --no-deps)
+if [[ "${OFFLINE}" -eq 1 ]]; then
+  METADATA_ARGS+=(--offline)
+fi
+cargo metadata "${METADATA_ARGS[@]}" >/dev/null
 
 log "bootstrap complete"

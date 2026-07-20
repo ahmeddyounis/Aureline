@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 Aureline contributors
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Reproducible-build baseline
 
 This document is the authoritative description of what the Aureline workspace
@@ -81,12 +86,14 @@ This script:
 2. Installs the pinned toolchain channel and required components
    (`rustfmt`, `clippy`, `rust-src`).
 3. Checks that the active `rustc --version` matches the pin.
-4. Runs `cargo fetch --locked` so the dependency graph in `Cargo.lock` is
-   materialized (falling back to `cargo fetch` when `Cargo.lock` is stale).
-   This is load-bearing for deterministic rebuilds and for keeping the lock
-   compatible with the pinned toolchain.
-5. Runs `cargo metadata --no-deps` as a smoke check that every seeded crate
-   is resolvable and that the workspace manifest is well-formed.
+4. Requires the checked-in `Cargo.lock` and runs `cargo fetch --locked` so its
+   exact dependency graph is materialized. A missing or stale lockfile fails
+   bootstrap; dependency resolution and lockfile regeneration happen only in
+   an intentional dependency update.
+5. Runs `cargo metadata --locked --no-deps` as a smoke check that every seeded
+   crate is resolvable and that the workspace manifest is well-formed. Offline
+   bootstrap also passes `--offline`, so the smoke check cannot contact a
+   registry.
 
 Offline variant (`./tools/build/bootstrap.sh --offline`) skips the rustup
 and `cargo fetch` steps for air-gapped mirrors. The caller is responsible
@@ -149,7 +156,8 @@ below.
 
 **Provisional (allowed to differ in M0):**
 
-- `dirty` — only differs if the working tree is actually dirty; release
+- `dirty` — only differs if tracked, untracked, or submodule working-tree
+  state is actually dirty; ignored build output remains excluded. Release
   lanes must reject dirty trees, dev builds tolerate them.
 - Contents of compiled binaries under `target/` — byte-for-byte
   reproducibility of the binaries themselves is a later milestone; the
