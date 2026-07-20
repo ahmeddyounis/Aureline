@@ -8,7 +8,11 @@ use std::path::PathBuf;
 use aureline_records::{validate_typed, RecordClassId};
 use serde::{Deserialize, Serialize};
 
-use crate::storage::{HistoryError, HistoryStorageRoot, IdSource};
+use crate::storage::{
+    validate_storage_id, HistoryError, HistoryStorageRoot, IdSource, MAX_HISTORY_RECORD_BYTES,
+};
+
+const MAX_MUTATION_GROUP_MEMBERS: usize = 4_096;
 
 pub mod producers;
 
@@ -52,10 +56,19 @@ impl MutationJournalStore {
     /// Persists a mutation-journal entry record.
     pub fn write_entry(&self, entry: &MutationJournalEntryRecord) -> Result<PathBuf, HistoryError> {
         validate_mutation_record_kind(&entry.record_kind)?;
+        if entry.mutation_journal_schema_version != 1 {
+            return Err(HistoryError::InvalidInput(
+                "unsupported mutation-journal entry schema",
+            ));
+        }
+        validate_storage_id(&entry.mutation_id)?;
+        if let Some(group_id) = &entry.group_id {
+            validate_storage_id(group_id)?;
+        }
         let path = self
             .root
             .join("entries")
-            .join(format!("{}.json", sanitize_id(&entry.mutation_id)));
+            .join(format!("{}.json", entry.mutation_id));
         self.storage.write_new_json(&path, entry)?;
         Ok(path)
     }
@@ -63,10 +76,46 @@ impl MutationJournalStore {
     /// Persists a mutation-group record.
     pub fn write_group(&self, group: &MutationGroupRecord) -> Result<PathBuf, HistoryError> {
         validate_mutation_record_kind(&group.record_kind)?;
+        if group.mutation_journal_schema_version != 1 {
+            return Err(HistoryError::InvalidInput(
+                "unsupported mutation-journal group schema",
+            ));
+        }
+        validate_storage_id(&group.group_id)?;
+        if group.member_mutation_ids.len() > MAX_MUTATION_GROUP_MEMBERS {
+            return Err(HistoryError::InvalidInput(
+                "mutation-journal group has too many members",
+            ));
+        }
+        for member_id in &group.member_mutation_ids {
+            validate_storage_id(member_id)?;
+        }
+        let mut unique_members = std::collections::BTreeSet::new();
+        for member_id in &group.member_mutation_ids {
+            if !unique_members.insert(member_id.as_str()) {
+                return Err(HistoryError::InvalidInput(
+                    "mutation-journal group contains duplicate member ids",
+                ));
+            }
+            let member_path = self.root.join("entries").join(format!("{member_id}.json"));
+            let bytes = self
+                .storage
+                .read_bounded_file(&member_path, MAX_HISTORY_RECORD_BYTES)?;
+            let member: MutationJournalEntryRecord = serde_json::from_slice(&bytes)?;
+            validate_mutation_record_kind(&member.record_kind)?;
+            if member.mutation_journal_schema_version != 1
+                || member.mutation_id != *member_id
+                || member.group_id.as_deref() != Some(group.group_id.as_str())
+            {
+                return Err(HistoryError::InvalidInput(
+                    "mutation-journal group member binding mismatch",
+                ));
+            }
+        }
         let path = self
             .root
             .join("groups")
-            .join(format!("{}.json", sanitize_id(&group.group_id)));
+            .join(format!("{}.json", group.group_id));
         self.storage.write_new_json(&path, group)?;
         Ok(path)
     }
@@ -75,16 +124,6 @@ impl MutationJournalStore {
 fn validate_mutation_record_kind(record_kind: &str) -> Result<(), HistoryError> {
     validate_typed(record_kind, RecordClassId::DurableWorkspaceState)?;
     Ok(())
-}
-
-fn sanitize_id(value: &str) -> String {
-    value
-        .chars()
-        .map(|ch| match ch {
-            ':' | '/' | '\\' | ' ' | '\t' | '\n' | '\r' => '_',
-            other => other,
-        })
-        .collect()
 }
 
 /// Schema-shaped mutation-journal entry record.

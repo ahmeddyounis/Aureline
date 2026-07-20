@@ -12,7 +12,13 @@ use crate::mutation_journal::{
     ActorClass as JournalActorClass, AiApplyLineage, RedactionClass,
     ReversalClass as JournalReversalClass, SourceClass,
 };
-use crate::storage::{HistoryError, HistoryStorageRoot, IdSource};
+use crate::storage::{
+    validate_storage_id, HistoryError, HistoryStorageRoot, IdSource, MAX_HISTORY_BODY_BYTES,
+    MAX_HISTORY_RECORD_BYTES,
+};
+
+const MAX_BODY_REFS_PER_ENTRY: usize = 16;
+const MAX_GROUP_MEMBERS: usize = 4_096;
 
 /// Writer for local-history entries and groups plus their content-addressed bodies.
 #[derive(Debug, Clone)]
@@ -59,45 +65,296 @@ impl LocalHistoryStore {
 
     /// Writes a captured body into the content-addressed object store.
     pub fn write_body_object(&self, bytes: &[u8]) -> Result<String, HistoryError> {
+        if bytes.len() > MAX_HISTORY_BODY_BYTES {
+            return Err(HistoryError::TooLarge("local-history body object"));
+        }
         let digest = blake3::hash(bytes).to_hex().to_string();
         let object_id = format!("obj:blake3:{digest}");
         let path = self.objects_root.join(format!("{digest}.blob"));
-        if path.exists() {
-            return Ok(object_id);
+        match self.storage.write_new_blob(&path, bytes) {
+            Ok(()) => Ok(object_id),
+            Err(HistoryError::Io(err)) if err.kind() == std::io::ErrorKind::AlreadyExists => {
+                let existing = self
+                    .storage
+                    .read_bounded_file(&path, MAX_HISTORY_BODY_BYTES)?;
+                let existing_digest = blake3::hash(&existing).to_hex().to_string();
+                if existing_digest != digest {
+                    return Err(HistoryError::Integrity(
+                        "existing local-history body does not match its object id",
+                    ));
+                }
+                Ok(object_id)
+            }
+            Err(err) => Err(err),
         }
-        self.storage.write_new_blob(&path, bytes)?;
-        Ok(object_id)
+    }
+
+    /// Reads and verifies a content-addressed local-history body.
+    pub fn read_body_object(&self, object_id: &str) -> Result<Vec<u8>, HistoryError> {
+        let digest = parse_body_object_id(object_id)?;
+        let path = self.objects_root.join(format!("{digest}.blob"));
+        let bytes = self
+            .storage
+            .read_bounded_file(&path, MAX_HISTORY_BODY_BYTES)?;
+        let actual = blake3::hash(&bytes).to_hex().to_string();
+        if actual != digest {
+            return Err(HistoryError::Integrity(
+                "local-history body digest does not match object id",
+            ));
+        }
+        Ok(bytes)
+    }
+
+    /// Loads one entry only when its embedded workspace authority matches.
+    pub fn load_entry_for_workspace(
+        &self,
+        entry_id: &str,
+        workspace_id: &str,
+    ) -> Result<LocalHistoryEntryRecord, HistoryError> {
+        validate_storage_id(entry_id)?;
+        validate_opaque_authority_ref(workspace_id, "invalid workspace authority ref")?;
+        let path = self.root.join("entries").join(format!("{entry_id}.json"));
+        let bytes = self
+            .storage
+            .read_bounded_file(&path, MAX_HISTORY_RECORD_BYTES)?;
+        let entry: LocalHistoryEntryRecord = serde_json::from_slice(&bytes)?;
+        validate_entry_for_storage(&entry)?;
+        if entry.entry_id != entry_id
+            || entry
+                .logical_document_identity
+                .current_filesystem_identity
+                .logical_workspace_identity
+                .workspace_id
+                != workspace_id
+        {
+            return Err(HistoryError::InvalidInput(
+                "local-history entry workspace authority mismatch",
+            ));
+        }
+        Ok(entry)
+    }
+
+    /// Reads a body only through an entry joined to the exact workspace.
+    pub fn read_entry_body_for_workspace(
+        &self,
+        entry_id: &str,
+        workspace_id: &str,
+        object_id: &str,
+    ) -> Result<Vec<u8>, HistoryError> {
+        let entry = self.load_entry_for_workspace(entry_id, workspace_id)?;
+        if !entry.capture_descriptor.body_available
+            || !entry
+                .capture_descriptor
+                .body_object_refs
+                .iter()
+                .any(|candidate| candidate == object_id)
+        {
+            return Err(HistoryError::InvalidInput(
+                "body ref is not joined to the scoped history entry",
+            ));
+        }
+        self.read_body_object(object_id)
     }
 
     /// Persists a local-history entry record.
     pub fn write_entry(&self, entry: &LocalHistoryEntryRecord) -> Result<PathBuf, HistoryError> {
+        validate_entry_for_storage(entry)?;
+        for object_id in &entry.capture_descriptor.body_object_refs {
+            let _ = self.read_body_object(object_id)?;
+        }
         let path = self
             .root
             .join("entries")
-            .join(format!("{}.json", sanitize_id(&entry.entry_id)));
+            .join(format!("{}.json", entry.entry_id));
         self.storage.write_new_json(&path, entry)?;
         Ok(path)
     }
 
     /// Persists a local-history group record.
     pub fn write_group(&self, group: &LocalHistoryGroupRecord) -> Result<PathBuf, HistoryError> {
+        validate_group_for_storage(group)?;
+        let mut unique_members = std::collections::BTreeSet::new();
+        for member_id in &group.member_entry_ids {
+            if !unique_members.insert(member_id.as_str()) {
+                return Err(HistoryError::InvalidInput(
+                    "local-history group contains duplicate member ids",
+                ));
+            }
+            let member_path = self.root.join("entries").join(format!("{member_id}.json"));
+            let bytes = self
+                .storage
+                .read_bounded_file(&member_path, MAX_HISTORY_RECORD_BYTES)?;
+            let member: LocalHistoryEntryRecord = serde_json::from_slice(&bytes)?;
+            validate_entry_for_storage(&member)?;
+            if member.entry_id != *member_id
+                || member.group_id.as_deref() != Some(group.group_id.as_str())
+            {
+                return Err(HistoryError::InvalidInput(
+                    "local-history group member binding mismatch",
+                ));
+            }
+        }
         let path = self
             .root
             .join("groups")
-            .join(format!("{}.json", sanitize_id(&group.group_id)));
+            .join(format!("{}.json", group.group_id));
         self.storage.write_new_json(&path, group)?;
         Ok(path)
     }
 }
 
-fn sanitize_id(value: &str) -> String {
-    value
-        .chars()
-        .map(|ch| match ch {
-            ':' | '/' | '\\' | ' ' | '\t' | '\n' | '\r' => '_',
-            other => other,
-        })
-        .collect()
+fn parse_body_object_id(object_id: &str) -> Result<&str, HistoryError> {
+    let digest = object_id
+        .strip_prefix("obj:blake3:")
+        .ok_or(HistoryError::InvalidInput(
+            "local-history body ref has an unsupported scheme",
+        ))?;
+    if digest.len() != 64
+        || !digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+    {
+        return Err(HistoryError::InvalidInput(
+            "local-history body ref has an invalid digest",
+        ));
+    }
+    Ok(digest)
+}
+
+fn validate_opaque_authority_ref(value: &str, detail: &'static str) -> Result<(), HistoryError> {
+    if value.is_empty()
+        || value.len() > 1_024
+        || value == "."
+        || value == ".."
+        || value.contains('/')
+        || value.contains('\\')
+        || value.contains("://")
+        || value.bytes().any(|byte| byte.is_ascii_control())
+        || value.chars().any(char::is_whitespace)
+    {
+        return Err(HistoryError::InvalidInput(detail));
+    }
+    Ok(())
+}
+
+fn validate_capture_descriptor(capture: &CaptureDescriptor) -> Result<(), HistoryError> {
+    if capture.body_object_refs.len() > MAX_BODY_REFS_PER_ENTRY {
+        return Err(HistoryError::InvalidInput(
+            "local-history capture has too many body refs",
+        ));
+    }
+    match capture.capture_mode {
+        CaptureMode::ContentAddressedSnapshot => {
+            if !capture.body_available
+                || capture.body_object_refs.is_empty()
+                || !matches!(
+                    capture.omission_reason,
+                    CaptureOmissionReasonClass::NotOmitted
+                )
+            {
+                return Err(HistoryError::InvalidInput(
+                    "content-addressed history capture is missing an available body",
+                ));
+            }
+            for object_id in &capture.body_object_refs {
+                parse_body_object_id(object_id)?;
+            }
+        }
+        CaptureMode::MetadataPlusReferenceOnly
+        | CaptureMode::GroupManifestOnly
+        | CaptureMode::ExternalCauseMetadataOnly => {
+            if capture.body_available || !capture.body_object_refs.is_empty() {
+                return Err(HistoryError::InvalidInput(
+                    "metadata-only history capture may not claim body bytes",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_local_only_posture(posture: &LocalOnlyPosture) -> Result<(), HistoryError> {
+    if !posture.local_only_by_default || !posture.ordinary_cache_clear_exclusion {
+        return Err(HistoryError::InvalidInput(
+            "local history must remain local-only and excluded from cache clear",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_entry_for_storage(entry: &LocalHistoryEntryRecord) -> Result<(), HistoryError> {
+    if entry.record_kind != "local_history_entry" || entry.local_history_schema_version != 1 {
+        return Err(HistoryError::InvalidInput(
+            "unsupported local-history entry kind or schema",
+        ));
+    }
+    validate_storage_id(&entry.entry_id)?;
+    validate_opaque_authority_ref(
+        &entry
+            .logical_document_identity
+            .current_filesystem_identity
+            .logical_workspace_identity
+            .workspace_id,
+        "invalid local-history workspace authority ref",
+    )?;
+    validate_opaque_authority_ref(
+        &entry.logical_document_identity.logical_document_id,
+        "invalid logical document authority ref",
+    )?;
+    if let Some(group_id) = &entry.group_id {
+        validate_storage_id(group_id)?;
+    }
+    validate_capture_descriptor(&entry.capture_descriptor)?;
+    validate_local_only_posture(&entry.local_only_posture)?;
+    match entry.snapshot_class {
+        SnapshotClass::RestoreRollbackCheckpoint if entry.restore_of_ref.is_none() => {
+            return Err(HistoryError::InvalidInput(
+                "restore checkpoint is missing restore-of lineage",
+            ));
+        }
+        SnapshotClass::RestoreRollbackCheckpoint => {}
+        _ if entry.restore_of_ref.is_some() => {
+            return Err(HistoryError::InvalidInput(
+                "non-restore checkpoint may not claim restore-of lineage",
+            ));
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn validate_group_for_storage(group: &LocalHistoryGroupRecord) -> Result<(), HistoryError> {
+    if group.record_kind != "local_history_group_record" || group.local_history_schema_version != 1
+    {
+        return Err(HistoryError::InvalidInput(
+            "unsupported local-history group kind or schema",
+        ));
+    }
+    validate_storage_id(&group.group_id)?;
+    if group.member_entry_ids.len() > MAX_GROUP_MEMBERS {
+        return Err(HistoryError::InvalidInput(
+            "local-history group has too many members",
+        ));
+    }
+    for member_id in &group.member_entry_ids {
+        validate_storage_id(member_id)?;
+    }
+    validate_local_only_posture(&group.local_only_posture)?;
+    match group.snapshot_class {
+        SnapshotClass::RestoreRollbackCheckpoint if group.restore_of_ref.is_none() => {
+            return Err(HistoryError::InvalidInput(
+                "restore group is missing restore-of lineage",
+            ));
+        }
+        SnapshotClass::RestoreRollbackCheckpoint => {}
+        _ if group.restore_of_ref.is_some() => {
+            return Err(HistoryError::InvalidInput(
+                "non-restore group may not claim restore-of lineage",
+            ));
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 /// Schema-shaped filesystem-identity record exported into checkpoints and journals.

@@ -1321,6 +1321,7 @@ impl DestructiveCoreEngine {
         // Restore each target from its pre-apply body object.
         let mut restored: u32 = 0;
         let mut reverse_member_ids = Vec::with_capacity(apply.per_target_links.len());
+        let reverse_group_id = self.journal.mint_group_id();
         for link in &apply.per_target_links {
             let pre_bytes = self.read_body_object(&link.pre_apply_body_object_id);
             if let Some(bytes) = pre_bytes {
@@ -1365,7 +1366,8 @@ impl DestructiveCoreEngine {
                         logical = link.logical_ref
                     )),
                     Vec::new(),
-                );
+                )
+                .with_group_id(reverse_group_id.clone());
                 self.journal.write_entry(&reverse_entry)?;
                 reverse_member_ids.push(reverse_mutation_id);
             }
@@ -1386,7 +1388,6 @@ impl DestructiveCoreEngine {
 
         // Persist the reverse mutation-group record so support exports
         // surface the restore as one named row.
-        let reverse_group_id = self.journal.mint_group_id();
         let reverse_group_label = format!("Revert of {label}", label = apply.mutation_group_label);
         let reverse_group_record = MutationGroupRecord::new(
             reverse_group_id.clone(),
