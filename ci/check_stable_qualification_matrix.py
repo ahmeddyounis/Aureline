@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Aureline contributors
+# SPDX-License-Identifier: Apache-2.0
 """Validate the stable qualification matrix and its mixed-version sections.
 
 The stable claim matrix decides which subjects may publish as Stable; this
@@ -29,8 +31,9 @@ This gate reads the checked-in matrix at
   - asserts every boundary family the spec enumerates is covered by at least one
     cross-binary row;
   - performs the date arithmetic the typed model cannot: against the matrix
-    ``as_of`` date it recomputes waiver expiry and evidence staleness and fails
-    when a row overstates its posture;
+    ``as_of`` date, or a later ``--evaluation-date`` supplied by live release
+    tooling, it recomputes waiver expiry and evidence staleness and fails when a
+    row overstates its posture;
   - recomputes the promotion verdict from the rows and downgrade rules and fails
     when the declared decision or blocking sets drift;
   - recomputes the summary block; and
@@ -163,6 +166,15 @@ def parse_args() -> argparse.Namespace:
         "--require-proceed",
         action="store_true",
         help="Promotion gate: also fail (exit 2) when the recomputed promotion verdict is hold.",
+    )
+    parser.add_argument(
+        "--evaluation-date",
+        default=None,
+        metavar="YYYY-MM-DD",
+        help=(
+            "Evaluate evidence freshness and waiver expiry on this date instead "
+            "of matrix.as_of. The value may not predate matrix.as_of."
+        ),
     )
     return parser.parse_args()
 
@@ -617,11 +629,12 @@ def validate_refs_exist(row_id: str, evidence: dict[str, Any], repo_root: Path) 
     return findings
 
 
-def validate_dates(matrix: dict[str, Any]) -> list[Finding]:
-    """Date arithmetic the typed model cannot do: against as_of, fail when a row
-    overstates its posture on an expired waiver or stale evidence."""
+def validate_dates(
+    matrix: dict[str, Any], evaluation_date: dt.date | None = None
+) -> list[Finding]:
+    """Fail when a row overstates its posture at the effective evaluation date."""
     findings: list[Finding] = []
-    as_of = parse_date(matrix.get("as_of"))
+    as_of = evaluation_date or parse_date(matrix.get("as_of"))
     if as_of is None:
         return findings
     for row in matrix.get("rows", []):
@@ -636,9 +649,9 @@ def validate_dates(matrix: dict[str, Any]) -> list[Finding]:
             else:
                 expired = as_of >= expires
                 if expired and state == "provisional_on_waiver":
-                    findings.append(Finding("error", "row.provisional_on_expired_waiver", "a provisional claim relies on a waiver that has expired against as_of", row_id))
+                    findings.append(Finding("error", "row.provisional_on_expired_waiver", "a provisional claim relies on a waiver that has expired by the evaluation date", row_id))
                 if not expired and state == "waiver_expired":
-                    findings.append(Finding("error", "row.waiver_expired_but_active", "a row is marked waiver_expired but the waiver is still active against as_of", row_id))
+                    findings.append(Finding("error", "row.waiver_expired_but_active", "a row is marked waiver_expired but the waiver is still active at the evaluation date", row_id))
 
         evidence = row.get("evidence", {})
         captured = parse_date(evidence.get("captured_at")) if isinstance(evidence, dict) else None
@@ -646,7 +659,7 @@ def validate_dates(matrix: dict[str, Any]) -> list[Finding]:
         if captured is not None and isinstance(window, int) and not isinstance(window, bool):
             stale = as_of > captured + dt.timedelta(days=window)
             if stale and state in HOLDING_STATES:
-                findings.append(Finding("error", "row.evidence_stale_but_claimed", "a held stable claim rides evidence past its freshness window against as_of", row_id))
+                findings.append(Finding("error", "row.evidence_stale_but_claimed", "a held stable claim rides evidence past its freshness window at the evaluation date", row_id))
     return findings
 
 
@@ -697,9 +710,24 @@ def validate_summary(matrix: dict[str, Any]) -> list[Finding]:
     return findings
 
 
-def validate_matrix(matrix: dict[str, Any], repo_root: Path) -> list[Finding]:
+def validate_matrix(
+    matrix: dict[str, Any],
+    repo_root: Path,
+    evaluation_date: dt.date | None = None,
+) -> list[Finding]:
     findings = validate_envelope(matrix)
     findings.extend(validate_rules(matrix))
+
+    artifact_as_of = parse_date(matrix.get("as_of"))
+    if evaluation_date is not None and artifact_as_of is not None and evaluation_date < artifact_as_of:
+        findings.append(
+            Finding(
+                "error",
+                "matrix.evaluation_date_before_as_of",
+                "evaluation date may not predate matrix.as_of",
+                "<matrix>",
+            )
+        )
 
     rows = matrix.get("rows")
     if not isinstance(rows, list) or not rows:
@@ -716,7 +744,7 @@ def validate_matrix(matrix: dict[str, Any], repo_root: Path) -> list[Finding]:
         seen.add(row_id)
 
     findings.extend(validate_boundary_coverage(matrix))
-    findings.extend(validate_dates(matrix))
+    findings.extend(validate_dates(matrix, evaluation_date))
     findings.extend(validate_promotion(matrix))
     findings.extend(validate_summary(matrix))
     return findings
@@ -821,10 +849,11 @@ def write_report(
     matrix: dict[str, Any],
     findings: list[Finding],
     drill_results: list[dict[str, str]],
+    evaluation_date: dt.date | None = None,
 ) -> None:
     decision, rule_ids, row_ids = computed_promotion(matrix)
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
+    payload: dict[str, Any] = {
         "schema_version": EXPECTED_SCHEMA_VERSION,
         "record_kind": "stable_qualification_matrix_validation_capture",
         "status": "pass" if not any(f.severity == "error" for f in findings) else "fail",
@@ -840,19 +869,24 @@ def write_report(
         "negative_drills": drill_results,
         "findings": [f.as_report() for f in findings],
     }
+    if evaluation_date is not None:
+        payload["evaluation_date"] = evaluation_date.isoformat()
     path.write_text(json_text(payload), encoding="utf-8")
 
 
 def main() -> int:
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
+    evaluation_date = parse_date(args.evaluation_date) if args.evaluation_date else None
+    if args.evaluation_date and evaluation_date is None:
+        raise SystemExit("--evaluation-date must be an ISO date in YYYY-MM-DD form")
 
     matrix = ensure_dict(
         load_json(repo_root / args.matrix, "stable qualification matrix"),
         "stable qualification matrix",
     )
 
-    findings = validate_matrix(matrix, repo_root)
+    findings = validate_matrix(matrix, repo_root, evaluation_date)
     drill_results, drill_findings = run_negative_drills(matrix, repo_root)
     findings.extend(drill_findings)
 
@@ -860,7 +894,7 @@ def main() -> int:
     if report_rel is None and not args.no_capture:
         report_rel = DEFAULT_REPORT_REL
     if report_rel:
-        write_report(repo_root / report_rel, matrix, findings, drill_results)
+        write_report(repo_root / report_rel, matrix, findings, drill_results, evaluation_date)
 
     errors = [f for f in findings if f.severity == "error"]
     if errors:

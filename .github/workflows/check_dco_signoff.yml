@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: 2026 Aureline contributors
+# SPDX-License-Identifier: Apache-2.0
+
+# Developer Certificate of Origin sign-off gate.
+
+name: check_dco_signoff
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-dco-signoff-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dco_signoff:
+    name: DCO sign-off
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check pull-request commit sign-offs
+        env:
+          AURELINE_DCO_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          AURELINE_DCO_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ -n "$AURELINE_DCO_BASE_SHA" && -n "$AURELINE_DCO_HEAD_SHA" ]]; then
+            ./ci/release/check_dco_signoff.sh \
+              --range "$AURELINE_DCO_BASE_SHA..$AURELINE_DCO_HEAD_SHA"
+          else
+            ./ci/release/check_dco_signoff.sh
+          fi

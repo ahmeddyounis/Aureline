@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Aureline contributors
+# SPDX-License-Identifier: Apache-2.0
 """Validate the stable shiproom dashboard that wires each shiproom panel to its upstream
 source, a packet-freshness SLO, measurable fitness functions, and the qualification-row
 stop rules that hold promotion.
@@ -38,7 +40,8 @@ the checked-in dashboard at ``artifacts/release/shiproom_dashboard.json`` and:
     ``qualification_row_regressed`` and narrow, or when a panel names that reason while every
     watched row still holds the cutline;
   - performs the packet-freshness SLO automation and the waiver-expiry date arithmetic
-    against the dashboard ``as_of`` date the typed model cannot;
+    against the dashboard ``as_of`` date, or a later ``--evaluation-date`` supplied by
+    live release tooling, which the typed model cannot do;
   - recomputes the publication verdict and the summary block, and fails on any drift;
   - runs negative drills proving the narrowing, ceiling, fitness, freshness, qualification,
     and publication rejections all fire; and
@@ -154,6 +157,15 @@ def parse_args() -> argparse.Namespace:
         "--require-proceed",
         action="store_true",
         help="Publication gate: also fail (exit 2) when the recomputed verdict is hold.",
+    )
+    parser.add_argument(
+        "--evaluation-date",
+        default=None,
+        metavar="YYYY-MM-DD",
+        help=(
+            "Evaluate freshness and waiver expiry on this date instead of "
+            "dashboard.as_of. The value may not predate dashboard.as_of."
+        ),
     )
     return parser.parse_args()
 
@@ -740,9 +752,11 @@ def validate_coverage(dashboard: dict[str, Any]) -> list[Finding]:
     return findings
 
 
-def validate_freshness(dashboard: dict[str, Any]) -> list[Finding]:
+def validate_freshness(
+    dashboard: dict[str, Any], evaluation_date: dt.date | None = None
+) -> list[Finding]:
     findings: list[Finding] = []
-    as_of = parse_date(dashboard.get("as_of"))
+    as_of = evaluation_date or parse_date(dashboard.get("as_of"))
     if as_of is None:
         return findings
     for panel in dashboard.get("panels", []):
@@ -756,18 +770,20 @@ def validate_freshness(dashboard: dict[str, Any]) -> list[Finding]:
             continue
         if FRESHNESS_RANK[declared] > FRESHNESS_RANK[computed]:
             findings.append(
-                Finding("error", "panel.packet_freshness_overstated", f"declared slo_state {declared!r} is fresher than the {computed!r} the as_of date allows", panel_id)
+                Finding("error", "panel.packet_freshness_overstated", f"declared slo_state {declared!r} is fresher than the {computed!r} evaluation date allows", panel_id)
             )
         if panel.get("panel_state") in GREEN_STATES and computed in ("breached", "missing"):
             findings.append(
-                Finding("error", "panel.green_on_breached_packet", "a green panel rides a freshness packet past its SLO against as_of", panel_id)
+                Finding("error", "panel.green_on_breached_packet", "a green panel rides a freshness packet past its SLO at the evaluation date", panel_id)
             )
     return findings
 
 
-def validate_waivers(dashboard: dict[str, Any]) -> list[Finding]:
+def validate_waivers(
+    dashboard: dict[str, Any], evaluation_date: dt.date | None = None
+) -> list[Finding]:
     findings: list[Finding] = []
-    as_of = parse_date(dashboard.get("as_of"))
+    as_of = evaluation_date or parse_date(dashboard.get("as_of"))
     if as_of is None:
         return findings
     for panel in dashboard.get("panels", []):
@@ -782,9 +798,9 @@ def validate_waivers(dashboard: dict[str, Any]) -> list[Finding]:
             continue
         expired = as_of >= expires
         if expired and state == "green_on_waiver":
-            findings.append(Finding("error", "panel.green_on_expired_waiver", "a panel renders green on a waiver that has expired against as_of", panel_id))
+            findings.append(Finding("error", "panel.green_on_expired_waiver", "a panel renders green on a waiver that has expired by the evaluation date", panel_id))
         if not expired and state == "narrowed_waiver_expired":
-            findings.append(Finding("error", "panel.waiver_expired_but_active", "a panel is marked waiver-expired but the waiver is still active against as_of", panel_id))
+            findings.append(Finding("error", "panel.waiver_expired_but_active", "a panel is marked waiver-expired but the waiver is still active at the evaluation date", panel_id))
     return findings
 
 
@@ -910,9 +926,24 @@ def validate_summary(dashboard: dict[str, Any]) -> list[Finding]:
     return findings
 
 
-def validate_dashboard(dashboard: dict[str, Any], repo_root: Path) -> list[Finding]:
+def validate_dashboard(
+    dashboard: dict[str, Any],
+    repo_root: Path,
+    evaluation_date: dt.date | None = None,
+) -> list[Finding]:
     findings = validate_envelope(dashboard, repo_root)
     findings.extend(validate_rules(dashboard))
+
+    artifact_as_of = parse_date(dashboard.get("as_of"))
+    if evaluation_date is not None and artifact_as_of is not None and evaluation_date < artifact_as_of:
+        findings.append(
+            Finding(
+                "error",
+                "dashboard.evaluation_date_before_as_of",
+                "evaluation date may not predate dashboard.as_of",
+                "<dashboard>",
+            )
+        )
 
     panels = dashboard.get("panels")
     if not isinstance(panels, list) or not panels:
@@ -929,8 +960,8 @@ def validate_dashboard(dashboard: dict[str, Any], repo_root: Path) -> list[Findi
         seen.add(panel_id)
 
     findings.extend(validate_coverage(dashboard))
-    findings.extend(validate_freshness(dashboard))
-    findings.extend(validate_waivers(dashboard))
+    findings.extend(validate_freshness(dashboard, evaluation_date))
+    findings.extend(validate_waivers(dashboard, evaluation_date))
     findings.extend(validate_ceiling(dashboard, repo_root))
     findings.extend(validate_qualification(dashboard, repo_root))
     findings.extend(validate_publication(dashboard))
@@ -1084,10 +1115,11 @@ def write_report(
     findings: list[Finding],
     drill_results: list[dict[str, str]],
     fixture_results: list[dict[str, str]],
+    evaluation_date: dt.date | None = None,
 ) -> None:
     decision, rule_ids, panel_ids = computed_publication(dashboard)
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
+    payload: dict[str, Any] = {
         "schema_version": EXPECTED_SCHEMA_VERSION,
         "record_kind": "shiproom_dashboard_validation_capture",
         "status": "pass" if not any(f.severity == "error" for f in findings) else "fail",
@@ -1104,19 +1136,24 @@ def write_report(
         "fixture_cases": fixture_results,
         "findings": [f.as_report() for f in findings],
     }
+    if evaluation_date is not None:
+        payload["evaluation_date"] = evaluation_date.isoformat()
     path.write_text(json_text(payload), encoding="utf-8")
 
 
 def main() -> int:
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
+    evaluation_date = parse_date(args.evaluation_date) if args.evaluation_date else None
+    if args.evaluation_date and evaluation_date is None:
+        raise SystemExit("--evaluation-date must be an ISO date in YYYY-MM-DD form")
 
     dashboard = ensure_dict(
         load_json(repo_root / args.dashboard, "shiproom dashboard"),
         "shiproom dashboard",
     )
 
-    findings = validate_dashboard(dashboard, repo_root)
+    findings = validate_dashboard(dashboard, repo_root, evaluation_date)
     drill_results, drill_findings = run_negative_drills(dashboard, repo_root)
     findings.extend(drill_findings)
     fixture_results, fixture_findings = run_fixture_cases(repo_root, args.fixtures_dir)
@@ -1126,7 +1163,14 @@ def main() -> int:
     if report_rel is None and not args.no_capture:
         report_rel = DEFAULT_REPORT_REL
     if report_rel:
-        write_report(repo_root / report_rel, dashboard, findings, drill_results, fixture_results)
+        write_report(
+            repo_root / report_rel,
+            dashboard,
+            findings,
+            drill_results,
+            fixture_results,
+            evaluation_date,
+        )
 
     errors = [f for f in findings if f.severity == "error"]
     if errors:

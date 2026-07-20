@@ -1,0 +1,66 @@
+# SPDX-FileCopyrightText: 2026 Aureline contributors
+# SPDX-License-Identifier: Apache-2.0
+
+# Live stable-release readiness gate.
+#
+# Structural release validators remain reproducible against their checked-in
+# as_of dates. This aggregate is the live decision boundary: it evaluates every
+# freshness window and waiver against the current UTC date and requires all
+# three release controls to return a proceed verdict.
+
+name: check_release_readiness
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_release_readiness.yml"
+      - "ci/check_release_readiness.sh"
+      - "ci/check_stable_claim_manifest.py"
+      - "ci/check_stable_qualification_matrix.py"
+      - "ci/check_shiproom_dashboard.py"
+      - "artifacts/release/stable_claim_manifest.json"
+      - "artifacts/release/stable_qualification_matrix.json"
+      - "artifacts/release/shiproom_dashboard.json"
+      - "artifacts/release/stable_claim_matrix.json"
+      - "artifacts/release/support_class_ledger.json"
+      - "fixtures/release/stable_claim_manifest/**"
+      - "fixtures/release/shiproom_dashboard/**"
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-release-readiness-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release_readiness:
+    name: Live release readiness
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Require current release controls to proceed
+        run: |
+          ./ci/check_release_readiness.sh --out-dir target/release-readiness
+
+      - name: Upload release-readiness captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-readiness-${{ github.run_id }}
+          path: target/release-readiness
+          if-no-files-found: error
+          retention-days: 30

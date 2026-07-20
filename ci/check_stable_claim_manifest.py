@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Aureline contributors
+# SPDX-License-Identifier: Apache-2.0
 """Validate the stable claim manifest, its canonical lifecycle labels, and the
 packet-freshness SLO automation.
 
@@ -19,10 +21,11 @@ no longer holds. It reads the checked-in manifest at
     an adjacent published label, and that a published label publishes its claim
     cleanly with a captured, within-SLO proof packet and an owner sign-off;
   - performs the packet-freshness SLO automation the typed model cannot — against
-    the manifest ``as_of`` date it recomputes each packet's SLO state from its
-    ``captured_at`` and ``freshness_slo`` and fails when a declared state is
-    fresher than the clock allows or when a published label rides a packet whose
-    recomputed state is outside its SLO;
+    the manifest ``as_of`` date, or a later ``--evaluation-date`` supplied by live
+    release tooling, it recomputes each packet's SLO state from its ``captured_at``
+    and ``freshness_slo`` and fails when a declared state is fresher than the clock
+    allows or when a published label rides a packet whose recomputed state is
+    outside its SLO;
   - performs the cross-artifact ingestion the typed model cannot — it reads the
     stable claim matrix, the stable qualification matrix, and the support-class
     ledger and fails when an entry's posture disagrees with a backing row
@@ -131,6 +134,15 @@ def parse_args() -> argparse.Namespace:
         "--require-proceed",
         action="store_true",
         help="Publication gate: also fail (exit 2) when the recomputed verdict is hold.",
+    )
+    parser.add_argument(
+        "--evaluation-date",
+        default=None,
+        metavar="YYYY-MM-DD",
+        help=(
+            "Evaluate freshness and waiver expiry on this date instead of the "
+            "manifest as_of date. The value may not predate manifest.as_of."
+        ),
     )
     return parser.parse_args()
 
@@ -500,13 +512,15 @@ def validate_entry_refs(entry_id: str, entry: dict[str, Any], repo_root: Path) -
     return findings
 
 
-def validate_freshness(manifest: dict[str, Any]) -> list[Finding]:
+def validate_freshness(
+    manifest: dict[str, Any], evaluation_date: dt.date | None = None
+) -> list[Finding]:
     """Packet-freshness SLO automation: recompute each packet's SLO state against
     as_of and fail when the declared state is fresher than the clock allows, or
     when a published label rides a packet whose recomputed state is outside its
     SLO."""
     findings: list[Finding] = []
-    as_of = parse_date(manifest.get("as_of"))
+    as_of = evaluation_date or parse_date(manifest.get("as_of"))
     if as_of is None:
         return findings
     for entry in manifest.get("entries", []):
@@ -520,19 +534,21 @@ def validate_freshness(manifest: dict[str, Any]) -> list[Finding]:
             continue
         if FRESHNESS_RANK[declared] > FRESHNESS_RANK[computed]:
             findings.append(
-                Finding("error", "entry.packet_freshness_overstated", f"declared slo_state {declared!r} is fresher than the {computed!r} the as_of date allows", entry_id)
+                Finding("error", "entry.packet_freshness_overstated", f"declared slo_state {declared!r} is fresher than the {computed!r} evaluation date allows", entry_id)
             )
         if entry.get("manifest_state") in HOLDING_STATES and computed in ("breached", "missing"):
             findings.append(
-                Finding("error", "entry.published_on_breached_packet", "a published label rides a proof packet past its freshness SLO against as_of", entry_id)
+                Finding("error", "entry.published_on_breached_packet", "a published label rides a proof packet past its freshness SLO at the evaluation date", entry_id)
             )
     return findings
 
 
-def validate_waivers(manifest: dict[str, Any]) -> list[Finding]:
-    """Waiver-expiry date arithmetic against as_of."""
+def validate_waivers(
+    manifest: dict[str, Any], evaluation_date: dt.date | None = None
+) -> list[Finding]:
+    """Waiver-expiry date arithmetic against the effective evaluation date."""
     findings: list[Finding] = []
-    as_of = parse_date(manifest.get("as_of"))
+    as_of = evaluation_date or parse_date(manifest.get("as_of"))
     if as_of is None:
         return findings
     for entry in manifest.get("entries", []):
@@ -547,9 +563,9 @@ def validate_waivers(manifest: dict[str, Any]) -> list[Finding]:
             continue
         expired = as_of >= expires
         if expired and state == "provisional_on_waiver":
-            findings.append(Finding("error", "entry.provisional_on_expired_waiver", "a provisional label relies on a waiver that has expired against as_of", entry_id))
+            findings.append(Finding("error", "entry.provisional_on_expired_waiver", "a provisional label relies on a waiver that has expired by the evaluation date", entry_id))
         if not expired and state == "narrowed_waiver_expired":
-            findings.append(Finding("error", "entry.waiver_expired_but_active", "an entry is marked waiver-expired but the waiver is still active against as_of", entry_id))
+            findings.append(Finding("error", "entry.waiver_expired_but_active", "an entry is marked waiver-expired but the waiver is still active at the evaluation date", entry_id))
     return findings
 
 
@@ -690,9 +706,24 @@ def validate_summary(manifest: dict[str, Any]) -> list[Finding]:
     return findings
 
 
-def validate_manifest(manifest: dict[str, Any], repo_root: Path) -> list[Finding]:
+def validate_manifest(
+    manifest: dict[str, Any],
+    repo_root: Path,
+    evaluation_date: dt.date | None = None,
+) -> list[Finding]:
     findings = validate_envelope(manifest)
     findings.extend(validate_rules(manifest))
+
+    artifact_as_of = parse_date(manifest.get("as_of"))
+    if evaluation_date is not None and artifact_as_of is not None and evaluation_date < artifact_as_of:
+        findings.append(
+            Finding(
+                "error",
+                "manifest.evaluation_date_before_as_of",
+                "evaluation date may not predate manifest.as_of",
+                "<manifest>",
+            )
+        )
 
     entries = manifest.get("entries")
     if not isinstance(entries, list) or not entries:
@@ -708,8 +739,8 @@ def validate_manifest(manifest: dict[str, Any], repo_root: Path) -> list[Finding
             findings.append(Finding("error", "entry.duplicate_id", "entry ids must be unique", entry_id))
         seen.add(entry_id)
 
-    findings.extend(validate_freshness(manifest))
-    findings.extend(validate_waivers(manifest))
+    findings.extend(validate_freshness(manifest, evaluation_date))
+    findings.extend(validate_waivers(manifest, evaluation_date))
     findings.extend(validate_backing(manifest, repo_root))
     findings.extend(validate_publication(manifest))
     findings.extend(validate_summary(manifest))
@@ -841,10 +872,11 @@ def write_report(
     findings: list[Finding],
     drill_results: list[dict[str, str]],
     fixture_results: list[dict[str, str]],
+    evaluation_date: dt.date | None = None,
 ) -> None:
     decision, rule_ids, entry_ids = computed_publication(manifest)
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
+    payload: dict[str, Any] = {
         "schema_version": EXPECTED_SCHEMA_VERSION,
         "record_kind": "stable_claim_manifest_validation_capture",
         "status": "pass" if not any(f.severity == "error" for f in findings) else "fail",
@@ -861,19 +893,24 @@ def write_report(
         "fixture_cases": fixture_results,
         "findings": [f.as_report() for f in findings],
     }
+    if evaluation_date is not None:
+        payload["evaluation_date"] = evaluation_date.isoformat()
     path.write_text(json_text(payload), encoding="utf-8")
 
 
 def main() -> int:
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
+    evaluation_date = parse_date(args.evaluation_date) if args.evaluation_date else None
+    if args.evaluation_date and evaluation_date is None:
+        raise SystemExit("--evaluation-date must be an ISO date in YYYY-MM-DD form")
 
     manifest = ensure_dict(
         load_json(repo_root / args.manifest, "stable claim manifest"),
         "stable claim manifest",
     )
 
-    findings = validate_manifest(manifest, repo_root)
+    findings = validate_manifest(manifest, repo_root, evaluation_date)
     drill_results, drill_findings = run_negative_drills(manifest, repo_root)
     findings.extend(drill_findings)
     fixture_results, fixture_findings = run_fixture_cases(repo_root, args.fixtures_dir)
@@ -883,7 +920,14 @@ def main() -> int:
     if report_rel is None and not args.no_capture:
         report_rel = DEFAULT_REPORT_REL
     if report_rel:
-        write_report(repo_root / report_rel, manifest, findings, drill_results, fixture_results)
+        write_report(
+            repo_root / report_rel,
+            manifest,
+            findings,
+            drill_results,
+            fixture_results,
+            evaluation_date,
+        )
 
     errors = [f for f in findings if f.severity == "error"]
     if errors:
