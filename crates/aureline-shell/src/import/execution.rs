@@ -1773,7 +1773,7 @@ fn secure_read_source_file(
         });
     }
     let mut bytes = Vec::with_capacity(opened.len() as usize);
-    file.by_ref()
+    Read::by_ref(&mut file)
         .take(MAX_SOURCE_FILE_BYTES + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| ImportExecutionError::SourceUnavailable {
@@ -2417,7 +2417,8 @@ fn validate_profile_key(profile_key: &str) -> Result<(), ImportExecutionError> {
 
 fn checkpoint_ref(profile_key: &str, plan_digest: &str, token_digest: &str) -> String {
     let identity = format!("{profile_key}\n{plan_digest}\n{token_digest}");
-    let checkpoint_key = digest_suffix(&aureline_history::body_object_id(identity.as_bytes()));
+    let checkpoint_object_id = aureline_history::body_object_id(identity.as_bytes());
+    let checkpoint_key = digest_suffix(&checkpoint_object_id);
     format!("import-checkpoint:{profile_key}:{checkpoint_key}")
 }
 
@@ -2658,7 +2659,7 @@ fn read_optional_durable_file(
         });
     }
     let mut bytes = Vec::with_capacity(opened.len() as usize);
-    file.by_ref()
+    Read::by_ref(&mut file)
         .take(MAX_DURABLE_FILE_BYTES + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| ImportExecutionError::DurableStateUnavailable {
@@ -3217,7 +3218,11 @@ mod tests {
         ));
 
         let mut out_of_range = state.clone();
-        out_of_range.settings["editor.tab_size"].value = ImportSettingValue::Integer(99);
+        out_of_range
+            .settings
+            .get_mut("editor.tab_size")
+            .expect("tab size setting")
+            .value = ImportSettingValue::Integer(99);
         let out_of_range_digest = settings_digest(&out_of_range.settings).expect("settings digest");
         out_of_range
             .history
@@ -3233,8 +3238,11 @@ mod tests {
         ));
 
         let mut invalid_enum = state;
-        invalid_enum.settings["ui.theme"].value =
-            ImportSettingValue::Text("extension-theme-name".to_owned());
+        invalid_enum
+            .settings
+            .get_mut("ui.theme")
+            .expect("theme setting")
+            .value = ImportSettingValue::Text("extension-theme-name".to_owned());
         let invalid_enum_digest = settings_digest(&invalid_enum.settings).expect("settings digest");
         invalid_enum
             .history
