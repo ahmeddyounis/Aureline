@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Native desktop shell bootstrap and event-loop wiring.
 //!
 //! Owns the canonical native window bootstrap, input dispatch root, and
@@ -851,6 +854,35 @@ mod native_shell_arg_tests {
                 .expect("report json");
         assert_eq!(report["outcome"], "committed");
         assert_eq!(report["byte_count"], payload.len());
+    }
+
+    #[test]
+    fn save_without_target_preserves_dirty_recovered_content() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut frame = DesktopFrame::new(1280, 720);
+        let group = frame.focused_editor_group();
+        let tab = frame.open_tab().expect("editor tab");
+        let mut editor_runtime =
+            EditorWorkspaceRuntimeState::with_log_root(dir.path().join("logs"));
+        editor_runtime.open_restore_placeholder(
+            group,
+            tab,
+            "Recovered draft",
+            "Original target is unavailable",
+        );
+        editor_runtime
+            .replace_tab_contents(group, tab, "recovered bytes", "restore_test")
+            .expect("stage recovered content");
+
+        let attempt = editor_runtime.save_tab(group, tab).expect("save attempt");
+
+        assert!(matches!(attempt, SaveTabAttempt::NoTarget));
+        assert!(
+            editor_runtime
+                .tab_render_info(group, tab)
+                .is_some_and(|info| info.dirty),
+            "a targetless save must not mark recovered content as durable"
+        );
     }
 
     fn hex_encode(bytes: &[u8]) -> String {
@@ -3527,7 +3559,6 @@ impl EditorWorkspaceRuntimeState {
             return Err("tab is read-only".to_string());
         }
         let Some(path) = authority.file_path.clone() else {
-            authority.mark_saved();
             return Ok(SaveTabAttempt::NoTarget);
         };
 
@@ -4210,11 +4241,10 @@ impl TerminalPaneRuntimeState {
         }
     }
 
-    fn open_workspace(
+    fn register_workspace(
         &mut self,
         workspace_id: String,
         workspace_root: PathBuf,
-        trust_state: TrustState,
         observed_at: &str,
     ) {
         if self.active_workspace_id.as_deref() != Some(workspace_id.as_str()) {
@@ -4222,11 +4252,21 @@ impl TerminalPaneRuntimeState {
         }
         self.active_workspace_id = Some(workspace_id);
         self.workspace_root = Some(workspace_root);
-        let _ = self.ensure_session_for_active_workspace(trust_state, observed_at);
     }
 
     fn close_active_workspace(&mut self, observed_at: &str, reason_code: Option<&str>) {
+        self.close_workspace_sessions_preserving_registration(observed_at, reason_code);
+        self.active_workspace_id = None;
+        self.workspace_root = None;
+    }
+
+    fn close_workspace_sessions_preserving_registration(
+        &mut self,
+        observed_at: &str,
+        reason_code: Option<&str>,
+    ) {
         let Some(workspace_id) = self.active_workspace_id.clone() else {
+            self.active_session_id = None;
             return;
         };
         let ids: Vec<PtySessionId> = self
@@ -4244,8 +4284,15 @@ impl TerminalPaneRuntimeState {
             let _ = wedge.record_closed(observed_at, reason_code);
         }
         self.active_session_id = None;
-        self.active_workspace_id = None;
-        self.workspace_root = None;
+    }
+
+    fn enforce_trust_state(&mut self, trust_state: TrustState, observed_at: &str) {
+        if trust_state != TrustState::Trusted {
+            self.close_workspace_sessions_preserving_registration(
+                observed_at,
+                Some("workspace_trust_revoked"),
+            );
+        }
     }
 
     fn ensure_session_for_active_workspace(
@@ -4253,6 +4300,10 @@ impl TerminalPaneRuntimeState {
         trust_state: TrustState,
         observed_at: &str,
     ) -> Option<PtySessionId> {
+        if trust_state != TrustState::Trusted {
+            self.enforce_trust_state(trust_state, observed_at);
+            return None;
+        }
         let workspace_id = self.active_workspace_id.clone()?;
         if let Some(id) = self.active_session_id.clone() {
             if self
@@ -4290,10 +4341,24 @@ impl TerminalPaneRuntimeState {
         trust_state: TrustState,
         observed_at: &str,
     ) -> Result<(), String> {
-        let Some(session_id) = self.ensure_session_for_active_workspace(trust_state, observed_at)
-        else {
+        if self.active_workspace_id.is_none() {
             return Err("terminal unavailable: open a workspace first".to_string());
-        };
+        }
+        if trust_state != TrustState::Trusted {
+            self.enforce_trust_state(trust_state, observed_at);
+            return Err("terminal unavailable: workspace trust must be trusted".to_string());
+        }
+        let session_id = self
+            .active_session_id
+            .clone()
+            .filter(|id| {
+                self.host
+                    .session(id)
+                    .is_some_and(|session| session.lifecycle_state().is_interactive())
+            })
+            .ok_or_else(|| {
+                "terminal session is not active: run Toggle Terminal to start one".to_string()
+            })?;
         self.host
             .write_input(&session_id, bytes, observed_at)
             .map_err(|err| err.to_string())?;
@@ -4703,15 +4768,144 @@ mod terminal_routing_tests {
     }
 
     #[test]
-    fn runtime_snapshot_attaches_execution_context_to_terminal_header() {
+    fn command_enablement_defaults_to_pending_trust_evaluation() {
+        let state = CommandEnablementRuntimeState::default();
+
+        assert_eq!(state.workspace_trust_state, "pending_evaluation");
+        assert_eq!(
+            trust_state_for_recent_work(&state.workspace_trust_state),
+            TrustState::PendingEvaluation
+        );
+    }
+
+    #[test]
+    fn workspace_registration_does_not_spawn_terminal_session() {
         let workspace = tempfile::tempdir().expect("workspace tempdir");
         let mut runtime = TerminalPaneRuntimeState::new();
-        runtime.open_workspace(
+        runtime.register_workspace(
             "ws-test".to_owned(),
             workspace.path().to_path_buf(),
-            TrustState::Trusted,
+            "mono:open",
+        );
+
+        assert_eq!(runtime.host.session_count(), 0);
+        assert!(runtime.active_session_id.is_none());
+        assert!(!runtime.has_live_sessions());
+        assert!(runtime.snapshot().expect("snapshot").tabs.is_empty());
+
+        runtime.close_active_workspace("mono:close", Some("test_complete"));
+    }
+
+    #[test]
+    fn terminal_input_without_admitted_session_does_not_spawn_pty() {
+        let workspace = tempfile::tempdir().expect("workspace tempdir");
+        let mut runtime = TerminalPaneRuntimeState::new();
+        runtime.register_workspace(
+            "ws-test".to_owned(),
+            workspace.path().to_path_buf(),
+            "mono:open",
+        );
+
+        let error = runtime
+            .write_active_input(b"x", TrustState::Trusted, "mono:input")
+            .expect_err("input must not create a terminal session");
+
+        assert!(error.contains("Toggle Terminal"));
+        assert_eq!(runtime.host.session_count(), 0);
+        assert!(runtime.active_session_id.is_none());
+
+        runtime.close_active_workspace("mono:close", Some("test_complete"));
+    }
+
+    #[test]
+    fn untrusted_workspace_cannot_create_terminal_session() {
+        let workspace = tempfile::tempdir().expect("workspace tempdir");
+        let mut runtime = TerminalPaneRuntimeState::new();
+        runtime.register_workspace(
+            "ws-test".to_owned(),
+            workspace.path().to_path_buf(),
+            "mono:open",
+        );
+
+        for trust_state in [TrustState::PendingEvaluation, TrustState::Restricted] {
+            assert!(
+                runtime
+                    .ensure_session_for_active_workspace(trust_state, "mono:toggle")
+                    .is_none(),
+                "{trust_state:?} must not admit terminal creation"
+            );
+        }
+
+        assert_eq!(runtime.host.session_count(), 0);
+        assert!(runtime.active_session_id.is_none());
+        assert_eq!(runtime.active_workspace_id(), Some("ws-test"));
+
+        runtime.close_active_workspace("mono:close", Some("test_complete"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn trust_revocation_closes_live_pty_and_preserves_workspace_registration() {
+        let workspace = tempfile::tempdir().expect("workspace tempdir");
+        let workspace_root = workspace.path().to_path_buf();
+        let mut runtime = TerminalPaneRuntimeState::new();
+        let session_id = runtime.open_command_session_for_test(
+            "ws-test",
+            workspace_root.clone(),
+            aureline_terminal::PtyCommand::new("/bin/sh"),
+            "mono:open",
+        );
+        let live_session = runtime.host.session(&session_id).expect("live session");
+        assert!(live_session.lifecycle_state().is_interactive());
+        assert!(live_session.has_live_pty());
+
+        runtime.enforce_trust_state(TrustState::Restricted, "mono:revoked");
+
+        let closed_session = runtime
+            .host
+            .session(&session_id)
+            .expect("retained session row");
+        assert_eq!(
+            closed_session.lifecycle_state(),
+            aureline_terminal::SessionLifecycleState::Closed
+        );
+        assert!(!runtime.has_live_sessions());
+        assert!(runtime.active_session_id.is_none());
+        assert_eq!(runtime.active_workspace_id(), Some("ws-test"));
+        assert_eq!(runtime.workspace_root.as_ref(), Some(&workspace_root));
+        assert_eq!(runtime.host.session_count(), 1);
+
+        let error = runtime
+            .write_active_input(b"x", TrustState::Restricted, "mono:input")
+            .expect_err("revoked trust must block terminal input");
+        assert!(error.contains("workspace trust must be trusted"));
+        assert!(
+            runtime
+                .ensure_session_for_active_workspace(TrustState::Restricted, "mono:retoggle")
+                .is_none(),
+            "revoked trust must not admit a replacement terminal"
+        );
+        assert_eq!(runtime.host.session_count(), 1);
+
+        runtime.close_active_workspace("mono:close", Some("test_complete"));
+    }
+
+    #[test]
+    fn terminal_toggle_admission_attaches_execution_context_to_header() {
+        let workspace = tempfile::tempdir().expect("workspace tempdir");
+        let mut runtime = TerminalPaneRuntimeState::new();
+        runtime.register_workspace(
+            "ws-test".to_owned(),
+            workspace.path().to_path_buf(),
             "mono:0",
         );
+        assert_eq!(runtime.host.session_count(), 0);
+
+        let session_id = runtime
+            .ensure_session_for_active_workspace(TrustState::Trusted, "mono:toggle")
+            .expect("admitted terminal session");
+        assert_eq!(runtime.active_session_id.as_ref(), Some(&session_id));
+        assert_eq!(runtime.host.session_count(), 1);
 
         let snapshot = runtime.snapshot().expect("snapshot");
         let tab = snapshot.tabs.first().expect("terminal tab");
@@ -5431,7 +5625,7 @@ struct CommandEnablementRuntimeState {
 impl Default for CommandEnablementRuntimeState {
     fn default() -> Self {
         Self {
-            workspace_trust_state: "trusted".to_string(),
+            workspace_trust_state: "pending_evaluation".to_string(),
             execution_context_available: true,
             provider_linked: None,
             credential_available: None,
@@ -7569,10 +7763,9 @@ fn open_local_folder_workspace(
         command_runtime.note_non_command_action(format!("explorer unavailable — {err}"));
     }
     workspace_lifecycle.open_local_folder(workspace_id.clone(), trust_state);
-    editor_runtime.terminal_pane.open_workspace(
+    editor_runtime.terminal_pane.register_workspace(
         workspace_id,
         path.to_path_buf(),
-        trust_state,
         &mono_timestamp_now(),
     );
     if let Err(err) = recent_work.save() {
@@ -8992,8 +9185,12 @@ fn dispatch_registry_entry(
                 command_runtime.note_non_command_action("terminal toggled");
                 command_runtime.record(invocation_and_result_simple_success(&session, "succeeded"));
             } else {
-                command_runtime
-                    .note_non_command_action("terminal unavailable: open a workspace first");
+                let reason = if trust_state != TrustState::Trusted {
+                    "terminal unavailable: workspace trust must be trusted"
+                } else {
+                    "terminal unavailable: open a workspace first"
+                };
+                command_runtime.note_non_command_action(reason);
                 command_runtime.record(invocation_and_result_simple_success(&session, "no_op"));
             }
             true
@@ -10616,10 +10813,9 @@ fn ensure_restore_workspace_runtime(
         command_runtime.note_non_command_action(format!("explorer unavailable — {err}"));
     }
     workspace_lifecycle.open_local_folder(workspace_id.clone(), trust_state);
-    editor_runtime.terminal_pane.open_workspace(
+    editor_runtime.terminal_pane.register_workspace(
         workspace_id,
         root.to_path_buf(),
-        trust_state,
         &mono_timestamp_now(),
     );
     activity_center.note_workspace_opened(
@@ -10710,18 +10906,18 @@ fn activate_recent_work_entry(
         {
             command_runtime.note_non_command_action(format!("explorer unavailable — {err}"));
         }
-        editor_runtime.terminal_pane.open_workspace(
-            workspace_id,
-            root,
-            trust_state,
-            &mono_timestamp_now(),
-        );
+        editor_runtime
+            .terminal_pane
+            .register_workspace(workspace_id, root, &mono_timestamp_now());
     } else {
         editor_runtime.explorer.clear_workspace();
         editor_runtime
             .terminal_pane
             .close_active_workspace(&mono_timestamp_now(), Some("workspace_closed"));
     }
+    editor_runtime
+        .terminal_pane
+        .enforce_trust_state(trust_state, &mono_timestamp_now());
 
     let opened_at = mono_timestamp_now();
     entry.last_opened_at = opened_at.clone();
@@ -13092,6 +13288,10 @@ fn handle_key_event(
                 workspace_lifecycle.resolve_trust(trust_state_for_recent_work(
                     enablement_runtime.workspace_trust_state.as_str(),
                 ));
+                editor_runtime.terminal_pane.enforce_trust_state(
+                    trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str()),
+                    &mono_timestamp_now(),
+                );
                 activity_center.note_trust_state_changed(
                     &previous_trust_state,
                     enablement_runtime.workspace_trust_state.as_str(),
@@ -15526,8 +15726,10 @@ fn draw_terminal_panel(
     let max_lines = (viewport.height / line_h).saturating_sub(1).max(1) as usize;
     let lines = terminal_view_lines(terminal_runtime.active_output_text(), max_lines);
     if lines.is_empty() {
-        let empty = if terminal_runtime.active_workspace_id().is_some() {
+        let empty = if terminal_runtime.active_session_id.is_some() {
             "Shell starting..."
+        } else if terminal_runtime.active_workspace_id().is_some() {
+            "Toggle terminal to start a shell."
         } else {
             "Open a workspace, then toggle the terminal."
         };
