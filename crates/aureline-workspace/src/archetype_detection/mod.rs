@@ -6,6 +6,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
+use std::fs::{File, Metadata};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -28,6 +30,48 @@ const STRONG_PROPOSAL_SCORE: u8 = 70;
 const CONFLICTING_PROPOSAL_SCORE: u8 = 65;
 const CONFLICT_MARGIN: u8 = 25;
 const MAX_EXTENSION_SCAN_ENTRIES: usize = 512;
+const MAX_ARCHETYPE_MARKER_BYTES: u64 = 1024 * 1024;
+const ROOT_ARCHETYPE_MARKERS: &[&str] = &[
+    "package.json",
+    "tsconfig.json",
+    "jsconfig.json",
+    "vite.config.ts",
+    "vite.config.js",
+    "next.config.js",
+    "next.config.mjs",
+    "next.config.ts",
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "yarn.lock",
+    "bun.lockb",
+    "pyproject.toml",
+    "requirements.txt",
+    "requirements-dev.txt",
+    "poetry.lock",
+    "uv.lock",
+    "Pipfile",
+    "pytest.ini",
+    "tox.ini",
+    "app.py",
+    "main.py",
+    "Cargo.toml",
+    "Cargo.lock",
+    "go.mod",
+    "go.sum",
+    "pom.xml",
+    "build.gradle",
+    "build.gradle.kts",
+    "settings.gradle",
+    "settings.gradle.kts",
+    "gradle.properties",
+    "mvnw",
+    "gradlew",
+    "CMakeLists.txt",
+    "compile_commands.json",
+    "meson.build",
+    "Makefile",
+    "vcpkg.json",
+];
 
 /// Launch archetype family inferred before binding to a seed row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -440,16 +484,12 @@ pub fn detect_workspace_archetype_with_catalog(
         });
     }
 
-    let root_entries =
-        std::fs::read_dir(root).map_err(|source| ArchetypeDetectionError::WorkspaceRootRead {
-            path: root.to_path_buf(),
-            source,
-        })?;
-    let marker_names = root_entries
-        .filter_map(Result::ok)
-        .filter_map(|entry| entry.file_name().into_string().ok())
-        .collect::<BTreeSet<_>>();
-    let extension_cues = collect_extension_cues(root);
+    std::fs::read_dir(root).map_err(|source| ArchetypeDetectionError::WorkspaceRootRead {
+        path: root.to_path_buf(),
+        source,
+    })?;
+    let marker_names = collect_root_marker_names(root);
+    let (extension_cues, extension_scan_truncated) = collect_extension_cues(root);
 
     let mut scores = BTreeMap::<LaunchArchetypeFamily, FamilyScore>::new();
     score_tsjs(root, &marker_names, &extension_cues, &mut scores);
@@ -472,7 +512,7 @@ pub fn detect_workspace_archetype_with_catalog(
         .collect::<Vec<_>>();
 
     let Some((top_family, top_score)) = ranked.first().copied() else {
-        let unknowns = if signals.is_empty() {
+        let mut unknowns = if signals.is_empty() {
             vec![
                 "No package, Python, Rust, or lockfile marker crossed the proposal threshold."
                     .to_string(),
@@ -483,6 +523,7 @@ pub fn detect_workspace_archetype_with_catalog(
                     .to_string(),
             ]
         };
+        unknowns.extend(extension_scan_unknowns(extension_scan_truncated));
         return Ok(ArchetypeDetectionReport {
             workspace_root: root.to_path_buf(),
             outcome: ArchetypeDetectionOutcome::NoRecognizedArchetype,
@@ -494,6 +535,11 @@ pub fn detect_workspace_archetype_with_catalog(
     };
 
     if has_conflict(&ranked) {
+        let mut unknowns = vec![
+            "Multiple strong marker families were present; Start Center must ask the user to choose."
+                .to_string(),
+        ];
+        unknowns.extend(extension_scan_unknowns(extension_scan_truncated));
         return Ok(ArchetypeDetectionReport {
             workspace_root: root.to_path_buf(),
             outcome: ArchetypeDetectionOutcome::ConflictingMarkers,
@@ -503,23 +549,23 @@ pub fn detect_workspace_archetype_with_catalog(
                 .iter()
                 .map(|(family, _)| family_ref_for(catalog, *family))
                 .collect(),
-            unknowns: vec![
-                "Multiple strong marker families were present; Start Center must ask the user to choose.".to_string(),
-            ],
+            unknowns,
         });
     }
 
     let Some(seed_row) = catalog.row_for_family(top_family) else {
+        let mut unknowns = vec![format!(
+            "{} markers were strong, but the seed rows artifact has no matching archetype row.",
+            top_family.as_str()
+        )];
+        unknowns.extend(extension_scan_unknowns(extension_scan_truncated));
         return Ok(ArchetypeDetectionReport {
             workspace_root: root.to_path_buf(),
             outcome: ArchetypeDetectionOutcome::NoRecognizedArchetype,
             proposal: None,
             signals,
             competing_archetype_refs: vec![top_family.as_str().to_string()],
-            unknowns: vec![format!(
-                "{} markers were strong, but the seed rows artifact has no matching archetype row.",
-                top_family.as_str()
-            )],
+            unknowns,
         });
     };
 
@@ -531,7 +577,7 @@ pub fn detect_workspace_archetype_with_catalog(
         )),
         signals,
         competing_archetype_refs: Vec::new(),
-        unknowns: Vec::new(),
+        unknowns: extension_scan_unknowns(extension_scan_truncated),
     })
 }
 
@@ -1033,48 +1079,175 @@ fn package_dependency_names(value: &serde_json::Value) -> BTreeSet<String> {
     .collect()
 }
 
-fn read_marker(root: &Path, marker: &str) -> Option<String> {
-    std::fs::read_to_string(root.join(marker)).ok()
+fn collect_root_marker_names(root: &Path) -> BTreeSet<String> {
+    ROOT_ARCHETYPE_MARKERS
+        .iter()
+        .filter(|marker| {
+            open_stable_marker(&root.join(marker))
+                .is_some_and(|(_, metadata)| metadata.len() <= MAX_ARCHETYPE_MARKER_BYTES)
+        })
+        .map(|marker| (*marker).to_string())
+        .collect()
 }
 
-fn collect_extension_cues(root: &Path) -> BTreeSet<String> {
+fn read_marker(root: &Path, marker: &str) -> Option<String> {
+    let path = root.join(marker);
+    let (mut file, opened) = open_stable_marker(&path)?;
+    if opened.len() > MAX_ARCHETYPE_MARKER_BYTES {
+        return None;
+    }
+    let mut bytes = Vec::with_capacity(opened.len() as usize);
+    Read::by_ref(&mut file)
+        .take(MAX_ARCHETYPE_MARKER_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    if bytes.len() as u64 > MAX_ARCHETYPE_MARKER_BYTES {
+        return None;
+    }
+    let descriptor_after = file.metadata().ok()?;
+    let path_after = std::fs::symlink_metadata(path).ok()?;
+    if path_after.file_type().is_symlink()
+        || !path_after.is_file()
+        || !same_marker_identity(&opened, &descriptor_after)
+        || !same_marker_identity(&opened, &path_after)
+    {
+        return None;
+    }
+    String::from_utf8(bytes).ok()
+}
+
+fn open_stable_marker(path: &Path) -> Option<(File, Metadata)> {
+    let before = std::fs::symlink_metadata(path).ok()?;
+    if before.file_type().is_symlink() || !before.is_file() {
+        return None;
+    }
+    let file = File::open(path).ok()?;
+    let opened = file.metadata().ok()?;
+    let after = std::fs::symlink_metadata(path).ok()?;
+    if after.file_type().is_symlink()
+        || !opened.is_file()
+        || !after.is_file()
+        || !same_marker_identity(&before, &opened)
+        || !same_marker_identity(&opened, &after)
+    {
+        return None;
+    }
+    Some((file, opened))
+}
+
+#[cfg(unix)]
+fn same_marker_identity(left: &Metadata, right: &Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    left.dev() == right.dev()
+        && left.ino() == right.ino()
+        && left.len() == right.len()
+        && left.mode() == right.mode()
+}
+
+#[cfg(not(unix))]
+fn same_marker_identity(left: &Metadata, right: &Metadata) -> bool {
+    left.len() == right.len()
+        && left.file_type() == right.file_type()
+        && left.created().ok() == right.created().ok()
+        && left.modified().ok() == right.modified().ok()
+}
+
+fn collect_extension_cues(root: &Path) -> (BTreeSet<String>, bool) {
     let mut extensions = BTreeSet::new();
     let mut visited = 0;
-    collect_extension_cues_inner(root, 0, &mut visited, &mut extensions);
-    extensions
+    let mut truncated = false;
+    let canonical_root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    collect_extension_cues_inner(
+        &canonical_root,
+        &canonical_root,
+        0,
+        &mut visited,
+        &mut extensions,
+        &mut truncated,
+    );
+    if truncated {
+        extensions.clear();
+    }
+    (extensions, truncated)
 }
 
 fn collect_extension_cues_inner(
+    canonical_root: &Path,
     dir: &Path,
     depth: usize,
     visited: &mut usize,
     extensions: &mut BTreeSet<String>,
+    truncated: &mut bool,
 ) {
-    if depth > 2 || *visited >= MAX_EXTENSION_SCAN_ENTRIES {
+    if depth > 2 {
+        return;
+    }
+    if *visited >= MAX_EXTENSION_SCAN_ENTRIES {
+        *truncated = true;
         return;
     }
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
-    for entry in entries.filter_map(Result::ok) {
+    for entry in entries {
         if *visited >= MAX_EXTENSION_SCAN_ENTRIES {
+            *truncated = true;
             return;
         }
         *visited += 1;
+        let Ok(entry) = entry else {
+            continue;
+        };
         let path = entry.path();
         let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
             continue;
         };
-        if path.is_dir() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if file_type.is_symlink() {
+            continue;
+        }
+        if file_type.is_dir() {
             if is_ignored_scan_dir(name) {
                 continue;
             }
-            collect_extension_cues_inner(&path, depth + 1, visited, extensions);
+            let Ok(canonical_path) = path.canonicalize() else {
+                continue;
+            };
+            if !canonical_path.starts_with(canonical_root) {
+                continue;
+            }
+            collect_extension_cues_inner(
+                canonical_root,
+                &canonical_path,
+                depth + 1,
+                visited,
+                extensions,
+                truncated,
+            );
+            if *truncated {
+                return;
+            }
             continue;
         }
-        if let Some(extension) = path.extension().and_then(|extension| extension.to_str()) {
-            extensions.insert(extension.to_ascii_lowercase());
+        if file_type.is_file() {
+            if let Some(extension) = path.extension().and_then(|extension| extension.to_str()) {
+                extensions.insert(extension.to_ascii_lowercase());
+            }
         }
+    }
+}
+
+fn extension_scan_unknowns(truncated: bool) -> Vec<String> {
+    if truncated {
+        vec![
+            "Source-extension discovery reached its 512-entry safety bound; partial extension cues were discarded."
+                .to_string(),
+        ]
+    } else {
+        Vec::new()
     }
 }
 

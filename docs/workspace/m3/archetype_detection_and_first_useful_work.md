@@ -24,6 +24,18 @@ changes layout. Certified and probable states carry evidence freshness rows with
 the scorecard or packet ref, reviewed date when available, stale-after window,
 and freshness class.
 
+Discovery has a concrete resource and containment envelope. Root markers are
+probed from a closed allowlist rather than by eagerly collecting the workspace
+directory. A marker contributes evidence only when it is a stable regular file;
+symlinked marker files and marker-named directories are ignored. Manifest bodies
+must be UTF-8 and no larger than 1 MiB; larger marker files are ignored entirely.
+Source-extension discovery remains at
+depth two, inspects at most 512 entries in total, skips known generated trees and
+all symlinks, and traverses only canonical directories contained by the
+canonical workspace root. Hitting the entry bound discards all partial extension
+cues and records the limit as an unknown, so partial discovery cannot broaden a
+recommendation or turn an incomplete scan into certified truth.
+
 ## Outcome Rules
 
 | Outcome | Route posture |

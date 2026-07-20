@@ -209,6 +209,128 @@ dependencies = ["pandas", "pytest", "fastapi"]
     assert!(report.competing_archetype_refs.len() >= 2);
 }
 
+#[test]
+fn marker_directories_and_oversized_manifests_do_not_mint_archetype_truth() {
+    let directory_marker = TempWorkspace::new("directory_marker");
+    std::fs::create_dir(directory_marker.path().join("Cargo.toml")).expect("directory marker");
+    std::fs::write(directory_marker.path().join("Cargo.lock"), "# lock\n").expect("cargo lock");
+    std::fs::write(directory_marker.path().join("source.rs"), "fn main() {}\n")
+        .expect("rust source");
+    let directory_report =
+        detect_workspace_archetype(directory_marker.path()).expect("directory marker report");
+    assert_eq!(
+        directory_report.outcome,
+        ArchetypeDetectionOutcome::NoRecognizedArchetype
+    );
+    assert!(directory_report.proposal.is_none());
+
+    let oversized = TempWorkspace::new("oversized_manifest");
+    std::fs::File::create(oversized.path().join("package.json"))
+        .and_then(|file| file.set_len(2 * 1024 * 1024))
+        .expect("oversized package manifest");
+    std::fs::write(oversized.path().join("tsconfig.json"), "{}\n").expect("tsconfig");
+    std::fs::write(
+        oversized.path().join("next.config.mjs"),
+        "export default {};\n",
+    )
+    .expect("next config");
+    std::fs::write(oversized.path().join("source.ts"), "export {};\n").expect("typescript source");
+    let oversized_report =
+        detect_workspace_archetype(oversized.path()).expect("oversized marker report");
+    assert_eq!(
+        oversized_report.outcome,
+        ArchetypeDetectionOutcome::NoRecognizedArchetype
+    );
+    assert!(oversized_report.proposal.is_none());
+}
+
+#[test]
+fn truncated_extension_discovery_discards_partial_cues() {
+    let workspace = TempWorkspace::new("bounded_extension_scan");
+    std::fs::write(
+        workspace.path().join("Cargo.toml"),
+        "[package]\nname = \"bounded\"\nversion = \"0.1.0\"\n",
+    )
+    .expect("cargo manifest");
+    for index in 0..520 {
+        std::fs::write(
+            workspace.path().join(format!("source-{index:04}.rs")),
+            "fn bounded() {}\n",
+        )
+        .expect("source cue");
+    }
+
+    let report = detect_workspace_archetype(workspace.path()).expect("bounded scan report");
+
+    assert_eq!(
+        report.outcome,
+        ArchetypeDetectionOutcome::NoRecognizedArchetype
+    );
+    assert!(report.proposal.is_none());
+    assert!(report
+        .signals
+        .iter()
+        .all(|signal| signal.marker != "bounded_extension_scan"));
+    assert!(report
+        .unknowns
+        .iter()
+        .any(|unknown| unknown.contains("512-entry safety bound")));
+}
+
+#[cfg(unix)]
+#[test]
+fn archetype_detection_never_follows_manifest_or_directory_symlinks() {
+    use std::os::unix::fs::symlink;
+
+    let workspace = TempWorkspace::new("symlink_boundary");
+    let outside = TempWorkspace::new("symlink_outside");
+    std::fs::write(
+        outside.path().join("package.json"),
+        r#"{
+          "dependencies": { "react": "latest", "vite": "latest" },
+          "devDependencies": { "typescript": "latest", "vitest": "latest" }
+        }"#,
+    )
+    .expect("outside package manifest");
+    std::fs::create_dir(outside.path().join("outside-src")).expect("outside source directory");
+    std::fs::write(
+        outside.path().join("outside-src/private.ts"),
+        "export const privateValue = true;\n",
+    )
+    .expect("outside source");
+    symlink(
+        outside.path().join("package.json"),
+        workspace.path().join("package.json"),
+    )
+    .expect("manifest symlink");
+    symlink(
+        outside.path().join("outside-src"),
+        workspace.path().join("src"),
+    )
+    .expect("directory symlink");
+    std::fs::write(workspace.path().join("jsconfig.json"), "{}\n").expect("jsconfig");
+    std::fs::write(
+        workspace.path().join("next.config.mjs"),
+        "export default {};\n",
+    )
+    .expect("next config");
+
+    let report = detect_workspace_archetype(workspace.path()).expect("symlink boundary report");
+
+    assert_eq!(
+        report.outcome,
+        ArchetypeDetectionOutcome::NoRecognizedArchetype
+    );
+    assert!(report.proposal.is_none());
+    assert!(
+        report
+            .signals
+            .iter()
+            .all(|signal| signal.marker != "package.json"
+                && signal.marker != "bounded_extension_scan")
+    );
+}
+
 struct TempWorkspace {
     path: std::path::PathBuf,
 }
