@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Import profile classification and first-pass review records.
 //!
 //! The importer seed recognizes competitor configuration roots by filesystem
@@ -5,7 +8,9 @@
 //! profile or workspace state is written.
 
 pub mod diff_review;
+pub mod execution;
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -15,6 +20,13 @@ pub use diff_review::{
     write_import_diff_review_log, ImportDiffReviewPacket, ImportDiffReviewRow,
     ImportMappingClassification, ImportReportReopenSurface, ImportReviewDomain,
     RetainedMigrationReport, RetainedMigrationReportProjection, ShortcutDeltaReport,
+};
+pub use execution::{
+    ExecutableImportPreview, ImportApplyDisposition, ImportApplyOutcome, ImportExecutionError,
+    ImportExecutionRow, ImportExecutionRowDecision, ImportPreviewApplyGate, ImportRollbackOutcome,
+    ImportRollbackRequest, ImportSettingValue, ImportedProfileHistoryAction,
+    ImportedProfileHistoryEntry, ImportedProfileSettingRecord, ImportedProfileState,
+    ImportedProfileStore,
 };
 
 /// Classifies a local folder that may contain competitor IDE configuration.
@@ -278,21 +290,74 @@ impl CompetitorConfigClassifier {
     }
 }
 
-/// Writes an import review record into `.logs/import_reviews/`.
+/// Writes a privacy-safe import review projection under the configured logs root.
+///
+/// Raw source paths, destination labels, status text, and item labels remain
+/// in-memory UI data and are replaced by content-addressed refs or counts here.
 pub fn write_import_review_log(record: &ImportReviewRecord) {
-    let root = PathBuf::from(".logs").join("import_reviews");
+    let root = aureline_workspace::state_paths::logs_root().join("import_reviews");
     if std::fs::create_dir_all(&root).is_err() {
         return;
     }
     let filename = format!(
         "{}.{}.json",
-        sanitize_filename(&record.import_review_id),
-        sanitize_filename(record.classification.as_str())
+        privacy_safe_log_id(&record.import_review_id),
+        record.classification.as_str()
     );
-    let Ok(json) = serde_json::to_string_pretty(record) else {
+    let Ok(json) = import_review_log_json(record) else {
         return;
     };
     let _ = std::fs::write(root.join(filename), json);
+}
+
+#[derive(Serialize)]
+struct ImportReviewLogProjection {
+    record_kind: &'static str,
+    schema_version: u32,
+    review_ref: String,
+    source_selection_ref: String,
+    destination_target_ref: String,
+    classification: CompetitorConfigClassification,
+    decision_class: ImportReviewDecisionClass,
+    discovered_item_count: usize,
+    item_kind_counts: BTreeMap<String, usize>,
+    logged_at: String,
+}
+
+fn import_review_log_json(record: &ImportReviewRecord) -> Result<String, serde_json::Error> {
+    let mut item_kind_counts = BTreeMap::new();
+    for item in &record.discovered_items {
+        *item_kind_counts
+            .entry(item.item_kind.as_str().to_owned())
+            .or_insert(0) += 1;
+    }
+    serde_json::to_string_pretty(&ImportReviewLogProjection {
+        record_kind: "import_review_log_projection_record",
+        schema_version: 1,
+        review_ref: privacy_safe_log_ref("import-review", &record.import_review_id),
+        source_selection_ref: privacy_safe_log_ref("source-selection", &record.source_path),
+        destination_target_ref: privacy_safe_log_ref(
+            "destination-target",
+            &record.destination_workspace_target,
+        ),
+        classification: record.classification,
+        decision_class: record.decision_class,
+        discovered_item_count: record.discovered_items.len(),
+        item_kind_counts,
+        logged_at: execution::utc_timestamp_now(),
+    })
+}
+
+pub(super) fn privacy_safe_log_ref(prefix: &str, value: &str) -> String {
+    format!("{prefix}:{}", privacy_safe_log_id(value))
+}
+
+pub(super) fn privacy_safe_log_id(value: &str) -> String {
+    let digest = aureline_history::body_object_id(value.as_bytes());
+    digest
+        .strip_prefix("obj:blake3:")
+        .unwrap_or(&digest)
+        .to_owned()
 }
 
 fn discovered_items_for(
@@ -460,16 +525,6 @@ fn fnv1a_64(value: &str) -> u64 {
     hash
 }
 
-fn sanitize_filename(value: &str) -> String {
-    value
-        .chars()
-        .map(|ch| match ch {
-            ':' | '/' | '\\' | ' ' | '\t' | '\n' | '\r' => '_',
-            other => other,
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -539,5 +594,40 @@ mod tests {
         assert_eq!(review.decision_class, ImportReviewDecisionClass::Defer);
         assert!(review.discovered_items.is_empty());
         assert!(review.status_line.contains("no .vscode or .idea"));
+    }
+
+    #[test]
+    fn import_review_log_projection_never_serializes_user_paths_urls_or_text() {
+        let mut review = ImportReviewRecord::deferred_unresolved_source(
+            "/Users/alice/Secret Project/token-abc",
+            "https://user@example.invalid/workspace/private-name?credential=abc",
+        );
+        review.import_review_id = "private-review-user@example.invalid".to_owned();
+        review.status_line = "Alice's private migration status".to_owned();
+        review.discovered_items.push(ImportReviewItem {
+            source_relative_path: "../../private/customer-name/settings.json".to_owned(),
+            item_kind: ImportReviewItemKind::Settings,
+            item_state: ImportReviewItemState::Discovered,
+            summary: "private customer payload".to_owned(),
+        });
+
+        let json = import_review_log_json(&review).expect("serialize log projection");
+        for forbidden in [
+            "/Users/alice",
+            "Secret Project",
+            "token-abc",
+            "user@example.invalid",
+            "private-name",
+            "private-review",
+            "Alice's",
+            "customer-name",
+            "private customer payload",
+        ] {
+            assert!(!json.contains(forbidden), "log leaked {forbidden:?}");
+        }
+        assert!(json.contains("source_selection_ref"));
+        assert!(json.contains("destination_target_ref"));
+        assert!(json.contains("unknown_config_root"));
+        assert!(json.contains("\"settings\": 1"));
     }
 }

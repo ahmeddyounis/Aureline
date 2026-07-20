@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Import diff review, rollback checkpoint, and retained report records.
 //!
 //! This module turns the lightweight source classifier in [`super`] into the
@@ -7,12 +10,14 @@
 //! retained-report refs the real import adapters must later fill with richer
 //! rows.
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
 use super::{
-    CompetitorConfigClassification, ImportReviewItem, ImportReviewItemKind, ImportReviewRecord,
+    privacy_safe_log_id, privacy_safe_log_ref, CompetitorConfigClassification, ImportReviewItem,
+    ImportReviewItemKind, ImportReviewRecord,
 };
 
 /// Schema version for [`ImportDiffReviewPacket`].
@@ -31,7 +36,6 @@ pub const SHORTCUT_DELTA_REPORT_RECORD_KIND: &str = "shortcut_delta_digest_packe
 /// Stable record-kind tag for [`RetainedMigrationReport`].
 pub const RETAINED_MIGRATION_REPORT_RECORD_KIND: &str = "retained_migration_report_record";
 
-const GENERATED_AT: &str = "2026-05-13T00:00:00Z";
 const CONFLICT_INSPECTOR_REF: &str = "surface:help.keybinding_inspector.conflicts";
 
 /// Domain touched by one import diff row.
@@ -559,6 +563,7 @@ impl ImportDiffReviewPacket {
 pub fn materialize_import_diff_review_packet(
     review: &ImportReviewRecord,
 ) -> ImportDiffReviewPacket {
+    let generated_at = super::execution::utc_timestamp_now();
     let suffix = stable_suffix(&review.import_review_id);
     let migration_session_ref = format!("migration-session:{suffix}");
     let import_plan_ref = format!("import-plan:{suffix}");
@@ -602,7 +607,7 @@ pub fn materialize_import_diff_review_packet(
             "crates/aureline-shell/src/help/keybinding_inspector.rs".to_string(),
         ],
         support_export_refs: vec![format!("support:migration:{suffix}")],
-        emitted_at: GENERATED_AT.to_string(),
+        emitted_at: generated_at.clone(),
     };
 
     let rollback_checkpoint = ImportRollbackCheckpoint {
@@ -632,7 +637,7 @@ pub fn materialize_import_diff_review_packet(
             "restore_from_checkpoint".to_string(),
             "export_for_support".to_string(),
         ],
-        created_at: GENERATED_AT.to_string(),
+        created_at: generated_at.clone(),
     };
 
     let retained_migration_report = retained_report(
@@ -644,6 +649,7 @@ pub fn materialize_import_diff_review_packet(
         &shortcut_delta_report_id,
         &migration_report_id,
         &rows,
+        &generated_at,
     );
 
     let apply_gate_class = if review.decision_class.as_str() == "apply_after_preview" {
@@ -678,7 +684,7 @@ pub fn materialize_import_diff_review_packet(
         rollback_checkpoint,
         retained_migration_report,
         apply_gate_class,
-        generated_at: GENERATED_AT.to_string(),
+        generated_at,
     }
 }
 
@@ -704,37 +710,135 @@ pub fn reopen_retained_migration_report(
     })
 }
 
-/// Writes the import diff packet and retained companions into `.logs`.
+/// Writes privacy-safe import diff projections under the configured logs root.
 pub fn write_import_diff_review_log(packet: &ImportDiffReviewPacket) {
-    let base = PathBuf::from(".logs");
-    write_json(
-        base.join("import_diff_reviews").join(format!(
-            "{}.json",
-            stable_suffix(&packet.import_diff_preview_ref)
-        )),
+    let base = aureline_workspace::state_paths::logs_root();
+    for (directory, artifact_class, identity) in [
+        (
+            "import_diff_reviews",
+            "diff_preview",
+            packet.import_diff_preview_ref.as_str(),
+        ),
+        (
+            "import_reports",
+            "retained_report",
+            packet
+                .retained_migration_report
+                .migration_report_id
+                .as_str(),
+        ),
+        (
+            "import_shortcut_deltas",
+            "shortcut_delta",
+            packet
+                .shortcut_delta_report
+                .shortcut_delta_report_id
+                .as_str(),
+        ),
+        (
+            "import_rollback_checkpoints",
+            "rollback_checkpoint",
+            packet.rollback_checkpoint.checkpoint_ref.as_str(),
+        ),
+    ] {
+        let projection = import_diff_log_projection(packet, artifact_class, identity);
+        write_json(
+            base.join(directory)
+                .join(format!("{}.json", privacy_safe_log_id(identity))),
+            &projection,
+        );
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct ImportDiffLogProjection {
+    record_kind: &'static str,
+    schema_version: u32,
+    artifact_class: &'static str,
+    object_ref: String,
+    review_ref: String,
+    source_selection_ref: String,
+    destination_target_ref: String,
+    source_classification: CompetitorConfigClassification,
+    row_count: usize,
+    shortcut_row_count: usize,
+    shortcut_conflict_count: usize,
+    classification_counts: BTreeMap<String, usize>,
+    domain_counts: BTreeMap<String, usize>,
+    apply_gate_class: &'static str,
+    checkpoint_created_before_apply: bool,
+    lossy_mappings_retained: bool,
+    unsupported_items_retained: bool,
+    logged_at: String,
+}
+
+fn import_diff_log_projection(
+    packet: &ImportDiffReviewPacket,
+    artifact_class: &'static str,
+    identity: &str,
+) -> ImportDiffLogProjection {
+    let mut classification_counts = BTreeMap::new();
+    let mut domain_counts = BTreeMap::new();
+    for row in &packet.rows {
+        *classification_counts
+            .entry(row.classification.as_str().to_owned())
+            .or_insert(0) += 1;
+        *domain_counts
+            .entry(row.domain.as_str().to_owned())
+            .or_insert(0) += 1;
+    }
+    ImportDiffLogProjection {
+        record_kind: "import_diff_log_projection_record",
+        schema_version: 1,
+        artifact_class,
+        object_ref: privacy_safe_log_ref("import-log-object", identity),
+        review_ref: privacy_safe_log_ref("import-review", &packet.import_review_id),
+        source_selection_ref: privacy_safe_log_ref("source-selection", &packet.source_path),
+        destination_target_ref: privacy_safe_log_ref(
+            "destination-target",
+            &packet.destination_workspace_target,
+        ),
+        source_classification: packet.source_classification,
+        row_count: packet.rows.len(),
+        shortcut_row_count: packet.shortcut_delta_report.rows.len(),
+        shortcut_conflict_count: packet
+            .shortcut_delta_report
+            .conflicts_visible_before_apply
+            .len(),
+        classification_counts,
+        domain_counts,
+        apply_gate_class: safe_apply_gate_class(&packet.apply_gate_class),
+        checkpoint_created_before_apply: packet.rollback_checkpoint.created_before_apply,
+        lossy_mappings_retained: packet
+            .retained_migration_report
+            .lossy_mappings_visible_after_apply,
+        unsupported_items_retained: packet
+            .retained_migration_report
+            .unsupported_items_visible_after_apply,
+        logged_at: super::execution::utc_timestamp_now(),
+    }
+}
+
+#[cfg(test)]
+fn import_diff_log_projection_json(
+    packet: &ImportDiffReviewPacket,
+    artifact_class: &'static str,
+    identity: &str,
+) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(&import_diff_log_projection(
         packet,
-    );
-    write_json(
-        base.join("import_reports").join(format!(
-            "{}.json",
-            stable_suffix(&packet.retained_migration_report.migration_report_id)
-        )),
-        &packet.retained_migration_report,
-    );
-    write_json(
-        base.join("import_shortcut_deltas").join(format!(
-            "{}.json",
-            stable_suffix(&packet.shortcut_delta_report.shortcut_delta_report_id)
-        )),
-        &packet.shortcut_delta_report,
-    );
-    write_json(
-        base.join("import_rollback_checkpoints").join(format!(
-            "{}.json",
-            stable_suffix(&packet.rollback_checkpoint.checkpoint_ref)
-        )),
-        &packet.rollback_checkpoint,
-    );
+        artifact_class,
+        identity,
+    ))
+}
+
+fn safe_apply_gate_class(value: &str) -> &'static str {
+    match value {
+        "requires_manual_review" => "requires_manual_review",
+        "allowed_checkpoint_ready" => "allowed_checkpoint_ready",
+        "stale_requires_replan" => "stale_requires_replan",
+        _ => "unrecognized_fail_closed",
+    }
 }
 
 fn append_rows_for_item(
@@ -1007,6 +1111,7 @@ fn retained_report(
     shortcut_delta_report_ref: &str,
     migration_report_id: &str,
     rows: &[ImportDiffReviewRow],
+    generated_at: &str,
 ) -> RetainedMigrationReport {
     let mut classifications_present = Vec::new();
     for row in rows {
@@ -1064,7 +1169,7 @@ fn retained_report(
                 label: "Include migration report in support export".to_string(),
             },
         ],
-        generated_at: GENERATED_AT.to_string(),
+        generated_at: generated_at.to_owned(),
     }
 }
 
@@ -1199,5 +1304,67 @@ mod tests {
             );
             assert!(projection.caveats_visible_after_apply);
         }
+    }
+
+    #[test]
+    fn diff_log_projection_never_serializes_paths_urls_labels_gestures_or_values() {
+        let review = CompetitorConfigClassifier::new()
+            .build_review(fixture_root("vscode_workspace"), "profile:default");
+        let mut packet = materialize_import_diff_review_packet(&review);
+        packet.source_path = "/Users/alice/Secret Project/token-abc".to_owned();
+        packet.destination_workspace_target =
+            "https://user@example.invalid/private-workspace?credential=abc".to_owned();
+        packet.import_review_id = "private-review-user@example.invalid".to_owned();
+        packet.import_diff_preview_ref = "private-preview-customer-name".to_owned();
+        packet.apply_gate_class = "https://private.invalid/gate?token=abc".to_owned();
+        packet.generated_at = "private timestamp payload".to_owned();
+        packet.retained_migration_report.source_descriptor = "Alice's source profile".to_owned();
+        packet.retained_migration_report.target_descriptor = "Customer Workspace".to_owned();
+        if let Some(row) = packet.rows.first_mut() {
+            row.source_label = "private source value".to_owned();
+            row.target_label = "private target value".to_owned();
+            row.before_value_label = "credential-before".to_owned();
+            row.after_value_label = "credential-after".to_owned();
+        }
+        if let Some(row) = packet.shortcut_delta_report.rows.first_mut() {
+            row.imported_command_label = "Private Command".to_owned();
+            row.imported_gesture = "Ctrl+Secret".to_owned();
+        }
+        packet
+            .rollback_checkpoint
+            .rollback_action_hints
+            .push("Open /Users/alice/private".to_owned());
+
+        let json = import_diff_log_projection_json(
+            &packet,
+            "diff_preview",
+            &packet.import_diff_preview_ref,
+        )
+        .expect("serialize log projection");
+        for forbidden in [
+            "/Users/alice",
+            "Secret Project",
+            "token-abc",
+            "user@example.invalid",
+            "private-workspace",
+            "private-review",
+            "customer-name",
+            "Alice's",
+            "Customer Workspace",
+            "private source value",
+            "private target value",
+            "credential-before",
+            "credential-after",
+            "Private Command",
+            "Ctrl+Secret",
+            "private timestamp payload",
+            "private.invalid",
+        ] {
+            assert!(!json.contains(forbidden), "log leaked {forbidden:?}");
+        }
+        assert!(json.contains("source_selection_ref"));
+        assert!(json.contains("destination_target_ref"));
+        assert!(json.contains("classification_counts"));
+        assert!(json.contains("unrecognized_fail_closed"));
     }
 }
