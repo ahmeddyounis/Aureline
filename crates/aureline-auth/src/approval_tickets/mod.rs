@@ -961,9 +961,11 @@ pub enum ApprovalTicketBetaDefectKind {
     TicketExpiryNotAfterIssuance,
     /// A spend attempt references an approval ticket id that is not present.
     SpendTicketRefUnknown,
+    /// A spend attempt admitted without presenting a current ticket.
+    SpendAdmittedWithoutTicket,
     /// A spend attempt admitted under sandbox-profile drift, target drift,
-    /// trust-profile drift, policy-epoch drift, actor-scope drift, or
-    /// envelope drift.
+    /// trust-profile drift, policy-epoch drift, actor-scope drift, envelope
+    /// drift, expiry, or invalid timestamp lineage.
     SpendAdmittedUnderDrift,
     /// A denial outcome on a spend attempt missed an audit-event ref.
     SpendDenialMissingAuditRef,
@@ -1039,6 +1041,7 @@ impl ApprovalTicketBetaDefectKind {
             Self::TicketLifetimeMismatch => "ticket_lifetime_mismatch",
             Self::TicketExpiryNotAfterIssuance => "ticket_expiry_not_after_issuance",
             Self::SpendTicketRefUnknown => "spend_ticket_ref_unknown",
+            Self::SpendAdmittedWithoutTicket => "spend_admitted_without_ticket",
             Self::SpendAdmittedUnderDrift => "spend_admitted_under_drift",
             Self::SpendDenialMissingAuditRef => "spend_denial_missing_audit_ref",
             Self::SpendDenialReapprovalRouteCollapsed => "spend_denial_reapproval_route_collapsed",
@@ -1761,8 +1764,12 @@ pub fn audit_approval_ticket_beta_page(
                 }
             }
             _ => {
-                // Unparseable timestamps surface a token-drift-style defect via the
-                // schema validator; we leave that to the JSON-schema layer.
+                defects.push(ApprovalTicketBetaDefect::new(
+                    ApprovalTicketBetaDefectKind::TicketLifetimeMismatch,
+                    ticket.approval_ticket_id.clone(),
+                    "issued_at/expires_at",
+                    "issued_at and expires_at must be valid UTC timestamps",
+                ));
             }
         }
     }
@@ -1844,26 +1851,45 @@ pub fn audit_approval_ticket_beta_page(
                     "admitted spend must declare native_reapproval_route=not_required",
                 ));
             }
-            if let Some(ticket) = presented {
-                if ticket.target_identity.target_ref != event.current_target_identity.target_ref
-                    || ticket.target_identity.target_fingerprint_ref
-                        != event.current_target_identity.target_fingerprint_ref
-                    || ticket.target_identity.target_version_ref
-                        != event.current_target_identity.target_version_ref
-                    || ticket.sandbox_profile_ref != event.current_sandbox_profile_ref
-                    || ticket.capability_envelope_ref != event.current_capability_envelope_ref
-                    || ticket.trust_profile_ref != event.current_trust_profile_ref
-                    || ticket.policy_epoch_ref != event.current_policy_epoch_ref
-                    || ticket.actor_scope.actor_subject_ref
-                        != event.current_actor_scope.actor_subject_ref
-                {
-                    defects.push(ApprovalTicketBetaDefect::new(
-                        ApprovalTicketBetaDefectKind::SpendAdmittedUnderDrift,
-                        event.spend_attempt_id.clone(),
-                        "evaluation_outcome",
-                        "admitted spend must match the ticket on every authority axis",
-                    ));
+            match presented {
+                Some(ticket) => {
+                    let timestamp_lineage_is_current = match (
+                        parse_timestamp(&ticket.issued_at),
+                        parse_timestamp(&event.evaluated_at),
+                        parse_timestamp(&ticket.expires_at),
+                    ) {
+                        (Some(issued), Some(evaluated), Some(expires)) => {
+                            issued <= evaluated && evaluated <= expires
+                        }
+                        _ => false,
+                    };
+                    if ticket.target_identity.target_ref != event.current_target_identity.target_ref
+                        || ticket.target_identity.target_fingerprint_ref
+                            != event.current_target_identity.target_fingerprint_ref
+                        || ticket.target_identity.target_version_ref
+                            != event.current_target_identity.target_version_ref
+                        || ticket.sandbox_profile_ref != event.current_sandbox_profile_ref
+                        || ticket.capability_envelope_ref != event.current_capability_envelope_ref
+                        || ticket.trust_profile_ref != event.current_trust_profile_ref
+                        || ticket.policy_epoch_ref != event.current_policy_epoch_ref
+                        || ticket.actor_scope.actor_subject_ref
+                            != event.current_actor_scope.actor_subject_ref
+                        || !timestamp_lineage_is_current
+                    {
+                        defects.push(ApprovalTicketBetaDefect::new(
+                            ApprovalTicketBetaDefectKind::SpendAdmittedUnderDrift,
+                            event.spend_attempt_id.clone(),
+                            "evaluation_outcome",
+                            "admitted spend must match every ticket authority axis and carry valid, unexpired timestamp lineage",
+                        ));
+                    }
                 }
+                None => defects.push(ApprovalTicketBetaDefect::new(
+                    ApprovalTicketBetaDefectKind::SpendAdmittedWithoutTicket,
+                    event.spend_attempt_id.clone(),
+                    "presented_approval_ticket_ref",
+                    "admitted spend must carry a current matching ticket",
+                )),
             }
         } else {
             if matches!(
@@ -1895,16 +1921,17 @@ pub fn audit_approval_ticket_beta_page(
         if let Some(ticket) = presented {
             match event.evaluation_outcome {
                 EvaluationOutcome::DeniedExpired => {
-                    if let (Some(evaluated), Some(expires)) = (
+                    match (
                         parse_timestamp(&event.evaluated_at),
                         parse_timestamp(&ticket.expires_at),
                     ) {
-                        if evaluated <= expires {
+                        (Some(evaluated), Some(expires)) if evaluated > expires => {}
+                        _ => {
                             defects.push(ApprovalTicketBetaDefect::new(
                                 ApprovalTicketBetaDefectKind::ExpiredSpendNotAfterExpiry,
                                 event.spend_attempt_id.clone(),
                                 "evaluated_at",
-                                "denied_expired must have evaluated_at > ticket.expires_at",
+                                "denied_expired requires valid timestamps and evaluated_at > ticket.expires_at",
                             ));
                         }
                     }
@@ -2040,25 +2067,45 @@ fn parse_timestamp(value: &str) -> Option<i64> {
     {
         return None;
     }
+    if bytes
+        .iter()
+        .enumerate()
+        .any(|(index, byte)| !matches!(index, 4 | 7 | 10 | 13 | 16 | 19) && !byte.is_ascii_digit())
+    {
+        return None;
+    }
     let year: i64 = std::str::from_utf8(&bytes[0..4]).ok()?.parse().ok()?;
     let month: i64 = std::str::from_utf8(&bytes[5..7]).ok()?.parse().ok()?;
     let day: i64 = std::str::from_utf8(&bytes[8..10]).ok()?.parse().ok()?;
     let hour: i64 = std::str::from_utf8(&bytes[11..13]).ok()?.parse().ok()?;
     let minute: i64 = std::str::from_utf8(&bytes[14..16]).ok()?.parse().ok()?;
     let second: i64 = std::str::from_utf8(&bytes[17..19]).ok()?.parse().ok()?;
-    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+    if year == 0 || !(1..=12).contains(&month) || day < 1 {
         return None;
     }
-    if hour > 23 || minute > 59 || second > 60 {
+    if hour > 23 || minute > 59 || second > 59 {
         return None;
     }
     let days_per_month: [i64; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     let is_leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let max_day = days_per_month[(month - 1) as usize] + if month == 2 && is_leap { 1 } else { 0 };
+    if day > max_day {
+        return None;
+    }
     let mut days_before_year: i64 = 0;
-    for y in 1970..year {
-        days_before_year += 365;
-        if (y % 4 == 0 && y % 100 != 0) || y % 400 == 0 {
-            days_before_year += 1;
+    if year >= 1970 {
+        for y in 1970..year {
+            days_before_year += 365;
+            if (y % 4 == 0 && y % 100 != 0) || y % 400 == 0 {
+                days_before_year += 1;
+            }
+        }
+    } else {
+        for y in year..1970 {
+            days_before_year -= 365;
+            if (y % 4 == 0 && y % 100 != 0) || y % 400 == 0 {
+                days_before_year -= 1;
+            }
         }
     }
     let mut days_before_month: i64 = 0;
@@ -3007,6 +3054,102 @@ mod tests {
     }
 
     #[test]
+    fn validator_flags_admitted_spend_without_ticket() {
+        let mut page = seeded_approval_ticket_beta_page();
+        let admitted_event = page
+            .spend_attempt_events
+            .iter_mut()
+            .find(|event| event.evaluation_outcome == EvaluationOutcome::Admitted)
+            .expect("seeded admitted event");
+        admitted_event.presented_approval_ticket_ref = None;
+
+        let defects = validate_approval_ticket_beta_page(&page)
+            .expect_err("admitted spend without a ticket must be rejected");
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == ApprovalTicketBetaDefectKind::SpendAdmittedWithoutTicket));
+    }
+
+    #[test]
+    fn validator_flags_admitted_spend_after_ticket_expiry() {
+        let mut page = seeded_approval_ticket_beta_page();
+        let admitted_event = page
+            .spend_attempt_events
+            .iter_mut()
+            .find(|event| event.evaluation_outcome == EvaluationOutcome::Admitted)
+            .expect("seeded admitted event");
+        admitted_event.evaluated_at = "2026-05-16T01:15:01Z".to_owned();
+
+        let defects = validate_approval_ticket_beta_page(&page)
+            .expect_err("admitted spend after ticket expiry must be rejected");
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == ApprovalTicketBetaDefectKind::SpendAdmittedUnderDrift));
+    }
+
+    #[test]
+    fn validator_flags_admitted_spend_before_ticket_issuance() {
+        let mut page = seeded_approval_ticket_beta_page();
+        let admitted_event = page
+            .spend_attempt_events
+            .iter_mut()
+            .find(|event| event.evaluation_outcome == EvaluationOutcome::Admitted)
+            .expect("seeded admitted event");
+        admitted_event.evaluated_at = "2026-05-16T00:59:59Z".to_owned();
+
+        let defects = validate_approval_ticket_beta_page(&page)
+            .expect_err("admitted spend before ticket issuance must be rejected");
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == ApprovalTicketBetaDefectKind::SpendAdmittedUnderDrift));
+    }
+
+    #[test]
+    fn validator_flags_admitted_spend_with_invalid_evaluated_at() {
+        let mut page = seeded_approval_ticket_beta_page();
+        let admitted_event = page
+            .spend_attempt_events
+            .iter_mut()
+            .find(|event| event.evaluation_outcome == EvaluationOutcome::Admitted)
+            .expect("seeded admitted event");
+        admitted_event.evaluated_at = "2026-02-30T01:10:00Z".to_owned();
+
+        let defects = validate_approval_ticket_beta_page(&page)
+            .expect_err("admitted spend with an invalid evaluated_at must be rejected");
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == ApprovalTicketBetaDefectKind::SpendAdmittedUnderDrift));
+    }
+
+    #[test]
+    fn validator_flags_ticket_with_invalid_expiry() {
+        let mut page = seeded_approval_ticket_beta_page();
+        let ticket = page
+            .ticket_rows
+            .iter_mut()
+            .find(|ticket| {
+                ticket.approval_ticket_id
+                    == "approval-ticket-beta:ticket:connected:review-comment:0001"
+            })
+            .expect("seeded connected ticket");
+        ticket.expires_at = "not-a-timestamp".to_owned();
+
+        let defects = validate_approval_ticket_beta_page(&page)
+            .expect_err("ticket with an invalid expires_at must be rejected");
+        assert!(defects.iter().any(
+            |defect| defect.defect_kind == ApprovalTicketBetaDefectKind::TicketLifetimeMismatch
+        ));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == ApprovalTicketBetaDefectKind::SpendAdmittedUnderDrift));
+    }
+
+    #[test]
     fn validator_flags_denied_spend_collapsing_reapproval_route() {
         let mut page = seeded_approval_ticket_beta_page();
         let drift_event = page
@@ -3194,6 +3337,11 @@ mod tests {
         let a = parse_timestamp("2026-05-16T01:00:00Z").expect("valid timestamp");
         let b = parse_timestamp("2026-05-16T01:15:00Z").expect("valid timestamp");
         assert_eq!(b - a, 900);
+        assert!(parse_timestamp("2024-02-29T00:00:00Z").is_some());
+        assert!(parse_timestamp("2026-02-29T00:00:00Z").is_none());
+        assert!(parse_timestamp("2026-04-31T00:00:00Z").is_none());
+        assert!(parse_timestamp("2026-05-16T01:15:60Z").is_none());
+        assert!(parse_timestamp("+026-05-16T01:15:00Z").is_none());
         assert!(parse_timestamp("not-a-timestamp").is_none());
     }
 }
