@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Save-review sheet projection.
 //!
 //! The save-review sheet is a protected surface shown when a save attempt is
@@ -112,18 +115,159 @@ fn sanitize_filename(value: &str) -> String {
         .collect()
 }
 
-/// Writes a save-review sheet record into `.logs/review_sheets/`.
+#[derive(Debug, Serialize)]
+struct SaveReviewSheetLogProjection {
+    record_kind: &'static str,
+    schema_version: u32,
+    redaction_policy: &'static str,
+    generated_at: String,
+    packet_ref: String,
+    outcome: &'static str,
+    presentation_uri_ref: String,
+    canonical_uri_ref: String,
+    pinned_generation_ref: String,
+    observed_generation_ref: String,
+    diff_availability: &'static str,
+    content_kind: &'static str,
+    changed_hunk_count: Option<u32>,
+    external_line_change_count: Option<u32>,
+    local_line_change_count: Option<u32>,
+    metadata_only: Option<bool>,
+    preview_line_count: usize,
+    content_integrity_warning_count: usize,
+    offered_choice_count: usize,
+    enabled_choice_count: usize,
+    selected_choice: Option<&'static str>,
+    selected_at: Option<String>,
+}
+
+fn redacted_ref(class: &str, value: &str) -> String {
+    let digest = aureline_history::body_object_id(value.as_bytes());
+    format!(
+        "{class}:{}",
+        digest.strip_prefix("obj:blake3:").unwrap_or(&digest)
+    )
+}
+
+fn known_outcome(value: &str) -> &'static str {
+    match value {
+        "committed" => "committed",
+        "external_change_detected" => "external_change_detected",
+        "save_conflict" => "save_conflict",
+        "wrong_target_prevented" => "wrong_target_prevented",
+        "watcher_uncertainty" => "watcher_uncertainty",
+        "read_only_or_policy_blocked" => "read_only_or_policy_blocked",
+        "review_required_before_save" => "review_required_before_save",
+        "review_required_before_rename" => "review_required_before_rename",
+        _ => "unknown",
+    }
+}
+
+fn known_diff_availability(value: &str) -> &'static str {
+    match value {
+        "available" => "available",
+        "summary_only" => "summary_only",
+        "binary_only" => "binary_only",
+        _ => "unknown",
+    }
+}
+
+fn known_content_kind(value: &str) -> &'static str {
+    match value {
+        "text" => "text",
+        "binary" => "binary",
+        "unknown" => "unknown",
+        _ => "unknown",
+    }
+}
+
+fn known_choice(value: &str) -> Option<&'static str> {
+    match value {
+        "compare" => Some("compare"),
+        "overwrite" => Some("overwrite"),
+        "merge" => Some("merge"),
+        "reload" => Some("reload"),
+        "retry" => Some("retry"),
+        "save_as" => Some("save_as"),
+        "cancel" => Some("cancel"),
+        _ => None,
+    }
+}
+
+fn redaction_safe_timestamp(value: &str) -> String {
+    let shape_safe = !value.is_empty()
+        && value.len() <= 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b':' | b'.' | b'-' | b'+'));
+    let known_clock_shape = value.starts_with("mono:")
+        || (value
+            .as_bytes()
+            .get(0..4)
+            .is_some_and(|year| year.iter().all(u8::is_ascii_digit))
+            && value.contains('T'));
+    if shape_safe && known_clock_shape {
+        value.to_owned()
+    } else {
+        "redacted".to_owned()
+    }
+}
+
+fn save_review_log_projection(record: &SaveReviewSheetRecord) -> SaveReviewSheetLogProjection {
+    let summary = record.diff.summary.as_ref();
+    SaveReviewSheetLogProjection {
+        record_kind: "save_review_sheet_log_projection_record",
+        schema_version: 1,
+        redaction_policy: "local_metadata_only_v1",
+        generated_at: redaction_safe_timestamp(&record.generated_at),
+        packet_ref: redacted_ref("save-review-packet", &record.packet_id),
+        outcome: known_outcome(&record.outcome),
+        presentation_uri_ref: redacted_ref("presentation-uri", &record.presentation_uri),
+        canonical_uri_ref: redacted_ref("canonical-uri", &record.canonical_uri),
+        pinned_generation_ref: redacted_ref("pinned-generation", &record.pinned_generation_token),
+        observed_generation_ref: redacted_ref(
+            "observed-generation",
+            &record.observed_generation_token,
+        ),
+        diff_availability: known_diff_availability(&record.diff.diff_availability),
+        content_kind: known_content_kind(&record.diff.content_kind),
+        changed_hunk_count: summary.map(|value| value.changed_hunk_count),
+        external_line_change_count: summary.map(|value| value.external_line_change_count),
+        local_line_change_count: summary.map(|value| value.local_line_change_count),
+        metadata_only: summary.map(|value| value.metadata_only),
+        preview_line_count: record.diff.preview_lines.len(),
+        content_integrity_warning_count: record.diff.content_integrity_warnings.len(),
+        offered_choice_count: record
+            .offered_choices
+            .iter()
+            .filter(|choice| choice.offered)
+            .count(),
+        enabled_choice_count: record
+            .offered_choices
+            .iter()
+            .filter(|choice| choice.offered && choice.enabled)
+            .count(),
+        selected_choice: record.selected_choice.as_deref().and_then(known_choice),
+        selected_at: record.selected_at.as_deref().map(redaction_safe_timestamp),
+    }
+}
+
+/// Writes a metadata-only save-review projection into the configured logs root.
+///
+/// The interactive record intentionally retains paths and diff lines for the
+/// local review sheet. Those fields must never cross into the durable log.
 pub fn write_save_review_sheet_log(record: &SaveReviewSheetRecord) {
-    let root = std::path::PathBuf::from(".logs").join("review_sheets");
+    let root = aureline_workspace::state_paths::logs_root().join("review_sheets");
     if std::fs::create_dir_all(&root).is_err() {
         return;
     }
+    let projection = save_review_log_projection(record);
     let filename = format!(
         "{}.{}.save_review_sheet.json",
-        sanitize_filename(&record.packet_id),
-        sanitize_filename(&record.generated_at)
+        sanitize_filename(&projection.packet_ref),
+        sanitize_filename(&projection.generated_at)
     );
-    let Ok(json) = serde_json::to_string_pretty(record) else {
+    let Ok(json) = serde_json::to_string_pretty(&projection) else {
         return;
     };
     let _ = std::fs::write(root.join(filename), json);
@@ -609,6 +753,58 @@ mod tests {
     };
     use serde::Deserialize;
     use std::path::Path;
+
+    #[test]
+    fn durable_log_projection_excludes_paths_diff_bodies_and_untrusted_labels() {
+        let secret = "PRIVATE_SENTINEL_7d31";
+        let record = SaveReviewSheetRecord {
+            record_kind: format!("{secret}:record"),
+            schema_version: 99,
+            generated_at: format!("/Users/alice/{secret}"),
+            packet_id: format!("packet:/Users/alice/{secret}"),
+            outcome: format!("outcome:{secret}"),
+            presentation_uri: format!("file:///Users/alice/{secret}/notes.txt"),
+            canonical_uri: format!("file:///private/{secret}/notes.txt"),
+            pinned_generation_token: format!("generation:{secret}"),
+            observed_generation_token: format!("observed:{secret}"),
+            diff: SaveReviewDiffRecord {
+                diff_availability: format!("availability:{secret}"),
+                content_kind: format!("content:{secret}"),
+                summary: Some(SaveReviewDiffSummary {
+                    changed_hunk_count: 1,
+                    external_line_change_count: 2,
+                    local_line_change_count: 3,
+                    metadata_only: false,
+                    summary_text: format!("summary contains {secret}"),
+                }),
+                preview_lines: vec![format!("+ source body contains {secret}")],
+                content_integrity_warnings: Vec::new(),
+            },
+            offered_choices: vec![SaveReviewChoiceOffer {
+                choice: format!("choice:{secret}"),
+                offered: true,
+                enabled: true,
+                forbidden_reason: format!("reason:{secret}"),
+                requires_diff_metadata: true,
+                requires_checkpoint: true,
+                journal_implication: format!("journal:{secret}"),
+                resulting_authoritative_state_if_selected: format!("result:{secret}"),
+            }],
+            selected_choice: Some(format!("selection:{secret}")),
+            selected_at: Some(format!("/private/{secret}")),
+        };
+
+        let json = serde_json::to_string(&save_review_log_projection(&record))
+            .expect("serialize redacted projection");
+        assert!(!json.contains(secret));
+        assert!(!json.contains("file:///"));
+        assert!(!json.contains("source body"));
+        assert!(!json.contains("summary contains"));
+        assert!(json.contains("local_metadata_only_v1"));
+        assert!(json.contains("\"preview_line_count\":1"));
+        assert!(json.contains("\"outcome\":\"unknown\""));
+        assert!(json.contains("\"generated_at\":\"redacted\""));
+    }
 
     #[test]
     fn line_diff_preview_produces_reasonable_summary_and_preview() {
