@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Preview-first Git mutation flows for source-control rows.
 //!
 //! This module owns the first bounded contract for path-level Git mutations.
@@ -15,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::status::{
     ChangeKind, ConsumerProjectionBundle, GitChange, GitServiceState, GitStatusRequest,
-    GitStatusService,
+    GitStatusService, GitStatusSnapshot,
 };
 
 /// Stable record-kind tag for [`GitMutationPreview`].
@@ -406,6 +409,11 @@ pub struct GitMutationPreview {
     pub activity: GitMutationActivityRecord,
     /// Support-export projection for the preview state.
     pub support_export: GitMutationSupportExportRecord,
+    /// In-memory evidence for the exact selected-path state that was reviewed.
+    /// It is deliberately omitted from serialized/exported records so raw patch
+    /// bodies cannot become portable apply authority.
+    #[serde(skip)]
+    basis_state: PreviewPatch,
     #[serde(skip)]
     rollback_material: GitRollbackMaterial,
 }
@@ -418,6 +426,8 @@ impl GitMutationPreview {
             && self.scope.included_count > 0
             && self.scope.all_rows_have_visible_scope_and_preview()
             && self.checkpoint.satisfies_required_recovery()
+            && self.basis_state.has_evidence()
+            && self.rollback_material.supports(self.operation)
     }
 
     /// Returns true when destructive previews carry an explicit checkpoint.
@@ -687,6 +697,51 @@ impl SystemGitMutationBackend {
             git_binary: git_binary.into(),
         }
     }
+
+    fn command(&self, root: &Path, args: &[String]) -> Command {
+        let mut command = Command::new(&self.git_binary);
+        command.env_clear();
+        if let Some(path) = std::env::var_os("PATH") {
+            command.env("PATH", path);
+        }
+        #[cfg(windows)]
+        {
+            if let Some(system_root) = std::env::var_os("SystemRoot") {
+                command.env("SystemRoot", system_root);
+            }
+            if let Some(path_ext) = std::env::var_os("PATHEXT") {
+                command.env("PATHEXT", path_ext);
+            }
+        }
+        command
+            .env("LC_ALL", "C")
+            .env("LANG", "C")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_GLOBAL", null_device_path())
+            .env("GIT_ATTR_NOSYSTEM", "1")
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .env("GIT_PAGER", "")
+            .env("GIT_ASKPASS", "")
+            .env("SSH_ASKPASS", "")
+            .arg("-c")
+            .arg("core.fsmonitor=false")
+            .arg("-c")
+            .arg("core.untrackedCache=false")
+            .arg("-c")
+            .arg("submodule.recurse=false")
+            .arg("-c")
+            .arg(format!("core.attributesFile={}", null_device_path()))
+            .arg("-c")
+            .arg("diff.external=")
+            .arg("-c")
+            .arg("credential.helper=")
+            .arg("-c")
+            .arg("credential.interactive=never")
+            .arg("-C")
+            .arg(root)
+            .args(args);
+        command
+    }
 }
 
 impl GitMutationBackend for SystemGitMutationBackend {
@@ -695,13 +750,11 @@ impl GitMutationBackend for SystemGitMutationBackend {
         root: &Path,
         args: &[String],
     ) -> Result<GitMutationCommandOutput, GitMutationBackendError> {
-        let output = Command::new(&self.git_binary)
-            .arg("-C")
-            .arg(root)
-            .args(args)
+        let output = self
+            .command(root, args)
             .output()
-            .map_err(|err| GitMutationBackendError {
-                message: format!("git command failed to launch: {err}"),
+            .map_err(|_| GitMutationBackendError {
+                message: "Git mutation command could not be launched".to_string(),
             })?;
         Ok(GitMutationCommandOutput {
             success: output.status.success(),
@@ -717,28 +770,26 @@ impl GitMutationBackend for SystemGitMutationBackend {
         args: &[String],
         stdin: &[u8],
     ) -> Result<GitMutationCommandOutput, GitMutationBackendError> {
-        let mut child = Command::new(&self.git_binary)
-            .arg("-C")
-            .arg(root)
-            .args(args)
+        let mut child = self
+            .command(root, args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|err| GitMutationBackendError {
-                message: format!("git command failed to launch: {err}"),
+            .map_err(|_| GitMutationBackendError {
+                message: "Git mutation command could not be launched".to_string(),
             })?;
         if let Some(mut child_stdin) = child.stdin.take() {
             child_stdin
                 .write_all(stdin)
-                .map_err(|err| GitMutationBackendError {
-                    message: format!("git command stdin failed: {err}"),
+                .map_err(|_| GitMutationBackendError {
+                    message: "Git mutation input could not be written".to_string(),
                 })?;
         }
         let output = child
             .wait_with_output()
-            .map_err(|err| GitMutationBackendError {
-                message: format!("git command failed to finish: {err}"),
+            .map_err(|_| GitMutationBackendError {
+                message: "Git mutation command could not be completed".to_string(),
             })?;
         Ok(GitMutationCommandOutput {
             success: output.status.success(),
@@ -746,6 +797,14 @@ impl GitMutationBackend for SystemGitMutationBackend {
             stdout: output.stdout,
             stderr: output.stderr,
         })
+    }
+}
+
+const fn null_device_path() -> &'static str {
+    if cfg!(windows) {
+        "NUL"
+    } else {
+        "/dev/null"
     }
 }
 
@@ -813,14 +872,18 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             .iter()
             .filter(|target| target.included_in_apply)
             .count();
-        let patch = self.preview_patch(&repo_root, request.operation, &repo_paths);
-        let preview_state = if request.paths.is_empty() || blocked_count > 0 || included_count == 0
+        let basis_state = self.capture_path_state(&repo_root, &repo_paths, &snapshot);
+        let preview_state = if request.paths.is_empty()
+            || blocked_count > 0
+            || included_count == 0
+            || !basis_state.has_evidence()
         {
             GitMutationPreviewState::Blocked
         } else {
             GitMutationPreviewState::ReadyToApply
         };
-        let rollback_material = rollback_material_for(request.operation, repo_paths.clone(), patch);
+        let rollback_material =
+            rollback_material_for(request.operation, repo_paths.clone(), basis_state.clone());
         let scope = GitMutationScopeReview {
             scope_ref: format!("{}.scope", preview_ref),
             requested_count: request.paths.len(),
@@ -875,6 +938,7 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             checkpoint,
             activity,
             support_export,
+            basis_state,
             rollback_material,
         }
     }
@@ -889,6 +953,17 @@ impl<B: GitMutationBackend> GitMutationService<B> {
         if !preview.ready_to_apply() {
             return result_for_blocked_preview(preview, &resolved_at);
         }
+        if self
+            .validate_preview_is_current(preview, &resolved_at)
+            .is_err()
+        {
+            return result_for_preview(
+                preview,
+                &resolved_at,
+                GitMutationOutcomeState::BlockedNoChangesMade,
+                Some("preview evidence is stale; refresh before apply".to_string()),
+            );
+        }
 
         let output = self.apply_preview(preview);
         let (outcome_state, failure_reason) = match output {
@@ -901,7 +976,7 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             }
             Ok(output) => (
                 GitMutationOutcomeState::Failed,
-                Some(stderr_or_status(&output)),
+                Some(git_mutation_failure_reason(&output)),
             ),
             Err(err) => (GitMutationOutcomeState::Failed, Some(err.message)),
         };
@@ -920,6 +995,25 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             .iter()
             .map(|target| target.repo_relative_path.clone())
             .collect::<Vec<_>>();
+        let status_request = GitStatusRequest::with_observed_at(
+            result.workspace_ref.clone(),
+            result.repo_root.clone(),
+            requested_at.clone(),
+        );
+        let snapshot = GitStatusService::default().snapshot(&status_request);
+        let truth_source_ref =
+            ConsumerProjectionBundle::from_snapshot(requested_at.clone(), &snapshot)
+                .truth_source_ref;
+        let repository_is_current = snapshot.service_state == GitServiceState::Current
+            && snapshot
+                .repository
+                .as_ref()
+                .is_some_and(|repository| repository.repo_root == result.repo_root);
+        let basis_state = if repository_is_current {
+            self.capture_path_state(&result.repo_root, &repo_paths, &snapshot)
+        } else {
+            PreviewPatch::default()
+        };
         let preview_ref = preview_ref(
             &result.workspace_ref,
             GitMutationOperationKind::RevertCheckpoint,
@@ -928,6 +1022,12 @@ impl<B: GitMutationBackend> GitMutationService<B> {
         let preview_diff_ref = format!("{}.diff", preview_ref);
         let mut targets = result.applied_targets.clone();
         for target in &mut targets {
+            let change = snapshot
+                .changes
+                .iter()
+                .find(|change| change.path == target.repo_relative_path);
+            target.status_code = change.map(|change| change.status_code.clone());
+            target.file_state_token = change.map(file_state_token);
             target.preview_diff_ref = preview_diff_ref.clone();
             target.checkpoint_ref = Some(result.checkpoint.checkpoint_ref.clone());
             target.included_in_apply = true;
@@ -939,15 +1039,19 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             requested_count: targets.len(),
             included_count: targets.len(),
             blocked_count: 0,
-            basis_snapshot_ref: result.result_ref.clone(),
+            basis_snapshot_ref: truth_source_ref.clone(),
             scope_rebind_forbidden: true,
             targets,
         };
+        let rollback_material = result.rollback_material.clone();
+        let rollback_is_available = result.rollback_available
+            && rollback_material.supports(GitMutationOperationKind::RevertCheckpoint)
+            && basis_state.has_evidence();
         let checkpoint = GitMutationCheckpointRecord {
             checkpoint_ref: result.checkpoint.checkpoint_ref.clone(),
             checkpoint_kind: result.checkpoint.checkpoint_kind.clone(),
             checkpoint_required: true,
-            checkpoint_captured: result.rollback_available,
+            checkpoint_captured: rollback_is_available,
             rollback_path_class: "restore_from_checkpoint".to_string(),
             restore_command_id: GitMutationOperationKind::RevertCheckpoint
                 .command_id()
@@ -955,13 +1059,12 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             retention_class: result.checkpoint.retention_class.clone(),
             covered_path_labels: result.checkpoint.covered_path_labels.clone(),
         };
-        let rollback_material = result.rollback_material.clone();
         let diff_preview = diff_preview_for(
             GitMutationOperationKind::RevertCheckpoint,
             &preview_diff_ref,
             &rollback_material,
         );
-        let preview_state = if result.rollback_available {
+        let preview_state = if rollback_is_available {
             GitMutationPreviewState::ReadyToApply
         } else {
             GitMutationPreviewState::Blocked
@@ -988,7 +1091,7 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             generated_at: requested_at,
             workspace_ref: result.workspace_ref.clone(),
             repo_root: result.repo_root.clone(),
-            truth_source_ref: result.truth_source_ref.clone(),
+            truth_source_ref,
             operation: GitMutationOperationKind::RevertCheckpoint,
             command_id: GitMutationOperationKind::RevertCheckpoint
                 .command_id()
@@ -1008,6 +1111,7 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             checkpoint,
             activity,
             support_export,
+            basis_state,
             rollback_material,
         }
     }
@@ -1109,46 +1213,160 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             checkpoint,
             activity,
             support_export,
+            basis_state: PreviewPatch::default(),
             rollback_material,
         }
     }
 
-    fn preview_patch(
+    fn capture_path_state(
         &self,
         repo_root: &Path,
-        operation: GitMutationOperationKind,
         paths: &[PathBuf],
+        snapshot: &GitStatusSnapshot,
     ) -> PreviewPatch {
-        if operation == GitMutationOperationKind::RevertCheckpoint || paths.is_empty() {
+        if paths.is_empty() {
             return PreviewPatch::default();
         }
-        let before_index_patch = if matches!(
-            operation,
-            GitMutationOperationKind::Stage | GitMutationOperationKind::Unstage
-        ) {
-            self.run_git_bytes(repo_root, diff_cached_args(paths))
-        } else {
-            Vec::new()
+        let Some(repository) = snapshot.repository.as_ref() else {
+            return PreviewPatch::default();
         };
-        let worktree_patch = if matches!(
-            operation,
-            GitMutationOperationKind::Stage | GitMutationOperationKind::Discard
-        ) {
-            self.run_git_bytes(repo_root, diff_worktree_args(paths))
-        } else {
-            Vec::new()
+        let changes = &snapshot.changes;
+        let Some(before_index_patch) = self.run_git_diff_bytes(repo_root, diff_cached_args(paths))
+        else {
+            return PreviewPatch::default();
         };
+        let Some(mut worktree_patch) =
+            self.run_git_diff_bytes(repo_root, diff_worktree_args(paths))
+        else {
+            return PreviewPatch::default();
+        };
+        for path in paths.iter().filter(|path| {
+            changes
+                .iter()
+                .any(|change| change.path == **path && change.change_kind == ChangeKind::Untracked)
+        }) {
+            let Some(untracked_patch) =
+                self.run_git_diff_bytes(repo_root, diff_untracked_args(path))
+            else {
+                return PreviewPatch::default();
+            };
+            worktree_patch.extend_from_slice(&untracked_patch);
+        }
         PreviewPatch {
+            captured: true,
+            repository_ref: repository.repo_ref.clone(),
+            worktree_ref: repository.worktree_ref.clone(),
+            head_oid: snapshot.head.head_oid.clone(),
+            branch_ref: snapshot.head.branch_ref.clone(),
             before_index_patch,
             worktree_patch,
         }
     }
 
-    fn run_git_bytes(&self, repo_root: &Path, args: Vec<String>) -> Vec<u8> {
+    fn run_git_diff_bytes(&self, repo_root: &Path, args: Vec<String>) -> Option<Vec<u8>> {
         match self.backend.run_git(repo_root, &args) {
-            Ok(output) if output.success => output.stdout,
-            _ => Vec::new(),
+            Ok(output) if output.success || output.status_code == Some(1) => Some(output.stdout),
+            _ => None,
         }
+    }
+
+    fn validate_preview_is_current(
+        &self,
+        preview: &GitMutationPreview,
+        observed_at: &str,
+    ) -> Result<(), ()> {
+        let paths = preview
+            .scope
+            .targets
+            .iter()
+            .map(|target| target.repo_relative_path.clone())
+            .collect::<Vec<_>>();
+        let expected_preview_ref = preview_ref(&preview.workspace_ref, preview.operation, &paths);
+        let expected_diff_ref = format!("{expected_preview_ref}.diff");
+        let expected_checkpoint_ref = format!("{expected_preview_ref}.checkpoint");
+        if preview.record_kind != GIT_MUTATION_PREVIEW_RECORD_KIND
+            || preview.schema_version != GIT_MUTATION_PREVIEW_SCHEMA_VERSION
+            || preview.preview_ref != expected_preview_ref
+            || preview.command_id != preview.operation.command_id()
+            || preview.operation_label != preview.operation.label()
+            || preview.consequence_class != preview.operation.consequence_class()
+            || preview.destructive_review_required != preview.operation.is_destructive()
+            || preview.diff_preview.preview_diff_ref != expected_diff_ref
+            || preview.scope.scope_ref != format!("{expected_preview_ref}.scope")
+            || preview.scope.basis_snapshot_ref != preview.truth_source_ref
+            || !preview.scope.scope_rebind_forbidden
+            || preview.scope.requested_count != paths.len()
+            || preview.scope.included_count != paths.len()
+            || preview.scope.blocked_count != 0
+            || preview
+                .scope
+                .targets
+                .iter()
+                .any(|target| !target.included_in_apply || target.blocked_reason.is_some())
+            || preview.rollback_material.paths != paths
+            || !preview.rollback_material.supports(preview.operation)
+        {
+            return Err(());
+        }
+
+        let status_request = GitStatusRequest::with_observed_at(
+            preview.workspace_ref.clone(),
+            preview.repo_root.clone(),
+            observed_at,
+        );
+        let snapshot = GitStatusService::default().snapshot(&status_request);
+        if snapshot.service_state != GitServiceState::Current
+            || snapshot
+                .repository
+                .as_ref()
+                .map_or(true, |repository| repository.repo_root != preview.repo_root)
+        {
+            return Err(());
+        }
+        let current_state = self.capture_path_state(&preview.repo_root, &paths, &snapshot);
+        if !current_state.has_evidence() || current_state != preview.basis_state {
+            return Err(());
+        }
+
+        match preview.operation {
+            GitMutationOperationKind::RevertCheckpoint => {
+                for target in &preview.scope.targets {
+                    let change = snapshot
+                        .changes
+                        .iter()
+                        .find(|change| change.path == target.repo_relative_path);
+                    if target.status_code.as_deref()
+                        != change.map(|change| change.status_code.as_str())
+                        || target.file_state_token.as_deref()
+                            != change.map(file_state_token).as_deref()
+                        || target.preview_diff_ref != expected_diff_ref
+                        || target.checkpoint_ref.as_deref()
+                            != Some(preview.checkpoint.checkpoint_ref.as_str())
+                    {
+                        return Err(());
+                    }
+                }
+            }
+            operation => {
+                let (expected_targets, blocked_count) = target_reviews(
+                    &snapshot.changes,
+                    operation,
+                    &preview.workspace_ref,
+                    &paths,
+                    &expected_diff_ref,
+                    &expected_checkpoint_ref,
+                );
+                if blocked_count != 0
+                    || expected_targets != preview.scope.targets
+                    || preview.checkpoint.checkpoint_ref != expected_checkpoint_ref
+                    || rollback_material_for(operation, paths, current_state)
+                        != preview.rollback_material
+                {
+                    return Err(());
+                }
+            }
+        }
+        Ok(())
     }
 
     fn apply_preview(
@@ -1156,17 +1374,20 @@ impl<B: GitMutationBackend> GitMutationService<B> {
         preview: &GitMutationPreview,
     ) -> Result<GitMutationCommandOutput, GitMutationBackendError> {
         match preview.operation {
-            GitMutationOperationKind::Stage => self.backend.run_git(
+            GitMutationOperationKind::Stage => self.backend.run_git_with_stdin(
                 &preview.repo_root,
-                &path_command_args("add", &preview.scope),
+                &git_apply_args(&["--cached"]),
+                &preview.basis_state.worktree_patch,
             ),
-            GitMutationOperationKind::Unstage => self.backend.run_git(
+            GitMutationOperationKind::Unstage => self.backend.run_git_with_stdin(
                 &preview.repo_root,
-                &path_command_args_with_flags("restore", &["--staged"], &preview.scope),
+                &git_apply_args(&["--cached", "--reverse"]),
+                &preview.basis_state.before_index_patch,
             ),
-            GitMutationOperationKind::Discard => self.backend.run_git(
+            GitMutationOperationKind::Discard => self.backend.run_git_with_stdin(
                 &preview.repo_root,
-                &path_command_args_with_flags("restore", &["--worktree"], &preview.scope),
+                &git_apply_args(&["--reverse"]),
+                &preview.basis_state.worktree_patch,
             ),
             GitMutationOperationKind::RevertCheckpoint => {
                 self.restore_checkpoint(&preview.repo_root, &preview.rollback_material)
@@ -1227,8 +1448,19 @@ impl<B: GitMutationBackend> GitMutationService<B> {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 struct PreviewPatch {
+    captured: bool,
+    repository_ref: String,
+    worktree_ref: String,
+    head_oid: Option<String>,
+    branch_ref: Option<String>,
     before_index_patch: Vec<u8>,
     worktree_patch: Vec<u8>,
+}
+
+impl PreviewPatch {
+    fn has_evidence(&self) -> bool {
+        self.captured && !self.repository_ref.is_empty() && !self.worktree_ref.is_empty()
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -1246,6 +1478,29 @@ struct GitRollbackMaterial {
     before_index_patch: Vec<u8>,
     worktree_patch: Vec<u8>,
     paths: Vec<PathBuf>,
+}
+
+impl GitRollbackMaterial {
+    fn supports(&self, operation: GitMutationOperationKind) -> bool {
+        if self.paths.is_empty() {
+            return false;
+        }
+        match operation {
+            GitMutationOperationKind::Stage => {
+                self.action == GitRollbackAction::RestoreIndexFromPatch
+                    && !self.worktree_patch.is_empty()
+            }
+            GitMutationOperationKind::Unstage => {
+                self.action == GitRollbackAction::RestoreIndexFromPatch
+                    && !self.before_index_patch.is_empty()
+            }
+            GitMutationOperationKind::Discard => {
+                self.action == GitRollbackAction::ApplyWorktreePatch
+                    && !self.worktree_patch.is_empty()
+            }
+            GitMutationOperationKind::RevertCheckpoint => self.action != GitRollbackAction::None,
+        }
+    }
 }
 
 fn rollback_material_for(
@@ -1813,24 +2068,6 @@ fn preview_ref(
     )
 }
 
-fn path_command_args(command: &str, scope: &GitMutationScopeReview) -> Vec<String> {
-    path_command_args_with_flags(command, &[], scope)
-}
-
-fn path_command_args_with_flags(
-    command: &str,
-    flags: &[&str],
-    scope: &GitMutationScopeReview,
-) -> Vec<String> {
-    let paths = scope
-        .targets
-        .iter()
-        .filter(|target| target.included_in_apply)
-        .map(|target| target.repo_relative_path.clone())
-        .collect::<Vec<_>>();
-    path_args(command, flags, &paths)
-}
-
 fn path_args(command: &str, flags: &[&str], paths: &[PathBuf]) -> Vec<String> {
     let mut args = Vec::with_capacity(flags.len() + paths.len() + 2);
     args.push(command.to_string());
@@ -1845,6 +2082,8 @@ fn diff_cached_args(paths: &[PathBuf]) -> Vec<String> {
         "diff".to_string(),
         "--cached".to_string(),
         "--binary".to_string(),
+        "--no-ext-diff".to_string(),
+        "--no-textconv".to_string(),
     ];
     args.push("--".to_string());
     args.extend(paths.iter().map(|path| path.to_string_lossy().to_string()));
@@ -1852,19 +2091,47 @@ fn diff_cached_args(paths: &[PathBuf]) -> Vec<String> {
 }
 
 fn diff_worktree_args(paths: &[PathBuf]) -> Vec<String> {
-    let mut args = vec!["diff".to_string(), "--binary".to_string()];
+    let mut args = vec![
+        "diff".to_string(),
+        "--binary".to_string(),
+        "--no-ext-diff".to_string(),
+        "--no-textconv".to_string(),
+    ];
     args.push("--".to_string());
     args.extend(paths.iter().map(|path| path.to_string_lossy().to_string()));
     args
 }
 
-fn stderr_or_status(output: &GitMutationCommandOutput) -> String {
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    if stderr.is_empty() {
-        format!("git exited with status {:?}", output.status_code)
-    } else {
-        stderr
-    }
+fn diff_untracked_args(path: &Path) -> Vec<String> {
+    vec![
+        "diff".to_string(),
+        "--no-index".to_string(),
+        "--binary".to_string(),
+        "--no-ext-diff".to_string(),
+        "--no-textconv".to_string(),
+        "--".to_string(),
+        null_device_path().to_string(),
+        path.to_string_lossy().to_string(),
+    ]
+}
+
+fn git_apply_args(flags: &[&str]) -> Vec<String> {
+    let mut args = vec!["apply".to_string()];
+    args.extend(flags.iter().map(|flag| (*flag).to_string()));
+    args.extend([
+        "--binary".to_string(),
+        "--whitespace=nowarn".to_string(),
+        "--recount".to_string(),
+        "-".to_string(),
+    ]);
+    args
+}
+
+fn git_mutation_failure_reason(output: &GitMutationCommandOutput) -> String {
+    output
+        .status_code
+        .map(|code| format!("Git mutation failed (status {code})"))
+        .unwrap_or_else(|| "Git mutation failed".to_string())
 }
 
 fn sanitize_id(value: &str) -> String {
@@ -1890,5 +2157,26 @@ fn sanitize_id(value: &str) -> String {
         "root".to_string()
     } else {
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{git_mutation_failure_reason, GitMutationCommandOutput};
+
+    #[test]
+    fn mutation_failure_reason_never_exports_git_stderr() {
+        let output = GitMutationCommandOutput {
+            success: false,
+            status_code: Some(128),
+            stdout: Vec::new(),
+            stderr: b"\x1b[31m/private/workspace/secret-value\x1b[0m".to_vec(),
+        };
+
+        let reason = git_mutation_failure_reason(&output);
+
+        assert_eq!(reason, "Git mutation failed (status 128)");
+        assert!(!reason.contains("secret-value"));
+        assert!(!reason.contains('\u{1b}'));
     }
 }

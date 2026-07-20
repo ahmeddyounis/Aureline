@@ -1,12 +1,17 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Fixture-driven coverage for preview-first Git mutation flows.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use aureline_git::{
+    GitMutationBackend, GitMutationBackendError, GitMutationCommandOutput,
     GitMutationOperationKind, GitMutationOutcomeState, GitMutationPreviewState, GitMutationRequest,
-    GitMutationService,
+    GitMutationService, SystemGitMutationBackend,
 };
 use aureline_history::ActorLineageClass;
 use serde::Deserialize;
@@ -338,4 +343,254 @@ fn protected_mutation_review_fixtures_match_git_service_contract() {
     for path in fixtures {
         run_fixture(&path);
     }
+}
+
+#[test]
+fn changed_worktree_blocks_a_stale_stage_preview() {
+    let dir = build_case_root("unstaged_modified");
+    let service = GitMutationService::default();
+    let request = GitMutationRequest::with_observed_at(
+        "workspace.fixture.stale-stage",
+        dir.path(),
+        GitMutationOperationKind::Stage,
+        ["src/lib.rs"],
+        "2026-05-13T00:00:00Z",
+    );
+    let preview = service.preview(&request);
+    assert!(preview.ready_to_apply());
+
+    fs::write(
+        dir.path().join("src/lib.rs"),
+        "pub fn answer() -> u32 {\n    99\n}\n",
+    )
+    .expect("change source after review");
+    let result = service.apply(&preview, "2026-05-13T00:00:01Z");
+
+    assert_eq!(
+        result.outcome_state,
+        GitMutationOutcomeState::BlockedNoChangesMade
+    );
+    assert_eq!(
+        result.failure_reason.as_deref(),
+        Some("preview evidence is stale; refresh before apply")
+    );
+    assert_status(
+        dir.path(),
+        Path::new("src/lib.rs"),
+        Some(".M"),
+        "stale stage must not change the index",
+    );
+}
+
+#[test]
+fn changed_head_blocks_a_preview_even_when_selected_bytes_are_unchanged() {
+    let dir = build_case_root("unstaged_modified");
+    let service = GitMutationService::default();
+    let request = GitMutationRequest::with_observed_at(
+        "workspace.fixture.stale-head",
+        dir.path(),
+        GitMutationOperationKind::Stage,
+        ["src/lib.rs"],
+        "2026-05-13T00:00:00Z",
+    );
+    let preview = service.preview(&request);
+    assert!(preview.ready_to_apply());
+
+    fs::write(dir.path().join("unrelated.txt"), "new commit\n")
+        .expect("write unrelated commit fixture");
+    run_git(dir.path(), &["add", "unrelated.txt"]);
+    run_git(
+        dir.path(),
+        &["commit", "-q", "-m", "advance head without selected path"],
+    );
+    assert_status(
+        dir.path(),
+        Path::new("src/lib.rs"),
+        Some(".M"),
+        "selected bytes remain unchanged",
+    );
+
+    let result = service.apply(&preview, "2026-05-13T00:00:01Z");
+
+    assert_eq!(
+        result.outcome_state,
+        GitMutationOutcomeState::BlockedNoChangesMade
+    );
+    assert_eq!(
+        result.failure_reason.as_deref(),
+        Some("preview evidence is stale; refresh before apply")
+    );
+    assert_status(
+        dir.path(),
+        Path::new("src/lib.rs"),
+        Some(".M"),
+        "HEAD drift must not change the selected path's index state",
+    );
+}
+
+#[test]
+fn untracked_stage_preview_captures_bytes_and_rejects_drift() {
+    let dir = build_case_root("untracked_only");
+    let service = GitMutationService::default();
+    let request = GitMutationRequest::with_observed_at(
+        "workspace.fixture.untracked-stage",
+        dir.path(),
+        GitMutationOperationKind::Stage,
+        ["notes.txt"],
+        "2026-05-13T00:00:00Z",
+    );
+    let preview = service.preview(&request);
+    assert!(preview.ready_to_apply());
+    assert!(preview.diff_preview.diff_available);
+    assert!(preview.diff_preview.diff_line_count > 0);
+
+    fs::write(dir.path().join("notes.txt"), "different bytes\n")
+        .expect("change untracked file after review");
+    let result = service.apply(&preview, "2026-05-13T00:00:01Z");
+
+    assert_eq!(
+        result.outcome_state,
+        GitMutationOutcomeState::BlockedNoChangesMade
+    );
+    assert_status(
+        dir.path(),
+        Path::new("notes.txt"),
+        Some("??"),
+        "stale untracked preview must not stage changed bytes",
+    );
+}
+
+#[test]
+fn changed_worktree_blocks_a_stale_checkpoint_restore() {
+    let dir = build_case_root("unstaged_modified");
+    let service = GitMutationService::default();
+    let request = GitMutationRequest::with_observed_at(
+        "workspace.fixture.stale-revert",
+        dir.path(),
+        GitMutationOperationKind::Discard,
+        ["src/lib.rs"],
+        "2026-05-13T00:00:00Z",
+    );
+    let forward = service.apply(&service.preview(&request), "2026-05-13T00:00:01Z");
+    assert_eq!(forward.outcome_state, GitMutationOutcomeState::Applied);
+    let revert_preview = service.preview_revert(&forward, "2026-05-13T00:00:02Z");
+    assert!(revert_preview.ready_to_apply());
+
+    fs::write(
+        dir.path().join("src/lib.rs"),
+        "pub fn answer() -> u32 {\n    7\n}\n",
+    )
+    .expect("change source after restore review");
+    let reverted = service.apply(&revert_preview, "2026-05-13T00:00:03Z");
+
+    assert_eq!(
+        reverted.outcome_state,
+        GitMutationOutcomeState::BlockedNoChangesMade
+    );
+    assert_eq!(
+        fs::read_to_string(dir.path().join("src/lib.rs")).expect("read retained source"),
+        "pub fn answer() -> u32 {\n    7\n}\n"
+    );
+}
+
+#[test]
+fn serialized_preview_is_not_portable_apply_authority() {
+    let dir = build_case_root("unstaged_modified");
+    let service = GitMutationService::default();
+    let request = GitMutationRequest::with_observed_at(
+        "workspace.fixture.serialized-preview",
+        dir.path(),
+        GitMutationOperationKind::Stage,
+        ["src/lib.rs"],
+        "2026-05-13T00:00:00Z",
+    );
+    let preview = service.preview(&request);
+    assert!(preview.ready_to_apply());
+    let json = serde_json::to_string(&preview).expect("serialize preview");
+    assert!(!json.contains("rollback_material"));
+    assert!(!json.contains("basis_state"));
+    let restored = serde_json::from_str(&json).expect("deserialize preview record");
+
+    let result = service.apply(&restored, "2026-05-13T00:00:01Z");
+
+    assert_eq!(
+        result.outcome_state,
+        GitMutationOutcomeState::BlockedNoChangesMade
+    );
+    assert_status(
+        dir.path(),
+        Path::new("src/lib.rs"),
+        Some(".M"),
+        "exported record must not carry apply authority",
+    );
+}
+
+struct WorktreeRaceBackend {
+    inner: SystemGitMutationBackend,
+    path: PathBuf,
+    replacement: &'static [u8],
+    changed: AtomicBool,
+}
+
+impl GitMutationBackend for WorktreeRaceBackend {
+    fn run_git(
+        &self,
+        root: &Path,
+        args: &[String],
+    ) -> Result<GitMutationCommandOutput, GitMutationBackendError> {
+        self.inner.run_git(root, args)
+    }
+
+    fn run_git_with_stdin(
+        &self,
+        root: &Path,
+        args: &[String],
+        stdin: &[u8],
+    ) -> Result<GitMutationCommandOutput, GitMutationBackendError> {
+        if !self.changed.swap(true, Ordering::SeqCst) {
+            fs::write(&self.path, self.replacement).expect("inject worktree race");
+        }
+        self.inner.run_git_with_stdin(root, args, stdin)
+    }
+}
+
+#[test]
+fn stage_consumes_reviewed_patch_instead_of_racing_worktree_bytes() {
+    let dir = build_case_root("unstaged_modified");
+    let backend = WorktreeRaceBackend {
+        inner: SystemGitMutationBackend::default(),
+        path: dir.path().join("src/lib.rs"),
+        replacement: b"pub fn answer() -> u32 {\n    99\n}\n",
+        changed: AtomicBool::new(false),
+    };
+    let service = GitMutationService::new(backend);
+    let request = GitMutationRequest::with_observed_at(
+        "workspace.fixture.stage-race",
+        dir.path(),
+        GitMutationOperationKind::Stage,
+        ["src/lib.rs"],
+        "2026-05-13T00:00:00Z",
+    );
+    let preview = service.preview(&request);
+    assert!(preview.ready_to_apply());
+
+    let result = service.apply(&preview, "2026-05-13T00:00:01Z");
+
+    assert_eq!(result.outcome_state, GitMutationOutcomeState::Applied);
+    assert_eq!(
+        git_output(dir.path(), &["show", ":src/lib.rs"]),
+        "pub fn answer() -> u32 {\n    42\n}\n",
+        "the index must receive the reviewed bytes"
+    );
+    assert_eq!(
+        fs::read_to_string(dir.path().join("src/lib.rs")).expect("read raced worktree"),
+        "pub fn answer() -> u32 {\n    99\n}\n",
+        "a concurrent worktree update remains unstaged"
+    );
+    assert_status(
+        dir.path(),
+        Path::new("src/lib.rs"),
+        Some("MM"),
+        "the reviewed index and newer worktree must remain distinct",
+    );
 }
