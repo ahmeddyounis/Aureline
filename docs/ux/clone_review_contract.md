@@ -18,6 +18,11 @@ non-conforming.
 
 The companion artifacts are:
 
+- [`/docs/git/clone_execution_contract.md`](../git/clone_execution_contract.md)
+  — owning subprocess, locator, credential projection, destination identity,
+  supervision, and interrupted-acquisition recovery contract. This review
+  document owns disclosure; the execution contract owns how approved values
+  reach Git.
 - [`/schemas/ux/clone_review.schema.json`](../../schemas/ux/clone_review.schema.json)
   — boundary schema for the three records: `clone_review_record`,
   `destination_collision_sheet_record`, and
@@ -123,9 +128,10 @@ This contract freezes:
 - git transport implementation, partial-clone / sparse-checkout /
   shallow-clone fetch logic, LFS smudge implementation, submodule
   recursion, mirror caching, and credential-handle resolution.
-  The bootstrap and source-acquisition contracts own the
-  acquisition engine; this contract only freezes how the clone
-  review and post-clone hand-off render the typed inputs.
+  The bootstrap and source-acquisition contracts plus
+  [`/docs/git/clone_execution_contract.md`](../git/clone_execution_contract.md)
+  own the acquisition engine; this contract only freezes how the clone review
+  and post-clone hand-off render the typed inputs.
 - Final user-facing copy and microcopy. This contract pins the
   closed sets the copy resolves against; the design-system style
   guide and shell-interaction-safety contract own the strings.

@@ -39,6 +39,11 @@ and export truth lives at:
 - [`/docs/workspace/bootstrap_packet_contract.md`](./bootstrap_packet_contract.md)
 - [`/artifacts/workspace/bootstrap_reason_codes.yaml`](../../artifacts/workspace/bootstrap_reason_codes.yaml)
 
+The reviewed Git clone executor that consumes these bindings without widening
+them lives at:
+
+- [`/docs/git/clone_execution_contract.md`](../git/clone_execution_contract.md)
+
 The companion fixtures live under:
 
 - [`/fixtures/workspace/bootstrap_cases/`](../../fixtures/workspace/bootstrap_cases/)
