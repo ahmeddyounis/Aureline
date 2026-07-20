@@ -19,7 +19,8 @@ surrounding sections. Start with the document that owns the affected concern:
 - `Aureline_Technical_Design_Document.md` for component contracts;
 - `Aureline_UI_UX_Spec_Document.md` and
   `Aureline_UX_Design_System_Style_Guide.md` for interaction and visual rules;
-- `Aureline_Security_Threat_Model.md` for trust and abuse boundaries.
+- [`docs/security/threat_model_and_audit_stream_contract.md`](./docs/security/threat_model_and_audit_stream_contract.md)
+  for trust, abuse, audit-stream, and evidence-window boundaries.
 
 Then consult the checked-in contract, schema, fixture, artifact, ADR, and RFC
 that governs the exact surface. [`docs/README.md`](./docs/README.md) is the
