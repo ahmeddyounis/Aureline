@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! In-memory synthetic filesystem model.
 //!
 //! The prototype deliberately does NOT call the real filesystem.
@@ -83,6 +86,11 @@ pub struct SyntheticRoot {
 }
 
 impl SyntheticRoot {
+    /// Returns the workspace identity this synthetic root is attached to.
+    pub fn workspace_id(&self) -> &str {
+        &self.logical_workspace_identity_template.workspace_id
+    }
+
     pub fn envelope(&self) -> &RootCapabilityEnvelope {
         &self.envelope
     }

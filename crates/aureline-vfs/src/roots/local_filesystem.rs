@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Local filesystem root adapter.
 //!
 //! This root resolves `file://` presentation URIs into the VFS identity model.
@@ -23,12 +26,20 @@ use super::{RootIoError, RootResolveError, VfsRoot};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LocalFilesystemRootError {
     MountPathNotAbsolute(PathBuf),
+    MountPathUnavailable { path: PathBuf, detail: String },
+    MountPathNotDirectory(PathBuf),
 }
 
 impl std::fmt::Display for LocalFilesystemRootError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MountPathNotAbsolute(path) => write!(f, "mount path must be absolute: {path:?}"),
+            Self::MountPathUnavailable { path, detail } => {
+                write!(f, "mount path is unavailable: {path:?}: {detail}")
+            }
+            Self::MountPathNotDirectory(path) => {
+                write!(f, "mount path must be a directory: {path:?}")
+            }
         }
     }
 }
@@ -53,12 +64,17 @@ impl LocalFilesystemRoot {
         root_id: impl Into<String>,
         mount_path: PathBuf,
     ) -> Result<Self, LocalFilesystemRootError> {
-        let mut mount_path = mount_path;
         if !mount_path.is_absolute() {
             return Err(LocalFilesystemRootError::MountPathNotAbsolute(mount_path));
         }
-        if let Ok(canonical) = mount_path.canonicalize() {
-            mount_path = canonical;
+        let mount_path = mount_path.canonicalize().map_err(|err| {
+            LocalFilesystemRootError::MountPathUnavailable {
+                path: mount_path.clone(),
+                detail: err.to_string(),
+            }
+        })?;
+        if !mount_path.is_dir() {
+            return Err(LocalFilesystemRootError::MountPathNotDirectory(mount_path));
         }
 
         let root_class = if cfg!(windows) {
@@ -109,32 +125,74 @@ impl LocalFilesystemRoot {
             workspace_id: workspace_id.into(),
             root_badge: "local".to_owned(),
             mount_path,
-            trust_state: TrustState::Trusted,
+            trust_state: TrustState::PendingEvaluation,
             policy_scope: None,
         })
     }
 
-    /// Creates a local filesystem root mounted at the host root.
+    /// Creates a local filesystem root mounted at the host root for diagnostics.
+    ///
+    /// This intentionally has host-wide path authority and therefore must not
+    /// be used for steady-state workspace file operations. Production callers
+    /// must use [`Self::new`] with the selected workspace root so membership can
+    /// be proven at every operation.
     pub fn host_root(workspace_id: impl Into<String>, root_id: impl Into<String>) -> Self {
         let mount_path = default_mount_path();
         Self::new(workspace_id, root_id, mount_path).expect("host_root mount path must be absolute")
     }
 
+    /// Overrides the trust posture projected into identity records.
+    ///
+    /// Roots begin in [`TrustState::PendingEvaluation`]; callers may only set a
+    /// wider state after the workspace trust authority has resolved it.
+    pub fn with_trust_state(mut self, trust_state: TrustState) -> Self {
+        self.trust_state = trust_state;
+        self
+    }
+
+    /// Returns the workspace identity this root is attached to.
+    pub fn workspace_id(&self) -> &str {
+        &self.workspace_id
+    }
+
+    /// Returns the canonical workspace root enforced by this adapter.
+    pub fn mount_path(&self) -> &Path {
+        &self.mount_path
+    }
+
     fn claims_path(&self, path: &Path) -> bool {
-        match path.canonicalize() {
-            Ok(canonical) => canonical.starts_with(&self.mount_path),
-            Err(_) => path.starts_with(&self.mount_path),
-        }
+        path.is_absolute()
+            && path
+                .canonicalize()
+                .is_ok_and(|canonical| canonical.starts_with(&self.mount_path))
     }
 
     fn canonical_path_for_uri(&self, uri: &VfsUri) -> Result<PathBuf, RootResolveError> {
         let Some(path) = uri.file_path() else {
             return Err(RootResolveError::NotInRoot(uri.clone()));
         };
-        if !self.claims_path(&path) {
+        if !path.is_absolute() {
             return Err(RootResolveError::NotInRoot(uri.clone()));
         }
-        Ok(path.canonicalize().unwrap_or(path))
+        let canonical = path
+            .canonicalize()
+            .map_err(|_| RootResolveError::NotInRoot(uri.clone()))?;
+        if !canonical.starts_with(&self.mount_path) {
+            return Err(RootResolveError::NotInRoot(uri.clone()));
+        }
+        Ok(canonical)
+    }
+
+    fn canonical_path_for_io(
+        &self,
+        uri: &VfsUri,
+        operation: &'static str,
+    ) -> Result<PathBuf, RootIoError> {
+        self.canonical_path_for_uri(uri)
+            .map_err(|_| RootIoError::NotSupported {
+                uri: uri.clone(),
+                operation,
+            })
     }
 
     fn display_label_for_path(path: &Path) -> String {
@@ -165,6 +223,10 @@ impl LocalFilesystemRoot {
 }
 
 impl VfsRoot for LocalFilesystemRoot {
+    fn workspace_id(&self) -> Option<&str> {
+        Some(&self.workspace_id)
+    }
+
     fn envelope(&self) -> &RootCapabilityEnvelope {
         &self.envelope
     }
@@ -311,12 +373,7 @@ impl VfsRoot for LocalFilesystemRoot {
     }
 
     fn read_bytes(&self, canonical_uri: &VfsUri) -> Result<Vec<u8>, RootIoError> {
-        let Some(path) = canonical_uri.file_path() else {
-            return Err(RootIoError::NotSupported {
-                uri: canonical_uri.clone(),
-                operation: "read_bytes",
-            });
-        };
+        let path = self.canonical_path_for_io(canonical_uri, "read_bytes_outside_root_scope")?;
         std::fs::read(&path).map_err(|err| RootIoError::IoFailure {
             uri: canonical_uri.clone(),
             detail: err.to_string(),
@@ -328,12 +385,7 @@ impl VfsRoot for LocalFilesystemRoot {
         canonical_uri: &VfsUri,
         new_content: Vec<u8>,
     ) -> Result<(), RootIoError> {
-        let Some(path) = canonical_uri.file_path() else {
-            return Err(RootIoError::NotSupported {
-                uri: canonical_uri.clone(),
-                operation: "write_bytes",
-            });
-        };
+        let path = self.canonical_path_for_io(canonical_uri, "write_bytes_outside_root_scope")?;
         std::fs::write(&path, new_content).map_err(|err| RootIoError::IoFailure {
             uri: canonical_uri.clone(),
             detail: err.to_string(),
@@ -468,14 +520,19 @@ fn owner_group_strings(metadata: &std::fs::Metadata) -> (Option<String>, Option<
 mod tests {
     use super::*;
 
-    #[test]
-    fn local_filesystem_root_resolves_file_identity_under_mount() {
+    fn fixture_root(label: &str) -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_nanos();
-        let tmp_root = std::env::temp_dir().join(format!("aureline-vfs-local-root-{nonce}"));
-        std::fs::create_dir_all(&tmp_root).expect("temp root create");
+        let path = std::env::temp_dir().join(format!("aureline-vfs-{label}-{nonce}"));
+        std::fs::create_dir_all(&path).expect("temp root create");
+        path
+    }
+
+    #[test]
+    fn local_filesystem_root_resolves_file_identity_under_mount() {
+        let tmp_root = fixture_root("local-root");
         let file_path = tmp_root.join("note.txt");
         std::fs::write(&file_path, b"hello\n").expect("temp file write");
 
@@ -489,6 +546,10 @@ mod tests {
         assert_eq!(identity.presentation_path.root_badge, "local");
         assert_eq!(identity.logical_workspace_identity.workspace_id, "ws-test");
         assert_eq!(identity.logical_workspace_identity.root_id, "root-local");
+        assert_eq!(
+            identity.logical_workspace_identity.trust_state,
+            TrustState::PendingEvaluation
+        );
         assert_eq!(
             identity.logical_workspace_identity.logical_uri.scheme(),
             "aureline-ws"
@@ -518,5 +579,145 @@ mod tests {
             .identity_record(&uri)
             .expect_err("expected scope rejection");
         assert_eq!(err, RootResolveError::NotInRoot(uri));
+    }
+
+    #[test]
+    fn local_filesystem_root_requires_an_existing_directory_mount() {
+        let tmp_root = fixture_root("mount-validation");
+        let missing = tmp_root.join("missing-workspace");
+        let missing_err = LocalFilesystemRoot::new("ws-test", "root-local", missing.clone())
+            .expect_err("missing mount must fail closed");
+        assert!(matches!(
+            missing_err,
+            LocalFilesystemRootError::MountPathUnavailable { path, .. } if path == missing
+        ));
+
+        let file_mount = tmp_root.join("not-a-directory");
+        std::fs::write(&file_mount, b"not a root").expect("fixture file write");
+        let file_err = LocalFilesystemRoot::new("ws-test", "root-local", file_mount.clone())
+            .expect_err("file mount must fail closed");
+        assert!(matches!(
+            file_err,
+            LocalFilesystemRootError::MountPathNotDirectory(path)
+                if path.file_name() == file_mount.file_name()
+        ));
+
+        let _ = std::fs::remove_dir_all(&tmp_root);
+    }
+
+    #[test]
+    fn raw_io_rejects_cross_workspace_paths() {
+        let fixture = fixture_root("cross-workspace");
+        let workspace_a = fixture.join("workspace-a");
+        let workspace_b = fixture.join("workspace-b");
+        std::fs::create_dir_all(&workspace_a).expect("workspace A create");
+        std::fs::create_dir_all(&workspace_b).expect("workspace B create");
+        let own_file = workspace_a.join("own.txt");
+        let foreign_file = workspace_b.join("foreign.txt");
+        std::fs::write(&own_file, b"own").expect("own file write");
+        std::fs::write(&foreign_file, b"foreign").expect("foreign file write");
+
+        let mut root =
+            LocalFilesystemRoot::new("ws-a", "root-a", workspace_a).expect("workspace root build");
+        let own_uri = VfsUri::file_url_for_path(&own_file).expect("own uri");
+        let foreign_uri = VfsUri::file_url_for_path(&foreign_file).expect("foreign uri");
+
+        assert_eq!(root.read_bytes(&own_uri).expect("own read"), b"own");
+        assert!(matches!(
+            root.read_bytes(&foreign_uri),
+            Err(RootIoError::NotSupported {
+                operation: "read_bytes_outside_root_scope",
+                ..
+            })
+        ));
+        assert!(matches!(
+            root.write_bytes(&foreign_uri, b"overwritten".to_vec()),
+            Err(RootIoError::NotSupported {
+                operation: "write_bytes_outside_root_scope",
+                ..
+            })
+        ));
+        assert_eq!(
+            std::fs::read(&foreign_file).expect("foreign file remains"),
+            b"foreign"
+        );
+
+        let _ = std::fs::remove_dir_all(&fixture);
+    }
+
+    #[test]
+    fn raw_write_rejects_nonexistent_lexical_escape_and_does_not_create() {
+        let fixture = fixture_root("lexical-escape");
+        let workspace = fixture.join("workspace");
+        let nested = workspace.join("nested");
+        std::fs::create_dir_all(&nested).expect("nested workspace create");
+        let escaped_target = fixture.join("escaped.txt");
+        let traversal = nested.join("..").join("..").join("escaped.txt");
+        let traversal_uri =
+            VfsUri::file_url_for_path_lossy(&traversal).expect("lossy traversal uri");
+
+        let mut root =
+            LocalFilesystemRoot::new("ws-a", "root-a", workspace).expect("workspace root build");
+        assert!(!root.claims_uri(&traversal_uri));
+        assert!(matches!(
+            root.write_bytes(&traversal_uri, b"created outside".to_vec()),
+            Err(RootIoError::NotSupported {
+                operation: "write_bytes_outside_root_scope",
+                ..
+            })
+        ));
+        assert!(!escaped_target.exists());
+
+        let _ = std::fs::remove_dir_all(&fixture);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn raw_io_rejects_symlink_escape_but_allows_in_root_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = fixture_root("symlink-scope");
+        let workspace = fixture.join("workspace");
+        let outside = fixture.join("outside");
+        std::fs::create_dir_all(&workspace).expect("workspace create");
+        std::fs::create_dir_all(&outside).expect("outside create");
+        let inside_file = workspace.join("inside.txt");
+        let outside_file = outside.join("secret.txt");
+        std::fs::write(&inside_file, b"inside").expect("inside write");
+        std::fs::write(&outside_file, b"secret").expect("outside write");
+        let inside_link = workspace.join("inside-link.txt");
+        let outside_link = workspace.join("outside-link.txt");
+        symlink(&inside_file, &inside_link).expect("inside symlink");
+        symlink(&outside_file, &outside_link).expect("outside symlink");
+
+        let mut root =
+            LocalFilesystemRoot::new("ws-a", "root-a", workspace).expect("workspace root build");
+        let inside_uri = VfsUri::file_url_for_path_lossy(&inside_link).expect("inside link uri");
+        let outside_uri = VfsUri::file_url_for_path_lossy(&outside_link).expect("outside link uri");
+
+        assert_eq!(
+            root.read_bytes(&inside_uri).expect("in-root symlink read"),
+            b"inside"
+        );
+        assert!(matches!(
+            root.read_bytes(&outside_uri),
+            Err(RootIoError::NotSupported {
+                operation: "read_bytes_outside_root_scope",
+                ..
+            })
+        ));
+        assert!(matches!(
+            root.write_bytes(&outside_uri, b"overwritten".to_vec()),
+            Err(RootIoError::NotSupported {
+                operation: "write_bytes_outside_root_scope",
+                ..
+            })
+        ));
+        assert_eq!(
+            std::fs::read(&outside_file).expect("outside file remains"),
+            b"secret"
+        );
+
+        let _ = std::fs::remove_dir_all(&fixture);
     }
 }

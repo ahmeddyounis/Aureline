@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! VFS root abstraction.
 //!
 //! A root is the unit of filesystem truth and capability disclosure. Every
@@ -70,6 +73,20 @@ impl std::error::Error for RootIoError {}
 
 /// Root interface required for VFS identity resolution and save coordination.
 pub trait VfsRoot {
+    /// Returns the workspace identity this root is attached to.
+    ///
+    /// Save-target tokens are bound to both this identity and [`Self::envelope`]'s
+    /// root id. A token issued by another workspace or root must never be
+    /// replayed through this adapter, even when two roots happen to expose the
+    /// same canonical URI.
+    ///
+    /// The default preserves source compatibility for out-of-tree root
+    /// adapters while failing closed: roots that do not disclose a workspace
+    /// identity cannot issue or redeem save-target tokens.
+    fn workspace_id(&self) -> Option<&str> {
+        None
+    }
+
     /// Returns the root capability envelope registered at attach time.
     fn envelope(&self) -> &RootCapabilityEnvelope;
 

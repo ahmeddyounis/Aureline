@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! [`crate::synthetic::SyntheticRoot`] adapter for the [`super::VfsRoot`] trait.
 
 use crate::identity::{FallbackIdentityToken, IdentityToken};
@@ -8,6 +11,10 @@ use crate::uri_model::VfsUri;
 use super::{RootIoError, RootResolveError, VfsRoot};
 
 impl VfsRoot for SyntheticRoot {
+    fn workspace_id(&self) -> Option<&str> {
+        Some(SyntheticRoot::workspace_id(self))
+    }
+
     fn envelope(&self) -> &crate::capabilities::RootCapabilityEnvelope {
         self.envelope()
     }

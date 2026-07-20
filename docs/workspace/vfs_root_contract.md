@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 Aureline contributors
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # VFS root and URI contract
 
 This document defines the minimal VFS root abstraction and URI model used by
@@ -99,6 +104,22 @@ Every open is resolved by exactly one root, producing the identity record
 (`presentation_path`, `logical_workspace_identity`, `canonical_filesystem_object`,
 `alias_set`) and, where applicable, a save-target token.
 
+For local files, the root mount must be the canonical selected workspace root,
+not the host filesystem root. Every identity, metadata, read, and write operation
+re-canonicalizes the requested path and proves that it remains under that mount.
+An unavailable path, lexical `..` escape, cross-workspace path, or symlink target
+outside the mount is rejected before I/O. Creating a previously nonexistent file
+requires a separate reviewed creation flow; raw root writes do not create targets.
+
+Save-target tokens are object capabilities bound to both `workspace_id` and
+`root_id`. Replaying a token through another workspace/root is a wrong-target
+failure even when the other root happens to expose the same canonical URI.
+
+`LocalFilesystemRoot::host_root` exists only for bounded diagnostics and legacy
+test harnesses. It has host-wide path authority and is forbidden for steady-state
+workspace open, read, compare, or save paths; those callers must construct
+`LocalFilesystemRoot::new(workspace_id, root_id, selected_workspace_root)`.
+
 ## Implementation touchpoints
 
 - Root adapters and root contract: `crates/aureline-vfs/src/roots/`
@@ -113,4 +134,7 @@ Every open is resolved by exactly one root, producing the identity record
 - Virtual/generated documents default to inspect-only posture; mutation and
   promotion workflows (save-as, materialization, regenerate) are separate
   surfaces.
-
+- The local adapter currently enforces containment by canonical path checks.
+  Platform-specific descriptor-relative traversal hardening remains required to
+  eliminate the residual check/use race when an adversary can replace path
+  components concurrently.

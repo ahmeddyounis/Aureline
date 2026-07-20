@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Save-target issuance and conflict-aware save stub.
 //!
 //! Implements the ADR 0006 save pipeline contract at prototype
@@ -189,6 +192,9 @@ pub fn open_save_target(
     let identity = root
         .identity_record(presentation_uri)
         .map_err(|_| OpenError::UnknownPresentation(presentation_uri.clone()))?;
+    if !identity_belongs_to_root(root, &identity) {
+        return Err(OpenError::UnknownPresentation(presentation_uri.clone()));
+    }
     counters.vfs_canonicalize += 1;
 
     // Alias convergence fires when the opened presentation URI
@@ -217,7 +223,7 @@ pub fn open_save_target(
 
     let permission_snapshot = root
         .permission_snapshot(&identity.canonical_filesystem_object.canonical_uri)
-        .unwrap_or_else(|_| PermissionSnapshot::writable_default());
+        .map_err(|_| OpenError::UnknownPresentation(presentation_uri.clone()))?;
 
     let envelope = root.envelope();
     let atomic_write_mode = envelope.select_save_mode();
@@ -340,11 +346,33 @@ pub fn attempt_save(
         .clone();
     let presentation_path = token.identity.presentation_path.clone();
 
+    // A save token is an object capability issued by one workspace root. It
+    // cannot be replayed through another root merely because the other root
+    // can resolve the same host path or provider URI.
+    if !identity_belongs_to_root(root, &token.identity) {
+        counters.vfs_save_conflict += 1;
+        counters.vfs_save_manifest_record += 1;
+        return make_manifest(
+            presentation_path,
+            root,
+            &canonical_uri,
+            token,
+            request.save_participant_group_id,
+            request.checkpoint_ref,
+            request.committed_at,
+            SaveOutcome::WrongTargetPrevented,
+            Some("save-target token belongs to a different workspace root".to_owned()),
+        );
+    }
+
     // Policy / read-only / review gates short-circuit before any
     // participant runs. Read_only_or_policy_blocked and the two
     // review_required outcomes are fail-closed states named in
     // the ADR's failure-case taxonomy.
-    if token.capability_flags.read_only || token.capability_flags.policy_constrained {
+    if token.capability_flags.read_only
+        || token.capability_flags.policy_constrained
+        || !token.permission_snapshot.writable
+    {
         counters.vfs_save_blocked += 1;
         counters.vfs_save_manifest_record += 1;
         return make_manifest(
@@ -357,7 +385,8 @@ pub fn attempt_save(
             request.committed_at,
             SaveOutcome::ReadOnlyOrPolicyBlocked,
             Some(
-                "root advertises read_only or policy_constrained; save_mode is blocked".to_owned(),
+                "root or pinned permission snapshot does not admit writes; save_mode is blocked"
+                    .to_owned(),
             ),
         );
     }
@@ -514,6 +543,13 @@ pub fn attempt_save(
     )
 }
 
+fn identity_belongs_to_root(root: &dyn VfsRoot, identity: &IdentityRecord) -> bool {
+    let logical = &identity.logical_workspace_identity;
+    root.workspace_id()
+        .is_some_and(|workspace_id| logical.workspace_id == workspace_id)
+        && logical.root_id == root.envelope().root_id
+}
+
 #[allow(clippy::too_many_arguments)]
 fn make_manifest(
     presentation_path: crate::identity::PresentationPath,
@@ -567,5 +603,114 @@ fn make_manifest(
         committed_at,
         outcome,
         failure_detail,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::*;
+    use crate::roots::LocalFilesystemRoot;
+
+    fn fixture_root(label: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("aureline-vfs-save-{label}-{nonce}"));
+        std::fs::create_dir_all(&path).expect("temp root create");
+        path
+    }
+
+    fn save_request(token: SaveTargetToken, new_content: &[u8]) -> SaveRequest {
+        SaveRequest {
+            token,
+            new_content: new_content.to_vec(),
+            save_participant_group_id: None,
+            checkpoint_ref: None,
+            committed_at: "mono:test".to_owned(),
+            participant_failure: None,
+        }
+    }
+
+    #[test]
+    fn save_token_cannot_cross_workspace_with_same_root_and_path() {
+        let workspace = fixture_root("cross-workspace-token");
+        let file = workspace.join("note.txt");
+        std::fs::write(&file, b"original").expect("fixture write");
+        let uri = VfsUri::file_url_for_path(&file).expect("file uri");
+        let root_a = LocalFilesystemRoot::new("workspace-a", "root-shared", workspace.clone())
+            .expect("root A");
+        let mut root_b = LocalFilesystemRoot::new("workspace-b", "root-shared", workspace.clone())
+            .expect("root B");
+        let mut open_counters = HookCounters::default();
+        let token = open_save_target(&root_a, &uri, "mono:open", &mut open_counters)
+            .expect("token from workspace A");
+
+        let mut save_counters = HookCounters::default();
+        let manifest = attempt_save(
+            &mut root_b,
+            save_request(token, b"wrong workspace"),
+            &mut save_counters,
+        );
+
+        assert_eq!(manifest.outcome, SaveOutcome::WrongTargetPrevented);
+        assert_eq!(save_counters.vfs_save_conflict, 1);
+        assert_eq!(std::fs::read(&file).expect("file read"), b"original");
+        let _ = std::fs::remove_dir_all(&workspace);
+    }
+
+    #[test]
+    fn save_token_cannot_cross_root_within_workspace() {
+        let workspace = fixture_root("cross-root-token");
+        let file = workspace.join("note.txt");
+        std::fs::write(&file, b"original").expect("fixture write");
+        let uri = VfsUri::file_url_for_path(&file).expect("file uri");
+        let root_a =
+            LocalFilesystemRoot::new("workspace-a", "root-a", workspace.clone()).expect("root A");
+        let mut root_b =
+            LocalFilesystemRoot::new("workspace-a", "root-b", workspace.clone()).expect("root B");
+        let mut open_counters = HookCounters::default();
+        let token = open_save_target(&root_a, &uri, "mono:open", &mut open_counters)
+            .expect("token from root A");
+
+        let mut save_counters = HookCounters::default();
+        let manifest = attempt_save(
+            &mut root_b,
+            save_request(token, b"wrong root"),
+            &mut save_counters,
+        );
+
+        assert_eq!(manifest.outcome, SaveOutcome::WrongTargetPrevented);
+        assert_eq!(std::fs::read(&file).expect("file read"), b"original");
+        let _ = std::fs::remove_dir_all(&workspace);
+    }
+
+    #[test]
+    fn pinned_non_writable_permission_snapshot_blocks_save() {
+        let workspace = fixture_root("permission-token");
+        let file = workspace.join("note.txt");
+        std::fs::write(&file, b"original").expect("fixture write");
+        let uri = VfsUri::file_url_for_path(&file).expect("file uri");
+        let mut root = LocalFilesystemRoot::new("workspace-a", "root-a", workspace.clone())
+            .expect("workspace root");
+        let mut open_counters = HookCounters::default();
+        let mut token =
+            open_save_target(&root, &uri, "mono:open", &mut open_counters).expect("save token");
+        token.permission_snapshot.writable = false;
+
+        let mut save_counters = HookCounters::default();
+        let manifest = attempt_save(
+            &mut root,
+            save_request(token, b"must not write"),
+            &mut save_counters,
+        );
+
+        assert_eq!(manifest.outcome, SaveOutcome::ReadOnlyOrPolicyBlocked);
+        assert_eq!(save_counters.vfs_save_blocked, 1);
+        assert_eq!(std::fs::read(&file).expect("file read"), b"original");
+        let _ = std::fs::remove_dir_all(&workspace);
     }
 }

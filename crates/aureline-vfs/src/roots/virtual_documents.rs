@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Virtual and generated document roots.
 //!
 //! These roots model documents that are not ordinary host filesystem files
@@ -183,6 +186,10 @@ impl VirtualDocumentRoot {
 }
 
 impl VfsRoot for VirtualDocumentRoot {
+    fn workspace_id(&self) -> Option<&str> {
+        Some(&self.workspace_id)
+    }
+
     fn envelope(&self) -> &RootCapabilityEnvelope {
         &self.envelope
     }
