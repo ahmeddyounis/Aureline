@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! Staged save coordinator.
 //!
 //! The coordinator is the single entry point for committing buffer snapshots to
@@ -15,7 +18,7 @@ use aureline_vfs::{
     SaveTargetToken, VfsRoot, VfsUri,
 };
 
-use super::drift_detection::detect_external_drift;
+use super::drift_detection::{detect_external_drift, detect_root_ownership};
 use super::risk::{
     summarize_staged_file_effect, SaveParticipantRiskDeclaration, SaveParticipantRiskOutcomeClass,
     SaveParticipantRiskReview,
@@ -127,6 +130,31 @@ impl StagedSaveCoordinator {
             request.checkpoint_ref.clone(),
             declarations,
         );
+
+        if let Err(conflict) = detect_root_ownership(root, &request.token) {
+            risk_review
+                .mark_external_change(format!("external_change:{}", conflict.outcome.as_str()));
+            let token = request.token;
+            let write_strategy = select_write_strategy(&token);
+            let manifest = make_manifest(
+                root,
+                &token,
+                request.save_participant_group_id,
+                request.checkpoint_ref,
+                request.committed_at,
+                conflict.outcome,
+                Some(conflict.detail),
+            );
+            return SaveResult {
+                packet_id,
+                write_strategy,
+                manifest,
+                source_fidelity,
+                save_participant_risk_review: risk_review,
+                next_token: token,
+                participant_error: None,
+            };
+        }
 
         if risk_review.outcome_class
             == SaveParticipantRiskOutcomeClass::ReviewRequiredBeforeMutation

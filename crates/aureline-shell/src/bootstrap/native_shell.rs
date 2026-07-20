@@ -628,6 +628,11 @@ fn run_headless_edit_save(args: &NativeShellArgs) -> Result<(), String> {
     let mut editor_runtime = EditorWorkspaceRuntimeState::with_log_root(
         headless_edit_save_log_root(request.report_path.as_deref()),
     );
+    editor_runtime.bind_local_workspace(
+        workspace_id_for_local_folder(&canonical_workspace.to_string_lossy()),
+        canonical_workspace.clone(),
+        TrustState::Trusted,
+    )?;
     editor_runtime.open_file(group, tab, &canonical_target)?;
     if editor_runtime
         .tab_render_info(group, tab)
@@ -1656,6 +1661,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 editor_runtime
                     .terminal_pane
                     .close_active_workspace(&mono_timestamp_now(), Some("window_closed"));
+                editor_runtime.clear_local_workspace();
                 if let Some(guard) = crash_marker_guard.as_mut() {
                     if let Err(err) = guard.mark_clean_shutdown() {
                         command_runtime.note_non_command_action(format!(
@@ -2742,20 +2748,41 @@ impl BufferAuthorityStore {
         id
     }
 
-    fn open_file_authority(&mut self, path: &Path) -> Result<Rc<RefCell<BufferAuthority>>, String> {
-        let canonical = canonical_path_key(path);
+    fn open_file_authority(
+        &mut self,
+        root: &LocalFilesystemRoot,
+        path: &Path,
+    ) -> Result<Rc<RefCell<BufferAuthority>>, String> {
+        let presentation_uri = VfsUri::file_url_for_path_lossy(path)
+            .ok_or_else(|| format!("vfs uri build failed for {path:?}"))?;
+        let resolved_identity = root
+            .identity_record(&presentation_uri)
+            .map_err(|_| "file is outside the active workspace root".to_string())?;
+        let canonical = resolved_identity
+            .canonical_filesystem_object
+            .canonical_uri
+            .file_path()
+            .ok_or_else(|| "active workspace returned a non-file identity".to_string())?;
         if let Some(existing) = self.by_canonical_path.get(&canonical) {
-            return Ok(existing.clone());
+            let belongs_to_active_root =
+                existing
+                    .borrow()
+                    .vfs_identity
+                    .as_ref()
+                    .is_some_and(|identity| {
+                        identity.logical_workspace_identity.workspace_id == root.workspace_id()
+                            && identity.logical_workspace_identity.root_id
+                                == root.envelope().root_id
+                    });
+            if belongs_to_active_root {
+                return Ok(existing.clone());
+            }
         }
 
-        let presentation_uri = VfsUri::file_url_for_path_lossy(path)
-            .or_else(|| VfsUri::file_url_for_path(&canonical))
-            .ok_or_else(|| format!("vfs uri build failed for {path:?}"))?;
-        let local_root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
         let policy = shell_large_file_policy();
         let viewer_config = shell_large_file_viewer_config();
         let outcome = open_document(
-            &local_root,
+            root,
             &presentation_uri,
             &policy,
             viewer_config,
@@ -2764,13 +2791,9 @@ impl BufferAuthorityStore {
         .map_err(|err| err.to_string())?;
 
         let mut counters = HookCounters::default();
-        let save_target_token = open_save_target(
-            &local_root,
-            &presentation_uri,
-            mono_timestamp_now(),
-            &mut counters,
-        )
-        .map_err(|err| err.to_string())?;
+        let save_target_token =
+            open_save_target(root, &presentation_uri, mono_timestamp_now(), &mut counters)
+                .map_err(|err| err.to_string())?;
         let label = path
             .file_name()
             .and_then(|name| name.to_str())
@@ -2789,7 +2812,13 @@ impl BufferAuthorityStore {
                     Some(decoded) => {
                         let buffer = Buffer::from_bytes(&decoded);
                         let saved_revision = buffer.revision_id();
-                        (buffer, saved_revision, read_only_state_for_path(&canonical))
+                        (
+                            buffer,
+                            saved_revision,
+                            read_only_state_for_permission_snapshot(
+                                &save_target_token.permission_snapshot,
+                            ),
+                        )
                     }
                     None => {
                         let buffer = Buffer::from_str(
@@ -3248,6 +3277,8 @@ struct EditorWorkspaceRuntimeState {
     text_runtime: EditorTextRuntime,
     explorer: ExplorerViewRuntime,
     terminal_pane: TerminalPaneRuntimeState,
+    active_local_root: Option<LocalFilesystemRoot>,
+    active_local_root_trust_state: Option<TrustState>,
     groups: HashMap<PaneId, EditorGroupSession>,
     buffers: BufferAuthorityStore,
     save_coordinator: StagedSaveCoordinator,
@@ -3276,6 +3307,8 @@ impl EditorWorkspaceRuntimeState {
             text_runtime: EditorTextRuntime::with_system_fonts(),
             explorer: ExplorerViewRuntime::new(),
             terminal_pane: TerminalPaneRuntimeState::new(),
+            active_local_root: None,
+            active_local_root_trust_state: None,
             groups: HashMap::new(),
             buffers: BufferAuthorityStore::new(),
             save_coordinator: StagedSaveCoordinator::new(),
@@ -3294,6 +3327,8 @@ impl EditorWorkspaceRuntimeState {
             text_runtime: EditorTextRuntime::with_system_fonts(),
             explorer: ExplorerViewRuntime::new(),
             terminal_pane: TerminalPaneRuntimeState::new(),
+            active_local_root: None,
+            active_local_root_trust_state: None,
             groups: HashMap::new(),
             buffers,
             save_coordinator: StagedSaveCoordinator::new(),
@@ -3311,6 +3346,73 @@ impl EditorWorkspaceRuntimeState {
 
     fn set_workspace_recovery_ref(&mut self, workspace_ref: impl Into<String>) {
         self.crash_journal_workspace_ref = workspace_ref.into();
+    }
+
+    fn bind_local_workspace(
+        &mut self,
+        workspace_id: impl Into<String>,
+        workspace_root: PathBuf,
+        trust_state: TrustState,
+    ) -> Result<(), String> {
+        let workspace_id = workspace_id.into();
+        let root = LocalFilesystemRoot::new(workspace_id, EXPLORER_ROOT_ID, workspace_root)
+            .map_err(|err| format!("workspace VFS root unavailable — {err}"))?
+            .with_trust_state(vfs_trust_state(trust_state));
+        self.active_local_root = Some(root);
+        self.active_local_root_trust_state = Some(trust_state);
+        self.project_workspace_trust_state(trust_state);
+        Ok(())
+    }
+
+    fn clear_local_workspace(&mut self) {
+        self.active_local_root = None;
+        self.active_local_root_trust_state = None;
+    }
+
+    fn project_workspace_trust_state(&mut self, trust_state: TrustState) {
+        let Some(root) = self.active_local_root.take() else {
+            self.active_local_root_trust_state = None;
+            return;
+        };
+        let workspace_id = root.workspace_id().to_string();
+        let root_id = root.envelope().root_id.clone();
+        let projected = vfs_trust_state(trust_state);
+        self.active_local_root = Some(root.with_trust_state(projected));
+        self.active_local_root_trust_state = Some(trust_state);
+
+        for authority in self.buffers.by_canonical_path.values() {
+            let mut authority = authority.borrow_mut();
+            if let Some(identity) = authority.vfs_identity.as_mut() {
+                if identity.logical_workspace_identity.workspace_id == workspace_id
+                    && identity.logical_workspace_identity.root_id == root_id
+                {
+                    identity.logical_workspace_identity.trust_state = projected;
+                }
+            }
+            if let Some(token) = authority.save_target_token.as_mut() {
+                if token.identity.logical_workspace_identity.workspace_id == workspace_id
+                    && token.identity.logical_workspace_identity.root_id == root_id
+                {
+                    token.identity.logical_workspace_identity.trust_state = projected;
+                }
+            }
+        }
+    }
+
+    fn active_local_root(&self) -> Result<&LocalFilesystemRoot, String> {
+        self.active_local_root
+            .as_ref()
+            .ok_or_else(|| "file operation unavailable: open a workspace first".to_string())
+    }
+
+    fn active_local_root_clone(&self) -> Result<LocalFilesystemRoot, String> {
+        self.active_local_root().cloned()
+    }
+
+    fn active_local_root_trust_state(&self) -> Result<TrustState, String> {
+        self.active_local_root_trust_state
+            .filter(|_| self.active_local_root.is_some())
+            .ok_or_else(|| "active workspace trust state unavailable".to_string())
     }
 
     fn ensure_group(&mut self, group: PaneId) -> &mut EditorGroupSession {
@@ -3362,7 +3464,8 @@ impl EditorWorkspaceRuntimeState {
     }
 
     fn open_file(&mut self, group: PaneId, tab: EditorTabId, path: &Path) -> Result<(), String> {
-        let authority = self.buffers.open_file_authority(path)?;
+        let root = self.active_local_root_clone()?;
+        let authority = self.buffers.open_file_authority(&root, path)?;
         let view_state = authority
             .borrow()
             .file_path
@@ -3429,7 +3532,10 @@ impl EditorWorkspaceRuntimeState {
             .clone()
             .unwrap_or_else(|| "Recovered buffer".to_string());
         let authority = match file_path {
-            Some(path) => match self.buffers.open_file_authority(path) {
+            Some(path) => match self
+                .active_local_root_clone()
+                .and_then(|root| self.buffers.open_file_authority(&root, path))
+            {
                 Ok(authority) => authority,
                 Err(_) => self.buffers.placeholder_authority(label.clone(), ""),
             },
@@ -3448,6 +3554,7 @@ impl EditorWorkspaceRuntimeState {
     }
 
     fn open_anyway(&mut self, group: PaneId, tab: EditorTabId) -> Result<(), String> {
+        let local_root = self.active_local_root_clone()?;
         let Some(tab_session) = self
             .groups
             .get_mut(&group)
@@ -3466,7 +3573,6 @@ impl EditorWorkspaceRuntimeState {
         }
         let uri = VfsUri::file_url_for_path(&canonical)
             .ok_or_else(|| format!("vfs uri build failed for {canonical:?}"))?;
-        let local_root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
         let policy = shell_large_file_policy();
         let viewer_config = shell_large_file_viewer_config();
         let outcome = open_document(
@@ -3495,7 +3601,13 @@ impl EditorWorkspaceRuntimeState {
                 Some(decoded) => {
                     let buffer = Buffer::from_bytes(&decoded);
                     let saved_revision = buffer.revision_id();
-                    (buffer, saved_revision, read_only_state_for_path(&canonical))
+                    (
+                        buffer,
+                        saved_revision,
+                        read_only_state_for_permission_snapshot(
+                            &save_target_token.permission_snapshot,
+                        ),
+                    )
                 }
                 None => {
                     let buffer = Buffer::from_str(
@@ -3561,10 +3673,10 @@ impl EditorWorkspaceRuntimeState {
         let Some(path) = authority.file_path.clone() else {
             return Ok(SaveTabAttempt::NoTarget);
         };
+        let mut root = self.active_local_root_clone()?;
 
         let presentation_uri = VfsUri::file_url_for_path(&path)
             .ok_or_else(|| format!("vfs uri build failed for {path:?}"))?;
-        let mut root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
 
         let token = match authority.save_target_token.clone() {
             Some(token) => token,
@@ -3587,6 +3699,30 @@ impl EditorWorkspaceRuntimeState {
             .source_fidelity
             .clone()
             .ok_or_else(|| "missing source-fidelity record for save".to_owned())?;
+
+        if !save_target_belongs_to_root(&root, &token) {
+            let generated_at = mono_timestamp_now();
+            let packet_seed = format!(
+                "{generated_at}:{}:{}",
+                root.workspace_id(),
+                root.envelope().root_id
+            );
+            let record = materialize_save_review_sheet_record(
+                &root,
+                &token,
+                &source_fidelity,
+                format!("save_packet:scope:{:016x}", fnv1a_64(&packet_seed)),
+                aureline_vfs::SaveOutcome::WrongTargetPrevented,
+                generated_at,
+                snapshot.as_bytes(),
+                false,
+            );
+            write_save_review_sheet_log(&record);
+            return Ok(SaveTabAttempt::ReviewRequired {
+                record,
+                outcome: aureline_vfs::SaveOutcome::WrongTargetPrevented,
+            });
+        }
 
         let checkpoint_ref = if authority.is_dirty() {
             let captured_at = mono_timestamp_now();
@@ -4107,18 +4243,354 @@ impl EditorWorkspaceRuntimeState {
     }
 }
 
-fn canonical_path_key(path: &Path) -> PathBuf {
-    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
-}
-
 fn is_formatter_originator(originator: &str) -> bool {
     originator.contains("format") || originator.contains("formatter")
 }
 
-fn read_only_state_for_path(path: &Path) -> ReadOnlyState {
-    match std::fs::OpenOptions::new().write(true).open(path) {
-        Ok(_) => ReadOnlyState::Writable,
-        Err(_) => ReadOnlyState::Filesystem,
+fn read_only_state_for_permission_snapshot(
+    permission_snapshot: &aureline_vfs::PermissionSnapshot,
+) -> ReadOnlyState {
+    if permission_snapshot.writable {
+        ReadOnlyState::Writable
+    } else {
+        ReadOnlyState::Filesystem
+    }
+}
+
+fn save_target_belongs_to_root(root: &LocalFilesystemRoot, token: &SaveTargetToken) -> bool {
+    let logical = &token.identity.logical_workspace_identity;
+    logical.workspace_id == root.workspace_id() && logical.root_id == root.envelope().root_id
+}
+
+#[cfg(test)]
+mod scoped_workspace_vfs_tests {
+    use super::*;
+
+    fn open_fixture_tab(
+        runtime: &mut EditorWorkspaceRuntimeState,
+        path: &Path,
+    ) -> (PaneId, EditorTabId) {
+        let mut frame = DesktopFrame::new(1280, 720);
+        let group = frame.focused_editor_group();
+        let tab = frame.open_tab().expect("open fixture tab");
+        runtime
+            .open_file(group, tab, path)
+            .expect("open fixture file through scoped VFS");
+        (group, tab)
+    }
+
+    #[test]
+    fn file_open_requires_an_active_workspace_and_denies_outside_root() {
+        let fixture = tempfile::tempdir().expect("fixture root");
+        let workspace = fixture.path().join("workspace");
+        std::fs::create_dir_all(&workspace).expect("workspace create");
+        let inside = workspace.join("inside.txt");
+        let outside = fixture.path().join("outside.txt");
+        std::fs::write(&inside, b"inside").expect("inside file seed");
+        std::fs::write(&outside, b"outside").expect("outside file seed");
+
+        let mut frame = DesktopFrame::new(1280, 720);
+        let group = frame.focused_editor_group();
+        let tab = frame.open_tab().expect("fixture tab");
+        let mut runtime = EditorWorkspaceRuntimeState::with_log_root(fixture.path().join("logs"));
+
+        let no_workspace = runtime
+            .open_file(group, tab, &inside)
+            .expect_err("open without workspace must fail closed");
+        assert!(no_workspace.contains("open a workspace first"));
+
+        runtime
+            .bind_local_workspace("ws-scope", workspace, TrustState::PendingEvaluation)
+            .expect("bind workspace");
+        let outside_error = runtime
+            .open_file(group, tab, &outside)
+            .expect_err("outside-root open must fail closed");
+        assert_eq!(outside_error, "file is outside the active workspace root");
+        assert_eq!(
+            std::fs::read(&outside).expect("outside file read"),
+            b"outside"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn file_open_denies_symlink_escape_from_active_workspace() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = tempfile::tempdir().expect("fixture root");
+        let workspace = fixture.path().join("workspace");
+        std::fs::create_dir_all(&workspace).expect("workspace create");
+        let outside = fixture.path().join("outside.txt");
+        let escaped = workspace.join("escaped.txt");
+        std::fs::write(&outside, b"outside").expect("outside file seed");
+        symlink(&outside, &escaped).expect("symlink escape seed");
+
+        let mut frame = DesktopFrame::new(1280, 720);
+        let group = frame.focused_editor_group();
+        let tab = frame.open_tab().expect("fixture tab");
+        let mut runtime = EditorWorkspaceRuntimeState::with_log_root(fixture.path().join("logs"));
+        runtime
+            .bind_local_workspace("ws-scope", workspace, TrustState::Restricted)
+            .expect("bind workspace");
+
+        let error = runtime
+            .open_file(group, tab, &escaped)
+            .expect_err("symlink escape must fail closed");
+        assert_eq!(error, "file is outside the active workspace root");
+    }
+
+    #[test]
+    fn workspace_trust_projection_updates_open_identity_and_save_token() {
+        let fixture = tempfile::tempdir().expect("fixture root");
+        let workspace = fixture.path().join("workspace");
+        std::fs::create_dir_all(&workspace).expect("workspace create");
+        let path = workspace.join("identity.txt");
+        std::fs::write(&path, b"identity").expect("fixture file seed");
+
+        let mut runtime = EditorWorkspaceRuntimeState::with_log_root(fixture.path().join("logs"));
+        runtime
+            .bind_local_workspace(
+                "ws-trust-projection",
+                workspace,
+                TrustState::PendingEvaluation,
+            )
+            .expect("bind workspace");
+        let (group, tab) = open_fixture_tab(&mut runtime, &path);
+
+        runtime.project_workspace_trust_state(TrustState::Trusted);
+        let authority = runtime
+            .tab_session_mut(group, tab)
+            .expect("fixture tab session")
+            .authority
+            .borrow();
+        assert_eq!(
+            authority
+                .vfs_identity
+                .as_ref()
+                .expect("VFS identity")
+                .logical_workspace_identity
+                .trust_state,
+            aureline_vfs::TrustState::Trusted
+        );
+        assert_eq!(
+            authority
+                .save_target_token
+                .as_ref()
+                .expect("save target token")
+                .identity
+                .logical_workspace_identity
+                .trust_state,
+            aureline_vfs::TrustState::Trusted
+        );
+    }
+
+    #[test]
+    fn save_uses_active_workspace_scope_and_rejects_cross_workspace_replay() {
+        let fixture = tempfile::tempdir().expect("fixture root");
+        let workspace_a = fixture.path().join("workspace-a");
+        std::fs::create_dir_all(&workspace_a).expect("workspace A create");
+        let path = workspace_a.join("saved.txt");
+        std::fs::write(&path, b"before").expect("fixture file seed");
+
+        let mut runtime = EditorWorkspaceRuntimeState::with_log_root(fixture.path().join("logs"));
+        runtime
+            .bind_local_workspace("ws-a", workspace_a.clone(), TrustState::Trusted)
+            .expect("bind workspace A");
+        let (group, tab) = open_fixture_tab(&mut runtime, &path);
+        runtime
+            .replace_tab_contents(group, tab, "inside-save", "scoped_save_test")
+            .expect("edit fixture");
+        let first = runtime.save_tab(group, tab).expect("save within root");
+        assert!(matches!(first, SaveTabAttempt::Saved(ref result) if result.committed()));
+        assert_eq!(
+            std::fs::read(&path).expect("saved file read"),
+            b"inside-save"
+        );
+
+        runtime
+            .replace_tab_contents(group, tab, "must-not-cross", "cross_workspace_test")
+            .expect("edit fixture again");
+        runtime
+            .bind_local_workspace(
+                "ws-overlapping-parent",
+                fixture.path().to_path_buf(),
+                TrustState::Trusted,
+            )
+            .expect("bind overlapping parent workspace");
+        let replay = runtime
+            .save_tab(group, tab)
+            .expect("cross-workspace save returns reviewed outcome");
+        assert!(matches!(
+            replay,
+            SaveTabAttempt::ReviewRequired {
+                outcome: aureline_vfs::SaveOutcome::WrongTargetPrevented,
+                ..
+            }
+        ));
+        assert_eq!(
+            std::fs::read(&path).expect("saved file read"),
+            b"inside-save"
+        );
+    }
+
+    #[test]
+    fn restore_object_refs_cannot_mint_or_escape_workspace_authority() {
+        let fixture = tempfile::tempdir().expect("fixture root");
+        let workspace = fixture.path().join("workspace");
+        let nested = workspace.join("nested");
+        std::fs::create_dir_all(&nested).expect("workspace create");
+        let inside = nested.join("inside.txt");
+        let outside = fixture.path().join("outside.txt");
+        std::fs::write(&inside, b"inside").expect("inside file seed");
+        std::fs::write(&outside, b"outside").expect("outside file seed");
+
+        let root = LocalFilesystemRoot::new("ws-restore", EXPLORER_ROOT_ID, workspace.clone())
+            .expect("construct admitted restore root");
+        let inside_ref = VfsUri::file_url_for_path_lossy(&inside)
+            .expect("inside URI")
+            .to_string();
+        let outside_ref = VfsUri::file_url_for_path_lossy(&outside)
+            .expect("outside URI")
+            .to_string();
+        let traversal_ref =
+            VfsUri::file_url_for_path_lossy(&nested.join("..").join("..").join("outside.txt"))
+                .expect("traversal URI")
+                .to_string();
+
+        assert_eq!(
+            restore_file_path_for_object_ref(&inside_ref, Some(&root)),
+            Some(inside.canonicalize().expect("canonical inside file"))
+        );
+        assert!(restore_file_path_for_object_ref(&outside_ref, Some(&root)).is_none());
+        assert!(restore_file_path_for_object_ref(&outside_ref, None).is_none());
+        assert!(restore_file_path_for_object_ref(&traversal_ref, Some(&root)).is_none());
+        assert!(restore_file_path_for_object_ref(
+            "aureline-ws://ws-restore/root-local/../../outside.txt",
+            Some(&root)
+        )
+        .is_none());
+        assert!(restore_file_path_for_object_ref(
+            "aureline-ws://ws-other/root-local/nested/inside.txt",
+            Some(&root)
+        )
+        .is_none());
+        assert!(restore_file_path_for_object_ref(
+            "aureline-ws://ws-restore/root-other/nested/inside.txt",
+            Some(&root)
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn restore_error_reference_is_bounded_and_does_not_expose_object_ref() {
+        let object_ref = "file:///private/workspace/customer-secret.txt";
+        let opaque = opaque_restore_replay_ref("journal-entry:test", object_ref);
+
+        assert!(opaque.starts_with("restore-replay:"));
+        assert_eq!(opaque.len(), "restore-replay:".len() + 16);
+        assert!(!opaque.contains("private"));
+        assert!(!opaque.contains("customer-secret"));
+        assert_eq!(
+            opaque,
+            opaque_restore_replay_ref("journal-entry:test", object_ref)
+        );
+    }
+
+    #[test]
+    fn restore_authority_ignores_a_mismatched_newer_duplicate_entry() {
+        let fixture = tempfile::tempdir().expect("fixture root");
+        let expected_root = fixture.path().join("expected-workspace");
+        let active_root = fixture.path().join("active-workspace");
+        std::fs::create_dir_all(&expected_root).expect("expected workspace create");
+        std::fs::create_dir_all(&active_root).expect("active workspace create");
+
+        let expected_entry = RecentWorkEntryRecord {
+            record_kind: RecentWorkEntryRecordKind::RecentWorkEntryRecord,
+            entry_and_restore_schema_version: 1,
+            recent_work_id: "recent:local_folder:expected".to_string(),
+            presentation_label: "Expected workspace".to_string(),
+            presentation_subtitle: Some(expected_root.display().to_string()),
+            target_kind: TargetKind::LocalFolder,
+            target_state: RecentWorkTargetState::Reachable,
+            portability_class: PortabilityClass::LocalOnly,
+            trust_state: TrustState::Restricted,
+            restore_availability: RestoreAvailability::None,
+            safe_recovery_actions: Vec::new(),
+            pinned: false,
+            last_opened_at: "mono:0001:00:00:00.0000".to_string(),
+            filesystem_identity_ref: None,
+            remote_target_descriptor_ref: None,
+            artifact_descriptor_ref: None,
+            recovery_checkpoint_refs: None,
+        };
+        let newer_entry = RecentWorkEntryRecord {
+            recent_work_id: "recent:local_folder:newer".to_string(),
+            presentation_label: "Newer workspace".to_string(),
+            presentation_subtitle: Some(expected_root.display().to_string()),
+            trust_state: TrustState::Trusted,
+            last_opened_at: "mono:9999:00:00:00.0000".to_string(),
+            ..expected_entry.clone()
+        };
+        let recent_work = RecentWorkRuntimeState {
+            store_path: fixture.path().join("recent-work.json"),
+            registry: RecentWorkRegistry {
+                record_kind: RecentWorkRegistryRecordKind::RecentWorkRegistryRecord,
+                recent_work_registry_schema_version: 1,
+                updated_at: newer_entry.last_opened_at.clone(),
+                entries: vec![newer_entry, expected_entry],
+            },
+            active_recent_work_id: Some("recent:local_folder:newer".to_string()),
+            active_workspace_label: Some("Newer workspace".to_string()),
+            suspended_frames: HashMap::new(),
+            last_error: None,
+        };
+        let mut editor_runtime =
+            EditorWorkspaceRuntimeState::with_log_root(fixture.path().join("logs"));
+        editor_runtime
+            .bind_local_workspace("ws-newer-active", active_root, TrustState::Trusted)
+            .expect("bind newer active workspace");
+
+        let admission = restore_workspace_root_from_authority(
+            Some("workspace-authority:recent:local_folder:expected"),
+            &editor_runtime,
+            &recent_work,
+        )
+        .expect("checkpoint authority must select its exact recent entry");
+        assert_eq!(admission.local_root.mount_path(), expected_root);
+        assert_eq!(admission.trust_state, TrustState::Restricted);
+        assert_eq!(
+            admission
+                .matched_recent_entry
+                .as_ref()
+                .expect("matched recent entry")
+                .recent_work_id,
+            "recent:local_folder:expected"
+        );
+
+        let active_admission = restore_workspace_root_from_authority(
+            Some("workspace-authority:ws-newer-active"),
+            &editor_runtime,
+            &recent_work,
+        )
+        .expect("active root must match its exact workspace identity");
+        assert_eq!(active_admission.trust_state, TrustState::Trusted);
+        assert!(active_admission.matched_recent_entry.is_none());
+        assert_eq!(
+            active_admission.local_root.workspace_id(),
+            "ws-newer-active"
+        );
+        assert!(restore_workspace_root_from_authority(
+            Some("recent:local_folder:expected"),
+            &editor_runtime,
+            &recent_work,
+        )
+        .is_none());
+        assert!(restore_workspace_root_from_authority(
+            Some("workspace-authority:recent:local_folder:missing"),
+            &editor_runtime,
+            &recent_work,
+        )
+        .is_none());
     }
 }
 
@@ -7732,13 +8204,22 @@ fn open_local_folder_workspace(
     recent_work: &mut RecentWorkRuntimeState,
     activity_center: &mut ActivityCenterRuntimeState,
 ) {
+    let trust_state =
+        trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str());
+    let identity_key = path.to_string_lossy();
+    let workspace_id = workspace_id_for_local_folder(&identity_key);
+    if let Err(err) =
+        editor_runtime.bind_local_workspace(workspace_id.clone(), path.to_path_buf(), trust_state)
+    {
+        command_runtime.note_non_command_action(format!("workspace open failed — {err}"));
+        return;
+    }
+
     let group = frame.focused_editor_group();
     if let Some(tab) = frame.open_tab() {
         editor_runtime.open_placeholder(group, tab);
     }
 
-    let trust_state =
-        trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str());
     recent_work.note_local_folder_opened(path, trust_state);
     if let Some(active_id) = recent_work.active_recent_work_id.clone() {
         editor_runtime.set_workspace_recovery_ref(active_id);
@@ -7754,8 +8235,6 @@ fn open_local_folder_workspace(
         false,
     );
     palette.set_workspace_root(path.to_path_buf());
-    let identity_key = path.to_string_lossy();
-    let workspace_id = workspace_id_for_local_folder(&identity_key);
     if let Err(err) = editor_runtime
         .explorer
         .open_workspace(path.to_path_buf(), workspace_id.clone())
@@ -7927,6 +8406,14 @@ fn trust_state_for_recent_work(value: &str) -> TrustState {
         "restricted" => TrustState::Restricted,
         "pending_evaluation" => TrustState::PendingEvaluation,
         _ => TrustState::PendingEvaluation,
+    }
+}
+
+fn vfs_trust_state(value: TrustState) -> aureline_vfs::TrustState {
+    match value {
+        TrustState::Trusted => aureline_vfs::TrustState::Trusted,
+        TrustState::Restricted => aureline_vfs::TrustState::Restricted,
+        TrustState::PendingEvaluation => aureline_vfs::TrustState::PendingEvaluation,
     }
 }
 
@@ -10619,6 +11106,7 @@ fn apply_restore_from_checkpoint(
             .note_non_command_action(format!("restore proposal log unavailable — {err}"));
     }
 
+    let workspace_authority_ref = proposal.artifact_refs.workspace_authority_ref.clone();
     let mut runtime = RestoreRuntime::new(session_restore_store, &crash_journal_reader);
     let outcome = proposal.execute(&mut runtime);
     if let Err(err) = write_restore_outcome_log(&recovery_root, &outcome) {
@@ -10626,6 +11114,7 @@ fn apply_restore_from_checkpoint(
     }
     let applied = apply_restore_outcome_to_shell(
         &outcome,
+        workspace_authority_ref.as_deref(),
         frame,
         editor_runtime,
         palette,
@@ -10658,29 +11147,36 @@ struct RestoreShellApplySummary {
 
 fn apply_restore_outcome_to_shell(
     outcome: &RestoreOutcome,
+    workspace_authority_ref: Option<&str>,
     frame: &mut DesktopFrame,
     editor_runtime: &mut EditorWorkspaceRuntimeState,
     palette: &mut CommandPaletteState,
-    enablement_runtime: &CommandEnablementRuntimeState,
+    _enablement_runtime: &CommandEnablementRuntimeState,
     workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
     activity_center: &mut ActivityCenterRuntimeState,
     command_runtime: &mut CommandRuntimeState,
 ) -> RestoreShellApplySummary {
     let mut summary = RestoreShellApplySummary::default();
-    let workspace_root = restore_workspace_root_for_outcome(outcome, recent_work, palette);
-    if let Some(root) = workspace_root.as_ref() {
-        ensure_restore_workspace_runtime(
-            root,
+    let workspace_admission =
+        restore_workspace_root_from_authority(workspace_authority_ref, editor_runtime, recent_work);
+    let admitted_restore_root = if let Some(admission) = workspace_admission.as_ref() {
+        if ensure_restore_workspace_runtime(
+            admission,
             editor_runtime,
             palette,
-            enablement_runtime,
             workspace_lifecycle,
             recent_work,
             activity_center,
             command_runtime,
-        );
-    }
+        ) {
+            editor_runtime.active_local_root_clone().ok()
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
     for pane in &outcome.pane_outcomes {
         if pane.execution_kind == RestorePaneExecutionKind::EvidenceOnly {
@@ -10708,8 +11204,7 @@ fn apply_restore_outcome_to_shell(
 
     for replay in &outcome.dirty_buffer_replays {
         let file_path =
-            restore_file_path_for_object_ref(&replay.object_ref, workspace_root.as_ref());
-        let file_path = file_path.as_deref().filter(|path| path.exists());
+            restore_file_path_for_object_ref(&replay.object_ref, admitted_restore_root.as_ref());
         let Some(tab) = frame.open_tab() else {
             continue;
         };
@@ -10720,8 +11215,8 @@ fn apply_restore_outcome_to_shell(
             }
             Err(err) => {
                 command_runtime.note_non_command_action(format!(
-                    "dirty-buffer restore failed for {} — {err}",
-                    replay.object_ref
+                    "dirty-buffer restore failed ({}) — {err}",
+                    opaque_restore_replay_ref(&replay.journal_entry_id, &replay.object_ref)
                 ));
             }
         }
@@ -10730,82 +11225,101 @@ fn apply_restore_outcome_to_shell(
     summary
 }
 
-fn restore_workspace_root_for_outcome(
-    outcome: &RestoreOutcome,
-    recent_work: &RecentWorkRuntimeState,
-    palette: &CommandPaletteState,
-) -> Option<PathBuf> {
-    if let Some(root) = palette.workspace_root() {
-        return Some(root.to_path_buf());
-    }
+#[derive(Debug, Clone)]
+struct RestoreWorkspaceAdmission {
+    authority_identity: String,
+    local_root: LocalFilesystemRoot,
+    trust_state: TrustState,
+    matched_recent_entry: Option<RecentWorkEntryRecord>,
+}
 
-    if let Some(active_id) = recent_work.active_recent_work_id.as_deref() {
-        if let Some(root) = recent_work
-            .find_entry(active_id)
-            .and_then(workspace_root_for_recent_work_entry)
-        {
-            return Some(root);
+fn restore_workspace_root_from_authority(
+    workspace_authority_ref: Option<&str>,
+    editor_runtime: &EditorWorkspaceRuntimeState,
+    recent_work: &RecentWorkRuntimeState,
+) -> Option<RestoreWorkspaceAdmission> {
+    let expected_identity = workspace_authority_ref?
+        .strip_prefix("workspace-authority:")
+        .filter(|identity| !identity.is_empty())?;
+
+    if let Ok(root) = editor_runtime.active_local_root() {
+        if root.workspace_id() == expected_identity {
+            return Some(RestoreWorkspaceAdmission {
+                authority_identity: expected_identity.to_string(),
+                local_root: root.clone(),
+                trust_state: editor_runtime.active_local_root_trust_state().ok()?,
+                matched_recent_entry: None,
+            });
         }
     }
 
-    if let Some(root) = outcome
-        .dirty_buffer_replays
-        .iter()
-        .find_map(|replay| restore_file_path_for_object_ref(&replay.object_ref, None))
-        .and_then(|path| path.parent().map(Path::to_path_buf))
-    {
-        return Some(root);
+    if let Some(active_id) = recent_work.active_recent_work_id.as_deref() {
+        if let Some(entry) = recent_work.find_entry(active_id) {
+            if recent_work_entry_matches_workspace_authority(entry, expected_identity) {
+                return restore_workspace_admission_for_recent_entry(entry, expected_identity);
+            }
+        }
     }
 
     recent_work
         .registry
         .entries
         .iter()
-        .filter(|entry| matches!(entry.target_kind, TargetKind::LocalFolder))
+        .filter(|entry| recent_work_entry_matches_workspace_authority(entry, expected_identity))
         .max_by(|left, right| left.last_opened_at.cmp(&right.last_opened_at))
-        .and_then(workspace_root_for_recent_work_entry)
+        .and_then(|entry| restore_workspace_admission_for_recent_entry(entry, expected_identity))
+}
+
+fn recent_work_entry_matches_workspace_authority(
+    entry: &RecentWorkEntryRecord,
+    expected_identity: &str,
+) -> bool {
+    entry.recent_work_id == expected_identity
+}
+
+fn restore_workspace_admission_for_recent_entry(
+    entry: &RecentWorkEntryRecord,
+    expected_identity: &str,
+) -> Option<RestoreWorkspaceAdmission> {
+    let root = workspace_root_for_recent_work_entry(entry)?;
+    let workspace_id = workspace_id_for_local_folder(&root.to_string_lossy());
+    let local_root = LocalFilesystemRoot::new(workspace_id, EXPLORER_ROOT_ID, root)
+        .ok()?
+        .with_trust_state(vfs_trust_state(entry.trust_state));
+    Some(RestoreWorkspaceAdmission {
+        authority_identity: expected_identity.to_string(),
+        local_root,
+        trust_state: entry.trust_state,
+        matched_recent_entry: Some(entry.clone()),
+    })
 }
 
 fn ensure_restore_workspace_runtime(
-    root: &Path,
+    admission: &RestoreWorkspaceAdmission,
     editor_runtime: &mut EditorWorkspaceRuntimeState,
     palette: &mut CommandPaletteState,
-    enablement_runtime: &CommandEnablementRuntimeState,
     workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
     activity_center: &mut ActivityCenterRuntimeState,
     command_runtime: &mut CommandRuntimeState,
-) {
-    let entry = recent_work
-        .registry
-        .entries
-        .iter()
-        .find(|entry| {
-            workspace_root_for_recent_work_entry(entry)
-                .as_deref()
-                .is_some_and(|candidate| candidate == root)
-        })
-        .cloned();
+) -> bool {
+    let root = admission.local_root.mount_path();
+    let workspace_id = admission.local_root.workspace_id().to_string();
+    let trust_state = admission.trust_state;
+    editor_runtime.active_local_root = Some(admission.local_root.clone());
+    editor_runtime.active_local_root_trust_state = Some(trust_state);
+    editor_runtime.project_workspace_trust_state(trust_state);
 
-    let trust_state = entry
-        .as_ref()
-        .map(|entry| entry.trust_state)
-        .unwrap_or_else(|| {
-            trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str())
-        });
-
-    if let Some(entry) = entry {
+    if let Some(entry) = admission.matched_recent_entry.as_ref() {
         recent_work.active_recent_work_id = Some(entry.recent_work_id.clone());
         recent_work.active_workspace_label = Some(entry.presentation_label.clone());
-        editor_runtime.set_workspace_recovery_ref(entry.recent_work_id);
+    } else {
+        recent_work.active_recent_work_id = None;
+        recent_work.active_workspace_label = None;
     }
+    editor_runtime.set_workspace_recovery_ref(admission.authority_identity.clone());
 
     palette.set_workspace_root(root.to_path_buf());
-    let identity_key = root.to_string_lossy();
-    let workspace_id = workspace_id_for_local_folder(&identity_key);
-    if recent_work.active_recent_work_id.is_none() {
-        editor_runtime.set_workspace_recovery_ref(workspace_id.clone());
-    }
     if let Err(err) = editor_runtime
         .explorer
         .open_workspace(root.to_path_buf(), workspace_id.clone())
@@ -10828,32 +11342,67 @@ fn ensure_restore_workspace_runtime(
         root,
         false,
     );
+    true
 }
 
 fn restore_file_path_for_object_ref(
     object_ref: &str,
-    workspace_root: Option<&PathBuf>,
+    workspace_root: Option<&LocalFilesystemRoot>,
 ) -> Option<PathBuf> {
+    let root = workspace_root?;
     let uri = VfsUri::parse(object_ref.to_string()).ok()?;
     if let Some(path) = uri.file_path() {
-        return Some(path);
+        return resolve_restore_file_candidate(root, &path);
     }
     if uri.scheme() != "aureline-ws" {
         return None;
     }
 
-    let root = workspace_root?;
     let hierarchical = uri.split_hierarchical()?;
-    let logical_path = hierarchical.path.trim_start_matches('/');
-    let relative = logical_path
-        .split_once('/')
-        .map(|(_, relative)| relative)
-        .unwrap_or("");
-    if relative.is_empty() {
-        Some(root.clone())
-    } else {
-        Some(root.join(relative))
+    if hierarchical.authority != root.workspace_id() {
+        return None;
     }
+    let mut segments = hierarchical.path_segments();
+    if segments.next()? != root.envelope().root_id {
+        return None;
+    }
+    let mut candidate = root.mount_path().to_path_buf();
+    for segment in segments {
+        if matches!(segment, "." | "..") {
+            return None;
+        }
+        candidate.push(segment);
+    }
+    resolve_restore_file_candidate(root, &candidate)
+}
+
+fn resolve_restore_file_candidate(root: &LocalFilesystemRoot, candidate: &Path) -> Option<PathBuf> {
+    if !candidate.is_absolute() {
+        return None;
+    }
+    let relative = candidate.strip_prefix(root.mount_path()).ok()?;
+    if relative.components().any(|component| {
+        matches!(
+            component,
+            std::path::Component::ParentDir
+                | std::path::Component::RootDir
+                | std::path::Component::Prefix(_)
+        )
+    }) {
+        return None;
+    }
+    let uri = VfsUri::file_url_for_path_lossy(candidate)?;
+    let identity = root.identity_record(&uri).ok()?;
+    let canonical = identity
+        .canonical_filesystem_object
+        .canonical_uri
+        .file_path()?;
+    canonical.is_file().then_some(canonical)
+}
+
+fn opaque_restore_replay_ref(journal_entry_id: &str, object_ref: &str) -> String {
+    let digest = fnv1a_64(&format!("{journal_entry_id}\0{object_ref}"));
+    format!("restore-replay:{digest:016x}")
 }
 
 fn normalize_entry_pin_actions(entry: &mut RecentWorkEntryRecord) {
@@ -10900,16 +11449,33 @@ fn activate_recent_work_entry(
     if let Some(root) = workspace_root_for_recent_work_entry(&entry) {
         let identity_key = root.to_string_lossy();
         let workspace_id = workspace_id_for_local_folder(&identity_key);
-        if let Err(err) = editor_runtime
-            .explorer
-            .open_workspace(root.clone(), workspace_id.clone())
-        {
-            command_runtime.note_non_command_action(format!("explorer unavailable — {err}"));
+        match editor_runtime.bind_local_workspace(workspace_id.clone(), root.clone(), trust_state) {
+            Ok(()) => {
+                if let Err(err) = editor_runtime
+                    .explorer
+                    .open_workspace(root.clone(), workspace_id.clone())
+                {
+                    command_runtime
+                        .note_non_command_action(format!("explorer unavailable — {err}"));
+                }
+                editor_runtime.terminal_pane.register_workspace(
+                    workspace_id,
+                    root,
+                    &mono_timestamp_now(),
+                );
+            }
+            Err(err) => {
+                editor_runtime.clear_local_workspace();
+                editor_runtime.explorer.clear_workspace();
+                editor_runtime.terminal_pane.close_active_workspace(
+                    &mono_timestamp_now(),
+                    Some("workspace_vfs_unavailable"),
+                );
+                command_runtime.note_non_command_action(format!("workspace switch failed — {err}"));
+            }
         }
-        editor_runtime
-            .terminal_pane
-            .register_workspace(workspace_id, root, &mono_timestamp_now());
     } else {
+        editor_runtime.clear_local_workspace();
         editor_runtime.explorer.clear_workspace();
         editor_runtime
             .terminal_pane
@@ -10966,7 +11532,11 @@ fn sync_workspace_activation_runtime(
     workspace_root: Option<PathBuf>,
 ) {
     let Some(root) = workspace_root else {
+        editor_runtime.clear_local_workspace();
         editor_runtime.explorer.clear_workspace();
+        editor_runtime
+            .terminal_pane
+            .close_active_workspace(&mono_timestamp_now(), Some("workspace_closed"));
         workspace_lifecycle.machine = None;
         workspace_lifecycle.last_logged = None;
         return;
@@ -10975,16 +11545,30 @@ fn sync_workspace_activation_runtime(
     palette.set_workspace_root(root.clone());
     let identity_key = root.to_string_lossy();
     let workspace_id = workspace_id_for_local_folder(&identity_key);
+    let trust_state = trust_state_for_recent_work(workspace_trust_state);
+    if let Err(err) =
+        editor_runtime.bind_local_workspace(workspace_id.clone(), root.clone(), trust_state)
+    {
+        editor_runtime.clear_local_workspace();
+        editor_runtime.explorer.clear_workspace();
+        editor_runtime.explorer.last_error = Some(err);
+        editor_runtime
+            .terminal_pane
+            .close_active_workspace(&mono_timestamp_now(), Some("workspace_vfs_unavailable"));
+        workspace_lifecycle.machine = None;
+        workspace_lifecycle.last_logged = None;
+        return;
+    }
     if let Err(err) = editor_runtime
         .explorer
-        .open_workspace(root, workspace_id.clone())
+        .open_workspace(root.clone(), workspace_id.clone())
     {
         editor_runtime.explorer.last_error = Some(err);
     }
-    workspace_lifecycle.open_local_folder(
-        workspace_id,
-        trust_state_for_recent_work(workspace_trust_state),
-    );
+    workspace_lifecycle.open_local_folder(workspace_id.clone(), trust_state);
+    editor_runtime
+        .terminal_pane
+        .register_workspace(workspace_id, root, &mono_timestamp_now());
 }
 
 fn apply_workspace_switcher_decision(
@@ -13172,6 +13756,7 @@ fn handle_key_event(
                 if !editor_runtime.has_tab_session(group, tab) {
                     editor_runtime.open_placeholder(group, tab);
                 }
+                let local_root = editor_runtime.active_local_root_clone();
                 let Some(session) = editor_runtime.tab_session_mut(group, tab) else {
                     return ShellDamageHint::None;
                 };
@@ -13194,8 +13779,16 @@ fn handle_key_event(
                             .file_path
                             .clone()
                             .expect("path already checked above");
+                        let read = local_root.as_ref().map_err(Clone::clone).and_then(|root| {
+                            let uri = VfsUri::file_url_for_path(&path)
+                                .ok_or_else(|| "reload blocked — invalid file URI".to_string())?;
+                            root.read_bytes(&uri).map_err(|_| {
+                                "reload blocked — file is outside the active workspace root"
+                                    .to_string()
+                            })
+                        });
 
-                        match std::fs::read(&path) {
+                        match read {
                             Ok(bytes) => {
                                 if bytes == authority.buffer.contents() {
                                     (false, Some("reload: no on-disk changes".to_string()))
@@ -13286,6 +13879,9 @@ fn handle_key_event(
                 let previous_trust_state = enablement_runtime.workspace_trust_state.clone();
                 enablement_runtime.toggle_trust_state();
                 workspace_lifecycle.resolve_trust(trust_state_for_recent_work(
+                    enablement_runtime.workspace_trust_state.as_str(),
+                ));
+                editor_runtime.project_workspace_trust_state(trust_state_for_recent_work(
                     enablement_runtime.workspace_trust_state.as_str(),
                 ));
                 editor_runtime.terminal_pane.enforce_trust_state(
@@ -17048,7 +17644,19 @@ impl ShellOverlayState {
                             (token, source_fidelity)
                         };
 
-                        let root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
+                        let root = match editor_runtime.active_local_root_clone() {
+                            Ok(root) => root,
+                            Err(err) => {
+                                review.status_line = Some(err);
+                                return OverlayKeyOutcome {
+                                    handled: true,
+                                    command_decision,
+                                    entry_flow_decision,
+                                    workspace_switcher_decision,
+                                    settings_decision,
+                                };
+                            }
+                        };
                         review.record = materialize_save_review_sheet_record(
                             &root,
                             &token,
@@ -17155,8 +17763,19 @@ impl ShellOverlayState {
                             (presentation_uri, token, source_fidelity, local_bytes)
                         };
 
-                        let mut root =
-                            LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
+                        let mut root = match editor_runtime.active_local_root_clone() {
+                            Ok(root) => root,
+                            Err(err) => {
+                                review.status_line = Some(err);
+                                return OverlayKeyOutcome {
+                                    handled: true,
+                                    command_decision,
+                                    entry_flow_decision,
+                                    workspace_switcher_decision,
+                                    settings_decision,
+                                };
+                            }
+                        };
                         let mut counters = HookCounters::default();
                         let refreshed_token = match open_save_target(
                             &root,
@@ -17288,7 +17907,19 @@ impl ShellOverlayState {
                             (token, source_fidelity)
                         };
 
-                        let root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
+                        let root = match editor_runtime.active_local_root_clone() {
+                            Ok(root) => root,
+                            Err(err) => {
+                                review.status_line = Some(err);
+                                return OverlayKeyOutcome {
+                                    handled: true,
+                                    command_decision,
+                                    entry_flow_decision,
+                                    workspace_switcher_decision,
+                                    settings_decision,
+                                };
+                            }
+                        };
                         review.record = materialize_save_review_sheet_record(
                             &root,
                             &token,
@@ -21666,10 +22297,12 @@ mod tab_case_tests {
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_nanos();
-            let tmp_path = tmp_dir.join(format!(
-                "aureline_tab_case_{}_{}.txt",
+            let tmp_root = tmp_dir.join(format!(
+                "aureline_tab_case_{}_{}",
                 fixture.meta.name, suffix
             ));
+            fs::create_dir_all(&tmp_root).expect("create temp workspace");
+            let tmp_path = tmp_root.join("document.txt");
 
             fs::write(&tmp_path, fixture.document.text.as_bytes()).expect("write temp file");
             if fixture.document.read_only {
@@ -21686,6 +22319,9 @@ mod tab_case_tests {
             let tab2 = frame.open_tab().expect("open second tab");
 
             let mut editor_runtime = EditorWorkspaceRuntimeState::new();
+            editor_runtime
+                .bind_local_workspace("ws-tab-case", tmp_root.clone(), TrustState::Trusted)
+                .expect("bind temp workspace root");
             editor_runtime
                 .open_file(group, tab1, &tmp_path)
                 .expect("open file in tab1");
@@ -21813,7 +22449,7 @@ mod tab_case_tests {
                 perms.set_readonly(false);
                 let _ = fs::set_permissions(&tmp_path, perms);
             }
-            let _ = fs::remove_file(&tmp_path);
+            let _ = fs::remove_dir_all(&tmp_root);
         }
     }
 }

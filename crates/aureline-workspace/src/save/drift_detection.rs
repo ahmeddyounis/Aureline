@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 //! External-drift detection for compare-before-write save safety.
 //!
 //! The staged save pipeline MUST refuse to commit bytes when the pinned save
@@ -30,6 +33,29 @@ impl std::fmt::Display for ExternalDriftConflict {
 
 impl std::error::Error for ExternalDriftConflict {}
 
+/// Verifies that a save-target token was issued by the root handling the save.
+///
+/// Canonical URI equality is not sufficient: overlapping workspace mounts can
+/// resolve the same host object while representing distinct authority scopes.
+pub(crate) fn detect_root_ownership(
+    root: &dyn VfsRoot,
+    token: &SaveTargetToken,
+) -> Result<(), ExternalDriftConflict> {
+    let logical = &token.identity.logical_workspace_identity;
+    let same_workspace = root
+        .workspace_id()
+        .is_some_and(|workspace_id| logical.workspace_id == workspace_id);
+    let same_root = logical.root_id == root.envelope().root_id;
+    if same_workspace && same_root {
+        return Ok(());
+    }
+
+    Err(ExternalDriftConflict {
+        outcome: SaveOutcome::WrongTargetPrevented,
+        detail: "save-target token belongs to a different workspace root".to_owned(),
+    })
+}
+
 /// Detects external drift for a pinned [`SaveTargetToken`].
 ///
 /// Returns `Ok(())` when the current canonical object identity and
@@ -40,6 +66,8 @@ pub fn detect_external_drift(
     root: &dyn VfsRoot,
     token: &SaveTargetToken,
 ) -> Result<(), ExternalDriftConflict> {
+    detect_root_ownership(root, token)?;
+
     let canonical_uri = &token.identity.canonical_filesystem_object.canonical_uri;
     let presentation_uri = &token.identity.presentation_path.uri;
 

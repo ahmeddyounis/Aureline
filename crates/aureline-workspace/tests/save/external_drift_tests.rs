@@ -1,5 +1,10 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
+use std::cell::Cell;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use aureline_vfs::save::open_save_target;
@@ -7,9 +12,24 @@ use aureline_vfs::{HookCounters, LocalFilesystemRoot, SaveOutcome, VfsUri};
 
 use aureline_workspace::save::{
     detect_external_drift, BomStateDetected, DetectedEncoding, DetectionSource, ExecutableIntent,
-    ExternalDriftConflict, FinalNewlineDetected, NewlineModeDetected, SourceFidelityRecord,
-    StagedSaveCoordinator, StagedSaveRequest,
+    ExternalDriftConflict, FinalNewlineDetected, NewlineModeDetected, SaveParticipant,
+    SourceFidelityRecord, StagedSaveCoordinator, StagedSaveRequest,
 };
+
+struct ParticipantRunProbe {
+    ran: Rc<Cell<bool>>,
+}
+
+impl SaveParticipant for ParticipantRunProbe {
+    fn participant_id(&self) -> &'static str {
+        "test:cross_root_participant_probe"
+    }
+
+    fn run(&mut self, staged: &[u8]) -> Result<Vec<u8>, String> {
+        self.ran.set(true);
+        Ok(staged.to_vec())
+    }
+}
 
 fn unique_temp_path(label: &str) -> PathBuf {
     let suffix = SystemTime::now()
@@ -93,6 +113,64 @@ fn staged_save_refuses_when_presentation_path_no_longer_resolves() {
     );
 
     let _ = fs::remove_file(&moved_path);
+}
+
+#[test]
+fn staged_save_rejects_token_replay_across_overlapping_workspace_roots() {
+    let fixture = unique_temp_path("overlapping_root_replay").with_extension("");
+    let parent_mount = fixture.join("parent");
+    let child_mount = parent_mount.join("child");
+    fs::create_dir_all(&child_mount).expect("create overlapping root fixture");
+    let path = child_mount.join("owned.txt");
+    fs::write(&path, b"issued-root-bytes").expect("seed owned file");
+
+    let issuing_root = LocalFilesystemRoot::new("ws-issued", "root-child", child_mount.clone())
+        .expect("construct issuing root");
+    let (_uri, token) = open_token(&issuing_root, &path);
+
+    let replay_roots = [
+        LocalFilesystemRoot::new("ws-issued", "root-parent", parent_mount)
+            .expect("construct different-root-id receiver"),
+        LocalFilesystemRoot::new("ws-other", "root-child", child_mount)
+            .expect("construct different-workspace-id receiver"),
+    ];
+
+    for mut replay_root in replay_roots {
+        let participant_ran = Rc::new(Cell::new(false));
+        let mut coordinator = StagedSaveCoordinator::new();
+        let request = StagedSaveRequest {
+            token: token.clone(),
+            new_content: b"replayed-bytes".to_vec(),
+            source_fidelity: default_source_fidelity(),
+            save_participant_group_id: None,
+            checkpoint_ref: None,
+            committed_at: "mono:cross-root-replay".to_owned(),
+        };
+        let mut participants: Vec<Box<dyn SaveParticipant>> = vec![Box::new(ParticipantRunProbe {
+            ran: participant_ran.clone(),
+        })];
+        let result = coordinator.save(&mut replay_root, request, participants.as_mut_slice());
+        assert_eq!(
+            result.manifest.outcome,
+            SaveOutcome::WrongTargetPrevented,
+            "overlapping path authority must not override token root ownership"
+        );
+        assert_eq!(
+            result.manifest.failure_detail.as_deref(),
+            Some("save-target token belongs to a different workspace root")
+        );
+        assert_eq!(
+            fs::read(&path).expect("read protected file"),
+            b"issued-root-bytes",
+            "cross-root token replay must not write bytes"
+        );
+        assert!(
+            !participant_ran.get(),
+            "cross-root token replay must be rejected before save participants run"
+        );
+    }
+
+    let _ = fs::remove_dir_all(&fixture);
 }
 
 #[cfg(unix)]

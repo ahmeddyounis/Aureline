@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Aureline contributors
+// SPDX-License-Identifier: Apache-2.0
+
 use super::*;
 
 use std::fs;
@@ -106,6 +109,7 @@ fn run_close_reopen_case(fixture: &ContinuityFixture, case: &CloseReopenCase) {
     let tab2 = frame.open_tab().expect("open second tab");
 
     let mut editor_runtime = EditorWorkspaceRuntimeState::new();
+    bind_temp_workspace(&mut editor_runtime, &tmp_path);
     editor_runtime
         .open_file(group, tab1, &tmp_path)
         .expect("open file in tab1");
@@ -213,6 +217,7 @@ fn run_split_move_case(fixture: &ContinuityFixture, case: &SplitMoveCase) {
     let source_tab = frame.open_tab().expect("open source tab");
 
     let mut editor_runtime = EditorWorkspaceRuntimeState::new();
+    bind_temp_workspace(&mut editor_runtime, &tmp_path);
     editor_runtime
         .open_file(source_group, source_tab, &tmp_path)
         .expect("open file in source tab");
@@ -303,6 +308,7 @@ fn run_restore_handoff_case(fixture: &ContinuityFixture, case: &RestoreHandoffCa
     let tab1 = frame.open_tab().expect("open tab1");
 
     let mut editor_runtime = EditorWorkspaceRuntimeState::new();
+    bind_temp_workspace(&mut editor_runtime, &tmp_path);
     editor_runtime
         .open_file(group, tab1, &tmp_path)
         .expect("open file in tab1");
@@ -324,6 +330,7 @@ fn run_restore_handoff_case(fixture: &ContinuityFixture, case: &RestoreHandoffCa
 
     let buffers = editor_runtime.take_buffer_store();
     let mut restored_runtime = EditorWorkspaceRuntimeState::with_buffer_store(buffers);
+    bind_temp_workspace(&mut restored_runtime, &tmp_path);
 
     let tab2 = frame.open_tab().expect("open tab2");
     restored_runtime
@@ -396,12 +403,13 @@ fn caret_offset(session: &mut EditorTabSession) -> usize {
 }
 
 fn write_temp_file(name: &str, text: &str, read_only: bool) -> PathBuf {
-    let tmp_dir = std::env::temp_dir();
     let suffix = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    let tmp_path = tmp_dir.join(format!("aureline_continuity_{}_{}.txt", name, suffix));
+    let tmp_root = std::env::temp_dir().join(format!("aureline_continuity_{}_{}", name, suffix));
+    fs::create_dir_all(&tmp_root).expect("create temp workspace");
+    let tmp_path = tmp_root.join("document.txt");
     fs::write(&tmp_path, text.as_bytes()).expect("write temp file");
     if read_only {
         let mut perms = fs::metadata(&tmp_path)
@@ -413,6 +421,18 @@ fn write_temp_file(name: &str, text: &str, read_only: bool) -> PathBuf {
     tmp_path
 }
 
+fn bind_temp_workspace(editor_runtime: &mut EditorWorkspaceRuntimeState, path: &Path) {
+    editor_runtime
+        .bind_local_workspace(
+            "ws-continuity",
+            path.parent().expect("temp workspace parent").to_path_buf(),
+            TrustState::Trusted,
+        )
+        .expect("bind temp workspace root");
+}
+
 fn cleanup_temp_file(path: &Path) {
-    let _ = fs::remove_file(path);
+    if let Some(parent) = path.parent() {
+        let _ = fs::remove_dir_all(parent);
+    }
 }
