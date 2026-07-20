@@ -9,7 +9,20 @@
 //! never render as an ordinary reachable local open.
 
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::collections::BTreeSet;
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
+use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+const MAX_RECENT_WORK_REGISTRY_BYTES: u64 = 2 * 1024 * 1024;
+const MAX_RECENT_WORK_ENTRIES: usize = 4_096;
+const MAX_RECOVERY_ACTIONS_PER_ENTRY: usize = 64;
+const MAX_RECOVERY_CHECKPOINTS_PER_ENTRY: usize = 128;
+const MAX_ID_BYTES: usize = 1_024;
+const MAX_LABEL_BYTES: usize = 4_096;
+const MAX_REFERENCE_BYTES: usize = 8_192;
+static RECENT_WORK_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 mod recovery;
 
@@ -482,27 +495,83 @@ impl RecentWorkRegistry {
     /// Loads the registry from `path` when present, otherwise returns an empty registry.
     pub fn load_or_default(path: impl AsRef<Path>) -> Result<Self, RecentWorkRegistryError> {
         let path = path.as_ref();
-        if !path.exists() {
-            return Ok(Self {
-                record_kind: RecentWorkRegistryRecordKind::RecentWorkRegistryRecord,
-                recent_work_registry_schema_version: 1,
-                updated_at: "mono:0000:00:00:00.0000".to_string(),
-                entries: Vec::new(),
-            });
+        let metadata = match std::fs::symlink_metadata(path) {
+            Ok(metadata) => metadata,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(Self::empty()),
+            Err(err) => return Err(RecentWorkRegistryError::Read(err)),
+        };
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err(RecentWorkRegistryError::InvalidData(
+                "recent-work registry is not a regular file",
+            ));
         }
-        let payload = std::fs::read_to_string(path).map_err(RecentWorkRegistryError::Read)?;
-        serde_json::from_str(&payload).map_err(RecentWorkRegistryError::Parse)
+        if metadata.len() > MAX_RECENT_WORK_REGISTRY_BYTES {
+            return Err(RecentWorkRegistryError::TooLarge);
+        }
+        ensure_relative_path_has_no_symlink_ancestor(path)?;
+
+        let mut file = File::open(path).map_err(RecentWorkRegistryError::Read)?;
+        let opened = file.metadata().map_err(RecentWorkRegistryError::Read)?;
+        if !opened.is_file() || opened.len() > MAX_RECENT_WORK_REGISTRY_BYTES {
+            return Err(RecentWorkRegistryError::InvalidData(
+                "recent-work registry changed during open",
+            ));
+        }
+        let mut payload = Vec::with_capacity(opened.len() as usize);
+        Read::by_ref(&mut file)
+            .take(MAX_RECENT_WORK_REGISTRY_BYTES + 1)
+            .read_to_end(&mut payload)
+            .map_err(RecentWorkRegistryError::Read)?;
+        if payload.len() as u64 > MAX_RECENT_WORK_REGISTRY_BYTES {
+            return Err(RecentWorkRegistryError::TooLarge);
+        }
+        let after = std::fs::symlink_metadata(path).map_err(RecentWorkRegistryError::Read)?;
+        if after.file_type().is_symlink()
+            || !after.is_file()
+            || !same_open_file_identity(&opened, &after)
+        {
+            return Err(RecentWorkRegistryError::InvalidData(
+                "recent-work registry changed during read",
+            ));
+        }
+
+        let registry: Self =
+            serde_json::from_slice(&payload).map_err(RecentWorkRegistryError::Parse)?;
+        registry.validate()?;
+        Ok(registry)
     }
 
-    /// Writes the registry to `path`, creating parent directories as needed.
+    /// Atomically writes a bounded registry to `path`.
     pub fn save(&self, path: impl AsRef<Path>) -> Result<(), RecentWorkRegistryError> {
         let path = path.as_ref();
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(RecentWorkRegistryError::CreateDir)?;
+        self.validate()?;
+        let mut payload =
+            serde_json::to_vec_pretty(self).map_err(RecentWorkRegistryError::Parse)?;
+        payload.push(b'\n');
+        if payload.len() as u64 > MAX_RECENT_WORK_REGISTRY_BYTES {
+            return Err(RecentWorkRegistryError::TooLarge);
         }
-        let payload = serde_json::to_string_pretty(self).map_err(RecentWorkRegistryError::Parse)?;
-        std::fs::write(path, payload).map_err(RecentWorkRegistryError::Write)?;
-        Ok(())
+
+        let parent = prepare_registry_parent(path)?;
+        reject_unsafe_registry_target(path)?;
+        let (temporary_path, mut temporary) = create_registry_temporary(&parent, path)?;
+        let result = (|| -> Result<(), RecentWorkRegistryError> {
+            temporary
+                .write_all(&payload)
+                .map_err(RecentWorkRegistryError::Write)?;
+            temporary
+                .sync_all()
+                .map_err(RecentWorkRegistryError::Write)?;
+            drop(temporary);
+            reject_unsafe_registry_target(path)?;
+            replace_registry_file(&temporary_path, path)?;
+            sync_registry_directory(&parent)?;
+            Ok(())
+        })();
+        if result.is_err() {
+            let _ = std::fs::remove_file(&temporary_path);
+        }
+        result
     }
 
     /// Inserts or updates a recent-work entry by `recent_work_id`, moving it to the front.
@@ -519,6 +588,278 @@ impl RecentWorkRegistry {
             .retain(|row| row.recent_work_id != recent_work_id);
         before != self.entries.len()
     }
+
+    fn empty() -> Self {
+        Self {
+            record_kind: RecentWorkRegistryRecordKind::RecentWorkRegistryRecord,
+            recent_work_registry_schema_version: 1,
+            updated_at: "mono:0000:00:00:00.0000".to_string(),
+            entries: Vec::new(),
+        }
+    }
+
+    fn validate(&self) -> Result<(), RecentWorkRegistryError> {
+        if self.recent_work_registry_schema_version != 1 {
+            return Err(RecentWorkRegistryError::InvalidData(
+                "unsupported recent-work registry schema version",
+            ));
+        }
+        if self.entries.len() > MAX_RECENT_WORK_ENTRIES {
+            return Err(RecentWorkRegistryError::InvalidData(
+                "recent-work registry entry limit exceeded",
+            ));
+        }
+        if !bounded_nonempty(&self.updated_at, MAX_REFERENCE_BYTES) {
+            return Err(RecentWorkRegistryError::InvalidData(
+                "recent-work registry timestamp is invalid",
+            ));
+        }
+
+        let mut ids = BTreeSet::new();
+        for entry in &self.entries {
+            validate_recent_work_entry(entry)?;
+            if !ids.insert(entry.recent_work_id.as_str()) {
+                return Err(RecentWorkRegistryError::InvalidData(
+                    "recent-work registry contains duplicate ids",
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+fn validate_recent_work_entry(
+    entry: &RecentWorkEntryRecord,
+) -> Result<(), RecentWorkRegistryError> {
+    if entry.entry_and_restore_schema_version != 1 {
+        return Err(RecentWorkRegistryError::InvalidData(
+            "unsupported recent-work entry schema version",
+        ));
+    }
+    if !bounded_nonempty(&entry.recent_work_id, MAX_ID_BYTES)
+        || !bounded_nonempty(&entry.presentation_label, MAX_LABEL_BYTES)
+        || !bounded_nonempty(&entry.last_opened_at, MAX_REFERENCE_BYTES)
+    {
+        return Err(RecentWorkRegistryError::InvalidData(
+            "recent-work entry identity or label is invalid",
+        ));
+    }
+    for value in [
+        entry.presentation_subtitle.as_deref(),
+        entry.filesystem_identity_ref.as_deref(),
+        entry.remote_target_descriptor_ref.as_deref(),
+        entry.artifact_descriptor_ref.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if value.is_empty() || value.len() > MAX_REFERENCE_BYTES {
+            return Err(RecentWorkRegistryError::InvalidData(
+                "recent-work entry reference is invalid",
+            ));
+        }
+    }
+    if entry.safe_recovery_actions.len() > MAX_RECOVERY_ACTIONS_PER_ENTRY {
+        return Err(RecentWorkRegistryError::InvalidData(
+            "recent-work recovery action limit exceeded",
+        ));
+    }
+    if let Some(checkpoints) = entry.recovery_checkpoint_refs.as_deref() {
+        if checkpoints.len() > MAX_RECOVERY_CHECKPOINTS_PER_ENTRY {
+            return Err(RecentWorkRegistryError::InvalidData(
+                "recent-work checkpoint limit exceeded",
+            ));
+        }
+        for checkpoint in checkpoints {
+            if !bounded_nonempty(&checkpoint.recovery_class, MAX_ID_BYTES)
+                || !bounded_nonempty(&checkpoint.checkpoint_ref, MAX_REFERENCE_BYTES)
+            {
+                return Err(RecentWorkRegistryError::InvalidData(
+                    "recent-work checkpoint reference is invalid",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn bounded_nonempty(value: &str, max_bytes: usize) -> bool {
+    !value.is_empty() && value.len() <= max_bytes
+}
+
+fn ensure_relative_path_has_no_symlink_ancestor(
+    path: &Path,
+) -> Result<(), RecentWorkRegistryError> {
+    if path.is_absolute() {
+        return Ok(());
+    }
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let mut current = PathBuf::new();
+    for component in parent.components() {
+        let component = match component {
+            Component::CurDir => continue,
+            Component::Normal(component) => component,
+            _ => {
+                return Err(RecentWorkRegistryError::InvalidData(
+                    "recent-work registry path contains a non-normal component",
+                ))
+            }
+        };
+        current.push(component);
+        match std::fs::symlink_metadata(&current) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(RecentWorkRegistryError::InvalidData(
+                    "recent-work registry path contains a symlink",
+                ))
+            }
+            Ok(metadata) if !metadata.is_dir() => {
+                return Err(RecentWorkRegistryError::InvalidData(
+                    "recent-work registry parent is not a directory",
+                ))
+            }
+            Ok(_) => {}
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => break,
+            Err(err) => return Err(RecentWorkRegistryError::Read(err)),
+        }
+    }
+    Ok(())
+}
+
+fn prepare_registry_parent(path: &Path) -> Result<PathBuf, RecentWorkRegistryError> {
+    if path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return Err(RecentWorkRegistryError::InvalidData(
+            "recent-work registry path contains parent traversal",
+        ));
+    }
+    ensure_relative_path_has_no_symlink_ancestor(path)?;
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(parent).map_err(RecentWorkRegistryError::CreateDir)?;
+    let metadata = std::fs::symlink_metadata(parent).map_err(RecentWorkRegistryError::CreateDir)?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(RecentWorkRegistryError::InvalidData(
+            "recent-work registry parent is unsafe",
+        ));
+    }
+    ensure_relative_path_has_no_symlink_ancestor(path)?;
+    Ok(parent.to_path_buf())
+}
+
+fn reject_unsafe_registry_target(path: &Path) -> Result<(), RecentWorkRegistryError> {
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => Err(
+            RecentWorkRegistryError::InvalidData("recent-work registry target is unsafe"),
+        ),
+        Ok(_) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(RecentWorkRegistryError::Write(err)),
+    }
+}
+
+fn create_registry_temporary(
+    parent: &Path,
+    path: &Path,
+) -> Result<(PathBuf, File), RecentWorkRegistryError> {
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .ok_or(RecentWorkRegistryError::InvalidData(
+            "recent-work registry filename is invalid",
+        ))?;
+    for _ in 0..16 {
+        let sequence = RECENT_WORK_TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let temporary_path = parent.join(format!(
+            ".{file_name}.tmp-{}-{sequence}",
+            std::process::id()
+        ));
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        match options.open(&temporary_path) {
+            Ok(file) => return Ok((temporary_path, file)),
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(err) => return Err(RecentWorkRegistryError::Write(err)),
+        }
+    }
+    Err(RecentWorkRegistryError::InvalidData(
+        "recent-work temporary-file namespace is exhausted",
+    ))
+}
+
+#[cfg(not(windows))]
+fn replace_registry_file(temporary: &Path, path: &Path) -> Result<(), RecentWorkRegistryError> {
+    std::fs::rename(temporary, path).map_err(RecentWorkRegistryError::Write)
+}
+
+#[cfg(windows)]
+fn replace_registry_file(temporary: &Path, path: &Path) -> Result<(), RecentWorkRegistryError> {
+    match std::fs::rename(temporary, path) {
+        Ok(()) => return Ok(()),
+        Err(err) => match std::fs::symlink_metadata(path) {
+            Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {}
+            _ => return Err(RecentWorkRegistryError::Write(err)),
+        },
+    }
+
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let sequence = RECENT_WORK_TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let backup = parent.join(format!(
+        ".recent_work_registry.backup-{}-{sequence}",
+        std::process::id()
+    ));
+    std::fs::hard_link(path, &backup).map_err(RecentWorkRegistryError::Write)?;
+    if let Err(err) = std::fs::remove_file(path) {
+        let _ = std::fs::remove_file(&backup);
+        return Err(RecentWorkRegistryError::Write(err));
+    }
+    if let Err(err) = std::fs::rename(temporary, path) {
+        let _ = std::fs::hard_link(&backup, path);
+        let _ = std::fs::remove_file(&backup);
+        return Err(RecentWorkRegistryError::Write(err));
+    }
+    let _ = std::fs::remove_file(&backup);
+    Ok(())
+}
+
+#[cfg(unix)]
+fn sync_registry_directory(parent: &Path) -> Result<(), RecentWorkRegistryError> {
+    File::open(parent)
+        .and_then(|directory| directory.sync_all())
+        .map_err(RecentWorkRegistryError::Write)
+}
+
+#[cfg(not(unix))]
+fn sync_registry_directory(_parent: &Path) -> Result<(), RecentWorkRegistryError> {
+    Ok(())
+}
+
+#[cfg(unix)]
+fn same_open_file_identity(opened: &std::fs::Metadata, after: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    opened.dev() == after.dev() && opened.ino() == after.ino() && opened.len() == after.len()
+}
+
+#[cfg(not(unix))]
+fn same_open_file_identity(opened: &std::fs::Metadata, after: &std::fs::Metadata) -> bool {
+    opened.len() == after.len()
+        && opened.modified().ok() == after.modified().ok()
+        && opened.created().ok() == after.created().ok()
 }
 
 fn normalize_recent_work_query(query: &str) -> String {
@@ -566,6 +907,8 @@ pub enum RecentWorkRegistryError {
     Read(std::io::Error),
     Write(std::io::Error),
     Parse(serde_json::Error),
+    InvalidData(&'static str),
+    TooLarge,
 }
 
 impl std::fmt::Display for RecentWorkRegistryError {
@@ -575,6 +918,8 @@ impl std::fmt::Display for RecentWorkRegistryError {
             Self::Read(err) => write!(f, "read failed: {err}"),
             Self::Write(err) => write!(f, "write failed: {err}"),
             Self::Parse(err) => write!(f, "parse failed: {err}"),
+            Self::InvalidData(reason) => write!(f, "invalid recent-work registry: {reason}"),
+            Self::TooLarge => write!(f, "recent-work registry exceeds the byte limit"),
         }
     }
 }
@@ -586,6 +931,146 @@ mod tests {
     use super::*;
 
     use std::path::Path;
+
+    struct TestDirectory {
+        path: PathBuf,
+    }
+
+    impl TestDirectory {
+        fn new(label: &str) -> Self {
+            for _ in 0..16 {
+                let sequence = RECENT_WORK_TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+                let path = std::env::temp_dir().join(format!(
+                    "aureline-recent-work-{label}-{}-{sequence}",
+                    std::process::id()
+                ));
+                match std::fs::create_dir(&path) {
+                    Ok(()) => return Self { path },
+                    Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                    Err(err) => panic!("create test directory failed: {err}"),
+                }
+            }
+            panic!("recent-work test directory namespace exhausted")
+        }
+
+        fn path(&self) -> &Path {
+            &self.path
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn local_entry(id: &str) -> RecentWorkEntryRecord {
+        RecentWorkEntryRecord {
+            record_kind: RecentWorkEntryRecordKind::RecentWorkEntryRecord,
+            entry_and_restore_schema_version: 1,
+            recent_work_id: id.to_string(),
+            presentation_label: "docs".to_string(),
+            presentation_subtitle: Some("workspace/docs".to_string()),
+            target_kind: TargetKind::LocalFolder,
+            target_state: RecentWorkTargetState::Reachable,
+            portability_class: PortabilityClass::LocalOnly,
+            trust_state: TrustState::Trusted,
+            restore_availability: RestoreAvailability::None,
+            safe_recovery_actions: vec![SafeRecoveryAction::Open],
+            pinned: false,
+            last_opened_at: "mono:2".to_string(),
+            filesystem_identity_ref: Some("filesystem:docs".to_string()),
+            remote_target_descriptor_ref: None,
+            artifact_descriptor_ref: None,
+            recovery_checkpoint_refs: None,
+        }
+    }
+
+    #[test]
+    fn registry_save_is_bounded_atomic_and_round_trips_updates() {
+        let temp = TestDirectory::new("roundtrip");
+        let path = temp.path().join("state/recent_work_registry.json");
+        let mut registry = RecentWorkRegistry::empty();
+        registry.updated_at = "mono:1".to_string();
+        registry.upsert(local_entry("recent:docs"));
+        registry.save(&path).expect("first save");
+
+        registry.updated_at = "mono:2".to_string();
+        registry.upsert(local_entry("recent:source"));
+        registry.save(&path).expect("replacement save");
+
+        assert_eq!(
+            RecentWorkRegistry::load_or_default(&path).expect("load registry"),
+            registry
+        );
+        let state_dir = path.parent().expect("state parent");
+        assert!(std::fs::read_dir(state_dir)
+            .expect("state entries")
+            .all(|entry| !entry
+                .expect("state entry")
+                .file_name()
+                .to_string_lossy()
+                .contains(".tmp-")));
+    }
+
+    #[test]
+    fn registry_load_rejects_oversized_and_wrong_schema_state() {
+        let temp = TestDirectory::new("bounds");
+        let oversized = temp.path().join("oversized.json");
+        File::create(&oversized)
+            .and_then(|file| file.set_len(MAX_RECENT_WORK_REGISTRY_BYTES + 1))
+            .expect("oversized registry");
+        assert!(matches!(
+            RecentWorkRegistry::load_or_default(&oversized),
+            Err(RecentWorkRegistryError::TooLarge)
+        ));
+
+        let wrong_schema = temp.path().join("wrong-schema.json");
+        let mut registry = RecentWorkRegistry::empty();
+        registry.recent_work_registry_schema_version = 99;
+        std::fs::write(
+            &wrong_schema,
+            serde_json::to_vec(&registry).expect("serialize registry"),
+        )
+        .expect("write wrong schema");
+        assert!(matches!(
+            RecentWorkRegistry::load_or_default(&wrong_schema),
+            Err(RecentWorkRegistryError::InvalidData(
+                "unsupported recent-work registry schema version"
+            ))
+        ));
+        assert!(matches!(
+            registry.save(temp.path().join("must-not-write.json")),
+            Err(RecentWorkRegistryError::InvalidData(
+                "unsupported recent-work registry schema version"
+            ))
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn registry_never_follows_a_symlink_target() {
+        use std::os::unix::fs::symlink;
+
+        let temp = TestDirectory::new("symlink");
+        let outside = temp.path().join("outside.txt");
+        let path = temp.path().join("recent.json");
+        std::fs::write(&outside, b"PRIVATE-RECENT-WORK-SENTINEL").expect("outside file");
+        symlink(&outside, &path).expect("registry symlink");
+
+        assert!(matches!(
+            RecentWorkRegistry::load_or_default(&path),
+            Err(RecentWorkRegistryError::InvalidData(_))
+        ));
+        assert!(matches!(
+            RecentWorkRegistry::empty().save(&path),
+            Err(RecentWorkRegistryError::InvalidData(_))
+        ));
+        assert_eq!(
+            std::fs::read(&outside).expect("outside bytes"),
+            b"PRIVATE-RECENT-WORK-SENTINEL"
+        );
+    }
 
     #[test]
     fn loads_entry_restore_example_fixture() {
