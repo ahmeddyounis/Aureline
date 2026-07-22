@@ -58,8 +58,9 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 
 use crate::bounded_artifact_io::{
-    prepare_durable_artifact_path, read_bounded_regular_file_with_identity, to_bounded_json_pretty,
-    write_atomic_regular_file, ArtifactIdentity,
+    prepare_durable_artifact_path, read_bounded_private_regular_file_with_identity,
+    to_bounded_json_pretty, write_atomic_regular_file, ArtifactGenerationExpectation,
+    ArtifactWriteOutcome,
 };
 use crate::notifications::envelope::{
     NotificationEnvelope, PrivacyClass, RedactionClass, ReopenTarget, SeverityClass,
@@ -404,16 +405,27 @@ impl ActivityCenterSnapshot {
 #[derive(Debug)]
 pub enum ActivityCenterError {
     Io(std::io::Error),
-    Serde(serde_json::Error),
+    Serde,
     Routing(NotificationRoutingError),
+    /// Rename committed the intended bytes, but final durable state could not
+    /// be proven. The attempted row remains in memory; reopening is required
+    /// before another write when no generation identity survived.
+    DurabilityUncertain,
 }
 
 impl std::fmt::Display for ActivityCenterError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Io(err) => write!(f, "activity-center io error: {err}"),
-            Self::Serde(err) => write!(f, "activity-center serialization error: {err}"),
+            Self::Serde => write!(
+                f,
+                "activity-center serialization error: invalid or unsupported JSON"
+            ),
             Self::Routing(err) => write!(f, "activity-center routing error: {err}"),
+            Self::DurabilityUncertain => write!(
+                f,
+                "activity-center persistence reached the install boundary but final durability could not be proven"
+            ),
         }
     }
 }
@@ -427,8 +439,8 @@ impl From<std::io::Error> for ActivityCenterError {
 }
 
 impl From<serde_json::Error> for ActivityCenterError {
-    fn from(err: serde_json::Error) -> Self {
-        Self::Serde(err)
+    fn from(_err: serde_json::Error) -> Self {
+        Self::Serde
     }
 }
 
@@ -446,7 +458,7 @@ impl From<NotificationRoutingError> for ActivityCenterError {
 pub struct ActivityCenterStore {
     rows_path: Option<PathBuf>,
     rows: BTreeMap<String, ActivityCenterRow>,
-    rows_identity: Mutex<Option<ArtifactIdentity>>,
+    rows_identity: Mutex<ArtifactGenerationExpectation>,
 }
 
 impl Clone for ActivityCenterStore {
@@ -470,7 +482,7 @@ impl ActivityCenterStore {
         Self {
             rows_path: None,
             rows: BTreeMap::new(),
-            rows_identity: Mutex::new(None),
+            rows_identity: Mutex::new(ArtifactGenerationExpectation::Known(None)),
         }
     }
 
@@ -479,15 +491,25 @@ impl ActivityCenterStore {
     /// a restart.
     pub fn file_backed(path: impl Into<PathBuf>) -> Result<Self, ActivityCenterError> {
         let path = prepare_durable_artifact_path(&path.into())?;
-        let (bytes, rows_identity) = match read_bounded_regular_file_with_identity(
+        let (bytes, rows_identity) = match read_bounded_private_regular_file_with_identity(
             &path,
             MAX_ACTIVITY_CENTER_STORE_BYTES as u64,
         ) {
-            Ok(read) => (read.bytes, Some(read.identity)),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => (Vec::new(), None),
+            Ok(read) => (
+                read.bytes,
+                ArtifactGenerationExpectation::Known(Some(read.identity)),
+            ),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                (Vec::new(), ArtifactGenerationExpectation::Known(None))
+            }
             Err(error) => return Err(error.into()),
         };
-        let stored: Vec<ActivityCenterRow> = if bytes.is_empty() {
+        let file_existed = matches!(rows_identity, ArtifactGenerationExpectation::Known(Some(_)));
+        let stored: Vec<ActivityCenterRow> = if bytes.is_empty() && file_existed {
+            return Err(store_integrity_error(
+                "activity-center store is empty or truncated",
+            ));
+        } else if bytes.is_empty() {
             Vec::new()
         } else {
             serde_json::from_slice(&bytes)?
@@ -555,10 +577,12 @@ impl ActivityCenterStore {
         let previous = self.rows.insert(key.clone(), row);
         if let Some(path) = self.rows_path.clone() {
             if let Err(error) = self.persist(&path) {
-                if let Some(previous) = previous {
-                    self.rows.insert(key.clone(), previous);
-                } else {
-                    self.rows.remove(&key);
+                if !matches!(&error, ActivityCenterError::DurabilityUncertain) {
+                    if let Some(previous) = previous {
+                        self.rows.insert(key.clone(), previous);
+                    } else {
+                        self.rows.remove(&key);
+                    }
                 }
                 return Err(error);
             }
@@ -607,21 +631,41 @@ impl ActivityCenterStore {
                 .then_with(|| a.canonical_event_id.cmp(&b.canonical_event_id))
         });
         let bytes = to_bounded_json_pretty(&rows, MAX_ACTIVITY_CENTER_STORE_BYTES)?;
-        let expected_identity = *self
+        let expected_identity = match *self
             .rows_identity
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let new_identity = write_atomic_regular_file(
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+        {
+            ArtifactGenerationExpectation::Known(identity) => identity,
+            ArtifactGenerationExpectation::Indeterminate => {
+                return Err(store_integrity_error(
+                    "activity-center durable generation is indeterminate; reopen before writing",
+                ));
+            }
+        };
+        let outcome = write_atomic_regular_file(
             path,
             &bytes,
             MAX_ACTIVITY_CENTER_STORE_BYTES as u64,
             expected_identity,
         )?;
-        *self
+        let mut generation = self
             .rows_identity
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(new_identity);
-        Ok(())
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match outcome {
+            ArtifactWriteOutcome::Durable(identity) => {
+                *generation = ArtifactGenerationExpectation::Known(Some(identity));
+                Ok(())
+            }
+            ArtifactWriteOutcome::CommitStateUncertain { installed_identity } => {
+                *generation = installed_identity
+                    .map_or(ArtifactGenerationExpectation::Indeterminate, |identity| {
+                        ArtifactGenerationExpectation::Known(Some(identity))
+                    });
+                Err(ActivityCenterError::DurabilityUncertain)
+            }
+        }
     }
 }
 
@@ -718,12 +762,24 @@ impl ActivityCenterRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bounded_artifact_io::{inject_artifact_io_failure, ArtifactIoFailpoint};
     use crate::notifications::envelope::{
         DedupeKeyScheme, NotificationEnvelope, PrivacyPayloadClass, QuietHoursMode,
         ReopenTargetKind, SuppressionState,
     };
     use crate::notifications::router::NotificationRouter;
     use crate::notifications::FanoutSurfaceClass;
+
+    fn write_private_fixture(path: &Path, bytes: impl AsRef<[u8]>) {
+        std::fs::write(path, bytes).expect("write private fixture");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+                .expect("restrict private fixture permissions");
+        }
+    }
 
     fn restore_envelope(envelope_id: &str, summary: &str, minted_at: &str) -> NotificationEnvelope {
         NotificationEnvelope {
@@ -913,9 +969,9 @@ mod tests {
         let row = store
             .find_by_canonical_event("ux:event:restore:ws-test")
             .expect("row reloads after restart");
+        assert_eq!(row.minted_at, "2026-05-10T12:00:00Z");
         assert_eq!(row.lifecycle_class, ActivityRowLifecycleClass::Completed);
         assert!(row.is_terminal);
-        assert_eq!(row.minted_at, "2026-05-10T12:00:00Z");
         assert_eq!(row.last_observed_at, "2026-05-10T12:00:08Z");
     }
 
@@ -923,8 +979,7 @@ mod tests {
     fn file_backed_store_rejects_oversized_history_without_echoing_path() {
         let directory = tempfile::tempdir().expect("tempdir");
         let path = directory.path().join("private-workspace-history.json");
-        std::fs::write(&path, vec![b' '; MAX_ACTIVITY_CENTER_STORE_BYTES + 1])
-            .expect("write oversized fixture");
+        write_private_fixture(&path, vec![b' '; MAX_ACTIVITY_CENTER_STORE_BYTES + 1]);
 
         let error = ActivityCenterStore::file_backed(&path).expect_err("must reject");
         assert!(matches!(error, ActivityCenterError::Io(_)));
@@ -951,11 +1006,151 @@ mod tests {
             .expect("record");
         let mut rows = store.snapshot().rows;
         rows[0].schema_version = ACTIVITY_CENTER_ROW_SCHEMA_VERSION + 1;
-        std::fs::write(&path, serde_json::to_vec(&rows).expect("serialize"))
-            .expect("write fixture");
+        write_private_fixture(&path, serde_json::to_vec(&rows).expect("serialize"));
 
         let error = ActivityCenterStore::file_backed(&path).expect_err("must reject");
         assert!(matches!(error, ActivityCenterError::Io(_)));
+    }
+
+    #[test]
+    fn file_backed_store_does_not_echo_invalid_payload_values() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity.json");
+        write_private_fixture(&path, br#"[{"schema_version":"private-tenant-secret"}]"#);
+
+        let error = ActivityCenterStore::file_backed(&path).expect_err("must reject");
+        assert!(matches!(&error, ActivityCenterError::Serde));
+        assert!(!error.to_string().contains("private-tenant-secret"));
+        assert!(!format!("{error:?}").contains("private-tenant-secret"));
+    }
+
+    #[test]
+    fn file_backed_store_rejects_zero_byte_history_as_truncated() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity.json");
+        write_private_fixture(&path, b"");
+
+        let error = ActivityCenterStore::file_backed(&path).expect_err("must reject");
+        assert!(matches!(error, ActivityCenterError::Io(_)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn file_backed_store_rejects_broad_private_file_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity.json");
+        std::fs::write(&path, b"[]").expect("write broad fixture");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+            .expect("set broad permissions");
+
+        let error = ActivityCenterStore::file_backed(&path).expect_err("must reject");
+        assert!(matches!(error, ActivityCenterError::Io(_)));
+    }
+
+    #[test]
+    fn post_rename_validation_failure_retains_memory_and_blocks_followup_write() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity.json");
+        let mut router = NotificationRouter::new();
+        let mut store = ActivityCenterStore::file_backed(&path).expect("open");
+        let envelope = restore_envelope(
+            "ux:notif-env:restore:ws-test:run",
+            "Restore running",
+            "2026-05-10T12:00:00Z",
+        );
+        let routed = router.route(&envelope).expect("route");
+
+        {
+            let _failpoint =
+                inject_artifact_io_failure(ArtifactIoFailpoint::AfterRenameBeforeValidation);
+            let error = store
+                .record_observation(
+                    &routed,
+                    &DurableJobObservation::in_flight(ActivityRowLifecycleClass::Running, None),
+                )
+                .expect_err("post-rename validation must report uncertainty");
+            assert!(matches!(error, ActivityCenterError::DurabilityUncertain));
+        }
+
+        assert_eq!(
+            store
+                .find_by_canonical_event("ux:event:restore:ws-test")
+                .expect("intended row remains in memory")
+                .lifecycle_class,
+            ActivityRowLifecycleClass::Running
+        );
+        let error = store
+            .record_observation(
+                &routed,
+                &DurableJobObservation::completed("Completed", None),
+            )
+            .expect_err("unknown generation must block a second write");
+        assert!(matches!(error, ActivityCenterError::Io(_)));
+        assert_eq!(
+            store
+                .find_by_canonical_event("ux:event:restore:ws-test")
+                .expect("blocked update rolls back")
+                .lifecycle_class,
+            ActivityRowLifecycleClass::Running
+        );
+    }
+
+    #[test]
+    fn directory_sync_failure_keeps_committed_identity_for_followup_write() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity.json");
+        let mut router = NotificationRouter::new();
+        let mut store = ActivityCenterStore::file_backed(&path).expect("open");
+        let running = restore_envelope(
+            "ux:notif-env:restore:ws-test:run",
+            "Restore running",
+            "2026-05-10T12:00:00Z",
+        );
+        let routed_running = router.route(&running).expect("route running");
+        store
+            .record_observation(
+                &routed_running,
+                &DurableJobObservation::in_flight(ActivityRowLifecycleClass::Running, None),
+            )
+            .expect("persist baseline");
+
+        let completed = restore_envelope(
+            "ux:notif-env:restore:ws-test:done",
+            "Restore completed",
+            "2026-05-10T12:00:08Z",
+        );
+        let routed_completed = router.route(&completed).expect("route completed");
+        {
+            let _failpoint = inject_artifact_io_failure(ArtifactIoFailpoint::BeforeDirectorySync);
+            let error = store
+                .record_observation(
+                    &routed_completed,
+                    &DurableJobObservation::completed("Completed", None),
+                )
+                .expect_err("directory sync uncertainty must be reported");
+            assert!(matches!(error, ActivityCenterError::DurabilityUncertain));
+        }
+        assert_eq!(
+            store
+                .find_by_canonical_event("ux:event:restore:ws-test")
+                .expect("committed row remains in memory")
+                .lifecycle_class,
+            ActivityRowLifecycleClass::Completed
+        );
+
+        store
+            .persist_now()
+            .expect("known installed identity can flush");
+        let reopened = ActivityCenterStore::file_backed(&path).expect("reopen");
+        assert_eq!(
+            reopened
+                .find_by_canonical_event("ux:event:restore:ws-test")
+                .expect("committed row reopens")
+                .lifecycle_class,
+            ActivityRowLifecycleClass::Completed
+        );
     }
 
     #[cfg(unix)]

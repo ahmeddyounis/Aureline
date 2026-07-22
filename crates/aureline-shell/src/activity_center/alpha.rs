@@ -15,8 +15,9 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 
 use crate::bounded_artifact_io::{
-    prepare_durable_artifact_path, read_bounded_regular_file_with_identity, to_bounded_json_pretty,
-    write_atomic_regular_file, ArtifactIdentity,
+    prepare_durable_artifact_path, read_bounded_private_regular_file_with_identity,
+    to_bounded_json_pretty, write_atomic_regular_file, ArtifactGenerationExpectation,
+    ArtifactWriteOutcome,
 };
 
 const MAX_ACTIVITY_CENTER_ALPHA_STORE_BYTES: usize = 8 * 1024 * 1024;
@@ -1010,14 +1011,25 @@ pub enum ActivityCenterAlphaError {
     /// Filesystem error.
     Io(std::io::Error),
     /// JSON serialization error.
-    Serde(serde_json::Error),
+    Serde,
+    /// Rename committed the intended bytes, but final durable state could not
+    /// be proven. The attempted row remains in memory; reopening is required
+    /// before another write when no generation identity survived.
+    DurabilityUncertain,
 }
 
 impl std::fmt::Display for ActivityCenterAlphaError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Io(err) => write!(f, "activity-center alpha io error: {err}"),
-            Self::Serde(err) => write!(f, "activity-center alpha serialization error: {err}"),
+            Self::Serde => write!(
+                f,
+                "activity-center alpha serialization error: invalid or unsupported JSON"
+            ),
+            Self::DurabilityUncertain => write!(
+                f,
+                "activity-center alpha persistence reached the install boundary but final durability could not be proven"
+            ),
         }
     }
 }
@@ -1031,8 +1043,8 @@ impl From<std::io::Error> for ActivityCenterAlphaError {
 }
 
 impl From<serde_json::Error> for ActivityCenterAlphaError {
-    fn from(err: serde_json::Error) -> Self {
-        Self::Serde(err)
+    fn from(_err: serde_json::Error) -> Self {
+        Self::Serde
     }
 }
 
@@ -1041,7 +1053,7 @@ impl From<serde_json::Error> for ActivityCenterAlphaError {
 pub struct ActivityCenterAlphaStore {
     rows_path: Option<PathBuf>,
     rows: BTreeMap<String, ActivityRow>,
-    rows_identity: Mutex<Option<ArtifactIdentity>>,
+    rows_identity: Mutex<ArtifactGenerationExpectation>,
 }
 
 impl Clone for ActivityCenterAlphaStore {
@@ -1064,7 +1076,7 @@ impl ActivityCenterAlphaStore {
         Self {
             rows_path: None,
             rows: BTreeMap::new(),
-            rows_identity: Mutex::new(None),
+            rows_identity: Mutex::new(ArtifactGenerationExpectation::Known(None)),
         }
     }
 
@@ -1075,15 +1087,25 @@ impl ActivityCenterAlphaStore {
     /// Returns an error when the row file cannot be read or deserialized.
     pub fn file_backed(path: impl Into<PathBuf>) -> Result<Self, ActivityCenterAlphaError> {
         let path = prepare_durable_artifact_path(&path.into())?;
-        let (bytes, rows_identity) = match read_bounded_regular_file_with_identity(
+        let (bytes, rows_identity) = match read_bounded_private_regular_file_with_identity(
             &path,
             MAX_ACTIVITY_CENTER_ALPHA_STORE_BYTES as u64,
         ) {
-            Ok(read) => (read.bytes, Some(read.identity)),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => (Vec::new(), None),
+            Ok(read) => (
+                read.bytes,
+                ArtifactGenerationExpectation::Known(Some(read.identity)),
+            ),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                (Vec::new(), ArtifactGenerationExpectation::Known(None))
+            }
             Err(error) => return Err(error.into()),
         };
-        let stored: Vec<ActivityRow> = if bytes.is_empty() {
+        let file_existed = matches!(rows_identity, ArtifactGenerationExpectation::Known(Some(_)));
+        let stored: Vec<ActivityRow> = if bytes.is_empty() && file_existed {
+            return Err(alpha_store_integrity_error(
+                "activity-center alpha store is empty or truncated",
+            ));
+        } else if bytes.is_empty() {
             Vec::new()
         } else {
             serde_json::from_slice(&bytes)?
@@ -1142,10 +1164,12 @@ impl ActivityCenterAlphaStore {
         let previous = self.rows.insert(row_id.clone(), row);
         if let Some(path) = self.rows_path.clone() {
             if let Err(error) = self.persist(&path) {
-                if let Some(previous) = previous {
-                    self.rows.insert(row_id, previous);
-                } else {
-                    self.rows.remove(&row_id);
+                if !matches!(&error, ActivityCenterAlphaError::DurabilityUncertain) {
+                    if let Some(previous) = previous {
+                        self.rows.insert(row_id, previous);
+                    } else {
+                        self.rows.remove(&row_id);
+                    }
                 }
                 return Err(error);
             }
@@ -1193,21 +1217,41 @@ impl ActivityCenterAlphaStore {
         }
         let snapshot = self.snapshot();
         let bytes = to_bounded_json_pretty(&snapshot.rows, MAX_ACTIVITY_CENTER_ALPHA_STORE_BYTES)?;
-        let expected_identity = *self
+        let expected_identity = match *self
             .rows_identity
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let new_identity = write_atomic_regular_file(
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+        {
+            ArtifactGenerationExpectation::Known(identity) => identity,
+            ArtifactGenerationExpectation::Indeterminate => {
+                return Err(alpha_store_integrity_error(
+                    "activity-center alpha durable generation is indeterminate; reopen before writing",
+                ));
+            }
+        };
+        let outcome = write_atomic_regular_file(
             path,
             &bytes,
             MAX_ACTIVITY_CENTER_ALPHA_STORE_BYTES as u64,
             expected_identity,
         )?;
-        *self
+        let mut generation = self
             .rows_identity
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(new_identity);
-        Ok(())
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match outcome {
+            ArtifactWriteOutcome::Durable(identity) => {
+                *generation = ArtifactGenerationExpectation::Known(Some(identity));
+                Ok(())
+            }
+            ArtifactWriteOutcome::CommitStateUncertain { installed_identity } => {
+                *generation = installed_identity
+                    .map_or(ArtifactGenerationExpectation::Indeterminate, |identity| {
+                        ArtifactGenerationExpectation::Known(Some(identity))
+                    });
+                Err(ActivityCenterAlphaError::DurabilityUncertain)
+            }
+        }
     }
 }
 
@@ -1281,6 +1325,18 @@ impl ActivityCenterAlphaRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bounded_artifact_io::{inject_artifact_io_failure, ArtifactIoFailpoint};
+
+    fn write_private_fixture(path: &Path, bytes: impl AsRef<[u8]>) {
+        std::fs::write(path, bytes).expect("write private fixture");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+                .expect("restrict private fixture permissions");
+        }
+    }
 
     fn action(
         kind: ActivityRowActionKind,
@@ -1505,7 +1561,6 @@ mod tests {
         {
             let mut runtime = ActivityCenterAlphaRuntime::file_backed(&path).expect("open");
             runtime.record_row(row.clone()).expect("record");
-            runtime.persist_now().expect("flush");
         }
 
         let runtime = ActivityCenterAlphaRuntime::file_backed(&path).expect("reopen");
@@ -1550,14 +1605,135 @@ mod tests {
         let path = directory.path().join("activity-alpha.json");
         let mut row = sample_rows().remove(0);
         row.schema_version = ACTIVITY_ROW_SCHEMA_VERSION + 1;
-        std::fs::write(
+        write_private_fixture(
             &path,
             serde_json::to_vec(&vec![row]).expect("serialize fixture"),
-        )
-        .expect("write fixture");
+        );
 
         let error = ActivityCenterAlphaStore::file_backed(&path).expect_err("must reject");
         assert!(matches!(error, ActivityCenterAlphaError::Io(_)));
+    }
+
+    #[test]
+    fn alpha_store_does_not_echo_invalid_payload_values() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity-alpha.json");
+        write_private_fixture(&path, br#"[{"schema_version":"private-tenant-secret"}]"#);
+
+        let error = ActivityCenterAlphaStore::file_backed(&path).expect_err("must reject");
+        assert!(matches!(&error, ActivityCenterAlphaError::Serde));
+        assert!(!error.to_string().contains("private-tenant-secret"));
+        assert!(!format!("{error:?}").contains("private-tenant-secret"));
+    }
+
+    #[test]
+    fn alpha_store_rejects_zero_byte_history_as_truncated() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity-alpha.json");
+        write_private_fixture(&path, b"");
+
+        let error = ActivityCenterAlphaStore::file_backed(&path).expect_err("must reject");
+        assert!(matches!(error, ActivityCenterAlphaError::Io(_)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn alpha_store_rejects_broad_private_file_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity-alpha.json");
+        std::fs::write(&path, b"[]").expect("write broad fixture");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+            .expect("set broad permissions");
+
+        let error = ActivityCenterAlphaStore::file_backed(&path).expect_err("must reject");
+        assert!(matches!(error, ActivityCenterAlphaError::Io(_)));
+    }
+
+    #[test]
+    fn alpha_post_rename_failure_retains_memory_and_blocks_followup_write() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity-alpha.json");
+        let mut store = ActivityCenterAlphaStore::file_backed(&path).expect("open");
+        let row = sample_rows().remove(0);
+        let row_id = row.activity_row_id.clone();
+        let intended_summary = row.summary_label.clone();
+
+        {
+            let _failpoint =
+                inject_artifact_io_failure(ArtifactIoFailpoint::AfterRenameBeforeValidation);
+            let error = store
+                .record_row(row.clone())
+                .expect_err("post-rename validation must report uncertainty");
+            assert!(matches!(
+                error,
+                ActivityCenterAlphaError::DurabilityUncertain
+            ));
+        }
+        assert_eq!(
+            store
+                .find_row(&row_id)
+                .expect("intended row remains")
+                .summary_label,
+            intended_summary
+        );
+
+        let mut followup = row;
+        followup.summary_label = "must not replace intended memory state".into();
+        let error = store
+            .record_row(followup)
+            .expect_err("unknown generation must block followup write");
+        assert!(matches!(error, ActivityCenterAlphaError::Io(_)));
+        assert_eq!(
+            store
+                .find_row(&row_id)
+                .expect("blocked update rolls back")
+                .summary_label,
+            intended_summary
+        );
+    }
+
+    #[test]
+    fn alpha_directory_sync_failure_keeps_identity_for_followup_flush() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity-alpha.json");
+        let mut store = ActivityCenterAlphaStore::file_backed(&path).expect("open");
+        let row = sample_rows().remove(0);
+        let row_id = row.activity_row_id.clone();
+        store.record_row(row.clone()).expect("persist baseline");
+
+        let mut updated = row;
+        updated.summary_label = "Committed update".into();
+        {
+            let _failpoint = inject_artifact_io_failure(ArtifactIoFailpoint::BeforeDirectorySync);
+            let error = store
+                .record_row(updated)
+                .expect_err("directory sync uncertainty must be reported");
+            assert!(matches!(
+                error,
+                ActivityCenterAlphaError::DurabilityUncertain
+            ));
+        }
+        assert_eq!(
+            store
+                .find_row(&row_id)
+                .expect("committed row remains")
+                .summary_label,
+            "Committed update"
+        );
+
+        store
+            .persist_now()
+            .expect("known installed identity can flush");
+        let reopened = ActivityCenterAlphaStore::file_backed(&path).expect("reopen");
+        assert_eq!(
+            reopened
+                .find_row(&row_id)
+                .expect("committed row reopens")
+                .summary_label,
+            "Committed update"
+        );
     }
 
     #[cfg(unix)]

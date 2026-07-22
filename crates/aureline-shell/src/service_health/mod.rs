@@ -1442,7 +1442,7 @@ pub struct M3ClaimManifestSnapshot {
 #[derive(Debug)]
 pub enum ManifestLoadError {
     Io(std::io::Error),
-    Parse(serde_json::Error),
+    Parse,
     SchemaMismatch {
         expected_record_kind: &'static str,
         actual_record_kind: String,
@@ -1453,7 +1453,10 @@ impl std::fmt::Display for ManifestLoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Io(e) => write!(f, "io error reading m3 claim manifest: {e}"),
-            Self::Parse(e) => write!(f, "parse error in m3 claim manifest: {e}"),
+            Self::Parse => write!(
+                f,
+                "parse error in m3 claim manifest: invalid or unsupported JSON"
+            ),
             Self::SchemaMismatch {
                 expected_record_kind,
                 actual_record_kind,
@@ -1474,8 +1477,8 @@ impl From<std::io::Error> for ManifestLoadError {
 }
 
 impl From<serde_json::Error> for ManifestLoadError {
-    fn from(e: serde_json::Error) -> Self {
-        Self::Parse(e)
+    fn from(_e: serde_json::Error) -> Self {
+        Self::Parse
     }
 }
 

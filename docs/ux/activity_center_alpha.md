@@ -45,14 +45,41 @@ partial completion, cancellation, and supersession remain distinct states.
 
 File-backed alpha history uses the shell's bounded artifact lane: 10,000 rows
 and 8 MiB maximum per store. Load rejects duplicate stable row IDs,
-non-regular files, final-component symlinks, identity changes during read, and
-oversized input. Persistence is transactional in memory and on disk: bounded
-serialization and compare-before-write complete before a same-directory
-synced temporary file atomically replaces the prior object; newly created Unix
-files use owner-only permissions. When persistence
-fails, the attempted row mutation is rolled back and the prior durable file
-is retained. Reload also rejects wrong record kinds, unsupported row-schema
-versions, and empty stable activity/job/event identities.
+non-regular files, untrusted ancestor or final-component path redirects,
+and file-generation changes observed on the open descriptor or resolved path
+during read. The only ancestor-redirect exceptions are the exact macOS pairs
+`/var` -> `/private/var` and `/tmp` -> `/private/tmp`; every other Unix redirect
+fails closed. Persistence has an explicit install commit boundary: bounded
+serialization and compare-before-write complete before a same-directory synced
+temporary file replaces the prior object where the platform provides atomic
+existing-target rename. The supported Unix and Windows standard-library
+implementations replace the destination name without a destructive
+remove-first window. A parent metadata stability token is checked around
+temp creation and immediately before install. The staged file remains open and
+armed through install-identity verification; every earlier error or unwind
+scrubs its inode through that handle, and a detected parent replacement never
+authorizes cleanup by the replacement pathname. The Windows token comprises
+the stable Rust 1.75 attributes and creation time and is not a unique object
+identifier. Mutable directory last-write metadata is excluded because staging
+a child changes it. Newly created Unix artifact directories and files
+use owner-only permissions. Existing private history files with group or other
+access and Unix parents writable outside their owner are rejected. Windows
+uses the governed local state root's inherited ACL because Rust 1.75 has no
+portable ACL-attestation API; custom or non-local roots require a separate
+capability decision. The standard library also has no Windows directory-sync
+primitive, so the contract is atomic process-restart continuity rather than a
+verified power-loss guarantee for the directory entry. A pre-commit
+persistence failure rolls the attempted row mutation back and retains the
+prior durable file. After rename, the intended row remains in memory and an
+explicit durability-uncertain error is returned: a failed directory sync keeps
+the verified generation for a later flush, while failed installed-object
+validation blocks further writes until reopen. Reload also rejects zero-byte
+or truncated content, wrong record kinds, unsupported row-schema versions, and
+empty stable activity/job/event identities. JSON parse diagnostics do not
+retain raw source values. Portable `std` path operations do not eliminate a
+parent swap and restoration wholly inside the last
+metadata-check-to-rename window; a stronger claim requires an approved
+directory-handle-relative filesystem primitive.
 
 ## Proof Path
 

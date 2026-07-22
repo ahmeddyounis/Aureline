@@ -2852,8 +2852,7 @@ mod tests {
 
         let workspace = tempfile::tempdir().expect("workspace");
         let outside = tempfile::tempdir().expect("outside");
-        std::fs::write(outside.path().join("private.txt"), b"private")
-            .expect("outside file");
+        std::fs::write(outside.path().join("private.txt"), b"private").expect("outside file");
         symlink(
             outside.path().join("private.txt"),
             workspace.path().join("linked.txt"),

@@ -31,15 +31,28 @@ freshness, provenance, or claim-posture truth of its own; refresh the
 manifest to update what users see in-product.
 
 Runtime path loading is deliberately narrower than build-time generation.
-The claim manifest and compatibility report must each be a regular,
-non-symlink file, remain identity-stable across the bounded read, fit within
-4 MiB, and contain no more than 10,000 top-level rows. An oversized, replaced,
-symlinked, or over-count artifact fails only the affected truth surface closed;
+The claim manifest and compatibility report must each resolve as a regular
+file with no untrusted ancestor or final-component redirect observed by the
+loader. The only ancestor-redirect exceptions are the exact macOS platform
+pairs `/var` -> `/private/var` and `/tmp` -> `/private/tmp`; every other Unix
+redirect fails closed. The loader captures and rechecks a parent metadata
+stability token, the open descriptor, and the resolved path across the bounded
+read. On Windows that parent token is the stable Rust 1.75 metadata tuple of
+attributes and creation time, not a unique object identifier. Mutable directory
+last-write metadata is intentionally excluded because staging a child changes
+it. Each artifact must fit within 4 MiB and contain no more than 10,000
+top-level rows. An oversized, replaced, redirected, or over-count artifact
+fails only the affected truth surface closed;
 it must never be partially parsed into a more optimistic badge. Loader errors
 use artifact-class wording and do not include payload bytes or private path
 content. These resource rules do not change either public record schema.
 The runtime additionally requires the checked-in `schema_version = 1` on both
 artifacts; an unknown version is unavailable truth, never a best-effort parse.
+These checks reject a parent replacement that remains visible at a check. The
+portable standard-library path API does not provide a directory-handle-relative
+open, so this loader does not claim to exclude a swap and restoration completed
+entirely between two checks; a future stronger claim requires the governed VFS
+or an approved dirfd-style dependency.
 
 Archetype support-class truth is capped upstream by the generated
 reference-workspace report at

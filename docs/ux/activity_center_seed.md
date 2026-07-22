@@ -61,14 +61,46 @@ the durable activity-center lane end-to-end:
 
 The durable file is a bounded journal rather than an unbounded JSON sink.
 The shell accepts at most 10,000 rows and an 8 MiB serialized file. It reads
-only a regular, non-symlink file and compares file identity before/open/after
-the bounded read. Rewrites serialize through an 8 MiB capped writer, compare
-the previous target identity, and use a same-directory temporary file plus
-sync and atomic rename. Newly created Unix history files start with owner-only
-permissions. A duplicate identity, oversized artifact, symlink, or
-stale target fails the activity-center feature closed; the live shell can
-continue with its existing in-memory fallback and an export-safe error rather
-than parsing or overwriting an ambiguous object.
+only a regular, non-symlink file and compares file-generation metadata
+before/open/after the bounded read, including the open descriptor after bytes
+are consumed. Ancestor redirects visible while components are resolved are
+rejected except for the exact macOS platform pairs `/var` -> `/private/var` and
+`/tmp` -> `/private/tmp`; every other Unix redirect fails closed. A resolved
+parent metadata stability token is then captured and rechecked around temp
+creation and immediately before install. The staged file remains open and
+armed until the installed name and handle identify the same file; every
+earlier error or unwind scrubs the open inode, while a parent swap disables
+pathname cleanup rather than risking a replacement entry. On Windows the token
+comprises the stable Rust 1.75 attributes and creation time and is not a unique
+object identifier. Mutable directory last-write metadata is excluded because
+staging a child changes it. Rewrites serialize through an
+8 MiB capped writer, compare the previous target identity, and use a
+same-directory temporary file plus sync and destination-replacing rename on
+the supported Unix and Windows standard-library implementations. Aureline
+never uses a destructive remove-then-rename fallback. A detected parent swap
+scrubs the staged bytes and fails closed. Newly created Unix history
+directories and files start with owner-only permissions; existing private
+history files with group or other access and Unix parents writable outside
+their owner are rejected instead of silently inheriting broad access. Windows
+uses the inherited ACL of the governed local state root because Rust 1.75 does
+not expose portable ACL attestation; custom, redirected, network, or removable
+roots must not inherit the default-local-root privacy or atomicity claim
+without a separate capability decision. Windows also has no standard-library
+directory-sync primitive, so this lane claims atomic process-restart
+continuity, not verified power-loss durability of the directory entry. A
+duplicate identity, zero-byte/truncated file, oversized artifact, path
+redirect, or stale target fails the activity-center feature closed. JSON parse failures expose
+neither source payload values through display nor debug diagnostics.
+
+An ordinary persistence error is reported only before rename and rolls the
+attempted row mutation back. After rename, the intended row remains in memory:
+a failed directory sync retains the verified installed generation so a later
+flush can retry, while a failed installed-object validation marks the
+generation indeterminate and blocks further writes until reopen. Both cases
+return an explicit durability-uncertain error rather than claiming that the
+old disk state survived. These portable path checks do not claim to exclude a
+parent swap and restoration wholly inside the final check-to-rename window; a
+race-free claim requires an approved directory-handle-relative primitive.
 Rows with the wrong `record_kind`, an unsupported schema version, or an empty
 canonical event identity are rejected as corrupt/unsupported history instead
 of being projected through the current contract.

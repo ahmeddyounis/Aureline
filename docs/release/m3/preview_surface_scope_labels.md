@@ -24,11 +24,21 @@ Consumers must quote the generated packet instead of rewording the row
 locally.
 
 Shell consumers load this generated packet through a bounded artifact reader.
-The packet must be a regular, non-symlink file, remain the same filesystem
-object across open/read validation, fit within 4 MiB, and contain no more than
-4,096 product rows or 4,096 support-export rows. Exceeding any bound fails the
-consumer closed as unavailable/downgraded truth; diagnostics name the artifact
-class and limit without echoing a private local path.
+The packet must resolve as a regular file with no untrusted ancestor or
+final-component redirect observed by the loader. The only ancestor-redirect
+exceptions are the exact macOS platform pairs `/var` -> `/private/var` and
+`/tmp` -> `/private/tmp`; every other Unix redirect fails closed. A parent
+metadata stability token, the open descriptor, and the resolved path are
+captured and rechecked around the read. On Windows that parent token comprises
+the stable Rust 1.75 attributes and creation time; it is not a unique object
+identifier. Mutable directory last-write metadata is excluded because staging
+a child changes it. The packet must fit within 4
+MiB and contain no more than 4,096 product rows or 4,096 support-export rows.
+Exceeding any bound fails the consumer closed as
+unavailable/downgraded truth; diagnostics name the artifact class and limit
+without echoing a private local path. These portable path-based checks reject
+visible parent replacement but do not claim race-free dirfd semantics against
+a swap and restoration wholly between checks.
 
 ## Current Rows
 

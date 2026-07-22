@@ -89,8 +89,8 @@ impl PreviewScopeLabelRegister {
                 ),
             });
         }
-        let register: Self = serde_json::from_slice(bytes)
-            .map_err(|source| PreviewScopeLabelLoadError::Json { source })?;
+        let register: Self =
+            serde_json::from_slice(bytes).map_err(|_source| PreviewScopeLabelLoadError::Json)?;
         if register.record_kind != PREVIEW_SCOPE_LABEL_REGISTER_RECORD_KIND {
             return Err(PreviewScopeLabelLoadError::SchemaMismatch {
                 expected_record_kind: PREVIEW_SCOPE_LABEL_REGISTER_RECORD_KIND,
@@ -636,10 +636,7 @@ pub enum PreviewScopeLabelLoadError {
         source: std::io::Error,
     },
     /// JSON parsing failed.
-    Json {
-        /// Source JSON error.
-        source: serde_json::Error,
-    },
+    Json,
     /// Record kind did not match this module.
     SchemaMismatch {
         /// Expected record kind.
@@ -660,7 +657,10 @@ impl fmt::Display for PreviewScopeLabelLoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Io { path, source } => write!(f, "failed to read {path}: {source}"),
-            Self::Json { source } => write!(f, "failed to parse preview scope packet: {source}"),
+            Self::Json => write!(
+                f,
+                "failed to parse preview scope packet: invalid or unsupported JSON"
+            ),
             Self::SchemaMismatch {
                 expected_record_kind,
                 actual_record_kind,
@@ -716,6 +716,18 @@ mod load_safety_tests {
         }"#;
         let error = PreviewScopeLabelRegister::from_bytes(bytes).expect_err("must reject");
         assert!(!error.to_string().contains("private-tenant-secret"));
+    }
+
+    #[test]
+    fn invalid_packet_values_are_not_echoed_in_diagnostics() {
+        let bytes = br#"{
+            "record_kind": "m3_qualified_preview_row_register",
+            "schema_version": "private-tenant-secret"
+        }"#;
+        let error = PreviewScopeLabelRegister::from_bytes(bytes).expect_err("must reject");
+        assert!(matches!(&error, PreviewScopeLabelLoadError::Json));
+        assert!(!error.to_string().contains("private-tenant-secret"));
+        assert!(!format!("{error:?}").contains("private-tenant-secret"));
     }
 
     #[cfg(unix)]

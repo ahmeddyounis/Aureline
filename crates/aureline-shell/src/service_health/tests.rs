@@ -347,6 +347,18 @@ fn unsupported_claim_manifest_schema_version_is_rejected() {
     assert!(matches!(error, ManifestLoadError::Io(_)));
 }
 
+#[test]
+fn invalid_claim_manifest_values_are_not_echoed() {
+    let payload = r#"{
+        "schema_version": "private-tenant-secret",
+        "record_kind": "m3_claim_manifest"
+    }"#;
+    let error = M3ClaimManifestSnapshot::from_bytes(payload.as_bytes()).expect_err("must reject");
+    assert!(matches!(&error, ManifestLoadError::Parse));
+    assert!(!error.to_string().contains("private-tenant-secret"));
+    assert!(!format!("{error:?}").contains("private-tenant-secret"));
+}
+
 #[cfg(unix)]
 #[test]
 fn claim_manifest_path_loader_rejects_symlink() {

@@ -292,7 +292,7 @@ pub enum CompatibilityReportLoadError {
     /// Filesystem read failed.
     Io(std::io::Error),
     /// JSON parsing failed.
-    Parse(serde_json::Error),
+    Parse,
     /// The record-kind tag did not match the expected compatibility report.
     SchemaMismatch {
         /// Expected record-kind tag.
@@ -306,7 +306,10 @@ impl std::fmt::Display for CompatibilityReportLoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Io(err) => write!(f, "io error reading compatibility report: {err}"),
-            Self::Parse(err) => write!(f, "parse error in compatibility report: {err}"),
+            Self::Parse => write!(
+                f,
+                "parse error in compatibility report: invalid or unsupported JSON"
+            ),
             Self::SchemaMismatch {
                 expected_record_kind,
                 actual_record_kind,
@@ -327,8 +330,8 @@ impl From<std::io::Error> for CompatibilityReportLoadError {
 }
 
 impl From<serde_json::Error> for CompatibilityReportLoadError {
-    fn from(err: serde_json::Error) -> Self {
-        Self::Parse(err)
+    fn from(_err: serde_json::Error) -> Self {
+        Self::Parse
     }
 }
 
@@ -1231,6 +1234,18 @@ mod tests {
         }"#;
         let error = CompatibilityReportSnapshot::from_bytes(payload).expect_err("must reject");
         assert!(matches!(error, CompatibilityReportLoadError::Io(_)));
+    }
+
+    #[test]
+    fn compatibility_report_does_not_echo_invalid_payload_values() {
+        let payload = br#"{
+            "schema_version": "private-tenant-secret",
+            "record_kind": "compatibility_report"
+        }"#;
+        let error = CompatibilityReportSnapshot::from_bytes(payload).expect_err("must reject");
+        assert!(matches!(&error, CompatibilityReportLoadError::Parse));
+        assert!(!error.to_string().contains("private-tenant-secret"));
+        assert!(!format!("{error:?}").contains("private-tenant-secret"));
     }
 
     #[test]
