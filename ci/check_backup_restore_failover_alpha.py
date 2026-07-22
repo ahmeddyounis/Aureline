@@ -5,10 +5,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import secrets
+import stat
 import subprocess
 import sys
+import unicodedata
 from dataclasses import asdict, dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 
@@ -16,6 +20,14 @@ DEFAULT_TAXONOMY_REL = "artifacts/ops/outage_taxonomy_alpha.yaml"
 DEFAULT_PLAN_REL = "docs/ops/backup_restore_failover_rehearsal_plan.md"
 DEFAULT_EXAMPLES_REL = "artifacts/ops/control_plane_vs_data_plane_examples.md"
 DEFAULT_FIXTURE_MANIFEST_REL = "fixtures/ops/backup_restore_failover_rehearsal_cases/manifest.yaml"
+
+MAX_INPUT_BYTES = 4 * 1024 * 1024
+MAX_COLLECTION_ENTRIES = 4_096
+MAX_PARSED_NODES = 65_536
+MAX_NESTING_DEPTH = 128
+MAX_SCALAR_BYTES = 256 * 1024
+MAX_PATH_REFERENCE_BYTES = 4_096
+YAML_PARSE_TIMEOUT_SECONDS = 15
 
 REQUIRED_CLASS_PLANES = {
     "local_core_continuity": "local_core",
@@ -109,6 +121,155 @@ class Finding:
         return payload
 
 
+class InputContractError(RuntimeError):
+    """Redaction-safe protected-input rejection."""
+
+
+def _safe_relative_parts(reference: str, label: str, *, suffix: str | None = None) -> tuple[str, ...]:
+    try:
+        reference_bytes = reference.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise InputContractError(f"{label} is not a valid UTF-8 path") from exc
+    if not reference or len(reference_bytes) > MAX_PATH_REFERENCE_BYTES:
+        raise InputContractError(f"{label} violates the path-size contract")
+    if any(
+        ord(char) < 32 or ord(char) == 127 or unicodedata.category(char) == "Cf"
+        for char in reference
+    ):
+        raise InputContractError(f"{label} contains unsafe path characters")
+    if "\\" in reference or (len(reference) > 1 and reference[1] == ":"):
+        raise InputContractError(f"{label} is not a portable relative path")
+
+    raw_parts = reference.split("/")
+    parsed = PurePosixPath(reference)
+    if parsed.is_absolute() or any(part in {"", ".", ".."} for part in raw_parts):
+        raise InputContractError(f"{label} is outside its path authority")
+    if suffix is not None and parsed.suffix != suffix:
+        raise InputContractError(f"{label} has an unsupported file type")
+    return parsed.parts
+
+
+def _require_under(path: Path, authority: Path, label: str) -> None:
+    try:
+        path.relative_to(authority)
+    except ValueError as exc:
+        raise InputContractError(f"{label} is outside its path authority") from exc
+
+
+def _resolve_existing_reference(
+    authority: Path,
+    base: Path,
+    reference: str,
+    label: str,
+    *,
+    suffix: str | None = None,
+    require_file: bool = False,
+) -> Path:
+    parts = _safe_relative_parts(reference, label, suffix=suffix)
+    authority = authority.resolve(strict=True)
+    base = base.resolve(strict=True)
+    _require_under(base, authority, label)
+    candidate = base.joinpath(*parts)
+    _require_under(candidate, base, label)
+
+    current = authority
+    for part in candidate.relative_to(authority).parts:
+        current /= part
+        try:
+            metadata = os.lstat(current)
+        except OSError as exc:
+            raise InputContractError(f"{label} is unavailable") from exc
+        if stat.S_ISLNK(metadata.st_mode):
+            raise InputContractError(f"{label} uses a path redirect")
+
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as exc:
+        raise InputContractError(f"{label} is unavailable") from exc
+    _require_under(resolved, base, label)
+    if require_file and not resolved.is_file():
+        raise InputContractError(f"{label} is not a regular file")
+    return resolved
+
+
+def _stable_file_identity(left: os.stat_result, right: os.stat_result) -> bool:
+    return (
+        stat.S_ISREG(left.st_mode)
+        and stat.S_ISREG(right.st_mode)
+        and left.st_dev == right.st_dev
+        and left.st_ino == right.st_ino
+        and left.st_size == right.st_size
+        and left.st_mtime_ns == right.st_mtime_ns
+        and left.st_ctime_ns == right.st_ctime_ns
+    )
+
+
+def _read_bounded_text(path: Path, authority: Path, label: str) -> str:
+    _require_under(path, authority, label)
+    try:
+        before = os.lstat(path)
+    except OSError as exc:
+        raise InputContractError(f"{label} is unavailable") from exc
+    if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
+        raise InputContractError(f"{label} is not a stable regular file")
+    if before.st_size > MAX_INPUT_BYTES:
+        raise InputContractError(f"{label} exceeds the input-byte limit")
+
+    try:
+        with path.open("rb") as source:
+            opened = os.fstat(source.fileno())
+            if not _stable_file_identity(before, opened):
+                raise InputContractError(f"{label} changed before reading")
+            body = source.read(MAX_INPUT_BYTES + 1)
+            descriptor_after = os.fstat(source.fileno())
+    except InputContractError:
+        raise
+    except OSError as exc:
+        raise InputContractError(f"{label} could not be read") from exc
+
+    if len(body) > MAX_INPUT_BYTES:
+        raise InputContractError(f"{label} exceeds the input-byte limit")
+    try:
+        path_after = os.lstat(path)
+        resolved_after = path.resolve(strict=True)
+    except OSError as exc:
+        raise InputContractError(f"{label} changed while reading") from exc
+    _require_under(resolved_after, authority, label)
+    if resolved_after != path or not _stable_file_identity(opened, descriptor_after) or not _stable_file_identity(descriptor_after, path_after):
+        raise InputContractError(f"{label} changed while reading")
+    try:
+        return body.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise InputContractError(f"{label} is not valid UTF-8") from exc
+
+
+def _validate_parsed_shape(value: Any, label: str) -> None:
+    node_count = 0
+    pending: list[tuple[Any, int]] = [(value, 0)]
+    while pending:
+        current, depth = pending.pop()
+        if depth > MAX_NESTING_DEPTH:
+            raise InputContractError(f"{label} exceeds the nesting-depth limit")
+        node_count += 1
+        if node_count > MAX_PARSED_NODES:
+            raise InputContractError(f"{label} exceeds the parsed-node limit")
+        if isinstance(current, str):
+            try:
+                scalar_bytes = current.encode("utf-8")
+            except UnicodeEncodeError as exc:
+                raise InputContractError(f"{label} contains invalid scalar text") from exc
+            if len(scalar_bytes) > MAX_SCALAR_BYTES:
+                raise InputContractError(f"{label} exceeds the scalar-byte limit")
+        if isinstance(current, dict):
+            if len(current) > MAX_COLLECTION_ENTRIES:
+                raise InputContractError(f"{label} exceeds the mapping-entry limit")
+            pending.extend((item, depth + 1) for pair in current.items() for item in pair)
+        elif isinstance(current, list):
+            if len(current) > MAX_COLLECTION_ENTRIES:
+                raise InputContractError(f"{label} exceeds the sequence-entry limit")
+            pending.extend((item, depth + 1) for item in current)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", default=".")
@@ -125,31 +286,38 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def render_yaml_as_json(path: Path) -> Any:
-    if not path.exists():
-        raise SystemExit(f"missing YAML file: {path}")
-    ruby = subprocess.run(
-        [
-            "ruby",
-            "-rjson",
-            "-ryaml",
-            "-e",
-            (
-                "payload = YAML.safe_load(File.read(ARGV[0]), permitted_classes: [], aliases: false); "
-                "STDOUT.write(JSON.generate(payload))"
-            ),
-            str(path),
-        ],
-        capture_output=True,
-        text=True,
-    )
-    if ruby.returncode != 0:
-        stderr = ruby.stderr.strip() or "unknown Ruby/Psych failure"
-        raise SystemExit(f"failed to parse YAML at {path}: {stderr}")
+def render_yaml_as_json(path: Path, authority: Path, label: str) -> Any:
+    body = _read_bounded_text(path, authority, label)
     try:
-        return json.loads(ruby.stdout)
-    except json.JSONDecodeError as exc:
-        raise SystemExit(f"Ruby/Psych emitted invalid JSON for {path}: {exc}") from exc
+        ruby = subprocess.run(
+            [
+                "ruby",
+                "-rjson",
+                "-ryaml",
+                "-e",
+                (
+                    "payload = YAML.safe_load(STDIN.read, permitted_classes: [], aliases: false); "
+                    "STDOUT.write(JSON.generate(payload))"
+                ),
+            ],
+            input=body,
+            capture_output=True,
+            text=True,
+            timeout=YAML_PARSE_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise InputContractError(f"{label} exceeded the parse-time limit") from exc
+    except OSError as exc:
+        raise InputContractError(f"{label} parser is unavailable") from exc
+    if ruby.returncode != 0:
+        raise InputContractError(f"{label} is not valid bounded YAML")
+    try:
+        payload = json.loads(ruby.stdout)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise InputContractError(f"{label} parser returned an invalid document") from exc
+    _validate_parsed_shape(payload, label)
+    return payload
 
 
 def ensure_dict(value: Any, label: str) -> dict[str, Any]:
@@ -186,20 +354,22 @@ def strip_fragment(ref: str) -> str:
     return ref.split("#", 1)[0].strip()
 
 
-def artifact_ref_exists(repo_root: Path, ref: str) -> bool:
-    clean = strip_fragment(ref)
-    return bool(clean) and (repo_root / clean).exists()
-
-
 def validate_path_ref(repo_root: Path, ref: str, label: str, findings: list[Finding]) -> None:
-    if not artifact_ref_exists(repo_root, ref):
+    clean = strip_fragment(ref)
+    try:
+        _resolve_existing_reference(
+            repo_root,
+            repo_root,
+            clean,
+            label,
+        )
+    except InputContractError:
         findings.append(
             Finding(
                 severity="error",
-                check_id=f"{label}.missing_ref",
-                message=f"{label} does not resolve: {ref}",
-                remediation="Fix the path or seed the referenced artifact.",
-                ref=ref,
+                check_id=f"{label}.unsafe_or_missing_ref",
+                message=f"{label} does not resolve within the repository path authority.",
+                remediation="Use a stable repository-relative path to a regular, non-redirected artifact.",
             )
         )
 
@@ -484,10 +654,24 @@ def validate_taxonomy(repo_root: Path, taxonomy: dict[str, Any], findings: list[
 
 
 def validate_markdown_docs(repo_root: Path, plan_ref: str, examples_ref: str, findings: list[Finding]) -> None:
-    plan_path = repo_root / plan_ref
-    examples_path = repo_root / examples_ref
-    plan_text = plan_path.read_text(encoding="utf-8")
-    examples_text = examples_path.read_text(encoding="utf-8")
+    plan_path = _resolve_existing_reference(
+        repo_root,
+        repo_root,
+        plan_ref,
+        "rehearsal plan",
+        suffix=".md",
+        require_file=True,
+    )
+    examples_path = _resolve_existing_reference(
+        repo_root,
+        repo_root,
+        examples_ref,
+        "plane examples",
+        suffix=".md",
+        require_file=True,
+    )
+    plan_text = _read_bounded_text(plan_path, repo_root, "rehearsal plan")
+    examples_text = _read_bounded_text(examples_path, repo_root, "plane examples")
 
     for class_id in REQUIRED_CLASS_PLANES:
         if class_id not in plan_text:
@@ -536,10 +720,9 @@ def validate_markdown_docs(repo_root: Path, plan_ref: str, examples_ref: str, fi
             )
 
 
-def load_fixture_case(repo_root: Path, fixture_dir: Path, file_name: str) -> dict[str, Any]:
-    path = fixture_dir / file_name
-    payload = render_yaml_as_json(path)
-    return ensure_dict(payload, f"fixture case {file_name}")
+def load_fixture_case(repo_root: Path, path: Path, case_ref: str) -> dict[str, Any]:
+    payload = render_yaml_as_json(path, repo_root, "fixture case")
+    return ensure_dict(payload, case_ref)
 
 
 def validate_fixture_manifest(
@@ -548,6 +731,7 @@ def validate_fixture_manifest(
     outage_classes: dict[str, dict[str, Any]],
     findings: list[Finding],
     manifest_ref: str,
+    manifest_path: Path,
 ) -> list[dict[str, Any]]:
     if ensure_int(manifest.get("schema_version"), "fixture_manifest.schema_version") != 1:
         findings.append(
@@ -605,7 +789,7 @@ def validate_fixture_manifest(
         manifest_ref,
     )
 
-    fixture_dir = (repo_root / manifest_ref).parent
+    fixture_dir = manifest_path.parent
     cases: list[dict[str, Any]] = []
     seen_case_classes: set[str] = set()
     for idx, raw_case_ref in enumerate(ensure_list(manifest.get("case_files"), "fixture_manifest.case_files")):
@@ -617,20 +801,29 @@ def validate_fixture_manifest(
             f"fixture_manifest.case_files[{idx}].expected_primary_plane_class",
         )
         seen_case_classes.add(class_id)
-        case_path = fixture_dir / file_name
-        if not case_path.exists():
+        try:
+            case_path = _resolve_existing_reference(
+                repo_root,
+                fixture_dir,
+                file_name,
+                "fixture case reference",
+                suffix=".yaml",
+                require_file=True,
+            )
+            case_path_ref = case_path.relative_to(repo_root).as_posix()
+            case = load_fixture_case(repo_root, case_path, case_path_ref)
+        except InputContractError:
             findings.append(
                 Finding(
                     severity="error",
-                    check_id="fixture_manifest.case_file.missing",
-                    message=f"fixture case does not exist: {case_path}",
-                    remediation="Seed the protected fixture case or remove the manifest row.",
-                    ref=str(case_path.relative_to(repo_root)),
+                    check_id="fixture_manifest.case_file.rejected",
+                    message="fixture case failed the protected fixture ingestion contract.",
+                    remediation="Use bounded UTF-8 YAML below the protected fixture directory without path redirects.",
+                    ref=manifest_ref,
                 )
             )
             continue
 
-        case = load_fixture_case(repo_root, fixture_dir, file_name)
         cases.append(case)
         validate_fixture_case(
             repo_root,
@@ -639,7 +832,7 @@ def validate_fixture_manifest(
             expected_plane,
             outage_classes,
             findings,
-            str(case_path.relative_to(repo_root)),
+            case_path_ref,
         )
 
     if seen_case_classes != set(REQUIRED_CLASS_PLANES):
@@ -913,54 +1106,196 @@ def render_human_summary(findings: list[Finding], projection: dict[str, Any]) ->
     return "\n".join(lines) + "\n"
 
 
+def _same_directory_identity(left: os.stat_result, right: os.stat_result) -> bool:
+    return (
+        stat.S_ISDIR(left.st_mode)
+        and stat.S_ISDIR(right.st_mode)
+        and left.st_dev == right.st_dev
+        and left.st_ino == right.st_ino
+    )
+
+
+def _prepare_report_parent(repo_root: Path, reference: str) -> tuple[Path, str]:
+    parts = _safe_relative_parts(reference, "validation report", suffix=".json")
+    current = repo_root
+    for part in parts[:-1]:
+        candidate = current / part
+        try:
+            candidate.mkdir(mode=0o755)
+        except FileExistsError:
+            pass
+        except OSError as exc:
+            raise InputContractError("validation report directory is unavailable") from exc
+        try:
+            metadata = os.lstat(candidate)
+        except OSError as exc:
+            raise InputContractError("validation report directory is unavailable") from exc
+        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+            raise InputContractError("validation report directory uses an unsafe path component")
+        try:
+            current = candidate.resolve(strict=True)
+        except OSError as exc:
+            raise InputContractError("validation report directory is unavailable") from exc
+        _require_under(current, repo_root, "validation report")
+    return current, parts[-1]
+
+
+def _write_validation_report(repo_root: Path, reference: str, report: dict[str, Any]) -> None:
+    parent, file_name = _prepare_report_parent(repo_root, reference)
+    try:
+        parent_before = os.lstat(parent)
+        directory_fd = os.open(
+            parent,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+        )
+    except OSError as exc:
+        raise InputContractError("validation report directory is unavailable") from exc
+
+    temporary_name: str | None = None
+    try:
+        opened_parent = os.fstat(directory_fd)
+        if not _same_directory_identity(parent_before, opened_parent):
+            raise InputContractError("validation report directory changed before writing")
+        try:
+            existing = os.stat(file_name, dir_fd=directory_fd, follow_symlinks=False)
+        except FileNotFoundError:
+            existing = None
+        except OSError as exc:
+            raise InputContractError("validation report target is unavailable") from exc
+        if existing is not None and (stat.S_ISLNK(existing.st_mode) or not stat.S_ISREG(existing.st_mode)):
+            raise InputContractError("validation report target is not a regular file")
+
+        body = (json.dumps(report, indent=2, sort_keys=True) + "\n").encode("utf-8")
+        if len(body) > MAX_INPUT_BYTES:
+            raise InputContractError("validation report exceeds the output-byte limit")
+
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        for _ in range(8):
+            temporary_name = f".{file_name}.{os.getpid()}.{secrets.token_hex(8)}.tmp"
+            try:
+                output_fd = os.open(temporary_name, flags, 0o644, dir_fd=directory_fd)
+                break
+            except FileExistsError:
+                temporary_name = None
+            except OSError as exc:
+                raise InputContractError("validation report temporary target is unavailable") from exc
+        else:
+            raise InputContractError("validation report temporary target is unavailable")
+
+        try:
+            with os.fdopen(output_fd, "wb") as output:
+                output.write(body)
+                output.flush()
+                os.fsync(output.fileno())
+        except OSError as exc:
+            raise InputContractError("validation report could not be written") from exc
+
+        try:
+            os.replace(
+                temporary_name,
+                file_name,
+                src_dir_fd=directory_fd,
+                dst_dir_fd=directory_fd,
+            )
+        except OSError as exc:
+            raise InputContractError("validation report could not be installed") from exc
+        temporary_name = None
+    finally:
+        if temporary_name is not None:
+            try:
+                os.unlink(temporary_name, dir_fd=directory_fd)
+            except OSError:
+                pass
+        try:
+            os.close(directory_fd)
+        except OSError:
+            pass
+
+
 def main() -> int:
     args = parse_args()
-    repo_root = Path(args.repo_root).resolve()
+    try:
+        try:
+            repo_root = Path(args.repo_root).resolve(strict=True)
+        except OSError as exc:
+            raise InputContractError("repository root is unavailable") from exc
+        if not repo_root.is_dir():
+            raise InputContractError("repository root is not a directory")
 
-    taxonomy_ref = args.taxonomy
-    plan_ref = args.plan
-    examples_ref = args.examples
-    fixture_manifest_ref = args.fixture_manifest
+        taxonomy_ref = args.taxonomy
+        plan_ref = args.plan
+        examples_ref = args.examples
+        fixture_manifest_ref = args.fixture_manifest
 
-    taxonomy = ensure_dict(render_yaml_as_json(repo_root / taxonomy_ref), "taxonomy")
-    manifest = ensure_dict(render_yaml_as_json(repo_root / fixture_manifest_ref), "fixture_manifest")
+        taxonomy_path = _resolve_existing_reference(
+            repo_root,
+            repo_root,
+            taxonomy_ref,
+            "taxonomy input",
+            suffix=".yaml",
+            require_file=True,
+        )
+        manifest_path = _resolve_existing_reference(
+            repo_root,
+            repo_root,
+            fixture_manifest_ref,
+            "fixture manifest input",
+            suffix=".yaml",
+            require_file=True,
+        )
+        taxonomy = ensure_dict(
+            render_yaml_as_json(taxonomy_path, repo_root, "taxonomy input"),
+            "taxonomy",
+        )
+        manifest = ensure_dict(
+            render_yaml_as_json(manifest_path, repo_root, "fixture manifest input"),
+            "fixture_manifest",
+        )
 
-    findings: list[Finding] = []
-    validate_path_ref(repo_root, taxonomy_ref, "args.taxonomy", findings)
-    validate_path_ref(repo_root, plan_ref, "args.plan", findings)
-    validate_path_ref(repo_root, examples_ref, "args.examples", findings)
-    validate_path_ref(repo_root, fixture_manifest_ref, "args.fixture_manifest", findings)
+        findings: list[Finding] = []
+        validate_path_ref(repo_root, taxonomy_ref, "args.taxonomy", findings)
+        validate_path_ref(repo_root, plan_ref, "args.plan", findings)
+        validate_path_ref(repo_root, examples_ref, "args.examples", findings)
+        validate_path_ref(repo_root, fixture_manifest_ref, "args.fixture_manifest", findings)
 
-    outage_classes = validate_taxonomy(repo_root, taxonomy, findings)
-    validate_markdown_docs(repo_root, plan_ref, examples_ref, findings)
-    cases = validate_fixture_manifest(repo_root, manifest, outage_classes, findings, fixture_manifest_ref)
-    projection = build_support_projection(taxonomy)
+        outage_classes = validate_taxonomy(repo_root, taxonomy, findings)
+        validate_markdown_docs(repo_root, plan_ref, examples_ref, findings)
+        cases = validate_fixture_manifest(
+            repo_root,
+            manifest,
+            outage_classes,
+            findings,
+            fixture_manifest_ref,
+            manifest_path,
+        )
+        projection = build_support_projection(taxonomy)
 
-    report = {
-        "record_kind": "backup_restore_failover_alpha_validation_report",
-        "schema_version": 1,
-        "status": "failed" if any(finding.severity == "error" for finding in findings) else "passed",
-        "validated_artifacts": {
-            "taxonomy": taxonomy_ref,
-            "plan": plan_ref,
-            "examples": examples_ref,
-            "fixture_manifest": fixture_manifest_ref,
-            "fixture_case_count": len(cases),
-        },
-        "required_outage_class_ids": sorted(REQUIRED_CLASS_PLANES),
-        "support_projection": projection,
-        "findings": [finding.as_report() for finding in findings],
-    }
+        report = {
+            "record_kind": "backup_restore_failover_alpha_validation_report",
+            "schema_version": 1,
+            "status": "failed" if any(finding.severity == "error" for finding in findings) else "passed",
+            "validated_artifacts": {
+                "taxonomy": taxonomy_ref,
+                "plan": plan_ref,
+                "examples": examples_ref,
+                "fixture_manifest": fixture_manifest_ref,
+                "fixture_case_count": len(cases),
+            },
+            "required_outage_class_ids": sorted(REQUIRED_CLASS_PLANES),
+            "support_projection": projection,
+            "findings": [finding.as_report() for finding in findings],
+        }
 
-    sys.stdout.write(render_human_summary(findings, projection))
-    if args.render_support_projection:
-        sys.stdout.write(json.dumps(projection, indent=2, sort_keys=True) + "\n")
-    if args.report:
-        report_path = repo_root / args.report
-        report_path.parent.mkdir(parents=True, exist_ok=True)
-        report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        sys.stdout.write(render_human_summary(findings, projection))
+        if args.render_support_projection:
+            sys.stdout.write(json.dumps(projection, indent=2, sort_keys=True) + "\n")
+        if args.report:
+            _write_validation_report(repo_root, args.report, report)
 
-    return 1 if any(finding.severity == "error" for finding in findings) else 0
+        return 1 if any(finding.severity == "error" for finding in findings) else 0
+    except InputContractError as exc:
+        sys.stderr.write(f"[backup-restore-failover] protected input rejected: {exc}\n")
+        return 2
 
 
 if __name__ == "__main__":

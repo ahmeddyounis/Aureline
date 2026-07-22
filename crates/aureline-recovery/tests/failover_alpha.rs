@@ -1,11 +1,14 @@
 //! Protected fixture checks for backup, restore, and failover alpha ingestion.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
 use aureline_recovery::failover_alpha::{
-    load_current_failover_alpha_corpus, BackupRestoreFailoverRehearsalCase, FailoverAlphaCorpus,
-    FailoverAlphaViolation, FailoverProductPostureClass, RestoreClaimClass,
+    load_current_failover_alpha_corpus, load_failover_continuity_cases_from_dir,
+    load_rehearsal_manifest, BackupRestoreFailoverRehearsalCase, FailoverAlphaCorpus,
+    FailoverAlphaLoadError, FailoverAlphaViolation, FailoverProductPostureClass, RestoreClaimClass,
+    BACKUP_CHECKPOINT_CLASSES_PATH, BACKUP_RESTORE_FAILOVER_REHEARSAL_MANIFEST_PATH,
     BACKUP_RESTORE_FAILOVER_REHEARSAL_MANIFEST_RECORD_KIND,
 };
 use aureline_support::recovery_ladder::{OutageClass, OutagePlaneClass};
@@ -204,4 +207,111 @@ fn failover_continuity_cases_load_by_directory_and_keep_local_safe_baseline_visi
             .len(),
         5
     );
+}
+
+#[test]
+fn in_memory_yaml_is_bounded_and_parse_errors_are_redaction_safe() {
+    let oversized = " ".repeat(4 * 1024 * 1024 + 1);
+    assert!(matches!(
+        load_rehearsal_manifest(&oversized),
+        Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+            resource: "input bytes",
+            ..
+        })
+    ));
+
+    let private_value = "private-hostname-do-not-export.example";
+    let malformed = format!("schema_version: [{private_value}");
+    let error = load_rehearsal_manifest(&malformed).expect_err("malformed YAML must fail");
+    let rendered = error.to_string();
+    assert!(rendered.contains("protected rehearsal manifest"));
+    assert!(!rendered.contains(private_value));
+}
+
+#[test]
+fn in_memory_yaml_shape_is_bounded_before_typed_projection() {
+    let oversized_sequence = format!("rows:\n{}", "  - value\n".repeat(4_097));
+    assert!(matches!(
+        load_rehearsal_manifest(&oversized_sequence),
+        Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+            resource: "sequence entries",
+            ..
+        })
+    ));
+
+    let oversized_scalar = format!("value: {}\n", "x".repeat(256 * 1024 + 1));
+    assert!(matches!(
+        load_rehearsal_manifest(&oversized_scalar),
+        Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+            resource: "scalar bytes",
+            ..
+        })
+    ));
+}
+
+#[test]
+fn rehearsal_manifest_case_paths_cannot_escape_the_repository() {
+    let temp = tempfile::tempdir().expect("temporary parent");
+    let fake_repo = temp.path().join("repo");
+    let manifest_path = fake_repo.join(BACKUP_RESTORE_FAILOVER_REHEARSAL_MANIFEST_PATH);
+    let backup_path = fake_repo.join(BACKUP_CHECKPOINT_CLASSES_PATH);
+    fs::create_dir_all(manifest_path.parent().expect("manifest parent"))
+        .expect("create manifest directory");
+    fs::create_dir_all(backup_path.parent().expect("backup parent"))
+        .expect("create backup directory");
+    fs::copy(
+        repo_root().join(BACKUP_CHECKPOINT_CLASSES_PATH),
+        &backup_path,
+    )
+    .expect("copy backup artifact");
+
+    let manifest =
+        fs::read_to_string(repo_root().join(BACKUP_RESTORE_FAILOVER_REHEARSAL_MANIFEST_PATH))
+            .expect("read source manifest")
+            .replacen(
+                "file: local_core_continuity.yaml",
+                "file: ../../../../escaped.yaml",
+                1,
+            );
+    fs::write(&manifest_path, manifest).expect("write malicious manifest");
+    fs::write(temp.path().join("escaped.yaml"), "schema_version: 1\n")
+        .expect("write escaped target");
+
+    let error = load_current_failover_alpha_corpus(&fake_repo)
+        .expect_err("manifest traversal must be rejected");
+    assert!(matches!(&error, FailoverAlphaLoadError::UnsafePath { .. }));
+    assert!(!error.to_string().contains(&fake_repo.display().to_string()));
+}
+
+#[test]
+fn continuity_directory_rejects_oversized_yaml_before_parsing() {
+    let temp = tempfile::tempdir().expect("temporary fixture directory");
+    let path = temp.path().join("oversized.yaml");
+    let file = File::create(&path).expect("create sparse fixture");
+    file.set_len(4 * 1024 * 1024 + 1)
+        .expect("extend sparse fixture");
+
+    assert!(matches!(
+        load_failover_continuity_cases_from_dir(temp.path()),
+        Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+            resource: "input bytes",
+            ..
+        })
+    ));
+}
+
+#[cfg(unix)]
+#[test]
+fn continuity_directory_rejects_yaml_symlinks() {
+    use std::os::unix::fs::symlink;
+
+    let temp = tempfile::tempdir().expect("temporary fixture directory");
+    let target = temp.path().join("target.txt");
+    fs::write(&target, "schema_version: 1\n").expect("write symlink target");
+    symlink(&target, temp.path().join("redirect.yaml")).expect("create YAML symlink");
+
+    assert!(matches!(
+        load_failover_continuity_cases_from_dir(temp.path()),
+        Err(FailoverAlphaLoadError::UnsafeFileType { .. })
+    ));
 }

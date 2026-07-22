@@ -93,6 +93,34 @@ and any manual follow-up. They must not include raw tenant names, raw
 hostnames, raw URLs, raw endpoint credentials, raw logs, source bodies,
 or secret material by default.
 
+### Protected fixture ingestion envelope
+
+The Rust consumer and CI validation hook treat the repository root and the
+explicitly selected continuity-case directory as path authorities, not as
+permission to follow arbitrary references. They canonicalize those
+authorities and admit only stable non-symlink regular files beneath them.
+Unix consumers recheck descriptor/path device and inode identity plus
+metadata after each bounded read. Windows consumers reject reparse points and
+recheck the stable Rust 1.75 metadata surface because that toolchain does not
+expose a stable volume/file-index identity API. Manifest
+`case_files[].file` values must be portable relative `.yaml` paths made only of
+normal components; absolute, drive-prefixed, backslash, `.` / `..`,
+redirecting, and outside-root paths fail closed. The Rust continuity-directory
+scanner admits at most 4,096 entries, and the parsed manifest admits at most
+4,096 case rows.
+
+Every YAML document is limited to 4 MiB before parsing. Parsed mappings and
+sequences are limited to 4,096 entries, the full document to 65,536 nodes and
+128 levels, and an individual scalar to 256 KiB. File and in-memory loaders use
+the same bounds. Invalid UTF-8, unstable files, unsafe path types, and bound
+violations fail closed. Public errors name only the stable document and error
+class, with optional YAML line and column; they never echo host paths,
+manifest-controlled references, raw scalar values, or parser payload details.
+
+These controls narrow artifact ingestion only. They do not change the protected
+record kinds, schema version `1`, outage-class vocabulary, recovery-action IDs,
+fixture references, or compatibility expectations defined by this plan.
+
 ## Rehearsal Flow
 
 1. Capture exact-build identity, release channel, deployment profile,

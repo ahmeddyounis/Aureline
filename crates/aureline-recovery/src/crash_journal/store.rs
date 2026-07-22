@@ -527,7 +527,7 @@ fn validate_entry_for_storage(entry: &AutosaveJournalEntryRecord) -> Result<(), 
         ));
     }
     if entry.capture_descriptor.body_available
-        != !entry.capture_descriptor.body_object_refs.is_empty()
+        == entry.capture_descriptor.body_object_refs.is_empty()
     {
         return Err(CrashJournalError::CorruptRecord(
             "journal body availability disagrees with body refs",

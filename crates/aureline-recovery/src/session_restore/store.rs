@@ -15,10 +15,10 @@ use super::records::{
     FollowMode, FollowPresentationState, HydrationBehavior, MonitorAffinityHint,
     MonitorAffinityStrength, PaneLeafNode, PaneNode, PaneSurfaceDescriptor, PaneTree,
     PaneTreeSchemaVersion, ProducerBuildStamp, RestoreClass, ScopeRefs, SnapshotReason,
-    SplitOrientation, SurfaceClass, SurfaceRole, TabGroupInventoryEntry, TabRecord,
-    TerminalPaneRestoreMetadata, TopologyPacketSchemaVersion, TrustedRootRecord, WindowChromeState,
-    WindowRole, WindowState, WindowTopologySnapshotBodyRecord, WindowTopologySnapshotRecord,
-    WorkspaceAuthorityCheckpointRecord,
+    SplitOrientation, StablePaneInventoryEntry, SurfaceClass, SurfaceRole, TabGroupInventoryEntry,
+    TabRecord, TerminalPaneRestoreMetadata, TopologyPacketSchemaVersion, TrustedRootRecord,
+    WindowChromeState, WindowRole, WindowState, WindowTopologySnapshotBodyRecord,
+    WindowTopologySnapshotRecord, WorkspaceAuthorityCheckpointRecord,
 };
 
 /// Error returned when session-restore persistence fails.
@@ -1242,20 +1242,19 @@ fn write_new_json_atomically<T: Serialize>(
     Ok(())
 }
 
+type MaterializedTopology = (
+    Vec<TabGroupInventoryEntry>,
+    Vec<StablePaneInventoryEntry>,
+    PaneNode,
+    Vec<FocusChainEntry>,
+);
+
 fn materialize_topology_from_capture(
     groups: &[TabGroupCaptureInput],
     pane_tree_layout: Option<&TabGroupLayoutCapture>,
     focused_group_id: Option<&str>,
     snapshot_id: &str,
-) -> Result<
-    (
-        Vec<TabGroupInventoryEntry>,
-        Vec<super::records::StablePaneInventoryEntry>,
-        PaneNode,
-        Vec<FocusChainEntry>,
-    ),
-    SessionRestoreError,
-> {
+) -> Result<MaterializedTopology, SessionRestoreError> {
     let mut tab_group_topology = Vec::new();
     let mut stable_panes = Vec::new();
     let mut group_nodes = HashMap::new();
@@ -1281,7 +1280,7 @@ fn materialize_topology_from_capture(
             let (hydration_behavior, availability_state) =
                 restore_posture_for_surface(tab.surface_role, tab.surface_class);
 
-            stable_panes.push(super::records::StablePaneInventoryEntry {
+            stable_panes.push(StablePaneInventoryEntry {
                 pane_id: pane_id.clone(),
                 surface_role: tab.surface_role,
                 surface_class: tab.surface_class,

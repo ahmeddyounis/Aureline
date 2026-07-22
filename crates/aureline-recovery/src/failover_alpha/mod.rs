@@ -9,10 +9,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::fs::{self, File, Metadata};
+use std::io::Read;
+use std::path::{Component, Path, PathBuf};
 
 use aureline_support::recovery_ladder::{OutageClass, OutagePlaneClass};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 /// Artifact id for the checked-in backup/checkpoint class vocabulary.
@@ -44,52 +46,59 @@ pub const BACKUP_RESTORE_FAILOVER_REHEARSAL_MANIFEST_PATH: &str =
 /// Repository-relative path for the failover continuity fixture directory.
 pub const FAILOVER_CONTINUITY_CASES_DIR: &str = "fixtures/ops/failover_continuity_cases";
 
+const MAX_FAILOVER_ALPHA_YAML_BYTES: u64 = 4 * 1024 * 1024;
+const MAX_FAILOVER_ALPHA_YAML_NODES: usize = 65_536;
+const MAX_FAILOVER_ALPHA_COLLECTION_ENTRIES: usize = 4_096;
+const MAX_FAILOVER_ALPHA_YAML_DEPTH: usize = 128;
+const MAX_FAILOVER_ALPHA_SCALAR_BYTES: usize = 256 * 1024;
+const MAX_FAILOVER_ALPHA_PATH_REFERENCE_BYTES: usize = 4_096;
+
 /// Loads backup/checkpoint class definitions from YAML text.
 ///
 /// # Errors
 ///
-/// Returns a YAML parse error when the text does not match
+/// Returns [`FailoverAlphaLoadError`] when the bounded input does not match
 /// [`BackupCheckpointClasses`].
 pub fn load_backup_checkpoint_classes(
     yaml: &str,
-) -> Result<BackupCheckpointClasses, serde_yaml::Error> {
-    serde_yaml::from_str(yaml)
+) -> Result<BackupCheckpointClasses, FailoverAlphaLoadError> {
+    parse_yaml_document(yaml, "backup/checkpoint class artifact")
 }
 
 /// Loads a protected rehearsal manifest from YAML text.
 ///
 /// # Errors
 ///
-/// Returns a YAML parse error when the text does not match
+/// Returns [`FailoverAlphaLoadError`] when the bounded input does not match
 /// [`BackupRestoreFailoverRehearsalManifest`].
 pub fn load_rehearsal_manifest(
     yaml: &str,
-) -> Result<BackupRestoreFailoverRehearsalManifest, serde_yaml::Error> {
-    serde_yaml::from_str(yaml)
+) -> Result<BackupRestoreFailoverRehearsalManifest, FailoverAlphaLoadError> {
+    parse_yaml_document(yaml, "protected rehearsal manifest")
 }
 
 /// Loads one protected rehearsal case from YAML text.
 ///
 /// # Errors
 ///
-/// Returns a YAML parse error when the text does not match
+/// Returns [`FailoverAlphaLoadError`] when the bounded input does not match
 /// [`BackupRestoreFailoverRehearsalCase`].
 pub fn load_rehearsal_case(
     yaml: &str,
-) -> Result<BackupRestoreFailoverRehearsalCase, serde_yaml::Error> {
-    serde_yaml::from_str(yaml)
+) -> Result<BackupRestoreFailoverRehearsalCase, FailoverAlphaLoadError> {
+    parse_yaml_document(yaml, "protected rehearsal case")
 }
 
 /// Loads one failover continuity case from YAML text.
 ///
 /// # Errors
 ///
-/// Returns a YAML parse error when the text does not match
+/// Returns [`FailoverAlphaLoadError`] when the bounded input does not match
 /// [`FailoverContinuityCase`].
 pub fn load_failover_continuity_case(
     yaml: &str,
-) -> Result<FailoverContinuityCase, serde_yaml::Error> {
-    serde_yaml::from_str(yaml)
+) -> Result<FailoverContinuityCase, FailoverAlphaLoadError> {
+    parse_yaml_document(yaml, "failover continuity case")
 }
 
 /// Loads the checked-in failover alpha corpus from a repository root.
@@ -102,12 +111,18 @@ pub fn load_failover_continuity_case(
 pub fn load_current_failover_alpha_corpus(
     repo_root: impl AsRef<Path>,
 ) -> Result<FailoverAlphaCorpus, FailoverAlphaLoadError> {
-    let repo_root = repo_root.as_ref();
-    let backup_checkpoint_classes =
-        read_yaml_path::<BackupCheckpointClasses>(&repo_root.join(BACKUP_CHECKPOINT_CLASSES_PATH))?;
+    let repo_root = canonical_repository_root(repo_root.as_ref())?;
+    let backup_checkpoint_classes = read_yaml_path::<BackupCheckpointClasses>(
+        &repo_root,
+        &repo_root.join(BACKUP_CHECKPOINT_CLASSES_PATH),
+        "backup/checkpoint class artifact",
+    )?;
     let manifest_path = repo_root.join(BACKUP_RESTORE_FAILOVER_REHEARSAL_MANIFEST_PATH);
-    let rehearsal_manifest =
-        read_yaml_path::<BackupRestoreFailoverRehearsalManifest>(&manifest_path)?;
+    let rehearsal_manifest = read_yaml_path::<BackupRestoreFailoverRehearsalManifest>(
+        &repo_root,
+        &manifest_path,
+        "protected rehearsal manifest",
+    )?;
     let manifest_dir = manifest_path
         .parent()
         .expect("manifest path always has a parent directory");
@@ -116,10 +131,19 @@ pub fn load_current_failover_alpha_corpus(
         .case_files
         .iter()
         .map(|case_ref| {
-            let case_path = manifest_dir.join(&case_ref.file);
-            let case = read_yaml_path::<BackupRestoreFailoverRehearsalCase>(&case_path)?;
+            let relative_case_path = validate_manifest_case_reference(&case_ref.file)?;
+            let case_path = manifest_dir.join(relative_case_path);
+            let case = read_yaml_path::<BackupRestoreFailoverRehearsalCase>(
+                &repo_root,
+                &case_path,
+                "protected rehearsal case",
+            )?;
             Ok(RehearsalCaseEntry {
-                fixture_ref: repo_relative_path(repo_root, &case_path),
+                fixture_ref: repo_relative_path(
+                    &repo_root,
+                    &case_path,
+                    "protected rehearsal case",
+                )?,
                 manifest_ref: case_ref.clone(),
                 case,
             })
@@ -129,11 +153,13 @@ pub fn load_current_failover_alpha_corpus(
     let continuity_cases =
         load_failover_continuity_cases_from_dir(repo_root.join(FAILOVER_CONTINUITY_CASES_DIR))?
             .into_iter()
-            .map(|(path, case)| ContinuityCaseEntry {
-                fixture_ref: repo_relative_path(repo_root, &path),
-                case,
+            .map(|(path, case)| {
+                Ok(ContinuityCaseEntry {
+                    fixture_ref: repo_relative_path(&repo_root, &path, "failover continuity case")?,
+                    case,
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, FailoverAlphaLoadError>>()?;
 
     Ok(FailoverAlphaCorpus {
         backup_checkpoint_classes,
@@ -152,19 +178,28 @@ pub fn load_current_failover_alpha_corpus(
 pub fn load_failover_continuity_cases_from_dir(
     dir: impl AsRef<Path>,
 ) -> Result<Vec<(PathBuf, FailoverContinuityCase)>, FailoverAlphaLoadError> {
-    let dir = dir.as_ref();
+    let dir = canonical_input_directory(dir.as_ref(), "failover continuity fixture directory")?;
     let mut paths = Vec::new();
-    for entry in fs::read_dir(dir).map_err(|source| FailoverAlphaLoadError::ReadDir {
-        path: dir.to_path_buf(),
-        source,
-    })? {
-        let entry = entry.map_err(|source| FailoverAlphaLoadError::ReadDir {
-            path: dir.to_path_buf(),
-            source,
+    let entries = fs::read_dir(&dir)
+        .map_err(|error| io_load_error("failover continuity fixture directory", "list", &error))?;
+    for (index, entry) in entries.enumerate() {
+        if index >= MAX_FAILOVER_ALPHA_COLLECTION_ENTRIES {
+            return Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+                document: "failover continuity fixture directory".to_string(),
+                resource: "directory entries",
+                limit: MAX_FAILOVER_ALPHA_COLLECTION_ENTRIES,
+            });
+        }
+        let entry = entry.map_err(|error| {
+            io_load_error("failover continuity fixture directory", "list", &error)
         })?;
-        let path = entry.path();
+        let path = dir.join(entry.file_name());
         if path.extension().and_then(|ext| ext.to_str()) == Some("yaml") {
-            paths.push(path);
+            paths.push(resolve_confined_regular_file(
+                &dir,
+                &path,
+                "failover continuity case",
+            )?);
         }
     }
     paths.sort();
@@ -172,7 +207,8 @@ pub fn load_failover_continuity_cases_from_dir(
     paths
         .into_iter()
         .map(|path| {
-            let case = read_yaml_path::<FailoverContinuityCase>(&path)?;
+            let case =
+                read_yaml_path::<FailoverContinuityCase>(&dir, &path, "failover continuity case")?;
             Ok((path, case))
         })
         .collect()
@@ -181,49 +217,99 @@ pub fn load_failover_continuity_cases_from_dir(
 /// Loading failure for checked-in failover alpha artifacts.
 #[derive(Debug)]
 pub enum FailoverAlphaLoadError {
-    /// A YAML fixture or artifact could not be read.
-    Read {
-        /// Filesystem path that failed.
-        path: PathBuf,
-        /// Underlying IO error.
-        source: std::io::Error,
+    /// A bounded artifact operation failed.
+    Io {
+        /// Stable document class. Never a host path.
+        document: String,
+        /// Stable operation class.
+        operation: &'static str,
+        /// Redaction-safe I/O error class.
+        kind: &'static str,
     },
-    /// A directory containing fixtures could not be listed.
-    ReadDir {
-        /// Directory path that failed.
-        path: PathBuf,
-        /// Underlying IO error.
-        source: std::io::Error,
+    /// A selected path escaped its declared authority or used unsafe components.
+    UnsafePath {
+        /// Stable document class. Never a host path or untrusted reference.
+        document: String,
     },
-    /// A YAML fixture or artifact could not be parsed into its typed record.
+    /// A selected path was not a non-symlink regular file or directory.
+    UnsafeFileType {
+        /// Stable document class. Never a host path.
+        document: String,
+    },
+    /// A selected file changed identity or metadata while it was read.
+    FileChangedDuringRead {
+        /// Stable document class. Never a host path.
+        document: String,
+    },
+    /// A selected file was not valid UTF-8.
+    InvalidUtf8 {
+        /// Stable document class. Never a host path.
+        document: String,
+    },
+    /// A byte, path, node, depth, or collection bound was exceeded.
+    ResourceLimitExceeded {
+        /// Stable document class. Never a host path.
+        document: String,
+        /// Stable resource class.
+        resource: &'static str,
+        /// Maximum admitted bytes, nodes, depth, or entries.
+        limit: usize,
+    },
+    /// A bounded YAML fixture or artifact did not match its typed record.
     Parse {
-        /// Filesystem path that failed.
-        path: PathBuf,
-        /// Underlying YAML parse error.
-        source: serde_yaml::Error,
+        /// Stable document class. Never a host path.
+        document: String,
+        /// Parser line, when available.
+        line: Option<usize>,
+        /// Parser column, when available.
+        column: Option<usize>,
     },
 }
 
 impl fmt::Display for FailoverAlphaLoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Read { path, source } => write!(f, "read {}: {source}", path.display()),
-            Self::ReadDir { path, source } => {
-                write!(f, "read directory {}: {source}", path.display())
+            Self::Io {
+                document,
+                operation,
+                kind,
+            } => write!(f, "failed to {operation} {document}: {kind}"),
+            Self::UnsafePath { document } => {
+                write!(f, "{document} is outside its declared path authority")
             }
-            Self::Parse { path, source } => write!(f, "parse {}: {source}", path.display()),
+            Self::UnsafeFileType { document } => {
+                write!(f, "{document} is not a stable non-symlink input")
+            }
+            Self::FileChangedDuringRead { document } => {
+                write!(f, "{document} changed while it was being read")
+            }
+            Self::InvalidUtf8 { document } => {
+                write!(f, "{document} is not valid UTF-8")
+            }
+            Self::ResourceLimitExceeded {
+                document,
+                resource,
+                limit,
+            } => write!(
+                f,
+                "{document} {resource} exceeds the configured limit of {limit}"
+            ),
+            Self::Parse {
+                document,
+                line: Some(line),
+                column: Some(column),
+            } => {
+                write!(
+                    f,
+                    "failed to parse {document} at line {line}, column {column}"
+                )
+            }
+            Self::Parse { document, .. } => write!(f, "failed to parse {document}"),
         }
     }
 }
 
-impl Error for FailoverAlphaLoadError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            Self::Read { source, .. } | Self::ReadDir { source, .. } => Some(source),
-            Self::Parse { source, .. } => Some(source),
-        }
-    }
-}
+impl Error for FailoverAlphaLoadError {}
 
 /// Parsed backup/checkpoint class vocabulary artifact.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1760,18 +1846,408 @@ fn expected_actions_for_outage(outage_class: OutageClass) -> &'static [FailoverR
     }
 }
 
-fn read_yaml_path<T>(path: &Path) -> Result<T, FailoverAlphaLoadError>
+fn canonical_repository_root(path: &Path) -> Result<PathBuf, FailoverAlphaLoadError> {
+    let metadata =
+        fs::metadata(path).map_err(|error| io_load_error("repository root", "inspect", &error))?;
+    if !metadata.is_dir() {
+        return Err(FailoverAlphaLoadError::UnsafeFileType {
+            document: "repository root".to_string(),
+        });
+    }
+    fs::canonicalize(path).map_err(|error| io_load_error("repository root", "resolve", &error))
+}
+
+fn canonical_input_directory(
+    path: &Path,
+    document: &str,
+) -> Result<PathBuf, FailoverAlphaLoadError> {
+    let metadata =
+        fs::symlink_metadata(path).map_err(|error| io_load_error(document, "inspect", &error))?;
+    if metadata_is_redirect(&metadata) || !metadata.is_dir() {
+        return Err(FailoverAlphaLoadError::UnsafeFileType {
+            document: document.to_string(),
+        });
+    }
+    fs::canonicalize(path).map_err(|error| io_load_error(document, "resolve", &error))
+}
+
+fn validate_manifest_case_reference(reference: &str) -> Result<&Path, FailoverAlphaLoadError> {
+    let document = "protected rehearsal case reference";
+    if reference.len() > MAX_FAILOVER_ALPHA_PATH_REFERENCE_BYTES {
+        return Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+            document: document.to_string(),
+            resource: "path bytes",
+            limit: MAX_FAILOVER_ALPHA_PATH_REFERENCE_BYTES,
+        });
+    }
+    if reference.is_empty()
+        || !reference.chars().all(is_safe_path_reference_char)
+        || reference
+            .split('/')
+            .any(|component| matches!(component, "" | "." | ".."))
+        || reference.contains('\\')
+        || reference
+            .as_bytes()
+            .get(1)
+            .is_some_and(|separator| *separator == b':')
+    {
+        return Err(FailoverAlphaLoadError::UnsafePath {
+            document: document.to_string(),
+        });
+    }
+
+    let path = Path::new(reference);
+    if path.is_absolute()
+        || path.extension().and_then(|extension| extension.to_str()) != Some("yaml")
+        || path
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(FailoverAlphaLoadError::UnsafePath {
+            document: document.to_string(),
+        });
+    }
+    Ok(path)
+}
+
+fn resolve_confined_regular_file(
+    authority_root: &Path,
+    candidate: &Path,
+    document: &str,
+) -> Result<PathBuf, FailoverAlphaLoadError> {
+    let relative =
+        candidate
+            .strip_prefix(authority_root)
+            .map_err(|_| FailoverAlphaLoadError::UnsafePath {
+                document: document.to_string(),
+            })?;
+    if relative.as_os_str().is_empty()
+        || relative
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(FailoverAlphaLoadError::UnsafePath {
+            document: document.to_string(),
+        });
+    }
+
+    let mut current = authority_root.to_path_buf();
+    let component_count = relative.components().count();
+    for (index, component) in relative.components().enumerate() {
+        let Component::Normal(segment) = component else {
+            return Err(FailoverAlphaLoadError::UnsafePath {
+                document: document.to_string(),
+            });
+        };
+        current.push(segment);
+        let metadata = fs::symlink_metadata(&current)
+            .map_err(|error| io_load_error(document, "inspect", &error))?;
+        if metadata_is_redirect(&metadata)
+            || (index + 1 == component_count && !metadata.is_file())
+            || (index + 1 < component_count && !metadata.is_dir())
+        {
+            return Err(FailoverAlphaLoadError::UnsafeFileType {
+                document: document.to_string(),
+            });
+        }
+    }
+
+    let canonical =
+        fs::canonicalize(candidate).map_err(|error| io_load_error(document, "resolve", &error))?;
+    if !canonical.starts_with(authority_root) {
+        return Err(FailoverAlphaLoadError::UnsafePath {
+            document: document.to_string(),
+        });
+    }
+    Ok(canonical)
+}
+
+fn read_yaml_path<T>(
+    authority_root: &Path,
+    path: &Path,
+    document: &str,
+) -> Result<T, FailoverAlphaLoadError>
 where
-    T: for<'de> Deserialize<'de>,
+    T: DeserializeOwned,
 {
-    let yaml = fs::read_to_string(path).map_err(|source| FailoverAlphaLoadError::Read {
-        path: path.to_path_buf(),
-        source,
-    })?;
-    serde_yaml::from_str(&yaml).map_err(|source| FailoverAlphaLoadError::Parse {
-        path: path.to_path_buf(),
-        source,
+    let path = resolve_confined_regular_file(authority_root, path, document)?;
+    let yaml = read_bounded_regular_file(authority_root, &path, document)?;
+    parse_yaml_document(&yaml, document)
+}
+
+fn read_bounded_regular_file(
+    authority_root: &Path,
+    path: &Path,
+    document: &str,
+) -> Result<String, FailoverAlphaLoadError> {
+    let before =
+        fs::symlink_metadata(path).map_err(|error| io_load_error(document, "inspect", &error))?;
+    if metadata_is_redirect(&before) || !before.is_file() {
+        return Err(FailoverAlphaLoadError::UnsafeFileType {
+            document: document.to_string(),
+        });
+    }
+    if before.len() > MAX_FAILOVER_ALPHA_YAML_BYTES {
+        return Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+            document: document.to_string(),
+            resource: "input bytes",
+            limit: MAX_FAILOVER_ALPHA_YAML_BYTES as usize,
+        });
+    }
+
+    let canonical_before =
+        fs::canonicalize(path).map_err(|error| io_load_error(document, "resolve", &error))?;
+    if canonical_before != path || !canonical_before.starts_with(authority_root) {
+        return Err(FailoverAlphaLoadError::UnsafePath {
+            document: document.to_string(),
+        });
+    }
+
+    let mut file = File::open(path).map_err(|error| io_load_error(document, "read", &error))?;
+    let opened = file
+        .metadata()
+        .map_err(|error| io_load_error(document, "inspect", &error))?;
+    if !stable_file_metadata(&before, &opened) {
+        return Err(FailoverAlphaLoadError::FileChangedDuringRead {
+            document: document.to_string(),
+        });
+    }
+
+    let mut bytes = Vec::with_capacity(opened.len().min(MAX_FAILOVER_ALPHA_YAML_BYTES) as usize);
+    (&mut file)
+        .take(MAX_FAILOVER_ALPHA_YAML_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| io_load_error(document, "read", &error))?;
+    if bytes.len() as u64 > MAX_FAILOVER_ALPHA_YAML_BYTES {
+        return Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+            document: document.to_string(),
+            resource: "input bytes",
+            limit: MAX_FAILOVER_ALPHA_YAML_BYTES as usize,
+        });
+    }
+
+    let descriptor_after = file
+        .metadata()
+        .map_err(|error| io_load_error(document, "inspect", &error))?;
+    let path_after =
+        fs::symlink_metadata(path).map_err(|error| io_load_error(document, "inspect", &error))?;
+    let canonical_after =
+        fs::canonicalize(path).map_err(|error| io_load_error(document, "resolve", &error))?;
+    if canonical_after != canonical_before
+        || !canonical_after.starts_with(authority_root)
+        || !stable_file_metadata(&opened, &descriptor_after)
+        || !stable_file_metadata(&descriptor_after, &path_after)
+    {
+        return Err(FailoverAlphaLoadError::FileChangedDuringRead {
+            document: document.to_string(),
+        });
+    }
+
+    String::from_utf8(bytes).map_err(|_| FailoverAlphaLoadError::InvalidUtf8 {
+        document: document.to_string(),
     })
+}
+
+fn parse_yaml_document<T>(yaml: &str, document: &str) -> Result<T, FailoverAlphaLoadError>
+where
+    T: DeserializeOwned,
+{
+    if yaml.len() as u64 > MAX_FAILOVER_ALPHA_YAML_BYTES {
+        return Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+            document: document.to_string(),
+            resource: "input bytes",
+            limit: MAX_FAILOVER_ALPHA_YAML_BYTES as usize,
+        });
+    }
+
+    let value = serde_yaml::from_str::<serde_yaml::Value>(yaml)
+        .map_err(|error| yaml_load_error(document, &error))?;
+    let mut node_count = 0;
+    validate_yaml_shape(&value, document, 0, &mut node_count)?;
+    serde_yaml::from_value(value).map_err(|error| yaml_load_error(document, &error))
+}
+
+fn validate_yaml_shape(
+    value: &serde_yaml::Value,
+    document: &str,
+    depth: usize,
+    node_count: &mut usize,
+) -> Result<(), FailoverAlphaLoadError> {
+    if depth > MAX_FAILOVER_ALPHA_YAML_DEPTH {
+        return Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+            document: document.to_string(),
+            resource: "nesting depth",
+            limit: MAX_FAILOVER_ALPHA_YAML_DEPTH,
+        });
+    }
+    *node_count = node_count.saturating_add(1);
+    if *node_count > MAX_FAILOVER_ALPHA_YAML_NODES {
+        return Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+            document: document.to_string(),
+            resource: "parsed nodes",
+            limit: MAX_FAILOVER_ALPHA_YAML_NODES,
+        });
+    }
+
+    match value {
+        serde_yaml::Value::String(value) if value.len() > MAX_FAILOVER_ALPHA_SCALAR_BYTES => {
+            Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+                document: document.to_string(),
+                resource: "scalar bytes",
+                limit: MAX_FAILOVER_ALPHA_SCALAR_BYTES,
+            })
+        }
+        serde_yaml::Value::Sequence(values) => {
+            if values.len() > MAX_FAILOVER_ALPHA_COLLECTION_ENTRIES {
+                return Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+                    document: document.to_string(),
+                    resource: "sequence entries",
+                    limit: MAX_FAILOVER_ALPHA_COLLECTION_ENTRIES,
+                });
+            }
+            for value in values {
+                validate_yaml_shape(value, document, depth + 1, node_count)?;
+            }
+            Ok(())
+        }
+        serde_yaml::Value::Mapping(values) => {
+            if values.len() > MAX_FAILOVER_ALPHA_COLLECTION_ENTRIES {
+                return Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+                    document: document.to_string(),
+                    resource: "mapping entries",
+                    limit: MAX_FAILOVER_ALPHA_COLLECTION_ENTRIES,
+                });
+            }
+            for (key, value) in values {
+                validate_yaml_shape(key, document, depth + 1, node_count)?;
+                validate_yaml_shape(value, document, depth + 1, node_count)?;
+            }
+            Ok(())
+        }
+        serde_yaml::Value::Tagged(value) => {
+            if value.tag.to_string().len() > MAX_FAILOVER_ALPHA_SCALAR_BYTES {
+                return Err(FailoverAlphaLoadError::ResourceLimitExceeded {
+                    document: document.to_string(),
+                    resource: "tag bytes",
+                    limit: MAX_FAILOVER_ALPHA_SCALAR_BYTES,
+                });
+            }
+            validate_yaml_shape(&value.value, document, depth + 1, node_count)
+        }
+        _ => Ok(()),
+    }
+}
+
+fn yaml_load_error(document: &str, error: &serde_yaml::Error) -> FailoverAlphaLoadError {
+    let (line, column) = error.location().map_or((None, None), |location| {
+        (Some(location.line()), Some(location.column()))
+    });
+    FailoverAlphaLoadError::Parse {
+        document: document.to_string(),
+        line,
+        column,
+    }
+}
+
+fn io_load_error(
+    document: &str,
+    operation: &'static str,
+    error: &std::io::Error,
+) -> FailoverAlphaLoadError {
+    FailoverAlphaLoadError::Io {
+        document: document.to_string(),
+        operation,
+        kind: io_error_class(error),
+    }
+}
+
+fn io_error_class(error: &std::io::Error) -> &'static str {
+    match error.kind() {
+        std::io::ErrorKind::NotFound => "not_found",
+        std::io::ErrorKind::PermissionDenied => "permission_denied",
+        std::io::ErrorKind::Interrupted => "interrupted",
+        std::io::ErrorKind::InvalidData => "invalid_data",
+        _ => "io_failure",
+    }
+}
+
+fn is_safe_path_reference_char(character: char) -> bool {
+    !character.is_control()
+        && !matches!(
+            character,
+            '\u{061c}'
+                | '\u{200b}'
+                | '\u{200e}'
+                | '\u{200f}'
+                | '\u{202a}'..='\u{202e}'
+                | '\u{2060}'
+                | '\u{2066}'..='\u{2069}'
+                | '\u{feff}'
+        )
+}
+
+fn metadata_is_redirect(metadata: &Metadata) -> bool {
+    metadata.file_type().is_symlink() || metadata_is_platform_redirect(metadata)
+}
+
+#[cfg(windows)]
+fn metadata_is_platform_redirect(metadata: &Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+    metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+#[cfg(not(windows))]
+fn metadata_is_platform_redirect(_metadata: &Metadata) -> bool {
+    false
+}
+
+#[cfg(unix)]
+fn same_file_identity(left: &Metadata, right: &Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    left.dev() == right.dev()
+        && left.ino() == right.ino()
+        && left.mode() == right.mode()
+        && left.mtime() == right.mtime()
+        && left.mtime_nsec() == right.mtime_nsec()
+        && left.ctime() == right.ctime()
+        && left.ctime_nsec() == right.ctime_nsec()
+}
+
+#[cfg(windows)]
+fn same_file_identity(left: &Metadata, right: &Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+
+    // Stable Rust 1.75 does not expose Windows volume/file-index identity.
+    // Compare every stable, non-access-time metadata field available here and
+    // separately reject reparse points before accepting the path/descriptor
+    // pair. This is deliberately narrower than the Unix device/inode proof.
+    left.creation_time() == right.creation_time()
+        && left.last_write_time() == right.last_write_time()
+        && left.file_size() == right.file_size()
+        && left.file_attributes() == right.file_attributes()
+}
+
+#[cfg(not(any(unix, windows)))]
+fn same_file_identity(left: &Metadata, right: &Metadata) -> bool {
+    left.file_type() == right.file_type()
+        && left.created().ok() == right.created().ok()
+        && left.modified().ok() == right.modified().ok()
+}
+
+fn stable_file_metadata(left: &Metadata, right: &Metadata) -> bool {
+    left.is_file()
+        && right.is_file()
+        && !metadata_is_redirect(left)
+        && !metadata_is_redirect(right)
+        && left.len() == right.len()
+        && matches!(
+            (left.modified(), right.modified()),
+            (Ok(left_modified), Ok(right_modified)) if left_modified == right_modified
+        )
+        && same_file_identity(left, right)
 }
 
 fn set_from_copied<'a, T>(iter: impl Iterator<Item = &'a T>) -> BTreeSet<T>
@@ -1781,11 +2257,29 @@ where
     iter.copied().collect()
 }
 
-fn repo_relative_path(repo_root: &Path, path: &Path) -> String {
-    path.strip_prefix(repo_root)
-        .unwrap_or(path)
-        .to_string_lossy()
-        .replace('\\', "/")
+fn repo_relative_path(
+    repo_root: &Path,
+    path: &Path,
+    document: &str,
+) -> Result<String, FailoverAlphaLoadError> {
+    let relative =
+        path.strip_prefix(repo_root)
+            .map_err(|_| FailoverAlphaLoadError::UnsafePath {
+                document: document.to_string(),
+            })?;
+    let relative = relative
+        .to_str()
+        .ok_or_else(|| FailoverAlphaLoadError::UnsafePath {
+            document: document.to_string(),
+        })?;
+    #[cfg(windows)]
+    {
+        Ok(relative.replace('\\', "/"))
+    }
+    #[cfg(not(windows))]
+    {
+        Ok(relative.to_string())
+    }
 }
 
 fn push_violation(
@@ -1799,4 +2293,32 @@ fn push_violation(
         subject_ref: subject_ref.into(),
         message: message.into(),
     });
+}
+
+#[cfg(test)]
+mod ingestion_contract_tests {
+    use super::*;
+
+    #[test]
+    fn manifest_case_reference_requires_normal_visible_components() {
+        assert_eq!(
+            validate_manifest_case_reference("nested/continuity.yaml")
+                .expect("portable nested reference"),
+            Path::new("nested/continuity.yaml")
+        );
+
+        for reference in [
+            "./continuity.yaml",
+            "nested//continuity.yaml",
+            "nested/../continuity.yaml",
+            "C:continuity.yaml",
+            "nested\\continuity.yaml",
+            "hidden\u{202e}.yaml",
+        ] {
+            assert!(matches!(
+                validate_manifest_case_reference(reference),
+                Err(FailoverAlphaLoadError::UnsafePath { .. })
+            ));
+        }
+    }
 }
