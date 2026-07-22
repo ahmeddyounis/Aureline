@@ -40,6 +40,22 @@ pub(crate) fn read_bounded_workspace_utf8(
     relative_path: &Path,
     max_bytes: u64,
 ) -> Result<Option<String>, BoundedWorkspaceReadError> {
+    let Some(bytes) = read_bounded_workspace_bytes(workspace_root, relative_path, max_bytes)?
+    else {
+        return Ok(None);
+    };
+    String::from_utf8(bytes)
+        .map(Some)
+        .map_err(|_| BoundedWorkspaceReadError::InvalidUtf8)
+}
+
+/// Reads exact workspace-relative bytes while rejecting escape, symlink,
+/// non-regular, oversized, and identity-changing inputs.
+pub(crate) fn read_bounded_workspace_bytes(
+    workspace_root: &Path,
+    relative_path: &Path,
+    max_bytes: u64,
+) -> Result<Option<Vec<u8>>, BoundedWorkspaceReadError> {
     if relative_path.is_absolute()
         || relative_path
             .components()
@@ -62,7 +78,7 @@ pub(crate) fn read_bounded_workspace_utf8(
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(_) => return Err(BoundedWorkspaceReadError::ReadFailed),
     };
-    if before.file_type().is_symlink() {
+    if metadata_is_redirect(&before) {
         return Err(BoundedWorkspaceReadError::Symlink);
     }
     if !before.is_file() {
@@ -106,7 +122,7 @@ pub(crate) fn read_bounded_workspace_utf8(
         .canonicalize()
         .map_err(|_| BoundedWorkspaceReadError::ChangedDuringRead)?;
     if path_has_symlink_component(&canonical_root, relative_path)
-        || path_after.file_type().is_symlink()
+        || metadata_is_redirect(&path_after)
         || !path_after.is_file()
         || !canonical_after.starts_with(&canonical_root)
         || !same_file_identity(&opened, &descriptor_after)
@@ -115,9 +131,7 @@ pub(crate) fn read_bounded_workspace_utf8(
         return Err(BoundedWorkspaceReadError::ChangedDuringRead);
     }
 
-    String::from_utf8(bytes)
-        .map(Some)
-        .map_err(|_| BoundedWorkspaceReadError::InvalidUtf8)
+    Ok(Some(bytes))
 }
 
 pub(crate) fn workspace_regular_file_exists(workspace_root: &Path, relative_path: &Path) -> bool {
@@ -129,7 +143,7 @@ pub(crate) fn workspace_regular_file_exists(workspace_root: &Path, relative_path
         return false;
     };
     if path_has_symlink_component(&canonical_root, relative_path)
-        || before.file_type().is_symlink()
+        || metadata_is_redirect(&before)
         || !before.is_file()
     {
         return false;
@@ -155,7 +169,7 @@ pub(crate) fn workspace_regular_file_exists(workspace_root: &Path, relative_path
     !path_has_symlink_component(&canonical_root, relative_path)
         && opened.is_file()
         && after.is_file()
-        && !after.file_type().is_symlink()
+        && !metadata_is_redirect(&after)
         && canonical_after.starts_with(&canonical_root)
         && same_file_identity(&before, &opened)
         && same_file_identity(&opened, &after)
@@ -180,7 +194,7 @@ pub(crate) fn workspace_regular_directory_exists(
         return false;
     };
     if path_has_symlink_component(&canonical_root, relative_path)
-        || before.file_type().is_symlink()
+        || metadata_is_redirect(&before)
         || !before.is_dir()
     {
         return false;
@@ -196,7 +210,7 @@ pub(crate) fn workspace_regular_directory_exists(
     };
     !path_has_symlink_component(&canonical_root, relative_path)
         && after.is_dir()
-        && !after.file_type().is_symlink()
+        && !metadata_is_redirect(&after)
         && same_object_identity(&before, &after)
 }
 
@@ -225,12 +239,29 @@ fn path_has_symlink_component(canonical_root: &Path, relative_path: &Path) -> bo
         };
         current.push(component);
         match std::fs::symlink_metadata(&current) {
-            Ok(metadata) if metadata.file_type().is_symlink() => return true,
+            Ok(metadata) if metadata_is_redirect(&metadata) => return true,
             Ok(_) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return false,
             Err(_) => return true,
         }
     }
+    false
+}
+
+fn metadata_is_redirect(metadata: &Metadata) -> bool {
+    metadata.file_type().is_symlink() || metadata_is_platform_redirect(metadata)
+}
+
+#[cfg(windows)]
+fn metadata_is_platform_redirect(metadata: &Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+    metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+#[cfg(not(windows))]
+fn metadata_is_platform_redirect(_metadata: &Metadata) -> bool {
     false
 }
 
@@ -297,6 +328,43 @@ mod tests {
         assert!(!is_safe_reference_text("tests/test_spoof\n.py"));
         assert!(!is_safe_reference_text("tests/test_\u{202e}spoof.py"));
         assert!(!is_safe_reference_text("tests/test_\u{200b}spoof.py"));
+    }
+
+    #[test]
+    fn byte_reads_preserve_non_utf8_content_exactly() {
+        let workspace = TempWorkspace::new("raw-bytes");
+        let expected = vec![0xff, 0x00, 0x80, b'a'];
+        std::fs::write(workspace.path().join("metadata.bin"), &expected).expect("metadata");
+
+        assert_eq!(
+            read_bounded_workspace_bytes(workspace.path(), Path::new("metadata.bin"), 16),
+            Ok(Some(expected))
+        );
+        assert_eq!(
+            read_bounded_workspace_utf8(workspace.path(), Path::new("metadata.bin"), 16),
+            Err(BoundedWorkspaceReadError::InvalidUtf8)
+        );
+    }
+
+    #[test]
+    fn byte_reads_enforce_the_declared_limit() {
+        let workspace = TempWorkspace::new("byte-limit");
+        std::fs::write(workspace.path().join("metadata.bin"), [0_u8; 17]).expect("metadata");
+
+        assert_eq!(
+            read_bounded_workspace_bytes(workspace.path(), Path::new("metadata.bin"), 16),
+            Err(BoundedWorkspaceReadError::TooLarge)
+        );
+    }
+
+    #[test]
+    fn regular_files_are_not_classified_as_path_redirects() {
+        let workspace = TempWorkspace::new("regular-file");
+        let path = workspace.path().join("metadata.toml");
+        std::fs::write(&path, "safe = true\n").expect("metadata");
+        let metadata = std::fs::symlink_metadata(path).expect("metadata identity");
+
+        assert!(!metadata_is_redirect(&metadata));
     }
 
     #[cfg(unix)]

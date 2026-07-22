@@ -1262,7 +1262,7 @@ fn raw_ref(
 ) -> RawPayloadReference {
     let raw_payload_ref = raw_payload_ref.into();
     RawPayloadReference {
-        payload_digest: format!("sha256:{}", raw_payload_ref.replace(':', "-")),
+        payload_digest: crate::digest::sha256_token(raw_payload_ref.as_bytes()),
         raw_payload_ref,
         source_kind,
         retention_class: RawPayloadRetentionClass::MetadataDigestOnly,

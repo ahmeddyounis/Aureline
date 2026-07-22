@@ -27,6 +27,12 @@ The beta promise:
   `unsupported`. Sources that did not shape the primary binding carry the
   `overridden_by_higher_precedence` note so the conflict is visible rather
   than silently merged.
+- **Bounded source evidence.** Every source body is read through a
+  workspace-contained, no-redirect, identity-checked reader. Symlinks and
+  Windows junction/reparse-point descendants are rejected. A file is limited
+  to 8 MiB and one resolution is limited to 32 MiB. Present sources that fail
+  those checks remain in the ledger with a typed read state; they are never
+  silently treated as absent or hashed as an empty body.
 - **Drift you can act on.** A typed
   [`evaluate_capsule_drift`](../../../crates/aureline-runtime/src/capsule_resolver/beta.rs)
   evaluator compares a stored
@@ -68,6 +74,19 @@ parsed view aligned with how the user authored the workspace.
 | `heuristic` | The body parsed but at least one field had to fall back to a heuristic (malformed body, missing required field, dependent source missing). |
 | `unsupported` | The file class is recognised but the contract does not parse the body (Nix sources). The content digest is still tracked so drift detection still applies. |
 
+## Source read states
+
+| State | Meaning |
+| --- | --- |
+| `complete` | The exact source bytes were read under containment, identity, per-file, and aggregate byte checks. |
+| `unavailable` | The source is present but is a symlink or Windows junction/reparse-point descendant, escapes the workspace, is not a regular file, changed during the read, or could not be read safely. `content_digest` is `null`. |
+| `resource_limit_exceeded` | The source exceeded the 8 MiB per-file or 32 MiB aggregate budget. `content_digest` is `null`. |
+
+Any non-`complete` source makes capsule lineage `unknown_lineage` and rejects
+prebuild reuse as drifted. When the primary source is incomplete, the resolver
+also mints an `.unavailable` capsule id. This keeps local inspection available
+without presenting incomplete evidence as current.
+
 ## Source notes
 
 | Note | Meaning |
@@ -78,6 +97,9 @@ parsed view aligned with how the user authored the workspace.
 | `unsupported_body_parse` | The contract does not parse this body; drift tracking still applies. |
 | `overridden_by_higher_precedence` | The source was parsed but did not shape the primary capsule binding. |
 | `unknown_field_kept` | The body declared a feature outside the beta vocabulary. |
+| `source_read_unavailable` | The bounded workspace reader could not obtain a stable, contained regular-file body. |
+| `source_resource_limit_exceeded` | The source exceeded the per-file or aggregate read budget. |
+| `body_invalid_utf8` | Exact bytes were read and digested, but the text body was not valid UTF-8 and could not be parsed. |
 
 ## Drift outcomes
 
@@ -86,7 +108,7 @@ parsed view aligned with how the user authored the workspace.
 | `in_sync` | Stored source-set digest matches the freshly resolved digest. |
 | `stale_inputs` | At least one source body changed content. |
 | `manually_diverged` | Sources were added or removed since the stored snapshot. |
-| `unknown_lineage` | Stored snapshot referenced no sources, so there is no prior baseline. |
+| `unknown_lineage` | Stored snapshot referenced no sources, or a present source lacks complete bounded-read evidence. |
 
 ## Capsule binding
 
@@ -96,9 +118,16 @@ and the source-set digest:
 - `capsule_id` is the primary-source-bound identifier (for example
   `capsule.beta.devcontainer.parsed`, `capsule.beta.compose.parsed`,
   `capsule.beta.nix_flake.metadata`, `capsule.beta.unknown.uncertain`).
-- `capsule_hash` is `digest("capsule.beta", capsule_id, source_set_digest,
-  archetype_hint)`. Editing any source body advances the source-set digest,
-  which advances the capsule hash, which causes a downstream
+- Direct `content_digest` values are SHA-256 over the exact raw bytes. Node
+  and Python multi-file rows, source-set digests, and capsule hashes use
+  domain-separated SHA-256 with an explicit part count and unsigned 64-bit
+  big-endian byte length before every ordered part. This prevents ambiguous
+  concatenations such as `("ab", "c")` and `("a", "bc")` from sharing an
+  encoding.
+- `capsule_hash` is the length-framed SHA-256 of `"capsule.beta"`,
+  `capsule_id`, `source_set_digest`, and `archetype_hint`. Editing any source
+  body advances the source-set digest, which advances the capsule hash, which
+  causes a downstream
   [ticket-drift evaluator](execution_context_beta.md) to invalidate any
   stored binding.
 
@@ -140,6 +169,18 @@ The integration test that replays these fixtures lives at
 - Devcontainer feature execution and lifecycle hook execution.
 - Compose `up` / image pull side effects.
 - Cross-workspace capsule import.
+
+## Version 2 migration
+
+Schema version 2 and resolver token `environment_capsule_resolver.beta.v2`
+replace the earlier SHA-256-shaped pseudo-hashes with actual SHA-256, require
+`read_state` plus `read_state_token` on every source row, allow
+`content_digest: null` only when the read is incomplete, and add the three
+failure notes above. Digest values minted by resolver v1 are not compatible
+with v2 baselines: callers must resolve a fresh baseline rather than comparing
+or reusing a v1 digest. The alpha resolver likewise advances its implementation
+token to `environment_capsule_resolver.alpha.v2`; its record schema remains v1
+because no alpha fields or vocabularies changed.
 
 ## How to verify
 

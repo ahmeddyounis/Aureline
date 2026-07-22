@@ -1591,7 +1591,7 @@ fn canonical_profile(profile: ToolingProfile) -> ToolingProfileCertification {
         capability_packet_ref: format!("capability-packet:{token}"),
         fallback_reason,
         observed_confidence,
-        payload_digest: format!("sha256:{}", raw_payload_ref.replace(':', "-")),
+        payload_digest: crate::digest::sha256_token(raw_payload_ref.as_bytes()),
         raw_payload_ref,
         raw_payload_retention: retention,
         raw_private_material_excluded: true,

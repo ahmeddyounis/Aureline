@@ -1635,7 +1635,7 @@ fn conforming_case(family: CorpusFamily, archetype: InteropArchetype) -> Conform
             archetype.as_str(),
             family.as_str()
         ),
-        payload_digest: format!("sha256:{}", raw_payload_ref.replace(':', "-")),
+        payload_digest: crate::digest::sha256_token(raw_payload_ref.as_bytes()),
         case_id,
         family,
         archetype,

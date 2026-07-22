@@ -26,7 +26,7 @@ use aureline_runtime::{
     EnvironmentCapsuleBetaCoverageManifest, EnvironmentCapsuleBetaResolver,
     EnvironmentCapsuleBetaSupportExport, ProjectArchetypeHint,
     ENVIRONMENT_CAPSULE_BETA_COVERAGE_MANIFEST_RECORD_KIND,
-    ENVIRONMENT_CAPSULE_BETA_SUPPORT_EXPORT_RECORD_KIND,
+    ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION, ENVIRONMENT_CAPSULE_BETA_SUPPORT_EXPORT_RECORD_KIND,
 };
 use serde::Deserialize;
 
@@ -110,7 +110,7 @@ fn assert_resolution_case(case_path: &Path) {
     let case: ResolutionCase = serde_json::from_str(&payload)
         .unwrap_or_else(|err| panic!("parse {}: {err}", case_path.display()));
     assert_eq!(case.record_kind, "environment_capsule_beta_case");
-    assert_eq!(case.schema_version, 1);
+    assert_eq!(case.schema_version, ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION);
 
     let workspace = fixture_root().join(&case.workspace_dir);
     let resolver = EnvironmentCapsuleBetaResolver::default_read_only();
@@ -218,7 +218,7 @@ fn assert_drift_case(case_path: &Path) {
     let case: DriftCase = serde_json::from_str(&payload)
         .unwrap_or_else(|err| panic!("parse {}: {err}", case_path.display()));
     assert_eq!(case.record_kind, "environment_capsule_beta_drift_case");
-    assert_eq!(case.schema_version, 1);
+    assert_eq!(case.schema_version, ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION);
 
     let resolver = EnvironmentCapsuleBetaResolver::default_read_only();
     let baseline_workspace = fixture_root().join(&case.baseline_workspace_dir);

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/runtime/environment_capsule_beta.schema.json",
   "title": "Aureline environment-capsule beta resolution, drift, support-export, and coverage-manifest records",
-  "description": "Boundary schema for the beta environment-capsule resolver projected by crates/aureline-runtime/src/capsule_resolver/beta.rs. The beta resolver extends the alpha capsule resolver with devcontainer.json, docker-compose.yml, flake.nix / shell.nix / default.nix body parsing under a closed precedence ladder (devcontainer > docker_compose > nix_flake > nix_shell > nix_default > node_manifest > python_manifest). Every parsed source is stamped with one of three confidence labels — imported (clean structured parse), heuristic (partial / fallback parse), unsupported (file class the contract does not parse). Conflicting sources MUST be labelled overridden_by_higher_precedence rather than silently merged. Drift detection is content-digest based and projects onto a closed outcome vocabulary (in_sync, stale_inputs, manually_diverged, unknown_lineage). Raw devcontainer.json / docker-compose / Nix bodies, raw command lines, and raw secret values do not cross this boundary; only opaque content digests, source-class tokens, confidence tokens, and structured-token parsed fields do. Adding a new source class, confidence label, source note, or drift outcome is additive-minor and bumps environment_capsule_beta_schema_version; repurposing an existing field is breaking.",
+  "description": "Boundary schema for the beta environment-capsule resolver projected by crates/aureline-runtime/src/capsule_resolver/beta.rs. The beta resolver extends the alpha capsule resolver with devcontainer.json, docker-compose.yml, flake.nix / shell.nix / default.nix body parsing under a closed precedence ladder (devcontainer > docker_compose > nix_flake > nix_shell > nix_default > node_manifest > python_manifest). Every parsed source is stamped with one of three confidence labels — imported (clean structured parse), heuristic (partial / fallback parse), unsupported (file class the contract does not parse) — and one bounded-read state. Present sources that fail containment, no-redirect (including Windows junction/reparse-point descendants), identity, or byte-budget checks remain visible with null content_digest and a typed failure note; they are not omitted or hashed as empty bodies. Complete content digests and length-framed aggregate digests are actual SHA-256. Conflicting sources MUST be labelled overridden_by_higher_precedence rather than silently merged. Drift detection projects onto a closed outcome vocabulary (in_sync, stale_inputs, manually_diverged, unknown_lineage). Raw devcontainer.json / docker-compose / Nix bodies, raw command lines, and raw secret values do not cross this boundary; only opaque content digests, source/read/confidence tokens, failure notes, and structured-token parsed fields do. Adding a new source class, read state, confidence label, source note, or drift outcome is additive-minor and bumps environment_capsule_beta_schema_version; repurposing an existing field is breaking.",
   "type": "object",
   "oneOf": [
     { "$ref": "#/$defs/environment_capsule_beta_resolution_record" },
@@ -13,13 +13,13 @@
   "$defs": {
     "environment_capsule_beta_schema_version": {
       "type": "integer",
-      "const": 1,
+      "const": 2,
       "description": "Integer schema version for this beta capsule resolver vocabulary."
     },
     "opaque_digest": {
       "type": "string",
-      "pattern": "^sha256:[0-9a-f]+$",
-      "description": "Opaque sha256-shaped digest token minted by the beta resolver. Raw file bodies are not embedded."
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Actual SHA-256 digest token minted over exact source bytes or an explicitly length-framed ordered source set. Raw file bodies are not embedded."
     },
     "source_class": {
       "type": "string",
@@ -37,6 +37,10 @@
       "type": "string",
       "enum": ["imported", "heuristic", "unsupported"]
     },
+    "source_read_state": {
+      "type": "string",
+      "enum": ["complete", "unavailable", "resource_limit_exceeded"]
+    },
     "source_note": {
       "type": "string",
       "enum": [
@@ -45,7 +49,10 @@
         "dependent_source_missing",
         "unsupported_body_parse",
         "overridden_by_higher_precedence",
-        "unknown_field_kept"
+        "unknown_field_kept",
+        "source_read_unavailable",
+        "source_resource_limit_exceeded",
+        "body_invalid_utf8"
       ]
     },
     "capsule_drift_state": {
@@ -156,6 +163,8 @@
         "source_class_token",
         "source_ref",
         "content_digest",
+        "read_state",
+        "read_state_token",
         "confidence",
         "confidence_token",
         "parsed_fields"
@@ -164,7 +173,11 @@
         "source_class": { "$ref": "#/$defs/source_class" },
         "source_class_token": { "type": "string", "minLength": 1 },
         "source_ref": { "type": "string", "minLength": 1 },
-        "content_digest": { "$ref": "#/$defs/opaque_digest" },
+        "content_digest": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_digest" }, { "type": "null" }]
+        },
+        "read_state": { "$ref": "#/$defs/source_read_state" },
+        "read_state_token": { "type": "string", "minLength": 1 },
         "confidence": { "$ref": "#/$defs/source_confidence" },
         "confidence_token": { "type": "string", "minLength": 1 },
         "notes": {
@@ -172,7 +185,38 @@
           "items": { "$ref": "#/$defs/source_note" }
         },
         "parsed_fields": { "$ref": "#/$defs/parsed_fields" }
-      }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "read_state": { "const": "complete" },
+            "read_state_token": { "const": "complete" },
+            "content_digest": { "$ref": "#/$defs/opaque_digest" }
+          }
+        },
+        {
+          "required": ["notes"],
+          "properties": {
+            "read_state": { "const": "unavailable" },
+            "read_state_token": { "const": "unavailable" },
+            "content_digest": { "type": "null" },
+            "notes": {
+              "contains": { "const": "source_read_unavailable" }
+            }
+          }
+        },
+        {
+          "required": ["notes"],
+          "properties": {
+            "read_state": { "const": "resource_limit_exceeded" },
+            "read_state_token": { "const": "resource_limit_exceeded" },
+            "content_digest": { "type": "null" },
+            "notes": {
+              "contains": { "const": "source_resource_limit_exceeded" }
+            }
+          }
+        }
+      ]
     },
     "precedence_row": {
       "type": "object",
@@ -203,6 +247,12 @@
         },
         "fresh_content_digest": {
           "anyOf": [{ "$ref": "#/$defs/opaque_digest" }, { "type": "null" }]
+        },
+        "stored_read_state": {
+          "anyOf": [{ "$ref": "#/$defs/source_read_state" }, { "type": "null" }]
+        },
+        "fresh_read_state": {
+          "anyOf": [{ "$ref": "#/$defs/source_read_state" }, { "type": "null" }]
         }
       }
     },

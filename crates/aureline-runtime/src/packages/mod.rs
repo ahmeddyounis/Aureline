@@ -6,7 +6,6 @@
 //! the caller, and emits review, audit, and support packets before any package
 //! manager can write files or execute lifecycle hooks.
 
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -16,6 +15,9 @@ use crate::detectors::node::{
     NodePackageManagerKind, NodeToolchainDetection, NodeToolchainDetector,
     NodeToolchainDetectorConfig, NodeToolchainResolutionState,
 };
+use crate::discovery::bounded_file::{read_bounded_workspace_utf8, workspace_regular_file_exists};
+
+const MAX_PACKAGE_REVIEW_MANIFEST_BYTES: u64 = 2 * 1024 * 1024;
 
 /// Schema version for package-mutation alpha packets.
 pub const PACKAGE_OPERATION_ALPHA_SCHEMA_VERSION: u32 = 1;
@@ -32,7 +34,7 @@ pub const PACKAGE_OPERATION_AUDIT_RECORD_KIND: &str = "package_operation_audit_p
 /// Stable record-kind tag for [`PackageOperationSupportExport`].
 pub const PACKAGE_OPERATION_SUPPORT_EXPORT_RECORD_KIND: &str = "package_operation_support_export";
 /// Runtime implementation version quoted by package-operation packets.
-pub const PACKAGE_MUTATION_REVIEWER_VERSION: &str = "package_mutation.reviewer.alpha.v1";
+pub const PACKAGE_MUTATION_REVIEWER_VERSION: &str = "package_mutation.reviewer.alpha.v2";
 
 /// Package-manager family for the bounded runtime alpha.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1887,8 +1889,12 @@ impl NodePackageMutationReviewer {
 }
 
 fn read_manifest_json(workspace_root: &Path, manifest_path: &str) -> Option<Value> {
-    let path = workspace_root.join(manifest_path);
-    let payload = fs::read_to_string(path).ok()?;
+    let payload = read_bounded_workspace_utf8(
+        workspace_root,
+        Path::new(manifest_path),
+        MAX_PACKAGE_REVIEW_MANIFEST_BYTES,
+    )
+    .ok()??;
     serde_json::from_str(&payload).ok()
 }
 
@@ -1980,7 +1986,7 @@ fn detect_lockfiles(
 }
 
 fn push_lockfile_if_present(workspace_root: &Path, refs: &mut Vec<LockfileAlphaRef>, path: &str) {
-    if workspace_root.join(path).is_file() {
+    if workspace_regular_file_exists(workspace_root, Path::new(path)) {
         refs.push(LockfileAlphaRef::new(
             path,
             LockfileCouplingClass::SharedWorkspaceLockfile,
@@ -2279,4 +2285,133 @@ fn normalize_relative_path(path: &Path) -> String {
         .collect::<PathBuf>()
         .to_string_lossy()
         .replace('\\', "/")
+}
+
+#[cfg(test)]
+mod bounded_manifest_tests {
+    use super::*;
+
+    fn mutating_request(active_manifest_path: &str) -> NodePackageMutationReviewRequest {
+        NodePackageMutationReviewRequest {
+            operation_class: PackageOperationClass::InstallNewDependency,
+            dependency_section: DependencySection::DevDependencies,
+            package_name: "example-package".to_owned(),
+            package_coordinate_ref: "pkg:npm:example-package".to_owned(),
+            requested_requirement: "^1.0.0".to_owned(),
+            active_manifest_path: active_manifest_path.to_owned(),
+            manifest_scope_class: ManifestScopeClass::WorkspaceRootManifest,
+            workspace_member_ref: None,
+            module_identity_ref: None,
+            actor_ref: "actor:test".to_owned(),
+            command_id_ref: "command:package-review".to_owned(),
+            issuing_surface: "test".to_owned(),
+            policy_epoch_ref: "policy-epoch:test".to_owned(),
+            registry_source: RegistrySourceAlphaDescriptor::public_default(
+                PackageManagerFamily::Pnpm,
+            ),
+            script_risk: ScriptRiskAlphaDescriptor::no_scripts(),
+            validation_tasks: Vec::new(),
+        }
+    }
+
+    fn assert_manifest_unavailable_blocks_review(
+        workspace_root: &Path,
+        active_manifest_path: &str,
+    ) {
+        let packet = NodePackageMutationReviewer::default_read_only().review_workspace(
+            workspace_root,
+            mutating_request(active_manifest_path),
+            "2026-07-22T00:00:00Z",
+        );
+
+        assert_eq!(
+            packet.manifest_diff.current_requirement_state,
+            ManifestRequirementState::UnknownManifestUnavailable
+        );
+        assert!(packet
+            .blocked_reason_tokens
+            .iter()
+            .any(|reason| reason == PackageOperationAlphaViolation::ManifestUnavailable.as_str()));
+        assert!(packet.blocks_apply());
+    }
+
+    struct TempWorkspace {
+        path: PathBuf,
+    }
+
+    impl TempWorkspace {
+        fn new(label: &str) -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "aureline-package-review-{label}-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("clock after epoch")
+                    .as_nanos()
+            ));
+            let _ = std::fs::remove_dir_all(&path);
+            std::fs::create_dir_all(&path).expect("temp workspace");
+            Self { path }
+        }
+    }
+
+    impl Drop for TempWorkspace {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    #[test]
+    fn manifest_review_reads_only_bounded_workspace_relative_json() {
+        let workspace = TempWorkspace::new("contained");
+        std::fs::write(
+            workspace.path.join("package.json"),
+            r#"{"dependencies":{"serde":"1"}}"#,
+        )
+        .expect("manifest");
+
+        assert!(read_manifest_json(&workspace.path, "package.json").is_some());
+        assert!(read_manifest_json(&workspace.path, "../package.json").is_none());
+        assert!(read_manifest_json(&workspace.path, "/tmp/package.json").is_none());
+
+        std::fs::write(
+            workspace.path.join("oversized.json"),
+            vec![b' '; MAX_PACKAGE_REVIEW_MANIFEST_BYTES as usize + 1],
+        )
+        .expect("oversized manifest");
+        assert!(read_manifest_json(&workspace.path, "oversized.json").is_none());
+        assert_manifest_unavailable_blocks_review(&workspace.path, "oversized.json");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn manifest_review_rejects_symlinked_files_and_parent_directories() {
+        use std::os::unix::fs::symlink;
+
+        let workspace = TempWorkspace::new("symlink");
+        std::fs::create_dir_all(workspace.path.join("real")).expect("real directory");
+        std::fs::write(workspace.path.join("real/package.json"), "{}").expect("manifest");
+        symlink("real/package.json", workspace.path.join("linked.json")).expect("file symlink");
+        symlink("real", workspace.path.join("linked-dir")).expect("directory symlink");
+
+        assert!(read_manifest_json(&workspace.path, "linked.json").is_none());
+        assert!(read_manifest_json(&workspace.path, "linked-dir/package.json").is_none());
+        assert_manifest_unavailable_blocks_review(&workspace.path, "linked.json");
+
+        std::fs::write(
+            workspace.path.join("real/pnpm-lock.yaml"),
+            "lockfileVersion: 9",
+        )
+        .expect("real lockfile");
+        symlink("real/pnpm-lock.yaml", workspace.path.join("pnpm-lock.yaml"))
+            .expect("lockfile symlink");
+        let lockfiles = detect_lockfiles(&workspace.path, PackageManagerFamily::Pnpm);
+        assert_eq!(lockfiles.len(), 1);
+        assert_eq!(lockfiles[0].lockfile_path, "pnpm-lock.yaml");
+        assert!(!lockfiles[0].exists_before_apply);
+        assert_eq!(
+            lockfiles[0].coupling_class,
+            LockfileCouplingClass::LockfileAbsentWillBeCreated
+        );
+    }
 }

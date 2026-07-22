@@ -23,6 +23,10 @@ use crate::detectors::node::{
 use crate::detectors::python::{
     PythonEnvironmentDetection, PythonEnvironmentDetector, PythonEnvironmentResolutionState,
 };
+use crate::digest::sha256_framed_token;
+use crate::discovery::bounded_file::{
+    workspace_regular_directory_exists, workspace_regular_file_exists,
+};
 use crate::execution_context::{CapsuleDriftState, EnvironmentCapsuleRef, PrebuildReuseState};
 
 /// Stable record-kind tag emitted by [`EnvironmentCapsuleResolution`].
@@ -33,7 +37,7 @@ pub const ENVIRONMENT_CAPSULE_RESOLUTION_RECORD_KIND: &str =
 pub const ENVIRONMENT_CAPSULE_RESOLUTION_SCHEMA_VERSION: u32 = 1;
 
 /// Resolver implementation version recorded on every resolution.
-pub const ENVIRONMENT_CAPSULE_RESOLVER_VERSION: &str = "environment_capsule_resolver.alpha.v1";
+pub const ENVIRONMENT_CAPSULE_RESOLVER_VERSION: &str = "environment_capsule_resolver.alpha.v2";
 
 /// Stable record-kind tag emitted by [`PrebuildFingerprintStub`].
 pub const PREBUILD_FINGERPRINT_STUB_RECORD_KIND: &str = "prebuild_fingerprint_stub_alpha_record";
@@ -374,21 +378,21 @@ const fn capsule_id_for(
 }
 
 fn node_signal_present(workspace_root: &Path, detection: &NodeToolchainDetection) -> bool {
-    workspace_root.join("package.json").is_file()
-        || workspace_root.join("pnpm-lock.yaml").is_file()
-        || workspace_root.join("yarn.lock").is_file()
-        || workspace_root.join("package-lock.json").is_file()
-        || workspace_root.join("npm-shrinkwrap.json").is_file()
+    workspace_regular_file_exists(workspace_root, Path::new("package.json"))
+        || workspace_regular_file_exists(workspace_root, Path::new("pnpm-lock.yaml"))
+        || workspace_regular_file_exists(workspace_root, Path::new("yarn.lock"))
+        || workspace_regular_file_exists(workspace_root, Path::new("package-lock.json"))
+        || workspace_regular_file_exists(workspace_root, Path::new("npm-shrinkwrap.json"))
         || detection.node_runtime.resolution_state != NodeToolchainResolutionState::Missing
         || detection.package_manager.resolution_state != NodeToolchainResolutionState::Missing
 }
 
 fn python_signal_present(workspace_root: &Path, detection: &PythonEnvironmentDetection) -> bool {
-    workspace_root.join("pyproject.toml").is_file()
-        || workspace_root.join(".python-version").is_file()
-        || workspace_root.join(".venv").is_dir()
-        || workspace_root.join("uv.lock").is_file()
-        || workspace_root.join("poetry.lock").is_file()
+    workspace_regular_file_exists(workspace_root, Path::new("pyproject.toml"))
+        || workspace_regular_file_exists(workspace_root, Path::new(".python-version"))
+        || workspace_regular_directory_exists(workspace_root, Path::new(".venv"))
+        || workspace_regular_file_exists(workspace_root, Path::new("uv.lock"))
+        || workspace_regular_file_exists(workspace_root, Path::new("poetry.lock"))
         || detection.interpreter.resolution_state != PythonEnvironmentResolutionState::Missing
         || detection.environment_manager.resolution_state
             != PythonEnvironmentResolutionState::Missing
@@ -484,31 +488,8 @@ fn critical_toolchain_hashes(
 }
 
 pub(crate) fn digest_token(parts: &[&str]) -> String {
-    let mut lanes = [
-        0xcbf29ce484222325_u64,
-        0x9e3779b97f4a7c15_u64,
-        0x517cc1b727220a95_u64,
-        0x94d049bb133111eb_u64,
-    ];
-    for (part_index, part) in parts.iter().enumerate() {
-        for byte in part.as_bytes() {
-            for (lane_index, lane) in lanes.iter_mut().enumerate() {
-                *lane ^= u64::from(*byte)
-                    .wrapping_add((part_index as u64) << 8)
-                    .wrapping_add(lane_index as u64);
-                *lane = lane.wrapping_mul(0x100000001b3);
-                *lane ^= *lane >> 32;
-            }
-        }
-        for (lane_index, lane) in lanes.iter_mut().enumerate() {
-            *lane ^= 0xff_u64.wrapping_add(lane_index as u64);
-            *lane = lane.wrapping_mul(0x100000001b3);
-        }
-    }
-    format!(
-        "sha256:{:016x}{:016x}{:016x}{:016x}",
-        lanes[0], lanes[1], lanes[2], lanes[3]
-    )
+    let framed = parts.iter().map(|part| part.as_bytes()).collect::<Vec<_>>();
+    sha256_framed_token(&framed)
 }
 
 fn short_digest_suffix(digest: &str) -> &str {

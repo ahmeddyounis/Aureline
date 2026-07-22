@@ -329,6 +329,7 @@ pub mod debug;
 pub mod dependencies;
 pub mod detectors;
 pub mod diagnostics;
+mod digest;
 pub mod discovery;
 pub mod drift_repair;
 pub mod dry_run_explain;
@@ -508,11 +509,12 @@ pub use capsule_resolver::beta::{
     evaluate_capsule_drift, CapsuleBetaDriftOutcome, CapsuleBetaDriftRow, CapsuleBetaParsedFields,
     CapsuleBetaPrecedenceRow, CapsuleBetaSourceBaseline, CapsuleBetaSourceClass,
     CapsuleBetaSourceConfidence, CapsuleBetaSourceCoverageRow, CapsuleBetaSourceNote,
-    CapsuleBetaSourceParse, ComposeParsedFields, DevcontainerParsedFields,
-    EnvironmentCapsuleBetaCoverageManifest, EnvironmentCapsuleBetaDriftEvaluation,
-    EnvironmentCapsuleBetaResolution, EnvironmentCapsuleBetaResolver,
-    EnvironmentCapsuleBetaResolverConfig, EnvironmentCapsuleBetaSupportExport, NixParsedFields,
-    NodeParsedFields, PythonParsedFields, ENVIRONMENT_CAPSULE_BETA_COVERAGE_MANIFEST_RECORD_KIND,
+    CapsuleBetaSourceParse, CapsuleBetaSourceReadState, ComposeParsedFields,
+    DevcontainerParsedFields, EnvironmentCapsuleBetaCoverageManifest,
+    EnvironmentCapsuleBetaDriftEvaluation, EnvironmentCapsuleBetaResolution,
+    EnvironmentCapsuleBetaResolver, EnvironmentCapsuleBetaResolverConfig,
+    EnvironmentCapsuleBetaSupportExport, NixParsedFields, NodeParsedFields, PythonParsedFields,
+    ENVIRONMENT_CAPSULE_BETA_COVERAGE_MANIFEST_RECORD_KIND,
     ENVIRONMENT_CAPSULE_BETA_DRIFT_RECORD_KIND, ENVIRONMENT_CAPSULE_BETA_RESOLUTION_RECORD_KIND,
     ENVIRONMENT_CAPSULE_BETA_RESOLVER_VERSION, ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION,
     ENVIRONMENT_CAPSULE_BETA_SUPPORT_EXPORT_RECORD_KIND,

@@ -56,7 +56,7 @@ pub const PYTEST_RUN_CONTRACT_RECORD_KIND: &str = "pytest_run_contract_record";
 
 /// Stable implementation version recorded in discovery reports and task
 /// event provenance.
-pub const PYTEST_DISCOVERER_VERSION: &str = "pytest.discovery.alpha.v1";
+pub const PYTEST_DISCOVERER_VERSION: &str = "pytest.discovery.alpha.v2";
 
 /// Configuration for [`PytestDiscoverer`].
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -1928,12 +1928,7 @@ fn safe_label(raw: &str) -> String {
 }
 
 fn digest_token(payload: &str) -> String {
-    let mut hash = 0xcbf29ce484222325u64;
-    for byte in payload.bytes() {
-        hash ^= u64::from(byte);
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    format!("sha256:{hash:064x}")
+    crate::digest::sha256_token(payload.as_bytes())
 }
 
 #[cfg(test)]

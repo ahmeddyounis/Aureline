@@ -36,8 +36,7 @@
 //! [`/schemas/runtime/environment_capsule_beta.schema.json`](../../../../schemas/runtime/environment_capsule_beta.schema.json).
 
 use std::collections::BTreeMap;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
@@ -45,7 +44,14 @@ use super::{
     digest_token, EnvironmentCapsuleHint, EnvironmentCapsuleResolution, EnvironmentCapsuleResolver,
     EnvironmentCapsuleResolverConfig, ProjectArchetypeHint,
 };
+use crate::digest::{sha256_framed_token, sha256_token};
+use crate::discovery::bounded_file::{
+    read_bounded_workspace_bytes, workspace_regular_file_exists, BoundedWorkspaceReadError,
+};
 use crate::execution_context::{CapsuleDriftState, EnvironmentCapsuleRef, PrebuildReuseState};
+
+const MAX_CAPSULE_SOURCE_BYTES: u64 = 8 * 1024 * 1024;
+const MAX_CAPSULE_SOURCE_SET_BYTES: u64 = 32 * 1024 * 1024;
 
 /// Stable record-kind tag for the beta capsule resolution payload.
 pub const ENVIRONMENT_CAPSULE_BETA_RESOLUTION_RECORD_KIND: &str =
@@ -64,10 +70,10 @@ pub const ENVIRONMENT_CAPSULE_BETA_COVERAGE_MANIFEST_RECORD_KIND: &str =
     "environment_capsule_beta_coverage_manifest_record";
 
 /// Schema version for the beta resolver records.
-pub const ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION: u32 = 1;
+pub const ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION: u32 = 2;
 
 /// Beta resolver implementation token recorded on every resolution.
-pub const ENVIRONMENT_CAPSULE_BETA_RESOLVER_VERSION: &str = "environment_capsule_resolver.beta.v1";
+pub const ENVIRONMENT_CAPSULE_BETA_RESOLVER_VERSION: &str = "environment_capsule_resolver.beta.v2";
 
 /// Closed source vocabulary the beta resolver classifies declarative inputs
 /// against. Every source the resolver inspects projects onto exactly one row.
@@ -172,6 +178,37 @@ impl CapsuleBetaSourceConfidence {
     }
 }
 
+/// Whether the resolver obtained the complete byte body for a source row.
+///
+/// Missing files do not produce rows. A present-but-unreadable or oversized
+/// file does produce a row so degraded evidence cannot be mistaken for source
+/// absence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CapsuleBetaSourceReadState {
+    /// The complete source body was read under the per-file and aggregate caps.
+    Complete,
+    /// The source was present but failed containment, identity, type, or I/O checks.
+    Unavailable,
+    /// The source exceeded the per-file or aggregate byte budget.
+    ResourceLimitExceeded,
+}
+
+impl CapsuleBetaSourceReadState {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Complete => "complete",
+            Self::Unavailable => "unavailable",
+            Self::ResourceLimitExceeded => "resource_limit_exceeded",
+        }
+    }
+
+    const fn is_complete(self) -> bool {
+        matches!(self, Self::Complete)
+    }
+}
+
 /// Closed reasons a parsed source carries a `heuristic` or `unsupported`
 /// confidence label. Empty when the source parsed cleanly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -191,6 +228,14 @@ pub enum CapsuleBetaSourceNote {
     OverriddenByHigherPrecedence,
     /// Body declared a feature outside the beta vocabulary.
     UnknownFieldKept,
+    /// The source was present but could not be read through the bounded,
+    /// identity-checked workspace reader.
+    SourceReadUnavailable,
+    /// The source exceeded the per-file or aggregate resolver byte budget.
+    SourceResourceLimitExceeded,
+    /// The complete body was read and digested, but it was not valid UTF-8 and
+    /// therefore could not be parsed as JSON / YAML text.
+    BodyInvalidUtf8,
 }
 
 impl CapsuleBetaSourceNote {
@@ -203,6 +248,9 @@ impl CapsuleBetaSourceNote {
             Self::UnsupportedBodyParse => "unsupported_body_parse",
             Self::OverriddenByHigherPrecedence => "overridden_by_higher_precedence",
             Self::UnknownFieldKept => "unknown_field_kept",
+            Self::SourceReadUnavailable => "source_read_unavailable",
+            Self::SourceResourceLimitExceeded => "source_resource_limit_exceeded",
+            Self::BodyInvalidUtf8 => "body_invalid_utf8",
         }
     }
 }
@@ -296,8 +344,13 @@ pub struct CapsuleBetaSourceParse {
     pub source_class_token: String,
     /// Workspace-relative reference to the parsed body.
     pub source_ref: String,
-    /// Content digest of the body bytes at parse time.
-    pub content_digest: String,
+    /// SHA-256 digest of the exact body bytes (or a framed multi-file body)
+    /// when [`Self::read_state`] is complete.
+    pub content_digest: Option<String>,
+    /// Bounded-read outcome for this source.
+    pub read_state: CapsuleBetaSourceReadState,
+    /// Stable token for [`Self::read_state`].
+    pub read_state_token: String,
     /// Confidence label.
     pub confidence: CapsuleBetaSourceConfidence,
     /// Stable confidence token.
@@ -422,6 +475,12 @@ pub struct CapsuleBetaDriftRow {
     /// Fresh content digest, when the source is present today.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fresh_content_digest: Option<String>,
+    /// Stored bounded-read state, when the source was present in the baseline.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stored_read_state: Option<CapsuleBetaSourceReadState>,
+    /// Fresh bounded-read state, when the source is present today.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fresh_read_state: Option<CapsuleBetaSourceReadState>,
 }
 
 /// Stored baseline a caller compares against the fresh resolution. Persisting
@@ -444,8 +503,10 @@ impl CapsuleBetaSourceBaseline {
             .map(|src| CapsuleBetaDriftRow {
                 source_class: src.source_class,
                 source_class_token: src.source_class_token.clone(),
-                stored_content_digest: Some(src.content_digest.clone()),
-                fresh_content_digest: Some(src.content_digest.clone()),
+                stored_content_digest: src.content_digest.clone(),
+                fresh_content_digest: src.content_digest.clone(),
+                stored_read_state: Some(src.read_state),
+                fresh_read_state: Some(src.read_state),
             })
             .collect();
         Self {
@@ -675,18 +736,33 @@ impl EnvironmentCapsuleBetaResolver {
 
         let precedence = build_precedence_ladder(&sources, primary_source);
         let source_set_digest = compute_source_set_digest(&sources);
-        let drift_state = if sources.is_empty() {
+        let all_source_reads_complete =
+            sources.iter().all(|source| source.read_state.is_complete());
+        let drift_state = if sources.is_empty() || !all_source_reads_complete {
             CapsuleDriftState::UnknownLineage
         } else {
             CapsuleDriftState::InSync
         };
         let prebuild_reuse_state = if sources.is_empty() {
             PrebuildReuseState::NotApplicable
+        } else if !all_source_reads_complete {
+            PrebuildReuseState::RejectedDrift
         } else {
             PrebuildReuseState::Candidate
         };
 
-        let capsule_id = capsule_id_for_primary(primary_source, alpha.capsule_hint, archetype_hint);
+        let primary_read_state = primary_source.and_then(|primary| {
+            sources
+                .iter()
+                .find(|source| source.source_class == primary)
+                .map(|source| source.read_state)
+        });
+        let capsule_id = capsule_id_for_primary(
+            primary_source,
+            primary_read_state,
+            alpha.capsule_hint,
+            archetype_hint,
+        );
         let capsule_hash = digest_token(&[
             "capsule.beta",
             capsule_id.as_str(),
@@ -756,17 +832,22 @@ pub fn evaluate_capsule_drift(
                     source_class: *class,
                     source_class_token: class.as_str().to_owned(),
                     stored_content_digest: None,
-                    fresh_content_digest: Some(src.content_digest.clone()),
+                    fresh_content_digest: src.content_digest.clone(),
+                    stored_read_state: None,
+                    fresh_read_state: Some(src.read_state),
                 });
             }
             Some(stored_row) => {
-                if stored_row.stored_content_digest.as_deref() != Some(src.content_digest.as_str())
+                if stored_row.stored_content_digest != src.content_digest
+                    || stored_row.stored_read_state != Some(src.read_state)
                 {
                     drift_rows.push(CapsuleBetaDriftRow {
                         source_class: *class,
                         source_class_token: class.as_str().to_owned(),
                         stored_content_digest: stored_row.stored_content_digest.clone(),
-                        fresh_content_digest: Some(src.content_digest.clone()),
+                        fresh_content_digest: src.content_digest.clone(),
+                        stored_read_state: stored_row.stored_read_state,
+                        fresh_read_state: Some(src.read_state),
                     });
                 }
             }
@@ -780,6 +861,8 @@ pub fn evaluate_capsule_drift(
                 source_class_token: class.as_str().to_owned(),
                 stored_content_digest: stored_row.stored_content_digest.clone(),
                 fresh_content_digest: None,
+                stored_read_state: stored_row.stored_read_state,
+                fresh_read_state: None,
             });
         }
     }
@@ -787,7 +870,19 @@ pub fn evaluate_capsule_drift(
     added.sort_by_key(|c| c.precedence_rank());
     removed.sort_by_key(|c| c.precedence_rank());
 
-    let outcome = if stored.source_rows.is_empty() && fresh.sources.is_empty() {
+    let has_unknown_read_lineage = fresh
+        .sources
+        .iter()
+        .any(|source| !source.read_state.is_complete())
+        || stored.source_rows.iter().any(|row| {
+            !matches!(
+                row.stored_read_state,
+                Some(CapsuleBetaSourceReadState::Complete)
+            )
+        });
+    let outcome = if (stored.source_rows.is_empty() && fresh.sources.is_empty())
+        || has_unknown_read_lineage
+    {
         CapsuleBetaDriftOutcome::UnknownLineage
     } else if !added.is_empty() || !removed.is_empty() {
         CapsuleBetaDriftOutcome::ManuallyDiverged
@@ -810,43 +905,109 @@ pub fn evaluate_capsule_drift(
     }
 }
 
+#[derive(Debug)]
+struct CapsuleSourceReadBudget {
+    remaining_bytes: u64,
+}
+
+impl CapsuleSourceReadBudget {
+    fn new() -> Self {
+        Self {
+            remaining_bytes: MAX_CAPSULE_SOURCE_SET_BYTES,
+        }
+    }
+
+    fn read(
+        &mut self,
+        root: &Path,
+        relative_ref: &str,
+    ) -> Result<Option<Vec<u8>>, CapsuleBetaSourceReadState> {
+        let limit = MAX_CAPSULE_SOURCE_BYTES.min(self.remaining_bytes);
+        match read_bounded_workspace_bytes(root, Path::new(relative_ref), limit) {
+            Ok(Some(bytes)) => {
+                self.remaining_bytes = self.remaining_bytes.saturating_sub(bytes.len() as u64);
+                Ok(Some(bytes))
+            }
+            Ok(None) => Ok(None),
+            Err(BoundedWorkspaceReadError::TooLarge) => {
+                Err(CapsuleBetaSourceReadState::ResourceLimitExceeded)
+            }
+            Err(_) => Err(CapsuleBetaSourceReadState::Unavailable),
+        }
+    }
+}
+
+fn read_state_note(state: CapsuleBetaSourceReadState) -> CapsuleBetaSourceNote {
+    match state {
+        CapsuleBetaSourceReadState::Complete => {
+            unreachable!("complete reads do not carry a read-failure note")
+        }
+        CapsuleBetaSourceReadState::Unavailable => CapsuleBetaSourceNote::SourceReadUnavailable,
+        CapsuleBetaSourceReadState::ResourceLimitExceeded => {
+            CapsuleBetaSourceNote::SourceResourceLimitExceeded
+        }
+    }
+}
+
 fn parse_workspace_sources(root: &Path) -> Vec<CapsuleBetaSourceParse> {
+    let Ok(canonical_root) = root.canonicalize() else {
+        return Vec::new();
+    };
+    if !canonical_root.is_dir() {
+        return Vec::new();
+    }
+
+    let mut budget = CapsuleSourceReadBudget::new();
     let mut sources = Vec::new();
-    if let Some(parse) = parse_devcontainer(root) {
+    if let Some(parse) = parse_devcontainer(&canonical_root, &mut budget) {
         sources.push(parse);
     }
-    if let Some(parse) = parse_compose(root) {
+    if let Some(parse) = parse_compose(&canonical_root, &mut budget) {
         sources.push(parse);
     }
-    for parse in parse_nix(root) {
+    for parse in parse_nix(&canonical_root, &mut budget) {
         sources.push(parse);
     }
-    if let Some(parse) = parse_node(root) {
+    if let Some(parse) = parse_node(&canonical_root, &mut budget) {
         sources.push(parse);
     }
-    if let Some(parse) = parse_python(root) {
+    if let Some(parse) = parse_python(&canonical_root, &mut budget) {
         sources.push(parse);
     }
     sources
 }
 
-fn parse_devcontainer(root: &Path) -> Option<CapsuleBetaSourceParse> {
+fn parse_devcontainer(
+    root: &Path,
+    budget: &mut CapsuleSourceReadBudget,
+) -> Option<CapsuleBetaSourceParse> {
     for candidate in ["devcontainer.json", ".devcontainer/devcontainer.json"] {
-        let path = root.join(candidate);
-        if path.is_file() {
-            let bytes = match fs::read(&path) {
-                Ok(bytes) => bytes,
-                Err(_) => continue,
-            };
-            let digest = digest_token(&[
-                "devcontainer.body",
-                candidate,
-                bytes_digest(&bytes).as_str(),
-            ]);
-            let body = String::from_utf8_lossy(&bytes).into_owned();
-            let stripped = strip_jsonc_comments(&body);
-            let mut notes = Vec::new();
-            let (parsed_fields, confidence) =
+        let bytes = match budget.read(root, candidate) {
+            Ok(Some(bytes)) => bytes,
+            Ok(None) => continue,
+            Err(read_state) => {
+                let confidence = CapsuleBetaSourceConfidence::Heuristic;
+                return Some(CapsuleBetaSourceParse {
+                    source_class: CapsuleBetaSourceClass::Devcontainer,
+                    source_class_token: CapsuleBetaSourceClass::Devcontainer.as_str().to_owned(),
+                    source_ref: candidate.to_owned(),
+                    content_digest: None,
+                    read_state,
+                    read_state_token: read_state.as_str().to_owned(),
+                    confidence,
+                    confidence_token: confidence.as_str().to_owned(),
+                    notes: vec![read_state_note(read_state)],
+                    parsed_fields: CapsuleBetaParsedFields::Devcontainer(
+                        DevcontainerParsedFields::default(),
+                    ),
+                });
+            }
+        };
+        let digest = sha256_token(&bytes);
+        let mut notes = Vec::new();
+        let (parsed_fields, confidence) = match String::from_utf8(bytes) {
+            Ok(body) => {
+                let stripped = strip_jsonc_comments(&body);
                 match serde_json::from_str::<serde_json::Value>(&stripped) {
                     Ok(value) => {
                         let parsed = parse_devcontainer_value(&value, &mut notes);
@@ -864,24 +1025,33 @@ fn parse_devcontainer(root: &Path) -> Option<CapsuleBetaSourceParse> {
                             CapsuleBetaSourceConfidence::Heuristic,
                         )
                     }
-                };
-            if parsed_fields.compose_file_ref.is_some() {
-                let compose_path = root.join(parsed_fields.compose_file_ref.as_deref().unwrap());
-                if !compose_path.is_file() {
-                    notes.push(CapsuleBetaSourceNote::DependentSourceMissing);
                 }
             }
-            return Some(CapsuleBetaSourceParse {
-                source_class: CapsuleBetaSourceClass::Devcontainer,
-                source_class_token: CapsuleBetaSourceClass::Devcontainer.as_str().to_owned(),
-                source_ref: candidate.to_owned(),
-                content_digest: digest,
-                confidence,
-                confidence_token: confidence.as_str().to_owned(),
-                notes,
-                parsed_fields: CapsuleBetaParsedFields::Devcontainer(parsed_fields),
-            });
+            Err(_) => {
+                notes.push(CapsuleBetaSourceNote::BodyInvalidUtf8);
+                (
+                    DevcontainerParsedFields::default(),
+                    CapsuleBetaSourceConfidence::Heuristic,
+                )
+            }
+        };
+        if let Some(compose_ref) = parsed_fields.compose_file_ref.as_deref() {
+            if !workspace_regular_file_exists(root, Path::new(compose_ref)) {
+                notes.push(CapsuleBetaSourceNote::DependentSourceMissing);
+            }
         }
+        return Some(CapsuleBetaSourceParse {
+            source_class: CapsuleBetaSourceClass::Devcontainer,
+            source_class_token: CapsuleBetaSourceClass::Devcontainer.as_str().to_owned(),
+            source_ref: candidate.to_owned(),
+            content_digest: Some(digest),
+            read_state: CapsuleBetaSourceReadState::Complete,
+            read_state_token: CapsuleBetaSourceReadState::Complete.as_str().to_owned(),
+            confidence,
+            confidence_token: confidence.as_str().to_owned(),
+            notes,
+            parsed_fields: CapsuleBetaParsedFields::Devcontainer(parsed_fields),
+        });
     }
     None
 }
@@ -957,41 +1127,65 @@ fn parse_devcontainer_value(
     parsed
 }
 
-fn parse_compose(root: &Path) -> Option<CapsuleBetaSourceParse> {
+fn parse_compose(
+    root: &Path,
+    budget: &mut CapsuleSourceReadBudget,
+) -> Option<CapsuleBetaSourceParse> {
     for candidate in [
         "docker-compose.yml",
         "docker-compose.yaml",
         "compose.yml",
         "compose.yaml",
     ] {
-        let path = root.join(candidate);
-        if path.is_file() {
-            let bytes = match fs::read(&path) {
-                Ok(bytes) => bytes,
-                Err(_) => continue,
-            };
-            let digest = digest_token(&["compose.body", candidate, bytes_digest(&bytes).as_str()]);
-            let body = String::from_utf8_lossy(&bytes).into_owned();
-            let mut notes = Vec::new();
-            let parsed = parse_compose_body(&body, &mut notes);
-            let confidence = if parsed.service_keys.is_empty() {
-                CapsuleBetaSourceConfidence::Heuristic
-            } else if notes.is_empty() {
-                CapsuleBetaSourceConfidence::Imported
-            } else {
-                CapsuleBetaSourceConfidence::Heuristic
-            };
-            return Some(CapsuleBetaSourceParse {
-                source_class: CapsuleBetaSourceClass::DockerCompose,
-                source_class_token: CapsuleBetaSourceClass::DockerCompose.as_str().to_owned(),
-                source_ref: candidate.to_owned(),
-                content_digest: digest,
-                confidence,
-                confidence_token: confidence.as_str().to_owned(),
-                notes,
-                parsed_fields: CapsuleBetaParsedFields::DockerCompose(parsed),
-            });
-        }
+        let bytes = match budget.read(root, candidate) {
+            Ok(Some(bytes)) => bytes,
+            Ok(None) => continue,
+            Err(read_state) => {
+                let confidence = CapsuleBetaSourceConfidence::Heuristic;
+                return Some(CapsuleBetaSourceParse {
+                    source_class: CapsuleBetaSourceClass::DockerCompose,
+                    source_class_token: CapsuleBetaSourceClass::DockerCompose.as_str().to_owned(),
+                    source_ref: candidate.to_owned(),
+                    content_digest: None,
+                    read_state,
+                    read_state_token: read_state.as_str().to_owned(),
+                    confidence,
+                    confidence_token: confidence.as_str().to_owned(),
+                    notes: vec![read_state_note(read_state)],
+                    parsed_fields: CapsuleBetaParsedFields::DockerCompose(
+                        ComposeParsedFields::default(),
+                    ),
+                });
+            }
+        };
+        let digest = sha256_token(&bytes);
+        let mut notes = Vec::new();
+        let parsed = match String::from_utf8(bytes) {
+            Ok(body) => parse_compose_body(&body, &mut notes),
+            Err(_) => {
+                notes.push(CapsuleBetaSourceNote::BodyInvalidUtf8);
+                ComposeParsedFields::default()
+            }
+        };
+        let confidence = if parsed.service_keys.is_empty() {
+            CapsuleBetaSourceConfidence::Heuristic
+        } else if notes.is_empty() {
+            CapsuleBetaSourceConfidence::Imported
+        } else {
+            CapsuleBetaSourceConfidence::Heuristic
+        };
+        return Some(CapsuleBetaSourceParse {
+            source_class: CapsuleBetaSourceClass::DockerCompose,
+            source_class_token: CapsuleBetaSourceClass::DockerCompose.as_str().to_owned(),
+            source_ref: candidate.to_owned(),
+            content_digest: Some(digest),
+            read_state: CapsuleBetaSourceReadState::Complete,
+            read_state_token: CapsuleBetaSourceReadState::Complete.as_str().to_owned(),
+            confidence,
+            confidence_token: confidence.as_str().to_owned(),
+            notes,
+            parsed_fields: CapsuleBetaParsedFields::DockerCompose(parsed),
+        });
     }
     None
 }
@@ -1061,158 +1255,230 @@ fn parse_compose_body(body: &str, notes: &mut Vec<CapsuleBetaSourceNote>) -> Com
     parsed
 }
 
-fn parse_nix(root: &Path) -> Vec<CapsuleBetaSourceParse> {
+fn parse_nix(root: &Path, budget: &mut CapsuleSourceReadBudget) -> Vec<CapsuleBetaSourceParse> {
     let mut parsed = Vec::new();
     for (file, class, variant) in [
         ("flake.nix", CapsuleBetaSourceClass::NixFlake, "flake"),
         ("shell.nix", CapsuleBetaSourceClass::NixShell, "shell"),
         ("default.nix", CapsuleBetaSourceClass::NixDefault, "default"),
     ] {
-        let path = root.join(file);
-        if path.is_file() {
-            let bytes = match fs::read(&path) {
-                Ok(bytes) => bytes,
-                Err(_) => continue,
-            };
-            let digest = digest_token(&["nix.body", file, bytes_digest(&bytes).as_str()]);
-            let confidence = class.default_confidence();
-            parsed.push(CapsuleBetaSourceParse {
-                source_class: class,
-                source_class_token: class.as_str().to_owned(),
-                source_ref: file.to_owned(),
-                content_digest: digest,
-                confidence,
-                confidence_token: confidence.as_str().to_owned(),
-                notes: vec![CapsuleBetaSourceNote::UnsupportedBodyParse],
-                parsed_fields: CapsuleBetaParsedFields::Nix(NixParsedFields {
-                    variant_token: variant.to_owned(),
-                }),
-            });
-        }
+        let read = budget.read(root, file);
+        let (content_digest, read_state, confidence, notes) = match read {
+            Ok(Some(bytes)) => (
+                Some(sha256_token(&bytes)),
+                CapsuleBetaSourceReadState::Complete,
+                class.default_confidence(),
+                vec![CapsuleBetaSourceNote::UnsupportedBodyParse],
+            ),
+            Ok(None) => continue,
+            Err(read_state) => (
+                None,
+                read_state,
+                CapsuleBetaSourceConfidence::Heuristic,
+                vec![read_state_note(read_state)],
+            ),
+        };
+        parsed.push(CapsuleBetaSourceParse {
+            source_class: class,
+            source_class_token: class.as_str().to_owned(),
+            source_ref: file.to_owned(),
+            content_digest,
+            read_state,
+            read_state_token: read_state.as_str().to_owned(),
+            confidence,
+            confidence_token: confidence.as_str().to_owned(),
+            notes,
+            parsed_fields: CapsuleBetaParsedFields::Nix(NixParsedFields {
+                variant_token: variant.to_owned(),
+            }),
+        });
     }
     parsed
 }
 
-fn parse_node(root: &Path) -> Option<CapsuleBetaSourceParse> {
-    let manifest_path = root.join("package.json");
-    let lockfiles: Vec<String> = [
-        "package-lock.json",
-        "pnpm-lock.yaml",
-        "yarn.lock",
-        "npm-shrinkwrap.json",
-    ]
-    .into_iter()
-    .filter(|name| root.join(name).is_file())
-    .map(|name| name.to_owned())
-    .collect();
-    if !manifest_path.is_file() && lockfiles.is_empty() {
+#[derive(Debug)]
+struct AggregateSourceRead {
+    present_refs: Vec<String>,
+    bodies: Vec<(String, Vec<u8>)>,
+    read_state: CapsuleBetaSourceReadState,
+    notes: Vec<CapsuleBetaSourceNote>,
+}
+
+fn read_source_group(
+    root: &Path,
+    candidate_refs: &[&str],
+    budget: &mut CapsuleSourceReadBudget,
+) -> AggregateSourceRead {
+    let mut result = AggregateSourceRead {
+        present_refs: Vec::new(),
+        bodies: Vec::new(),
+        read_state: CapsuleBetaSourceReadState::Complete,
+        notes: Vec::new(),
+    };
+    for relative_ref in candidate_refs {
+        match budget.read(root, relative_ref) {
+            Ok(Some(bytes)) => {
+                result.present_refs.push((*relative_ref).to_owned());
+                result.bodies.push(((*relative_ref).to_owned(), bytes));
+            }
+            Ok(None) => {}
+            Err(read_state) => {
+                result.present_refs.push((*relative_ref).to_owned());
+                if read_state == CapsuleBetaSourceReadState::ResourceLimitExceeded
+                    || result.read_state == CapsuleBetaSourceReadState::Complete
+                {
+                    result.read_state = read_state;
+                }
+                let note = read_state_note(read_state);
+                if !result.notes.contains(&note) {
+                    result.notes.push(note);
+                }
+            }
+        }
+    }
+    result
+}
+
+fn aggregate_body_digest(label: &str, bodies: &[(String, Vec<u8>)]) -> String {
+    let mut sorted = bodies.iter().collect::<Vec<_>>();
+    sorted.sort_by(|left, right| left.0.cmp(&right.0));
+    let mut parts = Vec::<&[u8]>::with_capacity(1 + sorted.len() * 2);
+    parts.push(label.as_bytes());
+    for (relative_ref, bytes) in sorted {
+        parts.push(relative_ref.as_bytes());
+        parts.push(bytes.as_slice());
+    }
+    sha256_framed_token(&parts)
+}
+
+fn parse_node(root: &Path, budget: &mut CapsuleSourceReadBudget) -> Option<CapsuleBetaSourceParse> {
+    let read = read_source_group(
+        root,
+        &[
+            "package.json",
+            "package-lock.json",
+            "pnpm-lock.yaml",
+            "yarn.lock",
+            "npm-shrinkwrap.json",
+        ],
+        budget,
+    );
+    if read.present_refs.is_empty() {
         return None;
     }
-    let mut digest_inputs: Vec<PathBuf> = Vec::new();
-    let mut has_package_json = false;
-    if manifest_path.is_file() {
-        digest_inputs.push(manifest_path.clone());
-        has_package_json = true;
+    let has_package_json = read.present_refs.iter().any(|item| item == "package.json");
+    let lockfile_refs = read
+        .present_refs
+        .iter()
+        .filter(|item| item.as_str() != "package.json")
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut notes = read.notes;
+    if !has_package_json && !notes.contains(&CapsuleBetaSourceNote::RequiredFieldMissing) {
+        notes.push(CapsuleBetaSourceNote::RequiredFieldMissing);
     }
-    for lock in &lockfiles {
-        digest_inputs.push(root.join(lock));
-    }
-    let digest = aggregate_path_digest("node.body", &digest_inputs);
-    let parsed = NodeParsedFields {
-        has_package_json,
-        lockfile_refs: lockfiles,
-    };
-    let confidence = if has_package_json {
+    let confidence = if read.read_state.is_complete() && has_package_json {
         CapsuleBetaSourceConfidence::Imported
     } else {
         CapsuleBetaSourceConfidence::Heuristic
+    };
+    let content_digest = read
+        .read_state
+        .is_complete()
+        .then(|| aggregate_body_digest("node.body.v2", &read.bodies));
+    let source_ref = if has_package_json {
+        "package.json".to_owned()
+    } else {
+        lockfile_refs[0].clone()
     };
     Some(CapsuleBetaSourceParse {
         source_class: CapsuleBetaSourceClass::NodeManifest,
         source_class_token: CapsuleBetaSourceClass::NodeManifest.as_str().to_owned(),
-        source_ref: "package.json".to_owned(),
-        content_digest: digest,
+        source_ref,
+        content_digest,
+        read_state: read.read_state,
+        read_state_token: read.read_state.as_str().to_owned(),
         confidence,
         confidence_token: confidence.as_str().to_owned(),
-        notes: Vec::new(),
-        parsed_fields: CapsuleBetaParsedFields::NodeManifest(parsed),
+        notes,
+        parsed_fields: CapsuleBetaParsedFields::NodeManifest(NodeParsedFields {
+            has_package_json,
+            lockfile_refs,
+        }),
     })
 }
 
-fn parse_python(root: &Path) -> Option<CapsuleBetaSourceParse> {
-    let pyproject_path = root.join("pyproject.toml");
-    let python_version_path = root.join(".python-version");
-    let lockfiles: Vec<String> = ["uv.lock", "poetry.lock", "Pipfile.lock"]
-        .into_iter()
-        .filter(|name| root.join(name).is_file())
-        .map(|name| name.to_owned())
-        .collect();
-    let has_pyproject = pyproject_path.is_file();
-    let has_python_version = python_version_path.is_file();
-    if !has_pyproject && !has_python_version && lockfiles.is_empty() {
+fn parse_python(
+    root: &Path,
+    budget: &mut CapsuleSourceReadBudget,
+) -> Option<CapsuleBetaSourceParse> {
+    let read = read_source_group(
+        root,
+        &[
+            "pyproject.toml",
+            ".python-version",
+            "uv.lock",
+            "poetry.lock",
+            "Pipfile.lock",
+        ],
+        budget,
+    );
+    if read.present_refs.is_empty() {
         return None;
     }
-    let mut digest_inputs: Vec<PathBuf> = Vec::new();
-    if has_pyproject {
-        digest_inputs.push(pyproject_path.clone());
+    let has_pyproject = read
+        .present_refs
+        .iter()
+        .any(|item| item == "pyproject.toml");
+    let has_python_version = read
+        .present_refs
+        .iter()
+        .any(|item| item == ".python-version");
+    let lockfile_refs = read
+        .present_refs
+        .iter()
+        .filter(|item| !matches!(item.as_str(), "pyproject.toml" | ".python-version"))
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut notes = read.notes;
+    if !has_pyproject
+        && !has_python_version
+        && !notes.contains(&CapsuleBetaSourceNote::RequiredFieldMissing)
+    {
+        notes.push(CapsuleBetaSourceNote::RequiredFieldMissing);
     }
-    if has_python_version {
-        digest_inputs.push(python_version_path.clone());
-    }
-    for lock in &lockfiles {
-        digest_inputs.push(root.join(lock));
-    }
-    let digest = aggregate_path_digest("python.body", &digest_inputs);
-    let parsed = PythonParsedFields {
-        has_pyproject,
-        has_python_version,
-        lockfile_refs: lockfiles,
-    };
-    let confidence = if has_pyproject || has_python_version {
+    let confidence = if read.read_state.is_complete() && (has_pyproject || has_python_version) {
         CapsuleBetaSourceConfidence::Imported
     } else {
         CapsuleBetaSourceConfidence::Heuristic
     };
+    let content_digest = read
+        .read_state
+        .is_complete()
+        .then(|| aggregate_body_digest("python.body.v2", &read.bodies));
+    let source_ref = if has_pyproject {
+        "pyproject.toml".to_owned()
+    } else if has_python_version {
+        ".python-version".to_owned()
+    } else {
+        lockfile_refs[0].clone()
+    };
     Some(CapsuleBetaSourceParse {
         source_class: CapsuleBetaSourceClass::PythonManifest,
         source_class_token: CapsuleBetaSourceClass::PythonManifest.as_str().to_owned(),
-        source_ref: if has_pyproject {
-            "pyproject.toml".to_owned()
-        } else if has_python_version {
-            ".python-version".to_owned()
-        } else {
-            "python.manifest".to_owned()
-        },
-        content_digest: digest,
+        source_ref,
+        content_digest,
+        read_state: read.read_state,
+        read_state_token: read.read_state.as_str().to_owned(),
         confidence,
         confidence_token: confidence.as_str().to_owned(),
-        notes: Vec::new(),
-        parsed_fields: CapsuleBetaParsedFields::PythonManifest(parsed),
+        notes,
+        parsed_fields: CapsuleBetaParsedFields::PythonManifest(PythonParsedFields {
+            has_pyproject,
+            has_python_version,
+            lockfile_refs,
+        }),
     })
-}
-
-fn aggregate_path_digest(label: &str, paths: &[PathBuf]) -> String {
-    let mut tokens: Vec<String> = Vec::new();
-    tokens.push(label.to_owned());
-    let mut sorted_paths: Vec<&PathBuf> = paths.iter().collect();
-    sorted_paths.sort();
-    for path in sorted_paths {
-        let bytes = fs::read(path).unwrap_or_default();
-        let name = path
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        tokens.push(name);
-        tokens.push(bytes_digest(&bytes));
-    }
-    let token_views: Vec<&str> = tokens.iter().map(String::as_str).collect();
-    digest_token(&token_views)
-}
-
-fn bytes_digest(bytes: &[u8]) -> String {
-    // Reuse the alpha digest function over a stable string view of the bytes.
-    let view = String::from_utf8_lossy(bytes);
-    digest_token(&["bytes", view.as_ref()])
 }
 
 fn build_precedence_ladder(
@@ -1263,8 +1529,16 @@ fn compute_source_set_digest(sources: &[CapsuleBetaSourceParse]) -> String {
     for src in sorted {
         tokens.push(src.source_class.as_str().to_owned());
         tokens.push(src.source_ref.clone());
-        tokens.push(src.content_digest.clone());
+        tokens.push(
+            src.content_digest
+                .clone()
+                .unwrap_or_else(|| "content_digest.unavailable".to_owned()),
+        );
+        tokens.push(src.read_state.as_str().to_owned());
         tokens.push(src.confidence.as_str().to_owned());
+        let mut notes = src.notes.clone();
+        notes.sort();
+        tokens.extend(notes.into_iter().map(|note| note.as_str().to_owned()));
     }
     let views: Vec<&str> = tokens.iter().map(String::as_str).collect();
     digest_token(&views)
@@ -1272,9 +1546,22 @@ fn compute_source_set_digest(sources: &[CapsuleBetaSourceParse]) -> String {
 
 fn capsule_id_for_primary(
     primary: Option<CapsuleBetaSourceClass>,
+    primary_read_state: Option<CapsuleBetaSourceReadState>,
     capsule_hint: EnvironmentCapsuleHint,
     archetype_hint: ProjectArchetypeHint,
 ) -> String {
+    if matches!(
+        primary_read_state,
+        Some(
+            CapsuleBetaSourceReadState::Unavailable
+                | CapsuleBetaSourceReadState::ResourceLimitExceeded
+        )
+    ) {
+        return match primary {
+            Some(source) => format!("capsule.beta.{}.unavailable", source.as_str()),
+            None => "capsule.beta.unknown.uncertain".to_owned(),
+        };
+    }
     match primary {
         Some(CapsuleBetaSourceClass::Devcontainer) => "capsule.beta.devcontainer.parsed".to_owned(),
         Some(CapsuleBetaSourceClass::DockerCompose) => "capsule.beta.compose.parsed".to_owned(),
@@ -1609,6 +1896,127 @@ mod tests {
         assert!(evaluation
             .added_sources
             .contains(&CapsuleBetaSourceClass::DockerCompose));
+
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn invalid_utf8_bodies_keep_exact_distinct_content_digests() {
+        let first_root = temp_workspace("invalid-utf8-first");
+        let second_root = temp_workspace("invalid-utf8-second");
+        fs::write(first_root.join("devcontainer.json"), [0x80_u8]).expect("first body");
+        fs::write(second_root.join("devcontainer.json"), [0x81_u8]).expect("second body");
+
+        let resolver = EnvironmentCapsuleBetaResolver::default_read_only();
+        let first = resolver.resolve_workspace(&first_root, ProjectArchetypeHint::BackendService);
+        let second = resolver.resolve_workspace(&second_root, ProjectArchetypeHint::BackendService);
+        let first_source = first
+            .sources
+            .iter()
+            .find(|source| source.source_class == CapsuleBetaSourceClass::Devcontainer)
+            .expect("first source");
+        let second_source = second
+            .sources
+            .iter()
+            .find(|source| source.source_class == CapsuleBetaSourceClass::Devcontainer)
+            .expect("second source");
+
+        assert_eq!(
+            first_source.read_state,
+            CapsuleBetaSourceReadState::Complete
+        );
+        assert!(first_source
+            .notes
+            .contains(&CapsuleBetaSourceNote::BodyInvalidUtf8));
+        assert_ne!(first_source.content_digest, second_source.content_digest);
+        assert_eq!(first_source.content_digest, Some(sha256_token(&[0x80])));
+        assert_eq!(second_source.content_digest, Some(sha256_token(&[0x81])));
+
+        fs::remove_dir_all(first_root).ok();
+        fs::remove_dir_all(second_root).ok();
+    }
+
+    #[test]
+    fn oversized_sources_remain_visible_and_reject_reuse() {
+        let root = temp_workspace("oversized");
+        fs::write(
+            root.join("devcontainer.json"),
+            vec![b' '; MAX_CAPSULE_SOURCE_BYTES as usize + 1],
+        )
+        .expect("oversized body");
+
+        let resolution = EnvironmentCapsuleBetaResolver::default_read_only()
+            .resolve_workspace(&root, ProjectArchetypeHint::BackendService);
+        let source = resolution
+            .sources
+            .iter()
+            .find(|source| source.source_class == CapsuleBetaSourceClass::Devcontainer)
+            .expect("degraded source remains visible");
+
+        assert_eq!(
+            source.read_state,
+            CapsuleBetaSourceReadState::ResourceLimitExceeded
+        );
+        assert!(source.content_digest.is_none());
+        assert!(source
+            .notes
+            .contains(&CapsuleBetaSourceNote::SourceResourceLimitExceeded));
+        assert_eq!(resolution.drift_state, CapsuleDriftState::UnknownLineage);
+        assert_eq!(
+            resolution.prebuild_reuse_state,
+            PrebuildReuseState::RejectedDrift
+        );
+        assert_eq!(
+            resolution.environment_capsule_ref.capsule_id,
+            "capsule.beta.devcontainer.unavailable"
+        );
+
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn aggregate_budget_is_enforced_across_separate_sources() {
+        let root = temp_workspace("aggregate-budget");
+        fs::write(root.join("one"), [1_u8, 2]).expect("first source");
+        fs::write(root.join("two"), [3_u8, 4]).expect("second source");
+        let mut budget = CapsuleSourceReadBudget { remaining_bytes: 3 };
+
+        assert_eq!(budget.read(&root, "one"), Ok(Some(vec![1_u8, 2])));
+        assert_eq!(
+            budget.read(&root, "two"),
+            Err(CapsuleBetaSourceReadState::ResourceLimitExceeded)
+        );
+
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_sources_remain_visible_as_unavailable_evidence() {
+        use std::os::unix::fs::symlink;
+
+        let root = temp_workspace("symlink-source");
+        fs::write(root.join("real.json"), r#"{"image":"example:1"}"#).expect("real body");
+        symlink("real.json", root.join("devcontainer.json")).expect("source symlink");
+
+        let resolution = EnvironmentCapsuleBetaResolver::default_read_only()
+            .resolve_workspace(&root, ProjectArchetypeHint::BackendService);
+        let source = resolution
+            .sources
+            .iter()
+            .find(|source| source.source_class == CapsuleBetaSourceClass::Devcontainer)
+            .expect("degraded source remains visible");
+
+        assert_eq!(source.read_state, CapsuleBetaSourceReadState::Unavailable);
+        assert!(source.content_digest.is_none());
+        assert!(source
+            .notes
+            .contains(&CapsuleBetaSourceNote::SourceReadUnavailable));
+        assert_eq!(resolution.drift_state, CapsuleDriftState::UnknownLineage);
+        assert_eq!(
+            resolution.prebuild_reuse_state,
+            PrebuildReuseState::RejectedDrift
+        );
 
         fs::remove_dir_all(root).ok();
     }
