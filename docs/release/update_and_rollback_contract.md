@@ -402,3 +402,22 @@ covers:
 
 These fixtures are structural seeds. They do not claim a live updater,
 fleet controller, signing service, or helper runtime exists yet.
+
+The beta synthetic filesystem drill is similarly narrow: it accepts only an
+explicitly marked, bounded synthetic authority and never treats an arbitrary
+profile or workspace directory as restore input. Redirects, unstable reads,
+oversized snapshots, directory explosions, and unbounded cleanup fail closed;
+restore uses staged sibling trees and retains a quarantine when safe cleanup
+cannot be proven. A failure after synthetic mutation begins triggers a
+transactional pre-state restore attempt; if that cannot complete, the result is
+recovery-required and its retained count reflects the backup and staging paths
+that actually remain. Pending-file bytes are scrubbed through the open handle
+until installation identity is verified, then the guard is disarmed before the
+parent-directory durability sync so a sync error cannot erase the installed
+replacement after its predecessor is gone. Destructive restore is currently
+exercised only on Unix, where stable object identity is available through the
+declared Rust standard library baseline. Windows reparse points are rejected,
+but destructive Windows restore remains unavailable until a reviewed
+stable-file-ID mechanism lands.
+The exact limits and adversarial coverage are documented in
+[`/fixtures/install/rollback_drill_beta/README.md`](../../fixtures/install/rollback_drill_beta/README.md).

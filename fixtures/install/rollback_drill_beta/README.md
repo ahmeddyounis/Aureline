@@ -20,6 +20,59 @@ The drill exercises:
   missing captured prior-build state are all rejected rather than reported as a
   successful rollback.
 
+## Synthetic filesystem authority and limits
+
+The filesystem-backed driver is deliberately narrower than an installer. Its
+root must be an existing absolute directory that is either empty or already
+contains the driver-created
+`.rollback_drill/synthetic-authority-v1` marker. A populated, unmarked directory
+is rejected, so a caller cannot accidentally point the drill at a real profile
+or workspace tree. The driver pins the canonical root and revalidates it, the
+`state-roots` directory, every target root, and every existing path component.
+Symlinks and Windows reparse points are never followed, and Unix filesystem /
+mount boundaries below the pinned authority are rejected.
+
+Capture and restore admit at most 64 planned roots, 256 expected deltas, 4,096
+entries total, 1,024 entries in one directory, 64 relative-path components,
+2,048 UTF-8 bytes per relative path, 1 MiB per regular file, 4 MiB of aggregate
+file content, and 24 MiB for the serialized snapshot document. JSON depth,
+node, collection, key, and scalar limits are checked before typed projection.
+Filesystem root refs are capped at the 255-byte portable segment ceiling, and a
+drill ID is capped at 240 bytes so its generated `.pre_state.json` filename also
+fits that ceiling. General non-path record IDs retain their separate 512-byte
+bound.
+Special files, non-UTF-8 names, unstable reads, redirected ancestors, oversized
+files, directory explosions, and excessive nesting fail closed. Errors carry
+logical path classes and I/O categories rather than host paths, parser payloads,
+or OS error text.
+
+On Unix, restore materializes bounded sibling staging trees, quarantines each
+target with a same-parent rename, installs the staged tree, revalidates object
+identity after every rename, and rolls already-installed roots back if a later
+root fails. Quarantine cleanup is bounded and redirect-aware; if cleanup cannot
+finish safely, the driver reports `RecoverableCleanupPending` and retains the
+quarantine instead of broadening deletion. Reported retained-artifact counts
+are the backup and staging paths that still exist, including both paths when a
+failed transaction retained both. If a synthetic update fails after its first
+successful write, or mutation verification itself fails, the driver first
+attempts the same transactional restore; inability to complete it is reported
+as `RestoreRecoveryRequired` rather than returning only the initiating error.
+
+Pending atomic writes remain armed until the installed path and open handle are
+proven to identify the same bounded file. Before that point, errors and unwinds
+truncate and sync the open inode, even if its parent directory was moved. Once
+replacement succeeds the predecessor is no longer recoverable, so the guard is
+disarmed before syncing the parent directory; a parent-sync failure reports an
+error without deleting or truncating the successfully installed replacement.
+
+The standard library does not expose a stable Windows file identity adequate
+for authorizing destructive rename/delete races. Consequently the synthetic
+driver detects Windows reparse points but fails closed before replacing an
+existing file or performing destructive restore/cleanup on Windows. This is an
+explicit drill limitation, not a claim that Windows installer rollback is
+implemented; enabling it requires a reviewed stable-file-ID mechanism and
+cross-platform adversarial coverage.
+
 Files:
 
 - `release_center_rollback_record.json` — healthy release-center rollback record

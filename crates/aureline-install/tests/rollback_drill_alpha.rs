@@ -5,14 +5,19 @@
 
 use std::path::{Path, PathBuf};
 
+#[cfg(unix)]
+use aureline_install::RollbackDrillRootRole;
 use aureline_install::{
     InstallTopologyAlphaPacket, RollbackDrillDriver, RollbackDrillError, RollbackDrillPlan,
-    RollbackDrillRootRole,
+    ROLLBACK_DRILL_MAX_DEPTH, ROLLBACK_DRILL_MAX_DIRECTORY_ENTRIES, ROLLBACK_DRILL_MAX_FILE_BYTES,
+    ROLLBACK_DRILL_MAX_SNAPSHOT_BYTES,
 };
+#[cfg(unix)]
 use aureline_recovery::session_restore::records::{
     ExcludedLiveAuthorityClass, ProducerBuildStamp, SurfaceClass, SurfaceRole, TrustedRootRecord,
     WindowRole,
 };
+#[cfg(unix)]
 use aureline_recovery::session_restore::{
     SessionRestoreCaptureInput, SessionRestoreStore, TabGroupCaptureInput, TabItemCaptureInput,
 };
@@ -36,6 +41,7 @@ fn drill_plan(packet: &InstallTopologyAlphaPacket) -> RollbackDrillPlan {
     .expect("portable side-by-side rollback plan")
 }
 
+#[cfg(unix)]
 fn root_ref(plan: &RollbackDrillPlan, role: RollbackDrillRootRole, needle: &str) -> String {
     plan.roots
         .iter()
@@ -44,6 +50,7 @@ fn root_ref(plan: &RollbackDrillPlan, role: RollbackDrillRootRole, needle: &str)
         .unwrap_or_else(|| panic!("missing {role:?} root containing {needle}"))
 }
 
+#[cfg(unix)]
 fn seed_session_restore(driver: &RollbackDrillDriver, root_ref: &str) {
     let root = driver
         .state_root_path(root_ref)
@@ -55,7 +62,7 @@ fn seed_session_restore(driver: &RollbackDrillDriver, root_ref: &str) {
             producer_build: ProducerBuildStamp {
                 producer_name: "aureline".to_string(),
                 producer_version: "0.0.0".to_string(),
-                producer_channel: Some("preview".to_string()),
+                producer_channel: Some("experimental".to_string()),
                 producer_platform_class: Some("windows".to_string()),
                 producer_instance_handle: None,
             },
@@ -100,6 +107,7 @@ fn seed_session_restore(driver: &RollbackDrillDriver, root_ref: &str) {
         .expect("capture session restore seed");
 }
 
+#[cfg(unix)]
 #[test]
 fn rollback_drill_restores_preview_and_preserves_peer_and_portable_roots() {
     let packet = load_packet();
@@ -214,5 +222,227 @@ fn corrupted_pre_state_snapshot_fails_with_typed_error() {
     assert!(matches!(
         err,
         RollbackDrillError::CorruptedPreStateSnapshot { .. }
+    ));
+}
+
+#[cfg(not(unix))]
+#[test]
+fn destructive_restore_fails_closed_without_stable_file_identity() {
+    let packet = load_packet();
+    let plan = drill_plan(&packet);
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let driver = RollbackDrillDriver::new(tempdir.path());
+    driver
+        .seed_synthetic_state_tree(&plan)
+        .expect("seed synthetic state tree");
+    driver
+        .capture_pre_state(&plan)
+        .expect("capture pre-state snapshot");
+
+    let err = driver
+        .run_from_captured_pre_state(&plan)
+        .expect_err("destructive restore must fail closed on this platform");
+    assert!(matches!(err, RollbackDrillError::UnsafeStateRoot { .. }));
+}
+
+#[test]
+fn non_empty_unmarked_authority_is_rejected_without_exposing_host_paths() {
+    let packet = load_packet();
+    let plan = drill_plan(&packet);
+    let parent = tempfile::tempdir().expect("parent tempdir");
+    let authority = parent.path().join("private-customer-path-token");
+    std::fs::create_dir(&authority).expect("create candidate authority");
+    let sentinel = authority.join("do-not-touch.txt");
+    std::fs::write(&sentinel, b"preserve-me").expect("write sentinel");
+    let driver = RollbackDrillDriver::new(&authority);
+
+    let err = driver
+        .seed_synthetic_state_tree(&plan)
+        .expect_err("a populated unmarked directory must not become synthetic authority");
+    assert!(matches!(&err, RollbackDrillError::UnsafeStateRoot { .. }));
+    assert_eq!(
+        std::fs::read(&sentinel).expect("read sentinel"),
+        b"preserve-me"
+    );
+    let rendered = err.to_string();
+    assert!(!rendered.contains("private-customer-path-token"));
+    assert!(!rendered.contains(parent.path().to_string_lossy().as_ref()));
+}
+
+#[cfg(unix)]
+#[test]
+fn symlink_authority_and_planted_state_roots_cannot_escape_containment() {
+    use std::os::unix::fs::symlink;
+
+    let packet = load_packet();
+    let plan = drill_plan(&packet);
+    let parent = tempfile::tempdir().expect("parent tempdir");
+    let outside = tempfile::tempdir().expect("outside tempdir");
+    let sentinel = outside.path().join("outside-sentinel.txt");
+    std::fs::write(&sentinel, b"outside-safe").expect("write outside sentinel");
+
+    let root_alias = parent.path().join("root-alias");
+    symlink(outside.path(), &root_alias).expect("create authority symlink");
+    let err = RollbackDrillDriver::new(&root_alias)
+        .seed_synthetic_state_tree(&plan)
+        .expect_err("symlink authority must fail");
+    assert!(matches!(err, RollbackDrillError::UnsafeStateRoot { .. }));
+
+    let marked_root = parent.path().join("marked-authority");
+    std::fs::create_dir(&marked_root).expect("create marked root");
+    let driver = RollbackDrillDriver::new(&marked_root);
+    driver
+        .state_root_path("probe.root")
+        .expect("initialize explicit synthetic authority");
+    symlink(outside.path(), marked_root.join("state-roots")).expect("plant state-roots redirect");
+    let err = driver
+        .seed_synthetic_state_tree(&plan)
+        .expect_err("redirected state-roots authority must fail");
+    assert!(matches!(err, RollbackDrillError::UnsafeStateRoot { .. }));
+    assert_eq!(
+        std::fs::read(&sentinel).expect("read outside sentinel"),
+        b"outside-safe"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn redirected_target_root_is_rejected_before_update_or_restore_writes() {
+    use std::os::unix::fs::symlink;
+
+    let packet = load_packet();
+    let plan = drill_plan(&packet);
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let outside = tempfile::tempdir().expect("outside tempdir");
+    let sentinel = outside.path().join("outside-sentinel.txt");
+    std::fs::write(&sentinel, b"outside-safe").expect("write outside sentinel");
+    let driver = RollbackDrillDriver::new(tempdir.path());
+    driver
+        .seed_synthetic_state_tree(&plan)
+        .expect("seed synthetic tree");
+    driver
+        .capture_pre_state(&plan)
+        .expect("capture pre-state snapshot");
+
+    let target_ref = plan.target_root_refs()[0];
+    let target = driver.state_root_path(target_ref).expect("target path");
+    let displaced = tempdir.path().join("displaced-target");
+    std::fs::rename(&target, &displaced).expect("displace target root");
+    symlink(outside.path(), &target).expect("redirect target root");
+
+    let err = driver
+        .run_from_captured_pre_state(&plan)
+        .expect_err("redirected target root must fail closed");
+    assert!(matches!(err, RollbackDrillError::UnsafeStateRoot { .. }));
+    assert_eq!(
+        std::fs::read(&sentinel).expect("read outside sentinel"),
+        b"outside-safe"
+    );
+}
+
+#[test]
+fn oversized_file_directory_explosion_and_excessive_depth_are_bounded() {
+    let packet = load_packet();
+    let plan = drill_plan(&packet);
+
+    let oversized = tempfile::tempdir().expect("oversized tempdir");
+    let oversized_driver = RollbackDrillDriver::new(oversized.path());
+    oversized_driver
+        .seed_synthetic_state_tree(&plan)
+        .expect("seed oversized tree");
+    let oversized_root = oversized_driver
+        .state_root_path(plan.target_root_refs()[0])
+        .expect("oversized root");
+    let oversized_file =
+        std::fs::File::create(oversized_root.join("oversized.bin")).expect("create oversized file");
+    oversized_file
+        .set_len(ROLLBACK_DRILL_MAX_FILE_BYTES + 1)
+        .expect("size oversized file");
+    assert!(matches!(
+        oversized_driver.capture_pre_state(&plan),
+        Err(RollbackDrillError::ResourceLimitExceeded { .. })
+    ));
+
+    let explosion = tempfile::tempdir().expect("explosion tempdir");
+    let explosion_driver = RollbackDrillDriver::new(explosion.path());
+    explosion_driver
+        .seed_synthetic_state_tree(&plan)
+        .expect("seed explosion tree");
+    let explosion_root = explosion_driver
+        .state_root_path(plan.target_root_refs()[0])
+        .expect("explosion root")
+        .join("entry-explosion");
+    std::fs::create_dir(&explosion_root).expect("create explosion directory");
+    for index in 0..=ROLLBACK_DRILL_MAX_DIRECTORY_ENTRIES {
+        std::fs::write(explosion_root.join(format!("entry-{index:04}.txt")), b"")
+            .expect("write explosion entry");
+    }
+    assert!(matches!(
+        explosion_driver.capture_pre_state(&plan),
+        Err(RollbackDrillError::ResourceLimitExceeded { .. })
+    ));
+
+    let deep = tempfile::tempdir().expect("deep tempdir");
+    let deep_driver = RollbackDrillDriver::new(deep.path());
+    deep_driver
+        .seed_synthetic_state_tree(&plan)
+        .expect("seed deep tree");
+    let mut current = deep_driver
+        .state_root_path(plan.target_root_refs()[0])
+        .expect("deep root")
+        .join("deep");
+    std::fs::create_dir(&current).expect("create first deep directory");
+    for _ in 0..ROLLBACK_DRILL_MAX_DEPTH {
+        current = current.join("d");
+        std::fs::create_dir(&current).expect("create nested directory");
+    }
+    assert!(matches!(
+        deep_driver.capture_pre_state(&plan),
+        Err(RollbackDrillError::ResourceLimitExceeded { .. })
+    ));
+}
+
+#[test]
+fn oversized_snapshot_document_and_entry_payload_are_rejected_before_restore() {
+    let packet = load_packet();
+    let plan = drill_plan(&packet);
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let driver = RollbackDrillDriver::new(tempdir.path());
+    driver
+        .seed_synthetic_state_tree(&plan)
+        .expect("seed synthetic tree");
+    let mut snapshot = driver
+        .capture_pre_state(&plan)
+        .expect("capture pre-state snapshot");
+    let snapshot_path = driver.pre_state_snapshot_path(&plan.drill_id);
+
+    let oversized_document = std::fs::OpenOptions::new()
+        .write(true)
+        .open(&snapshot_path)
+        .expect("open snapshot");
+    oversized_document
+        .set_len(ROLLBACK_DRILL_MAX_SNAPSHOT_BYTES + 1)
+        .expect("size oversized snapshot");
+    assert!(matches!(
+        driver.run_from_captured_pre_state(&plan),
+        Err(RollbackDrillError::ResourceLimitExceeded { .. })
+    ));
+    drop(oversized_document);
+
+    snapshot
+        .entries
+        .iter_mut()
+        .find(|entry| entry.entry_kind == aureline_install::RollbackDrillEntryKind::File)
+        .expect("snapshot file entry")
+        .contents
+        .resize(ROLLBACK_DRILL_MAX_FILE_BYTES as usize + 1, 0);
+    std::fs::write(
+        &snapshot_path,
+        serde_json::to_vec(&snapshot).expect("serialize oversized entry payload"),
+    )
+    .expect("write oversized entry payload");
+    assert!(matches!(
+        driver.run_from_captured_pre_state(&plan),
+        Err(RollbackDrillError::ResourceLimitExceeded { .. })
     ));
 }

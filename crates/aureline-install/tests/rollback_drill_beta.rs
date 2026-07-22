@@ -13,15 +13,19 @@
 
 use std::path::{Path, PathBuf};
 
+#[cfg(unix)]
+use aureline_install::RollbackDrillRootRole;
 use aureline_install::{
     ExactBuildInstallIdentity, ExactBuildManifestState, InstallTopologyAlphaPacket,
     RetainedArtifactState, RetainedArtifactVerificationState, RollbackDrillDriver,
-    RollbackDrillError, RollbackDrillPlan, RollbackDrillRootRole, UpdateRollbackPlan,
+    RollbackDrillError, RollbackDrillPlan, UpdateRollbackPlan,
 };
+#[cfg(unix)]
 use aureline_recovery::session_restore::records::{
     ExcludedLiveAuthorityClass, ProducerBuildStamp, SurfaceClass, SurfaceRole, TrustedRootRecord,
     WindowRole,
 };
+#[cfg(unix)]
 use aureline_recovery::session_restore::{
     SessionRestoreCaptureInput, SessionRestoreStore, TabGroupCaptureInput, TabItemCaptureInput,
 };
@@ -216,6 +220,7 @@ fn drill_plan(packet: &InstallTopologyAlphaPacket) -> RollbackDrillPlan {
     .expect("portable side-by-side rollback plan")
 }
 
+#[cfg(unix)]
 fn root_ref(plan: &RollbackDrillPlan, role: RollbackDrillRootRole, needle: &str) -> String {
     plan.roots
         .iter()
@@ -224,6 +229,7 @@ fn root_ref(plan: &RollbackDrillPlan, role: RollbackDrillRootRole, needle: &str)
         .unwrap_or_else(|| panic!("missing {role:?} root containing {needle}"))
 }
 
+#[cfg(unix)]
 fn read_state_root(driver: &RollbackDrillDriver, root_ref: &str) -> Vec<u8> {
     std::fs::read(
         driver
@@ -234,6 +240,7 @@ fn read_state_root(driver: &RollbackDrillDriver, root_ref: &str) -> Vec<u8> {
     .expect("read state-root.json")
 }
 
+#[cfg(unix)]
 fn seed_session_restore(driver: &RollbackDrillDriver, root_ref: &str) {
     let root = driver
         .state_root_path(root_ref)
@@ -245,7 +252,7 @@ fn seed_session_restore(driver: &RollbackDrillDriver, root_ref: &str) {
             producer_build: ProducerBuildStamp {
                 producer_name: "aureline".to_string(),
                 producer_version: "0.0.0".to_string(),
-                producer_channel: Some("preview".to_string()),
+                producer_channel: Some("experimental".to_string()),
                 producer_platform_class: Some("windows".to_string()),
                 producer_instance_handle: None,
             },
@@ -290,6 +297,7 @@ fn seed_session_restore(driver: &RollbackDrillDriver, root_ref: &str) {
         .expect("capture session restore seed");
 }
 
+#[cfg(unix)]
 #[test]
 fn beta_rollback_drill_restores_prior_known_good_build() {
     let plan = load_plan();
