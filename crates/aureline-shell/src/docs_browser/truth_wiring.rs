@@ -1021,7 +1021,7 @@ fn seeded_handoff_routes(
     requests.push(CommunityHandoffRequest {
         issue_class: CommunityIssueClass::MigrationCompatibilityRegression,
         source_surface: TruthSurfaceClass::MigrationCenter,
-        current_object_ref: "shell:migration_center_beta:page:v1".to_owned(),
+        current_object_ref: "shell:migration_center_beta:page:v2".to_owned(),
         issue_context_ref: "m3_claim_row:beta_surface.importer_and_migration".to_owned(),
         claim_manifest_ref: claim_manifest_ref.clone(),
         compatibility_report_ref: compatibility_report_ref.clone(),

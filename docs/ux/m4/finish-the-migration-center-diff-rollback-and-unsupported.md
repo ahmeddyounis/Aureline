@@ -33,38 +33,45 @@ checkpoint was verified for it, or an unsupported gap is hidden until after
 apply.
 
 `aureline_shell::migration_center_stable` mints one
-`migration_flow_disclosure_record` per imported source ecosystem. Each record is
-a genuine projection of the **live** migration code: the diff, rollback, and
-compare/undo evidence come from
+`migration_flow_disclosure_record` per imported source ecosystem. Each seeded
+record is a genuine projection of the **live preview** code: the diff and
+checkpoint requirement come from
 `aureline_shell::migration_wizard::seeded_migration_wizard_page`, and the
 taxonomy comes from
 `aureline_shell::migration_corpus::seeded_migration_scoreboard`. The
 taxonomy, domains, and source-ecosystem vocabulary are reused verbatim from
 `aureline_shell::import::diff_review` and `aureline_shell::migration_corpus`,
 so there is no parallel model — the replay gate cross-checks that each record's
-upstream identities are the same wizard session, mapping report, rollback
-checkpoint, and scoreboard the migration center page already pivots on.
+upstream identities are the same wizard review, mapping report, rollback
+requirement, and scoreboard the migration center page already pivots on. A
+preview correlation is not promoted to an apply session, and a
+`rollback-requirement:*` value is never exposed as a checkpoint handle.
 
 ## The three pillars the record binds
 
 1. **The diff (`diff`).** `reviewed_before_apply` is true, `row_count` is the
    classified-row count, `every_row_has_before_after` and
-   `every_row_uses_one_checkpoint` are true. A flow whose diff is not a
+   `every_row_uses_one_requirement` are true. A flow whose diff is not a
    reviewable before/after surface before apply is narrowed.
 
-2. **The rollback (`rollback`).** `created_before_apply` and
-   `protects_every_domain` come from the wizard's pre-apply checkpoint binding.
-   `verified_for_this_flow` is true only when a live per-ecosystem apply session
-   minted the checkpoint — a flow that merely *references* an adjacent flow's
-   checkpoint is not live. `undo_available` / `compare_available` expose the
-   restore and compare routes (with canonical `aureline://` refs) only when the
-   rollback is live for the flow.
+2. **The rollback (`rollback`).** `rollback_requirement_ref` is the dry-run
+   requirement the execution layer must satisfy before apply. It is not a
+   checkpoint. `checkpoint_ref`, `restore_record_ref`, and the Undo/Compare refs
+   remain absent until a real apply publishes matching evidence. Without those
+   refs, every lifecycle and availability boolean is false and the flow narrows
+   with `rollback_evidence_incomplete`.
 
 3. **The unsupported-gap taxonomy (`taxonomy`).** The Exact / Translated /
    Partial / Shimmed / Unsupported counts, `classifications_present`, and the
    union of Unsupported and Shimmed `gaps` — each with
    `visible_before_apply: true` so a gap is discovered during preview rather than
    as missing behaviour after apply.
+
+All support-visible strings and refs are bounded before projection. Raw absolute
+paths, URLs, traversal-shaped text, duplicate evidence refs, untyped gap ids,
+and impossible UTC timestamps fail closed. Arrays used by taxonomy, routes,
+accessibility, evidence, and narrative exports carry schema and builder limits,
+so a deserialized record cannot turn support rendering into unbounded work.
 
 ## The public claim ceiling
 
@@ -94,11 +101,11 @@ before apply, a complete taxonomy) drops to `beta` and names at least one
 - `unsupported_gaps_hidden_before_apply`
 - `taxonomy_incomplete`
 
-In the seeded matrix the VS Code flow is a live apply session and qualifies
-Stable; JetBrains, Vim/Neovim, and Emacs project from the corpus, reference the
-same checkpoint but have no live per-ecosystem rollback evidence, and are
-therefore narrowed to `beta` with `rollback_evidence_incomplete` rather than
-inheriting the VS Code green row.
+The seeded matrix is preview-only. All four flows are therefore `beta`, name
+`rollback_evidence_incomplete`, expose no checkpoint/restore/Undo/Compare refs,
+and report `qualifies_stable: false`. A future execution-backed projection may
+qualify Stable only after binding a real checkpoint and restore record for that
+specific flow; preview data alone can never do so.
 
 ## Recovery, route, and accessibility parity
 

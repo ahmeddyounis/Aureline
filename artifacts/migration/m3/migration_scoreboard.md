@@ -9,10 +9,11 @@ cargo run -q -p aureline-shell --bin aureline_shell_migration_corpus -- scoreboa
   artifacts/migration/m3/migration_scoreboard.md
 ```
 
-- Scoreboard id: `shell:migration_corpus_beta:scoreboard:v1`
-- Wizard session: `shell:migration-wizard:import-review-3ccbd213803d2b7e`
+- Scoreboard id: `shell:migration_corpus_beta:scoreboard:v2`
+- Wizard page session: `shell:migration-wizard:import-review-3ccbd213803d2b7e`
+- Migration review: `migration-review:import-review-3ccbd213803d2b7e` (dry-run; not an apply session)
 - Wizard mapping report: `mapping-report:import-review-3ccbd213803d2b7e`
-- Rollback checkpoint: `rollback-checkpoint:import-review-3ccbd213803d2b7e`
+- Rollback requirement: `rollback-requirement:import-review-3ccbd213803d2b7e` (checkpoint not created by preview)
 - Generated at: `2026-05-15T00:00:00Z`
 
 ## Overall classification summary

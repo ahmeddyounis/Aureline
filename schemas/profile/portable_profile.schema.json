@@ -10,11 +10,87 @@
     { "$ref": "#/$defs/export_manifest_record" },
     { "$ref": "#/$defs/restore_provenance_record" }
   ],
+  "allOf": [
+    {
+      "if": {
+        "required": ["profile_schema_version"],
+        "properties": {
+          "profile_schema_version": { "const": 1 }
+        }
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "$ref": "#/$defs/version_2_direct_state_class" },
+            { "$ref": "#/$defs/version_2_direct_exclusion_reason" },
+            {
+              "required": ["included_state_classes"],
+              "properties": {
+                "included_state_classes": {
+                  "contains": { "$ref": "#/$defs/version_2_inclusion_row" }
+                }
+              }
+            },
+            {
+              "required": ["excluded_state_classes"],
+              "properties": {
+                "excluded_state_classes": {
+                  "contains": { "$ref": "#/$defs/version_2_inclusion_row" }
+                }
+              }
+            },
+            {
+              "required": ["remembered_state_inspector_refs"],
+              "properties": {
+                "remembered_state_inspector_refs": {
+                  "contains": {
+                    "type": "object",
+                    "required": ["state_classes_exposed"],
+                    "properties": {
+                      "state_classes_exposed": {
+                        "contains": { "const": "imported_profile_state" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
   "$defs": {
     "profile_schema_version": {
       "type": "integer",
-      "const": 1,
-      "description": "Integer schema version for this portable-profile / state-map vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+      "enum": [1, 2],
+      "description": "Integer schema version for this portable-profile / state-map vocabulary export. Current value is 2; version 1 remains readable for the declared compatibility window. Version 2 adds the governed imported-profile activation/history state class and its local-projection exclusion reason."
+    },
+
+    "version_2_direct_state_class": {
+      "type": "object",
+      "required": ["state_class"],
+      "properties": {
+        "state_class": { "const": "imported_profile_state" }
+      }
+    },
+
+    "version_2_direct_exclusion_reason": {
+      "type": "object",
+      "required": ["exclusion_reason"],
+      "properties": {
+        "exclusion_reason": {
+          "const": "local_activation_history_requires_projection"
+        }
+      }
+    },
+
+    "version_2_inclusion_row": {
+      "type": "object",
+      "anyOf": [
+        { "$ref": "#/$defs/version_2_direct_state_class" },
+        { "$ref": "#/$defs/version_2_direct_exclusion_reason" }
+      ]
     },
 
     "record_kind": {
@@ -130,6 +206,7 @@
         "tasks_and_launch_configs",
         "machine_specific_settings",
         "profile_library_index",
+        "imported_profile_state",
         "sync_metadata",
         "conflict_journal",
         "terminal_restore_metadata",
@@ -185,7 +262,8 @@
         "provider_owned_unsupported",
         "policy_locked",
         "user_declined_export",
-        "policy_excludes_export"
+        "policy_excludes_export",
+        "local_activation_history_requires_projection"
       ],
       "description": "Frozen exclusion-reason id set. Every state-class row that is excluded from a portable profile, managed sync, or export manifest MUST name one reason from this set; free-form reasons are non-conforming."
     },
@@ -603,7 +681,7 @@
             "customer_managed_only",
             "admin_owned_sync_only"
           ],
-          "description": "Default managed-sync posture. machine_specific_settings, sync_metadata, conflict_journal, terminal_restore_metadata, policy_bundle_cache, execution_context_cache, ai_memory_metadata, deferred_intent_outbox, local_history, logs_and_traces, object_store, index_cache, dirty_buffer_recovery_journal, session_restore_state, auth_session_secrets, admin_policy_bundle, trust_approvals, and long_lived_credentials MUST be never_synced unless a specific explicit row says otherwise."
+          "description": "Default managed-sync posture. machine_specific_settings, imported_profile_state, sync_metadata, conflict_journal, terminal_restore_metadata, policy_bundle_cache, execution_context_cache, ai_memory_metadata, deferred_intent_outbox, local_history, logs_and_traces, object_store, index_cache, dirty_buffer_recovery_journal, session_restore_state, auth_session_secrets, admin_policy_bundle, trust_approvals, and long_lived_credentials MUST be never_synced unless a specific explicit row says otherwise."
         },
         "depends_on_rows": {
           "type": "array",
@@ -612,7 +690,7 @@
         },
         "notes": { "$ref": "#/$defs/redaction_aware_text" }
       },
-      "description": "One row in the Appendix-F-style configuration / state map. Reserves profile library, sync metadata and conflict journals, terminal restore metadata, policy bundle cache, execution-context cache, extension lockfile, AI / outbox metadata, local history, and logs / traces so later artifact-specific tasks inherit a stable location vocabulary."
+      "description": "One row in the Appendix-F-style configuration / state map. Reserves profile library and imported-profile activation/history, sync metadata and conflict journals, terminal restore metadata, policy bundle cache, execution-context cache, extension lockfile, AI / outbox metadata, local history, and logs / traces so later artifact-specific tasks inherit a stable location vocabulary."
     },
 
     "export_manifest_record": {

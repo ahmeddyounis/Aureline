@@ -5,8 +5,8 @@ Each `*.json` here is a pinned `migration_flow_disclosure_record` (schema:
 minted bit-for-bit from the in-code corpus in
 `crates/aureline-shell/src/migration_center_stable/corpus.rs`. The corpus
 projects one record per imported source ecosystem through the **live** migration
-builders (`seeded_migration_wizard_page` for the diff/rollback/compare/undo
-evidence and `seeded_migration_scoreboard` for the taxonomy), so these records
+builders (`seeded_migration_wizard_page` for the diff and rollback requirement,
+and `seeded_migration_scoreboard` for the taxonomy), so these records
 are a genuine projection of the shell's migration code rather than a parallel
 model.
 
@@ -27,12 +27,12 @@ route / surface parity, or accessibility). The contract narrative is
 release-evidence packet is
 `artifacts/ux/m4/finish-the-migration-center-diff-rollback-and-unsupported.md`.
 
-The four records cover the claimed stable matrix across both sides of the
-cutline:
+The four records cover the preview matrix. Because the seeded wizard has not
+applied, every record is narrowed below the cutline and has no live rollback:
 
 | Fixture | Ecosystem | Claim | Taxonomy (E/T/P/S/U) | Rollback live |
 | --- | --- | --- | --- | --- |
-| `vs_code_code_oss.json` | VS Code / Code-OSS | stable | 1/1/1/1/1 | yes |
+| `vs_code_code_oss.json` | VS Code / Code-OSS | beta (preview narrowed) | 1/1/1/1/1 | no |
 | `jetbrains_family.json` | JetBrains IDEs | beta (narrowed) | 1/1/1/1/1 | no |
 | `vim_neovim.json` | Vim / Neovim | beta (narrowed) | 1/1/1/1/1 | no |
 | `emacs.json` | Emacs | beta (narrowed) | 1/1/1/1/1 | no |

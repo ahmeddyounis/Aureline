@@ -62,7 +62,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let export = MigrationCorpusSupportExport::from_scoreboard(
                 "support-export:migration-corpus:001",
                 scoreboard,
-            );
+            )
+            .map_err(|errors| format!("migration corpus export validation failed: {errors:?}"))?;
             print_json(&export)?;
         }
         Some("scoreboard-md") => {
@@ -128,7 +129,8 @@ fn emit_fixtures(
     let support_export = MigrationCorpusSupportExport::from_scoreboard(
         "support-export:migration-corpus:001",
         scoreboard.clone(),
-    );
+    )
+    .map_err(|errors| format!("migration corpus export validation failed: {errors:?}"))?;
     write_json(&dir.join("support_export.json"), &support_export)?;
     std::fs::write(
         dir.join("compact.txt"),

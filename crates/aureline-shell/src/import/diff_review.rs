@@ -1,16 +1,18 @@
 // SPDX-FileCopyrightText: 2026 Aureline contributors
 // SPDX-License-Identifier: Apache-2.0
 
-//! Import diff review, rollback checkpoint, and retained report records.
+//! Import diff review, rollback requirement, and retained report records.
 //!
 //! This module turns the lightweight source classifier in [`super`] into the
 //! first shell-owned migration packet that can be rendered before apply and
 //! reopened after first run. It does not parse source profile bodies; it
-//! materializes the source-labeled review, checkpoint, shortcut delta, and
-//! retained-report refs the real import adapters must later fill with richer
-//! rows.
+//! materializes the source-labeled review, checkpoint requirement, shortcut
+//! delta, and retained-report refs the real import adapters must later fill
+//! with richer rows. Preview packets never claim that a rollback checkpoint,
+//! migration session, restore record, or compatibility report already exists.
 
 use std::collections::BTreeMap;
+use std::fmt;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -21,14 +23,14 @@ use super::{
 };
 
 /// Schema version for [`ImportDiffReviewPacket`].
-pub const IMPORT_DIFF_REVIEW_SCHEMA_VERSION: u32 = 1;
+pub const IMPORT_DIFF_REVIEW_SCHEMA_VERSION: u32 = 2;
 
 /// Stable record-kind tag for [`ImportDiffReviewPacket`].
 pub const IMPORT_DIFF_REVIEW_RECORD_KIND: &str = "import_diff_review_packet_record";
 
-/// Stable record-kind tag for [`ImportRollbackCheckpoint`].
-pub const IMPORT_ROLLBACK_CHECKPOINT_RECORD_KIND: &str =
-    "first_run_import_rollback_checkpoint_record";
+/// Stable record-kind tag for [`ImportRollbackRequirement`].
+pub const IMPORT_ROLLBACK_REQUIREMENT_RECORD_KIND: &str =
+    "first_run_import_rollback_requirement_record";
 
 /// Stable record-kind tag for [`ShortcutDeltaReport`].
 pub const SHORTCUT_DELTA_REPORT_RECORD_KIND: &str = "shortcut_delta_digest_packet_record";
@@ -174,7 +176,7 @@ pub struct ImportDiffReviewRow {
     pub outcome_state: String,
     /// Fidelity vocabulary projection.
     pub fidelity_label_projection: String,
-    /// Before-state ref captured by the rollback checkpoint.
+    /// Before-state ref that the required checkpoint must protect.
     pub before_state_ref: String,
     /// Reviewer-facing current value summary.
     pub before_value_label: String,
@@ -182,8 +184,8 @@ pub struct ImportDiffReviewRow {
     pub after_state_ref: String,
     /// Reviewer-facing imported value summary.
     pub after_value_label: String,
-    /// Rollback checkpoint that protects this row.
-    pub rollback_checkpoint_ref: String,
+    /// Shared pre-apply rollback requirement for this row.
+    pub rollback_requirement_ref: String,
     /// Caveat retained in migration reports when the mapping is lossy or blocked.
     pub lossy_or_unsupported_note: Option<String>,
     /// Docs/help refs that can reopen the row after first run.
@@ -277,8 +279,8 @@ pub struct ShortcutDeltaReport {
     pub schema_version: u32,
     /// Stable digest id.
     pub shortcut_delta_report_id: String,
-    /// Migration session that owns this digest.
-    pub migration_session_ref: String,
+    /// In-packet migration review correlation; not a durable session record.
+    pub migration_review_ref: String,
     /// Source ecosystem id.
     pub source_ecosystem_id: String,
     /// Imported and translated shortcut/keymap rows.
@@ -304,53 +306,39 @@ impl ShortcutDeltaReport {
     }
 }
 
-/// Rollback checkpoint created before import apply.
+/// Rollback requirement shown before import apply.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ImportRollbackCheckpoint {
+pub struct ImportRollbackRequirement {
     /// Stable record kind.
     pub record_kind: String,
-    /// Schema version for this checkpoint projection.
+    /// Schema version for this requirement projection.
     pub schema_version: u32,
-    /// Stable checkpoint projection id.
-    pub import_rollback_checkpoint_id: String,
-    /// Stable checkpoint ref shared by every admitted row.
-    pub checkpoint_ref: String,
-    /// Import plan protected by this checkpoint.
+    /// Stable rollback requirement id.
+    pub import_rollback_requirement_id: String,
+    /// Planning correlation shared by every reviewed row; not a restore handle.
+    pub requirement_ref: String,
+    /// Import plan that requires protection.
     pub import_plan_ref: String,
-    /// Diff preview protected by this checkpoint.
+    /// Diff preview that requires protection.
     pub import_diff_preview_ref: String,
-    /// Migration session that owns this checkpoint.
-    pub migration_session_ref: String,
-    /// Restore record paired with this checkpoint.
-    pub restore_record_ref: String,
-    /// Frozen checkpoint outcome class.
-    pub rollback_checkpoint_outcome_class: String,
-    /// Checkpoint scope.
+    /// Requirement state. This preview can require, but cannot create, a checkpoint.
+    pub requirement_state: String,
+    /// Required checkpoint scope.
     pub checkpoint_scope: String,
-    /// Availability state.
-    pub availability_state: String,
-    /// Cleanup state.
-    pub cleanup_state: String,
-    /// Whether the checkpoint was created before apply.
-    pub created_before_apply: bool,
-    /// Protected state refs captured by the checkpoint.
-    pub protected_state_refs: Vec<String>,
-    /// Preserved prior artifact refs used for compare/export.
-    pub preserved_prior_artifact_refs: Vec<String>,
-    /// User-facing rollback actions.
+    /// State refs that a later concrete checkpoint must capture.
+    pub required_protected_state_refs: Vec<String>,
+    /// User-facing actions available after a concrete checkpoint exists.
     pub rollback_action_hints: Vec<String>,
-    /// Timestamp captured when the checkpoint was created.
-    pub created_at: String,
+    /// Timestamp captured when the requirement was generated.
+    pub generated_at: String,
 }
 
-impl ImportRollbackCheckpoint {
-    /// Returns `true` when the checkpoint is a clear pre-apply restore handle.
-    pub fn clear_pre_apply_checkpoint(&self) -> bool {
-        self.created_before_apply
-            && self.rollback_checkpoint_outcome_class == "checkpoint_created_pre_apply"
-            && self.availability_state == "available"
-            && self.cleanup_state == "retained"
-            && !self.checkpoint_ref.trim().is_empty()
+impl ImportRollbackRequirement {
+    /// Returns `true` when apply is clearly gated on a future checkpoint.
+    pub fn requires_checkpoint_before_apply(&self) -> bool {
+        self.requirement_state == "required_before_apply"
+            && !self.requirement_ref.trim().is_empty()
+            && !self.required_protected_state_refs.is_empty()
     }
 }
 
@@ -401,16 +389,16 @@ pub struct RetainedMigrationReport {
     pub schema_version: u32,
     /// Stable migration report id.
     pub migration_report_id: String,
-    /// Migration session that owns this report.
-    pub migration_session_ref: String,
+    /// In-packet migration review correlation; not a durable session record.
+    pub migration_review_ref: String,
     /// Source descriptor shown in report headers.
     pub source_descriptor: String,
     /// Target descriptor shown in report headers.
     pub target_descriptor: String,
     /// Import preview ref that produced the report.
     pub import_diff_preview_ref: String,
-    /// Rollback checkpoint ref kept with the report.
-    pub rollback_checkpoint_ref: String,
+    /// Pre-apply rollback requirement retained with this preview report.
+    pub rollback_requirement_ref: String,
     /// Shortcut-delta report ref kept with the report.
     pub shortcut_delta_report_ref: String,
     /// Classification tokens present in this report.
@@ -447,8 +435,8 @@ pub struct RetainedMigrationReportProjection {
     pub surface: ImportReportReopenSurface,
     /// Stable report id.
     pub migration_report_id: String,
-    /// Rollback checkpoint ref presented with the report.
-    pub rollback_checkpoint_ref: String,
+    /// Rollback requirement ref presented with the report.
+    pub rollback_requirement_ref: String,
     /// Shortcut-delta report ref presented with the report.
     pub shortcut_delta_report_ref: String,
     /// Classification tokens present in the report.
@@ -460,7 +448,7 @@ pub struct RetainedMigrationReportProjection {
 }
 
 /// Full import diff review packet consumed by the shell import review sheet.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImportDiffReviewPacket {
     /// Stable record kind.
     pub record_kind: String,
@@ -472,8 +460,8 @@ pub struct ImportDiffReviewPacket {
     pub import_plan_ref: String,
     /// Import diff preview ref.
     pub import_diff_preview_ref: String,
-    /// Migration session ref.
-    pub migration_session_ref: String,
+    /// In-packet migration review correlation; not a durable session record.
+    pub migration_review_ref: String,
     /// Source path or source ref selected by the user.
     pub source_path: String,
     /// Destination profile or workspace target.
@@ -484,14 +472,40 @@ pub struct ImportDiffReviewPacket {
     pub rows: Vec<ImportDiffReviewRow>,
     /// Shortcut and keymap delta report.
     pub shortcut_delta_report: ShortcutDeltaReport,
-    /// One rollback checkpoint for all admitted rows.
-    pub rollback_checkpoint: ImportRollbackCheckpoint,
+    /// One pre-apply rollback requirement for all reviewed rows.
+    pub rollback_requirement: ImportRollbackRequirement,
     /// Retained migration report reopenable after first run.
     pub retained_migration_report: RetainedMigrationReport,
     /// Apply-gate class for the current packet.
     pub apply_gate_class: String,
     /// Timestamp captured when the packet was generated.
     pub generated_at: String,
+}
+
+impl fmt::Debug for ImportDiffReviewPacket {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ImportDiffReviewPacket")
+            .field("record_kind", &self.record_kind)
+            .field("schema_version", &self.schema_version)
+            .field("import_review_id", &self.import_review_id)
+            .field("import_plan_ref", &self.import_plan_ref)
+            .field("import_diff_preview_ref", &self.import_diff_preview_ref)
+            .field("migration_review_ref", &self.migration_review_ref)
+            .field(
+                "source_selection_ref",
+                &privacy_safe_log_ref("source-selection", &self.source_path),
+            )
+            .field(
+                "destination_target_ref",
+                &privacy_safe_log_ref("destination-target", &self.destination_workspace_target),
+            )
+            .field("source_classification", &self.source_classification)
+            .field("row_count", &self.rows.len())
+            .field("apply_gate_class", &self.apply_gate_class)
+            .field("generated_at", &self.generated_at)
+            .finish()
+    }
 }
 
 impl ImportDiffReviewPacket {
@@ -502,11 +516,11 @@ impl ImportDiffReviewPacket {
             .all(ImportDiffReviewRow::has_before_after_diff)
     }
 
-    /// Returns `true` when all rows cite exactly one checkpoint ref.
-    pub fn every_row_uses_one_checkpoint(&self) -> bool {
+    /// Returns `true` when all rows cite exactly one rollback requirement.
+    pub fn every_row_uses_one_rollback_requirement(&self) -> bool {
         self.rows
             .iter()
-            .all(|row| row.rollback_checkpoint_ref == self.rollback_checkpoint.checkpoint_ref)
+            .all(|row| row.rollback_requirement_ref == self.rollback_requirement.requirement_ref)
     }
 
     /// Returns `true` when lossy and unsupported rows remain report-visible.
@@ -529,9 +543,9 @@ impl ImportDiffReviewPacket {
     pub fn compact_lines(&self) -> Vec<String> {
         let mut lines = Vec::new();
         lines.push(format!(
-            "diff_preview: {} row(s), checkpoint: {}",
+            "diff_preview: {} row(s), checkpoint requirement: {}",
             self.rows.len(),
-            self.rollback_checkpoint.checkpoint_ref
+            self.rollback_requirement.requirement_ref
         ));
         lines.push(format!(
             "report: {} retained via settings/help/support",
@@ -565,11 +579,10 @@ pub fn materialize_import_diff_review_packet(
 ) -> ImportDiffReviewPacket {
     let generated_at = super::execution::utc_timestamp_now();
     let suffix = stable_suffix(&review.import_review_id);
-    let migration_session_ref = format!("migration-session:{suffix}");
+    let migration_review_ref = format!("migration-review:{suffix}");
     let import_plan_ref = format!("import-plan:{suffix}");
     let import_diff_preview_ref = format!("import-preview:{suffix}");
-    let checkpoint_ref = format!("rollback-checkpoint:{suffix}");
-    let restore_record_ref = format!("migration-restore-record:{suffix}");
+    let rollback_requirement_ref = format!("rollback-requirement:{suffix}");
     let mut rows = Vec::new();
     let mut shortcut_rows = Vec::new();
     let mut conflicts = Vec::new();
@@ -580,7 +593,7 @@ pub fn materialize_import_diff_review_packet(
                 review,
                 item,
                 &suffix,
-                &checkpoint_ref,
+                &rollback_requirement_ref,
                 &mut rows,
                 &mut shortcut_rows,
                 &mut conflicts,
@@ -598,7 +611,7 @@ pub fn materialize_import_diff_review_packet(
         record_kind: SHORTCUT_DELTA_REPORT_RECORD_KIND.to_string(),
         schema_version: IMPORT_DIFF_REVIEW_SCHEMA_VERSION,
         shortcut_delta_report_id: shortcut_delta_report_id.clone(),
-        migration_session_ref: migration_session_ref.clone(),
+        migration_review_ref: migration_review_ref.clone(),
         source_ecosystem_id: source_ecosystem_id(review.classification).to_string(),
         rows: shortcut_rows,
         conflicts_visible_before_apply: conflicts,
@@ -610,42 +623,33 @@ pub fn materialize_import_diff_review_packet(
         emitted_at: generated_at.clone(),
     };
 
-    let rollback_checkpoint = ImportRollbackCheckpoint {
-        record_kind: IMPORT_ROLLBACK_CHECKPOINT_RECORD_KIND.to_string(),
+    let rollback_requirement = ImportRollbackRequirement {
+        record_kind: IMPORT_ROLLBACK_REQUIREMENT_RECORD_KIND.to_string(),
         schema_version: IMPORT_DIFF_REVIEW_SCHEMA_VERSION,
-        import_rollback_checkpoint_id: format!("import-rollback-checkpoint:{suffix}"),
-        checkpoint_ref: checkpoint_ref.clone(),
+        import_rollback_requirement_id: format!("import-rollback-requirement:{suffix}"),
+        requirement_ref: rollback_requirement_ref.clone(),
         import_plan_ref: import_plan_ref.clone(),
         import_diff_preview_ref: import_diff_preview_ref.clone(),
-        migration_session_ref: migration_session_ref.clone(),
-        restore_record_ref: restore_record_ref.clone(),
-        rollback_checkpoint_outcome_class: "checkpoint_created_pre_apply".to_string(),
+        requirement_state: "required_before_apply".to_string(),
         checkpoint_scope: "profile_only".to_string(),
-        availability_state: "available".to_string(),
-        cleanup_state: "retained".to_string(),
-        created_before_apply: true,
-        protected_state_refs: vec![
+        required_protected_state_refs: vec![
             format!("protected-state:{}:profile-settings-before-import", suffix),
             format!("protected-state:{suffix}:keybindings-before-import"),
-        ],
-        preserved_prior_artifact_refs: vec![
-            format!("preserved-artifact:{suffix}:profile-settings-before-import"),
-            format!("preserved-artifact:{suffix}:keybindings-before-import"),
         ],
         rollback_action_hints: vec![
             "compare_before_restore".to_string(),
             "restore_from_checkpoint".to_string(),
             "export_for_support".to_string(),
         ],
-        created_at: generated_at.clone(),
+        generated_at: generated_at.clone(),
     };
 
     let retained_migration_report = retained_report(
         review,
         &suffix,
-        &migration_session_ref,
+        &migration_review_ref,
         &import_diff_preview_ref,
-        &checkpoint_ref,
+        &rollback_requirement_ref,
         &shortcut_delta_report_id,
         &migration_report_id,
         &rows,
@@ -662,7 +666,7 @@ pub fn materialize_import_diff_review_packet(
         {
             "requires_manual_review"
         } else {
-            "allowed_checkpoint_ready"
+            "dry_run_only"
         }
     } else {
         "stale_requires_replan"
@@ -675,13 +679,13 @@ pub fn materialize_import_diff_review_packet(
         import_review_id: review.import_review_id.clone(),
         import_plan_ref,
         import_diff_preview_ref,
-        migration_session_ref,
+        migration_review_ref,
         source_path: review.source_path.clone(),
         destination_workspace_target: review.destination_workspace_target.clone(),
         source_classification: review.classification,
         rows,
         shortcut_delta_report,
-        rollback_checkpoint,
+        rollback_requirement,
         retained_migration_report,
         apply_gate_class,
         generated_at,
@@ -701,7 +705,7 @@ pub fn reopen_retained_migration_report(
     Some(RetainedMigrationReportProjection {
         surface,
         migration_report_id: report.migration_report_id.clone(),
-        rollback_checkpoint_ref: report.rollback_checkpoint_ref.clone(),
+        rollback_requirement_ref: report.rollback_requirement_ref.clone(),
         shortcut_delta_report_ref: report.shortcut_delta_report_ref.clone(),
         classifications_present: report.classifications_present.clone(),
         caveats_visible_after_apply: report.lossy_mappings_visible_after_apply
@@ -736,9 +740,9 @@ pub fn write_import_diff_review_log(packet: &ImportDiffReviewPacket) {
                 .as_str(),
         ),
         (
-            "import_rollback_checkpoints",
-            "rollback_checkpoint",
-            packet.rollback_checkpoint.checkpoint_ref.as_str(),
+            "import_rollback_requirements",
+            "rollback_requirement",
+            packet.rollback_requirement.requirement_ref.as_str(),
         ),
     ] {
         let projection = import_diff_log_projection(packet, artifact_class, identity);
@@ -766,7 +770,7 @@ struct ImportDiffLogProjection {
     classification_counts: BTreeMap<String, usize>,
     domain_counts: BTreeMap<String, usize>,
     apply_gate_class: &'static str,
-    checkpoint_created_before_apply: bool,
+    checkpoint_required_before_apply: bool,
     lossy_mappings_retained: bool,
     unsupported_items_retained: bool,
     logged_at: String,
@@ -808,7 +812,9 @@ fn import_diff_log_projection(
         classification_counts,
         domain_counts,
         apply_gate_class: safe_apply_gate_class(&packet.apply_gate_class),
-        checkpoint_created_before_apply: packet.rollback_checkpoint.created_before_apply,
+        checkpoint_required_before_apply: packet
+            .rollback_requirement
+            .requires_checkpoint_before_apply(),
         lossy_mappings_retained: packet
             .retained_migration_report
             .lossy_mappings_visible_after_apply,
@@ -835,7 +841,7 @@ fn import_diff_log_projection_json(
 fn safe_apply_gate_class(value: &str) -> &'static str {
     match value {
         "requires_manual_review" => "requires_manual_review",
-        "allowed_checkpoint_ready" => "allowed_checkpoint_ready",
+        "dry_run_only" => "dry_run_only",
         "stale_requires_replan" => "stale_requires_replan",
         _ => "unrecognized_fail_closed",
     }
@@ -845,7 +851,7 @@ fn append_rows_for_item(
     review: &ImportReviewRecord,
     item: &ImportReviewItem,
     suffix: &str,
-    checkpoint_ref: &str,
+    rollback_requirement_ref: &str,
     rows: &mut Vec<ImportDiffReviewRow>,
     shortcut_rows: &mut Vec<ShortcutDeltaRow>,
     conflicts: &mut Vec<ShortcutConflictPreview>,
@@ -855,7 +861,7 @@ fn append_rows_for_item(
             review,
             item,
             suffix,
-            checkpoint_ref,
+            rollback_requirement_ref,
             ImportReviewDomain::WorkspaceProfile,
             ImportMappingClassification::Partial,
             "source profile shell and workspace marker",
@@ -867,7 +873,7 @@ fn append_rows_for_item(
                 review,
                 item,
                 suffix,
-                checkpoint_ref,
+                rollback_requirement_ref,
                 ImportReviewDomain::Settings,
                 ImportMappingClassification::Exact,
                 "current profile setting layer",
@@ -878,7 +884,7 @@ fn append_rows_for_item(
                 review,
                 item,
                 suffix,
-                checkpoint_ref,
+                rollback_requirement_ref,
                 ImportReviewDomain::ThemesAndVisuals,
                 ImportMappingClassification::Partial,
                 "current theme tokens retained",
@@ -891,7 +897,7 @@ fn append_rows_for_item(
                 review,
                 item,
                 suffix,
-                checkpoint_ref,
+                rollback_requirement_ref,
                 ImportReviewDomain::Shortcuts,
                 ImportMappingClassification::Translated,
                 "current command palette shortcut retained",
@@ -902,7 +908,7 @@ fn append_rows_for_item(
                 review,
                 item,
                 suffix,
-                checkpoint_ref,
+                rollback_requirement_ref,
                 ImportReviewDomain::Keymaps,
                 ImportMappingClassification::Partial,
                 "current keybinding layer retained before apply",
@@ -915,7 +921,7 @@ fn append_rows_for_item(
             review,
             item,
             suffix,
-            checkpoint_ref,
+            rollback_requirement_ref,
             ImportReviewDomain::SnippetsAndTemplates,
             ImportMappingClassification::Exact,
             "current snippets retained",
@@ -926,7 +932,7 @@ fn append_rows_for_item(
             review,
             item,
             suffix,
-            checkpoint_ref,
+            rollback_requirement_ref,
             ImportReviewDomain::TasksAndRunConfigs,
             ImportMappingClassification::Translated,
             "current task list retained",
@@ -937,7 +943,7 @@ fn append_rows_for_item(
             review,
             item,
             suffix,
-            checkpoint_ref,
+            rollback_requirement_ref,
             ImportReviewDomain::LaunchDebug,
             ImportMappingClassification::Partial,
             "current launch/debug state retained",
@@ -949,7 +955,7 @@ fn append_rows_for_item(
                 review,
                 item,
                 suffix,
-                checkpoint_ref,
+                rollback_requirement_ref,
                 ImportReviewDomain::ExtensionsAndProviders,
                 ImportMappingClassification::Shimmed,
                 "current extension set retained",
@@ -960,7 +966,7 @@ fn append_rows_for_item(
                 review,
                 item,
                 suffix,
-                checkpoint_ref,
+                rollback_requirement_ref,
                 ImportReviewDomain::ExtensionsAndProviders,
                 ImportMappingClassification::Unsupported,
                 "unsupported source extension state excluded",
@@ -972,7 +978,7 @@ fn append_rows_for_item(
             review,
             item,
             suffix,
-            checkpoint_ref,
+            rollback_requirement_ref,
             ImportReviewDomain::WorkspaceProfile,
             ImportMappingClassification::Partial,
             "current workspace metadata retained",
@@ -986,7 +992,7 @@ fn diff_row(
     review: &ImportReviewRecord,
     item: &ImportReviewItem,
     suffix: &str,
-    checkpoint_ref: &str,
+    rollback_requirement_ref: &str,
     domain: ImportReviewDomain,
     classification: ImportMappingClassification,
     before_value_label: &str,
@@ -994,21 +1000,13 @@ fn diff_row(
     lossy_or_unsupported_note: Option<&str>,
 ) -> ImportDiffReviewRow {
     let row_suffix = format!(
-        "{}:{}:{}",
+        "{}:{}:{}:{}",
         source_ecosystem_id(review.classification),
         domain.as_str(),
+        classification.as_str(),
         stable_suffix(&item.source_relative_path)
     );
-    let support_export_refs = if matches!(
-        classification,
-        ImportMappingClassification::Partial
-            | ImportMappingClassification::Shimmed
-            | ImportMappingClassification::Unsupported
-    ) {
-        vec![format!("support:migration:{suffix}")]
-    } else {
-        Vec::new()
-    };
+    let support_export_refs = vec![format!("support:migration:{suffix}")];
 
     ImportDiffReviewRow {
         row_id: format!("import-diff-row:{row_suffix}"),
@@ -1036,7 +1034,7 @@ fn diff_row(
         before_value_label: before_value_label.to_string(),
         after_state_ref: format!("after:{suffix}:{}", domain.as_str()),
         after_value_label: after_value_label.to_string(),
-        rollback_checkpoint_ref: checkpoint_ref.to_string(),
+        rollback_requirement_ref: rollback_requirement_ref.to_string(),
         lossy_or_unsupported_note: lossy_or_unsupported_note.map(str::to_string),
         docs_help_refs: vec![
             "docs/migration/first_run_import_diff_and_rollback_contract.md".to_string(),
@@ -1105,9 +1103,9 @@ fn append_shortcut_delta_rows(
 fn retained_report(
     review: &ImportReviewRecord,
     suffix: &str,
-    migration_session_ref: &str,
+    migration_review_ref: &str,
     import_diff_preview_ref: &str,
-    checkpoint_ref: &str,
+    rollback_requirement_ref: &str,
     shortcut_delta_report_ref: &str,
     migration_report_id: &str,
     rows: &[ImportDiffReviewRow],
@@ -1136,11 +1134,11 @@ fn retained_report(
         record_kind: RETAINED_MIGRATION_REPORT_RECORD_KIND.to_string(),
         schema_version: IMPORT_DIFF_REVIEW_SCHEMA_VERSION,
         migration_report_id: migration_report_id.to_string(),
-        migration_session_ref: migration_session_ref.to_string(),
+        migration_review_ref: migration_review_ref.to_string(),
         source_descriptor: review.classification.display_label().to_string(),
-        target_descriptor: review.destination_workspace_target.clone(),
+        target_descriptor: support_safe_target_descriptor(&review.destination_workspace_target),
         import_diff_preview_ref: import_diff_preview_ref.to_string(),
-        rollback_checkpoint_ref: checkpoint_ref.to_string(),
+        rollback_requirement_ref: rollback_requirement_ref.to_string(),
         shortcut_delta_report_ref: shortcut_delta_report_ref.to_string(),
         classifications_present,
         lossy_mappings_visible_after_apply,
@@ -1178,6 +1176,35 @@ fn source_ecosystem_id(classification: CompetitorConfigClassification) -> &'stat
         CompetitorConfigClassification::VSCodeWorkspaceRoot => "vs_code_code_oss",
         CompetitorConfigClassification::JetBrainsIdeaRoot => "jetbrains_family",
         CompetitorConfigClassification::UnknownConfigRoot => "generic_import",
+    }
+}
+
+/// Returns a support-safe target ref without copying a raw path, URL, account
+/// label, or workspace title into retained reports. Only the closed local
+/// profile/workspace token form is preserved verbatim.
+pub(crate) fn support_safe_target_descriptor(target: &str) -> String {
+    let valid_local_ref = ["profile:", "workspace:"].iter().any(|prefix| {
+        target.strip_prefix(prefix).is_some_and(|identifier| {
+            !identifier.is_empty()
+                && identifier.len() <= 128
+                && identifier.bytes().all(|byte| {
+                    byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-')
+                })
+        })
+    });
+    let canonical_redacted_ref =
+        target
+            .strip_prefix("destination-target:")
+            .is_some_and(|identifier| {
+                identifier.len() == 64
+                    && identifier
+                        .bytes()
+                        .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+            });
+    if valid_local_ref || canonical_redacted_ref {
+        target.to_owned()
+    } else {
+        privacy_safe_log_ref("destination-target", target)
     }
 }
 
@@ -1227,15 +1254,21 @@ mod tests {
     }
 
     #[test]
-    fn vscode_review_materializes_diff_checkpoint_and_report() {
+    fn vscode_review_materializes_diff_checkpoint_requirement_and_report() {
         let review = CompetitorConfigClassifier::new()
             .build_review(fixture_root("vscode_workspace"), "profile:default");
         let packet = materialize_import_diff_review_packet(&review);
 
         assert_eq!(packet.record_kind, IMPORT_DIFF_REVIEW_RECORD_KIND);
         assert!(packet.every_row_has_before_after_diff());
-        assert!(packet.every_row_uses_one_checkpoint());
-        assert!(packet.rollback_checkpoint.clear_pre_apply_checkpoint());
+        assert!(packet.every_row_uses_one_rollback_requirement());
+        assert!(packet
+            .rollback_requirement
+            .requires_checkpoint_before_apply());
+        assert_eq!(
+            packet.rollback_requirement.record_kind,
+            IMPORT_ROLLBACK_REQUIREMENT_RECORD_KIND
+        );
         assert!(packet
             .retained_migration_report
             .has_required_reopen_surfaces());
@@ -1274,6 +1307,8 @@ mod tests {
         assert!(packet.shortcut_delta_report.rows.iter().any(|row| {
             row.visible_before_apply
                 && row.classification == ImportMappingClassification::Partial
+                && row.delta_state == "conflict_unresolved"
+                && row.conflict_review_ref.is_some()
                 && row
                     .conflict_inspector_ref
                     .as_deref()
@@ -1295,14 +1330,58 @@ mod tests {
             let projection = reopen_retained_migration_report(&packet, surface)
                 .unwrap_or_else(|| panic!("missing reopen projection for {}", surface.as_str()));
             assert_eq!(
-                projection.rollback_checkpoint_ref,
-                packet.rollback_checkpoint.checkpoint_ref
+                projection.rollback_requirement_ref,
+                packet.rollback_requirement.requirement_ref
             );
             assert_eq!(
                 projection.shortcut_delta_report_ref,
                 packet.shortcut_delta_report.shortcut_delta_report_id
             );
             assert!(projection.caveats_visible_after_apply);
+        }
+    }
+
+    #[test]
+    fn review_rows_have_unique_pivot_ids_and_support_refs() {
+        let review = CompetitorConfigClassifier::new()
+            .build_review(fixture_root("vscode_workspace"), "profile:default");
+        let packet = materialize_import_diff_review_packet(&review);
+        let row_ids: std::collections::BTreeSet<&str> =
+            packet.rows.iter().map(|row| row.row_id.as_str()).collect();
+
+        assert_eq!(row_ids.len(), packet.rows.len());
+        assert!(packet
+            .rows
+            .iter()
+            .all(|row| !row.support_export_refs.is_empty()));
+    }
+
+    #[test]
+    fn retained_report_and_debug_redact_nonlocal_target_descriptors() {
+        let source = fixture_root("vscode_workspace");
+        let review = CompetitorConfigClassifier::new().build_review(
+            &source,
+            "https://alice@example.invalid/private-workspace?token=secret",
+        );
+        let packet = materialize_import_diff_review_packet(&review);
+
+        assert!(packet
+            .retained_migration_report
+            .target_descriptor
+            .starts_with("destination-target:"));
+        assert_eq!(
+            support_safe_target_descriptor(&packet.retained_migration_report.target_descriptor),
+            packet.retained_migration_report.target_descriptor,
+            "canonical redacted target refs must remain stable when revalidated"
+        );
+        let debug = format!("{packet:?}");
+        for forbidden in [
+            "alice@example.invalid",
+            "private-workspace",
+            "token=secret",
+            &source.display().to_string(),
+        ] {
+            assert!(!debug.contains(forbidden), "debug leaked {forbidden:?}");
         }
     }
 
@@ -1331,7 +1410,7 @@ mod tests {
             row.imported_gesture = "Ctrl+Secret".to_owned();
         }
         packet
-            .rollback_checkpoint
+            .rollback_requirement
             .rollback_action_hints
             .push("Open /Users/alice/private".to_owned());
 

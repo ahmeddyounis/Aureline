@@ -222,11 +222,17 @@ Rules:
 2. Conflicts, unsupported keys, incompatible items, and native
    alternatives are first-class arrays. They may be empty but may not be
    folded into prose.
-3. A row with `bridge_required` or `unsupported` MUST carry docs/help and
-   support/export refs through the preview packet. When the row matches an
-   imported-extension, imported-workflow, or workflow-bundle scorecard, it
-   MUST also carry the scorecard ref so later docs and support surfaces do
-   not reinterpret the blocker.
+3. Every retained row MUST carry a bounded, redaction-safe support/export pivot.
+   A row with `bridge_required` or `unsupported` MUST additionally carry
+   docs/help refs and its caveat through the preview packet. Stable row ids bind
+   the source ecosystem, domain, classification, and redacted source-item
+   suffix so multiple outcomes for one item remain distinct. When the row
+   matches an imported-extension, imported-workflow, or workflow-bundle
+   scorecard, it MUST also carry the scorecard ref so later docs and support
+   surfaces do not reinterpret the blocker.
+   Source review, execution preview, mapping, and gap arrays admit at most
+   4,096 rows. Crossing that bound fails closed before a preview or durable
+   checkpoint is published.
 4. A row that would widen trust, extension permissions, managed
    entitlement, AI egress, network egress, credential access, subprocess
    authority, or destructive automation defaults MUST be blocked from
@@ -271,6 +277,95 @@ Rules:
 7. Partial apply is allowed only when the packet keeps blocked and
    unapplied rows visible, preserves prior artifacts for mutated durable
    truth, and retains the rollback checkpoint.
+
+### Durable path classification
+
+The imported profile and its recovery checkpoint belong to different
+state-map families and MUST remain physically separate:
+
+- immutable imported-profile activation/history revisions use
+  `$AURELINE_CONFIG/profiles/imported/imported-<profile-key>-<revision>.profile-state.json`;
+- import rollback checkpoints use
+  `$AURELINE_STATE/history/imports/import_checkpoints/<profile-key>/<checkpoint-key>.json`.
+- protected pre-apply bodies referenced by those checkpoint records use
+  `$AURELINE_STATE/history/imports/import_checkpoint_bodies/<profile-key>/<checkpoint-key>.json`.
+  The body is a private local recovery object. The settings-only execution
+  adapter pairs it with a
+  `first_run_import_execution_checkpoint_metadata_record` containing only the
+  actual body ref and digest plus the plan, source, prior-state, expected-result,
+  idempotency, target-profile, and creation-time bindings. That private record
+  is not a support/export contract and MUST NOT be labeled as a
+  `first_run_import_rollback_checkpoint_record`.
+
+The governed `first_run_import_rollback_checkpoint_record` is emitted only by
+an orchestration layer that has durably created the migration-session,
+migration-restore, compatibility-report, comparison, validation, and event
+records it references. An implementation MUST omit that public projection
+rather than mint plausible-looking refs for artifacts that do not exist. A
+shell-only dry-run packet uses
+`first_run_import_rollback_requirement_record`, `required_before_apply`, and a
+`rollback-requirement:*` correlation ref; it MUST NOT serialize that planning
+row as a checkpoint handle or use `allowed_checkpoint_ready`. Until a public
+projection exists, current apply/rollback lifecycle truth comes from the
+immutable imported-profile history revision; private pre-apply metadata records
+only checkpoint creation and never claims a later availability or restored
+state. A future public projection derives its lifecycle from that history and
+may claim `checkpoint_restored_to_prior_state` only with a real post-restore
+validation record.
+
+The shell-owned `import_diff_review_packet_record` uses schema version `2` for
+this correction. Version `1` exposed checkpoint- and session-shaped fields in
+the preview packet; consumers MUST migrate to `migration_review_ref`,
+`rollback_requirement`, and per-row `rollback_requirement_ref` before reading
+version `2`. The breaking bump prevents old consumers from treating a
+requirement correlation as executable rollback evidence.
+
+The shell resolves an explicit absolute `AURELINE_CONFIG` or `AURELINE_STATE`
+override first and otherwise uses the channel-isolated installed-desktop roots
+frozen in [`config_and_state_path_map.md`](../state/config_and_state_path_map.md).
+It MUST fail closed with `config_root_unconfigured` or
+`state_root_unconfigured` when the corresponding root cannot be resolved,
+including an invalid present override or a portable channel without explicit
+colocated authority. It MUST NOT place user-effective imported settings below
+`$AURELINE_STATE`, `.logs`, a workspace tree, or a report directory. Existing
+experimental data below `$AURELINE_STATE/imports` is not activated or migrated
+implicitly; reopening that data requires a fresh source review so the
+destination, policy epoch, and checkpoint posture can be admitted under the
+current contract.
+
+Durable reads and create-new publication MUST pin the direct file and parent
+directory identities and re-observe them around open, temporary-file creation,
+and install. Newly created Unix directory components use private permissions
+and synchronize their parent namespace before publication continues. Unix
+implementations compare device/inode identity (and file change time for reads);
+portable metadata adds size and available creation or modification timestamps
+without depending on unstable platform APIs. Rust 1.75 exposes neither a
+cross-platform dirfd-relative create/link primitive nor a portable Windows
+parent-directory sync operation. Windows therefore synchronizes and validates
+the installed file but does not claim power-loss durability for its directory
+entry. A redirect swapped and restored entirely inside the final named
+filesystem operation remains an explicit implementation limit. Observed swaps
+fail as concurrent mutation; a platform backend may claim a stronger boundary
+only after it replaces named operations with equivalent pinned-directory
+primitives and adds race-injection proof.
+
+Create-new publication treats the successful destination hard link as its
+commit point. Before that point, abandoned private staging bytes are scrubbed
+through the open handle and removed only while the pinned parent still matches.
+After that point, the staging handle MUST be disarmed before any further
+validation: truncating it would also truncate the installed artifact. A failed
+post-install identity check, temporary-link cleanup, or parent-directory sync
+therefore returns `durable_commit_state_uncertain`; it does not claim rollback,
+report apply success, or destroy the possibly committed revision. A later
+invocation must synchronize and revalidate the containing directory, then
+reread the immutable revision/checkpoint before it can report an idempotent
+prior outcome.
+
+`imported_profile_state_record` remains a local-only activation and import-
+history record. Its `.profile-state.json` suffix MUST NOT be advertised or
+parsed as a portable `*.aureprofile.json` body. A user-requested portable
+export must instead project admitted portable classes through the separately
+governed `portable_profile_artifact_record` schema and its export review.
 
 ## Rollback semantics
 

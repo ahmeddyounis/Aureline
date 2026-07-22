@@ -12,7 +12,7 @@ use aureline_shell::migration_wizard::{
     seeded_migration_wizard_page, validate_migration_wizard_page,
     MigrationWizardIssueTemplateExport, MigrationWizardPage, MigrationWizardSupportExport,
     UnsupportedGapRow, WizardCompareAction, WizardMappingReport, WizardMappingReportRow,
-    WizardRollbackCheckpointBinding, WizardStage, WizardStageTransition, WizardUndoAction,
+    WizardRollbackRequirementBinding, WizardStage, WizardStageTransition, WizardUndoAction,
     MIGRATION_WIZARD_PAGE_RECORD_KIND, MIGRATION_WIZARD_SHARED_CONTRACT_REF,
 };
 
@@ -86,61 +86,42 @@ fn fixture_undo_actions_match_page() {
     let page: MigrationWizardPage = load_json("page.json");
     let undo: Vec<WizardUndoAction> = load_json("undo_actions.json");
     assert_eq!(page.undo_actions, undo);
-    assert!(undo
-        .iter()
-        .any(|action| action.action_token == "restore_from_checkpoint"));
-    assert!(undo
-        .iter()
-        .any(|action| action.action_token == "export_for_support"));
+    assert!(
+        undo.is_empty(),
+        "preview must not invent executable undo actions"
+    );
 }
 
 #[test]
-fn fixture_stage_history_records_checkpoint_before_durable_writes() {
+fn fixture_stage_history_is_preview_only_without_durable_writes() {
     let page: MigrationWizardPage = load_json("page.json");
     let history: Vec<WizardStageTransition> = load_json("stage_history.json");
     assert_eq!(page.stage_history, history);
 
-    let mut seen_checkpoint = false;
     for transition in &history {
-        if matches!(transition.stage, WizardStage::CheckpointReady) {
-            seen_checkpoint = true;
-        }
-        if transition.durable_writes_authorized {
-            assert!(
-                seen_checkpoint,
-                "stage {} authorized writes before checkpoint",
-                transition.stage.as_str()
-            );
-        }
+        assert!(!transition.durable_writes_authorized);
+        assert!((transition.stage as u8) <= (WizardStage::PreviewReady as u8));
     }
 }
 
 #[test]
-fn fixture_rollback_checkpoint_matches_page() {
+fn fixture_rollback_requirement_matches_page() {
     let page: MigrationWizardPage = load_json("page.json");
-    let checkpoint: WizardRollbackCheckpointBinding = load_json("rollback_checkpoint.json");
-    assert_eq!(page.rollback_checkpoint, checkpoint);
-    assert!(checkpoint.created_before_apply);
-    assert!(checkpoint.protects_every_domain);
+    let requirement: WizardRollbackRequirementBinding = load_json("rollback_requirement.json");
+    assert_eq!(page.rollback_requirement, requirement);
+    assert_eq!(requirement.requirement_state, "required_before_apply");
+    assert!(!requirement.required_protected_state_refs.is_empty());
 }
 
 #[test]
-fn fixture_header_answers_source_target_checkpoint_restore_and_compatibility() {
+fn fixture_header_answers_source_target_checkpoint_requirement_and_compatibility() {
     let page: MigrationWizardPage = load_json("page.json");
     assert!(page.header.answers_required_questions());
-    assert!(page.header.aftermath_context_visible());
     assert_eq!(page.header.wizard_session_id, page.wizard_session_id);
+    assert_eq!(page.header.migration_review_ref, page.migration_review_ref);
     assert_eq!(
-        page.header.migration_session_ref,
-        page.migration_session_ref
-    );
-    assert_eq!(
-        page.header.checkpoint_notice.checkpoint_ref,
-        page.rollback_checkpoint.checkpoint_ref
-    );
-    assert_eq!(
-        page.header.checkpoint_notice.restore_record_ref,
-        page.rollback_checkpoint.restore_record_ref
+        page.header.checkpoint_requirement_notice.requirement_ref,
+        page.rollback_requirement.requirement_ref
     );
     assert!(page
         .header
@@ -149,8 +130,9 @@ fn fixture_header_answers_source_target_checkpoint_restore_and_compatibility() {
         .contains("version"));
     assert_eq!(
         page.header.restore_action.target_ref,
-        page.rollback_checkpoint.restore_record_ref
+        page.rollback_requirement.requirement_ref
     );
+    assert!(!page.header.restore_action.enabled);
     assert!(page
         .header
         .compatibility_report_action
@@ -163,20 +145,21 @@ fn fixture_support_export_quotes_every_case_id() {
     let page: MigrationWizardPage = load_json("page.json");
     let export: MigrationWizardSupportExport = load_json("support_export.json");
     let expected =
-        MigrationWizardSupportExport::from_page(export.support_export_id.clone(), page.clone());
+        MigrationWizardSupportExport::from_page(export.support_export_id.clone(), page.clone())
+            .expect("fixture page produces support export");
     assert_eq!(export, expected);
 
-    assert_eq!(export.migration_session_ref, page.migration_session_ref);
+    assert_eq!(export.migration_review_ref, page.migration_review_ref);
     assert_eq!(export.header, page.header);
     assert_eq!(export.issue_template_ref, page.header.issue_template_ref);
-    assert!(export.case_ids.contains(&page.migration_session_ref));
+    assert!(export.case_ids.contains(&page.migration_review_ref));
     assert!(export.case_ids.contains(&page.wizard_session_id));
     assert!(export
         .case_ids
         .contains(&page.mapping_report.mapping_report_id));
     assert!(export
         .case_ids
-        .contains(&page.rollback_checkpoint.checkpoint_ref));
+        .contains(&page.rollback_requirement.requirement_ref));
     for row in &page.mapping_report.rows {
         assert!(export.case_ids.contains(&row.row_id));
     }
@@ -197,7 +180,7 @@ fn issue_template_reuses_support_export_session_context() {
     let issue: MigrationWizardIssueTemplateExport = load_json("issue_template.json");
     let expected = MigrationWizardIssueTemplateExport::from_support_export(&export);
     assert_eq!(issue, expected);
-    assert_eq!(issue.migration_session_ref, export.migration_session_ref);
+    assert_eq!(issue.migration_review_ref, export.migration_review_ref);
     assert_eq!(issue.wizard_session_id, export.page.wizard_session_id);
     assert_eq!(issue.issue_template_ref, export.issue_template_ref);
     assert_eq!(issue.header, export.header);
@@ -205,7 +188,7 @@ fn issue_template_reuses_support_export_session_context() {
     assert!(issue
         .body_lines
         .iter()
-        .any(|line| line.contains(&export.migration_session_ref)));
+        .any(|line| line.contains(&export.migration_review_ref)));
     assert!(issue
         .body_lines
         .iter()
@@ -213,11 +196,11 @@ fn issue_template_reuses_support_export_session_context() {
 }
 
 #[test]
-fn fixture_rows_all_carry_checkpoint_ref() {
+fn fixture_rows_all_carry_requirement_ref() {
     let page: MigrationWizardPage = load_json("page.json");
     let report_rows: &[WizardMappingReportRow] = &page.mapping_report.rows;
-    let checkpoint_ref = &page.rollback_checkpoint.checkpoint_ref;
+    let requirement_ref = &page.rollback_requirement.requirement_ref;
     for row in report_rows {
-        assert_eq!(&row.rollback_checkpoint_ref, checkpoint_ref);
+        assert_eq!(&row.rollback_requirement_ref, requirement_ref);
     }
 }

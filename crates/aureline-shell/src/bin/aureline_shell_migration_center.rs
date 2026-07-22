@@ -62,7 +62,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 "support-export:migration-center-beta:001",
                 "2026-05-15T00:00:00Z",
                 page,
-            );
+            )
+            .map_err(|defects| {
+                format!(
+                    "migration-center support export blocked by {} validation defect(s)",
+                    defects.len()
+                )
+            })?;
             print_json(&export)?;
         }
         Some("validate") => match validate_migration_center_page(&page) {
@@ -141,7 +147,13 @@ fn emit_fixtures(
         "support-export:migration-center-beta:001",
         "2026-05-15T00:00:00Z",
         page.clone(),
-    );
+    )
+    .map_err(|defects| {
+        format!(
+            "migration-center support export blocked by {} validation defect(s)",
+            defects.len()
+        )
+    })?;
     write_json(&dir.join("support_export.json"), &support_export)?;
     Ok(())
 }

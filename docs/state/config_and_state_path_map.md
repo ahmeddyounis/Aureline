@@ -43,7 +43,8 @@ sources:
 
 - user settings, keybindings, snippets, themes, command aliases,
   terminal preferences, machine settings, extension selections, profile
-  exports, and the profile library;
+  exports, the profile library, and reviewed imported-profile activation
+  history;
 - workspace manifests, workset manifests, tasks, launch configs,
   extension recommendations, and extension lockfiles;
 - sync metadata, sync conflict journals, terminal scrollback and
@@ -58,10 +59,11 @@ sources:
   envelopes, review packets, incident bundles, benchmark results, and
   release evidence packs.
 
-Out of scope: final per-OS concrete paths, storage-engine selection,
-quota math, encryption envelope implementation, and UI copy. The row
-ids and classes are stable selectors; concrete path expansion belongs
-to the eventual platform path resolver.
+Out of scope: storage-engine selection, quota math, encryption envelope
+implementation, and UI copy. The row ids and classes are stable selectors.
+The baseline installed-desktop expansion of `AURELINE_CONFIG` and
+`AURELINE_STATE` is frozen below; portable packaging may replace it only with
+an explicit colocated-root authority.
 
 ## Closed Class Vocabulary
 
@@ -97,8 +99,9 @@ Class confusion is forbidden:
 
 ## Path Roots
 
-The map deliberately names location concepts, not final platform
-paths.
+Path rows deliberately keep using location concepts. The installed-desktop
+resolver below expands the two user-owned root concepts to concrete platform
+paths; row-relative paths remain platform-neutral.
 
 | Root | Meaning |
 |---|---|
@@ -108,6 +111,37 @@ paths.
 | `workspace_tree` | Repository or workspace-owned files intended to be reviewed with the project. |
 | `os_credential_store` | Platform credential store, keychain, vault, or enterprise secret broker handle store. |
 | `export_destination` | User-selected export target; never an implicit source of authority. |
+
+### Installed-desktop root resolution
+
+`AURELINE_CONFIG` and `AURELINE_STATE` are optional absolute overrides. A
+present override wins over platform discovery, but an empty, relative,
+filesystem/volume-root, parent-traversing, or redirect-ancestor value is invalid
+and fails closed; the resolver MUST NOT silently choose another destination.
+Existing user-controlled symlinks and Windows reparse points are redirect
+ancestors. The sole installed resolver exception is the exact root-owned macOS
+`/var` -> `/private/var` platform alias used by the system temporary hierarchy;
+all other redirects, including redirects below a writable or user-controlled
+ancestor, remain forbidden.
+
+Without an override, installed desktop channels use these exact roots:
+
+| Platform | `AURELINE_CONFIG` expansion | `AURELINE_STATE` expansion |
+|---|---|---|
+| macOS | `$HOME/Library/Application Support/<product>/config` | `$HOME/Library/Application Support/<product>/state` |
+| Windows | `%APPDATA%\<product>` | `%LOCALAPPDATA%\<product>\state` |
+| Linux / other Unix | `${XDG_CONFIG_HOME:-$HOME/.config}/<product>` | `${XDG_STATE_HOME:-$HOME/.local/state}/<product>` |
+
+`XDG_CONFIG_HOME` and `XDG_STATE_HOME`, when present, must themselves be
+non-empty absolute paths; an invalid present value fails closed. Product
+components are channel-isolated: `Aureline` / `aureline` for Stable,
+`Aureline Preview` / `aureline-preview`, `Aureline Beta` /
+`aureline-beta`, `Aureline LTS` / `aureline-lts`, and `Aureline Dev` /
+`aureline-dev`. `nightly` and `hotfix` currently have no installed-root row
+(`hotfix` cannot safely infer whether Stable or LTS owns the state), so they
+require explicit overrides. Unknown channels fail closed. `portable_stable`
+and `portable_preview` never use installed roots and require an explicit
+colocated-root authority supplied by their packaging lane.
 
 ## Required Row Fields
 
@@ -187,6 +221,7 @@ This index lists the row ids downstream tools should quote:
 | `machine_specific_settings` | `user_authored_durable_truth` | `$AURELINE_CONFIG/machine.settings.jsonc` |
 | `profile_export` | `user_authored_durable_truth` | user-selected `*.aureprofile.json` |
 | `profile_library` | `user_authored_durable_truth` | `$AURELINE_CONFIG/profiles/*.aureprofile.json` |
+| `imported_profile_state` | `user_authored_durable_truth` | `$AURELINE_CONFIG/profiles/imported/*.profile-state.json` |
 | `workspace_manifest` | `user_authored_durable_truth` | `aureline.workspace.jsonc` |
 | `workset_manifest` | `user_authored_durable_truth` | `.aureline/worksets/*.jsonc` |
 | `tasks_and_launch_configs` | `user_authored_durable_truth` | `.aureline/tasks.jsonc`, `.aureline/launch.jsonc` |
@@ -220,6 +255,14 @@ This index lists the row ids downstream tools should quote:
 | `incident_bundles` | `evidence_bundle` | `$AURELINE_STATE/support/incidents/*` |
 | `benchmark_results` | `evidence_bundle` | `$AURELINE_STATE/benchmarks/results/*` |
 | `release_evidence_packs` | `evidence_bundle` | `$AURELINE_STATE/release/evidence/*` |
+
+`imported_profile_state` is the immutable local activation and import-history
+record produced after a reviewed competitor-settings apply. It is backed up as
+user-authored durable truth but is `local_only`: the record combines local
+activation lineage and rollback refs and therefore is not a portable
+`*.aureprofile.json` body. Portable export must create and review a separate
+`portable_profile_artifact_record`; renaming a `.profile-state.json` file is not
+a conforming export.
 
 ## Invariants
 

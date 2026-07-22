@@ -11,7 +11,7 @@ The inspector is the only mint-from-truth path for these fixtures, so
 the checked-in JSON cannot drift from the Rust types.
 
 All records carry the shared contract ref
-`shell:migration_center_beta:v1` so the shell UI rows, the headless
+`shell:migration_center_beta:v2` so the shell UI rows, the headless
 CLI rows, and the support-export rows pivot to the same `entry_id`
 and `support_row_id`.
 
@@ -24,16 +24,21 @@ and `support_row_id`.
 | [`entries.json`](./entries.json) | Entry-point rows for docs/help anchors, glossary packs, migration reports, known limits, recovery routes, and first-run exits. |
 | [`support_rows.json`](./support_rows.json) | Support-export rows aligned 1:1 with the live entries by `entry_id`. |
 | [`defects.json`](./defects.json) | Typed defect list emitted by the validator. Seeded value is `[]`. |
-| [`support_export.json`](./support_export.json) | Support-export wrapper that quotes the page plus a metadata-safe defect roll-up. Raw private material is excluded by construction. |
+| [`support_export.json`](./support_export.json) | Support-export wrapper that quotes a fully revalidated page plus a metadata-safe defect roll-up. Envelope, derived-projection, typed-ref, or privacy drift blocks construction; raw private material is excluded by construction. |
 | [`summary.json`](./summary.json) | Reviewer-facing summary banner (section count, entry count, recovery-route count, keyboard-first count, defect count). |
 
 ## Fixture rules
 
 - Every record carries a stable `entry_id`, `section_id`, and the
-  shared contract ref `shell:migration_center_beta:v1`; record kinds
+  shared contract ref `shell:migration_center_beta:v2`; record kinds
   are stable Rust constants.
 - Every row quotes a learnability claim with closed-vocabulary tokens
-  for `claim_class`, `lifecycle_class`, and `freshness_class`.
+  for `claim_class_token`, `lifecycle_class_token`, and
+  `freshness_class_token`, alongside their typed values.
+- Upstream preview truth stays type-distinct: `wizard_migration_review_ref`
+  starts with `migration-review:`, and `wizard_rollback_requirement_ref`
+  starts with `rollback-requirement:`. The requirement entry has no restore
+  command because preview has not created a checkpoint.
 - Claimed beta rows MUST NOT carry the `review_overdue` freshness
   state without an explicit downgrade; the validator rejects it.
 - Every row carries a `keyboard_reach` token from the closed set:

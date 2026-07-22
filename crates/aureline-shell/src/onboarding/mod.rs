@@ -429,6 +429,8 @@ impl IdentityChoicePersistence {
 pub struct RollbackCheckpointConfirmation {
     /// Confirmation state for this branch.
     pub confirmation_state: RollbackCheckpointConfirmationState,
+    /// Dry-run requirement ref, when an import branch exists.
+    pub rollback_requirement_ref: Option<String>,
     /// Import rollback checkpoint ref, when an import branch exists.
     pub checkpoint_ref: Option<String>,
     /// Admission checkpoint id that gated the branch.
@@ -446,11 +448,11 @@ pub struct RollbackCheckpointConfirmation {
 pub enum RollbackCheckpointConfirmationState {
     /// No import branch exists, so no import rollback checkpoint is required.
     NotRequiredNoImport,
-    /// The checkpoint exists and was confirmed before apply.
+    /// The checkpoint exists and was confirmed from execution evidence.
     Confirmed,
     /// Non-widening review blocked apply before checkpoint confirmation.
     BlockedByNonWideningReview,
-    /// Import diff review exists but did not expose a usable checkpoint.
+    /// Import diff review exists but execution has not exposed a usable checkpoint.
     MissingCheckpoint,
 }
 
@@ -1476,7 +1478,7 @@ fn build_open_entry_route(
 
 fn build_import_entry_route(
     request: OnboardingImportFlowRequest,
-    persisted_records: &mut Vec<OnboardingFlowPersistedRecord>,
+    _persisted_records: &mut Vec<OnboardingFlowPersistedRecord>,
 ) -> BuiltOnboardingEntry {
     let import_review = CompetitorConfigClassifier::new().build_review(
         Path::new(&request.source_path),
@@ -1491,16 +1493,6 @@ fn build_import_entry_route(
         widening_vectors: request.widening_vectors,
         narrowing_only: request.narrowing_only,
     });
-    persisted_records.push(OnboardingFlowPersistedRecord {
-        record_kind: OnboardingFlowPersistedRecordKind::ImportedProfileHistory,
-        record_ref: import_diff_review
-            .retained_migration_report
-            .migration_report_id
-            .clone(),
-        storage_lane: OnboardingStorageLane::PortableUserProfileState,
-        reason: "retained import diff review and migration report".to_string(),
-    });
-
     let admission = import_form_admission_packet(
         import_diff_review.source_path.clone(),
         import_diff_review.destination_workspace_target.clone(),
@@ -1567,7 +1559,7 @@ fn import_route_truth(
             ReadinessTaskState::Pending,
             ExecutionBoundary::NoExecution,
             vec![SideEffectClass::NoSideEffect],
-            "Import diff review is available and protected by a rollback checkpoint.",
+            "Import diff review is available; execution must create a rollback checkpoint before apply.",
         ));
         (archetype, readiness, AdmissionClass::Admitted, true)
     } else {
@@ -1613,6 +1605,7 @@ fn rollback_checkpoint_confirmation(
     let Some(packet) = packet else {
         return RollbackCheckpointConfirmation {
             confirmation_state: RollbackCheckpointConfirmationState::NotRequiredNoImport,
+            rollback_requirement_ref: None,
             checkpoint_ref: None,
             admission_checkpoint_ref,
             import_diff_preview_ref: None,
@@ -1623,26 +1616,22 @@ fn rollback_checkpoint_confirmation(
     if review.is_some_and(|review| !review.allowed) {
         return RollbackCheckpointConfirmation {
             confirmation_state: RollbackCheckpointConfirmationState::BlockedByNonWideningReview,
-            checkpoint_ref: Some(packet.rollback_checkpoint.checkpoint_ref.clone()),
+            rollback_requirement_ref: Some(packet.rollback_requirement.requirement_ref.clone()),
+            checkpoint_ref: None,
             admission_checkpoint_ref,
             import_diff_preview_ref: Some(packet.import_diff_preview_ref.clone()),
-            created_before_apply: packet.rollback_checkpoint.created_before_apply,
+            created_before_apply: false,
             confirmed_before_apply: false,
         };
     }
-    let checkpoint_ready = packet.rollback_checkpoint.clear_pre_apply_checkpoint()
-        && packet.every_row_uses_one_checkpoint();
     RollbackCheckpointConfirmation {
-        confirmation_state: if checkpoint_ready {
-            RollbackCheckpointConfirmationState::Confirmed
-        } else {
-            RollbackCheckpointConfirmationState::MissingCheckpoint
-        },
-        checkpoint_ref: Some(packet.rollback_checkpoint.checkpoint_ref.clone()),
+        confirmation_state: RollbackCheckpointConfirmationState::MissingCheckpoint,
+        rollback_requirement_ref: Some(packet.rollback_requirement.requirement_ref.clone()),
+        checkpoint_ref: None,
         admission_checkpoint_ref,
         import_diff_preview_ref: Some(packet.import_diff_preview_ref.clone()),
-        created_before_apply: packet.rollback_checkpoint.created_before_apply,
-        confirmed_before_apply: checkpoint_ready,
+        created_before_apply: false,
+        confirmed_before_apply: false,
     }
 }
 
@@ -1670,7 +1659,10 @@ fn flow_sequence(
             stage_kind: OnboardingFlowStageKind::RollbackCheckpointConfirmation,
             required: import_diff_review.is_some(),
             status: rollback.confirmation_state.as_str().to_string(),
-            record_ref: rollback.checkpoint_ref.clone(),
+            record_ref: rollback
+                .checkpoint_ref
+                .clone()
+                .or_else(|| rollback.rollback_requirement_ref.clone()),
         },
         OnboardingFlowStage {
             stage_kind: OnboardingFlowStageKind::FirstUsefulWorkLanding,

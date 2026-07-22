@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/artifacts/migration/m3/mapping_report.schema.json",
   "title": "Aureline M3 migration wizard mapping report contract",
-  "description": "Boundary schema for shell_migration_wizard_beta_mapping_report_record. The record is the retained mapping report produced by the M3 migration wizard. It carries every imported item classified as Exact, Translated, Partial, Shimmed, or Unsupported plus the rollback checkpoint ref and the reopen links that keep the report visible after first run. The schema composes with docs/migration/first_run_import_diff_and_rollback_contract.md, docs/migration/m3/migration_wizard_beta.md, and schemas/migration/import_rollback_checkpoint.schema.json. Raw profile bodies, raw absolute paths, raw credentials, and raw support payloads never cross this boundary.",
+  "description": "Boundary schema for shell_migration_wizard_beta_mapping_report_record. The record is the retained dry-run mapping report produced by the M3 migration wizard. It carries every reviewed item classified as Exact, Translated, Partial, Shimmed, or Unsupported plus the rollback requirement ref and the reopen links that keep the report visible after first run. A requirement ref is not a checkpoint handle. Raw profile bodies, raw absolute paths, raw credentials, and raw support payloads never cross this boundary.",
   "type": "object",
   "oneOf": [
     { "$ref": "#/$defs/shell_migration_wizard_beta_mapping_report_record" }
@@ -10,32 +10,59 @@
   "$defs": {
     "schema_version": {
       "type": "integer",
-      "const": 1
+      "const": 2
     },
     "opaque_id": {
       "type": "string",
       "minLength": 1,
-      "description": "Opaque stable identifier safe to log, persist, or export."
+      "maxLength": 320,
+      "pattern": "^(?![/\\\\~]|[A-Za-z]:)(?!.*(?:\\.\\.[/\\\\]|://))(?!.*(?:^|[=/\\\\({,:;\\[])[Ff][Ii][Ll][Ee]:)[^\\s\\u0000-\\u001F\\u007F]+$",
+      "description": "Bounded opaque stable identifier safe to log, persist, or export; raw paths, URLs, traversal, whitespace, and control data are excluded."
     },
     "monotonic_timestamp": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "maxLength": 32,
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
     },
     "redaction_aware_text": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 900
+      "maxLength": 1024,
+      "pattern": "^(?!.*(?:^|\\s|[=/\\\\({,:;\\[])[Ff][Ii][Ll][Ee]:)(?!.*(?:^|\\s|[=({,:;\\[])(?:[/\\\\~][^\\s]|[A-Za-z]:[/\\\\]))(?!.*(?:\\.\\.[/\\\\]|://))\\S(?:[^\\u0000-\\u001F\\u007F]*\\S)?$"
     },
     "ref_array": {
       "type": "array",
+      "maxItems": 64,
       "items": { "$ref": "#/$defs/opaque_id" },
       "uniqueItems": true
     },
     "non_empty_ref_array": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 64,
       "items": { "$ref": "#/$defs/opaque_id" },
       "uniqueItems": true
+    },
+    "mapping_row_id": {
+      "type": "string",
+      "maxLength": 320,
+      "pattern": "^import-diff-row:[a-z0-9_]+:(settings|shortcuts|keymaps|themes_and_visuals|snippets_and_templates|tasks_and_run_configs|launch_debug|extensions_and_providers|workspace_profile):(exact|translated|partial|shimmed|unsupported):[A-Za-z0-9._:-]+$"
+    },
+    "mapping_gap_id": {
+      "type": "string",
+      "maxLength": 320,
+      "pattern": "^migration-wizard-gap:import-diff-row:[a-z0-9_]+:(settings|shortcuts|keymaps|themes_and_visuals|snippets_and_templates|tasks_and_run_configs|launch_debug|extensions_and_providers|workspace_profile):(shimmed|unsupported):[A-Za-z0-9._:-]+$"
+    },
+    "source_item_ref": {
+      "type": "string",
+      "maxLength": 320,
+      "pattern": "^[a-z0-9_]+:[A-Za-z0-9._:-]+$"
+    },
+    "target_item_ref": {
+      "type": "string",
+      "maxLength": 320,
+      "pattern": "^aureline:(settings|shortcuts|keymaps|themes_and_visuals|snippets_and_templates|tasks_and_run_configs|launch_debug|extensions_and_providers|workspace_profile):[A-Za-z0-9._:-]+$"
     },
     "import_mapping_classification": {
       "type": "string",
@@ -103,7 +130,7 @@
         "target_label",
         "before_value_label",
         "after_value_label",
-        "rollback_checkpoint_ref",
+        "rollback_requirement_ref",
         "docs_help_refs",
         "support_export_refs",
         "retained_after_apply"
@@ -114,21 +141,21 @@
           "const": "shell_migration_wizard_beta_mapping_row_record"
         },
         "schema_version": { "$ref": "#/$defs/schema_version" },
-        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "row_id": { "$ref": "#/$defs/mapping_row_id" },
         "domain": { "$ref": "#/$defs/import_review_domain" },
         "classification": { "$ref": "#/$defs/import_mapping_classification" },
-        "source_item_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_item_ref": { "$ref": "#/$defs/source_item_ref" },
         "source_label": { "$ref": "#/$defs/redaction_aware_text" },
         "target_item_ref": {
           "anyOf": [
-            { "$ref": "#/$defs/opaque_id" },
+            { "$ref": "#/$defs/target_item_ref" },
             { "type": "null" }
           ]
         },
         "target_label": { "$ref": "#/$defs/redaction_aware_text" },
         "before_value_label": { "$ref": "#/$defs/redaction_aware_text" },
         "after_value_label": { "$ref": "#/$defs/redaction_aware_text" },
-        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "rollback_requirement_ref": { "$ref": "#/$defs/opaque_id" },
         "lossy_or_unsupported_note": {
           "anyOf": [
             { "$ref": "#/$defs/redaction_aware_text" },
@@ -136,8 +163,8 @@
           ]
         },
         "docs_help_refs": { "$ref": "#/$defs/non_empty_ref_array" },
-        "support_export_refs": { "$ref": "#/$defs/ref_array" },
-        "retained_after_apply": { "type": "boolean" }
+        "support_export_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "retained_after_apply": { "type": "boolean", "const": true }
       },
       "allOf": [
         {
@@ -152,8 +179,7 @@
           "then": {
             "required": ["lossy_or_unsupported_note"],
             "properties": {
-              "lossy_or_unsupported_note": { "$ref": "#/$defs/redaction_aware_text" },
-              "support_export_refs": { "minItems": 1 }
+              "lossy_or_unsupported_note": { "$ref": "#/$defs/redaction_aware_text" }
             }
           }
         },
@@ -167,6 +193,12 @@
           "then": {
             "properties": {
               "target_item_ref": { "type": "null" }
+            }
+          },
+          "else": {
+            "required": ["target_item_ref"],
+            "properties": {
+              "target_item_ref": { "$ref": "#/$defs/target_item_ref" }
             }
           }
         }
@@ -194,7 +226,7 @@
           "const": "shell_migration_wizard_beta_unsupported_gap_record"
         },
         "schema_version": { "$ref": "#/$defs/schema_version" },
-        "gap_id": { "$ref": "#/$defs/opaque_id" },
+        "gap_id": { "$ref": "#/$defs/mapping_gap_id" },
         "domain": { "$ref": "#/$defs/import_review_domain" },
         "classification": {
           "type": "string",
@@ -213,11 +245,11 @@
       "additionalProperties": false,
       "required": ["exact", "translated", "partial", "shimmed", "unsupported"],
       "properties": {
-        "exact": { "type": "integer", "minimum": 0 },
-        "translated": { "type": "integer", "minimum": 0 },
-        "partial": { "type": "integer", "minimum": 0 },
-        "shimmed": { "type": "integer", "minimum": 0 },
-        "unsupported": { "type": "integer", "minimum": 0 }
+        "exact": { "type": "integer", "minimum": 0, "maximum": 4096 },
+        "translated": { "type": "integer", "minimum": 0, "maximum": 4096 },
+        "partial": { "type": "integer", "minimum": 0, "maximum": 4096 },
+        "shimmed": { "type": "integer", "minimum": 0, "maximum": 4096 },
+        "unsupported": { "type": "integer", "minimum": 0, "maximum": 4096 }
       }
     },
     "reopen_link": {
@@ -246,13 +278,13 @@
         "schema_version",
         "shared_contract_ref",
         "mapping_report_id",
-        "migration_session_ref",
+        "migration_review_ref",
         "descriptors",
         "rows",
         "classification_summary",
         "classifications_present",
         "unsupported_gaps",
-        "rollback_checkpoint_ref",
+        "rollback_requirement_ref",
         "shortcut_delta_report_ref",
         "retained_after_first_run",
         "reopen_links",
@@ -266,33 +298,40 @@
         "schema_version": { "$ref": "#/$defs/schema_version" },
         "shared_contract_ref": {
           "type": "string",
-          "const": "shell:migration_wizard_beta:v1"
+          "const": "shell:migration_wizard_beta:v2"
         },
-        "mapping_report_id": { "$ref": "#/$defs/opaque_id" },
-        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "mapping_report_id": { "type": "string", "maxLength": 200, "pattern": "^mapping-report:[A-Za-z0-9._:-]+$" },
+        "migration_review_ref": { "type": "string", "maxLength": 200, "pattern": "^migration-review:[A-Za-z0-9._:-]+$" },
         "descriptors": { "$ref": "#/$defs/descriptors" },
         "rows": {
           "type": "array",
           "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/mapping_row" }
         },
         "classification_summary": { "$ref": "#/$defs/classification_summary" },
         "classifications_present": {
           "type": "array",
           "minItems": 5,
+          "maxItems": 5,
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/import_mapping_classification" }
         },
         "unsupported_gaps": {
           "type": "array",
+          "maxItems": 4096,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/unsupported_gap_row" }
         },
-        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
-        "shortcut_delta_report_ref": { "$ref": "#/$defs/opaque_id" },
+        "rollback_requirement_ref": { "type": "string", "maxLength": 200, "pattern": "^rollback-requirement:[A-Za-z0-9._:-]+$" },
+        "shortcut_delta_report_ref": { "type": "string", "maxLength": 200, "pattern": "^shortcut_delta_digest:[A-Za-z0-9._:-]+$" },
         "retained_after_first_run": { "type": "boolean", "const": true },
         "reopen_links": {
           "type": "array",
           "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/reopen_link" }
         },
         "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }

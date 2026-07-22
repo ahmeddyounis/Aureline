@@ -416,6 +416,7 @@ and is the source of truth for every later surface.
 | `terminal_preferences` | user-authored durable | `user_authored_durable_truth` | `additive_minor_only` | `downgrade_reads_fully` | `backup_required_before_destructive_migration` | `open_with_warning` |
 | `machine_specific_settings` | user-authored durable | `user_authored_durable_truth` | `additive_minor_only` | `downgrade_reads_fully` | `backup_required_before_destructive_migration` | `open_with_warning` |
 | `profile_library_index` | user-authored durable | `user_authored_durable_truth` | `additive_minor_only` | `downgrade_reads_fully` | `backup_required_before_destructive_migration` | `block_feature_only` |
+| `imported_profile_state` | user-authored durable | `user_authored_durable_truth` | `additive_minor_only` | `downgrade_requires_export_only` | `backup_required_before_destructive_migration` | `backup_rollback` |
 | `workspace_manifest` | workspace-authored durable | `user_authored_durable_truth` | `migrating_with_equivalence_map` | `downgrade_reads_with_fallback` | `backup_required_before_destructive_migration` | `repair_flow` |
 | `workset_manifest` | workspace-authored durable | `user_authored_durable_truth` | `additive_minor_only` | `downgrade_reads_fully` | `backup_required_before_destructive_migration` | `repair_flow` |
 | `tasks_and_launch_configs` | workspace-authored durable | `user_authored_durable_truth` | `additive_minor_only` | `downgrade_reads_with_fallback` | `backup_required_before_destructive_migration` | `open_with_warning` |

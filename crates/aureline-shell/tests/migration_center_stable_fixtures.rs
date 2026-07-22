@@ -18,7 +18,7 @@
 //!   ```
 //!
 //! - Every flow shows a before/after diff before apply, with every row carrying
-//!   both sides and citing one checkpoint.
+//!   both sides and citing one rollback requirement.
 //! - No flow over-claims: the diff/rollback/gap/full-fidelity ceiling is bound to
 //!   the real evidence.
 //! - A flow missing live rollback evidence is narrowed below Stable with a named
@@ -115,7 +115,7 @@ fn diff_is_reviewable_before_apply() {
             scenario.scenario_id,
         );
         assert!(
-            record.diff.every_row_has_before_after && record.diff.every_row_uses_one_checkpoint,
+            record.diff.every_row_has_before_after && record.diff.every_row_uses_one_requirement,
             "{} diff rows incomplete",
             scenario.scenario_id,
         );
@@ -159,15 +159,13 @@ fn claim_ceiling_never_overclaims() {
 }
 
 #[test]
-fn matrix_spans_stable_and_narrowed_flows() {
+fn seeded_preview_matrix_never_claims_stable() {
     let corpus = migration_flow_disclosure_corpus();
-    let stable = corpus
-        .iter()
-        .filter(|s| s.expected_claim_class == StableClaimClass::Stable)
-        .count();
-    let narrowed = corpus.len() - stable;
-    assert!(stable >= 1, "matrix must include a Stable flow");
-    assert!(narrowed >= 1, "matrix must include a narrowed flow");
+    assert!(corpus.iter().all(|scenario| {
+        scenario.expected_claim_class != StableClaimClass::Stable
+            && !scenario.expected_qualifies_stable
+            && !scenario.expected_rollback_live
+    }));
 }
 
 #[test]
@@ -423,22 +421,25 @@ fn rows_stay_available_without_account_or_managed_services() {
 fn top_level_refs_are_canonical_durable_objects() {
     for scenario in migration_flow_disclosure_corpus() {
         let record = load_record(scenario.fixture_filename);
+        assert!(record.migration_review_ref.starts_with("migration-review:"));
+        assert!(record
+            .rollback
+            .rollback_requirement_ref
+            .starts_with("rollback-requirement:"));
+        assert_eq!(
+            record.upstream.wizard_review_ref, record.migration_review_ref,
+            "{} upstream review drift",
+            scenario.scenario_id
+        );
+        assert_eq!(
+            record.upstream.rollback_requirement_ref, record.rollback.rollback_requirement_ref,
+            "{} upstream rollback requirement drift",
+            scenario.scenario_id
+        );
+        assert!(record.rollback.checkpoint_ref.is_none());
+        assert!(record.rollback.restore_record_ref.is_none());
         for (label, value) in [
-            ("migration_session_ref", &record.migration_session_ref),
-            (
-                "header.migration_session_ref",
-                &record.header.migration_session_ref,
-            ),
             ("header.target_scope_ref", &record.header.target_scope_ref),
-            ("header.checkpoint_ref", &record.header.checkpoint_ref),
-            (
-                "header.restore_record_ref",
-                &record.header.restore_record_ref,
-            ),
-            (
-                "header.restore_action_ref",
-                &record.header.restore_action_ref,
-            ),
             (
                 "header.compatibility_report_ref",
                 &record.header.compatibility_report_ref,
@@ -456,11 +457,6 @@ fn top_level_refs_are_canonical_durable_objects() {
                 &record.header.issue_template_ref,
             ),
             ("diff.diff_preview_ref", &record.diff.diff_preview_ref),
-            ("rollback.checkpoint_ref", &record.rollback.checkpoint_ref),
-            (
-                "rollback.restore_record_ref",
-                &record.rollback.restore_record_ref,
-            ),
             ("diagnostics_export_ref", &record.diagnostics_export_ref),
             ("support_export_ref", &record.support_export_ref),
         ] {
@@ -495,11 +491,35 @@ fn top_level_refs_are_canonical_durable_objects() {
                 scenario.scenario_id
             );
         }
+        for (label, value) in [
+            ("header.checkpoint_ref", &record.header.checkpoint_ref),
+            (
+                "header.restore_record_ref",
+                &record.header.restore_record_ref,
+            ),
+            (
+                "header.restore_action_ref",
+                &record.header.restore_action_ref,
+            ),
+            ("rollback.checkpoint_ref", &record.rollback.checkpoint_ref),
+            (
+                "rollback.restore_record_ref",
+                &record.rollback.restore_record_ref,
+            ),
+        ] {
+            if let Some(value) = value {
+                assert!(
+                    is_canonical_object_ref(value),
+                    "{} {label} {value:?} not canonical",
+                    scenario.scenario_id,
+                );
+            }
+        }
     }
 }
 
 #[test]
-fn header_preserves_session_restore_and_compatibility_truth() {
+fn header_preserves_review_requirement_and_restore_truth() {
     for scenario in migration_flow_disclosure_corpus() {
         let record = load_record(scenario.fixture_filename);
         assert!(
@@ -508,8 +528,13 @@ fn header_preserves_session_restore_and_compatibility_truth() {
             scenario.scenario_id
         );
         assert_eq!(
-            record.header.migration_session_ref, record.migration_session_ref,
-            "{} header session drift",
+            record.header.migration_review_ref, record.migration_review_ref,
+            "{} header review drift",
+            scenario.scenario_id
+        );
+        assert_eq!(
+            record.header.rollback_requirement_ref, record.rollback.rollback_requirement_ref,
+            "{} header rollback requirement drift",
             scenario.scenario_id
         );
         assert_eq!(
@@ -518,10 +543,11 @@ fn header_preserves_session_restore_and_compatibility_truth() {
             scenario.scenario_id
         );
         assert_eq!(
-            record.header.restore_record_ref, record.rollback.restore_record_ref,
-            "{} header restore drift",
-            scenario.scenario_id
+            record.header.restore_record_ref,
+            record.rollback.restore_record_ref
         );
+        assert!(!record.header.restore_action_enabled);
+        assert!(record.header.restore_action_ref.is_none());
         assert_eq!(
             record.header.support_export_ref, record.support_export_ref,
             "{} header support export drift",

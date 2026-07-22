@@ -2,26 +2,44 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/ux/migration_center_beta.schema.json",
   "title": "Aureline migration center / learnability surface (beta) schema",
-  "description": "Boundary schema for the beta migration-center projection produced by aureline-shell. Each record carries the shared contract ref `shell:migration_center_beta:v1`. Adding a value to any closed vocabulary (section_kind, entry_kind, keyboard_reach, claim_class, lifecycle_class, freshness_class, recovery_route_class, defect_kind) is additive-minor; repurposing or weakening any keyboard-reach or claim invariant is breaking.",
-  "type": "object",
-  "$ref": "#/$defs/page",
+  "description": "Boundary schema for the beta migration-center page and its fail-closed support-export wrapper. Version 2 distinguishes dry-run migration reviews and rollback requirements from apply sessions and checkpoint handles.",
+  "oneOf": [
+    { "$ref": "#/$defs/page" },
+    { "$ref": "#/$defs/support_export" }
+  ],
   "$defs": {
     "iso_timestamp": {
       "type": "string",
       "format": "date-time",
+      "maxLength": 20,
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
       "description": "ISO 8601 UTC timestamp."
     },
     "stable_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 320,
+      "pattern": "^(?!/)(?!.*(?:\\.\\./|//))(?!.*(?:^|[=/({,:;\\[])[Ff][Ii][Ll][Ee]:)[A-Za-z0-9:._/-]+$"
+    },
+    "support_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^(?!.*(?:^|\\s|[=/\\\\({,:;\\[])[Ff][Ii][Ll][Ee]:)(?!.*(?:^|\\s|[=({,:;\\[])(?:[/\\\\~][^\\s]|[A-Za-z]:[/\\\\]))(?!.*(?:\\.\\.[/\\\\]|://))\\S(?:[^\\u0000-\\u001F\\u007F]*\\S)?$"
+    },
+    "nullable_stable_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/stable_id" }
+      ]
     },
     "shared_contract_ref": {
       "type": "string",
-      "const": "shell:migration_center_beta:v1"
+      "const": "shell:migration_center_beta:v2"
     },
     "schema_version": {
       "type": "integer",
-      "const": 1
+      "const": 2
     },
     "section_kind": {
       "type": "string",
@@ -55,6 +73,16 @@
       ]
     },
     "claim_class": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "beta",
+        "alpha",
+        "labs_experiment",
+        "not_claimed"
+      ]
+    },
+    "claim_class_token": {
       "type": "string",
       "enum": [
         "stable_claimed",
@@ -93,6 +121,9 @@
     "defect_kind": {
       "type": "string",
       "enum": [
+        "envelope_drift",
+        "derived_projection_drift",
+        "unsafe_support_field",
         "entry_requires_account_detour",
         "entry_requires_marketplace_detour",
         "entry_keyboard_unreachable",
@@ -109,14 +140,20 @@
         "freshness_review_overdue_on_claimed_row",
         "claim_lifecycle_freshness_drift",
         "support_row_vocabulary_drift",
-        "support_row_unknown_entry"
+        "support_row_unknown_entry",
+        "help_pack_item_ref_missing",
+        "preview_evidence_truth_drift"
       ]
     },
     "learnability_claim": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
+        "claim_class",
         "claim_class_token",
+        "lifecycle_class",
         "lifecycle_class_token",
+        "freshness_class",
         "freshness_class_token",
         "review_window_days",
         "evidence_date",
@@ -124,18 +161,19 @@
       ],
       "properties": {
         "claim_class": { "$ref": "#/$defs/claim_class" },
-        "claim_class_token": { "$ref": "#/$defs/claim_class" },
+        "claim_class_token": { "$ref": "#/$defs/claim_class_token" },
         "lifecycle_class": { "$ref": "#/$defs/lifecycle_class" },
         "lifecycle_class_token": { "$ref": "#/$defs/lifecycle_class" },
         "freshness_class": { "$ref": "#/$defs/freshness_class" },
         "freshness_class_token": { "$ref": "#/$defs/freshness_class" },
-        "review_window_days": { "type": "integer", "minimum": 1 },
+        "review_window_days": { "type": "integer", "minimum": 1, "maximum": 3650 },
         "evidence_date": { "$ref": "#/$defs/iso_timestamp" },
         "as_of": { "$ref": "#/$defs/iso_timestamp" }
       }
     },
     "section": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "record_kind",
         "schema_version",
@@ -157,16 +195,19 @@
         "section_id": { "$ref": "#/$defs/stable_id" },
         "section_kind": { "$ref": "#/$defs/section_kind" },
         "section_kind_token": { "$ref": "#/$defs/section_kind" },
-        "title_label": { "type": "string", "minLength": 1 },
-        "description_label": { "type": "string", "minLength": 1 },
+        "title_label": { "$ref": "#/$defs/support_text" },
+        "description_label": { "$ref": "#/$defs/support_text" },
         "entry_ids": {
           "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/stable_id" }
         }
       }
     },
     "entry": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "record_kind",
         "schema_version",
@@ -199,13 +240,13 @@
         "section_kind_token": { "$ref": "#/$defs/section_kind" },
         "entry_kind": { "$ref": "#/$defs/entry_kind" },
         "entry_kind_token": { "$ref": "#/$defs/entry_kind" },
-        "title_label": { "type": "string", "minLength": 1 },
-        "description_label": { "type": "string", "minLength": 1 },
-        "command_id": { "type": ["string", "null"] },
-        "docs_help_anchor_ref": { "type": ["string", "null"] },
-        "glossary_pack_ref": { "type": ["string", "null"] },
-        "migration_report_ref": { "type": ["string", "null"] },
-        "known_limit_ref": { "type": ["string", "null"] },
+        "title_label": { "$ref": "#/$defs/support_text" },
+        "description_label": { "$ref": "#/$defs/support_text" },
+        "command_id": { "$ref": "#/$defs/nullable_stable_id" },
+        "docs_help_anchor_ref": { "$ref": "#/$defs/nullable_stable_id" },
+        "glossary_pack_ref": { "$ref": "#/$defs/nullable_stable_id" },
+        "migration_report_ref": { "$ref": "#/$defs/nullable_stable_id" },
+        "known_limit_ref": { "$ref": "#/$defs/nullable_stable_id" },
         "recovery_route_class": {
           "oneOf": [
             { "type": "null" },
@@ -218,7 +259,11 @@
             { "$ref": "#/$defs/recovery_route_class" }
           ]
         },
-        "keyboard_chord_ref": { "type": ["string", "null"] },
+        "keyboard_chord_ref": { "$ref": "#/$defs/nullable_stable_id" },
+        "help_pack_id": { "$ref": "#/$defs/stable_id" },
+        "help_pack_item_ref": { "$ref": "#/$defs/stable_id" },
+        "help_pack_version_ref": { "$ref": "#/$defs/stable_id" },
+        "help_pack_fallback_state_token": { "$ref": "#/$defs/stable_id" },
         "keyboard_reach": { "$ref": "#/$defs/keyboard_reach_class" },
         "keyboard_reach_token": { "$ref": "#/$defs/keyboard_reach_class" },
         "requires_account_detour": { "type": "boolean" },
@@ -229,6 +274,7 @@
     },
     "support_row": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "record_kind",
         "schema_version",
@@ -255,24 +301,29 @@
         "section_kind_token": { "$ref": "#/$defs/section_kind" },
         "entry_kind_token": { "$ref": "#/$defs/entry_kind" },
         "keyboard_reach_token": { "$ref": "#/$defs/keyboard_reach_class" },
-        "claim_class_token": { "$ref": "#/$defs/claim_class" },
+        "claim_class_token": { "$ref": "#/$defs/claim_class_token" },
         "lifecycle_class_token": { "$ref": "#/$defs/lifecycle_class" },
         "freshness_class_token": { "$ref": "#/$defs/freshness_class" },
-        "command_id": { "type": ["string", "null"] },
-        "docs_help_anchor_ref": { "type": ["string", "null"] },
-        "migration_report_ref": { "type": ["string", "null"] },
-        "known_limit_ref": { "type": ["string", "null"] },
+        "command_id": { "$ref": "#/$defs/nullable_stable_id" },
+        "docs_help_anchor_ref": { "$ref": "#/$defs/nullable_stable_id" },
+        "migration_report_ref": { "$ref": "#/$defs/nullable_stable_id" },
+        "known_limit_ref": { "$ref": "#/$defs/nullable_stable_id" },
         "recovery_route_class_token": {
           "oneOf": [
             { "type": "null" },
             { "$ref": "#/$defs/recovery_route_class" }
           ]
         },
+        "help_pack_id": { "$ref": "#/$defs/stable_id" },
+        "help_pack_item_ref": { "$ref": "#/$defs/stable_id" },
+        "help_pack_version_ref": { "$ref": "#/$defs/stable_id" },
+        "help_pack_fallback_state_token": { "$ref": "#/$defs/stable_id" },
         "raw_body_exported": { "type": "boolean", "const": false }
       }
     },
     "defect": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "record_kind",
         "schema_version",
@@ -295,37 +346,132 @@
         "defect_kind": { "$ref": "#/$defs/defect_kind" },
         "defect_kind_token": { "$ref": "#/$defs/defect_kind" },
         "row_id": { "$ref": "#/$defs/stable_id" },
-        "field": { "type": "string", "minLength": 1 },
-        "note": { "type": "string", "minLength": 1 }
+        "field": { "$ref": "#/$defs/stable_id" },
+        "note": { "$ref": "#/$defs/support_text" }
+      }
+    },
+    "release_truth_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_id",
+        "surface_class",
+        "surface_class_token",
+        "surface_label",
+        "surface_ref",
+        "claim_manifest_ref",
+        "compatibility_report_ref",
+        "required_channel_id",
+        "claim_row_ids",
+        "claim_families",
+        "compatibility_row_refs",
+        "missing_compatibility_row_refs",
+        "freshness_state_tokens",
+        "service_contract_state",
+        "service_contract_state_token",
+        "evidence_stale",
+        "claim_downgraded",
+        "support_downgraded",
+        "honesty_marker_present"
+      ],
+      "properties": {
+        "binding_id": { "$ref": "#/$defs/stable_id" },
+        "surface_class": { "type": "string", "const": "migration_center" },
+        "surface_class_token": { "type": "string", "const": "migration_center" },
+        "surface_label": { "$ref": "#/$defs/support_text" },
+        "surface_ref": { "$ref": "#/$defs/stable_id" },
+        "claim_manifest_ref": { "$ref": "#/$defs/stable_id" },
+        "compatibility_report_ref": { "$ref": "#/$defs/stable_id" },
+        "required_channel_id": { "$ref": "#/$defs/stable_id" },
+        "claim_row_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_id" }
+        },
+        "claim_families": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_id" }
+        },
+        "compatibility_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_id" }
+        },
+        "missing_compatibility_row_refs": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_id" }
+        },
+        "freshness_state_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/freshness_class" }
+        },
+        "service_contract_state": { "$ref": "#/$defs/stable_id" },
+        "service_contract_state_token": { "$ref": "#/$defs/stable_id" },
+        "evidence_stale": { "type": "boolean" },
+        "claim_downgraded": { "type": "boolean" },
+        "support_downgraded": { "type": "boolean" },
+        "honesty_marker_present": { "type": "boolean" }
       }
     },
     "upstream_refs": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "wizard_session_ref",
+        "wizard_migration_review_ref",
         "wizard_mapping_report_ref",
-        "wizard_rollback_checkpoint_ref",
+        "wizard_rollback_requirement_ref",
         "wizard_shared_contract_ref",
         "corpus_scoreboard_ref",
-        "corpus_shared_contract_ref"
+        "corpus_shared_contract_ref",
+        "help_pack_manifest_ref",
+        "help_pack_manifest_id",
+        "help_pack_version_ref",
+        "help_pack_support_export_ref"
       ],
       "properties": {
         "wizard_session_ref": { "$ref": "#/$defs/stable_id" },
+        "wizard_migration_review_ref": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^migration-review:[A-Za-z0-9._:-]+$"
+        },
         "wizard_mapping_report_ref": { "$ref": "#/$defs/stable_id" },
-        "wizard_rollback_checkpoint_ref": { "$ref": "#/$defs/stable_id" },
+        "wizard_rollback_requirement_ref": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^rollback-requirement:[A-Za-z0-9._:-]+$"
+        },
         "wizard_shared_contract_ref": {
           "type": "string",
-          "const": "shell:migration_wizard_beta:v1"
+          "const": "shell:migration_wizard_beta:v2"
         },
         "corpus_scoreboard_ref": { "$ref": "#/$defs/stable_id" },
         "corpus_shared_contract_ref": {
           "type": "string",
-          "const": "shell:migration_corpus_beta:v1"
-        }
+          "const": "shell:migration_corpus_beta:v2"
+        },
+        "help_pack_manifest_ref": { "$ref": "#/$defs/stable_id" },
+        "help_pack_manifest_id": { "$ref": "#/$defs/stable_id" },
+        "help_pack_version_ref": { "$ref": "#/$defs/stable_id" },
+        "help_pack_support_export_ref": { "$ref": "#/$defs/stable_id" }
       }
     },
     "summary": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "section_count",
         "entry_count",
@@ -339,20 +485,64 @@
         "defect_count"
       ],
       "properties": {
-        "section_count": { "type": "integer", "minimum": 0 },
-        "entry_count": { "type": "integer", "minimum": 0 },
-        "keyboard_first_count": { "type": "integer", "minimum": 0 },
-        "recovery_route_count": { "type": "integer", "minimum": 0 },
-        "docs_help_count": { "type": "integer", "minimum": 0 },
-        "known_limit_count": { "type": "integer", "minimum": 0 },
-        "migration_report_reopen_count": { "type": "integer", "minimum": 0 },
-        "glossary_anchor_count": { "type": "integer", "minimum": 0 },
-        "first_run_exit_count": { "type": "integer", "minimum": 0 },
-        "defect_count": { "type": "integer", "minimum": 0 }
+        "section_count": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "entry_count": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "keyboard_first_count": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "recovery_route_count": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "docs_help_count": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "known_limit_count": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "migration_report_reopen_count": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "glossary_anchor_count": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "first_run_exit_count": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "defect_count": { "type": "integer", "minimum": 0, "maximum": 128 }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "generated_at",
+        "page",
+        "case_ids",
+        "defect_kinds_present",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_migration_center_beta_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": {
+          "type": "string",
+          "pattern": "^support-export:[A-Za-z0-9][A-Za-z0-9:._-]{0,255}$"
+        },
+        "generated_at": { "$ref": "#/$defs/iso_timestamp" },
+        "page": { "$ref": "#/$defs/page" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_id" }
+        },
+        "defect_kinds_present": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/defect_kind" }
+        },
+        "raw_private_material_excluded": { "const": true }
       }
     },
     "page": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "record_kind",
         "schema_version",
@@ -360,6 +550,7 @@
         "page_id",
         "generated_at",
         "learnability_claim",
+        "release_truth_binding",
         "upstream_refs",
         "sections",
         "entries",
@@ -377,21 +568,33 @@
         "page_id": { "$ref": "#/$defs/stable_id" },
         "generated_at": { "$ref": "#/$defs/iso_timestamp" },
         "learnability_claim": { "$ref": "#/$defs/learnability_claim" },
+        "release_truth_binding": { "$ref": "#/$defs/release_truth_binding" },
         "upstream_refs": { "$ref": "#/$defs/upstream_refs" },
         "sections": {
           "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/section" }
         },
         "entries": {
           "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/entry" }
         },
         "support_rows": {
           "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/support_row" }
         },
         "defects": {
           "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/defect" }
         },
         "summary": { "$ref": "#/$defs/summary" }

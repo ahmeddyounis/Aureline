@@ -10,7 +10,7 @@ and rollback posture remain inspectable after first run.
 - Scorecard: `artifacts/milestones/m3/first_useful_work_scorecard.json`
 - Packet manifest: `fixtures/onboarding/m3/first_useful_work/manifest.yaml`
 - Wizard mapping report: `fixtures/migration/m3/migration_wizard/mapping_report.json`
-- Wizard rollback checkpoint: `fixtures/migration/m3/migration_wizard/rollback_checkpoint.json`
+- Wizard rollback requirement: `fixtures/migration/m3/migration_wizard/rollback_requirement.json`
 - Support export: `fixtures/migration/m3/migration_wizard/support_export.json`
 - Claim-manifest evidence id: `claim_evidence:switching.first_useful_work_scorecard`
 
@@ -24,15 +24,15 @@ Every import row must preserve these fields as structured data:
 | After config | Aureline target refs, mapped setting/command/profile ids, and explicit non-imported target refs. |
 | Mapping result | One of `Exact`, `Translated`, `Partial`, `Shimmed`, or `Unsupported`; no generic success bucket. |
 | Skipped mappings | Source object, reason class, policy or unsupported cause, and docs/help ref. |
-| Rollback checkpoint | Checkpoint ref created before durable apply for every touched domain. |
-| Retained diagnostics | Mapping report ref, unsupported gap refs, compare actions, undo actions, support export refs. |
+| Rollback checkpoint | Dry-run requirement ref; a separate execution record must prove checkpoint creation before durable apply. |
+| Retained diagnostics | Mapping report ref, unsupported gap refs, compare actions, and support export refs. Undo remains unavailable in this preview packet. |
 | Claim downgrade hook | Scorecard row and downgrade trigger that narrows claim copy when the packet is stale or regressed. |
 
-## Rollback Checkpoints
+## Rollback Requirement
 
-| Checkpoint ref | Scope | Created before apply | Protects every touched domain | Retention posture | Restore guidance |
-|---|---|---:|---:|---|---|
-| `rollback-checkpoint:import-review-3bcae9aef7bd1cab` | imported settings, keybindings, snippets, tasks, extension recommendations, profile metadata | yes | yes | retained with migration report | restore through `cmd:workspace.restore_from_checkpoint`; export support bundle if restore fails |
+| Requirement ref | Scope | Required before apply | Current evidence state | Restore guidance |
+|---|---|---:|---|---|
+| `rollback-requirement:import-review-3ccbd213803d2b7e` | imported settings, keybindings, snippets, tasks, extension recommendations, profile metadata | yes | dry-run only; no checkpoint handle or restore record | unavailable until execution publishes a verified checkpoint |
 
 ## Import: VS Code / Code-OSS
 <a id="import-vs-code--code-oss"></a>
@@ -53,7 +53,8 @@ First-useful-work packet:
 
 Rollback guidance:
 
-- Restore from `rollback-checkpoint:import-review-3bcae9aef7bd1cab`.
+- Do not offer restore from this packet; it contains only
+  `rollback-requirement:import-review-3ccbd213803d2b7e`.
 - Reopen compare actions before applying a narrower retry.
 - Keep unsupported webview state as retained diagnostics only; do not
   apply it through extension runtime authority.
@@ -84,8 +85,9 @@ First-useful-work packet:
 
 Rollback guidance:
 
-- Restore imported settings, keymap preset, workspace roots, and
-  profile metadata through the wizard checkpoint.
+- Do not offer restore from this preview. Execution must first create a
+  checkpoint protecting imported settings, keymap preset, workspace roots,
+  and profile metadata.
 - Do not roll back by deleting source profile files; the checkpoint
   only owns Aureline-side durable state.
 
@@ -115,9 +117,9 @@ First-useful-work packet:
 
 Rollback guidance:
 
-- Roll back Aureline modal profile, leader overlay, snippet rows, and
-  shim records together so the profile does not retain a half-imported
-  modal state.
+- A later apply checkpoint must protect the Aureline modal profile, leader
+  overlay, snippet rows, and shim records together. This preview carries no
+  executable rollback handle.
 
 Downgrade triggers:
 
@@ -145,8 +147,9 @@ First-useful-work packet:
 
 Rollback guidance:
 
-- Restore imported keymap, theme-token shim, project-default review
-  state, and retained diagnostics through the checkpoint.
+- A later apply checkpoint must protect the imported keymap, theme-token shim,
+  project-default review state, and retained diagnostics. This preview carries
+  no executable rollback handle.
 - Unsupported Elisp package state remains evidence only.
 
 Downgrade triggers:
@@ -158,7 +161,8 @@ Downgrade triggers:
 
 ## Failure Packet Requirements
 
-When an import fails or becomes lossy after preview, support/export
+When an execution-backed import fails or becomes lossy after preview,
+support/export
 surfaces must retain:
 
 - the reviewed preview ref;

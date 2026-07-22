@@ -13,17 +13,20 @@
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- compare-actions
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- undo-actions
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- stage-history
+//! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- rollback-requirement
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- header
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- support-export
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- issue-template
+//! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- emit-fixtures fixtures/migration/m3/migration_wizard
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- validate
 //! cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- compact
 //! ```
 
 use aureline_shell::migration_wizard::{
     seeded_migration_wizard_page, validate_migration_wizard_page,
-    MigrationWizardIssueTemplateExport, MigrationWizardSupportExport,
+    MigrationWizardIssueTemplateExport, MigrationWizardPage, MigrationWizardSupportExport,
 };
+use std::path::Path;
 
 fn main() {
     if let Err(err) = run() {
@@ -55,8 +58,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("stage-history") => {
             print_json(&page.stage_history)?;
         }
-        Some("rollback-checkpoint") => {
-            print_json(&page.rollback_checkpoint)?;
+        Some("rollback-requirement") => {
+            print_json(&page.rollback_requirement)?;
         }
         Some("header") => {
             print_json(&page.header)?;
@@ -65,16 +68,24 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let export = MigrationWizardSupportExport::from_page(
                 "support-export:migration-wizard:001",
                 page,
-            );
+            )
+            .map_err(|errors| format!("wizard support export validation failed: {errors:?}"))?;
             print_json(&export)?;
         }
         Some("issue-template") => {
             let export = MigrationWizardSupportExport::from_page(
                 "support-export:migration-wizard:001",
                 page,
-            );
+            )
+            .map_err(|errors| format!("wizard support export validation failed: {errors:?}"))?;
             let issue = MigrationWizardIssueTemplateExport::from_support_export(&export);
             print_json(&issue)?;
+        }
+        Some("emit-fixtures") => {
+            let output_dir = args
+                .get(1)
+                .ok_or("emit-fixtures requires an output directory")?;
+            emit_fixtures(Path::new(output_dir), &page)?;
         }
         Some("validate") => match validate_migration_wizard_page(&page) {
             Ok(()) => {
@@ -98,6 +109,53 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some(other) => {
             return Err(format!("unknown subcommand: {other}").into());
         }
+    }
+    Ok(())
+}
+
+fn emit_fixtures(
+    output_dir: &Path,
+    page: &MigrationWizardPage,
+) -> Result<(), Box<dyn std::error::Error>> {
+    std::fs::create_dir_all(output_dir)?;
+    let export = MigrationWizardSupportExport::from_page(
+        "support-export:migration-wizard:001",
+        page.clone(),
+    )
+    .map_err(|errors| format!("wizard support export validation failed: {errors:?}"))?;
+    let issue = MigrationWizardIssueTemplateExport::from_support_export(&export);
+    for (filename, value) in [
+        ("page.json", serde_json::to_value(page)?),
+        (
+            "mapping_report.json",
+            serde_json::to_value(&page.mapping_report)?,
+        ),
+        (
+            "unsupported_gaps.json",
+            serde_json::to_value(&page.mapping_report.unsupported_gaps)?,
+        ),
+        (
+            "compare_actions.json",
+            serde_json::to_value(&page.compare_actions)?,
+        ),
+        (
+            "undo_actions.json",
+            serde_json::to_value(&page.undo_actions)?,
+        ),
+        (
+            "stage_history.json",
+            serde_json::to_value(&page.stage_history)?,
+        ),
+        (
+            "rollback_requirement.json",
+            serde_json::to_value(&page.rollback_requirement)?,
+        ),
+        ("support_export.json", serde_json::to_value(&export)?),
+        ("issue_template.json", serde_json::to_value(&issue)?),
+    ] {
+        let mut payload = serde_json::to_string_pretty(&value)?;
+        payload.push('\n');
+        std::fs::write(output_dir.join(filename), payload)?;
     }
     Ok(())
 }

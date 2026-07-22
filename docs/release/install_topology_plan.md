@@ -361,6 +361,14 @@ install tree MUST NOT be mutated by normal product use; the binary
 root is read-only relative to the running process (repair and
 reinstall are the exceptions, and both clear and re-seed it).
 
+The exact installed-desktop expansion of the user configuration and local
+state roots is owned by
+[`config_and_state_path_map.md`](../state/config_and_state_path_map.md). The
+resolver is channel-isolated, rejects invalid explicit overrides without
+falling back elsewhere, and does not provide an installed-root fallback to
+portable channels. Other concrete install paths remain owned by their
+platform packaging lanes.
+
 ### Preview (side-by-side with stable)
 
 Binary root lives under a channel-suffixed program directory

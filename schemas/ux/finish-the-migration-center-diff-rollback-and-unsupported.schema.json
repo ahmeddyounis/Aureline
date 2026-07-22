@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/ux/finish-the-migration-center-diff-rollback-and-unsupported.schema.json",
   "title": "Aureline migration-flow disclosure record",
-  "description": "Boundary schema for migration_flow_disclosure_record, the single governed record the migration center, settings import history, command palette, diagnostics, support exports, Help/About, and docs all read for one imported-user flow on the claimed stable matrix. It is minted by crates/aureline-shell/src/migration_center_stable and binds, for one canonical migration identity: (1) the before/after diff — reviewed before apply, every row carrying both sides and citing one rollback checkpoint; (2) the rollback — a pre-apply checkpoint protecting every touched domain, with undo and compare routes when (and only when) the evidence is live for this flow; (3) the Exact/Translated/Partial/Shimmed/Unsupported taxonomy — with every Unsupported and Shimmed gap visible before apply; (4) a public claim ceiling — no row may assert the diff was reviewed, rollback is available, there are no unsupported gaps, or the import was full-fidelity unless the product can prove it; (5) a derived stable-claim verdict — a flow missing any pillar of evidence is narrowed below Stable with a named reason rather than inheriting an adjacent green row; (6) recovery/route/accessibility parity across the migration center, settings import history, command palette, and a menu command in normal/high-contrast/zoomed layouts; and (7) availability without an account or managed services. Top-level refs are opaque aureline://<class>/<id> durable-object refs; upstream and gap refs are upstream source paths.",
+  "description": "Boundary schema for migration_flow_disclosure_record. Preview records bind a before/after diff to one rollback requirement, never to a fabricated checkpoint. Checkpoint, restore, undo, compare, apply-session, and Stable claims require later execution evidence. A seeded dry-run therefore remains below Stable with rollback_evidence_incomplete.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,9 +12,10 @@
     "shared_contract_ref",
     "record_id",
     "as_of",
-    "migration_session_ref",
+    "migration_review_ref",
     "source_ecosystem",
     "source_ecosystem_label",
+    "header",
     "title",
     "summary",
     "diff",
@@ -37,17 +38,18 @@
   ],
   "properties": {
     "record_kind": { "type": "string", "const": "migration_flow_disclosure_record" },
-    "schema_version": { "type": "integer", "const": 1 },
+    "schema_version": { "type": "integer", "const": 2 },
     "notice": { "$ref": "#/$defs/reviewable_sentence" },
     "shared_contract_ref": {
       "type": "string",
-      "const": "shell:migration_flow_disclosure_stable:v1"
+      "const": "shell:migration_flow_disclosure_stable:v2"
     },
     "record_id": { "$ref": "#/$defs/stable_token" },
     "as_of": { "$ref": "#/$defs/utc_date_time" },
-    "migration_session_ref": { "$ref": "#/$defs/canonical_ref" },
+    "migration_review_ref": { "$ref": "#/$defs/migration_review_ref" },
     "source_ecosystem": { "$ref": "#/$defs/source_ecosystem" },
     "source_ecosystem_label": { "$ref": "#/$defs/non_empty_string" },
+    "header": { "$ref": "#/$defs/migration_flow_header" },
     "title": { "$ref": "#/$defs/reviewable_sentence" },
     "summary": { "$ref": "#/$defs/reviewable_sentence" },
     "diff": { "$ref": "#/$defs/diff_disclosure" },
@@ -58,12 +60,16 @@
     "recovery_routes": {
       "type": "array",
       "minItems": 2,
+      "maxItems": 5,
+      "uniqueItems": true,
       "items": { "$ref": "#/$defs/recovery_route" }
     },
     "surfaces": { "$ref": "#/$defs/surface_parity" },
     "routes": {
       "type": "array",
       "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
       "items": { "$ref": "#/$defs/entry_route" }
     },
     "accessibility": { "$ref": "#/$defs/accessibility" },
@@ -73,27 +79,44 @@
     "upstream": { "$ref": "#/$defs/upstream_refs" },
     "diagnostics_export_ref": { "$ref": "#/$defs/canonical_ref" },
     "support_export_ref": { "$ref": "#/$defs/canonical_ref" },
-    "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/canonical_ref" } },
-    "narrative_refs": { "type": "array", "items": { "$ref": "#/$defs/canonical_ref" } }
+    "evidence_refs": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/canonical_ref" } },
+    "narrative_refs": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/canonical_ref" } }
   },
   "$defs": {
-    "non_empty_string": { "type": "string", "minLength": 1, "maxLength": 200 },
-    "reviewable_sentence": { "type": "string", "minLength": 1, "maxLength": 1024 },
-    "stable_token": { "type": "string", "minLength": 1, "maxLength": 200 },
-    "source_path": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "non_empty_string": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^(?!.*(?:^|\\s|[=/\\\\({,:;\\[])[Ff][Ii][Ll][Ee]:)(?!.*(?:^|\\s|[=({,:;\\[])(?:[/\\\\~][^\\s]|[A-Za-z]:[/\\\\]))(?!.*(?:\\.\\.[/\\\\]|://))\\S(?:[^\\u0000-\\u001F\\u007F]*\\S)?$" },
+    "reviewable_sentence": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^(?!.*(?:^|\\s|[=/\\\\({,:;\\[])[Ff][Ii][Ll][Ee]:)(?!.*(?:^|\\s|[=({,:;\\[])(?:[/\\\\~][^\\s]|[A-Za-z]:[/\\\\]))(?!.*(?:\\.\\.[/\\\\]|://))\\S(?:[^\\u0000-\\u001F\\u007F]*\\S)?$" },
+    "stable_token": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9._:-]+$" },
+    "source_path": { "type": "string", "minLength": 1, "maxLength": 300, "pattern": "^(?!/|[A-Za-z]:/)(?!.*(?:\\.\\./|//))(?!.*(?:^|[=/({,:;\\[])[Ff][Ii][Ll][Ee]:)[A-Za-z0-9:._/#-]+$" },
     "utc_date_time": {
       "type": "string",
+      "maxLength": 32,
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
     },
     "canonical_ref": {
       "type": "string",
       "description": "Opaque durable-object ref of the form aureline://<class>/<id>; <class> is not a generic landing page.",
-      "pattern": "^aureline://(?!(home|dashboard|landing|index|overview|start|root)/)[^/]+/.+$",
+      "pattern": "^aureline://(?!(home|dashboard|landing|index|overview|start|root)/)[A-Za-z0-9_-]+/[A-Za-z0-9._:-]+(?:/[A-Za-z0-9._:-]+)*$",
+      "maxLength": 200
+    },
+    "migration_review_ref": {
+      "type": "string",
+      "pattern": "^migration-review:[A-Za-z0-9._:-]+$",
+      "maxLength": 200
+    },
+    "rollback_requirement_ref": {
+      "type": "string",
+      "description": "Dry-run checkpoint requirement. This is not a checkpoint handle.",
+      "pattern": "^rollback-requirement:[A-Za-z0-9._:-]+$",
+      "maxLength": 200
+    },
+    "migration_gap_id": {
+      "type": "string",
+      "pattern": "^migration-flow-gap:[A-Za-z0-9._:-]+$",
       "maxLength": 200
     },
     "source_ecosystem": {
       "type": "string",
-      "enum": ["vs_code_code_oss", "jetbrains_family", "vim_neovim", "emacs"]
+      "enum": ["vs_code_code_oss", "jet_brains_family", "vim_neovim", "emacs"]
     },
     "classification": {
       "type": "string",
@@ -150,22 +173,21 @@
         "reviewed_before_apply",
         "row_count",
         "every_row_has_before_after",
-        "every_row_uses_one_checkpoint"
+        "every_row_uses_one_requirement"
       ],
       "properties": {
         "diff_preview_ref": { "$ref": "#/$defs/canonical_ref" },
         "reviewed_before_apply": { "type": "boolean" },
         "row_count": { "type": "integer", "minimum": 0 },
         "every_row_has_before_after": { "type": "boolean" },
-        "every_row_uses_one_checkpoint": { "type": "boolean" }
+        "every_row_uses_one_requirement": { "type": "boolean" }
       }
     },
     "rollback_disclosure": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "checkpoint_ref",
-        "restore_record_ref",
+        "rollback_requirement_ref",
         "created_before_apply",
         "protects_every_domain",
         "verified_for_this_flow",
@@ -173,6 +195,7 @@
         "compare_available"
       ],
       "properties": {
+        "rollback_requirement_ref": { "$ref": "#/$defs/rollback_requirement_ref" },
         "checkpoint_ref": { "$ref": "#/$defs/canonical_ref" },
         "restore_record_ref": { "$ref": "#/$defs/canonical_ref" },
         "created_before_apply": { "type": "boolean" },
@@ -182,7 +205,39 @@
         "undo_action_ref": { "$ref": "#/$defs/canonical_ref" },
         "compare_available": { "type": "boolean" },
         "compare_action_ref": { "$ref": "#/$defs/canonical_ref" }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "not": { "required": ["checkpoint_ref"] } },
+          "then": {
+            "properties": {
+              "created_before_apply": { "const": false },
+              "protects_every_domain": { "const": false },
+              "verified_for_this_flow": { "const": false },
+              "undo_available": { "const": false },
+              "compare_available": { "const": false }
+            },
+            "not": {
+              "anyOf": [
+                { "required": ["restore_record_ref"] },
+                { "required": ["undo_action_ref"] },
+                { "required": ["compare_action_ref"] }
+              ]
+            }
+          },
+          "else": { "required": ["restore_record_ref"] }
+        },
+        {
+          "if": { "properties": { "undo_available": { "const": true } } },
+          "then": { "required": ["checkpoint_ref", "restore_record_ref", "undo_action_ref"] },
+          "else": { "not": { "required": ["undo_action_ref"] } }
+        },
+        {
+          "if": { "properties": { "compare_available": { "const": true } } },
+          "then": { "required": ["checkpoint_ref", "restore_record_ref", "compare_action_ref"] },
+          "else": { "not": { "required": ["compare_action_ref"] } }
+        }
+      ]
     },
     "unsupported_gap": {
       "type": "object",
@@ -199,15 +254,15 @@
         "support_export_refs"
       ],
       "properties": {
-        "gap_id": { "$ref": "#/$defs/stable_token" },
+        "gap_id": { "$ref": "#/$defs/migration_gap_id" },
         "domain": { "$ref": "#/$defs/import_domain" },
         "classification": { "$ref": "#/$defs/gap_classification" },
         "source_label": { "$ref": "#/$defs/non_empty_string" },
         "gap_summary": { "$ref": "#/$defs/reviewable_sentence" },
         "visible_before_apply": { "type": "boolean", "const": true },
         "retained_after_apply": { "type": "boolean" },
-        "docs_help_refs": { "type": "array", "items": { "$ref": "#/$defs/source_path" } },
-        "support_export_refs": { "type": "array", "items": { "$ref": "#/$defs/source_path" } }
+        "docs_help_refs": { "type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/source_path" } },
+        "support_export_refs": { "type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/source_path" } }
       }
     },
     "gap_taxonomy": {
@@ -231,10 +286,12 @@
         "unsupported": { "type": "integer", "minimum": 0 },
         "classifications_present": {
           "type": "array",
+          "maxItems": 5,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/classification" }
         },
         "unsupported_gaps_visible_before_apply": { "type": "boolean", "const": true },
-        "gaps": { "type": "array", "items": { "$ref": "#/$defs/unsupported_gap" } }
+        "gaps": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/unsupported_gap" } }
       }
     },
     "claim_ceiling": {
@@ -262,6 +319,8 @@
         "qualifies_stable": { "type": "boolean" },
         "narrowing_reasons": {
           "type": "array",
+          "maxItems": 4,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/narrowing_reason" }
         }
       }
@@ -302,15 +361,19 @@
       "properties": {
         "migration_center_row_id": { "$ref": "#/$defs/stable_token" },
         "settings_import_history_row_id": { "$ref": "#/$defs/stable_token" },
-        "command_palette_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "command_palette_command_id": { "$ref": "#/$defs/stable_token" },
         "recovery_action_ids": {
           "type": "array",
           "minItems": 2,
+          "maxItems": 5,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/non_empty_string" }
         },
         "reopen_surfaces": {
           "type": "array",
           "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/non_empty_string" }
         },
         "parity_holds": { "type": "boolean", "const": true }
@@ -340,29 +403,89 @@
         "focus_order_index": { "type": "integer", "minimum": 0 },
         "tab_stop_count": { "type": "integer", "minimum": 1 },
         "row_narration": { "$ref": "#/$defs/reviewable_sentence" },
-        "action_labels": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "action_labels": { "type": "array", "maxItems": 5, "uniqueItems": true, "items": { "$ref": "#/$defs/non_empty_string" } },
         "layout_modes": {
           "type": "array",
           "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/layout_mode_disclosure" }
         }
       }
+    },
+    "migration_flow_header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "migration_review_ref",
+        "source_tool_label",
+        "source_version_label",
+        "target_scope_ref",
+        "target_scope_label",
+        "writes_land_in",
+        "checkpoint_requirement_notice",
+        "rollback_requirement_ref",
+        "restore_action_enabled",
+        "compatibility_report_ref",
+        "compatibility_report_action_ref",
+        "support_export_ref",
+        "issue_template_ref",
+        "partial_apply_context_visible",
+        "downgrade_context_visible",
+        "restore_context_visible"
+      ],
+      "properties": {
+        "migration_review_ref": { "$ref": "#/$defs/migration_review_ref" },
+        "source_tool_label": { "$ref": "#/$defs/non_empty_string" },
+        "source_version_label": { "$ref": "#/$defs/non_empty_string" },
+        "target_scope_ref": { "$ref": "#/$defs/canonical_ref" },
+        "target_scope_label": { "$ref": "#/$defs/non_empty_string" },
+        "writes_land_in": { "$ref": "#/$defs/reviewable_sentence" },
+        "checkpoint_requirement_notice": { "$ref": "#/$defs/reviewable_sentence" },
+        "rollback_requirement_ref": { "$ref": "#/$defs/rollback_requirement_ref" },
+        "checkpoint_ref": { "$ref": "#/$defs/canonical_ref" },
+        "restore_record_ref": { "$ref": "#/$defs/canonical_ref" },
+        "restore_action_ref": { "$ref": "#/$defs/canonical_ref" },
+        "restore_action_enabled": { "type": "boolean" },
+        "compatibility_report_ref": { "$ref": "#/$defs/canonical_ref" },
+        "compatibility_report_action_ref": { "$ref": "#/$defs/canonical_ref" },
+        "support_export_ref": { "$ref": "#/$defs/canonical_ref" },
+        "issue_template_ref": { "$ref": "#/$defs/canonical_ref" },
+        "partial_apply_context_visible": { "type": "boolean", "const": true },
+        "downgrade_context_visible": { "type": "boolean", "const": true },
+        "restore_context_visible": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "restore_action_enabled": { "const": true } } },
+          "then": { "required": ["checkpoint_ref", "restore_record_ref", "restore_action_ref"] },
+          "else": {
+            "not": {
+              "anyOf": [
+                { "required": ["checkpoint_ref"] },
+                { "required": ["restore_record_ref"] },
+                { "required": ["restore_action_ref"] }
+              ]
+            }
+          }
+        }
+      ]
     },
     "upstream_refs": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "wizard_session_ref",
+        "wizard_review_ref",
         "wizard_mapping_report_ref",
-        "rollback_checkpoint_ref",
+        "rollback_requirement_ref",
         "import_diff_preview_ref",
         "corpus_scoreboard_ref",
         "corpus_section_ref"
       ],
       "properties": {
-        "wizard_session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "wizard_review_ref": { "$ref": "#/$defs/migration_review_ref" },
         "wizard_mapping_report_ref": { "$ref": "#/$defs/non_empty_string" },
-        "rollback_checkpoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rollback_requirement_ref": { "$ref": "#/$defs/rollback_requirement_ref" },
         "import_diff_preview_ref": { "$ref": "#/$defs/non_empty_string" },
         "corpus_scoreboard_ref": { "$ref": "#/$defs/non_empty_string" },
         "corpus_section_ref": { "$ref": "#/$defs/non_empty_string" }

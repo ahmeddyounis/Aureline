@@ -1,15 +1,16 @@
 //! Stable migration-center diff, rollback, and unsupported-gap taxonomy truth.
 //!
-//! This module makes the migration center replacement-grade for switching users
-//! on the claimed stable matrix. It mints one governed
+//! This module defines the Stable-target disclosure contract for switching
+//! users. Its seeded preview matrix remains below Stable until execution
+//! evidence exists. It mints one governed
 //! [`MigrationFlowDisclosureRecord`] per imported source ecosystem that binds,
 //! for a single canonical migration identity:
 //!
 //! - **The diff** — a before/after review shown before apply, every row carrying
-//!   both sides and citing one rollback checkpoint.
-//! - **The rollback** — a pre-apply checkpoint protecting every touched domain,
-//!   with undo and compare routes when (and only when) the evidence is live for
-//!   *this* flow.
+//!   both sides and citing one rollback requirement.
+//! - **The rollback** — a preview requirement plus optional checkpoint evidence,
+//!   with undo and compare routes only when execution has published a real
+//!   checkpoint and restore record for *this* flow.
 //! - **The unsupported-gap taxonomy** — the canonical
 //!   Exact / Translated / Partial / Shimmed / Unsupported counts, with every
 //!   Unsupported and Shimmed gap visible before apply.
@@ -34,7 +35,7 @@
 //! - [`model`] — the governed record, its closed vocabularies, the builder, and
 //!   the honesty invariants. The boundary schema is
 //!   `schemas/ux/finish-the-migration-center-diff-rollback-and-unsupported.schema.json`.
-//! - [`corpus`] — the deterministic claimed-stable matrix, projected through the
+//! - [`corpus`] — the deterministic stable-lane matrix, projected through the
 //!   live migration wizard and corpus builders and pinned on disk under
 //!   `fixtures/ux/m4/finish-the-migration-center-diff-rollback-and-unsupported/`.
 //!

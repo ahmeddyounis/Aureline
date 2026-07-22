@@ -1,4 +1,4 @@
-//! Deterministic claimed-stable matrix for migration-flow disclosure.
+//! Deterministic stable-lane matrix for migration-flow disclosure.
 //!
 //! Every scenario here is projected through the **live** migration builders
 //! ([`crate::migration_wizard::seeded_migration_wizard_page`] and
@@ -10,15 +10,12 @@
 //! `fixtures/ux/m4/finish-the-migration-center-diff-rollback-and-unsupported/`.
 //!
 //! The matrix covers the four incumbent ecosystems and the full
-//! Exact / Translated / Partial / Shimmed / Unsupported taxonomy. The wizard's
-//! own live apply session is VS Code, so the VS Code flow carries a verified
-//! pre-apply rollback (Undo + Compare) and qualifies Stable; the other three
-//! ecosystems project from the corpus scoreboard, reference the same checkpoint
-//! but have no live per-ecosystem rollback evidence, and are therefore narrowed
-//! below Stable with a named reason instead of inheriting the VS Code green row.
+//! Exact / Translated / Partial / Shimmed / Unsupported taxonomy. Its wizard
+//! input is a dry-run preview, so every seeded flow carries only a rollback
+//! requirement. No seeded row fabricates a checkpoint, restore record, apply
+//! session, Undo/Compare route, or Stable verdict.
 
 use crate::import::diff_review::ImportMappingClassification;
-use crate::import::CompetitorConfigClassification;
 use crate::migration_corpus::{
     seeded_migration_scoreboard, EcosystemScoreboardSection, IncumbentEcosystem, IncumbentFlowRow,
     MigrationScoreboard,
@@ -42,7 +39,7 @@ const EVIDENCE_FIXTURE_REF: &str = "aureline://fixture/ux-m4-migration-center-st
 const NARRATIVE_REF: &str = "aureline://doc/ux-m4-migration-center-stable";
 const REOPEN_COMMAND_ID: &str = "cmd:migration.reopen_report";
 
-/// One scenario in the claimed-stable migration disclosure matrix.
+/// One scenario in the stable-lane migration disclosure matrix.
 #[derive(Debug, Clone)]
 pub struct MigrationFlowDisclosureScenario {
     /// Stable scenario id (also the record id).
@@ -100,12 +97,10 @@ const SCENARIO_META: &[EcosystemScenarioMeta] = &[
     },
 ];
 
-/// Returns the full claimed-stable migration disclosure matrix.
+/// Returns the full stable-lane migration disclosure matrix.
 pub fn migration_flow_disclosure_corpus() -> Vec<MigrationFlowDisclosureScenario> {
     let wizard = seeded_migration_wizard_page();
     let scoreboard = seeded_migration_scoreboard();
-    let live_ecosystem = wizard_ecosystem(wizard.descriptors.source_classification);
-
     SCENARIO_META
         .iter()
         .enumerate()
@@ -117,14 +112,7 @@ pub fn migration_flow_disclosure_corpus() -> Vec<MigrationFlowDisclosureScenario
                 .unwrap_or_else(|| {
                     panic!("missing scoreboard section for {}", meta.ecosystem.as_str())
                 });
-            let record = build_record(
-                meta,
-                index as u32,
-                section,
-                &wizard,
-                &scoreboard,
-                live_ecosystem == Some(meta.ecosystem),
-            );
+            let record = build_record(meta, index as u32, section, &wizard, &scoreboard);
             MigrationFlowDisclosureScenario {
                 scenario_id: meta.scenario_id,
                 fixture_filename: meta.fixture_filename,
@@ -140,26 +128,12 @@ pub fn migration_flow_disclosure_corpus() -> Vec<MigrationFlowDisclosureScenario
         .collect()
 }
 
-/// Maps the wizard's detected source family to its incumbent ecosystem.
-fn wizard_ecosystem(classification: CompetitorConfigClassification) -> Option<IncumbentEcosystem> {
-    match classification {
-        CompetitorConfigClassification::VSCodeWorkspaceRoot => {
-            Some(IncumbentEcosystem::VsCodeCodeOss)
-        }
-        CompetitorConfigClassification::JetBrainsIdeaRoot => {
-            Some(IncumbentEcosystem::JetBrainsFamily)
-        }
-        CompetitorConfigClassification::UnknownConfigRoot => None,
-    }
-}
-
 fn build_record(
     meta: &EcosystemScenarioMeta,
     focus_order_index: u32,
     section: &EcosystemScoreboardSection,
     wizard: &MigrationWizardPage,
     scoreboard: &MigrationScoreboard,
-    live: bool,
 ) -> MigrationFlowDisclosureRecord {
     let ecosystem = meta.ecosystem;
     let ecosystem_token = ecosystem.as_str();
@@ -181,7 +155,7 @@ fn build_record(
     let has_gaps = !taxonomy.gaps.is_empty();
 
     // --- diff ------------------------------------------------------------------
-    let checkpoint_ref_raw = first_checkpoint_ref(section, scoreboard);
+    let rollback_requirement_ref = wizard.rollback_requirement.requirement_ref.clone();
     let diff = DiffDisclosure {
         diff_preview_ref: format!("aureline://import-diff-preview/{ecosystem_token}"),
         reviewed_before_apply: true,
@@ -190,44 +164,47 @@ fn build_record(
             .rows
             .iter()
             .all(|row| !row.before_after_summary.trim().is_empty()),
-        every_row_uses_one_checkpoint: section
-            .rows
-            .iter()
-            .all(|row| row.rollback_checkpoint_ref == checkpoint_ref_raw),
+        every_row_uses_one_requirement: scoreboard.rollback_requirement_ref
+            == rollback_requirement_ref
+            && section
+                .rows
+                .iter()
+                .all(|row| row.rollback_requirement_ref == rollback_requirement_ref),
     };
 
     // --- rollback --------------------------------------------------------------
-    let undo_available = live && !wizard.undo_actions.is_empty();
-    let compare_available = live && !wizard.compare_actions.is_empty();
     let rollback = RollbackDisclosure {
-        checkpoint_ref: format!("aureline://rollback-checkpoint/{ecosystem_token}"),
-        restore_record_ref: format!("aureline://migration-restore-record/{ecosystem_token}"),
-        created_before_apply: wizard.rollback_checkpoint.created_before_apply,
-        protects_every_domain: wizard.rollback_checkpoint.protects_every_domain,
-        verified_for_this_flow: live,
-        undo_available,
-        undo_action_ref: undo_available
-            .then(|| format!("aureline://migration-undo/{ecosystem_token}")),
-        compare_available,
-        compare_action_ref: compare_available
-            .then(|| format!("aureline://migration-compare/{ecosystem_token}")),
+        rollback_requirement_ref: rollback_requirement_ref.clone(),
+        checkpoint_ref: None,
+        restore_record_ref: None,
+        created_before_apply: false,
+        protects_every_domain: false,
+        verified_for_this_flow: false,
+        undo_available: false,
+        undo_action_ref: None,
+        compare_available: false,
+        compare_action_ref: None,
     };
     let rollback_live = rollback.is_live_for_flow();
-    let migration_session_ref = format!("aureline://migration-session/{ecosystem_token}");
+    let migration_review_ref = wizard.migration_review_ref.clone();
     let support_export_ref = format!("aureline://support-export/migration-flow-{ecosystem_token}");
     let header = MigrationFlowHeader {
-        migration_session_ref: migration_session_ref.clone(),
+        migration_review_ref: migration_review_ref.clone(),
         source_tool_label: ecosystem_label.to_string(),
         source_version_label: "version not read (migration corpus marker-only)".to_string(),
         target_scope_ref: "aureline://profile/default".to_string(),
         target_scope_label: "Default profile".to_string(),
         writes_land_in: "profile:default".to_string(),
-        checkpoint_created_notice: format!(
-            "Checkpoint created before apply: aureline://rollback-checkpoint/{ecosystem_token}"
-        ),
-        checkpoint_ref: format!("aureline://rollback-checkpoint/{ecosystem_token}"),
-        restore_record_ref: format!("aureline://migration-restore-record/{ecosystem_token}"),
-        restore_action_ref: format!("aureline://migration-restore-action/{ecosystem_token}"),
+        checkpoint_requirement_notice: wizard
+            .header
+            .checkpoint_requirement_notice
+            .notice_label
+            .clone(),
+        rollback_requirement_ref: rollback_requirement_ref.clone(),
+        checkpoint_ref: None,
+        restore_record_ref: None,
+        restore_action_ref: None,
+        restore_action_enabled: false,
         compatibility_report_ref: format!("aureline://compatibility-report/{ecosystem_token}"),
         compatibility_report_action_ref: format!(
             "aureline://compatibility-report-action/{ecosystem_token}"
@@ -295,7 +272,7 @@ fn build_record(
     let rollback_phrase = if rollback_live {
         "available with undo and compare"
     } else {
-        "referenced (no live checkpoint for this flow)"
+        "required before apply (no checkpoint exists in preview)"
     };
     let row_narration = format!(
         "{ecosystem_label} migration flow \u{2014} diff reviewed before apply ({} rows), \
@@ -326,19 +303,15 @@ fn build_record(
 
     // --- upstream --------------------------------------------------------------
     let upstream = UpstreamRefs {
-        wizard_session_ref: wizard.wizard_session_id.clone(),
+        wizard_review_ref: wizard.migration_review_ref.clone(),
         wizard_mapping_report_ref: wizard.mapping_report.mapping_report_id.clone(),
-        rollback_checkpoint_ref: scoreboard.rollback_checkpoint_ref.clone(),
+        rollback_requirement_ref: wizard.rollback_requirement.requirement_ref.clone(),
         import_diff_preview_ref: wizard.import_diff_preview_ref.clone(),
         corpus_scoreboard_ref: scoreboard.scoreboard_id.clone(),
         corpus_section_ref: section.source_ecosystem_row_ref.clone(),
     };
 
-    let qualifier = if live {
-        "qualifies Stable"
-    } else {
-        "narrowed below Stable"
-    };
+    let qualifier = "narrowed below Stable until real checkpoint evidence exists";
     let title = format!("{ecosystem_label} import: diff, rollback, and unsupported-gap taxonomy");
     let summary_sentence = format!(
         "{ecosystem_label} imported-user flow: {} classified rows shown as a before/after diff \
@@ -352,7 +325,7 @@ fn build_record(
     let input = MigrationFlowDisclosureInput {
         record_id: meta.scenario_id.to_string(),
         as_of: CORPUS_AS_OF.to_string(),
-        migration_session_ref,
+        migration_review_ref,
         source_ecosystem: ecosystem,
         header,
         title,
@@ -415,17 +388,6 @@ fn gap_from_row(row: &IncumbentFlowRow) -> UnsupportedGapDisclosure {
     }
 }
 
-fn first_checkpoint_ref(
-    section: &EcosystemScoreboardSection,
-    scoreboard: &MigrationScoreboard,
-) -> String {
-    section
-        .rows
-        .first()
-        .map(|row| row.rollback_checkpoint_ref.clone())
-        .unwrap_or_else(|| scoreboard.rollback_checkpoint_ref.clone())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -445,25 +407,17 @@ mod tests {
     }
 
     #[test]
-    fn corpus_spans_stable_and_narrowed_claims() {
+    fn seeded_preview_never_claims_stable_or_live_rollback() {
         let corpus = migration_flow_disclosure_corpus();
-        let stable = corpus
-            .iter()
-            .filter(|s| s.expected_claim_class == StableClaimClass::Stable)
-            .count();
-        let narrowed = corpus
-            .iter()
-            .filter(|s| s.expected_claim_class != StableClaimClass::Stable)
-            .count();
-        assert!(stable >= 1, "matrix must include a Stable flow");
-        assert!(
-            narrowed >= 1,
-            "matrix must include a flow narrowed below Stable"
-        );
+        assert!(corpus.iter().all(|scenario| {
+            scenario.expected_claim_class != StableClaimClass::Stable
+                && !scenario.expected_qualifies_stable
+                && !scenario.expected_rollback_live
+        }));
     }
 
     #[test]
-    fn vs_code_flow_qualifies_stable_with_live_rollback() {
+    fn vs_code_preview_does_not_invent_apply_evidence() {
         let corpus = migration_flow_disclosure_corpus();
         let vs_code = corpus
             .iter()
@@ -472,12 +426,13 @@ mod tests {
         let record = vs_code.record();
         assert_eq!(
             record.stable_qualification.claim_class,
-            StableClaimClass::Stable
+            StableClaimClass::Beta
         );
-        assert!(record.stable_qualification.qualifies_stable);
-        assert!(record.stable_qualification.narrowing_reasons.is_empty());
-        assert!(record.rollback.is_live_for_flow());
-        assert!(record.claim_ceiling.asserts_rollback_available);
+        assert!(!record.stable_qualification.qualifies_stable);
+        assert!(!record.rollback.is_live_for_flow());
+        assert!(record.rollback.checkpoint_ref.is_none());
+        assert!(record.rollback.restore_record_ref.is_none());
+        assert!(!record.claim_ceiling.asserts_rollback_available);
     }
 
     #[test]
@@ -515,15 +470,15 @@ mod tests {
     #[test]
     fn stable_lane_shares_upstream_truth_with_migration_center() {
         // The stable disclosure lane must not invent a parallel migration model:
-        // its upstream identities are the same wizard session, mapping report,
-        // rollback checkpoint, and corpus scoreboard the migration center page
+        // its upstream identities are the same wizard review, mapping report,
+        // rollback requirement, and corpus scoreboard the migration center page
         // already pivots on.
         let page = crate::migration_center::seeded_migration_center_page();
         for scenario in migration_flow_disclosure_corpus() {
             let upstream = scenario.record().upstream;
             assert_eq!(
-                upstream.wizard_session_ref, page.upstream_refs.wizard_session_ref,
-                "{} wizard session drifts from migration center",
+                upstream.wizard_review_ref, page.upstream_refs.wizard_migration_review_ref,
+                "{} wizard review drifts from migration center",
                 scenario.scenario_id
             );
             assert_eq!(
@@ -532,8 +487,9 @@ mod tests {
                 scenario.scenario_id
             );
             assert_eq!(
-                upstream.rollback_checkpoint_ref, page.upstream_refs.wizard_rollback_checkpoint_ref,
-                "{} rollback checkpoint drifts from migration center",
+                upstream.rollback_requirement_ref,
+                page.upstream_refs.wizard_rollback_requirement_ref,
+                "{} rollback requirement drifts from migration center",
                 scenario.scenario_id
             );
             assert_eq!(

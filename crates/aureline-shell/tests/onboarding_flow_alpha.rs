@@ -100,7 +100,7 @@ fn explicit_managed_identity_choice_is_recorded_before_landing() {
 }
 
 #[test]
-fn import_branch_reuses_non_widening_review_and_confirms_checkpoint() {
+fn import_branch_reuses_non_widening_review_and_requires_execution_checkpoint() {
     let flow = OnboardingFlow::build(OnboardingFlowRequest::new(
         "flow:onboarding.import.vscode",
         identity_packet(),
@@ -117,8 +117,10 @@ fn import_branch_reuses_non_widening_review_and_confirms_checkpoint() {
         .as_ref()
         .expect("import diff review is present");
     assert!(packet.every_row_has_before_after_diff());
-    assert!(packet.every_row_uses_one_checkpoint());
-    assert!(packet.rollback_checkpoint.clear_pre_apply_checkpoint());
+    assert!(packet.every_row_uses_one_rollback_requirement());
+    assert!(packet
+        .rollback_requirement
+        .requires_checkpoint_before_apply());
 
     let review = flow
         .import_apply_review
@@ -129,30 +131,32 @@ fn import_branch_reuses_non_widening_review_and_confirms_checkpoint() {
 
     assert_eq!(
         flow.rollback_checkpoint_confirmation.confirmation_state,
-        RollbackCheckpointConfirmationState::Confirmed
+        RollbackCheckpointConfirmationState::MissingCheckpoint
     );
     assert_eq!(
         flow.rollback_checkpoint_confirmation
-            .checkpoint_ref
+            .rollback_requirement_ref
             .as_deref(),
-        Some(packet.rollback_checkpoint.checkpoint_ref.as_str())
+        Some(packet.rollback_requirement.requirement_ref.as_str())
     );
-    assert!(flow.rollback_checkpoint_confirmation.confirmed_before_apply);
+    assert_eq!(flow.rollback_checkpoint_confirmation.checkpoint_ref, None);
+    assert!(!flow.rollback_checkpoint_confirmation.confirmed_before_apply);
     assert_eq!(
         flow.first_useful_work_landing.landing_surface,
         "import_compare_or_restore_sheet"
     );
     assert!(flow.admission_checkpoint_route.is_contract_valid());
-    assert!(flow.persisted_records.iter().any(|record| {
-        record.record_kind == OnboardingFlowPersistedRecordKind::ImportedProfileHistory
-    }));
-    assert!(flow.persisted_records.iter().any(|record| {
-        record.record_kind == OnboardingFlowPersistedRecordKind::RollbackCheckpointConfirmation
+    assert!(!flow.persisted_records.iter().any(|record| {
+        matches!(
+            record.record_kind,
+            OnboardingFlowPersistedRecordKind::ImportedProfileHistory
+                | OnboardingFlowPersistedRecordKind::RollbackCheckpointConfirmation
+        )
     }));
     assert!(flow
         .learning_tour_step_refs
         .contains(&"step:aureline.import.preview-before-apply".to_string()));
-    assert!(flow
+    assert!(!flow
         .telemetry_event_names
         .contains(&OnboardingEventName::MigrationRollbackCheckpointWritten));
 }

@@ -85,6 +85,12 @@ python3 "${REPO_ROOT}/tools/ci/check_cargo_test_target_lengths.py" --repo-root "
 
 python3 "${REPO_ROOT}/tools/ci/validate_contract_artifacts.py" "${ARGS[@]}" | tee "${SUMMARY_PATH}"
 
+printf '\n[contract-validation] validating portable-profile schema-version vocabulary\n' | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/tools/ci/validate_portable_profile_schema_versions.py" | tee -a "${SUMMARY_PATH}"
+
+printf '\n[contract-validation] validating migration contract fixtures\n' | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/tools/ci/validate_migration_contract_fixtures.py" | tee -a "${SUMMARY_PATH}"
+
 printf '\n[contract-validation] validating checked-in build identity artifact\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/tools/validate_build_identity_artifact.py" | tee -a "${SUMMARY_PATH}"
 

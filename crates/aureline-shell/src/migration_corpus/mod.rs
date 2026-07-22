@@ -35,10 +35,10 @@ use crate::import::diff_review::{ImportMappingClassification, ImportReviewDomain
 use crate::migration_wizard::seeded_migration_wizard_page;
 
 /// Schema version exported with every corpus record.
-pub const MIGRATION_CORPUS_SCHEMA_VERSION: u32 = 1;
+pub const MIGRATION_CORPUS_SCHEMA_VERSION: u32 = 2;
 
 /// Shared contract ref consumed by every corpus row.
-pub const MIGRATION_CORPUS_SHARED_CONTRACT_REF: &str = "shell:migration_corpus_beta:v1";
+pub const MIGRATION_CORPUS_SHARED_CONTRACT_REF: &str = "shell:migration_corpus_beta:v2";
 
 /// Stable record kind for [`MigrationScoreboard`] payloads.
 pub const MIGRATION_SCOREBOARD_RECORD_KIND: &str = "shell_migration_corpus_beta_scoreboard_record";
@@ -56,7 +56,7 @@ pub const MIGRATION_CORPUS_SUPPORT_EXPORT_RECORD_KIND: &str =
     "shell_migration_corpus_beta_support_export_record";
 
 /// Stable scoreboard id used by every consumer.
-pub const MIGRATION_SCOREBOARD_ID: &str = "shell:migration_corpus_beta:scoreboard:v1";
+pub const MIGRATION_SCOREBOARD_ID: &str = "shell:migration_corpus_beta:scoreboard:v2";
 
 const GENERATED_AT: &str = "2026-05-15T00:00:00Z";
 
@@ -154,8 +154,9 @@ pub struct IncumbentFlowRow {
     pub support_export_refs: Vec<String>,
     /// Wizard mapping report ref the row composes with.
     pub wizard_mapping_report_ref: String,
-    /// Rollback checkpoint ref retained with the row.
-    pub rollback_checkpoint_ref: String,
+    /// Rollback requirement governing apply for this row. This is not a
+    /// checkpoint handle.
+    pub rollback_requirement_ref: String,
 }
 
 impl IncumbentFlowRow {
@@ -247,10 +248,13 @@ pub struct MigrationScoreboard {
     pub scoreboard_id: String,
     /// Wizard session id this scoreboard composes with.
     pub wizard_session_ref: String,
+    /// Dry-run migration review correlation. This is not an apply session.
+    pub wizard_migration_review_ref: String,
     /// Wizard mapping report id this scoreboard composes with.
     pub wizard_mapping_report_ref: String,
-    /// Rollback checkpoint ref the wizard minted before apply.
-    pub rollback_checkpoint_ref: String,
+    /// Rollback requirement the execution layer must satisfy before apply. This
+    /// is not a checkpoint handle.
+    pub rollback_requirement_ref: String,
     /// Per-ecosystem scoreboard sections in canonical order.
     pub sections: Vec<EcosystemScoreboardSection>,
     /// Overall classification summary across every section.
@@ -317,16 +321,20 @@ impl MigrationScoreboard {
 
         out.push_str(&format!("- Scoreboard id: `{}`\n", self.scoreboard_id));
         out.push_str(&format!(
-            "- Wizard session: `{}`\n",
+            "- Wizard page session: `{}`\n",
             self.wizard_session_ref
+        ));
+        out.push_str(&format!(
+            "- Migration review: `{}` (dry-run; not an apply session)\n",
+            self.wizard_migration_review_ref
         ));
         out.push_str(&format!(
             "- Wizard mapping report: `{}`\n",
             self.wizard_mapping_report_ref
         ));
         out.push_str(&format!(
-            "- Rollback checkpoint: `{}`\n",
-            self.rollback_checkpoint_ref
+            "- Rollback requirement: `{}` (checkpoint not created by preview)\n",
+            self.rollback_requirement_ref
         ));
         out.push_str(&format!("- Generated at: `{}`\n", self.generated_at));
         out.push('\n');
@@ -476,30 +484,44 @@ pub struct MigrationCorpusSupportExport {
 }
 
 impl MigrationCorpusSupportExport {
-    /// Builds the support-export wrapper for a scoreboard.
+    /// Builds the support-export wrapper for a validated scoreboard.
+    ///
+    /// # Errors
+    /// Returns typed scoreboard defects instead of exporting drifted counts,
+    /// unbounded labels, or mismatched rollback authority.
     pub fn from_scoreboard(
         support_export_id: impl Into<String>,
         scoreboard: MigrationScoreboard,
-    ) -> Self {
+    ) -> Result<Self, Vec<MigrationScoreboardValidationError>> {
+        validate_migration_scoreboard(&scoreboard)?;
+        let support_export_id = support_export_id.into();
+        if !has_opaque_ref_kind(&support_export_id, "support-export:") {
+            return Err(vec![
+                MigrationScoreboardValidationError::UnsafeSupportField {
+                    field: "support_export_id".to_owned(),
+                },
+            ]);
+        }
         let mut case_ids = vec![
             scoreboard.scoreboard_id.clone(),
             scoreboard.wizard_session_ref.clone(),
+            scoreboard.wizard_migration_review_ref.clone(),
             scoreboard.wizard_mapping_report_ref.clone(),
-            scoreboard.rollback_checkpoint_ref.clone(),
+            scoreboard.rollback_requirement_ref.clone(),
         ];
         for section in &scoreboard.sections {
             for row in &section.rows {
                 case_ids.push(row.flow_id.clone());
             }
         }
-        Self {
+        Ok(Self {
             record_kind: MIGRATION_CORPUS_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
             schema_version: MIGRATION_CORPUS_SCHEMA_VERSION,
             shared_contract_ref: MIGRATION_CORPUS_SHARED_CONTRACT_REF.to_owned(),
-            support_export_id: support_export_id.into(),
+            support_export_id,
             scoreboard,
             case_ids,
-        }
+        })
     }
 }
 
@@ -507,6 +529,12 @@ impl MigrationCorpusSupportExport {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "error", rename_all = "snake_case")]
 pub enum MigrationScoreboardValidationError {
+    /// Record-kind, version, contract, ordering, or cardinality drifted.
+    StructureDrift { field: String },
+    /// Derived classification counts or presence vocabulary drifted.
+    ClassificationSummaryDrift { field: String },
+    /// A support-visible label or ref was empty, unbounded, or unsafe.
+    UnsafeSupportField { field: String },
     /// A required ecosystem section is missing.
     MissingRequiredEcosystem { ecosystem: String },
     /// An ecosystem section is empty.
@@ -523,6 +551,14 @@ pub enum MigrationScoreboardValidationError {
     MissingDocsHelpRefs { flow_id: String },
     /// A row's wizard mapping report ref is empty.
     MissingWizardMappingReportRef { flow_id: String },
+    /// A row does not cite the scoreboard's wizard mapping report.
+    RowWizardMappingReportDrift { flow_id: String },
+    /// The scoreboard review correlation is not a dry-run review ref.
+    InvalidWizardMigrationReviewRef,
+    /// The scoreboard rollback value is not an explicit requirement ref.
+    InvalidRollbackRequirementRef,
+    /// A row does not cite the scoreboard's single rollback requirement.
+    RowRollbackRequirementDrift { flow_id: String },
     /// The published markdown scoreboard ref is empty.
     PublishedScoreboardRefMissing,
     /// The published markdown flow matrix ref is empty.
@@ -537,6 +573,65 @@ pub fn validate_migration_scoreboard(
     scoreboard: &MigrationScoreboard,
 ) -> Result<(), Vec<MigrationScoreboardValidationError>> {
     let mut errors = Vec::new();
+
+    if scoreboard.record_kind != MIGRATION_SCOREBOARD_RECORD_KIND
+        || scoreboard.schema_version != MIGRATION_CORPUS_SCHEMA_VERSION
+        || scoreboard.shared_contract_ref != MIGRATION_CORPUS_SHARED_CONTRACT_REF
+        || scoreboard.sections.len() != IncumbentEcosystem::required_ecosystems().len()
+        || scoreboard
+            .sections
+            .iter()
+            .map(|section| section.ecosystem)
+            .ne(IncumbentEcosystem::required_ecosystems())
+    {
+        errors.push(MigrationScoreboardValidationError::StructureDrift {
+            field: "scoreboard".to_owned(),
+        });
+    }
+
+    for (field, reference, prefix) in [
+        (
+            "scoreboard_id",
+            scoreboard.scoreboard_id.as_str(),
+            "shell:migration_corpus_beta:scoreboard:",
+        ),
+        (
+            "wizard_session_ref",
+            scoreboard.wizard_session_ref.as_str(),
+            "shell:migration-wizard:",
+        ),
+        (
+            "wizard_mapping_report_ref",
+            scoreboard.wizard_mapping_report_ref.as_str(),
+            "mapping-report:",
+        ),
+    ] {
+        if !has_opaque_ref_kind(reference, prefix) {
+            errors.push(MigrationScoreboardValidationError::UnsafeSupportField {
+                field: field.to_owned(),
+            });
+        }
+    }
+
+    if !has_opaque_ref_kind(&scoreboard.wizard_migration_review_ref, "migration-review:") {
+        errors.push(MigrationScoreboardValidationError::InvalidWizardMigrationReviewRef);
+    }
+    if !has_opaque_ref_kind(
+        &scoreboard.rollback_requirement_ref,
+        "rollback-requirement:",
+    ) {
+        errors.push(MigrationScoreboardValidationError::InvalidRollbackRequirementRef);
+    }
+    if scoreboard.docs_help_refs.is_empty()
+        || scoreboard.support_export_refs.is_empty()
+        || has_duplicate_or_unsafe_support_text(&scoreboard.docs_help_refs, 320)
+        || has_duplicate_or_unsafe_support_text(&scoreboard.support_export_refs, 320)
+        || !is_utc_timestamp(&scoreboard.generated_at)
+    {
+        errors.push(MigrationScoreboardValidationError::UnsafeSupportField {
+            field: "scoreboard_support_metadata".to_owned(),
+        });
+    }
 
     for required in IncumbentEcosystem::required_ecosystems() {
         if !scoreboard
@@ -553,16 +648,59 @@ pub fn validate_migration_scoreboard(
     }
 
     for section in &scoreboard.sections {
+        if section.record_kind != ECOSYSTEM_SECTION_RECORD_KIND
+            || section.schema_version != MIGRATION_CORPUS_SCHEMA_VERSION
+            || section.source_ecosystem_row_ref != section.ecosystem.source_ecosystem_row_ref()
+            || section.rows.len() > 64
+            || section
+                .rows
+                .windows(2)
+                .any(|pair| pair[0].flow_id >= pair[1].flow_id)
+        {
+            errors.push(MigrationScoreboardValidationError::StructureDrift {
+                field: format!("section:{}", section.ecosystem.as_str()),
+            });
+        }
         if section.rows.is_empty() {
             errors.push(MigrationScoreboardValidationError::EmptyEcosystemSection {
                 ecosystem: section.ecosystem.as_str().to_owned(),
             });
         }
         for row in &section.rows {
+            let error_flow_id = privacy_safe_flow_id(&row.flow_id);
+            if row.record_kind != INCUMBENT_FLOW_ROW_RECORD_KIND
+                || row.schema_version != MIGRATION_CORPUS_SCHEMA_VERSION
+                || row.shared_contract_ref != MIGRATION_CORPUS_SHARED_CONTRACT_REF
+                || row.ecosystem != section.ecosystem
+                || !has_opaque_ref_kind(&row.flow_id, "migration-corpus-flow:")
+                || !is_safe_support_text(&row.flow_label, 320)
+                || !is_safe_support_text(&row.source_object_label, 320)
+                || !is_safe_support_text(&row.aureline_target_label, 320)
+                || !is_safe_support_text(&row.before_after_summary, 1024)
+                || row.downgrade_triggers.len() > 64
+                || row.evidence_refs.len() > 64
+                || row.docs_help_refs.len() > 64
+                || row.support_export_refs.len() > 64
+                || row
+                    .caveat
+                    .as_deref()
+                    .is_some_and(|value| !is_safe_support_text(value, 1024))
+                || row.evidence_refs.is_empty()
+                || row.docs_help_refs.is_empty()
+                || row.support_export_refs.is_empty()
+                || has_duplicate_or_unsafe_support_text(&row.downgrade_triggers, 320)
+                || has_duplicate_or_unsafe_support_text(&row.evidence_refs, 320)
+                || has_duplicate_or_unsafe_support_text(&row.docs_help_refs, 320)
+                || has_duplicate_or_unsafe_support_text(&row.support_export_refs, 320)
+            {
+                errors.push(MigrationScoreboardValidationError::UnsafeSupportField {
+                    field: format!("row:{error_flow_id}"),
+                });
+            }
             if row.requires_downgrade_trigger() && row.downgrade_triggers.is_empty() {
                 errors.push(
                     MigrationScoreboardValidationError::MissingDowngradeTrigger {
-                        flow_id: row.flow_id.clone(),
+                        flow_id: error_flow_id.clone(),
                     },
                 );
             }
@@ -575,27 +713,72 @@ pub fn validate_migration_scoreboard(
                     .is_empty()
             {
                 errors.push(MigrationScoreboardValidationError::MissingCaveat {
-                    flow_id: row.flow_id.clone(),
+                    flow_id: error_flow_id.clone(),
                 });
             }
             if row.evidence_refs.is_empty() {
                 errors.push(MigrationScoreboardValidationError::MissingEvidenceRefs {
-                    flow_id: row.flow_id.clone(),
+                    flow_id: error_flow_id.clone(),
                 });
             }
             if row.docs_help_refs.is_empty() {
                 errors.push(MigrationScoreboardValidationError::MissingDocsHelpRefs {
-                    flow_id: row.flow_id.clone(),
+                    flow_id: error_flow_id.clone(),
                 });
             }
             if row.wizard_mapping_report_ref.trim().is_empty() {
                 errors.push(
                     MigrationScoreboardValidationError::MissingWizardMappingReportRef {
-                        flow_id: row.flow_id.clone(),
+                        flow_id: error_flow_id.clone(),
+                    },
+                );
+            } else if row.wizard_mapping_report_ref != scoreboard.wizard_mapping_report_ref {
+                errors.push(
+                    MigrationScoreboardValidationError::RowWizardMappingReportDrift {
+                        flow_id: error_flow_id.clone(),
+                    },
+                );
+            }
+            if row.rollback_requirement_ref != scoreboard.rollback_requirement_ref {
+                errors.push(
+                    MigrationScoreboardValidationError::RowRollbackRequirementDrift {
+                        flow_id: error_flow_id,
                     },
                 );
             }
         }
+
+        let mut expected_summary = ScoreboardClassificationSummary::empty();
+        let mut expected_present = BTreeSet::new();
+        for row in &section.rows {
+            expected_summary.record(row.classification);
+            expected_present.insert(row.classification);
+        }
+        if section.classification_summary != expected_summary
+            || section.classifications_present != expected_present.into_iter().collect::<Vec<_>>()
+        {
+            errors.push(
+                MigrationScoreboardValidationError::ClassificationSummaryDrift {
+                    field: format!("section:{}", section.ecosystem.as_str()),
+                },
+            );
+        }
+    }
+
+    let mut expected_overall = ScoreboardClassificationSummary::empty();
+    let mut expected_present = BTreeSet::new();
+    for row in scoreboard.sections.iter().flat_map(|section| &section.rows) {
+        expected_overall.record(row.classification);
+        expected_present.insert(row.classification);
+    }
+    if scoreboard.overall_summary != expected_overall
+        || scoreboard.classifications_present != expected_present.into_iter().collect::<Vec<_>>()
+    {
+        errors.push(
+            MigrationScoreboardValidationError::ClassificationSummaryDrift {
+                field: "overall".to_owned(),
+            },
+        );
     }
 
     for required in [
@@ -614,10 +797,10 @@ pub fn validate_migration_scoreboard(
         }
     }
 
-    if scoreboard.published_scoreboard_ref.trim().is_empty() {
+    if !is_safe_support_text(&scoreboard.published_scoreboard_ref, 320) {
         errors.push(MigrationScoreboardValidationError::PublishedScoreboardRefMissing);
     }
-    if scoreboard.published_flow_matrix_ref.trim().is_empty() {
+    if !is_safe_support_text(&scoreboard.published_flow_matrix_ref, 320) {
         errors.push(MigrationScoreboardValidationError::PublishedFlowMatrixRefMissing);
     }
 
@@ -626,6 +809,150 @@ pub fn validate_migration_scoreboard(
     } else {
         Err(errors)
     }
+}
+
+fn has_opaque_ref_kind(reference: &str, prefix: &str) -> bool {
+    reference
+        .strip_prefix(prefix)
+        .map(|identifier| {
+            reference.len() <= 320
+                && !identifier.is_empty()
+                && identifier.bytes().all(|byte| {
+                    byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-')
+                })
+        })
+        .unwrap_or(false)
+}
+
+fn is_safe_support_text(value: &str, maximum_bytes: usize) -> bool {
+    value == value.trim()
+        && !value.is_empty()
+        && value.len() <= maximum_bytes
+        && !value.chars().any(char::is_control)
+        && !value.starts_with('/')
+        && !value.starts_with('\\')
+        && !value.starts_with('~')
+        && !value.contains("://")
+        && !contains_file_scheme(value)
+        && !value.contains("../")
+        && !value.contains("..\\")
+        && !value.as_bytes().get(1).is_some_and(|byte| *byte == b':')
+        && !contains_absolute_path(value)
+}
+
+fn contains_absolute_path(value: &str) -> bool {
+    value.split_whitespace().any(looks_like_absolute_path)
+        || value
+            .split(|character: char| {
+                matches!(
+                    character,
+                    '=' | '(' | ')' | '[' | ']' | '{' | '}' | ',' | ';' | ':' | '`' | '"' | '\''
+                )
+            })
+            .any(looks_like_absolute_path)
+}
+
+fn contains_file_scheme(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    lower.match_indices("file:").any(|(index, _)| {
+        index == 0
+            || lower[..index].chars().next_back().is_some_and(|character| {
+                character.is_whitespace()
+                    || matches!(
+                        character,
+                        '/' | '\\' | '=' | '(' | '[' | '{' | ',' | ';' | ':' | '`' | '"' | '\''
+                    )
+            })
+    })
+}
+
+fn looks_like_absolute_path(token: &str) -> bool {
+    let token = token.trim_matches(|character: char| {
+        matches!(
+            character,
+            ',' | ';' | '(' | ')' | '[' | ']' | '`' | '"' | '\''
+        )
+    });
+    (token.starts_with('/') && token.len() > 1)
+        || (token.starts_with('\\') && token.len() > 1)
+        || (token.starts_with('~') && token.len() > 1)
+        || (token.as_bytes().get(1) == Some(&b':')
+            && token
+                .as_bytes()
+                .first()
+                .is_some_and(u8::is_ascii_alphabetic)
+            && token
+                .as_bytes()
+                .get(2)
+                .is_some_and(|byte| matches!(*byte, b'/' | b'\\')))
+}
+
+fn has_duplicate_or_unsafe_support_text(values: &[String], maximum_bytes: usize) -> bool {
+    values.len() > 64
+        || values.iter().enumerate().any(|(index, value)| {
+            !is_safe_support_text(value, maximum_bytes) || values[..index].contains(value)
+        })
+}
+
+fn privacy_safe_flow_id(flow_id: &str) -> String {
+    if has_opaque_ref_kind(flow_id, "migration-corpus-flow:") {
+        flow_id.to_owned()
+    } else {
+        "[redacted invalid flow id]".to_owned()
+    }
+}
+
+fn is_utc_timestamp(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 20
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes[10] != b'T'
+        || bytes[13] != b':'
+        || bytes[16] != b':'
+        || bytes[19] != b'Z'
+    {
+        return false;
+    }
+    let Some(year) = timestamp_number(bytes, 0, 4) else {
+        return false;
+    };
+    let Some(month) = timestamp_number(bytes, 5, 7) else {
+        return false;
+    };
+    let Some(day) = timestamp_number(bytes, 8, 10) else {
+        return false;
+    };
+    let Some(hour) = timestamp_number(bytes, 11, 13) else {
+        return false;
+    };
+    let Some(minute) = timestamp_number(bytes, 14, 16) else {
+        return false;
+    };
+    let Some(second) = timestamp_number(bytes, 17, 19) else {
+        return false;
+    };
+    let leap_year = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days_in_month = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap_year => 29,
+        2 => 28,
+        _ => return false,
+    };
+    year >= 1970 && (1..=days_in_month).contains(&day) && hour < 24 && minute < 60 && second < 60
+}
+
+fn timestamp_number(bytes: &[u8], start: usize, end: usize) -> Option<u32> {
+    bytes
+        .get(start..end)?
+        .iter()
+        .all(u8::is_ascii_digit)
+        .then_some(())?;
+    std::str::from_utf8(bytes.get(start..end)?)
+        .ok()?
+        .parse()
+        .ok()
 }
 
 /// Seed entry consumed by [`seeded_migration_scoreboard`].
@@ -1139,7 +1466,7 @@ fn flow_id(ecosystem: IncumbentEcosystem, slug: &str) -> String {
 fn build_row(
     seed: &FlowSeed,
     wizard_mapping_report_ref: &str,
-    rollback_checkpoint_ref: &str,
+    rollback_requirement_ref: &str,
 ) -> IncumbentFlowRow {
     IncumbentFlowRow {
         record_kind: INCUMBENT_FLOW_ROW_RECORD_KIND.to_owned(),
@@ -1171,19 +1498,19 @@ fn build_row(
             .map(|s| (*s).to_owned())
             .collect(),
         wizard_mapping_report_ref: wizard_mapping_report_ref.to_owned(),
-        rollback_checkpoint_ref: rollback_checkpoint_ref.to_owned(),
+        rollback_requirement_ref: rollback_requirement_ref.to_owned(),
     }
 }
 
 fn build_section(
     ecosystem: IncumbentEcosystem,
     wizard_mapping_report_ref: &str,
-    rollback_checkpoint_ref: &str,
+    rollback_requirement_ref: &str,
 ) -> EcosystemScoreboardSection {
     let mut rows: Vec<IncumbentFlowRow> = FLOW_SEEDS
         .iter()
         .filter(|seed| seed.ecosystem == ecosystem)
-        .map(|seed| build_row(seed, wizard_mapping_report_ref, rollback_checkpoint_ref))
+        .map(|seed| build_row(seed, wizard_mapping_report_ref, rollback_requirement_ref))
         .collect();
     rows.sort_by(|left, right| left.flow_id.cmp(&right.flow_id));
 
@@ -1210,8 +1537,9 @@ fn build_section(
 pub fn seeded_migration_scoreboard() -> MigrationScoreboard {
     let wizard = seeded_migration_wizard_page();
     let wizard_session_ref = wizard.wizard_session_id.clone();
+    let wizard_migration_review_ref = wizard.migration_review_ref.clone();
     let wizard_mapping_report_ref = wizard.mapping_report.mapping_report_id.clone();
-    let rollback_checkpoint_ref = wizard.rollback_checkpoint.checkpoint_ref.clone();
+    let rollback_requirement_ref = wizard.rollback_requirement.requirement_ref.clone();
 
     let sections: Vec<EcosystemScoreboardSection> = IncumbentEcosystem::required_ecosystems()
         .iter()
@@ -1219,7 +1547,7 @@ pub fn seeded_migration_scoreboard() -> MigrationScoreboard {
             build_section(
                 *ecosystem,
                 &wizard_mapping_report_ref,
-                &rollback_checkpoint_ref,
+                &rollback_requirement_ref,
             )
         })
         .collect();
@@ -1239,8 +1567,9 @@ pub fn seeded_migration_scoreboard() -> MigrationScoreboard {
         shared_contract_ref: MIGRATION_CORPUS_SHARED_CONTRACT_REF.to_owned(),
         scoreboard_id: MIGRATION_SCOREBOARD_ID.to_owned(),
         wizard_session_ref,
+        wizard_migration_review_ref,
         wizard_mapping_report_ref,
-        rollback_checkpoint_ref,
+        rollback_requirement_ref,
         sections,
         overall_summary,
         classifications_present: classifications_present.into_iter().collect(),
@@ -1318,6 +1647,29 @@ mod tests {
         for section in &scoreboard.sections {
             for row in &section.rows {
                 assert_eq!(&row.wizard_mapping_report_ref, report_ref);
+                assert_eq!(
+                    &row.rollback_requirement_ref,
+                    &scoreboard.rollback_requirement_ref
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn seeded_scoreboard_exposes_requirement_not_checkpoint() {
+        let scoreboard = seeded_migration_scoreboard();
+        assert!(scoreboard
+            .wizard_migration_review_ref
+            .starts_with("migration-review:"));
+        assert!(scoreboard
+            .rollback_requirement_ref
+            .starts_with("rollback-requirement:"));
+
+        let serialized = serde_json::to_value(&scoreboard).expect("scoreboard serializes");
+        assert!(serialized.get("rollback_checkpoint_ref").is_none());
+        for section in serialized["sections"].as_array().expect("sections") {
+            for row in section["rows"].as_array().expect("rows") {
+                assert!(row.get("rollback_checkpoint_ref").is_none());
             }
         }
     }
@@ -1333,6 +1685,60 @@ mod tests {
         assert!(errors.iter().any(|err| matches!(
             err,
             MigrationScoreboardValidationError::MissingRequiredEcosystem { .. }
+        )));
+    }
+
+    #[test]
+    fn validation_flags_row_truth_drift() {
+        let mut scoreboard = seeded_migration_scoreboard();
+        let row = &mut scoreboard.sections[0].rows[0];
+        row.wizard_mapping_report_ref = "mapping-report:wrong-review".to_owned();
+        row.rollback_requirement_ref = "rollback-requirement:wrong-review".to_owned();
+
+        let errors = validate_migration_scoreboard(&scoreboard).expect_err("must fail closed");
+        assert!(errors.iter().any(|error| matches!(
+            error,
+            MigrationScoreboardValidationError::RowWizardMappingReportDrift { .. }
+        )));
+        assert!(errors.iter().any(|error| matches!(
+            error,
+            MigrationScoreboardValidationError::RowRollbackRequirementDrift { .. }
+        )));
+    }
+
+    #[test]
+    fn validation_recomputes_section_and_overall_counts_before_support_export() {
+        let mut scoreboard = seeded_migration_scoreboard();
+        scoreboard.sections[0].classification_summary.exact += 1;
+        scoreboard.overall_summary.unsupported += 1;
+
+        let errors = validate_migration_scoreboard(&scoreboard)
+            .expect_err("derived classification counts must be exact");
+        assert!(errors.iter().any(|error| matches!(
+            error,
+            MigrationScoreboardValidationError::ClassificationSummaryDrift { .. }
+        )));
+        assert!(MigrationCorpusSupportExport::from_scoreboard(
+            "support-export:migration-corpus:tampered",
+            scoreboard
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn validation_rejects_empty_preview_object_ids() {
+        let mut scoreboard = seeded_migration_scoreboard();
+        scoreboard.wizard_migration_review_ref = "migration-review:".to_owned();
+        scoreboard.rollback_requirement_ref = "rollback-requirement:".to_owned();
+
+        let errors = validate_migration_scoreboard(&scoreboard).expect_err("must fail closed");
+        assert!(errors.iter().any(|error| matches!(
+            error,
+            MigrationScoreboardValidationError::InvalidWizardMigrationReviewRef
+        )));
+        assert!(errors.iter().any(|error| matches!(
+            error,
+            MigrationScoreboardValidationError::InvalidRollbackRequirementRef
         )));
     }
 
@@ -1356,12 +1762,57 @@ mod tests {
     }
 
     #[test]
+    fn validation_redacts_private_flow_ids_from_errors() {
+        let mut scoreboard = seeded_migration_scoreboard();
+        let row = &mut scoreboard.sections[0].rows[0];
+        row.flow_id = "/Users/alice/Secret Project/settings.json".to_owned();
+        row.downgrade_triggers.clear();
+
+        let errors =
+            validate_migration_scoreboard(&scoreboard).expect_err("private id must fail closed");
+        let rendered = format!("{errors:?}");
+        assert!(rendered.contains("[redacted invalid flow id]"));
+        for forbidden in ["/Users/alice", "Secret Project", "settings.json"] {
+            assert!(!rendered.contains(forbidden), "error leaked {forbidden:?}");
+        }
+    }
+
+    #[test]
+    fn validation_rejects_invalid_or_unbounded_support_metadata() {
+        let mut scoreboard = seeded_migration_scoreboard();
+        scoreboard.generated_at = "2026-02-30T00:00:00Z".to_owned();
+        scoreboard.docs_help_refs = vec!["docs/migration/guide.md".to_owned(); 65];
+
+        let errors = validate_migration_scoreboard(&scoreboard)
+            .expect_err("invalid timestamp and unbounded refs must fail closed");
+        assert!(errors.iter().any(|error| matches!(
+            error,
+            MigrationScoreboardValidationError::UnsafeSupportField { field }
+                if field == "scoreboard_support_metadata"
+        )));
+
+        for private in [
+            "Open /Users/alice/Secret Project/settings.json",
+            "Review C:\\Users\\alice\\private.json",
+            "See https://alice@example.invalid/private",
+            "file:/Users/alice/private.json",
+            "target=/Users/alice/private.json",
+            "target:\\Users\\alice\\private.json",
+            " trailing whitespace",
+        ] {
+            assert!(!is_safe_support_text(private, 320), "accepted {private:?}");
+        }
+        assert!(is_safe_support_text("VS Code / Code OSS", 320));
+    }
+
+    #[test]
     fn support_export_quotes_every_case_id() {
         let scoreboard = seeded_migration_scoreboard();
         let export = MigrationCorpusSupportExport::from_scoreboard(
             "support-export:migration-corpus:001",
             scoreboard.clone(),
-        );
+        )
+        .expect("seeded scoreboard produces support export");
         assert_eq!(
             export.shared_contract_ref,
             MIGRATION_CORPUS_SHARED_CONTRACT_REF

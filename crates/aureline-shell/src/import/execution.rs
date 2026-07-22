@@ -14,9 +14,9 @@
 //! boundary. Durable state becomes user-effective only after shell bootstrap
 //! explicitly installs its validated `ImportedProfileDefault` resolver overlay.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
-use std::fs::{File, OpenOptions};
+use std::fs::{File, Metadata, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -38,17 +38,31 @@ pub const IMPORT_EXECUTION_PREVIEW_RECORD_KIND: &str = "first_run_import_executi
 /// Stable record kind for dedicated imported-profile state.
 pub const IMPORTED_PROFILE_STATE_RECORD_KIND: &str = "imported_profile_state_record";
 
-/// Stable record kind for durable pre-apply checkpoints.
-pub const IMPORT_EXECUTION_CHECKPOINT_RECORD_KIND: &str =
-    "first_run_import_execution_checkpoint_record";
+/// Private protected-body kind referenced by digest-bound local metadata.
+const IMPORT_EXECUTION_CHECKPOINT_BODY_RECORD_KIND: &str =
+    "first_run_import_execution_checkpoint_body_record";
+
+/// Private digest-bound metadata for the protected checkpoint body.
+///
+/// This adapter does not mint the public
+/// `first_run_import_rollback_checkpoint_record`: it does not own a durable
+/// migration-session, migration-restore, comparison, or compatibility-report
+/// record and therefore cannot truthfully reference those artifacts. A higher
+/// orchestration layer may project the public record only when those companion
+/// records actually exist.
+const IMPORT_EXECUTION_CHECKPOINT_METADATA_RECORD_KIND: &str =
+    "first_run_import_execution_checkpoint_metadata_record";
 
 const MAX_SOURCE_FILE_BYTES: u64 = 64 * 1024;
 const MAX_DURABLE_FILE_BYTES: u64 = 1024 * 1024;
 const MAX_HISTORY_ROWS: usize = 1024;
+const MAX_IMPORT_PREVIEW_ROWS: usize = 4096;
+const MAX_IMPORTED_PROFILE_SETTINGS: usize = 4096;
+const MAX_IMPORTED_PROFILE_STATE_ENTRIES: usize = 4096;
 const ABSENT_STATE_DIGEST: &str = "state:absent";
 
 /// A schema-safe setting value admitted into imported-profile state.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "value_kind", content = "value", rename_all = "snake_case")]
 pub enum ImportSettingValue {
     /// Boolean preference.
@@ -57,6 +71,19 @@ pub enum ImportSettingValue {
     Integer(i64),
     /// Bounded, non-control text preference.
     Text(String),
+}
+
+impl fmt::Debug for ImportSettingValue {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Imported settings are user-authored content. Keep `Debug` useful for
+        // shape assertions without making log/debug formatting an accidental
+        // value-export path.
+        formatter.write_str(match self {
+            Self::Boolean(_) => "Boolean([redacted])",
+            Self::Integer(_) => "Integer([redacted])",
+            Self::Text(_) => "Text([redacted])",
+        })
+    }
 }
 
 /// Review decision for one parsed source item.
@@ -141,7 +168,7 @@ struct LivePreviewAuthority {
 }
 
 /// Serializable review packet. Deserialization deliberately strips apply authority.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecutableImportPreview {
     /// Stable record kind.
     pub record_kind: String,
@@ -174,6 +201,30 @@ pub struct ExecutableImportPreview {
     /// In-process authority is never serialized or accepted from exported packets.
     #[serde(skip, default)]
     live_authority: Option<LivePreviewAuthority>,
+}
+
+impl fmt::Debug for ExecutableImportPreview {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ExecutableImportPreview")
+            .field("record_kind", &self.record_kind)
+            .field("schema_version", &self.schema_version)
+            .field("preview_ref", &self.preview_ref)
+            .field("import_review_ref", &self.import_review_ref)
+            .field("source_root_ref", &self.source_root_ref)
+            .field("source_classification", &self.source_classification)
+            .field("target_profile_ref", &self.target_profile_ref)
+            .field("row_count", &self.rows.len())
+            .field("admitted_mutation_count", &self.admitted_mutation_count())
+            .field("blocked_authority_count", &self.blocked_authority_count())
+            .field("apply_gate", &self.apply_gate)
+            .field("source_snapshot_digest", &self.source_snapshot_digest)
+            .field("target_state_digest", &self.target_state_digest)
+            .field("plan_digest", &self.plan_digest)
+            .field("generated_at", &self.generated_at)
+            .field("has_live_authority", &self.live_authority.is_some())
+            .finish()
+    }
 }
 
 impl ExecutableImportPreview {
@@ -355,12 +406,27 @@ pub struct ImportApplyOutcome {
 }
 
 /// Input to one-step rollback.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct ImportRollbackRequest<'a> {
     /// Checkpoint ref returned by apply.
     pub checkpoint_ref: &'a str,
     /// Idempotency token for this rollback request.
     pub idempotency_token: &'a str,
+}
+
+impl fmt::Debug for ImportRollbackRequest<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let checkpoint_ref = if parse_checkpoint_ref(self.checkpoint_ref).is_ok() {
+            self.checkpoint_ref
+        } else {
+            "[redacted invalid checkpoint ref]"
+        };
+        formatter
+            .debug_struct("ImportRollbackRequest")
+            .field("checkpoint_ref", &checkpoint_ref)
+            .field("idempotency_token", &"[redacted]")
+            .finish()
+    }
 }
 
 /// Result of restoring a retained import checkpoint.
@@ -452,16 +518,60 @@ impl fmt::Display for ImportExecutionError {
 impl std::error::Error for ImportExecutionError {}
 
 /// Local durable store for imported-profile settings and checkpoints.
-#[derive(Debug, Clone)]
+///
+/// User-effective imported-profile revisions and recovery checkpoints
+/// intentionally use different caller-owned roots. Production callers bind
+/// `imported_profile_state_root` to `$AURELINE_CONFIG/profiles/imported` and
+/// `checkpoint_history_root` below `$AURELINE_STATE/history`; combining them
+/// would misclassify durable user truth as disposable/local application state.
+///
+/// Imported profile state is a local-only activation/history record. It is not
+/// a `*.aureprofile.json` portable artifact; export must project through the
+/// separately governed `portable_profile_artifact_record` flow.
+#[derive(Clone)]
 pub struct ImportedProfileStore {
-    state_root: PathBuf,
+    imported_profile_state_root: PathBuf,
+    checkpoint_history_root: PathBuf,
+    requires_distinct_roots: bool,
+}
+
+impl fmt::Debug for ImportedProfileStore {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ImportedProfileStore")
+            .field("imported_profile_state_root", &"[redacted path]")
+            .field("checkpoint_history_root", &"[redacted path]")
+            .field(
+                "uses_distinct_roots",
+                &(self.imported_profile_state_root != self.checkpoint_history_root),
+            )
+            .field("requires_distinct_roots", &self.requires_distinct_roots)
+            .finish()
+    }
 }
 
 impl ImportedProfileStore {
-    /// Creates a store below the caller-owned application state root.
-    pub fn new(state_root: impl Into<PathBuf>) -> Self {
+    /// Creates a same-root harness used only by focused unit tests. Production
+    /// construction cannot bypass the documented config/state separation.
+    #[cfg(test)]
+    fn new(root: impl Into<PathBuf>) -> Self {
+        let root = root.into();
         Self {
-            state_root: state_root.into(),
+            imported_profile_state_root: root.clone(),
+            checkpoint_history_root: root,
+            requires_distinct_roots: false,
+        }
+    }
+
+    /// Creates a store with distinct imported-state and checkpoint roots.
+    pub fn with_roots(
+        imported_profile_state_root: impl Into<PathBuf>,
+        checkpoint_history_root: impl Into<PathBuf>,
+    ) -> Self {
+        Self {
+            imported_profile_state_root: imported_profile_state_root.into(),
+            checkpoint_history_root: checkpoint_history_root.into(),
+            requires_distinct_roots: true,
         }
     }
 
@@ -471,6 +581,7 @@ impl ImportedProfileStore {
         review: &ImportReviewRecord,
         policy_epoch: &str,
     ) -> Result<ExecutableImportPreview, ImportExecutionError> {
+        self.validate_root_shapes()?;
         validate_policy_epoch(policy_epoch)?;
         validate_import_review_envelope(review)?;
         validate_request_label(
@@ -542,6 +653,7 @@ impl ImportedProfileStore {
         idempotency_token: &str,
         current_policy_epoch: &str,
     ) -> Result<ImportApplyOutcome, ImportExecutionError> {
+        self.validate_root_shapes()?;
         validate_idempotency_token(idempotency_token)?;
         validate_policy_epoch(current_policy_epoch)?;
         let authority = preview
@@ -568,6 +680,7 @@ impl ImportedProfileStore {
                     && entry.plan_digest == preview.plan_digest
                     && entry.result_settings_digest == settings_digest(&state.settings)?
                 {
+                    self.confirm_profile_revision_durable(&authority.profile_key, state)?;
                     return Ok(ImportApplyOutcome {
                         disposition: ImportApplyDisposition::AlreadyApplied,
                         target_profile_ref: state.profile_ref.clone(),
@@ -691,8 +804,8 @@ impl ImportedProfileStore {
         let result_settings_digest = settings_digest(&next.settings)?;
         let checkpoint_ref =
             checkpoint_ref(&authority.profile_key, &preview.plan_digest, &token_digest);
-        let checkpoint = ImportExecutionCheckpoint {
-            record_kind: IMPORT_EXECUTION_CHECKPOINT_RECORD_KIND.to_owned(),
+        let checkpoint = ImportExecutionCheckpointBody {
+            record_kind: IMPORT_EXECUTION_CHECKPOINT_BODY_RECORD_KIND.to_owned(),
             schema_version: IMPORT_EXECUTION_SCHEMA_VERSION,
             checkpoint_ref: checkpoint_ref.clone(),
             profile_key: authority.profile_key.clone(),
@@ -741,6 +854,7 @@ impl ImportedProfileStore {
                             && entry.plan_digest == preview.plan_digest
                     }) {
                         if entry.result_settings_digest == settings_digest(&winner.settings)? {
+                            self.confirm_profile_revision_durable(&authority.profile_key, &winner)?;
                             return Ok(ImportApplyOutcome {
                                 disposition: ImportApplyDisposition::AlreadyApplied,
                                 target_profile_ref: winner.profile_ref.clone(),
@@ -773,6 +887,7 @@ impl ImportedProfileStore {
         &self,
         request: ImportRollbackRequest<'_>,
     ) -> Result<ImportRollbackOutcome, ImportExecutionError> {
+        self.validate_root_shapes()?;
         validate_idempotency_token(request.idempotency_token)?;
         let checkpoint = self.read_checkpoint(request.checkpoint_ref)?;
         let mut current = self
@@ -790,6 +905,7 @@ impl ImportedProfileStore {
                 && entry.checkpoint_ref == checkpoint.checkpoint_ref
                 && entry.result_settings_digest == settings_digest(&current.settings)?
             {
+                self.confirm_profile_revision_durable(&checkpoint.profile_key, &current)?;
                 return Ok(ImportRollbackOutcome {
                     restored_now: false,
                     checkpoint_ref: checkpoint.checkpoint_ref.clone(),
@@ -865,6 +981,10 @@ impl ImportedProfileStore {
                             && entry.checkpoint_ref == checkpoint.checkpoint_ref
                     }) {
                         if entry.result_settings_digest == settings_digest(&winner.settings)? {
+                            self.confirm_profile_revision_durable(
+                                &checkpoint.profile_key,
+                                &winner,
+                            )?;
                             return Ok(ImportRollbackOutcome {
                                 restored_now: false,
                                 checkpoint_ref: checkpoint.checkpoint_ref,
@@ -895,8 +1015,43 @@ impl ImportedProfileStore {
         &self,
         destination_workspace_target: &str,
     ) -> Result<Option<ImportedProfileState>, ImportExecutionError> {
+        self.validate_root_shapes()?;
         validate_request_label(destination_workspace_target, "destination_target_invalid")?;
         self.load_profile_by_key(&profile_key(destination_workspace_target))
+    }
+
+    fn validate_root_shapes(&self) -> Result<(), ImportExecutionError> {
+        for root in [
+            &self.imported_profile_state_root,
+            &self.checkpoint_history_root,
+        ] {
+            if !root.is_absolute()
+                || !root
+                    .components()
+                    .any(|component| matches!(component, Component::Normal(_)))
+                || root
+                    .components()
+                    .any(|component| matches!(component, Component::CurDir | Component::ParentDir))
+            {
+                return Err(ImportExecutionError::DurableStateUnavailable {
+                    reason_code: "durable_store_root_invalid",
+                });
+            }
+        }
+        if self.requires_distinct_roots
+            && (self.imported_profile_state_root == self.checkpoint_history_root
+                || self
+                    .imported_profile_state_root
+                    .starts_with(&self.checkpoint_history_root)
+                || self
+                    .checkpoint_history_root
+                    .starts_with(&self.imported_profile_state_root))
+        {
+            return Err(ImportExecutionError::DurableStateUnavailable {
+                reason_code: "durable_store_roots_overlap",
+            });
+        }
+        Ok(())
     }
 
     /// Loads and validates the resolver overlay for a destination target.
@@ -919,8 +1074,7 @@ impl ImportedProfileStore {
         profile_key: &str,
     ) -> Result<Option<ImportedProfileState>, ImportExecutionError> {
         validate_profile_key(profile_key)?;
-        let directory = self.profile_revision_directory(profile_key);
-        let metadata = match std::fs::symlink_metadata(&directory) {
+        let metadata = match std::fs::symlink_metadata(&self.imported_profile_state_root) {
             Ok(metadata) => metadata,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(_) => {
@@ -929,48 +1083,60 @@ impl ImportedProfileStore {
                 })
             }
         };
-        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        if metadata_is_path_redirect(&metadata) || !metadata.is_dir() {
             return Err(ImportExecutionError::DurableStateUnavailable {
                 reason_code: "profile_revision_directory_type_unsafe",
             });
         }
-        ensure_existing_child_chain_has_no_symlink(&self.state_root, &directory.join("entry"))?;
+        ensure_existing_child_chain_has_no_symlink(
+            &self.imported_profile_state_root,
+            &self.imported_profile_state_root.join("entry"),
+        )?;
 
-        let entries = std::fs::read_dir(&directory).map_err(|_| {
+        let entries = std::fs::read_dir(&self.imported_profile_state_root).map_err(|_| {
             ImportExecutionError::DurableStateUnavailable {
                 reason_code: "profile_revision_directory_read_failed",
             }
         })?;
+        let filename_prefix = format!("imported-{profile_key}-");
         let mut committed_count = 0usize;
+        let mut inspected_count = 0usize;
         let mut latest: Option<(u64, PathBuf)> = None;
         for entry in entries {
+            inspected_count += 1;
+            if inspected_count > MAX_IMPORTED_PROFILE_STATE_ENTRIES {
+                return Err(ImportExecutionError::DurableStateUnavailable {
+                    reason_code: "profile_revision_capacity_exceeded",
+                });
+            }
             let entry = entry.map_err(|_| ImportExecutionError::DurableStateUnavailable {
                 reason_code: "profile_revision_entry_read_failed",
             })?;
+            let Some(filename) = entry.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            if filename.starts_with('.') && filename.contains(".tmp.") {
+                continue;
+            }
+            let Some(revision_text) = filename
+                .strip_prefix(&filename_prefix)
+                .and_then(|value| value.strip_suffix(".profile-state.json"))
+            else {
+                // Bounded legacy residue and future explicitly unrelated rows
+                // are not inputs to the imported-profile resolver layer.
+                continue;
+            };
             let entry_path = entry.path();
             let entry_metadata = std::fs::symlink_metadata(&entry_path).map_err(|_| {
                 ImportExecutionError::DurableStateUnavailable {
                     reason_code: "profile_revision_entry_metadata_failed",
                 }
             })?;
-            if entry_metadata.file_type().is_symlink() || !entry_metadata.is_file() {
+            if metadata_is_path_redirect(&entry_metadata) || !entry_metadata.is_file() {
                 return Err(ImportExecutionError::DurableStateUnavailable {
                     reason_code: "profile_revision_entry_type_unsafe",
                 });
             }
-            let Some(filename) = entry.file_name().to_str().map(str::to_owned) else {
-                return Err(ImportExecutionError::DurableStateUnavailable {
-                    reason_code: "profile_revision_filename_invalid",
-                });
-            };
-            if filename.starts_with('.') && filename.contains(".tmp.") {
-                continue;
-            }
-            let Some(revision_text) = filename.strip_suffix(".json") else {
-                return Err(ImportExecutionError::DurableStateUnavailable {
-                    reason_code: "profile_revision_filename_invalid",
-                });
-            };
             if revision_text.len() != 20 || !revision_text.bytes().all(|byte| byte.is_ascii_digit())
             {
                 return Err(ImportExecutionError::DurableStateUnavailable {
@@ -1003,7 +1169,7 @@ impl ImportedProfileStore {
         let Some((expected_revision, path)) = latest else {
             return Ok(None);
         };
-        let bytes = read_optional_durable_file(&self.state_root, &path)?.ok_or(
+        let bytes = read_optional_durable_file(&self.imported_profile_state_root, &path)?.ok_or(
             ImportExecutionError::DurableStateUnavailable {
                 reason_code: "profile_revision_disappeared",
             },
@@ -1035,10 +1201,11 @@ impl ImportedProfileStore {
             });
         }
         let path = self.profile_revision_path(profile_key, state.revision);
-        match write_new_json(&self.state_root, &path, state) {
-            Ok(()) => Ok(()),
+        match write_new_json(&self.imported_profile_state_root, &path, state) {
+            Ok(WriteNewJsonOutcome::Durable) => Ok(()),
+            Ok(WriteNewJsonOutcome::CommitStateUncertain) => Err(durable_commit_state_uncertain()),
             Err(error) => match std::fs::symlink_metadata(&path) {
-                Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {
+                Ok(metadata) if metadata.is_file() && !metadata_is_path_redirect(&metadata) => {
                     Err(ImportExecutionError::ConcurrentMutation)
                 }
                 _ => Err(error),
@@ -1048,40 +1215,96 @@ impl ImportedProfileStore {
 
     fn write_checkpoint(
         &self,
-        checkpoint: &ImportExecutionCheckpoint,
+        checkpoint: &ImportExecutionCheckpointBody,
     ) -> Result<(), ImportExecutionError> {
         validate_checkpoint(checkpoint)?;
-        let path = self.checkpoint_path(&checkpoint.profile_key, &checkpoint.checkpoint_ref)?;
-        if let Some(bytes) = read_optional_durable_file(&self.state_root, &path)? {
-            let existing: ImportExecutionCheckpoint =
+        let body_path =
+            self.checkpoint_body_path(&checkpoint.profile_key, &checkpoint.checkpoint_ref)?;
+        let canonical_checkpoint = if let Some(bytes) =
+            read_optional_durable_file(&self.checkpoint_history_root, &body_path)?
+        {
+            let existing: ImportExecutionCheckpointBody =
                 serde_json::from_slice(&bytes).map_err(|_| {
                     ImportExecutionError::DurableStateUnavailable {
-                        reason_code: "checkpoint_malformed",
+                        reason_code: "checkpoint_body_malformed",
                     }
                 })?;
             validate_checkpoint(&existing)?;
             if checkpoints_equivalent(&existing, checkpoint) {
-                return Ok(());
+                // A retry may arrive after the private body committed but
+                // before its metadata projection did. The body owns the one
+                // canonical checkpoint timestamp; never regenerate metadata
+                // from the retry's later wall-clock capture.
+                self.confirm_checkpoint_body_durable(&body_path, &existing)?;
+                existing
+            } else {
+                return Err(ImportExecutionError::DurableStateUnavailable {
+                    reason_code: "checkpoint_identity_collision",
+                });
             }
-            return Err(ImportExecutionError::DurableStateUnavailable {
-                reason_code: "checkpoint_identity_collision",
-            });
+        } else {
+            match write_new_json(&self.checkpoint_history_root, &body_path, checkpoint) {
+                Ok(WriteNewJsonOutcome::Durable) => checkpoint.clone(),
+                Ok(WriteNewJsonOutcome::CommitStateUncertain) => {
+                    return Err(durable_commit_state_uncertain())
+                }
+                Err(error) => {
+                    let Some(bytes) =
+                        read_optional_durable_file(&self.checkpoint_history_root, &body_path)?
+                    else {
+                        return Err(error);
+                    };
+                    let existing: ImportExecutionCheckpointBody = serde_json::from_slice(&bytes)
+                        .map_err(|_| ImportExecutionError::DurableStateUnavailable {
+                            reason_code: "checkpoint_body_malformed",
+                        })?;
+                    validate_checkpoint(&existing)?;
+                    if checkpoints_equivalent(&existing, checkpoint) {
+                        self.confirm_checkpoint_body_durable(&body_path, &existing)?;
+                        existing
+                    } else {
+                        return Err(error);
+                    }
+                }
+            }
+        };
+
+        let checkpoint_metadata = checkpoint_metadata_record(&canonical_checkpoint)?;
+        let metadata_path =
+            self.checkpoint_path(&checkpoint.profile_key, &checkpoint.checkpoint_ref)?;
+        if let Some(bytes) =
+            read_optional_durable_file(&self.checkpoint_history_root, &metadata_path)?
+        {
+            let existing: ImportExecutionCheckpointMetadata = serde_json::from_slice(&bytes)
+                .map_err(|_| ImportExecutionError::DurableStateUnavailable {
+                    reason_code: "checkpoint_metadata_malformed",
+                })?;
+            if existing != checkpoint_metadata {
+                return Err(ImportExecutionError::DurableStateUnavailable {
+                    reason_code: "checkpoint_identity_collision",
+                });
+            }
+            return self.confirm_checkpoint_metadata_durable(&metadata_path, &checkpoint_metadata);
         }
-        match write_new_json(&self.state_root, &path, checkpoint) {
-            Ok(()) => Ok(()),
+        match write_new_json(
+            &self.checkpoint_history_root,
+            &metadata_path,
+            &checkpoint_metadata,
+        ) {
+            Ok(WriteNewJsonOutcome::Durable) => Ok(()),
+            Ok(WriteNewJsonOutcome::CommitStateUncertain) => Err(durable_commit_state_uncertain()),
             Err(error) => {
-                let Some(bytes) = read_optional_durable_file(&self.state_root, &path)? else {
+                let Some(bytes) =
+                    read_optional_durable_file(&self.checkpoint_history_root, &metadata_path)?
+                else {
                     return Err(error);
                 };
-                let existing: ImportExecutionCheckpoint =
-                    serde_json::from_slice(&bytes).map_err(|_| {
-                        ImportExecutionError::DurableStateUnavailable {
-                            reason_code: "checkpoint_malformed",
-                        }
+                let existing: ImportExecutionCheckpointMetadata = serde_json::from_slice(&bytes)
+                    .map_err(|_| ImportExecutionError::DurableStateUnavailable {
+                        reason_code: "checkpoint_metadata_malformed",
                     })?;
-                validate_checkpoint(&existing)?;
-                if checkpoints_equivalent(&existing, checkpoint) {
-                    Ok(())
+                if existing == checkpoint_metadata {
+                    self.confirm_checkpoint_metadata_durable(&metadata_path, &checkpoint_metadata)
                 } else {
                     Err(error)
                 }
@@ -1089,33 +1312,111 @@ impl ImportedProfileStore {
         }
     }
 
+    fn confirm_profile_revision_durable(
+        &self,
+        profile_key: &str,
+        expected: &ImportedProfileState,
+    ) -> Result<(), ImportExecutionError> {
+        sync_directory_revalidating_identity(&self.imported_profile_state_root)?;
+        match self.load_profile_by_key(profile_key)? {
+            Some(observed) if observed == *expected => Ok(()),
+            _ => Err(ImportExecutionError::ConcurrentMutation),
+        }
+    }
+
+    fn confirm_checkpoint_body_durable(
+        &self,
+        path: &Path,
+        expected: &ImportExecutionCheckpointBody,
+    ) -> Result<(), ImportExecutionError> {
+        let parent = path
+            .parent()
+            .ok_or(ImportExecutionError::DurableStateUnavailable {
+                reason_code: "durable_parent_missing",
+            })?;
+        sync_directory_revalidating_identity(parent)?;
+        let bytes = read_optional_durable_file(&self.checkpoint_history_root, path)?.ok_or(
+            ImportExecutionError::DurableStateUnavailable {
+                reason_code: "checkpoint_disappeared_after_sync",
+            },
+        )?;
+        let observed: ImportExecutionCheckpointBody =
+            serde_json::from_slice(&bytes).map_err(|_| {
+                ImportExecutionError::DurableStateUnavailable {
+                    reason_code: "checkpoint_body_malformed",
+                }
+            })?;
+        validate_checkpoint(&observed)?;
+        if checkpoints_equivalent(&observed, expected) {
+            Ok(())
+        } else {
+            Err(ImportExecutionError::DurableStateUnavailable {
+                reason_code: "checkpoint_identity_collision",
+            })
+        }
+    }
+
+    fn confirm_checkpoint_metadata_durable(
+        &self,
+        path: &Path,
+        expected: &ImportExecutionCheckpointMetadata,
+    ) -> Result<(), ImportExecutionError> {
+        let parent = path
+            .parent()
+            .ok_or(ImportExecutionError::DurableStateUnavailable {
+                reason_code: "durable_parent_missing",
+            })?;
+        sync_directory_revalidating_identity(parent)?;
+        let bytes = read_optional_durable_file(&self.checkpoint_history_root, path)?.ok_or(
+            ImportExecutionError::DurableStateUnavailable {
+                reason_code: "checkpoint_disappeared_after_sync",
+            },
+        )?;
+        let observed: ImportExecutionCheckpointMetadata =
+            serde_json::from_slice(&bytes).map_err(|_| {
+                ImportExecutionError::DurableStateUnavailable {
+                    reason_code: "checkpoint_metadata_malformed",
+                }
+            })?;
+        if observed == *expected {
+            Ok(())
+        } else {
+            Err(ImportExecutionError::DurableStateUnavailable {
+                reason_code: "checkpoint_identity_collision",
+            })
+        }
+    }
+
     fn read_checkpoint(
         &self,
         checkpoint_ref: &str,
-    ) -> Result<ImportExecutionCheckpoint, ImportExecutionError> {
+    ) -> Result<ImportExecutionCheckpointBody, ImportExecutionError> {
         let (profile_key, _) = parse_checkpoint_ref(checkpoint_ref)?;
-        let path = self.checkpoint_path(profile_key, checkpoint_ref)?;
-        let bytes = read_optional_durable_file(&self.state_root, &path)?
+        let metadata_path = self.checkpoint_path(profile_key, checkpoint_ref)?;
+        let metadata_bytes =
+            read_optional_durable_file(&self.checkpoint_history_root, &metadata_path)?
+                .ok_or(ImportExecutionError::CheckpointUnavailable)?;
+        let metadata: ImportExecutionCheckpointMetadata =
+            serde_json::from_slice(&metadata_bytes)
+                .map_err(|_| ImportExecutionError::CheckpointUnavailable)?;
+        let body_path = self.checkpoint_body_path(profile_key, checkpoint_ref)?;
+        let body_bytes = read_optional_durable_file(&self.checkpoint_history_root, &body_path)?
             .ok_or(ImportExecutionError::CheckpointUnavailable)?;
-        let checkpoint: ImportExecutionCheckpoint = serde_json::from_slice(&bytes)
+        let checkpoint: ImportExecutionCheckpointBody = serde_json::from_slice(&body_bytes)
             .map_err(|_| ImportExecutionError::CheckpointUnavailable)?;
         validate_checkpoint(&checkpoint)?;
-        if checkpoint.checkpoint_ref != checkpoint_ref {
+        if checkpoint.checkpoint_ref != checkpoint_ref
+            || metadata != checkpoint_metadata_record(&checkpoint)?
+        {
             return Err(ImportExecutionError::CheckpointUnavailable);
         }
         Ok(checkpoint)
     }
 
-    fn profile_revision_directory(&self, profile_key: &str) -> PathBuf {
-        self.state_root
-            .join("imported_profiles")
-            .join(profile_key)
-            .join("revisions")
-    }
-
     fn profile_revision_path(&self, profile_key: &str, revision: u64) -> PathBuf {
-        self.profile_revision_directory(profile_key)
-            .join(format!("{revision:020}.json"))
+        self.imported_profile_state_root.join(format!(
+            "imported-{profile_key}-{revision:020}.profile-state.json"
+        ))
     }
 
     fn checkpoint_path(
@@ -1126,10 +1427,23 @@ impl ImportedProfileStore {
         validate_profile_key(profile_key)?;
         let (_, checkpoint_key) = parse_checkpoint_ref(checkpoint_ref)?;
         Ok(self
-            .state_root
-            .join("imported_profiles")
+            .checkpoint_history_root
+            .join("import_checkpoints")
             .join(profile_key)
-            .join("checkpoints")
+            .join(format!("{checkpoint_key}.json")))
+    }
+
+    fn checkpoint_body_path(
+        &self,
+        profile_key: &str,
+        checkpoint_ref: &str,
+    ) -> Result<PathBuf, ImportExecutionError> {
+        validate_profile_key(profile_key)?;
+        let (_, checkpoint_key) = parse_checkpoint_ref(checkpoint_ref)?;
+        Ok(self
+            .checkpoint_history_root
+            .join("import_checkpoint_bodies")
+            .join(profile_key)
             .join(format!("{checkpoint_key}.json")))
     }
 }
@@ -1171,7 +1485,7 @@ struct SourceFileDigest {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ImportExecutionCheckpoint {
+struct ImportExecutionCheckpointBody {
     record_kind: String,
     schema_version: u32,
     checkpoint_ref: String,
@@ -1190,13 +1504,30 @@ struct ImportExecutionCheckpoint {
     created_at: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ImportExecutionCheckpointMetadata {
+    schema_version: u32,
+    record_kind: String,
+    checkpoint_ref: String,
+    protected_body_ref: String,
+    protected_body_digest: String,
+    target_profile_ref: String,
+    plan_digest: String,
+    source_snapshot_digest: String,
+    prior_state_digest: String,
+    expected_applied_settings_digest: String,
+    idempotency_token_digest: String,
+    created_at: String,
+}
+
 fn secure_source_root(source_root: &Path) -> Result<SecuredSourceRoot, ImportExecutionError> {
     let metadata = std::fs::symlink_metadata(source_root).map_err(|_| {
         ImportExecutionError::SourceUnavailable {
             source_item_ref: "source_root".to_owned(),
         }
     })?;
-    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+    if metadata_is_path_redirect(&metadata) || !metadata.is_dir() {
         return Err(ImportExecutionError::UnsafeSourceLayout {
             source_item_ref: "source_root".to_owned(),
         });
@@ -1239,7 +1570,7 @@ fn secure_marker_directory(
             })
         }
     };
-    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+    if metadata_is_path_redirect(&metadata) || !metadata.is_dir() {
         return Err(ImportExecutionError::UnsafeSourceLayout {
             source_item_ref: marker.to_owned(),
         });
@@ -1279,6 +1610,11 @@ fn collect_source_snapshot(
         CompetitorConfigClassification::UnknownConfigRoot => {
             return Err(ImportExecutionError::UnsupportedSource)
         }
+    }
+    if candidates.len().saturating_add(excluded_rows.len()) > MAX_IMPORT_PREVIEW_ROWS {
+        return Err(ImportExecutionError::InputTooLarge {
+            source_item_ref: "source_settings".to_owned(),
+        });
     }
     normalize_candidates(&mut candidates)?;
     validate_candidates_against_resolver(&candidates)?;
@@ -1383,7 +1719,9 @@ fn collect_jetbrains_source(
         for (name, value) in parse_jetbrains_options(&bytes, relative)? {
             match map_jetbrains_setting(&name, &value, relative)? {
                 Some(candidate) => candidates.push(candidate),
-                None => excluded_rows.push(excluded_source_setting(relative, &name)),
+                None => {
+                    excluded_rows.push(excluded_source_setting(relative, &format!("option:{name}")))
+                }
             }
         }
     }
@@ -1637,10 +1975,7 @@ fn excluded_source_setting(source_file: &str, source_key: &str) -> SourceExclude
 }
 
 fn safe_source_key_ref(source_file: &str, source_key: &str) -> String {
-    if is_authority_or_sensitive_key(source_key)
-        || source_key.len() > 160
-        || source_key.chars().any(char::is_control)
-    {
+    if is_authority_or_sensitive_key(source_key) || !source_key_is_support_safe(source_key) {
         format!(
             "{source_file}#redacted-key:{}",
             digest_suffix(&aureline_history::body_object_id(source_key.as_bytes()))
@@ -1648,6 +1983,24 @@ fn safe_source_key_ref(source_file: &str, source_key: &str) -> String {
     } else {
         format!("{source_file}#{source_key}")
     }
+}
+
+fn source_key_is_support_safe(source_key: &str) -> bool {
+    !source_key.is_empty()
+        && source_key.len() <= 160
+        && source_key
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+}
+
+fn source_fragment_is_valid(source_key: &str) -> bool {
+    source_key_is_support_safe(source_key)
+        || source_key
+            .strip_prefix("option:")
+            .is_some_and(source_key_is_support_safe)
+        || source_key
+            .strip_prefix("redacted-key:")
+            .is_some_and(|digest| valid_lower_hex(digest, 64))
 }
 
 fn is_authority_or_sensitive_key(key: &str) -> bool {
@@ -1712,7 +2065,7 @@ fn secure_source_entry_exists(
         std::fs::symlink_metadata(&path).map_err(|_| ImportExecutionError::SourceUnavailable {
             source_item_ref: relative.to_owned(),
         })?;
-    if metadata.file_type().is_symlink() {
+    if metadata_is_path_redirect(&metadata) {
         return Err(ImportExecutionError::UnsafeSourceLayout {
             source_item_ref: relative.to_owned(),
         });
@@ -1740,7 +2093,7 @@ fn secure_read_source_file(
         std::fs::symlink_metadata(&path).map_err(|_| ImportExecutionError::SourceUnavailable {
             source_item_ref: relative.to_owned(),
         })?;
-    if before.file_type().is_symlink() || !before.is_file() {
+    if metadata_is_path_redirect(&before) || !before.is_file() {
         return Err(ImportExecutionError::UnsafeSourceLayout {
             source_item_ref: relative.to_owned(),
         });
@@ -1767,7 +2120,15 @@ fn secure_read_source_file(
         .map_err(|_| ImportExecutionError::SourceUnavailable {
             source_item_ref: relative.to_owned(),
         })?;
-    if !opened.is_file() || opened.len() > MAX_SOURCE_FILE_BYTES {
+    if !opened.is_file()
+        || DurableFileIdentity::from_metadata(&opened)
+            != DurableFileIdentity::from_metadata(&before)
+    {
+        return Err(ImportExecutionError::PreviewStale {
+            reason_code: "source_entry_changed_during_read",
+        });
+    }
+    if opened.len() > MAX_SOURCE_FILE_BYTES {
         return Err(ImportExecutionError::InputTooLarge {
             source_item_ref: relative.to_owned(),
         });
@@ -1792,10 +2153,10 @@ fn secure_read_source_file(
         std::fs::canonicalize(&path).map_err(|_| ImportExecutionError::PreviewStale {
             reason_code: "source_entry_changed_during_read",
         })?;
-    if after.file_type().is_symlink()
+    if metadata_is_path_redirect(&after)
         || !after.is_file()
         || after_canonical != canonical
-        || after.len() != opened.len()
+        || DurableFileIdentity::from_metadata(&after) != DurableFileIdentity::from_metadata(&opened)
     {
         return Err(ImportExecutionError::PreviewStale {
             reason_code: "source_entry_changed_during_read",
@@ -1836,7 +2197,7 @@ fn secure_source_entry_path(
                 })
             }
         };
-        if metadata.file_type().is_symlink() {
+        if metadata_is_path_redirect(&metadata) {
             return Err(ImportExecutionError::UnsafeSourceLayout {
                 source_item_ref: relative.to_owned(),
             });
@@ -2334,6 +2695,15 @@ fn validate_import_review_envelope(
     if review.record_kind != "import_review_record"
         || review.schema_version != 1
         || !valid_import_review_ref(&review.import_review_id)
+        || review.source_path.is_empty()
+        || review.source_path.len() > 4096
+        || review.source_path.chars().any(char::is_control)
+        || review.import_review_id
+            != super::review_id_for(
+                &review.source_path,
+                &review.destination_workspace_target,
+                review.classification,
+            )
     {
         return Err(ImportExecutionError::InvalidRequest {
             reason_code: "import_review_envelope_invalid",
@@ -2448,11 +2818,11 @@ fn validate_durable_state(
     if state.record_kind != IMPORTED_PROFILE_STATE_RECORD_KIND
         || state.schema_version != IMPORT_EXECUTION_SCHEMA_VERSION
         || state.profile_ref != expected_profile_ref
+        || state.settings.len() > MAX_IMPORTED_PROFILE_SETTINGS
         || state.history.len() > MAX_HISTORY_ROWS
         || state.revision != state.history.len() as u64
         || validate_profile_key(profile_key).is_err()
-        || state.updated_at.is_empty()
-        || state.updated_at.len() > 64
+        || !valid_utc_timestamp(&state.updated_at)
     {
         return Err(ImportExecutionError::DurableStateUnavailable {
             reason_code: "profile_state_contract_invalid",
@@ -2460,11 +2830,8 @@ fn validate_durable_state(
     }
     for (setting_id, record) in &state.settings {
         if !valid_setting_id(setting_id)
-            || record.source_setting_ref.is_empty()
-            || record.source_setting_ref.len() > 320
-            || record.source_setting_ref.chars().any(char::is_control)
-            || record.imported_at.is_empty()
-            || record.imported_at.len() > 64
+            || !valid_source_setting_ref(&record.source_setting_ref)
+            || !valid_utc_timestamp(&record.imported_at)
             || matches!(&record.value, ImportSettingValue::Text(value) if value.len() > 128 || value.chars().any(char::is_control))
         {
             return Err(ImportExecutionError::DurableStateUnavailable {
@@ -2472,7 +2839,8 @@ fn validate_durable_state(
             });
         }
     }
-    for entry in &state.history {
+    let mut seen_idempotency_digests = BTreeSet::new();
+    for (index, entry) in state.history.iter().enumerate() {
         let checkpoint_profile_key = parse_checkpoint_ref(&entry.checkpoint_ref)
             .map(|(profile_key, _)| profile_key)
             .unwrap_or_default();
@@ -2485,24 +2853,50 @@ fn validate_durable_state(
             || !valid_object_digest(&entry.plan_digest)
             || checkpoint_profile_key != profile_key
             || !valid_object_digest(&entry.result_settings_digest)
-            || entry.occurred_at.is_empty()
-            || entry.occurred_at.len() > 64
+            || !valid_utc_timestamp(&entry.occurred_at)
             || entry
                 .changed_setting_ids
                 .iter()
                 .any(|id| !valid_setting_id(id))
+            || entry.changed_setting_ids.len() > MAX_IMPORTED_PROFILE_SETTINGS
             || entry
                 .changed_setting_ids
                 .windows(2)
                 .any(|pair| pair[0] >= pair[1])
+            || !seen_idempotency_digests.insert(entry.idempotency_token_digest.as_str())
         {
             return Err(ImportExecutionError::DurableStateUnavailable {
                 reason_code: "profile_history_contract_invalid",
             });
         }
+        if entry.action == ImportedProfileHistoryAction::RolledBack {
+            let previous_apply = index
+                .checked_sub(1)
+                .and_then(|previous| state.history.get(previous));
+            if match previous_apply {
+                Some(previous) => {
+                    previous.action != ImportedProfileHistoryAction::Applied
+                        || entry.preview_ref != previous.preview_ref
+                        || entry.import_review_ref != previous.import_review_ref
+                        || entry.source_root_ref != previous.source_root_ref
+                        || entry.source_snapshot_digest != previous.source_snapshot_digest
+                        || entry.policy_epoch != previous.policy_epoch
+                        || entry.plan_digest != previous.plan_digest
+                        || entry.checkpoint_ref != previous.checkpoint_ref
+                        || entry.changed_setting_ids != previous.changed_setting_ids
+                }
+                None => true,
+            } {
+                return Err(ImportExecutionError::DurableStateUnavailable {
+                    reason_code: "profile_history_rollback_lineage_invalid",
+                });
+            }
+        }
     }
     if let Some(latest) = state.history.last() {
-        if settings_digest(&state.settings)? != latest.result_settings_digest {
+        if state.updated_at != latest.occurred_at
+            || settings_digest(&state.settings)? != latest.result_settings_digest
+        {
             return Err(ImportExecutionError::DurableStateUnavailable {
                 reason_code: "profile_history_result_digest_mismatch",
             });
@@ -2523,9 +2917,119 @@ fn valid_setting_id(value: &str) -> bool {
         })
 }
 
-fn validate_checkpoint(checkpoint: &ImportExecutionCheckpoint) -> Result<(), ImportExecutionError> {
+fn valid_source_setting_ref(value: &str) -> bool {
+    if value.is_empty()
+        || value.len() > 320
+        || value.chars().any(char::is_control)
+        || value.chars().any(char::is_whitespace)
+        || value.starts_with('/')
+        || value.starts_with('\\')
+        || value.starts_with('~')
+        || value.contains("://")
+        || value.contains("../")
+        || value.contains("..\\")
+    {
+        return false;
+    }
+    let (source_file, source_key) = value
+        .split_once('#')
+        .map_or((value, None), |(file, key)| (file, Some(key)));
+    if source_file.is_empty()
+        || source_file.contains('#')
+        || !source_file
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b'/'))
+        || source_file
+            .split('/')
+            .any(|component| component.is_empty() || matches!(component, "." | ".."))
+    {
+        return false;
+    }
+    source_key
+        .map(|key| !key.contains('#') && source_fragment_is_valid(key))
+        .unwrap_or(true)
+}
+
+fn valid_utc_timestamp(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 20
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes[10] != b'T'
+        || bytes[13] != b':'
+        || bytes[16] != b':'
+        || bytes[19] != b'Z'
+    {
+        return false;
+    }
+    let Some(year) = timestamp_number(bytes, 0, 4) else {
+        return false;
+    };
+    let Some(month) = timestamp_number(bytes, 5, 7) else {
+        return false;
+    };
+    let Some(day) = timestamp_number(bytes, 8, 10) else {
+        return false;
+    };
+    let Some(hour) = timestamp_number(bytes, 11, 13) else {
+        return false;
+    };
+    let Some(minute) = timestamp_number(bytes, 14, 16) else {
+        return false;
+    };
+    let Some(second) = timestamp_number(bytes, 17, 19) else {
+        return false;
+    };
+    let leap_year = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days_in_month = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap_year => 29,
+        2 => 28,
+        _ => return false,
+    };
+    year >= 1970 && day >= 1 && day <= days_in_month && hour <= 23 && minute <= 59 && second <= 59
+}
+
+fn timestamp_number(bytes: &[u8], start: usize, end: usize) -> Option<u32> {
+    bytes
+        .get(start..end)?
+        .iter()
+        .try_fold(0_u32, |value, byte| {
+            byte.is_ascii_digit()
+                .then_some(value * 10 + u32::from(*byte - b'0'))
+        })
+}
+
+fn checkpoint_metadata_record(
+    checkpoint: &ImportExecutionCheckpointBody,
+) -> Result<ImportExecutionCheckpointMetadata, ImportExecutionError> {
+    let (profile_key, checkpoint_key) = parse_checkpoint_ref(&checkpoint.checkpoint_ref)?;
+    if profile_key != checkpoint.profile_key {
+        return Err(ImportExecutionError::CheckpointUnavailable);
+    }
+
+    Ok(ImportExecutionCheckpointMetadata {
+        schema_version: IMPORT_EXECUTION_SCHEMA_VERSION,
+        record_kind: IMPORT_EXECUTION_CHECKPOINT_METADATA_RECORD_KIND.to_owned(),
+        checkpoint_ref: checkpoint.checkpoint_ref.clone(),
+        protected_body_ref: format!("import-checkpoint-body:{profile_key}:{checkpoint_key}"),
+        protected_body_digest: digest_serializable(checkpoint)?,
+        target_profile_ref: checkpoint.target_profile_ref.clone(),
+        plan_digest: checkpoint.plan_digest.clone(),
+        source_snapshot_digest: checkpoint.source_snapshot_digest.clone(),
+        prior_state_digest: checkpoint.prior_state_digest.clone(),
+        expected_applied_settings_digest: checkpoint.expected_applied_settings_digest.clone(),
+        idempotency_token_digest: checkpoint.idempotency_token_digest.clone(),
+        created_at: checkpoint.created_at.clone(),
+    })
+}
+
+fn validate_checkpoint(
+    checkpoint: &ImportExecutionCheckpointBody,
+) -> Result<(), ImportExecutionError> {
     let (profile_key, _) = parse_checkpoint_ref(&checkpoint.checkpoint_ref)?;
-    if checkpoint.record_kind != IMPORT_EXECUTION_CHECKPOINT_RECORD_KIND
+    if checkpoint.record_kind != IMPORT_EXECUTION_CHECKPOINT_BODY_RECORD_KIND
         || checkpoint.schema_version != IMPORT_EXECUTION_SCHEMA_VERSION
         || checkpoint.profile_key != profile_key
         || checkpoint.target_profile_ref != format!("imported-profile:{profile_key}")
@@ -2539,8 +3043,7 @@ fn validate_checkpoint(checkpoint: &ImportExecutionCheckpoint) -> Result<(), Imp
         || !(checkpoint.prior_state_digest == ABSENT_STATE_DIGEST
             || valid_object_digest(&checkpoint.prior_state_digest))
         || !valid_object_digest(&checkpoint.expected_applied_settings_digest)
-        || checkpoint.created_at.is_empty()
-        || checkpoint.created_at.len() > 64
+        || !valid_utc_timestamp(&checkpoint.created_at)
         || checkpoint.checkpoint_ref
             != checkpoint_ref(
                 profile_key,
@@ -2560,8 +3063,8 @@ fn validate_checkpoint(checkpoint: &ImportExecutionCheckpoint) -> Result<(), Imp
 }
 
 fn checkpoints_equivalent(
-    left: &ImportExecutionCheckpoint,
-    right: &ImportExecutionCheckpoint,
+    left: &ImportExecutionCheckpointBody,
+    right: &ImportExecutionCheckpointBody,
 ) -> bool {
     left.record_kind == right.record_kind
         && left.schema_version == right.schema_version
@@ -2616,10 +3119,121 @@ fn digest_suffix(digest: &str) -> &str {
     digest.strip_prefix("obj:blake3:").unwrap_or(digest)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DurableFileIdentity {
+    length: u64,
+    modified: Option<SystemTime>,
+    created: Option<SystemTime>,
+    #[cfg(unix)]
+    device: u64,
+    #[cfg(unix)]
+    inode: u64,
+    #[cfg(unix)]
+    change_time_seconds: i64,
+    #[cfg(unix)]
+    change_time_nanoseconds: i64,
+}
+
+impl DurableFileIdentity {
+    fn from_metadata(metadata: &Metadata) -> Self {
+        #[cfg(unix)]
+        use std::os::unix::fs::MetadataExt;
+
+        Self {
+            length: metadata.len(),
+            modified: metadata.modified().ok(),
+            created: metadata.created().ok(),
+            #[cfg(unix)]
+            device: metadata.dev(),
+            #[cfg(unix)]
+            inode: metadata.ino(),
+            #[cfg(unix)]
+            change_time_seconds: metadata.ctime(),
+            #[cfg(unix)]
+            change_time_nanoseconds: metadata.ctime_nsec(),
+        }
+    }
+
+    fn same_file_object(&self, other: &Self) -> bool {
+        #[cfg(unix)]
+        {
+            self.device == other.device && self.inode == other.inode && self.length == other.length
+        }
+        #[cfg(not(unix))]
+        {
+            self.length == other.length
+                && self.created == other.created
+                && self.modified == other.modified
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DurableDirectoryIdentity {
+    created: Option<SystemTime>,
+    #[cfg(unix)]
+    device: u64,
+    #[cfg(unix)]
+    inode: u64,
+}
+
+impl DurableDirectoryIdentity {
+    fn from_metadata(metadata: &Metadata) -> Self {
+        #[cfg(unix)]
+        use std::os::unix::fs::MetadataExt;
+
+        Self {
+            created: metadata.created().ok(),
+            #[cfg(unix)]
+            device: metadata.dev(),
+            #[cfg(unix)]
+            inode: metadata.ino(),
+        }
+    }
+}
+
+fn direct_directory_identity(
+    path: &Path,
+) -> Result<DurableDirectoryIdentity, ImportExecutionError> {
+    let metadata = std::fs::symlink_metadata(path).map_err(|_| {
+        ImportExecutionError::DurableStateUnavailable {
+            reason_code: "durable_directory_metadata_failed",
+        }
+    })?;
+    if metadata_is_path_redirect(&metadata) || !metadata.is_dir() {
+        return Err(ImportExecutionError::DurableStateUnavailable {
+            reason_code: "durable_directory_type_unsafe",
+        });
+    }
+    Ok(DurableDirectoryIdentity::from_metadata(&metadata))
+}
+
+fn durable_file_changed_during_read() -> ImportExecutionError {
+    ImportExecutionError::DurableStateUnavailable {
+        reason_code: "durable_file_changed_during_read",
+    }
+}
+
 fn read_optional_durable_file(
     state_root: &Path,
     path: &Path,
 ) -> Result<Option<Vec<u8>>, ImportExecutionError> {
+    read_optional_durable_file_with_post_read_hook(state_root, path, |_| {})
+}
+
+// Stable `std` APIs do not expose dirfd-relative open/install on every target.
+// These checks pin and re-observe the named parent and file identities around
+// each operation. They detect observed swaps (including same-length Unix
+// replacements through dev+ino+ctime), while a swap-and-restore entirely
+// inside a final name-operation window remains an explicit platform limit.
+fn read_optional_durable_file_with_post_read_hook<F>(
+    state_root: &Path,
+    path: &Path,
+    post_read_hook: F,
+) -> Result<Option<Vec<u8>>, ImportExecutionError>
+where
+    F: FnOnce(&Path),
+{
     if state_root.as_os_str().is_empty() || !path.starts_with(state_root) {
         return Err(ImportExecutionError::DurableStateUnavailable {
             reason_code: "durable_path_outside_state_root",
@@ -2634,7 +3248,7 @@ fn read_optional_durable_file(
             })
         }
     };
-    if metadata.file_type().is_symlink() || !metadata.is_file() {
+    if metadata_is_path_redirect(&metadata) || !metadata.is_file() {
         return Err(ImportExecutionError::DurableStateUnavailable {
             reason_code: "durable_file_type_unsafe",
         });
@@ -2645,6 +3259,13 @@ fn read_optional_durable_file(
         });
     }
     ensure_existing_child_chain_has_no_symlink(state_root, path)?;
+    let parent = path
+        .parent()
+        .ok_or(ImportExecutionError::DurableStateUnavailable {
+            reason_code: "durable_parent_missing",
+        })?;
+    let parent_identity = direct_directory_identity(parent)?;
+    let before_identity = DurableFileIdentity::from_metadata(&metadata);
     let mut file = File::open(path).map_err(|_| ImportExecutionError::DurableStateUnavailable {
         reason_code: "durable_file_open_failed",
     })?;
@@ -2653,7 +3274,10 @@ fn read_optional_durable_file(
         .map_err(|_| ImportExecutionError::DurableStateUnavailable {
             reason_code: "durable_file_metadata_failed",
         })?;
-    if !opened.is_file() || opened.len() > MAX_DURABLE_FILE_BYTES {
+    if !opened.is_file() || DurableFileIdentity::from_metadata(&opened) != before_identity {
+        return Err(durable_file_changed_during_read());
+    }
+    if opened.len() > MAX_DURABLE_FILE_BYTES {
         return Err(ImportExecutionError::DurableStateUnavailable {
             reason_code: "durable_file_too_large",
         });
@@ -2670,24 +3294,108 @@ fn read_optional_durable_file(
             reason_code: "durable_file_too_large",
         });
     }
-    let after = std::fs::symlink_metadata(path).map_err(|_| {
-        ImportExecutionError::DurableStateUnavailable {
-            reason_code: "durable_file_changed_during_read",
-        }
-    })?;
-    if after.file_type().is_symlink() || !after.is_file() || after.len() != opened.len() {
-        return Err(ImportExecutionError::DurableStateUnavailable {
-            reason_code: "durable_file_changed_during_read",
-        });
+    post_read_hook(path);
+    ensure_existing_child_chain_has_no_symlink(state_root, path)
+        .map_err(|_| durable_file_changed_during_read())?;
+    let after = std::fs::symlink_metadata(path).map_err(|_| durable_file_changed_during_read())?;
+    let parent_after =
+        direct_directory_identity(parent).map_err(|_| durable_file_changed_during_read())?;
+    if metadata_is_path_redirect(&after)
+        || !after.is_file()
+        || DurableFileIdentity::from_metadata(&after) != DurableFileIdentity::from_metadata(&opened)
+        || parent_after != parent_identity
+    {
+        return Err(durable_file_changed_during_read());
     }
     Ok(Some(bytes))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WriteNewJsonOutcome {
+    Durable,
+    CommitStateUncertain,
+}
+
+fn durable_commit_state_uncertain() -> ImportExecutionError {
+    ImportExecutionError::DurableStateUnavailable {
+        reason_code: "durable_commit_state_uncertain",
+    }
 }
 
 fn write_new_json<T: Serialize>(
     state_root: &Path,
     path: &Path,
     value: &T,
-) -> Result<(), ImportExecutionError> {
+) -> Result<WriteNewJsonOutcome, ImportExecutionError> {
+    write_new_json_with_preinstall_hook(state_root, path, value, || {})
+}
+
+/// Owns a staged file until its publication has been fully validated.
+///
+/// The drop path is deliberately privacy-biased before publication: an
+/// ordinary pre-commit error scrubs the handle explicitly before pathname
+/// cleanup, while an unwinding pre-install hook still truncates through the
+/// already-open handle. Once the create-new hard link succeeds, the handle is
+/// disarmed immediately because truncating it would also corrupt the installed
+/// artifact. Post-commit failures are reported as an uncertain commit instead.
+struct PendingSensitiveFile {
+    file: Option<File>,
+}
+
+impl PendingSensitiveFile {
+    fn new(file: File) -> Self {
+        Self { file: Some(file) }
+    }
+
+    fn file_mut(&mut self) -> Result<&mut File, ImportExecutionError> {
+        self.file
+            .as_mut()
+            .ok_or(ImportExecutionError::ConcurrentMutation)
+    }
+
+    fn scrub_and_close(&mut self) {
+        if let Some(file) = self.file.take() {
+            let _ = file.set_len(0);
+            let _ = file.sync_all();
+        }
+    }
+
+    fn close_without_scrub(&mut self) {
+        drop(self.file.take());
+    }
+}
+
+impl Drop for PendingSensitiveFile {
+    fn drop(&mut self) {
+        self.scrub_and_close();
+    }
+}
+
+fn write_new_json_with_preinstall_hook<T, F>(
+    state_root: &Path,
+    path: &Path,
+    value: &T,
+    preinstall_hook: F,
+) -> Result<WriteNewJsonOutcome, ImportExecutionError>
+where
+    T: Serialize,
+    F: FnOnce(),
+{
+    write_new_json_with_hooks(state_root, path, value, preinstall_hook, || Ok(()))
+}
+
+fn write_new_json_with_hooks<T, F, G>(
+    state_root: &Path,
+    path: &Path,
+    value: &T,
+    preinstall_hook: F,
+    postinstall_hook: G,
+) -> Result<WriteNewJsonOutcome, ImportExecutionError>
+where
+    T: Serialize,
+    F: FnOnce(),
+    G: FnOnce() -> Result<(), ImportExecutionError>,
+{
     let mut bytes = serde_json::to_vec_pretty(value).map_err(|_| {
         ImportExecutionError::DurableStateUnavailable {
             reason_code: "durable_serialization_failed",
@@ -2700,9 +3408,13 @@ fn write_new_json<T: Serialize>(
         });
     }
     let parent = prepare_secure_parent(state_root, path)?;
+    let parent_identity = direct_directory_identity(&parent)?;
     reject_symlink_target(path)?;
-    let (temporary_path, mut temporary) = create_temporary_file(&parent, path)?;
-    let result = (|| {
+    let (temporary_path, temporary) = create_temporary_file(&parent, path)?;
+    let mut pending_temporary = PendingSensitiveFile::new(temporary);
+    let precommit_result = (|| {
+        verify_write_parent_identity(state_root, path, &parent, &parent_identity)?;
+        let temporary = pending_temporary.file_mut()?;
         temporary
             .write_all(&bytes)
             .map_err(|_| ImportExecutionError::DurableStateUnavailable {
@@ -2713,24 +3425,121 @@ fn write_new_json<T: Serialize>(
             .map_err(|_| ImportExecutionError::DurableStateUnavailable {
                 reason_code: "durable_temp_sync_failed",
             })?;
-        drop(temporary);
+        let temporary_identity =
+            DurableFileIdentity::from_metadata(&temporary.metadata().map_err(|_| {
+                ImportExecutionError::DurableStateUnavailable {
+                    reason_code: "durable_temp_sync_failed",
+                }
+            })?);
+        verify_direct_file_identity(&temporary_path, &temporary_identity)?;
+        verify_write_parent_identity(state_root, path, &parent, &parent_identity)?;
+        preinstall_hook();
+        verify_write_parent_identity(state_root, path, &parent, &parent_identity)?;
+        verify_direct_file_identity(&temporary_path, &temporary_identity)?;
         reject_symlink_target(path)?;
+        verify_write_parent_identity(state_root, path, &parent, &parent_identity)?;
+        verify_direct_file_identity(&temporary_path, &temporary_identity)?;
         std::fs::hard_link(&temporary_path, path).map_err(|_| {
             ImportExecutionError::DurableStateUnavailable {
                 reason_code: "durable_create_new_failed",
             }
         })?;
+        Ok(temporary_identity)
+    })();
+    let temporary_identity = match precommit_result {
+        Ok(identity) => identity,
+        Err(error) => {
+            pending_temporary.scrub_and_close();
+            if write_parent_identity_matches(state_root, path, &parent, &parent_identity) {
+                let _ = std::fs::remove_file(&temporary_path);
+            }
+            return Err(error);
+        }
+    };
+
+    // The destination and temporary pathname now name the same synchronized
+    // file object. Disarm before any fallible validation or injected hook: a
+    // scrub through this handle would truncate the committed destination too.
+    pending_temporary.close_without_scrub();
+    if postinstall_hook().is_err() {
+        return Ok(WriteNewJsonOutcome::CommitStateUncertain);
+    }
+
+    let postcommit_result = (|| {
+        verify_write_parent_identity(state_root, path, &parent, &parent_identity)?;
+        verify_direct_file_object(path, &temporary_identity)?;
         std::fs::remove_file(&temporary_path).map_err(|_| {
             ImportExecutionError::DurableStateUnavailable {
                 reason_code: "durable_temp_cleanup_failed",
             }
         })?;
-        sync_directory(&parent)
+        verify_write_parent_identity(state_root, path, &parent, &parent_identity)?;
+        verify_direct_file_object(path, &temporary_identity)?;
+        sync_directory(&parent)?;
+        verify_write_parent_identity(state_root, path, &parent, &parent_identity)?;
+        verify_direct_file_object(path, &temporary_identity)
     })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(&temporary_path);
+    if postcommit_result.is_err() {
+        return Ok(WriteNewJsonOutcome::CommitStateUncertain);
     }
-    result
+    Ok(WriteNewJsonOutcome::Durable)
+}
+
+fn verify_write_parent_identity(
+    state_root: &Path,
+    path: &Path,
+    parent: &Path,
+    expected: &DurableDirectoryIdentity,
+) -> Result<(), ImportExecutionError> {
+    ensure_existing_child_chain_has_no_symlink(state_root, path)
+        .map_err(|_| ImportExecutionError::ConcurrentMutation)?;
+    if direct_directory_identity(parent).map_err(|_| ImportExecutionError::ConcurrentMutation)?
+        != *expected
+    {
+        return Err(ImportExecutionError::ConcurrentMutation);
+    }
+    Ok(())
+}
+
+fn write_parent_identity_matches(
+    state_root: &Path,
+    path: &Path,
+    parent: &Path,
+    expected: &DurableDirectoryIdentity,
+) -> bool {
+    ensure_existing_child_chain_has_no_symlink(state_root, path).is_ok()
+        && direct_directory_identity(parent).is_ok_and(|observed| observed == *expected)
+}
+
+fn verify_direct_file_identity(
+    path: &Path,
+    expected: &DurableFileIdentity,
+) -> Result<(), ImportExecutionError> {
+    let metadata =
+        std::fs::symlink_metadata(path).map_err(|_| ImportExecutionError::ConcurrentMutation)?;
+    if metadata_is_path_redirect(&metadata)
+        || !metadata.is_file()
+        || DurableFileIdentity::from_metadata(&metadata) != *expected
+    {
+        return Err(ImportExecutionError::ConcurrentMutation);
+    }
+    Ok(())
+}
+
+fn verify_direct_file_object(
+    path: &Path,
+    expected: &DurableFileIdentity,
+) -> Result<(), ImportExecutionError> {
+    let metadata =
+        std::fs::symlink_metadata(path).map_err(|_| ImportExecutionError::ConcurrentMutation)?;
+    let observed = DurableFileIdentity::from_metadata(&metadata);
+    if metadata_is_path_redirect(&metadata)
+        || !metadata.is_file()
+        || !observed.same_file_object(expected)
+    {
+        return Err(ImportExecutionError::ConcurrentMutation);
+    }
+    Ok(())
 }
 
 fn prepare_secure_parent(state_root: &Path, path: &Path) -> Result<PathBuf, ImportExecutionError> {
@@ -2764,54 +3573,224 @@ fn prepare_secure_parent(state_root: &Path, path: &Path) -> Result<PathBuf, Impo
 }
 
 fn ensure_directory_not_symlink(path: &Path) -> Result<(), ImportExecutionError> {
-    match std::fs::symlink_metadata(path) {
-        Ok(metadata) => {
-            if metadata.file_type().is_symlink() || !metadata.is_dir() {
+    ensure_directory_chain_without_untrusted_redirects(path, true)
+}
+
+fn ensure_directory_chain_without_untrusted_redirects(
+    path: &Path,
+    create_missing: bool,
+) -> Result<(), ImportExecutionError> {
+    if path.as_os_str().is_empty() {
+        return Err(ImportExecutionError::DurableStateUnavailable {
+            reason_code: "durable_directory_create_failed",
+        });
+    }
+
+    let mut directory = if path.is_relative() {
+        PathBuf::from(".")
+    } else {
+        PathBuf::new()
+    };
+    // A relative path is already below the process working directory, so no
+    // child redirect gets the platform-root exception.
+    let mut normal_component_depth = usize::from(path.is_relative());
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => directory.push(prefix.as_os_str()),
+            Component::RootDir => directory.push(component.as_os_str()),
+            Component::CurDir => continue,
+            Component::ParentDir => {
                 return Err(ImportExecutionError::DurableStateUnavailable {
                     reason_code: "durable_directory_type_unsafe",
-                });
+                })
             }
+            Component::Normal(segment) => directory.push(segment),
         }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            match std::fs::create_dir(path) {
-                Ok(()) => {}
-                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-                Err(_) => {
+        if !matches!(component, Component::Normal(_)) {
+            continue;
+        }
+        match std::fs::symlink_metadata(&directory) {
+            Ok(metadata) => {
+                if metadata_is_path_redirect(&metadata) {
+                    if !allow_trusted_platform_root_alias(
+                        &directory,
+                        &metadata,
+                        normal_component_depth,
+                    ) {
+                        return Err(ImportExecutionError::DurableStateUnavailable {
+                            reason_code: "durable_directory_type_unsafe",
+                        });
+                    }
+                    let followed = std::fs::metadata(&directory).map_err(|_| {
+                        ImportExecutionError::DurableStateUnavailable {
+                            reason_code: "durable_directory_metadata_failed",
+                        }
+                    })?;
+                    if !followed.is_dir() {
+                        return Err(ImportExecutionError::DurableStateUnavailable {
+                            reason_code: "durable_directory_type_unsafe",
+                        });
+                    }
+                } else if !metadata.is_dir() {
                     return Err(ImportExecutionError::DurableStateUnavailable {
-                        reason_code: "durable_directory_create_failed",
-                    })
+                        reason_code: "durable_directory_type_unsafe",
+                    });
                 }
             }
-            let metadata = std::fs::symlink_metadata(path).map_err(|_| {
-                ImportExecutionError::DurableStateUnavailable {
-                    reason_code: "durable_directory_metadata_failed",
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound && create_missing => {
+                let parent =
+                    directory
+                        .parent()
+                        .ok_or(ImportExecutionError::DurableStateUnavailable {
+                            reason_code: "durable_directory_create_failed",
+                        })?;
+                let parent_identity = followed_directory_identity(parent)?;
+                match create_private_directory(&directory) {
+                    Ok(()) => {}
+                    Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                    Err(_) => {
+                        return Err(ImportExecutionError::DurableStateUnavailable {
+                            reason_code: "durable_directory_create_failed",
+                        })
+                    }
                 }
-            })?;
-            if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                let metadata = std::fs::symlink_metadata(&directory).map_err(|_| {
+                    ImportExecutionError::DurableStateUnavailable {
+                        reason_code: "durable_directory_metadata_failed",
+                    }
+                })?;
+                if metadata_is_path_redirect(&metadata) || !metadata.is_dir() {
+                    return Err(ImportExecutionError::DurableStateUnavailable {
+                        reason_code: "durable_directory_type_unsafe",
+                    });
+                }
+                if followed_directory_identity(parent)? != parent_identity {
+                    return Err(ImportExecutionError::ConcurrentMutation);
+                }
+                sync_directory_uninjected(parent)?;
+                if followed_directory_identity(parent)? != parent_identity {
+                    return Err(ImportExecutionError::ConcurrentMutation);
+                }
+                let metadata = std::fs::symlink_metadata(&directory).map_err(|_| {
+                    ImportExecutionError::DurableStateUnavailable {
+                        reason_code: "durable_directory_metadata_failed",
+                    }
+                })?;
+                if metadata_is_path_redirect(&metadata) || !metadata.is_dir() {
+                    return Err(ImportExecutionError::ConcurrentMutation);
+                }
+            }
+            Err(_) => {
                 return Err(ImportExecutionError::DurableStateUnavailable {
-                    reason_code: "durable_directory_type_unsafe",
-                });
+                    reason_code: "durable_directory_metadata_failed",
+                })
             }
         }
-        Err(_) => {
-            return Err(ImportExecutionError::DurableStateUnavailable {
-                reason_code: "durable_directory_metadata_failed",
-            })
-        }
+        normal_component_depth = normal_component_depth.saturating_add(1);
     }
     Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn allow_trusted_platform_root_alias(
+    path: &Path,
+    metadata: &Metadata,
+    normal_component_depth: usize,
+) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    // macOS spells the temporary hierarchy through `/var`, whose exact
+    // platform-owned target is `/private/var`. No other alias is admitted.
+    if path != Path::new("/var")
+        || normal_component_depth != 0
+        || !metadata.file_type().is_symlink()
+        || metadata.uid() != 0
+    {
+        return false;
+    }
+    let Some(parent) = path.parent() else {
+        return false;
+    };
+    let Ok(parent_metadata) = std::fs::symlink_metadata(parent) else {
+        return false;
+    };
+    parent_metadata.is_dir()
+        && parent_metadata.uid() == 0
+        && parent_metadata.mode() & 0o022 == 0
+        && std::fs::canonicalize(path).is_ok_and(|target| target == Path::new("/private/var"))
+}
+
+#[cfg(not(target_os = "macos"))]
+fn allow_trusted_platform_root_alias(
+    _path: &Path,
+    _metadata: &Metadata,
+    _normal_component_depth: usize,
+) -> bool {
+    false
+}
+
+fn metadata_is_path_redirect(metadata: &Metadata) -> bool {
+    metadata.file_type().is_symlink() || metadata_is_platform_redirect(metadata)
+}
+
+fn followed_directory_identity(
+    path: &Path,
+) -> Result<DurableDirectoryIdentity, ImportExecutionError> {
+    let metadata =
+        std::fs::metadata(path).map_err(|_| ImportExecutionError::DurableStateUnavailable {
+            reason_code: "durable_directory_metadata_failed",
+        })?;
+    if !metadata.is_dir() {
+        return Err(ImportExecutionError::DurableStateUnavailable {
+            reason_code: "durable_directory_type_unsafe",
+        });
+    }
+    Ok(DurableDirectoryIdentity::from_metadata(&metadata))
+}
+
+#[cfg(unix)]
+fn create_private_directory(path: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::DirBuilderExt;
+
+    let mut builder = std::fs::DirBuilder::new();
+    builder.mode(0o700);
+    builder.create(path)
+}
+
+#[cfg(not(unix))]
+fn create_private_directory(path: &Path) -> std::io::Result<()> {
+    std::fs::DirBuilder::new().create(path)
+}
+
+#[cfg(windows)]
+fn metadata_is_platform_redirect(metadata: &Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+
+    windows_file_attributes_include_reparse_point(metadata.file_attributes())
+}
+
+#[cfg(windows)]
+fn windows_file_attributes_include_reparse_point(attributes: u32) -> bool {
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+    attributes & FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+#[cfg(not(windows))]
+fn metadata_is_platform_redirect(_metadata: &Metadata) -> bool {
+    false
 }
 
 fn ensure_existing_child_chain_has_no_symlink(
     state_root: &Path,
     path: &Path,
 ) -> Result<(), ImportExecutionError> {
+    ensure_directory_chain_without_untrusted_redirects(state_root, false)?;
     let root_metadata = std::fs::symlink_metadata(state_root).map_err(|_| {
         ImportExecutionError::DurableStateUnavailable {
             reason_code: "durable_parent_metadata_failed",
         }
     })?;
-    if root_metadata.file_type().is_symlink() || !root_metadata.is_dir() {
+    if metadata_is_path_redirect(&root_metadata) || !root_metadata.is_dir() {
         return Err(ImportExecutionError::DurableStateUnavailable {
             reason_code: "durable_parent_type_unsafe",
         });
@@ -2838,7 +3817,7 @@ fn ensure_existing_child_chain_has_no_symlink(
                 })
             }
         };
-        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        if metadata_is_path_redirect(&metadata) || !metadata.is_dir() {
             return Err(ImportExecutionError::DurableStateUnavailable {
                 reason_code: "durable_parent_type_unsafe",
             });
@@ -2849,7 +3828,7 @@ fn ensure_existing_child_chain_has_no_symlink(
 
 fn reject_symlink_target(path: &Path) -> Result<(), ImportExecutionError> {
     match std::fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+        Ok(metadata) if metadata_is_path_redirect(&metadata) || !metadata.is_file() => {
             Err(ImportExecutionError::DurableStateUnavailable {
                 reason_code: "durable_target_type_unsafe",
             })
@@ -2909,17 +3888,61 @@ fn configure_private_file_mode(options: &mut OpenOptions) {
 fn configure_private_file_mode(_options: &mut OpenOptions) {}
 
 fn sync_directory(path: &Path) -> Result<(), ImportExecutionError> {
-    #[cfg(unix)]
-    {
-        File::open(path)
-            .and_then(|directory| directory.sync_all())
-            .map_err(|_| ImportExecutionError::DurableStateUnavailable {
-                reason_code: "durable_directory_sync_failed",
-            })?;
+    #[cfg(test)]
+    if import_directory_sync_failpoint_should_fail() {
+        return Err(ImportExecutionError::DurableStateUnavailable {
+            reason_code: "injected_durable_directory_sync_failure",
+        });
     }
+    sync_directory_uninjected(path)
+}
+
+fn sync_directory_uninjected(path: &Path) -> Result<(), ImportExecutionError> {
+    #[cfg(unix)]
+    File::open(path)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|_| ImportExecutionError::DurableStateUnavailable {
+            reason_code: "durable_directory_sync_failed",
+        })?;
     #[cfg(not(unix))]
-    {
-        let _ = path;
+    let _ = path;
+    Ok(())
+}
+
+#[cfg(test)]
+thread_local! {
+    static IMPORT_DIRECTORY_SYNC_FAIL_ON_CALL: std::cell::Cell<usize> = const {
+        std::cell::Cell::new(0)
+    };
+}
+
+#[cfg(test)]
+fn set_import_directory_sync_fail_on_call(call: usize) {
+    IMPORT_DIRECTORY_SYNC_FAIL_ON_CALL.with(|remaining| remaining.set(call));
+}
+
+#[cfg(test)]
+fn import_directory_sync_failpoint_should_fail() -> bool {
+    IMPORT_DIRECTORY_SYNC_FAIL_ON_CALL.with(|remaining| match remaining.get() {
+        0 => false,
+        1 => {
+            remaining.set(0);
+            true
+        }
+        count => {
+            remaining.set(count - 1);
+            false
+        }
+    })
+}
+
+fn sync_directory_revalidating_identity(path: &Path) -> Result<(), ImportExecutionError> {
+    let expected = direct_directory_identity(path)?;
+    sync_directory(path).map_err(|_| durable_commit_state_uncertain())?;
+    let observed =
+        direct_directory_identity(path).map_err(|_| ImportExecutionError::ConcurrentMutation)?;
+    if observed != expected {
+        return Err(ImportExecutionError::ConcurrentMutation);
     }
     Ok(())
 }
@@ -3075,6 +4098,137 @@ mod tests {
             preview.apply_gate,
             ImportPreviewApplyGate::AllowedCheckpointRequired
         );
+
+        let debug = format!("{preview:?}");
+        assert!(!debug.contains("never-persist-this-secret"));
+        assert!(!debug.contains("service.apiToken"));
+        assert!(!debug.contains(&layout.source_root.display().to_string()));
+        assert!(debug.contains("has_live_authority"));
+    }
+
+    #[test]
+    fn rollback_request_debug_redacts_tokens_and_invalid_checkpoint_input() {
+        let token = "customer-secret-idempotency-token";
+        let request = ImportRollbackRequest {
+            checkpoint_ref: "/Users/alice/Private/checkpoint.json",
+            idempotency_token: token,
+        };
+        let debug = format!("{request:?}");
+        assert!(!debug.contains(token));
+        assert!(!debug.contains("/Users/alice"));
+        assert!(debug.contains("[redacted]"));
+        assert!(debug.contains("[redacted invalid checkpoint ref]"));
+    }
+
+    #[test]
+    fn preview_rejects_source_row_count_above_contract_bound() {
+        let mut settings = String::from("{");
+        for index in 0..=MAX_IMPORT_PREVIEW_ROWS {
+            if index > 0 {
+                settings.push(',');
+            }
+            settings.push_str(&format!("\"{index:x}\":0"));
+        }
+        settings.push('}');
+        assert!(settings.len() as u64 <= MAX_SOURCE_FILE_BYTES);
+
+        let layout = TestLayout::vscode(&settings);
+        assert_eq!(
+            layout
+                .store()
+                .preview(&layout.review("profile:default"), POLICY_EPOCH),
+            Err(ImportExecutionError::InputTooLarge {
+                source_item_ref: "source_settings".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn source_setting_refs_hash_path_like_or_noncanonical_user_keys() {
+        let layout = TestLayout::vscode(
+            r#"{
+                "../../customer/private": true,
+                "https://example.invalid/customer": false,
+                "C:customer-private": false,
+                "unknown.harmless": true
+            }"#,
+        );
+        let preview = layout
+            .store()
+            .preview(&layout.review("profile:default"), POLICY_EPOCH)
+            .expect("preview");
+        let exported = serde_json::to_string(&preview).expect("preview export");
+        assert!(!exported.contains("../../customer/private"));
+        assert!(!exported.contains("https://example.invalid/customer"));
+        assert!(!exported.contains("C:customer-private"));
+        assert!(exported.contains("unknown.harmless"));
+        assert!(preview.rows.iter().all(|row| {
+            row.source_setting_ref
+                .split_once('#')
+                .map(|(_, key)| source_fragment_is_valid(key))
+                .unwrap_or(true)
+        }));
+
+        assert!(valid_source_setting_ref(
+            ".idea/codeStyles/Project.xml#option:TAB_SIZE"
+        ));
+        for unsafe_ref in [
+            "/Users/alice/settings.json#editor.tabSize",
+            "../private/settings.json#editor.tabSize",
+            ".vscode/settings.json#https://example.invalid/private",
+            ".vscode/settings.json#key with spaces",
+        ] {
+            assert!(
+                !valid_source_setting_ref(unsafe_ref),
+                "accepted {unsafe_ref:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn review_envelope_binds_source_destination_and_classification() {
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let store = layout.store();
+        let review = layout.review("profile:default");
+
+        let mut changed_destination = review.clone();
+        changed_destination.destination_workspace_target = "profile:other".to_owned();
+        let mut changed_source = review.clone();
+        changed_source.source_path = layout
+            ._temp
+            .path()
+            .join("different-source")
+            .display()
+            .to_string();
+        let mut changed_classification = review;
+        changed_classification.classification = CompetitorConfigClassification::JetBrainsIdeaRoot;
+
+        for changed in [changed_destination, changed_source, changed_classification] {
+            assert_eq!(
+                store.preview(&changed, POLICY_EPOCH),
+                Err(ImportExecutionError::InvalidRequest {
+                    reason_code: "import_review_envelope_invalid",
+                })
+            );
+        }
+        assert!(!layout.state_root.exists());
+    }
+
+    #[test]
+    fn imported_setting_debug_never_exports_user_values_or_store_paths() {
+        let text = ImportSettingValue::Text("private-profile-value".to_owned());
+        assert_eq!(format!("{text:?}"), "Text([redacted])");
+        let integer = ImportSettingValue::Integer(42);
+        assert_eq!(format!("{integer:?}"), "Integer([redacted])");
+
+        let store = ImportedProfileStore::with_roots(
+            "/private/config/customer-name",
+            "/private/state/customer-name",
+        );
+        let debug = format!("{store:?}");
+        assert!(!debug.contains("customer-name"));
+        assert!(!debug.contains("/private/"));
+        assert!(debug.contains("uses_distinct_roots: true"));
     }
 
     #[test]
@@ -3114,11 +4268,46 @@ mod tests {
             parse_checkpoint_ref(checkpoint_ref).expect("checkpoint parses");
         assert!(layout
             .state_root
-            .join("imported_profiles")
+            .join("import_checkpoints")
             .join(profile_key)
-            .join("checkpoints")
             .join(format!("{checkpoint_key}.json"))
             .is_file());
+        assert!(layout
+            .state_root
+            .join("import_checkpoint_bodies")
+            .join(profile_key)
+            .join(format!("{checkpoint_key}.json"))
+            .is_file());
+        assert!(layout
+            .state_root
+            .join(format!(
+                "imported-{profile_key}-00000000000000000001.profile-state.json"
+            ))
+            .is_file());
+    }
+
+    #[test]
+    fn durable_history_rejects_rollback_without_preceding_apply_lineage() {
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let store = layout.store();
+        let preview = store
+            .preview(&layout.review("profile:default"), POLICY_EPOCH)
+            .expect("preview");
+        store
+            .apply(&preview, "history-lineage-apply", POLICY_EPOCH)
+            .expect("apply");
+        let mut state = store
+            .load_profile_for_target("profile:default")
+            .expect("load")
+            .expect("state");
+        state.history[0].action = ImportedProfileHistoryAction::RolledBack;
+
+        assert_eq!(
+            validate_durable_state(&state, &state.profile_ref),
+            Err(ImportExecutionError::DurableStateUnavailable {
+                reason_code: "profile_history_rollback_lineage_invalid",
+            })
+        );
     }
 
     #[test]
@@ -3455,8 +4644,8 @@ mod tests {
                 },
             );
         }
-        let checkpoint = ImportExecutionCheckpoint {
-            record_kind: IMPORT_EXECUTION_CHECKPOINT_RECORD_KIND.to_owned(),
+        let checkpoint = ImportExecutionCheckpointBody {
+            record_kind: IMPORT_EXECUTION_CHECKPOINT_BODY_RECORD_KIND.to_owned(),
             schema_version: IMPORT_EXECUTION_SCHEMA_VERSION,
             checkpoint_ref: checkpoint_ref.clone(),
             profile_key: authority.profile_key.clone(),
@@ -3472,25 +4661,29 @@ mod tests {
             expected_applied_settings_digest: settings_digest(&projected_settings)
                 .expect("settings digest"),
             prior_state: None,
-            created_at: utc_timestamp_now(),
+            created_at: "2001-02-03T04:05:06Z".to_owned(),
         };
         store
             .write_checkpoint(&checkpoint)
             .expect("checkpoint-only crash marker");
+        let metadata_path = store
+            .checkpoint_path(&authority.profile_key, &checkpoint_ref)
+            .expect("checkpoint metadata path");
+        fs::remove_file(&metadata_path).expect("simulate crash before metadata publication");
 
-        let profile_directory = layout
-            .state_root
-            .join("imported_profiles")
-            .join(&authority.profile_key);
-        let revisions = profile_directory.join("revisions");
-        fs::create_dir(&revisions).expect("revision directory");
+        let profile_filename = format!(
+            "imported-{}-00000000000000000001.profile-state.json",
+            authority.profile_key
+        );
         fs::write(
-            revisions.join(".00000000000000000001.json.tmp.crashed"),
+            layout
+                .state_root
+                .join(format!(".{profile_filename}.tmp.crashed")),
             b"partial",
         )
         .expect("crashed temporary revision");
         fs::write(
-            profile_directory.join("mutation.lock"),
+            layout.state_root.join("mutation.lock"),
             b"legacy crash residue",
         )
         .expect("legacy lock residue");
@@ -3512,6 +4705,11 @@ mod tests {
             state.settings["editor.tab_size"].value,
             ImportSettingValue::Integer(2)
         );
+        let metadata: ImportExecutionCheckpointMetadata = serde_json::from_slice(
+            &fs::read(metadata_path).expect("retry published checkpoint metadata"),
+        )
+        .expect("checkpoint metadata");
+        assert_eq!(metadata.created_at, checkpoint.created_at);
     }
 
     #[test]
@@ -3888,12 +5086,214 @@ mod tests {
         let key = profile_key(target);
         assert!(layout
             .state_root
-            .join("imported_profiles")
-            .join(key)
-            .join("revisions")
-            .join("00000000000000000001.json")
+            .join(format!(
+                "imported-{key}-00000000000000000001.profile-state.json"
+            ))
             .is_file());
         assert!(!layout._temp.path().join("outside").exists());
+    }
+
+    #[test]
+    fn split_roots_keep_profile_truth_out_of_local_history() {
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let imported_profile_state = layout
+            ._temp
+            .path()
+            .join("config")
+            .join("profiles")
+            .join("imported");
+        let checkpoint_history = layout._temp.path().join("state").join("history");
+        let store = ImportedProfileStore::with_roots(&imported_profile_state, &checkpoint_history);
+        let preview = store
+            .preview(&layout.review("profile:default"), POLICY_EPOCH)
+            .expect("preview");
+        let outcome = store
+            .apply(&preview, "split-root-apply", POLICY_EPOCH)
+            .expect("apply");
+        let (profile_key, checkpoint_key) =
+            parse_checkpoint_ref(outcome.checkpoint_ref.as_deref().expect("checkpoint ref"))
+                .expect("checkpoint parses");
+
+        let imported_state_path = imported_profile_state.join(format!(
+            "imported-{profile_key}-00000000000000000001.profile-state.json"
+        ));
+        assert!(imported_state_path.is_file());
+        let durable_json: serde_json::Value = serde_json::from_slice(
+            &fs::read(&imported_state_path).expect("read imported profile state"),
+        )
+        .expect("parse imported profile state");
+        assert_eq!(
+            durable_json["record_kind"],
+            IMPORTED_PROFILE_STATE_RECORD_KIND
+        );
+        assert_eq!(
+            durable_json["schema_version"],
+            IMPORT_EXECUTION_SCHEMA_VERSION
+        );
+        let checkpoint_path = checkpoint_history
+            .join("import_checkpoints")
+            .join(profile_key)
+            .join(format!("{checkpoint_key}.json"));
+        assert!(checkpoint_path.is_file());
+        let checkpoint_json: serde_json::Value =
+            serde_json::from_slice(&fs::read(checkpoint_path).expect("read import checkpoint"))
+                .expect("parse import checkpoint");
+        assert_eq!(
+            checkpoint_json["record_kind"],
+            IMPORT_EXECUTION_CHECKPOINT_METADATA_RECORD_KIND
+        );
+        assert_eq!(
+            checkpoint_json["schema_version"],
+            IMPORT_EXECUTION_SCHEMA_VERSION
+        );
+        assert!(checkpoint_json.get("protected_body_ref").is_some());
+        assert!(checkpoint_json.get("protected_body_digest").is_some());
+        assert!(checkpoint_json.get("migration_session_ref").is_none());
+        assert!(checkpoint_json
+            .get("migration_restore_record_ref")
+            .is_none());
+        assert!(checkpoint_json.get("compatibility_report_ref").is_none());
+        assert!(checkpoint_json
+            .get("rollback_checkpoint_outcome_class")
+            .is_none());
+        assert!(checkpoint_json.get("prior_state").is_none());
+        let checkpoint_body_path = checkpoint_history
+            .join("import_checkpoint_bodies")
+            .join(profile_key)
+            .join(format!("{checkpoint_key}.json"));
+        let checkpoint_body_json: serde_json::Value = serde_json::from_slice(
+            &fs::read(checkpoint_body_path).expect("read protected checkpoint body"),
+        )
+        .expect("parse protected checkpoint body");
+        assert_eq!(
+            checkpoint_body_json["record_kind"],
+            IMPORT_EXECUTION_CHECKPOINT_BODY_RECORD_KIND
+        );
+        let checkpoint_body: ImportExecutionCheckpointBody =
+            serde_json::from_value(checkpoint_body_json).expect("typed checkpoint body");
+        assert_eq!(
+            checkpoint_json["protected_body_digest"],
+            digest_serializable(&checkpoint_body).expect("checkpoint body digest")
+        );
+        assert!(!checkpoint_history.join("profiles").exists());
+        assert!(!imported_profile_state.join("import_checkpoints").exists());
+    }
+
+    #[test]
+    fn relative_durable_store_roots_fail_before_source_or_state_io() {
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let store = ImportedProfileStore::with_roots(
+            PathBuf::from("relative-config/profiles/imported"),
+            PathBuf::from("relative-state/history/imports"),
+        );
+
+        assert_eq!(
+            store.preview(&layout.review("profile:default"), POLICY_EPOCH),
+            Err(ImportExecutionError::DurableStateUnavailable {
+                reason_code: "durable_store_root_invalid",
+            })
+        );
+        assert!(!Path::new("relative-config").exists());
+        assert!(!Path::new("relative-state").exists());
+    }
+
+    #[test]
+    fn production_store_roots_must_be_physically_separate_families() {
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let shared = layout._temp.path().join("config");
+        let overlapping_stores = [
+            ImportedProfileStore::with_roots(&shared, &shared),
+            ImportedProfileStore::with_roots(&shared, shared.join("history")),
+            ImportedProfileStore::with_roots(shared.join("profiles"), &shared),
+        ];
+
+        for store in overlapping_stores {
+            assert_eq!(
+                store.preview(&layout.review("profile:default"), POLICY_EPOCH),
+                Err(ImportExecutionError::DurableStateUnavailable {
+                    reason_code: "durable_store_roots_overlap",
+                })
+            );
+        }
+        assert!(!shared.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn filesystem_root_is_not_a_durable_import_store() {
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let store = ImportedProfileStore::with_roots(
+            Path::new("/"),
+            layout._temp.path().join("state").join("history"),
+        );
+
+        assert_eq!(
+            store.preview(&layout.review("profile:default"), POLICY_EPOCH),
+            Err(ImportExecutionError::DurableStateUnavailable {
+                reason_code: "durable_store_root_invalid",
+            })
+        );
+    }
+
+    #[test]
+    fn portable_profile_suffix_is_never_activated_as_imported_profile_state() {
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let imported_profile_state = layout
+            ._temp
+            .path()
+            .join("config")
+            .join("profiles")
+            .join("imported");
+        fs::create_dir_all(&imported_profile_state).expect("imported state root");
+        let key = profile_key("profile:default");
+        fs::write(
+            imported_profile_state.join(format!(
+                "imported-{key}-00000000000000000001.aureprofile.json"
+            )),
+            br#"{"record_kind":"imported_profile_state_record","schema_version":1}"#,
+        )
+        .expect("legacy/misclassified portable-suffix row");
+
+        let store = ImportedProfileStore::with_roots(
+            &imported_profile_state,
+            layout._temp.path().join("state").join("history"),
+        );
+        assert_eq!(
+            store
+                .load_profile_for_target("profile:default")
+                .expect("conforming load"),
+            None
+        );
+    }
+
+    #[test]
+    fn misplaced_legacy_state_is_not_implicitly_activated() {
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let misplaced_state = layout._temp.path().join("state").join("imports");
+        let legacy_store = ImportedProfileStore::new(&misplaced_state);
+        let preview = legacy_store
+            .preview(&layout.review("profile:default"), POLICY_EPOCH)
+            .expect("preview");
+        legacy_store
+            .apply(&preview, "misplaced-state-apply", POLICY_EPOCH)
+            .expect("legacy-shaped apply");
+
+        let configured_profiles = layout
+            ._temp
+            .path()
+            .join("config")
+            .join("profiles")
+            .join("imported");
+        let conforming = ImportedProfileStore::with_roots(
+            configured_profiles,
+            layout._temp.path().join("state").join("history"),
+        );
+        assert_eq!(
+            conforming
+                .load_profile_for_target("profile:default")
+                .expect("conforming load"),
+            None
+        );
     }
 
     #[cfg(unix)]
@@ -3942,17 +5342,362 @@ mod tests {
         fs::create_dir(&real_state).expect("real state");
         symlink(&real_state, &layout.state_root).expect("state root symlink");
         let store = layout.store();
-        let preview = store
-            .preview(&layout.review("profile:default"), POLICY_EPOCH)
-            .expect("preview remains read only");
         assert!(matches!(
-            store.apply(&preview, "unsafe-state-root", POLICY_EPOCH),
+            store.preview(&layout.review("profile:default"), POLICY_EPOCH),
             Err(ImportExecutionError::DurableStateUnavailable {
-                reason_code: "durable_directory_type_unsafe"
+                reason_code: "profile_revision_directory_type_unsafe"
             })
         ));
         assert!(fs::read_dir(real_state)
             .expect("read real state")
+            .next()
+            .is_none());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn trusted_macos_var_alias_can_publish_and_reload_durable_state() {
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let canonical_temp = layout
+            ._temp
+            .path()
+            .canonicalize()
+            .expect("canonical tempdir");
+        let suffix = canonical_temp
+            .strip_prefix("/private/var")
+            .expect("macOS tempdir below /private/var");
+        let alias_root = Path::new("/var").join(suffix);
+        let imported_profiles = alias_root.join("config/profiles/imported");
+        let checkpoint_history = alias_root.join("state/history/imports");
+        let store = ImportedProfileStore::with_roots(imported_profiles, checkpoint_history);
+        let preview = store
+            .preview(&layout.review("profile:default"), POLICY_EPOCH)
+            .expect("preview");
+
+        store
+            .apply(&preview, "macos-platform-root-alias", POLICY_EPOCH)
+            .expect("trusted platform alias apply");
+
+        assert!(store
+            .load_profile_for_target("profile:default")
+            .expect("reload through alias")
+            .is_some());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_reparse_attribute_is_classified_as_redirect() {
+        assert!(windows_file_attributes_include_reparse_point(0x400));
+        assert!(windows_file_attributes_include_reparse_point(0x400 | 0x10));
+        assert!(!windows_file_attributes_include_reparse_point(0x10));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn durable_read_rejects_same_length_file_replacement() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state_root = temp.path().join("state");
+        fs::create_dir(&state_root).expect("state root");
+        let durable_path = state_root.join("profile-state.json");
+        fs::write(&durable_path, b"original").expect("durable file");
+        let replacement = state_root.join("replacement.json");
+        fs::write(&replacement, b"replaced").expect("same-length replacement");
+
+        let result =
+            read_optional_durable_file_with_post_read_hook(&state_root, &durable_path, |_| {
+                fs::rename(&replacement, &durable_path).expect("replace durable path");
+            });
+
+        assert_eq!(result, Err(durable_file_changed_during_read()));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn durable_publish_rejects_parent_replacement_before_install() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state_root = temp.path().join("state");
+        let durable_path = state_root.join("profile-state.json");
+        let moved_original = temp.path().join("moved-original-state");
+        let outside_directory = temp.path().join("outside");
+        fs::create_dir(&outside_directory).expect("outside directory");
+        let outside_sentinel = outside_directory.join("sentinel.txt");
+        fs::write(&outside_sentinel, b"retain-me\n").expect("outside sentinel");
+
+        let result = write_new_json_with_preinstall_hook(
+            &state_root,
+            &durable_path,
+            &serde_json::json!({"record_kind": "identity_swap_test"}),
+            || {
+                fs::rename(&state_root, &moved_original).expect("move pinned parent");
+                fs::create_dir(&state_root).expect("replacement parent");
+            },
+        );
+
+        assert_eq!(result, Err(ImportExecutionError::ConcurrentMutation));
+        assert!(!durable_path.exists());
+        assert!(fs::read_dir(&state_root)
+            .expect("replacement parent remains readable")
+            .next()
+            .is_none());
+        let moved_entries = fs::read_dir(&moved_original)
+            .expect("moved parent remains readable")
+            .map(|entry| entry.expect("moved parent entry").path())
+            .collect::<Vec<_>>();
+        assert_eq!(moved_entries.len(), 1);
+        let staged_path = &moved_entries[0];
+        assert!(staged_path
+            .file_name()
+            .expect("staged filename")
+            .to_string_lossy()
+            .contains(".tmp."));
+        let staged_bytes = fs::read(staged_path).expect("scrubbed staged file");
+        assert!(staged_bytes.is_empty());
+        assert_eq!(
+            fs::metadata(staged_path)
+                .expect("scrubbed staged metadata")
+                .len(),
+            0
+        );
+        assert!(!String::from_utf8_lossy(&staged_bytes).contains("identity_swap_test"));
+        assert_eq!(
+            fs::read(&outside_sentinel).expect("outside sentinel remains readable"),
+            b"retain-me\n"
+        );
+    }
+
+    #[test]
+    fn durable_publish_scrubs_staged_payload_when_install_fails() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state_root = temp.path().join("state");
+        fs::create_dir(&state_root).expect("state root");
+        let durable_path = state_root.join("profile-state.json");
+        fs::write(&durable_path, b"preexisting\n").expect("preexisting destination");
+
+        let result = write_new_json(
+            &state_root,
+            &durable_path,
+            &serde_json::json!({"record_kind": "install_failure_private_payload"}),
+        );
+
+        assert_eq!(
+            result,
+            Err(ImportExecutionError::DurableStateUnavailable {
+                reason_code: "durable_create_new_failed",
+            })
+        );
+        assert_eq!(
+            fs::read(&durable_path).expect("preexisting destination remains readable"),
+            b"preexisting\n"
+        );
+        let remaining_entries = fs::read_dir(&state_root)
+            .expect("state root remains readable")
+            .map(|entry| entry.expect("state root entry").path())
+            .collect::<Vec<_>>();
+        assert_eq!(remaining_entries, vec![durable_path]);
+    }
+
+    #[test]
+    fn durable_publish_preserves_installed_payload_when_commit_state_is_uncertain() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state_root = temp.path().join("state");
+        let durable_path = state_root.join("profile-state.json");
+        let value = serde_json::json!({
+            "record_kind": "postinstall_uncertainty_private_payload"
+        });
+
+        let result = write_new_json_with_hooks(
+            &state_root,
+            &durable_path,
+            &value,
+            || {},
+            || {
+                Err(ImportExecutionError::DurableStateUnavailable {
+                    reason_code: "injected_postinstall_failure",
+                })
+            },
+        );
+
+        assert_eq!(result, Ok(WriteNewJsonOutcome::CommitStateUncertain));
+        let installed = fs::read(&durable_path).expect("installed payload remains readable");
+        assert!(!installed.is_empty());
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&installed).expect("installed JSON"),
+            value
+        );
+        let staged_paths = fs::read_dir(&state_root)
+            .expect("state root remains readable")
+            .map(|entry| entry.expect("state root entry").path())
+            .filter(|path| path != &durable_path)
+            .collect::<Vec<_>>();
+        assert_eq!(staged_paths.len(), 1);
+        assert_eq!(
+            fs::read(&staged_paths[0]).expect("uncertain staged link remains readable"),
+            installed
+        );
+    }
+
+    #[test]
+    fn durable_publish_preserves_destination_when_directory_sync_fails() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state_root = temp.path().join("state");
+        let durable_path = state_root.join("profile-state.json");
+        let value = serde_json::json!({"record_kind": "directory_sync_uncertainty"});
+        set_import_directory_sync_fail_on_call(1);
+
+        let result = write_new_json(&state_root, &durable_path, &value);
+
+        assert_eq!(result, Ok(WriteNewJsonOutcome::CommitStateUncertain));
+        let installed = fs::read(&durable_path).expect("installed payload remains readable");
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&installed).expect("installed JSON"),
+            value
+        );
+        let entries = fs::read_dir(&state_root)
+            .expect("state root remains readable")
+            .map(|entry| entry.expect("state root entry").path())
+            .collect::<Vec<_>>();
+        assert_eq!(entries, vec![durable_path]);
+    }
+
+    #[test]
+    fn checkpoint_commit_uncertainty_fails_apply_then_reconciles_on_retry() {
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let store = layout.store();
+        let preview = store
+            .preview(&layout.review("profile:default"), POLICY_EPOCH)
+            .expect("preview");
+        set_import_directory_sync_fail_on_call(1);
+
+        assert_eq!(
+            store.apply(&preview, "checkpoint-sync-retry", POLICY_EPOCH),
+            Err(durable_commit_state_uncertain())
+        );
+        let retried = store
+            .apply(&preview, "checkpoint-sync-retry", POLICY_EPOCH)
+            .expect("retry reconciles checkpoint then applies profile");
+        assert_eq!(retried.disposition, ImportApplyDisposition::Applied);
+    }
+
+    #[test]
+    fn rollback_metadata_uncertainty_reconciles_without_rewriting_private_body() {
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let store = layout.store();
+        let preview = store
+            .preview(&layout.review("profile:default"), POLICY_EPOCH)
+            .expect("preview");
+        set_import_directory_sync_fail_on_call(2);
+
+        assert_eq!(
+            store.apply(&preview, "metadata-sync-retry", POLICY_EPOCH),
+            Err(durable_commit_state_uncertain())
+        );
+        let retried = store
+            .apply(&preview, "metadata-sync-retry", POLICY_EPOCH)
+            .expect("retry reconciles body and private checkpoint metadata");
+        assert_eq!(retried.disposition, ImportApplyDisposition::Applied);
+    }
+
+    #[test]
+    fn profile_commit_uncertainty_fails_apply_then_reconciles_as_idempotent() {
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let store = layout.store();
+        let preview = store
+            .preview(&layout.review("profile:default"), POLICY_EPOCH)
+            .expect("preview");
+        set_import_directory_sync_fail_on_call(3);
+
+        assert_eq!(
+            store.apply(&preview, "profile-sync-retry", POLICY_EPOCH),
+            Err(durable_commit_state_uncertain())
+        );
+        let retried = store
+            .apply(&preview, "profile-sync-retry", POLICY_EPOCH)
+            .expect("retry revalidates the installed profile revision");
+        assert_eq!(retried.disposition, ImportApplyDisposition::AlreadyApplied);
+    }
+
+    #[cfg(panic = "unwind")]
+    #[test]
+    fn durable_publish_scrubs_staged_payload_when_hook_unwinds() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state_root = temp.path().join("state");
+        let durable_path = state_root.join("profile-state.json");
+
+        let panic_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = write_new_json_with_preinstall_hook(
+                &state_root,
+                &durable_path,
+                &serde_json::json!({"record_kind": "unwind_private_payload"}),
+                || panic!("injected preinstall unwind"),
+            );
+        }));
+
+        assert!(panic_result.is_err());
+        assert!(!durable_path.exists());
+        let staged_entries = fs::read_dir(&state_root)
+            .expect("state root remains readable")
+            .map(|entry| entry.expect("state root entry").path())
+            .collect::<Vec<_>>();
+        assert_eq!(staged_entries.len(), 1);
+        assert!(staged_entries[0]
+            .file_name()
+            .expect("staged filename")
+            .to_string_lossy()
+            .contains(".tmp."));
+        let staged_bytes = fs::read(&staged_entries[0]).expect("scrubbed staged file");
+        assert!(staged_bytes.is_empty());
+        assert!(!String::from_utf8_lossy(&staged_bytes).contains("unwind_private_payload"));
+    }
+
+    #[cfg(panic = "unwind")]
+    #[test]
+    fn durable_publish_does_not_scrub_destination_when_postinstall_hook_unwinds() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state_root = temp.path().join("state");
+        let durable_path = state_root.join("profile-state.json");
+
+        let panic_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = write_new_json_with_hooks(
+                &state_root,
+                &durable_path,
+                &serde_json::json!({"record_kind": "postinstall_unwind_private_payload"}),
+                || {},
+                || panic!("injected postinstall unwind"),
+            );
+        }));
+
+        assert!(panic_result.is_err());
+        let installed = fs::read(&durable_path).expect("installed payload remains readable");
+        assert!(!installed.is_empty());
+        assert!(String::from_utf8_lossy(&installed).contains("postinstall_unwind_private_payload"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_durable_root_ancestor_is_rejected_before_write() {
+        use std::os::unix::fs::symlink;
+
+        let layout = TestLayout::vscode(r#"{"editor.tabSize":2}"#);
+        let real_config = layout._temp.path().join("real-config");
+        fs::create_dir(&real_config).expect("real config");
+        let config_link = layout._temp.path().join("config-link");
+        symlink(&real_config, &config_link).expect("config ancestor symlink");
+        let store = ImportedProfileStore::with_roots(
+            config_link.join("profiles").join("imported"),
+            layout._temp.path().join("state").join("history"),
+        );
+        let preview = store
+            .preview(&layout.review("profile:default"), POLICY_EPOCH)
+            .expect("preview remains read only");
+
+        assert!(matches!(
+            store.apply(&preview, "unsafe-config-ancestor", POLICY_EPOCH),
+            Err(ImportExecutionError::DurableStateUnavailable {
+                reason_code: "durable_directory_type_unsafe"
+            })
+        ));
+        assert!(fs::read_dir(real_config)
+            .expect("read real config")
             .next()
             .is_none());
     }
@@ -3965,5 +5710,18 @@ mod tests {
         assert_eq!(live.len(), 20);
         assert!(live.ends_with('Z'));
         assert_ne!(live, "2026-05-13T00:00:00Z");
+        assert!(valid_utc_timestamp("2024-02-29T23:59:59Z"));
+        for invalid in [
+            "2023-02-29T00:00:00Z",
+            "2024-13-01T00:00:00Z",
+            "2024-01-00T00:00:00Z",
+            "2024-01-01T24:00:00Z",
+            "2024-01-01T00:60:00Z",
+            "2024-01-01T00:00:60Z",
+            "2024-01-01T00:00:00+00:00",
+            "not-a-timestamp",
+        ] {
+            assert!(!valid_utc_timestamp(invalid), "accepted {invalid}");
+        }
     }
 }

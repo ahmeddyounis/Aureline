@@ -18,10 +18,10 @@
 //! identity:
 //!
 //! - **The diff** — a before/after review that is shown *before* apply, with
-//!   every row carrying both sides and citing one rollback checkpoint.
-//! - **The rollback** — a checkpoint minted before apply that protects every
-//!   touched domain, with undo and compare routes when (and only when) the
-//!   evidence is live for *this* flow.
+//!   every row carrying both sides and citing one rollback requirement.
+//! - **The rollback** — a preview requirement plus optional checkpoint evidence.
+//!   Undo and compare routes exist only when the execution layer supplies a real
+//!   checkpoint and restore record for *this* flow.
 //! - **The unsupported-gap taxonomy** — the canonical Exact / Translated /
 //!   Partial / Shimmed / Unsupported counts, and the union of Unsupported and
 //!   Shimmed gaps made visible before apply rather than discovered as missing
@@ -72,17 +72,17 @@
 use serde::{Deserialize, Serialize};
 
 use crate::import::diff_review::{ImportMappingClassification, ImportReviewDomain};
-use crate::migration_corpus::IncumbentEcosystem;
+use crate::migration_corpus::{IncumbentEcosystem, MIGRATION_SCOREBOARD_ID};
 
 /// Stable record-kind tag carried in serialized disclosure records.
 pub const MIGRATION_FLOW_DISCLOSURE_RECORD_KIND: &str = "migration_flow_disclosure_record";
 
 /// Schema version for the [`MigrationFlowDisclosureRecord`] payload shape.
-pub const MIGRATION_FLOW_DISCLOSURE_SCHEMA_VERSION: u32 = 1;
+pub const MIGRATION_FLOW_DISCLOSURE_SCHEMA_VERSION: u32 = 2;
 
 /// Shared contract ref consumed by every surface that ingests this record.
 pub const MIGRATION_FLOW_DISCLOSURE_SHARED_CONTRACT_REF: &str =
-    "shell:migration_flow_disclosure_stable:v1";
+    "shell:migration_flow_disclosure_stable:v2";
 
 /// Reviewer-facing notice rendered on every disclosure surface.
 pub const MIGRATION_FLOW_DISCLOSURE_NOTICE: &str =
@@ -103,6 +103,12 @@ pub const CANONICAL_OBJECT_SCHEME: &str = "aureline://";
 const MAX_SENTENCE_CHARS: usize = 1024;
 /// Upper bound on a canonical object ref.
 const MAX_REF_CHARS: usize = 200;
+/// Upper bound on support/evidence lists carried by one flow or gap.
+const MAX_SUPPORT_REFS: usize = 64;
+/// Upper bound on classified rows or gap disclosures carried by one flow.
+const MAX_FLOW_ROWS: u32 = 4096;
+/// Upper bound on gap rows retained in one support-safe disclosure.
+const MAX_GAPS: usize = 64;
 
 /// Object-class segments that are generic landing destinations rather than a
 /// specific durable object. A ref pointing at one is rejected so chrome cannot
@@ -120,8 +126,17 @@ const GENERIC_LANDING_CLASSES: &[&str] = &[
 /// Returns true when `reference` is a canonical durable-object ref of the form
 /// `aureline://<class>/<id>` where `<class>` is not a generic landing page.
 pub fn is_canonical_object_ref(reference: &str) -> bool {
-    let reference = reference.trim();
-    if reference.is_empty() || reference.len() > MAX_REF_CHARS {
+    let trimmed = reference.trim();
+    if trimmed != reference {
+        return false;
+    }
+    let reference = trimmed;
+    if reference.is_empty()
+        || reference.len() > MAX_REF_CHARS
+        || reference.chars().any(char::is_control)
+        || reference.chars().any(char::is_whitespace)
+        || reference.contains('\\')
+    {
         return false;
     }
     let Some(rest) = reference.strip_prefix(CANONICAL_OBJECT_SCHEME) else {
@@ -130,7 +145,19 @@ pub fn is_canonical_object_ref(reference: &str) -> bool {
     let Some((class, ident)) = rest.split_once('/') else {
         return false;
     };
-    if class.is_empty() || ident.is_empty() {
+    if class.is_empty()
+        || ident.is_empty()
+        || !class
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+        || ident.split('/').any(|segment| {
+            segment.is_empty()
+                || matches!(segment, "." | "..")
+                || !segment.bytes().all(|byte| {
+                    byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-')
+                })
+        })
+    {
         return false;
     }
     !GENERIC_LANDING_CLASSES.contains(&class)
@@ -138,7 +165,152 @@ pub fn is_canonical_object_ref(reference: &str) -> bool {
 
 fn is_reviewable_sentence(text: &str) -> bool {
     let trimmed = text.trim();
-    !trimmed.is_empty() && trimmed.len() <= MAX_SENTENCE_CHARS
+    text == trimmed
+        && !trimmed.is_empty()
+        && trimmed.len() <= MAX_SENTENCE_CHARS
+        && !trimmed.chars().any(char::is_control)
+        && !trimmed.starts_with('/')
+        && !trimmed.starts_with('\\')
+        && !trimmed.starts_with('~')
+        && !trimmed.contains("://")
+        && !contains_file_scheme(trimmed)
+        && !trimmed.contains("../")
+        && !trimmed.contains("..\\")
+        && !trimmed.as_bytes().get(1).is_some_and(|byte| *byte == b':')
+        && !contains_absolute_path(trimmed)
+}
+
+fn contains_absolute_path(value: &str) -> bool {
+    value.split_whitespace().any(looks_like_absolute_path)
+        || value
+            .split(|character: char| {
+                matches!(
+                    character,
+                    '=' | '(' | ')' | '[' | ']' | '{' | '}' | ',' | ';' | ':' | '`' | '"' | '\''
+                )
+            })
+            .any(looks_like_absolute_path)
+}
+
+fn contains_file_scheme(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    lower.match_indices("file:").any(|(index, _)| {
+        index == 0
+            || lower[..index].chars().next_back().is_some_and(|character| {
+                character.is_whitespace()
+                    || matches!(
+                        character,
+                        '/' | '\\' | '=' | '(' | '[' | '{' | ',' | ';' | ':' | '`' | '"' | '\''
+                    )
+            })
+    })
+}
+
+fn looks_like_absolute_path(token: &str) -> bool {
+    let token = token.trim_matches(|character: char| {
+        matches!(
+            character,
+            ',' | ';' | '(' | ')' | '[' | ']' | '`' | '"' | '\''
+        )
+    });
+    (token.starts_with('/') && token.len() > 1)
+        || (token.starts_with('\\') && token.len() > 1)
+        || (token.starts_with('~') && token.len() > 1)
+        || (token.as_bytes().get(1) == Some(&b':')
+            && token
+                .as_bytes()
+                .first()
+                .is_some_and(u8::is_ascii_alphabetic)
+            && token
+                .as_bytes()
+                .get(2)
+                .is_some_and(|byte| matches!(*byte, b'/' | b'\\')))
+}
+
+fn is_safe_support_ref(reference: &str) -> bool {
+    reference == reference.trim()
+        && !reference.is_empty()
+        && reference.len() <= 320
+        && !reference.chars().any(char::is_control)
+        && !reference.chars().any(char::is_whitespace)
+        && reference.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b':' | b'.' | b'_' | b'-' | b'/' | b'#')
+        })
+        && !reference.starts_with('/')
+        && !reference.starts_with('\\')
+        && !reference.starts_with('~')
+        && !contains_file_scheme(reference)
+        && !reference.contains("../")
+        && !reference.contains("..\\")
+        && !reference.contains("://")
+        && !reference.contains("//")
+        && !reference
+            .as_bytes()
+            .get(1)
+            .is_some_and(|byte| *byte == b':')
+}
+
+fn has_duplicate_strings(values: &[String]) -> bool {
+    values
+        .iter()
+        .enumerate()
+        .any(|(index, value)| values[..index].contains(value))
+}
+
+fn is_utc_timestamp(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() < 20
+        || bytes.len() > 32
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes[10] != b'T'
+        || bytes[13] != b':'
+        || bytes[16] != b':'
+        || bytes.last() != Some(&b'Z')
+        || !(bytes.len() == 20 && bytes[19] == b'Z'
+            || bytes.len() > 21
+                && bytes[19] == b'.'
+                && bytes[20..bytes.len() - 1].iter().all(u8::is_ascii_digit))
+    {
+        return false;
+    }
+    let Some(year) = timestamp_number(bytes, 0, 4) else {
+        return false;
+    };
+    let Some(month) = timestamp_number(bytes, 5, 7) else {
+        return false;
+    };
+    let Some(day) = timestamp_number(bytes, 8, 10) else {
+        return false;
+    };
+    let Some(hour) = timestamp_number(bytes, 11, 13) else {
+        return false;
+    };
+    let Some(minute) = timestamp_number(bytes, 14, 16) else {
+        return false;
+    };
+    let Some(second) = timestamp_number(bytes, 17, 19) else {
+        return false;
+    };
+    let leap_year = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days_in_month = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap_year => 29,
+        2 => 28,
+        _ => return false,
+    };
+    year >= 1970 && day >= 1 && day <= days_in_month && hour <= 23 && minute <= 59 && second <= 59
+}
+
+fn timestamp_number(bytes: &[u8], start: usize, end: usize) -> Option<u32> {
+    bytes
+        .get(start..end)?
+        .iter()
+        .try_fold(0_u32, |value, byte| {
+            byte.is_ascii_digit()
+                .then_some(value * 10 + u32::from(*byte - b'0'))
+        })
 }
 
 fn require_ref(field: &'static str, value: &str) -> Result<(), BuildError> {
@@ -147,9 +319,47 @@ fn require_ref(field: &'static str, value: &str) -> Result<(), BuildError> {
     } else {
         Err(BuildError::NonCanonicalRef {
             field,
-            value: value.to_string(),
+            value: "[redacted invalid ref]".to_owned(),
         })
     }
+}
+
+fn require_opaque_ref(
+    field: &'static str,
+    value: &str,
+    required_prefix: &'static str,
+) -> Result<(), BuildError> {
+    let trimmed = value.trim();
+    if trimmed != value {
+        return Err(BuildError::InvalidOpaqueRef {
+            field,
+            value: "[redacted invalid ref]".to_owned(),
+            required_prefix,
+        });
+    }
+    let value = trimmed;
+    let has_opaque_id = is_bounded_opaque_ref(value, required_prefix);
+    if value.len() <= MAX_REF_CHARS && has_opaque_id {
+        Ok(())
+    } else {
+        Err(BuildError::InvalidOpaqueRef {
+            field,
+            value: "[redacted invalid ref]".to_owned(),
+            required_prefix,
+        })
+    }
+}
+
+fn is_bounded_opaque_ref(value: &str, required_prefix: &str) -> bool {
+    value.len() <= MAX_REF_CHARS
+        && value
+            .strip_prefix(required_prefix)
+            .is_some_and(|identifier| {
+                !identifier.is_empty()
+                    && identifier.bytes().all(|byte| {
+                        byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-')
+                    })
+            })
 }
 
 /// Public claim class for the lane, reusing the stable lifecycle cutline.
@@ -380,6 +590,20 @@ pub fn required_recovery_actions(
     actions
 }
 
+fn privacy_safe_recovery_action_id(action_id: &str) -> String {
+    [
+        MigrationRecoveryAction::ReopenMigrationReport,
+        MigrationRecoveryAction::CompareBeforeAfter,
+        MigrationRecoveryAction::UndoViaRollback,
+        MigrationRecoveryAction::ReviewUnsupportedGaps,
+        MigrationRecoveryAction::ExportSupportPacket,
+    ]
+    .into_iter()
+    .find(|action| action.as_str() == action_id)
+    .map(|action| action.as_str().to_owned())
+    .unwrap_or_else(|| "[redacted invalid action id]".to_owned())
+}
+
 /// The before/after diff disclosure for a flow.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DiffDisclosure {
@@ -391,8 +615,8 @@ pub struct DiffDisclosure {
     pub row_count: u32,
     /// Whether every row carries both a before and an after side.
     pub every_row_has_before_after: bool,
-    /// Whether every row cites the one shared rollback checkpoint.
-    pub every_row_uses_one_checkpoint: bool,
+    /// Whether every row cites the one shared rollback requirement.
+    pub every_row_uses_one_requirement: bool,
 }
 
 impl DiffDisclosure {
@@ -401,17 +625,21 @@ impl DiffDisclosure {
         self.reviewed_before_apply
             && self.row_count > 0
             && self.every_row_has_before_after
-            && self.every_row_uses_one_checkpoint
+            && self.every_row_uses_one_requirement
     }
 }
 
 /// The rollback disclosure for a flow.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RollbackDisclosure {
-    /// Canonical rollback-checkpoint ref.
-    pub checkpoint_ref: String,
-    /// Canonical migration-restore-record ref.
-    pub restore_record_ref: String,
+    /// Preview requirement ref. This is never a checkpoint handle.
+    pub rollback_requirement_ref: String,
+    /// Canonical rollback-checkpoint ref, present only with execution evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checkpoint_ref: Option<String>,
+    /// Canonical migration-restore-record ref, present only with execution evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restore_record_ref: Option<String>,
     /// Whether the checkpoint was minted before apply.
     pub created_before_apply: bool,
     /// Whether the checkpoint protects every domain the apply may touch.
@@ -434,7 +662,9 @@ pub struct RollbackDisclosure {
 impl RollbackDisclosure {
     /// Returns `true` when rollback is provably available for this flow.
     pub fn is_live_for_flow(&self) -> bool {
-        self.created_before_apply
+        self.checkpoint_ref.is_some()
+            && self.restore_record_ref.is_some()
+            && self.created_before_apply
             && self.protects_every_domain
             && self.verified_for_this_flow
             && self.undo_available
@@ -489,7 +719,11 @@ pub struct GapTaxonomy {
 impl GapTaxonomy {
     /// Returns the total number of classified rows.
     pub const fn total(&self) -> u32 {
-        self.exact + self.translated + self.partial + self.shimmed + self.unsupported
+        self.exact
+            .saturating_add(self.translated)
+            .saturating_add(self.partial)
+            .saturating_add(self.shimmed)
+            .saturating_add(self.unsupported)
     }
 
     /// Returns `true` when the import would be full-fidelity (no Partial,
@@ -610,8 +844,9 @@ pub struct SurfaceParity {
 /// Header state rendered above migration-center and post-apply records.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MigrationFlowHeader {
-    /// Canonical migration-session ref shared by UI, CLI, support, and issues.
-    pub migration_session_ref: String,
+    /// In-packet review correlation shared by preview surfaces. This is not an
+    /// apply-session or lifecycle record.
+    pub migration_review_ref: String,
     /// Source tool chip label.
     pub source_tool_label: String,
     /// Source version chip label. Must disclose unknown marker-only truth.
@@ -622,14 +857,21 @@ pub struct MigrationFlowHeader {
     pub target_scope_label: String,
     /// Short sentence describing where writes land.
     pub writes_land_in: String,
-    /// Checkpoint-created notice text.
-    pub checkpoint_created_notice: String,
-    /// Canonical checkpoint ref.
-    pub checkpoint_ref: String,
-    /// Canonical restore record ref.
-    pub restore_record_ref: String,
-    /// Canonical restore action ref.
-    pub restore_action_ref: String,
+    /// Checkpoint-requirement notice text.
+    pub checkpoint_requirement_notice: String,
+    /// Preview requirement ref. This is never a checkpoint handle.
+    pub rollback_requirement_ref: String,
+    /// Canonical checkpoint ref, present only after execution publishes it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checkpoint_ref: Option<String>,
+    /// Canonical restore record ref, present only after execution publishes it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restore_record_ref: Option<String>,
+    /// Canonical restore action ref, present only when restore is enabled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restore_action_ref: Option<String>,
+    /// Whether the restore action is executable for this record.
+    pub restore_action_enabled: bool,
     /// Canonical compatibility report ref.
     pub compatibility_report_ref: String,
     /// Canonical compatibility-report open action ref.
@@ -649,15 +891,43 @@ pub struct MigrationFlowHeader {
 impl MigrationFlowHeader {
     /// Returns true when the header answers the required migration questions.
     pub fn answers_required_questions(&self) -> bool {
-        !self.source_tool_label.trim().is_empty()
-            && !self.source_version_label.trim().is_empty()
-            && !self.writes_land_in.trim().is_empty()
-            && !self.checkpoint_created_notice.trim().is_empty()
-            && is_canonical_object_ref(&self.migration_session_ref)
+        let checkpoint_refs_are_canonical = self
+            .checkpoint_ref
+            .as_deref()
+            .map(is_canonical_object_ref)
+            .unwrap_or(true);
+        let restore_record_is_canonical = self
+            .restore_record_ref
+            .as_deref()
+            .map(is_canonical_object_ref)
+            .unwrap_or(true);
+        let restore_action_is_canonical = self
+            .restore_action_ref
+            .as_deref()
+            .map(is_canonical_object_ref)
+            .unwrap_or(true);
+        let restore_evidence_consistent = if self.restore_action_enabled {
+            self.checkpoint_ref.is_some()
+                && self.restore_record_ref.is_some()
+                && self.restore_action_ref.is_some()
+        } else {
+            self.checkpoint_ref.is_none()
+                && self.restore_record_ref.is_none()
+                && self.restore_action_ref.is_none()
+        };
+
+        is_reviewable_sentence(&self.source_tool_label)
+            && is_reviewable_sentence(&self.source_version_label)
+            && is_reviewable_sentence(&self.target_scope_label)
+            && is_reviewable_sentence(&self.writes_land_in)
+            && is_bounded_opaque_ref(&self.migration_review_ref, "migration-review:")
+            && is_reviewable_sentence(&self.checkpoint_requirement_notice)
+            && is_bounded_opaque_ref(&self.rollback_requirement_ref, "rollback-requirement:")
             && is_canonical_object_ref(&self.target_scope_ref)
-            && is_canonical_object_ref(&self.checkpoint_ref)
-            && is_canonical_object_ref(&self.restore_record_ref)
-            && is_canonical_object_ref(&self.restore_action_ref)
+            && checkpoint_refs_are_canonical
+            && restore_record_is_canonical
+            && restore_action_is_canonical
+            && restore_evidence_consistent
             && is_canonical_object_ref(&self.compatibility_report_ref)
             && is_canonical_object_ref(&self.compatibility_report_action_ref)
             && is_canonical_object_ref(&self.support_export_ref)
@@ -672,12 +942,12 @@ impl MigrationFlowHeader {
 /// traceability. These are upstream source refs, not canonical durable objects.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UpstreamRefs {
-    /// Wizard session id the diff/rollback evidence came from.
-    pub wizard_session_ref: String,
+    /// Wizard review correlation the preview requirement came from.
+    pub wizard_review_ref: String,
     /// Wizard mapping report id retained after first run.
     pub wizard_mapping_report_ref: String,
-    /// Raw upstream rollback-checkpoint ref.
-    pub rollback_checkpoint_ref: String,
+    /// Raw upstream rollback-requirement ref; never a checkpoint handle.
+    pub rollback_requirement_ref: String,
     /// Raw upstream import-diff-preview ref.
     pub import_diff_preview_ref: String,
     /// Migration corpus scoreboard id the taxonomy came from.
@@ -693,8 +963,8 @@ pub struct MigrationFlowDisclosureInput {
     pub record_id: String,
     /// UTC timestamp.
     pub as_of: String,
-    /// Canonical migration-session ref.
-    pub migration_session_ref: String,
+    /// In-packet migration review correlation; not an apply session.
+    pub migration_review_ref: String,
     /// Source ecosystem this flow imported from.
     pub source_ecosystem: IncumbentEcosystem,
     /// Header state rendered before review and retained after apply.
@@ -750,8 +1020,8 @@ pub struct MigrationFlowDisclosureRecord {
     pub record_id: String,
     /// UTC timestamp.
     pub as_of: String,
-    /// Canonical migration-session ref.
-    pub migration_session_ref: String,
+    /// In-packet migration review correlation; not an apply session.
+    pub migration_review_ref: String,
     /// Source ecosystem this flow imported from.
     pub source_ecosystem: IncumbentEcosystem,
     /// Compact source-ecosystem label (the vocabulary docs / Help/About ingest).
@@ -805,6 +1075,12 @@ pub enum BuildError {
     InvalidSentence { field: &'static str },
     /// A field that must be a canonical object ref was not.
     NonCanonicalRef { field: &'static str, value: String },
+    /// An upstream opaque ref did not carry its required object-kind prefix.
+    InvalidOpaqueRef {
+        field: &'static str,
+        value: String,
+        required_prefix: &'static str,
+    },
     /// The claim ceiling asserted the diff was reviewed when it was not.
     OverclaimsDiffReviewed,
     /// The claim ceiling asserted rollback availability it cannot prove.
@@ -815,12 +1091,22 @@ pub enum BuildError {
     OverclaimsFullFidelity,
     /// A taxonomy gap count did not match the gap rows present.
     TaxonomyGapCountMismatch,
+    /// Taxonomy classification presence or gap-row shape was not exact.
+    TaxonomyShapeMismatch,
     /// An undo / compare ref was present without availability, or vice versa.
     RollbackRefAvailabilityMismatch { field: &'static str },
+    /// Checkpoint lifecycle booleans or refs claimed evidence that was absent.
+    RollbackEvidenceStateMismatch,
+    /// Upstream review or rollback-requirement identity drifted from the
+    /// disclosure it is claimed to project.
+    UpstreamTruthDrift { field: &'static str },
     /// A gap was not visible before apply.
     GapHiddenBeforeApply { gap_id: String },
     /// A required recovery route was missing.
     MissingRecoveryRoute { action: MigrationRecoveryAction },
+    /// Recovery routes contained duplicates, unsupported actions, reordered
+    /// actions, or labels/roles that drifted from the canonical vocabulary.
+    RecoveryRoutesMismatch,
     /// A recovery route was not keyboard reachable.
     RecoveryRouteNotKeyboardReachable { action_id: String },
     /// The two surface projections disagreed on identity or recovery behaviour.
@@ -863,6 +1149,14 @@ impl core::fmt::Display for BuildError {
                     "field `{field}` must be a canonical object ref, got {value:?}"
                 )
             }
+            Self::InvalidOpaqueRef {
+                field,
+                value,
+                required_prefix,
+            } => write!(
+                f,
+                "field `{field}` must start with `{required_prefix}`, got {value:?}"
+            ),
             Self::OverclaimsDiffReviewed => write!(
                 f,
                 "claim ceiling may not assert the diff was reviewed before apply unless it was"
@@ -883,9 +1177,21 @@ impl core::fmt::Display for BuildError {
                 f,
                 "taxonomy gap rows must match the Unsupported and Shimmed counts"
             ),
+            Self::TaxonomyShapeMismatch => write!(
+                f,
+                "taxonomy classifications and gap rows must be exact, unique, and bounded"
+            ),
             Self::RollbackRefAvailabilityMismatch { field } => write!(
                 f,
                 "rollback `{field}` must be present iff the matching route is available"
+            ),
+            Self::RollbackEvidenceStateMismatch => write!(
+                f,
+                "rollback lifecycle evidence must be absent in preview or complete and internally consistent"
+            ),
+            Self::UpstreamTruthDrift { field } => write!(
+                f,
+                "upstream `{field}` must match the disclosure truth it projects"
             ),
             Self::GapHiddenBeforeApply { gap_id } => {
                 write!(f, "gap `{gap_id}` must be visible before apply")
@@ -894,6 +1200,10 @@ impl core::fmt::Display for BuildError {
                 f,
                 "flow must expose recovery route `{}`",
                 action.as_str()
+            ),
+            Self::RecoveryRoutesMismatch => write!(
+                f,
+                "recovery routes must exactly match the canonical actions, order, labels, and roles"
             ),
             Self::RecoveryRouteNotKeyboardReachable { action_id } => write!(
                 f,
@@ -946,7 +1256,7 @@ impl core::fmt::Display for BuildError {
             ),
             Self::HeaderIncomplete => write!(
                 f,
-                "migration header must preserve source/version, target scope, checkpoint, restore, compatibility, support, and issue-template refs for the same session"
+                "migration header must preserve source/version, target scope, rollback requirement, honest optional restore evidence, compatibility, support, and issue-template refs for the same review"
             ),
         }
     }
@@ -970,28 +1280,130 @@ impl MigrationFlowDisclosureRecord {
         if !is_reviewable_sentence(&input.summary) {
             return Err(BuildError::InvalidSentence { field: "summary" });
         }
-        require_ref("migration_session_ref", &input.migration_session_ref)?;
-        if input.header.migration_session_ref != input.migration_session_ref
+        if !is_safe_support_ref(&input.record_id) {
+            return Err(BuildError::InvalidSentence { field: "record_id" });
+        }
+        if !is_utc_timestamp(&input.as_of) {
+            return Err(BuildError::InvalidSentence { field: "as_of" });
+        }
+        require_opaque_ref(
+            "migration_review_ref",
+            &input.migration_review_ref,
+            "migration-review:",
+        )?;
+        require_opaque_ref(
+            "rollback.rollback_requirement_ref",
+            &input.rollback.rollback_requirement_ref,
+            "rollback-requirement:",
+        )?;
+        if input.header.migration_review_ref != input.migration_review_ref
+            || input.header.rollback_requirement_ref != input.rollback.rollback_requirement_ref
             || input.header.checkpoint_ref != input.rollback.checkpoint_ref
             || input.header.restore_record_ref != input.rollback.restore_record_ref
             || input.header.support_export_ref != input.support_export_ref
+            || input.header.restore_action_enabled != input.rollback.is_live_for_flow()
+            || input.header.checkpoint_requirement_notice
+                != format!(
+                    "Rollback checkpoint required before apply: {}",
+                    input.rollback.rollback_requirement_ref
+                )
             || !input.header.answers_required_questions()
         {
             return Err(BuildError::HeaderIncomplete);
         }
+        if input.upstream.wizard_review_ref != input.migration_review_ref {
+            return Err(BuildError::UpstreamTruthDrift {
+                field: "wizard_review_ref",
+            });
+        }
+        if input.upstream.rollback_requirement_ref != input.rollback.rollback_requirement_ref {
+            return Err(BuildError::UpstreamTruthDrift {
+                field: "rollback_requirement_ref",
+            });
+        }
+        let Some(review_suffix) = input.migration_review_ref.strip_prefix("migration-review:")
+        else {
+            return Err(BuildError::UpstreamTruthDrift {
+                field: "migration_review_ref",
+            });
+        };
+        if input.upstream.wizard_mapping_report_ref != format!("mapping-report:{review_suffix}")
+            || input.upstream.import_diff_preview_ref != format!("import-preview:{review_suffix}")
+            || input.upstream.corpus_scoreboard_ref != MIGRATION_SCOREBOARD_ID
+            || input.upstream.corpus_section_ref
+                != input.source_ecosystem.source_ecosystem_row_ref()
+        {
+            return Err(BuildError::UpstreamTruthDrift {
+                field: "derived_object_refs",
+            });
+        }
+        for (field, reference) in [
+            (
+                "wizard_mapping_report_ref",
+                input.upstream.wizard_mapping_report_ref.as_str(),
+            ),
+            (
+                "import_diff_preview_ref",
+                input.upstream.import_diff_preview_ref.as_str(),
+            ),
+            (
+                "corpus_scoreboard_ref",
+                input.upstream.corpus_scoreboard_ref.as_str(),
+            ),
+            (
+                "corpus_section_ref",
+                input.upstream.corpus_section_ref.as_str(),
+            ),
+        ] {
+            if !is_safe_support_ref(reference) {
+                return Err(BuildError::UpstreamTruthDrift { field });
+            }
+        }
         require_ref("diff.diff_preview_ref", &input.diff.diff_preview_ref)?;
-        require_ref("rollback.checkpoint_ref", &input.rollback.checkpoint_ref)?;
-        require_ref(
-            "rollback.restore_record_ref",
-            &input.rollback.restore_record_ref,
-        )?;
+        if let Some(checkpoint_ref) = &input.rollback.checkpoint_ref {
+            require_ref("rollback.checkpoint_ref", checkpoint_ref)?;
+        }
+        if let Some(restore_record_ref) = &input.rollback.restore_record_ref {
+            require_ref("rollback.restore_record_ref", restore_record_ref)?;
+        }
         require_ref("diagnostics_export_ref", &input.diagnostics_export_ref)?;
         require_ref("support_export_ref", &input.support_export_ref)?;
+        if input.evidence_refs.len() > MAX_SUPPORT_REFS
+            || has_duplicate_strings(&input.evidence_refs)
+        {
+            return Err(BuildError::InvalidSentence {
+                field: "evidence_refs",
+            });
+        }
+        if input.narrative_refs.len() > MAX_SUPPORT_REFS
+            || has_duplicate_strings(&input.narrative_refs)
+        {
+            return Err(BuildError::InvalidSentence {
+                field: "narrative_refs",
+            });
+        }
         for evidence in &input.evidence_refs {
             require_ref("evidence_refs", evidence)?;
         }
         for narrative in &input.narrative_refs {
             require_ref("narrative_refs", narrative)?;
+        }
+
+        let checkpoint_evidence_present = match (
+            input.rollback.checkpoint_ref.is_some(),
+            input.rollback.restore_record_ref.is_some(),
+        ) {
+            (true, true) => true,
+            (false, false) => false,
+            _ => return Err(BuildError::RollbackEvidenceStateMismatch),
+        };
+        let lifecycle_evidence_claimed = input.rollback.created_before_apply
+            || input.rollback.protects_every_domain
+            || input.rollback.verified_for_this_flow
+            || input.rollback.undo_available
+            || input.rollback.compare_available;
+        if lifecycle_evidence_claimed && !checkpoint_evidence_present {
+            return Err(BuildError::RollbackEvidenceStateMismatch);
         }
 
         // --- rollback ref / availability consistency -------------------------
@@ -1021,6 +1433,21 @@ impl MigrationFlowDisclosureRecord {
         }
 
         // --- taxonomy integrity ----------------------------------------------
+        if input.taxonomy.gaps.len() > MAX_GAPS {
+            return Err(BuildError::TaxonomyShapeMismatch);
+        }
+        let classified_total = [
+            input.taxonomy.exact,
+            input.taxonomy.translated,
+            input.taxonomy.partial,
+            input.taxonomy.shimmed,
+            input.taxonomy.unsupported,
+        ]
+        .into_iter()
+        .try_fold(0_u32, u32::checked_add);
+        if !classified_total.is_some_and(|total| total <= MAX_FLOW_ROWS) {
+            return Err(BuildError::TaxonomyShapeMismatch);
+        }
         let gap_unsupported = input
             .taxonomy
             .gaps
@@ -1036,7 +1463,54 @@ impl MigrationFlowDisclosureRecord {
         if gap_unsupported != input.taxonomy.unsupported || gap_shimmed != input.taxonomy.shimmed {
             return Err(BuildError::TaxonomyGapCountMismatch);
         }
+        let expected_classifications: Vec<ImportMappingClassification> = [
+            (ImportMappingClassification::Exact, input.taxonomy.exact),
+            (
+                ImportMappingClassification::Translated,
+                input.taxonomy.translated,
+            ),
+            (ImportMappingClassification::Partial, input.taxonomy.partial),
+            (ImportMappingClassification::Shimmed, input.taxonomy.shimmed),
+            (
+                ImportMappingClassification::Unsupported,
+                input.taxonomy.unsupported,
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(classification, count)| (count > 0).then_some(classification))
+        .collect();
+        if input.taxonomy.classifications_present != expected_classifications
+            || !input.taxonomy.unsupported_gaps_visible_before_apply
+            || input
+                .taxonomy
+                .gaps
+                .windows(2)
+                .any(|pair| pair[0].gap_id >= pair[1].gap_id)
+        {
+            return Err(BuildError::TaxonomyShapeMismatch);
+        }
         for gap in &input.taxonomy.gaps {
+            if !matches!(
+                gap.classification,
+                ImportMappingClassification::Shimmed | ImportMappingClassification::Unsupported
+            ) || !is_reviewable_sentence(&gap.source_label)
+                || !is_reviewable_sentence(&gap.gap_summary)
+                || !is_bounded_opaque_ref(&gap.gap_id, "migration-flow-gap:")
+                || !gap.retained_after_apply
+                || gap.docs_help_refs.is_empty()
+                || gap.support_export_refs.is_empty()
+                || gap.docs_help_refs.len() > MAX_SUPPORT_REFS
+                || gap.support_export_refs.len() > MAX_SUPPORT_REFS
+                || has_duplicate_strings(&gap.docs_help_refs)
+                || has_duplicate_strings(&gap.support_export_refs)
+                || gap
+                    .docs_help_refs
+                    .iter()
+                    .chain(gap.support_export_refs.iter())
+                    .any(|reference| !is_safe_support_ref(reference))
+            {
+                return Err(BuildError::TaxonomyShapeMismatch);
+            }
             if !gap.visible_before_apply {
                 return Err(BuildError::GapHiddenBeforeApply {
                     gap_id: gap.gap_id.clone(),
@@ -1064,26 +1538,50 @@ impl MigrationFlowDisclosureRecord {
         }
 
         // --- recovery routes -------------------------------------------------
+        if input.recovery_routes.len() > 5 {
+            return Err(BuildError::RecoveryRoutesMismatch);
+        }
         let route_ids: Vec<&str> = input
             .recovery_routes
             .iter()
             .map(|route| route.action_id.as_str())
             .collect();
-        for required in required_recovery_actions(rollback_live, has_gaps) {
+        let required_actions = required_recovery_actions(rollback_live, has_gaps);
+        for required in &required_actions {
             if !route_ids.iter().any(|id| *id == required.as_str()) {
-                return Err(BuildError::MissingRecoveryRoute { action: required });
+                return Err(BuildError::MissingRecoveryRoute { action: *required });
             }
         }
         for route in &input.recovery_routes {
             if !route.keyboard_reachable {
                 return Err(BuildError::RecoveryRouteNotKeyboardReachable {
-                    action_id: route.action_id.clone(),
+                    action_id: privacy_safe_recovery_action_id(&route.action_id),
                 });
             }
         }
+        if input.recovery_routes.len() != required_actions.len()
+            || input
+                .recovery_routes
+                .iter()
+                .zip(required_actions.iter())
+                .any(|(actual, required)| actual != &required.route())
+        {
+            return Err(BuildError::RecoveryRoutesMismatch);
+        }
 
         // --- cross-surface parity --------------------------------------------
-        if !input.surfaces.parity_holds {
+        if !input.surfaces.parity_holds
+            || !is_bounded_opaque_ref(&input.surfaces.migration_center_row_id, "migration-center:")
+            || !is_bounded_opaque_ref(
+                &input.surfaces.settings_import_history_row_id,
+                "settings-import-history:",
+            )
+            || !is_bounded_opaque_ref(&input.surfaces.command_palette_command_id, "cmd:")
+        {
+            return Err(BuildError::SurfaceParityBroken);
+        }
+        if input.surfaces.recovery_action_ids.len() > 5 || input.surfaces.reopen_surfaces.len() > 3
+        {
             return Err(BuildError::SurfaceParityBroken);
         }
         let parity_ids: Vec<&str> = input
@@ -1105,8 +1603,14 @@ impl MigrationFlowDisclosureRecord {
                 return Err(BuildError::ReopenSurfaceMissing { surface: required });
             }
         }
+        if input.surfaces.reopen_surfaces.len() != 3 {
+            return Err(BuildError::SurfaceParityBroken);
+        }
 
         // --- route parity across surfaces ------------------------------------
+        if input.routes.len() > MigrationRouteSurface::REQUIRED.len() {
+            return Err(BuildError::SurfaceParityBroken);
+        }
         let mut seen_surfaces = Vec::new();
         for route in &input.routes {
             if seen_surfaces.contains(&route.surface) {
@@ -1148,8 +1652,13 @@ impl MigrationFlowDisclosureRecord {
             }
         }
         let ecosystem_label = input.source_ecosystem.display_label().to_string();
-        if !input.accessibility.row_narration.contains(&ecosystem_label) {
+        if !is_reviewable_sentence(&input.accessibility.row_narration)
+            || !input.accessibility.row_narration.contains(&ecosystem_label)
+        {
             return Err(BuildError::NarrationOmitsEcosystem);
+        }
+        if input.accessibility.layout_modes.len() != LayoutMode::REQUIRED.len() {
+            return Err(BuildError::AccessibilityActionLabelsMismatch);
         }
         for required in LayoutMode::REQUIRED {
             let Some(disclosure) = input
@@ -1215,7 +1724,7 @@ impl MigrationFlowDisclosureRecord {
             shared_contract_ref: MIGRATION_FLOW_DISCLOSURE_SHARED_CONTRACT_REF.to_string(),
             record_id: input.record_id,
             as_of: input.as_of,
-            migration_session_ref: input.migration_session_ref,
+            migration_review_ref: input.migration_review_ref,
             source_ecosystem: input.source_ecosystem,
             source_ecosystem_label: ecosystem_label,
             header: input.header,
@@ -1245,14 +1754,16 @@ impl MigrationFlowDisclosureRecord {
     pub fn support_export_lines(&self) -> Vec<String> {
         let mut lines = vec![
             format!("migration_flow_disclosure: {}", self.record_id),
-            format!("migration_session_ref: {}", self.migration_session_ref),
+            format!("migration_review_ref: {}", self.migration_review_ref),
             format!(
-                "header: source={} version={} target={} checkpoint={} restore={} compatibility={} issue_template={}",
+                "header: source={} version={} target={} rollback_requirement={} checkpoint={} restore={} restore_enabled={} compatibility={} issue_template={}",
                 self.header.source_tool_label,
                 self.header.source_version_label,
                 self.header.writes_land_in,
-                self.header.checkpoint_ref,
-                self.header.restore_action_ref,
+                self.header.rollback_requirement_ref,
+                self.header.checkpoint_ref.as_deref().unwrap_or("not_available"),
+                self.header.restore_action_ref.as_deref().unwrap_or("not_available"),
+                self.header.restore_action_enabled,
                 self.header.compatibility_report_ref,
                 self.header.issue_template_ref
             ),
@@ -1265,11 +1776,11 @@ impl MigrationFlowDisclosureRecord {
             format!("title: {}", self.title),
             format!("summary: {}", self.summary),
             format!(
-                "diff: rows={} reviewed_before_apply={} before_after={} one_checkpoint={}",
+                "diff: rows={} reviewed_before_apply={} before_after={} one_rollback_requirement={}",
                 self.diff.row_count,
                 self.diff.reviewed_before_apply,
                 self.diff.every_row_has_before_after,
-                self.diff.every_row_uses_one_checkpoint
+                self.diff.every_row_uses_one_requirement
             ),
             format!(
                 "rollback: created_before_apply={} protects_every_domain={} verified_for_flow={} undo={} compare={}",
@@ -1369,10 +1880,10 @@ impl MigrationFlowDisclosureRecord {
             self.honesty_marker_present
         ));
         lines.push(format!(
-            "upstream: wizard_session={} mapping_report={} checkpoint={} diff_preview={} scoreboard={} section={}",
-            self.upstream.wizard_session_ref,
+            "upstream: wizard_review={} mapping_report={} rollback_requirement={} diff_preview={} scoreboard={} section={}",
+            self.upstream.wizard_review_ref,
             self.upstream.wizard_mapping_report_ref,
-            self.upstream.rollback_checkpoint_ref,
+            self.upstream.rollback_requirement_ref,
             self.upstream.import_diff_preview_ref,
             self.upstream.corpus_scoreboard_ref,
             self.upstream.corpus_section_ref
@@ -1383,5 +1894,77 @@ impl MigrationFlowDisclosureRecord {
         ));
         lines.push(format!("support_export_ref: {}", self.support_export_ref));
         lines
+    }
+}
+
+#[cfg(test)]
+mod validation_tests {
+    use super::{
+        is_reviewable_sentence, is_utc_timestamp, privacy_safe_recovery_action_id, GapTaxonomy,
+    };
+
+    #[test]
+    fn utc_timestamp_validation_rejects_impossible_or_non_utc_dates() {
+        assert!(is_utc_timestamp("2024-02-29T23:59:59Z"));
+        assert!(is_utc_timestamp("2024-02-29T23:59:59.123456Z"));
+        for invalid in [
+            "2023-02-29T00:00:00Z",
+            "2024-13-01T00:00:00Z",
+            "2024-01-01T24:00:00Z",
+            "2024-01-01T00:00:00+00:00",
+            "2024-01-01T00:00:00.Z",
+        ] {
+            assert!(!is_utc_timestamp(invalid), "accepted {invalid}");
+        }
+    }
+
+    #[test]
+    fn support_sentences_reject_private_paths_and_urls() {
+        assert!(is_reviewable_sentence(
+            "Review unsupported extension mappings."
+        ));
+        for private in [
+            "/Users/alice/Secret Project/settings.json",
+            "Open /Users/alice/Secret Project/settings.json",
+            "C:\\Users\\alice\\secret.json",
+            "Review C:\\Users\\alice\\secret.json",
+            "https://alice@example.invalid/private?token=abc",
+            "file:/Users/alice/private.json",
+            "target=/Users/alice/private.json",
+            "target:\\Users\\alice\\private.json",
+            " leading whitespace",
+            "trailing whitespace ",
+            "../customer/private.json",
+        ] {
+            assert!(!is_reviewable_sentence(private), "accepted {private:?}");
+        }
+        assert!(is_reviewable_sentence("VS Code / Code OSS"));
+    }
+
+    #[test]
+    fn recovery_error_ids_redact_noncanonical_input() {
+        assert_eq!(
+            privacy_safe_recovery_action_id("reopen_migration_report"),
+            "reopen_migration_report"
+        );
+        assert_eq!(
+            privacy_safe_recovery_action_id("/Users/alice/Secret Project"),
+            "[redacted invalid action id]"
+        );
+    }
+
+    #[test]
+    fn taxonomy_total_saturates_instead_of_panicking_on_hostile_counts() {
+        let taxonomy = GapTaxonomy {
+            exact: u32::MAX,
+            translated: u32::MAX,
+            partial: u32::MAX,
+            shimmed: u32::MAX,
+            unsupported: u32::MAX,
+            classifications_present: Vec::new(),
+            unsupported_gaps_visible_before_apply: false,
+            gaps: Vec::new(),
+        };
+        assert_eq!(taxonomy.total(), u32::MAX);
     }
 }

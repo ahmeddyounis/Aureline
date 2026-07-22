@@ -25,8 +25,8 @@ struct ImportDiffCase {
 #[derive(Debug, Deserialize)]
 struct Acceptance {
     every_row_has_before_after_diff: bool,
-    every_row_uses_one_checkpoint: bool,
-    checkpoint_created_before_apply: bool,
+    every_row_uses_one_rollback_requirement: bool,
+    checkpoint_required_before_apply: bool,
     retained_report_survives_first_run: bool,
     shortcut_delta_report_reopenable: bool,
     lossy_and_unsupported_visible_after_apply: bool,
@@ -65,12 +65,14 @@ fn import_diff_review_fixture_proves_checkpoint_report_and_shortcut_delta() {
         case.acceptance.every_row_has_before_after_diff
     );
     assert_eq!(
-        packet.every_row_uses_one_checkpoint(),
-        case.acceptance.every_row_uses_one_checkpoint
+        packet.every_row_uses_one_rollback_requirement(),
+        case.acceptance.every_row_uses_one_rollback_requirement
     );
     assert_eq!(
-        packet.rollback_checkpoint.clear_pre_apply_checkpoint(),
-        case.acceptance.checkpoint_created_before_apply
+        packet
+            .rollback_requirement
+            .requires_checkpoint_before_apply(),
+        case.acceptance.checkpoint_required_before_apply
     );
     assert_eq!(
         packet.retained_migration_report.retained_after_first_run,
@@ -120,8 +122,8 @@ fn import_diff_review_fixture_proves_checkpoint_report_and_shortcut_delta() {
         let projection = reopen_retained_migration_report(&packet, *surface)
             .unwrap_or_else(|| panic!("missing retained report projection for {surface:?}"));
         assert_eq!(
-            projection.rollback_checkpoint_ref,
-            packet.rollback_checkpoint.checkpoint_ref
+            projection.rollback_requirement_ref,
+            packet.rollback_requirement.requirement_ref
         );
         assert_eq!(
             projection.shortcut_delta_report_ref,

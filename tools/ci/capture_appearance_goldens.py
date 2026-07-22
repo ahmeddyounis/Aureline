@@ -110,7 +110,8 @@ def run_capture(
         case.ui_motion(),
     ]
     env = os.environ.copy()
-    env["AURELINE_APPEARANCE_STATE_ROOT"] = str(state_root)
+    env["AURELINE_STATE"] = str(state_root / "state")
+    env["AURELINE_CONFIG"] = str(state_root / "config")
     subprocess.run(cmd, cwd=REPO_ROOT, env=env, check=True)
 
 

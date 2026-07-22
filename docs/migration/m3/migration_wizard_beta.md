@@ -6,8 +6,9 @@ in [`crate::import`](../../../crates/aureline-shell/src/import/mod.rs)
 and the import diff review packet in
 [`crate::import::diff_review`](../../../crates/aureline-shell/src/import/diff_review.rs)
 into one guided flow so a switching user sees the source, the
-classified mapping report, the rollback checkpoint, and the
-compare/undo paths in the same projection.
+classified mapping report, the rollback-checkpoint requirement, and the
+available compare paths in the same projection. A dry-run packet does not
+prove that a checkpoint, restore record, or applied lifecycle exists.
 
 The projection is the page-level surface that the live shell, the
 headless inspector
@@ -22,8 +23,8 @@ Companion artifacts:
   — boundary schema for `shell_migration_wizard_beta_mapping_report_record`.
 - [`/fixtures/migration/m3/migration_wizard/`](../../../fixtures/migration/m3/migration_wizard/)
   — minted-from-truth wizard page, mapping report, unsupported gaps,
-  compare actions, undo actions, stage history, rollback-checkpoint
-  binding, and support-export wrapper.
+  compare actions, stage history, rollback-checkpoint requirement,
+  and support-export wrapper.
 - [`docs/migration/first_run_import_diff_and_rollback_contract.md`](../first_run_import_diff_and_rollback_contract.md)
   — first-run import contract the wizard composes with.
 - [`docs/migration/migration_restore_and_shortcut_delta_packet.md`](../migration_restore_and_shortcut_delta_packet.md)
@@ -38,20 +39,26 @@ Companion artifacts:
 ## Contract surface
 
 The beta wizard ships under the shared contract ref
-`shell:migration_wizard_beta:v1` and emits the following record kinds:
+`shell:migration_wizard_beta:v2` and emits the following record kinds. Version
+2 is the breaking correction that replaces preview-fabricated session and
+checkpoint identities with review and requirement identities:
 
 - `shell_migration_wizard_beta_page_record` — the wizard page. Carries
   the stage history, source/target descriptors, the import diff
-  preview ref, the mapping report, the rollback-checkpoint binding,
-  compare/undo action lists, the apply gate, and a summary banner.
+  preview ref, the mapping report, the rollback-checkpoint requirement,
+  compare/undo action lists, the apply gate, and a summary banner. Preview
+  packets emit no undo actions because no executable checkpoint exists yet.
 - `shell_migration_wizard_beta_mapping_report_record` — the retained
   mapping report. Carries the per-row classification (`exact`,
   `translated`, `partial`, `shimmed`, `unsupported`), the per-domain
-  before/after labels, the rollback checkpoint ref, the shortcut delta
+  before/after labels, the rollback requirement ref, the shortcut delta
   digest ref, and the reopen links for settings, help, and support
   export.
 - `shell_migration_wizard_beta_mapping_row_record` — one classified
-  mapping row inside the report.
+  mapping row inside the report. Its stable row id includes the source
+  ecosystem, domain, classification, and redacted source-item suffix; two
+  classifications for the same source item therefore never collapse onto one
+  support pivot.
 - `shell_migration_wizard_beta_unsupported_gap_record` — one pre-apply
   unsupported / bridge gap that MUST be visible before apply and
   retained after apply.
@@ -69,8 +76,8 @@ their own status names:
 2. `source_detected` — the source root has been classified read-only.
 3. `preview_ready` — the diff review packet is materialized and
    unsupported gaps are surfaced before apply.
-4. `checkpoint_ready` — the rollback checkpoint is minted and the
-   apply gate opens.
+4. `checkpoint_ready` — orchestration has supplied real execution evidence
+   that a rollback checkpoint exists and the apply gate may open.
 5. `applying` — apply is running against the reviewed preview and
    checkpoint.
 6. `applied` / `partially_applied` / `blocked` — the apply landed
@@ -79,12 +86,13 @@ their own status names:
 7. `rolled_back` — the undo path triggered; the checkpoint restored
    prior state and the report still names what was reverted.
 
-The page's `stage_history` records every entered stage with the
-`durable_writes_authorized` invariant: no stage that admits durable
-writes may appear before the wizard recorded
-`stage="checkpoint_ready"`. The validator
-(`validate_migration_wizard_page`) rejects any stage history that
-admits durable writes before the checkpoint.
+The dry-run page builder can establish only `selecting_source`,
+`source_detected`, `preview_ready`, or `blocked`. Requests for later stages are
+narrowed to `preview_ready`; the builder never fabricates lifecycle evidence.
+The validator rejects checkpoint-ready, applying, applied, partial, or
+rolled-back claims in a preview-only page. A future orchestration projection
+may advance those stages only after binding a real execution checkpoint and
+actual apply/restore results.
 
 ## Update Rollback Composition
 
@@ -113,16 +121,17 @@ The beta wizard delivers the M3 migration-wizard acceptance gates:
   Shimmed, or Unsupported and the report survives after import.** The
   mapping report stores the classification per row, the per-class
   count summary, and the `retained_after_first_run=true` invariant.
+  Every row, including Exact and Translated rows, carries a bounded
+  support-export ref so the retained report can reopen the precise row without
+  copying source paths or values.
   The validator rejects any report that is missing a required
   classification or that is not retained.
-- **The wizard creates a rollback checkpoint before mutating durable
-  state and exposes compare/undo paths after import.** The
-  `rollback_checkpoint` binding requires `created_before_apply=true`
-  and `protects_every_domain=true`; the page exposes a non-empty
-  `compare_actions` list (one per touched domain) and a non-empty
-  `undo_actions` list (`restore_from_checkpoint` plus
-  `export_for_support`). The validator rejects post-apply stages with
-  missing compare or undo paths.
+- **The wizard records the checkpoint precondition without claiming it has
+  already been met.** `rollback_requirement.requirement_state` is
+  `required_before_apply`, every mapping row cites the same requirement, the
+  preview exposes per-domain compare actions, restore remains disabled, and
+  `undo_actions` is empty. Execution must bind a real checkpoint before apply;
+  only an actual rollback result may mint a restore record.
 - **Unsupported gaps are visible immediately instead of being
   discovered as hidden missing behavior later.** Every
   `unsupported_gap_row` carries `visible_before_apply=true` and
@@ -146,8 +155,9 @@ cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- unsuppor
 cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- compare-actions
 cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- undo-actions
 cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- stage-history
-cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- rollback-checkpoint
+cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- rollback-requirement
 cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- support-export
+cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- emit-fixtures fixtures/migration/m3/migration_wizard
 cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- compact
 cargo run -q -p aureline-shell --bin aureline_shell_migration_wizard -- validate
 ```
@@ -161,20 +171,19 @@ the record kinds.
 Reviewable fixtures live under
 [`fixtures/migration/m3/migration_wizard/`](../../../fixtures/migration/m3/migration_wizard/):
 
-- `page.json` — full beta wizard page (stage history + mapping report
-  + rollback checkpoint + compare/undo + summary).
+- `page.json` — preview-only beta wizard page (stage history + mapping report
+  + rollback requirement + compare + summary).
 - `mapping_report.json` — retained mapping report with classification
   summary and reopen links.
 - `unsupported_gaps.json` — pre-apply unsupported / bridge gaps that
   must remain visible.
-- `compare_actions.json` — per-domain compare paths exposed after
-  apply.
-- `undo_actions.json` — restore-from-checkpoint and export-for-support
-  paths exposed after apply.
+- `compare_actions.json` — per-domain before/after compare paths.
+- `undo_actions.json` — empty for the preview-only fixture; execution evidence
+  is required before an undo action can be exported.
 - `stage_history.json` — admitted stage transitions with the
   `durable_writes_authorized` invariant.
-- `rollback_checkpoint.json` — the rollback-checkpoint binding the
-  wizard minted before apply.
+- `rollback_requirement.json` — the pre-apply checkpoint requirement; its ref
+  is explicitly not a checkpoint handle.
 - `support_export.json` — support-export wrapper that quotes the page
   and every case id.
 

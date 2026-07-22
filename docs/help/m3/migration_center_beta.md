@@ -8,7 +8,7 @@ known limits, glossary packs, and recovery routes — without forcing
 account or marketplace detours, and without ad hoc docs hunting.
 
 The projection lives under the shared contract ref
-`shell:migration_center_beta:v1` and is consumed by the live shell,
+`shell:migration_center_beta:v2` and is consumed by the live shell,
 by the headless inspector
 ([`aureline_shell_migration_center`](../../../crates/aureline-shell/src/bin/aureline_shell_migration_center.rs)),
 and by the support-export wrapper, so UI rows, CLI rows, and
@@ -24,8 +24,9 @@ Companion artifacts:
   — minted-from-truth fixtures (page, sections, entries, support
   rows, support export, defects, summary).
 - [`/docs/migration/m3/migration_wizard_beta.md`](../../migration/m3/migration_wizard_beta.md)
-  — wizard projection the migration center reopens its mapping
-  report and rollback checkpoint from.
+  — wizard projection the migration center reopens its mapping report
+  and pre-apply rollback requirement from. Preview does not expose a
+  checkpoint or restore action as live.
 - [`/docs/migration/m3/incumbent_flow_matrix.md`](../../migration/m3/incumbent_flow_matrix.md)
   — incumbent-flow scoreboard the migration center quotes its
   known-limits lane from.
@@ -57,7 +58,7 @@ A migration-center page MUST cover every required section kind:
 | --- | --- |
 | `docs_help_anchors` | Current docs and help anchors users open from the page. |
 | `glossary_packs` | Glossary packs that define aureline-specific vocabulary (truth terms, migration terms). |
-| `migration_reports` | Reopen links for the retained wizard mapping report and rollback checkpoint. |
+| `migration_reports` | Reopen links for the retained wizard mapping report and the checkpoint requirement that apply must satisfy. |
 | `known_limits` | Known-limits rows pulled from the incumbent-flow scoreboard. |
 | `recovery_routes` | Recovery routes owned by the recovery surface (safe mode, restore chooser, support export). |
 | `first_run_confusion_exits` | Explicit exits from first-run confusion: command palette, settings, keymap chord. |
@@ -103,8 +104,9 @@ Every entry must be reachable without a pointer:
   [`aureline-commands`](../../../crates/aureline-commands) seeded
   registry. Examples used by the seed: `cmd:command_palette.open`,
   `cmd:settings.open`, `cmd:docs.open_in_browser`,
-  `cmd:workspace.import_profile`,
-  `cmd:workspace.restore_from_checkpoint`.
+  `cmd:workspace.import_profile`, and, for independently verified saved
+  checkpoints only, `cmd:workspace.restore_from_checkpoint`. A preview
+  rollback-requirement row is a focus path, not a restore command.
 - **`keyboard_reachable_focus_path`** — the entry sits on a stable
   focus path reachable from the migration-center page. Used for
   glossary anchors, known-limits-lane rows, recovery routes that
@@ -125,7 +127,8 @@ The page-level `learnability_claim` block sets the baseline. Every
 entry-point row inherits the same claim vocabulary unless the row is
 explicitly downgraded. The seeded beta page seeds:
 
-- `claim_class = beta_claimed`
+- `claim_class = beta`
+- `claim_class_token = beta_claimed`
 - `lifecycle_class = beta`
 - `freshness_class = current`
 - `review_window_days = 90`
@@ -145,7 +148,12 @@ the closed vocabulary tokens listed in
 Drift is a contract bug the validator rejects with
 `support_row_vocabulary_drift`. Support exports MUST set
 `raw_private_material_excluded` to `true`; raw bodies are never
-exported.
+exported. Export construction first revalidates the complete page envelope,
+canonical section and support-row projections, upstream typed joins, current
+release-truth/help-pack bindings, and all derived summary/defect counts. It
+fails closed on `envelope_drift`, `derived_projection_drift`, or
+`unsafe_support_field`; raw filesystem paths, URLs, control characters, and
+unbounded caller-provided refs are not admitted to the support wrapper.
 
 ## Verification
 

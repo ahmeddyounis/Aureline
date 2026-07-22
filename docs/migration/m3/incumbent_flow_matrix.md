@@ -17,8 +17,9 @@ Authoritative artifacts:
 - [`/fixtures/migration/m3/migration_wizard/`](../../../fixtures/migration/m3/migration_wizard/)
   -- the beta migration-wizard projection the scoreboard composes
   with. Every row quotes the wizard `mapping_report_id` and
-  `rollback_checkpoint_ref` so reviewers can pivot between the
-  wizard, the scoreboard, and the support export.
+  `rollback_requirement_ref` so reviewers can pivot between the
+  wizard, the scoreboard, and the support export. The requirement is a
+  dry-run gate, not a checkpoint handle or proof that apply ran.
 
 ## What the scoreboard promises
 
@@ -65,9 +66,15 @@ The scoreboard validator (`validate_migration_scoreboard`) rejects:
 3. a scoreboard that does not cover all five required classifications;
 4. a non-`Exact` row with no downgrade trigger;
 5. a `Partial` / `Shimmed` / `Unsupported` row with no caveat;
-6. a row with no evidence ref, no docs/help ref, or no wizard mapping
-   report ref;
-7. a missing scoreboard or matrix publication ref.
+6. a row with no evidence ref or docs/help ref;
+7. a row whose wizard mapping report or rollback requirement drifts from the
+   scoreboard's canonical refs;
+8. a scoreboard whose review/requirement refs do not use the
+   `migration-review:` / `rollback-requirement:` object kinds; or
+9. a missing scoreboard or matrix publication ref;
+10. a duplicate, untyped, unbounded, or path/URL-shaped support-visible ref or
+    flow id; or
+11. an impossible or non-UTC generation timestamp.
 
 ## How surfaces consume the scoreboard
 
@@ -82,7 +89,9 @@ The scoreboard validator (`validate_migration_scoreboard`) rejects:
   equal to the seeded record.
 - **Support / cohort export.** `MigrationCorpusSupportExport` quotes
   the scoreboard plus every stable `flow_id` so cohort packets and
-  support evidence reviewers pivot from a single set of case ids.
+  support evidence reviewers pivot from a single set of case ids. Export is
+  refused until the full scoreboard passes the same bounded, typed,
+  privacy-safe validation as the live surface.
 - **Docs and help.** Each row carries a `docs_help_refs` list. This
   page and the per-ecosystem sections below are the docs landing
   point; the source ecosystem coverage matrix is the broader catalog.
@@ -183,4 +192,6 @@ The scoreboard delivers the M3 incumbent-flow acceptance gates:
   same mapping data.** The scoreboard JSON, the markdown scoreboard,
   this matrix, and the support-export wrapper are produced by the
   same seeded record and quote the same `wizard_mapping_report_ref`,
-  `rollback_checkpoint_ref`, and `flow_id` values.
+  `rollback_requirement_ref`, and `flow_id` values. The v2 corpus also
+  preserves `wizard_migration_review_ref` explicitly so no consumer
+  promotes preview correlation into an apply-session claim.

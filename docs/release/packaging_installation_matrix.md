@@ -79,9 +79,12 @@ Out of scope:
 - implementing installer pipelines, signing jobs, package-manager
   repositories, notarization, update services, or remote-agent image
   publishing;
-- final OS-specific concrete paths and product identifiers. The
-  machine-readable artifacts use stable placeholders until the platform
-  path resolver and signing pipeline land;
+- final OS-specific binary, updater, helper-runtime, and product-identifier
+  paths. Installed-desktop user configuration and local-state roots are now
+  resolved by
+  [`config_and_state_path_map.md`](../state/config_and_state_path_map.md);
+  the remaining machine-readable rows retain stable placeholders until their
+  platform resolvers and signing pipelines land;
 - platform store policy, package-manager review, or customer fleet
   console adapters.
 

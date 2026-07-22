@@ -1,10 +1,10 @@
 # Migration center diff, rollback, and unsupported-gap taxonomy — release evidence
 
 Reviewer-facing evidence packet for the lane that finishes the migration center
-for switching users on claimed stable rows: one canonical disclosure record per
-imported source ecosystem that binds the before/after diff, the rollback, and the
-Exact / Translated / Partial / Shimmed / Unsupported taxonomy to a public claim
-ceiling, an automatic narrow-below-Stable verdict, recovery and route parity
+for switching users toward the Stable target: one canonical disclosure record
+per imported source ecosystem that binds the before/after diff, the rollback,
+and the Exact / Translated / Partial / Shimmed / Unsupported taxonomy to a
+public claim ceiling, an automatic narrow-below-Stable verdict, recovery and route parity
 across the migration center / settings import history / command palette / menus,
 accessibility across normal / high-contrast / zoomed layouts, and rows that stay
 available without an account or managed services.
@@ -18,35 +18,33 @@ Canonical machine sources (do not clone status text from this packet — ingest 
 - Headless emitter: `aureline_shell_migration_center_stable`
 - Replay + invariant gate: `crates/aureline-shell/tests/migration_center_stable_fixtures.rs`
 
-## The claimed-stable matrix
+## The stable-lane preview matrix
 
 | Flow | Ecosystem | Claim | Taxonomy (E/T/P/S/U) | Rollback live |
 | --- | --- | --- | --- | --- |
-| `vs_code_code_oss.json` | VS Code / Code-OSS | **stable** | 1/1/1/1/1 | yes |
+| `vs_code_code_oss.json` | VS Code / Code-OSS | beta (preview narrowed) | 1/1/1/1/1 | no |
 | `jetbrains_family.json` | JetBrains IDEs | beta (narrowed) | 1/1/1/1/1 | no |
 | `vim_neovim.json` | Vim / Neovim | beta (narrowed) | 1/1/1/1/1 | no |
 | `emacs.json` | Emacs | beta (narrowed) | 1/1/1/1/1 | no |
 
-The matrix spans the four incumbent ecosystems and the full taxonomy, and it
-deliberately spans both sides of the cutline: the VS Code flow is a live apply
-session and qualifies Stable, while the other three project from the corpus,
-reference the same checkpoint but carry no live per-ecosystem rollback evidence,
-and are narrowed to `beta` with `rollback_evidence_incomplete`.
+The matrix spans the four incumbent ecosystems and the full taxonomy. Its
+upstream wizard record is a dry-run preview, so all four rows carry the same
+checkpoint requirement, expose no checkpoint/restore/Undo/Compare evidence,
+and narrow to `beta` with `rollback_evidence_incomplete`. The matrix no longer
+converts preview correlation into an apply session or a Stable verdict.
 
 ## What this packet proves
 
 1. **The diff is reviewed before apply.** Each record's `diff` has
    `reviewed_before_apply`, `every_row_has_before_after`, and
-   `every_row_uses_one_checkpoint` true, with `row_count` equal to the classified
+   `every_row_uses_one_requirement` true, with `row_count` equal to the classified
    rows. The builder narrows any flow whose diff is not a reviewable before/after
    surface.
 
-2. **Rollback is only claimed when it is live.** Each record's `rollback` binds
-   the wizard's pre-apply checkpoint (`created_before_apply`,
-   `protects_every_domain`) and exposes Undo/Compare routes **only** when
-   `verified_for_this_flow` holds. A flow that merely references an adjacent
-   flow's checkpoint cannot assert rollback availability — the gate replays this
-   for all four records.
+2. **Preview does not fabricate rollback.** Each record's `rollback` binds the
+   wizard's `rollback_requirement_ref`. The optional checkpoint and restore refs
+   are absent, the lifecycle booleans are false, and Undo/Compare routes are not
+   emitted. The builder rejects a lifecycle claim without complete real refs.
 
 3. **The unsupported-gap taxonomy is visible before apply.** Each record's
    `taxonomy` carries the Exact/Translated/Partial/Shimmed/Unsupported counts and
@@ -66,7 +64,7 @@ and are narrowed to `beta` with `rollback_evidence_incomplete`.
    required recovery routes (keyboard reachable), reaches the same flow from all
    four surfaces, keeps the settings/help/support_export reopen surfaces, and the
    replay gate asserts the migration center page and the stable lane pivot on the
-   same wizard session, mapping report, checkpoint, and scoreboard.
+   same wizard review, mapping report, rollback requirement, and scoreboard.
 
 7. **Accessibility holds in every layout.** Each record's `accessibility` carries
    the tab order, a narration that discloses the source ecosystem, action labels
@@ -97,9 +95,7 @@ cargo run -q -p aureline-shell --bin aureline_shell_migration_center_stable -- p
 
 ## Honest posture
 
-This is the honest posture for a pre-implementation repository: the migration
-center's diff, rollback, and gap-taxonomy *disclosure* is replacement-grade and
-qualifies Stable for the one ecosystem backed by a live apply session, and the
-remaining ecosystems are narrowed below Stable with a named reason until their
-own live rollback evidence lands — rather than papering over the gap by
-inheriting the VS Code green row.
+This is the honest posture for a preview-only seeded repository: the migration
+center's diff and gap taxonomy are reviewable, but no seeded ecosystem claims a
+live rollback or Stable status. Promotion requires real execution checkpoint,
+restore, and validation evidence for the specific flow.

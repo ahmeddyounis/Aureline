@@ -11,6 +11,7 @@ pub mod diff_review;
 pub mod execution;
 
 use std::collections::BTreeMap;
+use std::fmt;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -19,7 +20,8 @@ pub use diff_review::{
     materialize_import_diff_review_packet, reopen_retained_migration_report,
     write_import_diff_review_log, ImportDiffReviewPacket, ImportDiffReviewRow,
     ImportMappingClassification, ImportReportReopenSurface, ImportReviewDomain,
-    RetainedMigrationReport, RetainedMigrationReportProjection, ShortcutDeltaReport,
+    ImportRollbackRequirement, RetainedMigrationReport, RetainedMigrationReportProjection,
+    ShortcutDeltaReport,
 };
 pub use execution::{
     ExecutableImportPreview, ImportApplyDisposition, ImportApplyOutcome, ImportExecutionError,
@@ -168,7 +170,7 @@ pub struct ImportReviewItem {
 }
 
 /// Review record emitted before an import apply is allowed.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImportReviewRecord {
     /// Stable record kind for serialized review records.
     pub record_kind: String,
@@ -189,6 +191,28 @@ pub struct ImportReviewRecord {
     /// Filesystem markers and known configuration items discovered without
     /// reading file contents.
     pub discovered_items: Vec<ImportReviewItem>,
+}
+
+impl fmt::Debug for ImportReviewRecord {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ImportReviewRecord")
+            .field("record_kind", &self.record_kind)
+            .field("schema_version", &self.schema_version)
+            .field("import_review_id", &self.import_review_id)
+            .field(
+                "source_selection_ref",
+                &privacy_safe_log_ref("source-selection", &self.source_path),
+            )
+            .field(
+                "destination_target_ref",
+                &privacy_safe_log_ref("destination-target", &self.destination_workspace_target),
+            )
+            .field("classification", &self.classification)
+            .field("decision_class", &self.decision_class)
+            .field("discovered_item_count", &self.discovered_items.len())
+            .finish()
+    }
 }
 
 impl ImportReviewRecord {
@@ -630,5 +654,17 @@ mod tests {
         assert!(json.contains("destination_target_ref"));
         assert!(json.contains("unknown_config_root"));
         assert!(json.contains("\"settings\": 1"));
+
+        let debug = format!("{review:?}");
+        for forbidden in [
+            "/Users/alice",
+            "Secret Project",
+            "user@example.invalid",
+            "private-name",
+            "Alice's",
+            "customer-name",
+        ] {
+            assert!(!debug.contains(forbidden), "debug leaked {forbidden:?}");
+        }
     }
 }

@@ -46,10 +46,10 @@ use crate::migration_corpus::{
 use crate::migration_wizard::{seeded_migration_wizard_page, MIGRATION_WIZARD_SHARED_CONTRACT_REF};
 
 /// Beta schema version exported with every record.
-pub const MIGRATION_CENTER_BETA_SCHEMA_VERSION: u32 = 1;
+pub const MIGRATION_CENTER_BETA_SCHEMA_VERSION: u32 = 2;
 
 /// Stable shared contract ref consumed by every migration-center row.
-pub const MIGRATION_CENTER_BETA_SHARED_CONTRACT_REF: &str = "shell:migration_center_beta:v1";
+pub const MIGRATION_CENTER_BETA_SHARED_CONTRACT_REF: &str = "shell:migration_center_beta:v2";
 
 /// Stable record kind for [`MigrationCenterPage`] payloads.
 pub const MIGRATION_CENTER_BETA_PAGE_RECORD_KIND: &str = "shell_migration_center_beta_page_record";
@@ -75,7 +75,7 @@ pub const MIGRATION_CENTER_BETA_SUPPORT_EXPORT_RECORD_KIND: &str =
     "shell_migration_center_beta_support_export_record";
 
 /// Stable migration-center page id.
-pub const MIGRATION_CENTER_PAGE_ID: &str = "shell:migration_center_beta:page:v1";
+pub const MIGRATION_CENTER_PAGE_ID: &str = "shell:migration_center_beta:page:v2";
 
 /// Generation timestamp baked into every seeded record.
 const GENERATED_AT: &str = "2026-05-15T00:00:00Z";
@@ -527,6 +527,12 @@ impl MigrationCenterSupportRow {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MigrationCenterDefectKind {
+    /// A page, section, entry, support row, or claim envelope drifted.
+    EnvelopeDrift,
+    /// A summary, membership list, or stored defect projection drifted.
+    DerivedProjectionDrift,
+    /// A support-visible field was unbounded or contained path/URL material.
+    UnsafeSupportField,
     /// Entry required hidden account sign-in to reach the target.
     EntryRequiresAccountDetour,
     /// Entry required a hidden marketplace install to reach the target.
@@ -564,12 +570,18 @@ pub enum MigrationCenterDefectKind {
     SupportRowUnknownEntry,
     /// Claimed row is missing the help-pack item ref that backs guidance.
     HelpPackItemRefMissing,
+    /// Preview correlation or rollback requirement was mislabeled as durable
+    /// apply/checkpoint evidence.
+    PreviewEvidenceTruthDrift,
 }
 
 impl MigrationCenterDefectKind {
     /// Stable schema token recorded on the defect.
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::EnvelopeDrift => "envelope_drift",
+            Self::DerivedProjectionDrift => "derived_projection_drift",
+            Self::UnsafeSupportField => "unsafe_support_field",
             Self::EntryRequiresAccountDetour => "entry_requires_account_detour",
             Self::EntryRequiresMarketplaceDetour => "entry_requires_marketplace_detour",
             Self::EntryKeyboardUnreachable => "entry_keyboard_unreachable",
@@ -588,6 +600,7 @@ impl MigrationCenterDefectKind {
             Self::SupportRowVocabularyDrift => "support_row_vocabulary_drift",
             Self::SupportRowUnknownEntry => "support_row_unknown_entry",
             Self::HelpPackItemRefMissing => "help_pack_item_ref_missing",
+            Self::PreviewEvidenceTruthDrift => "preview_evidence_truth_drift",
         }
     }
 }
@@ -613,7 +626,7 @@ impl MigrationCenterDefect {
         field: impl Into<String>,
         note: impl Into<String>,
     ) -> Self {
-        let row_id = row_id.into();
+        let row_id = privacy_safe_defect_row_id(&row_id.into());
         Self {
             record_kind: MIGRATION_CENTER_BETA_DEFECT_RECORD_KIND.to_owned(),
             schema_version: MIGRATION_CENTER_BETA_SCHEMA_VERSION,
@@ -630,6 +643,19 @@ impl MigrationCenterDefect {
             note: note.into(),
         }
     }
+}
+
+fn privacy_safe_defect_row_id(row_id: &str) -> String {
+    if is_safe_support_ref(row_id, 256)
+        && (row_id == MIGRATION_CENTER_PAGE_ID
+            || row_id.starts_with("shell:migration_center_beta:section:")
+            || row_id.starts_with("shell:migration_center_beta:entry:"))
+    {
+        return row_id.to_owned();
+    }
+    let digest = aureline_history::body_object_id(row_id.as_bytes());
+    let suffix = digest.strip_prefix("obj:blake3:").unwrap_or(&digest);
+    format!("invalid-row:{}", &suffix[..suffix.len().min(16)])
 }
 
 /// Reviewer-facing summary banner for the page.
@@ -685,8 +711,11 @@ impl MigrationCenterPage {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MigrationCenterUpstreamRefs {
     pub wizard_session_ref: String,
+    /// Dry-run review correlation from the wizard; not a durable apply session.
+    pub wizard_migration_review_ref: String,
     pub wizard_mapping_report_ref: String,
-    pub wizard_rollback_checkpoint_ref: String,
+    /// Rollback requirement carried by preview; not a checkpoint handle.
+    pub wizard_rollback_requirement_ref: String,
     pub wizard_shared_contract_ref: String,
     pub corpus_scoreboard_ref: String,
     pub corpus_shared_contract_ref: String,
@@ -716,7 +745,30 @@ impl MigrationCenterSupportExport {
         support_export_id: impl Into<String>,
         generated_at: impl Into<String>,
         page: MigrationCenterPage,
-    ) -> Self {
+    ) -> Result<Self, Vec<MigrationCenterDefect>> {
+        validate_migration_center_page(&page)?;
+        let support_export_id = support_export_id.into();
+        let generated_at = generated_at.into();
+        let mut export_defects = Vec::new();
+        if !has_opaque_ref_kind(&support_export_id, "support-export:") {
+            export_defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::UnsafeSupportField,
+                MIGRATION_CENTER_PAGE_ID,
+                "support_export_id",
+                "support export id must be a bounded opaque support-export ref",
+            ));
+        }
+        if !is_utc_timestamp(&generated_at) {
+            export_defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::EnvelopeDrift,
+                MIGRATION_CENTER_PAGE_ID,
+                "generated_at",
+                "support export timestamp must use the canonical UTC shape",
+            ));
+        }
+        if !export_defects.is_empty() {
+            return Err(export_defects);
+        }
         let mut case_ids: Vec<String> = Vec::new();
         case_ids.push(page.page_id.clone());
         for section in &page.sections {
@@ -730,18 +782,268 @@ impl MigrationCenterSupportExport {
         for defect in &page.defects {
             defect_kinds_present.insert(defect.defect_kind_token.clone());
         }
-        Self {
+        Ok(Self {
             record_kind: MIGRATION_CENTER_BETA_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
             schema_version: MIGRATION_CENTER_BETA_SCHEMA_VERSION,
             shared_contract_ref: MIGRATION_CENTER_BETA_SHARED_CONTRACT_REF.to_owned(),
-            support_export_id: support_export_id.into(),
-            generated_at: generated_at.into(),
+            support_export_id,
+            generated_at,
             page,
             case_ids,
             defect_kinds_present: defect_kinds_present.into_iter().collect(),
             raw_private_material_excluded: true,
+        })
+    }
+}
+
+fn audit_record_envelopes(
+    sections: &[MigrationCenterSection],
+    entries: &[MigrationCenterEntryPoint],
+    support_rows: &[MigrationCenterSupportRow],
+    defects: &mut Vec<MigrationCenterDefect>,
+) {
+    let required_sections = SectionKind::required_sections();
+    if sections.len() != required_sections.len()
+        || sections
+            .iter()
+            .map(|section| section.section_kind)
+            .ne(required_sections)
+    {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::DerivedProjectionDrift,
+            MIGRATION_CENTER_PAGE_ID,
+            "sections",
+            "sections must use the closed canonical order and cardinality",
+        ));
+    }
+    if entries.len() > 64 || support_rows.len() > 64 {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::EnvelopeDrift,
+            MIGRATION_CENTER_PAGE_ID,
+            "entries",
+            "migration-center row cardinality exceeded the bounded support lane",
+        ));
+        return;
+    }
+
+    for section in sections.iter().take(required_sections.len()) {
+        let canonical_section_id = format!(
+            "shell:migration_center_beta:section:{}",
+            section.section_kind.as_str()
+        );
+        if section.record_kind != MIGRATION_CENTER_BETA_SECTION_RECORD_KIND
+            || section.schema_version != MIGRATION_CENTER_BETA_SCHEMA_VERSION
+            || section.shared_contract_ref != MIGRATION_CENTER_BETA_SHARED_CONTRACT_REF
+            || section.section_id != canonical_section_id
+            || section.section_kind_token != section.section_kind.as_str()
+        {
+            defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::EnvelopeDrift,
+                &section.section_id,
+                "section_envelope",
+                "section envelope or closed vocabulary token drifted",
+            ));
+        }
+        if !is_safe_support_text(&section.title_label, 160)
+            || !is_safe_support_text(&section.description_label, 512)
+            || section
+                .entry_ids
+                .iter()
+                .any(|entry_id| !is_safe_support_ref(entry_id, 256))
+        {
+            defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::UnsafeSupportField,
+                &section.section_id,
+                "section_support_fields",
+                "section support fields must be bounded and path-free",
+            ));
+        }
+        let expected_entry_ids: Vec<&str> = entries
+            .iter()
+            .filter(|entry| entry.section_kind == section.section_kind)
+            .map(|entry| entry.entry_id.as_str())
+            .collect();
+        if section
+            .entry_ids
+            .iter()
+            .map(String::as_str)
+            .ne(expected_entry_ids)
+        {
+            defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::DerivedProjectionDrift,
+                &section.section_id,
+                "entry_ids",
+                "section membership must exactly project live entries in render order",
+            ));
         }
     }
+
+    let help_pack = seeded_onboarding_help_pack_beta_manifest();
+    for entry in entries {
+        let canonical_section_id = format!(
+            "shell:migration_center_beta:section:{}",
+            entry.section_kind.as_str()
+        );
+        if entry.record_kind != MIGRATION_CENTER_BETA_ENTRY_RECORD_KIND
+            || entry.schema_version != MIGRATION_CENTER_BETA_SCHEMA_VERSION
+            || entry.shared_contract_ref != MIGRATION_CENTER_BETA_SHARED_CONTRACT_REF
+            || !has_opaque_ref_kind(&entry.entry_id, "shell:migration_center_beta:entry:")
+            || entry.section_id != canonical_section_id
+            || entry.section_kind_token != entry.section_kind.as_str()
+            || entry.entry_kind_token != entry.entry_kind.as_str()
+            || entry.keyboard_reach_token != entry.keyboard_reach.as_str()
+            || entry.recovery_route_class_token.as_deref()
+                != entry.recovery_route_class.map(RecoveryRouteClass::as_str)
+            || entry.support_row_id != format!("{}::support", entry.entry_id)
+            || !claim_envelope_valid(&entry.learnability_claim)
+        {
+            defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::EnvelopeDrift,
+                &entry.entry_id,
+                "entry_envelope",
+                "entry envelope, typed join, or closed vocabulary token drifted",
+            ));
+        }
+        let expected_help_item =
+            help_pack_item_for_entry(&entry.entry_id).and_then(|item_id| help_pack.item(item_id));
+        if match expected_help_item {
+            Some(item) => {
+                entry.help_pack_id.as_deref() != Some(item.pack_id.as_str())
+                    || entry.help_pack_item_ref.as_deref() != Some(item.item_id.as_str())
+                    || entry.help_pack_version_ref.as_deref()
+                        != Some(item.pack_version_ref.as_str())
+                    || entry.help_pack_fallback_state_token.as_deref()
+                        != Some(item.source_language_fallback.fallback_class.as_str())
+            }
+            None => true,
+        } {
+            defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::DerivedProjectionDrift,
+                &entry.entry_id,
+                "help_pack_refs",
+                "entry help-pack refs must exactly project the current versioned manifest",
+            ));
+        }
+        if !is_safe_support_text(&entry.title_label, 160)
+            || !is_safe_support_text(&entry.description_label, 512)
+            || entry_optional_refs(entry)
+                .into_iter()
+                .flatten()
+                .any(|reference| !is_safe_support_ref(reference, 320))
+        {
+            defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::UnsafeSupportField,
+                &entry.entry_id,
+                "entry_support_fields",
+                "entry support fields must be bounded and path-free",
+            ));
+        }
+        if entry
+            .command_id
+            .as_deref()
+            .is_some_and(|reference| !has_opaque_ref_kind(reference, "cmd:"))
+            || entry
+                .docs_help_anchor_ref
+                .as_deref()
+                .is_some_and(|reference| !has_opaque_ref_kind(reference, "docs:"))
+            || entry
+                .glossary_pack_ref
+                .as_deref()
+                .is_some_and(|reference| !has_opaque_ref_kind(reference, "glossary:"))
+            || entry
+                .migration_report_ref
+                .as_deref()
+                .is_some_and(|reference| {
+                    !has_opaque_ref_kind(reference, "mapping-report:")
+                        && !has_opaque_ref_kind(reference, "rollback-requirement:")
+                })
+            || entry
+                .known_limit_ref
+                .as_deref()
+                .is_some_and(|reference| !has_opaque_ref_kind(reference, "migration-corpus-flow:"))
+            || entry
+                .keyboard_chord_ref
+                .as_deref()
+                .is_some_and(|reference| !has_opaque_ref_kind(reference, "keymap:"))
+        {
+            defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::EnvelopeDrift,
+                &entry.entry_id,
+                "typed_refs",
+                "entry reference did not match its closed typed-ref family",
+            ));
+        }
+    }
+
+    let expected_support_rows: Vec<MigrationCenterSupportRow> = entries
+        .iter()
+        .map(MigrationCenterSupportRow::from_entry)
+        .collect();
+    if support_rows != expected_support_rows {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::DerivedProjectionDrift,
+            MIGRATION_CENTER_PAGE_ID,
+            "support_rows",
+            "support rows must exactly project live entries in render order",
+        ));
+    }
+    for support in support_rows {
+        if support.record_kind != MIGRATION_CENTER_BETA_SUPPORT_ROW_RECORD_KIND
+            || support.schema_version != MIGRATION_CENTER_BETA_SCHEMA_VERSION
+            || support.shared_contract_ref != MIGRATION_CENTER_BETA_SHARED_CONTRACT_REF
+            || !is_safe_support_ref(&support.support_row_id, 320)
+            || !is_safe_support_ref(&support.entry_id, 256)
+        {
+            defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::EnvelopeDrift,
+                &support.support_row_id,
+                "support_row_envelope",
+                "support-row envelope or typed identity drifted",
+            ));
+        }
+        if support_optional_refs(support)
+            .into_iter()
+            .flatten()
+            .any(|reference| !is_safe_support_ref(reference, 320))
+        {
+            defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::UnsafeSupportField,
+                &support.support_row_id,
+                "support_row_refs",
+                "support-row refs must be bounded and path-free",
+            ));
+        }
+    }
+}
+
+fn entry_optional_refs(entry: &MigrationCenterEntryPoint) -> [Option<&str>; 11] {
+    [
+        entry.command_id.as_deref(),
+        entry.docs_help_anchor_ref.as_deref(),
+        entry.glossary_pack_ref.as_deref(),
+        entry.migration_report_ref.as_deref(),
+        entry.known_limit_ref.as_deref(),
+        entry.recovery_route_class_token.as_deref(),
+        entry.keyboard_chord_ref.as_deref(),
+        entry.help_pack_id.as_deref(),
+        entry.help_pack_item_ref.as_deref(),
+        entry.help_pack_version_ref.as_deref(),
+        entry.help_pack_fallback_state_token.as_deref(),
+    ]
+}
+
+fn support_optional_refs(support: &MigrationCenterSupportRow) -> [Option<&str>; 9] {
+    [
+        support.command_id.as_deref(),
+        support.docs_help_anchor_ref.as_deref(),
+        support.migration_report_ref.as_deref(),
+        support.known_limit_ref.as_deref(),
+        support.recovery_route_class_token.as_deref(),
+        support.help_pack_id.as_deref(),
+        support.help_pack_item_ref.as_deref(),
+        support.help_pack_version_ref.as_deref(),
+        support.help_pack_fallback_state_token.as_deref(),
+    ]
 }
 
 /// Builds a typed defect list for `entries` and `support_rows`.
@@ -751,6 +1053,13 @@ pub fn audit_migration_center_rows(
     support_rows: &[MigrationCenterSupportRow],
 ) -> Vec<MigrationCenterDefect> {
     let mut defects: Vec<MigrationCenterDefect> = Vec::new();
+    audit_record_envelopes(sections, entries, support_rows, &mut defects);
+    if sections.len() > SectionKind::required_sections().len()
+        || entries.len() > 64
+        || support_rows.len() > 64
+    {
+        return defects;
+    }
 
     let mut seen_entry_ids: BTreeSet<&str> = BTreeSet::new();
     for entry in entries {
@@ -915,7 +1224,7 @@ pub fn audit_migration_center_rows(
                     MigrationCenterDefectKind::SectionUnknownEntry,
                     &section.section_id,
                     "entry_ids",
-                    format!("section references unknown entry id {entry_id}"),
+                    "section references an unknown entry id",
                 ));
             }
         }
@@ -991,12 +1300,314 @@ pub fn audit_migration_center_rows(
 pub fn validate_migration_center_page(
     page: &MigrationCenterPage,
 ) -> Result<(), Vec<MigrationCenterDefect>> {
-    let defects = audit_migration_center_rows(&page.sections, &page.entries, &page.support_rows);
+    let mut defects =
+        audit_migration_center_rows(&page.sections, &page.entries, &page.support_rows);
+    if page.record_kind != MIGRATION_CENTER_BETA_PAGE_RECORD_KIND
+        || page.schema_version != MIGRATION_CENTER_BETA_SCHEMA_VERSION
+        || page.shared_contract_ref != MIGRATION_CENTER_BETA_SHARED_CONTRACT_REF
+        || page.page_id != MIGRATION_CENTER_PAGE_ID
+        || !is_utc_timestamp(&page.generated_at)
+        || !claim_envelope_valid(&page.learnability_claim)
+        || page.learnability_claim != LearnabilityClaim::beta_current()
+        || page.defects.len() > 128
+    {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::EnvelopeDrift,
+            MIGRATION_CENTER_PAGE_ID,
+            "page_envelope",
+            "page envelope, beta claim, or bounded defect cardinality drifted",
+        ));
+    }
+    let truth_report = seeded_truth_wiring_report();
+    if truth_report.binding_for(TruthSurfaceClass::MigrationCenter)
+        != Some(&page.release_truth_binding)
+    {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::DerivedProjectionDrift,
+            MIGRATION_CENTER_PAGE_ID,
+            "release_truth_binding",
+            "release-truth binding drifted from the current checked-in evidence",
+        ));
+    }
+    audit_preview_evidence_truth(&page.upstream_refs, &page.entries, &mut defects);
+    let derived_defect_count = defects.len();
+    if page.defects.as_slice() != defects.as_slice() {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::DerivedProjectionDrift,
+            MIGRATION_CENTER_PAGE_ID,
+            "defects",
+            "stored defects must exactly match the deterministic live audit",
+        ));
+    }
+    if page.summary != build_summary(&page.sections, &page.entries, derived_defect_count) {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::DerivedProjectionDrift,
+            MIGRATION_CENTER_PAGE_ID,
+            "summary",
+            "summary counts must exactly project the live page and audit",
+        ));
+    }
     if defects.is_empty() {
         Ok(())
     } else {
         Err(defects)
     }
+}
+
+fn audit_preview_evidence_truth(
+    upstream_refs: &MigrationCenterUpstreamRefs,
+    entries: &[MigrationCenterEntryPoint],
+    defects: &mut Vec<MigrationCenterDefect>,
+) {
+    let review_suffix = upstream_refs
+        .wizard_migration_review_ref
+        .strip_prefix("migration-review:")
+        .filter(|suffix| is_safe_support_ref(suffix, 192));
+    if review_suffix.is_none() {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::PreviewEvidenceTruthDrift,
+            MIGRATION_CENTER_PAGE_ID,
+            "upstream_refs.wizard_migration_review_ref",
+            "preview correlation must remain a migration-review ref, not an apply session",
+        ));
+    }
+    if !has_opaque_ref_kind(
+        &upstream_refs.wizard_rollback_requirement_ref,
+        "rollback-requirement:",
+    ) {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::PreviewEvidenceTruthDrift,
+            MIGRATION_CENTER_PAGE_ID,
+            "upstream_refs.wizard_rollback_requirement_ref",
+            "preview must carry a rollback-requirement ref, never a checkpoint handle",
+        ));
+    }
+    if review_suffix.is_some_and(|suffix| {
+        upstream_refs.wizard_session_ref != format!("shell:migration-wizard:{suffix}")
+            || upstream_refs.wizard_mapping_report_ref != format!("mapping-report:{suffix}")
+            || upstream_refs.wizard_rollback_requirement_ref
+                != format!("rollback-requirement:{suffix}")
+    }) || upstream_refs.wizard_shared_contract_ref != MIGRATION_WIZARD_SHARED_CONTRACT_REF
+        || upstream_refs.corpus_scoreboard_ref != MIGRATION_SCOREBOARD_ID
+        || upstream_refs.corpus_shared_contract_ref != MIGRATION_CORPUS_SHARED_CONTRACT_REF
+    {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::PreviewEvidenceTruthDrift,
+            MIGRATION_CENTER_PAGE_ID,
+            "upstream_refs",
+            "upstream refs must preserve exact typed joins and shared contracts",
+        ));
+    }
+    let help_pack = seeded_onboarding_help_pack_beta_manifest();
+    if upstream_refs.help_pack_manifest_ref != ONBOARDING_HELP_PACK_BETA_FIXTURE_REF
+        || upstream_refs.help_pack_manifest_id != help_pack.manifest_id.as_str()
+        || upstream_refs.help_pack_version_ref != help_pack.manifest_version_ref.as_str()
+        || upstream_refs.help_pack_support_export_ref
+            != ONBOARDING_HELP_PACK_BETA_SUPPORT_EXPORT_FIXTURE_REF
+    {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::DerivedProjectionDrift,
+            MIGRATION_CENTER_PAGE_ID,
+            "upstream_refs.help_pack",
+            "help-pack refs drifted from the current versioned manifest",
+        ));
+    }
+    if upstream_support_refs(upstream_refs)
+        .into_iter()
+        .any(|reference| !is_safe_support_ref(reference, 320))
+    {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::UnsafeSupportField,
+            MIGRATION_CENTER_PAGE_ID,
+            "upstream_refs",
+            "upstream refs must be bounded and path-free",
+        ));
+    }
+    let migration_report_refs: Vec<&str> = entries
+        .iter()
+        .filter(|entry| entry.entry_kind == EntryKind::MigrationReportReopen)
+        .filter_map(|entry| entry.migration_report_ref.as_deref())
+        .collect();
+    if migration_report_refs
+        != [
+            upstream_refs.wizard_mapping_report_ref.as_str(),
+            upstream_refs.wizard_rollback_requirement_ref.as_str(),
+        ]
+    {
+        defects.push(MigrationCenterDefect::new(
+            MigrationCenterDefectKind::DerivedProjectionDrift,
+            MIGRATION_CENTER_PAGE_ID,
+            "entries.migration_report_ref",
+            "migration report entries must exactly project mapping and rollback-requirement refs",
+        ));
+    }
+    for entry in entries.iter().filter(|entry| {
+        entry.migration_report_ref.as_deref()
+            == Some(upstream_refs.wizard_rollback_requirement_ref.as_str())
+    }) {
+        if entry.command_id.as_deref() == Some("cmd:workspace.restore_from_checkpoint") {
+            defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::PreviewEvidenceTruthDrift,
+                &entry.entry_id,
+                "command_id",
+                "rollback requirement cannot activate restore until real checkpoint evidence exists",
+            ));
+        }
+    }
+}
+
+fn has_opaque_ref_kind(reference: &str, prefix: &str) -> bool {
+    reference
+        .strip_prefix(prefix)
+        .is_some_and(|identifier| is_safe_support_ref(identifier, 256))
+}
+
+fn upstream_support_refs(upstream: &MigrationCenterUpstreamRefs) -> [&str; 11] {
+    [
+        &upstream.wizard_session_ref,
+        &upstream.wizard_migration_review_ref,
+        &upstream.wizard_mapping_report_ref,
+        &upstream.wizard_rollback_requirement_ref,
+        &upstream.wizard_shared_contract_ref,
+        &upstream.corpus_scoreboard_ref,
+        &upstream.corpus_shared_contract_ref,
+        &upstream.help_pack_manifest_ref,
+        &upstream.help_pack_manifest_id,
+        &upstream.help_pack_version_ref,
+        &upstream.help_pack_support_export_ref,
+    ]
+}
+
+fn claim_envelope_valid(claim: &LearnabilityClaim) -> bool {
+    claim.claim_class_token == claim.claim_class.as_str()
+        && claim.lifecycle_class_token == claim.lifecycle_class.as_str()
+        && claim.freshness_class_token == claim.freshness_class.as_str()
+        && claim.review_window_days == BETA_REVIEW_WINDOW_DAYS
+        && is_utc_timestamp(&claim.evidence_date)
+        && is_utc_timestamp(&claim.as_of)
+}
+
+fn is_safe_support_ref(value: &str, maximum_length: usize) -> bool {
+    !value.is_empty()
+        && value.len() <= maximum_length
+        && value == value.trim()
+        && value.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b':' | b'.' | b'_' | b'-' | b'/')
+        })
+        && !value.starts_with('/')
+        && !contains_file_scheme(value)
+        && !value.contains("../")
+        && !value.contains("//")
+}
+
+fn is_safe_support_text(value: &str, maximum_length: usize) -> bool {
+    !value.is_empty()
+        && value.len() <= maximum_length
+        && value == value.trim()
+        && !value.chars().any(char::is_control)
+        && !value.contains("://")
+        && !contains_file_scheme(value)
+        && !value.contains("../")
+        && !value.contains("..\\")
+        && !contains_absolute_path(value)
+}
+
+fn contains_absolute_path(value: &str) -> bool {
+    value.split_whitespace().any(looks_like_absolute_path)
+        || value
+            .split(|character: char| {
+                matches!(
+                    character,
+                    '=' | '(' | ')' | '[' | ']' | '{' | '}' | ',' | ';' | ':' | '`' | '"' | '\''
+                )
+            })
+            .any(looks_like_absolute_path)
+}
+
+fn contains_file_scheme(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    lower.match_indices("file:").any(|(index, _)| {
+        index == 0
+            || lower[..index].chars().next_back().is_some_and(|character| {
+                character.is_whitespace()
+                    || matches!(
+                        character,
+                        '/' | '\\' | '=' | '(' | '[' | '{' | ',' | ';' | ':' | '`' | '"' | '\''
+                    )
+            })
+    })
+}
+
+fn looks_like_absolute_path(token: &str) -> bool {
+    let token = token.trim_matches(|character: char| {
+        matches!(
+            character,
+            ',' | ';' | '(' | ')' | '[' | ']' | '`' | '"' | '\''
+        )
+    });
+    (token.starts_with('/') && token.len() > 1)
+        || (token.starts_with('\\') && token.len() > 1)
+        || (token.starts_with('~') && token.len() > 1)
+        || (token.as_bytes().get(1) == Some(&b':')
+            && token
+                .as_bytes()
+                .first()
+                .is_some_and(u8::is_ascii_alphabetic)
+            && token
+                .as_bytes()
+                .get(2)
+                .is_some_and(|byte| matches!(*byte, b'/' | b'\\')))
+}
+
+fn is_utc_timestamp(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 20
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes[10] != b'T'
+        || bytes[13] != b':'
+        || bytes[16] != b':'
+        || bytes[19] != b'Z'
+    {
+        return false;
+    }
+    let Some(year) = timestamp_number(bytes, 0, 4) else {
+        return false;
+    };
+    let Some(month) = timestamp_number(bytes, 5, 7) else {
+        return false;
+    };
+    let Some(day) = timestamp_number(bytes, 8, 10) else {
+        return false;
+    };
+    let Some(hour) = timestamp_number(bytes, 11, 13) else {
+        return false;
+    };
+    let Some(minute) = timestamp_number(bytes, 14, 16) else {
+        return false;
+    };
+    let Some(second) = timestamp_number(bytes, 17, 19) else {
+        return false;
+    };
+    let leap_year = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days_in_month = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap_year => 29,
+        2 => 28,
+        _ => return false,
+    };
+    year >= 1970 && day >= 1 && day <= days_in_month && hour <= 23 && minute <= 59 && second <= 59
+}
+
+fn timestamp_number(bytes: &[u8], start: usize, end: usize) -> Option<u32> {
+    bytes
+        .get(start..end)?
+        .iter()
+        .try_fold(0_u32, |value, byte| {
+            byte.is_ascii_digit()
+                .then_some(value * 10 + u32::from(*byte - b'0'))
+        })
 }
 
 /// Builds the seeded migration-center page consumed by the headless
@@ -1014,7 +1625,7 @@ pub fn seeded_migration_center_page() -> MigrationCenterPage {
     let help_pack = seeded_onboarding_help_pack_beta_manifest();
 
     let mapping_report_ref = wizard.mapping_report.mapping_report_id.clone();
-    let checkpoint_ref = wizard.rollback_checkpoint.checkpoint_ref.clone();
+    let rollback_requirement_ref = wizard.rollback_requirement.requirement_ref.clone();
     let wizard_session_ref = wizard.wizard_session_id.clone();
     let first_known_limit_ref = scoreboard
         .sections
@@ -1111,19 +1722,19 @@ pub fn seeded_migration_center_page() -> MigrationCenterPage {
             &claim,
         ),
         build_entry(
-            "shell:migration_center_beta:entry:reopen_rollback_checkpoint",
+            "shell:migration_center_beta:entry:review_rollback_requirement",
             SectionKind::MigrationReports,
             EntryKind::MigrationReportReopen,
-            "Reopen the migration rollback checkpoint",
-            "Reopen the wizard's rollback checkpoint binding so the apply can be undone.",
-            Some("cmd:workspace.restore_from_checkpoint".to_owned()),
-            None,
-            None,
-            Some(checkpoint_ref.clone()),
+            "Review the rollback requirement",
+            "Review the checkpoint requirement that must be satisfied before apply; preview has not created a restorable checkpoint.",
             None,
             None,
             None,
-            KeyboardReachClass::KeyboardFirstCommandInvocation,
+            Some(rollback_requirement_ref.clone()),
+            None,
+            None,
+            None,
+            KeyboardReachClass::KeyboardReachableFocusPath,
             &claim,
         ),
         build_entry(
@@ -1179,7 +1790,7 @@ pub fn seeded_migration_center_page() -> MigrationCenterPage {
             SectionKind::RecoveryRoutes,
             EntryKind::RecoveryAction,
             "Restore from a saved checkpoint",
-            "Roll back to the wizard rollback checkpoint or another restore-chooser entry.",
+            "Open the restore chooser for checkpoints that actually exist; the current import preview only records a checkpoint requirement.",
             Some("cmd:workspace.restore_from_checkpoint".to_owned()),
             None,
             None,
@@ -1266,8 +1877,9 @@ pub fn seeded_migration_center_page() -> MigrationCenterPage {
 
     let upstream_refs = MigrationCenterUpstreamRefs {
         wizard_session_ref,
+        wizard_migration_review_ref: wizard.migration_review_ref.clone(),
         wizard_mapping_report_ref: mapping_report_ref,
-        wizard_rollback_checkpoint_ref: checkpoint_ref,
+        wizard_rollback_requirement_ref: rollback_requirement_ref,
         wizard_shared_contract_ref: MIGRATION_WIZARD_SHARED_CONTRACT_REF.to_owned(),
         corpus_scoreboard_ref: MIGRATION_SCOREBOARD_ID.to_owned(),
         corpus_shared_contract_ref: MIGRATION_CORPUS_SHARED_CONTRACT_REF.to_owned(),
@@ -1278,7 +1890,8 @@ pub fn seeded_migration_center_page() -> MigrationCenterPage {
             .to_owned(),
     };
 
-    let defects = audit_migration_center_rows(&sections, &entries, &support_rows);
+    let mut defects = audit_migration_center_rows(&sections, &entries, &support_rows);
+    audit_preview_evidence_truth(&upstream_refs, &entries, &mut defects);
     let summary = build_summary(&sections, &entries, defects.len());
 
     MigrationCenterPage {
@@ -1377,7 +1990,7 @@ fn section_description(kind: SectionKind) -> &'static str {
         SectionKind::DocsHelpAnchors => "Current docs and help anchors users open from the page.",
         SectionKind::GlossaryPacks => "Glossary packs that define aureline-specific vocabulary.",
         SectionKind::MigrationReports => {
-            "Retained migration reports and rollback checkpoints from the wizard."
+            "Retained migration reports and checkpoint requirements from preview; real rollback appears only after apply creates verified evidence."
         }
         SectionKind::KnownLimits => "Known limits from the incumbent-flow scoreboard.",
         SectionKind::RecoveryRoutes => "Recovery routes owned by the recovery surface.",
@@ -1482,7 +2095,7 @@ fn help_pack_item_for_entry(entry_id: &str) -> Option<&'static str> {
         | "shell:migration_center_beta:entry:keymap_reference_chord" => {
             "ohp:item:keymap_bridge.command_palette"
         }
-        "shell:migration_center_beta:entry:reopen_rollback_checkpoint"
+        "shell:migration_center_beta:entry:review_rollback_requirement"
         | "shell:migration_center_beta:entry:recovery_safe_mode"
         | "shell:migration_center_beta:entry:recovery_restore_checkpoint" => {
             "ohp:item:recovery.restore_checkpoint"
@@ -1539,7 +2152,51 @@ mod tests {
             MIGRATION_CORPUS_SHARED_CONTRACT_REF
         );
         assert!(!page.upstream_refs.wizard_mapping_report_ref.is_empty());
-        assert!(!page.upstream_refs.wizard_rollback_checkpoint_ref.is_empty());
+        assert!(!page.upstream_refs.wizard_migration_review_ref.is_empty());
+        assert!(page
+            .upstream_refs
+            .wizard_rollback_requirement_ref
+            .starts_with("rollback-requirement:"));
+        assert!(page.entries.iter().all(|entry| {
+            entry.migration_report_ref.as_deref()
+                != Some(page.upstream_refs.wizard_rollback_requirement_ref.as_str())
+                || entry.command_id.as_deref() != Some("cmd:workspace.restore_from_checkpoint")
+        }));
+    }
+
+    #[test]
+    fn preview_requirement_cannot_masquerade_as_restore_evidence() {
+        let mut page = seeded_migration_center_page();
+        let requirement = page.upstream_refs.wizard_rollback_requirement_ref.clone();
+        let entry = page
+            .entries
+            .iter_mut()
+            .find(|entry| entry.migration_report_ref.as_deref() == Some(requirement.as_str()))
+            .expect("seeded requirement entry");
+        entry.command_id = Some("cmd:workspace.restore_from_checkpoint".to_owned());
+
+        let defects = validate_migration_center_page(&page).expect_err("must fail closed");
+        assert!(defects.iter().any(
+            |defect| defect.defect_kind == MigrationCenterDefectKind::PreviewEvidenceTruthDrift
+        ));
+    }
+
+    #[test]
+    fn preview_refs_require_non_empty_typed_ids() {
+        let mut page = seeded_migration_center_page();
+        page.upstream_refs.wizard_migration_review_ref = "migration-review:".to_owned();
+        page.upstream_refs.wizard_rollback_requirement_ref = "rollback-requirement:".to_owned();
+
+        let defects = validate_migration_center_page(&page).expect_err("must fail closed");
+        assert_eq!(
+            defects
+                .iter()
+                .filter(|defect| {
+                    defect.defect_kind == MigrationCenterDefectKind::PreviewEvidenceTruthDrift
+                })
+                .count(),
+            2
+        );
     }
 
     #[test]
@@ -1605,13 +2262,78 @@ mod tests {
             "support-export:migration-center-beta:001",
             "2026-05-15T00:00:00Z",
             page.clone(),
-        );
+        )
+        .expect("valid page exports");
         assert!(export.raw_private_material_excluded);
         assert!(export.defect_kinds_present.is_empty());
         assert!(export.case_ids.contains(&page.page_id));
         for entry in &page.entries {
             assert!(export.case_ids.contains(&entry.entry_id));
             assert!(export.case_ids.contains(&entry.support_row_id));
+        }
+    }
+
+    #[test]
+    fn support_export_rejects_derived_or_private_field_tampering() {
+        let mut summary_tampered = seeded_migration_center_page();
+        summary_tampered.summary.entry_count += 1;
+        let summary_defects = MigrationCenterSupportExport::from_page(
+            "support-export:migration-center-beta:summary-tamper",
+            "2026-05-15T00:00:00Z",
+            summary_tampered,
+        )
+        .expect_err("derived summary drift must block export");
+        assert!(summary_defects.iter().any(|defect| {
+            defect.defect_kind == MigrationCenterDefectKind::DerivedProjectionDrift
+        }));
+
+        let private_path = "/Users/private-customer/workspace/settings.json";
+        let mut private_tampered = seeded_migration_center_page();
+        private_tampered.entries[0].entry_id = private_path.to_owned();
+        let private_defects = MigrationCenterSupportExport::from_page(
+            "support-export:migration-center-beta:path-tamper",
+            "2026-05-15T00:00:00Z",
+            private_tampered,
+        )
+        .expect_err("private path must block export");
+        let debug = format!("{private_defects:?}");
+        assert!(!debug.contains(private_path));
+        assert!(debug.contains("invalid-row:"));
+    }
+
+    #[test]
+    fn support_export_metadata_is_typed_and_bounded() {
+        let page = seeded_migration_center_page();
+        for (export_id, generated_at) in [
+            ("/Users/private/export", "2026-05-15T00:00:00Z"),
+            ("support-export:file:/private", "2026-05-15T00:00:00Z"),
+            (
+                "support-export:migration-center-beta:001",
+                "not-a-timestamp",
+            ),
+        ] {
+            assert!(
+                MigrationCenterSupportExport::from_page(export_id, generated_at, page.clone(),)
+                    .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn support_text_rejects_embedded_paths_but_allows_a_slash_separator() {
+        assert!(is_safe_support_text("VS Code / Code OSS", 320));
+        for private in [
+            "file:/Users/alice/private.json",
+            "target=/Users/alice/private.json",
+            "target:\\Users\\alice\\private.json",
+            "target=~/private.json",
+            " leading whitespace",
+            "trailing whitespace ",
+        ] {
+            assert!(
+                !is_safe_support_text(private, 320),
+                "accepted private support text {private:?}"
+            );
         }
     }
 

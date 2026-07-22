@@ -109,7 +109,8 @@ fn fixture_support_export_quotes_every_flow_id() {
     let expected = MigrationCorpusSupportExport::from_scoreboard(
         export.support_export_id.clone(),
         scoreboard.clone(),
-    );
+    )
+    .expect("fixture scoreboard produces support export");
     assert_eq!(export, expected);
     for section in &scoreboard.sections {
         for row in &section.rows {
@@ -130,11 +131,25 @@ fn fixture_rows_quote_wizard_mapping_report() {
         for row in &section.rows {
             assert_eq!(&row.wizard_mapping_report_ref, report_ref);
             assert_eq!(
-                &row.rollback_checkpoint_ref,
-                &scoreboard.rollback_checkpoint_ref
+                &row.rollback_requirement_ref,
+                &scoreboard.rollback_requirement_ref
             );
         }
     }
+}
+
+#[test]
+fn fixture_preview_exposes_requirement_not_checkpoint() {
+    let scoreboard: MigrationScoreboard = load_json("scoreboard.json");
+    assert!(scoreboard
+        .wizard_migration_review_ref
+        .starts_with("migration-review:"));
+    assert!(scoreboard
+        .rollback_requirement_ref
+        .starts_with("rollback-requirement:"));
+
+    let value = serde_json::to_value(&scoreboard).expect("scoreboard serializes");
+    assert!(value.get("rollback_checkpoint_ref").is_none());
 }
 
 #[test]

@@ -320,6 +320,7 @@ schema's `state_map_row_record` fields.
 | `tasks_and_launch_configs` | `workspace_tree` | `.aureline/tasks.jsonc`, `.aureline/launch.jsonc` | `user_authored_durable_truth` | `shared_workspace_only` | `durable_until_user_deletes` | `never_synced` | `included_by_default` | `clear_requires_preview_and_rollback` | `ui_string_only` |
 | `machine_specific_settings` | `AURELINE_CONFIG` | `machine.settings.jsonc` | `user_authored_durable_truth` | `portable_with_machine_addendum` | `durable_until_user_deletes` | `never_synced` | `included_metadata_only` | `clear_requires_preview` | `redact_value_preserve_shape` |
 | `profile_library_index` | `AURELINE_CONFIG` | `profiles/*.aureprofile.json` | `user_authored_durable_truth` | `portable` | `durable_until_user_deletes` | `synced_opt_in` | `included_metadata_only` | `clear_requires_preview` | `ui_string_only` |
+| `imported_profile_state` | `AURELINE_CONFIG` | `profiles/imported/*.profile-state.json` | `user_authored_durable_truth` | `local_only` | `durable_until_user_deletes` | `never_synced` | `included_metadata_only` | `clear_requires_preview_and_rollback` | `redact_value_preserve_shape` |
 | `sync_metadata` | `AURELINE_STATE` | `sync/*` | `user_owned_recovery_state` | `local_only` | `bounded_by_policy_or_quota` | `never_synced` | `included_metadata_only` | `clear_requires_preview` | `redact_to_class_label` |
 | `conflict_journal` | `AURELINE_STATE` | `sync/conflict_journal/*` | `user_owned_recovery_state` | `local_only` | `bounded_by_policy_or_quota` | `never_synced` | `included_metadata_only` | `clear_requires_preview` | `redact_to_class_label` |
 | `terminal_restore_metadata` | `AURELINE_STATE` | `terminal/restore/*` | `user_owned_recovery_state` | `local_only` | `bounded_by_policy_or_quota` | `never_synced` | `included_metadata_only` | `clear_requires_preview` | `redact_value_preserve_shape` |
@@ -338,6 +339,14 @@ schema's `state_map_row_record` fields.
 | `admin_policy_bundle` | `AURELINE_POLICY` | `aureline.policy.signed` | `admin_or_control_artifact` | `admin_owned` | `bounded_by_signed_bundle_epoch` | `admin_owned_sync_only` | `included_metadata_only` | `clear_denied_admin_owned` | `redact_to_class_label` |
 | `trust_approvals` | `AURELINE_STATE` | `trust/approvals/*` | `user_owned_recovery_state` | `excluded` | `durable_until_user_clears_with_preview` | `never_synced` | `excluded_by_default` | `clear_denied_live_authority` | `exclude_from_export` |
 | `long_lived_credentials` | `os_credential_store` | `credential_handle/*` | `user_owned_recovery_state` | `excluded` | `durable_until_user_clears_with_preview` | `never_synced` | `excluded_always` | `clear_denied_platform_credential_store_only` | `exclude_from_export` |
+
+Schema-version vocabulary is cumulative but not retroactive. Version 1 records
+remain readable during the compatibility window, but they MUST NOT carry the
+version 2 `imported_profile_state` state class or
+`local_activation_history_requires_projection` exclusion reason anywhere in a
+direct row, inclusion/exclusion row, or remembered-state inspector reservation.
+A producer that needs either token emits `profile_schema_version: 2`; changing
+only the version number without changing the record body is otherwise optional.
 
 Rules (frozen):
 
