@@ -43,6 +43,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     digest_token, EnvironmentCapsuleHint, EnvironmentCapsuleResolution, EnvironmentCapsuleResolver,
     EnvironmentCapsuleResolverConfig, ProjectArchetypeHint,
+    ENVIRONMENT_CAPSULE_RESOLUTION_SCHEMA_VERSION,
 };
 use crate::digest::{sha256_framed_token, sha256_token};
 use crate::discovery::bounded_file::{
@@ -52,6 +53,10 @@ use crate::execution_context::{CapsuleDriftState, EnvironmentCapsuleRef, Prebuil
 
 const MAX_CAPSULE_SOURCE_BYTES: u64 = 8 * 1024 * 1024;
 const MAX_CAPSULE_SOURCE_SET_BYTES: u64 = 32 * 1024 * 1024;
+const MAX_SUPPORT_SOURCES: usize = CapsuleBetaSourceClass::ALL.len();
+const MAX_SUPPORT_DRIFT_EVALUATIONS: usize = 32;
+const MAX_SUPPORT_SOURCE_NOTES: usize = 9;
+const MAX_SUPPORT_HASH_INPUT_BYTES: usize = 4 * 1024;
 
 /// Stable record-kind tag for the beta capsule resolution payload.
 pub const ENVIRONMENT_CAPSULE_BETA_RESOLUTION_RECORD_KIND: &str =
@@ -72,8 +77,19 @@ pub const ENVIRONMENT_CAPSULE_BETA_COVERAGE_MANIFEST_RECORD_KIND: &str =
 /// Schema version for the beta resolver records.
 pub const ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION: u32 = 2;
 
+/// Schema version for the default-redacted beta support-export projection.
+///
+/// Resolution, drift, and coverage records remain on schema version 2. The
+/// support record advances independently because v3 deliberately removes the
+/// verbatim resolution body from the export boundary.
+pub const ENVIRONMENT_CAPSULE_BETA_SUPPORT_EXPORT_SCHEMA_VERSION: u32 = 3;
+
 /// Beta resolver implementation token recorded on every resolution.
 pub const ENVIRONMENT_CAPSULE_BETA_RESOLVER_VERSION: &str = "environment_capsule_resolver.beta.v2";
+
+/// Governed default profile applied by the beta support projection.
+pub const ENVIRONMENT_CAPSULE_BETA_SUPPORT_REDACTION_PROFILE_REF: &str =
+    "support.redaction.local_first_default";
 
 /// Closed source vocabulary the beta resolver classifies declarative inputs
 /// against. Every source the resolver inspects projects onto exactly one row.
@@ -616,52 +632,794 @@ impl EnvironmentCapsuleBetaCoverageManifest {
     }
 }
 
-/// Beta support-export packet projecting the canonical coverage manifest, the
-/// resolved beta resolution, and any drift evaluations the support flow
-/// attached. Raw env values, raw command lines, and raw secrets are out of
-/// scope.
+/// How a digest in the support projection was obtained.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CapsuleBetaSupportDigestProjectionClass {
+    /// The producer supplied a syntactically valid SHA-256 token.
+    ValidatedSha256,
+    /// An invalid claim was replaced with a profile-scoped SHA-256 digest of
+    /// the claim so comparison remains possible without repeating it.
+    RedactedInvalidInputRehash,
+}
+
+/// Digest admitted to the default-redacted support boundary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapsuleBetaSupportDigest {
+    pub value: String,
+    pub projection_class: CapsuleBetaSupportDigestProjectionClass,
+}
+
+/// Redaction-safe summary of a parsed capsule source.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum CapsuleBetaSupportParsedSummary {
+    Devcontainer {
+        image_declared: bool,
+        dockerfile_declared: bool,
+        compose_file_declared: bool,
+        compose_service_declared: bool,
+        feature_count: u64,
+        lifecycle_hook_count: u64,
+    },
+    DockerCompose {
+        service_count: u64,
+        has_image_service: bool,
+        has_build_service: bool,
+    },
+    NixMetadataOnly,
+    NodeManifest {
+        has_package_json: bool,
+        lockfile_count: u64,
+    },
+    PythonManifest {
+        has_pyproject: bool,
+        has_python_version: bool,
+        lockfile_count: u64,
+    },
+    /// The raw record paired a source class with an impossible parsed shape.
+    ShapeMismatch,
+}
+
+/// One bounded, redaction-safe source row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapsuleBetaSupportSourceProjection {
+    pub source_class: CapsuleBetaSourceClass,
+    pub precedence_rank: u8,
+    pub primary: bool,
+    pub source_ref_digest: String,
+    pub content_digest: Option<CapsuleBetaSupportDigest>,
+    pub read_state: CapsuleBetaSourceReadState,
+    pub confidence: CapsuleBetaSourceConfidence,
+    pub notes: Vec<CapsuleBetaSourceNote>,
+    pub parsed_summary: CapsuleBetaSupportParsedSummary,
+}
+
+/// Metadata-only summary of the alpha Node/Python detector bodies.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapsuleBetaSupportDetectorSummary {
+    pub alpha_schema_version: u32,
+    pub node_detection_present: bool,
+    pub node_detector_failure: bool,
+    pub node_has_fallback: bool,
+    pub node_unresolved_ambiguity_count: u64,
+    pub python_detection_present: bool,
+    pub python_detector_failure: bool,
+    pub python_has_fallback: bool,
+    pub python_unresolved_ambiguity_count: u64,
+}
+
+/// Canonical source-class row in the support coverage projection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapsuleBetaSupportCoverageRow {
+    pub source_class: CapsuleBetaSourceClass,
+    pub precedence_rank: u8,
+    pub default_confidence: CapsuleBetaSourceConfidence,
+}
+
+/// Redaction-safe projection of the canonical coverage vocabulary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapsuleBetaSupportCoverageProjection {
+    pub record_kind: String,
+    pub core_schema_version: u32,
+    pub source_class_count: u64,
+    pub source_classes: Vec<CapsuleBetaSupportCoverageRow>,
+}
+
+/// Redaction-safe projection of one beta resolution.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapsuleBetaSupportResolutionProjection {
+    pub core_record_kind: String,
+    pub core_schema_version: u32,
+    pub resolver_version_digest: String,
+    pub resolver_is_current: bool,
+    pub archetype_hint: ProjectArchetypeHint,
+    pub capsule_hint: EnvironmentCapsuleHint,
+    pub primary_source: Option<CapsuleBetaSourceClass>,
+    pub source_count_observed: u64,
+    pub source_count_exported: u64,
+    pub source_count_omitted: u64,
+    pub conflict_notes: Vec<CapsuleBetaSourceNote>,
+    pub projected_source_set_digest: String,
+    pub capsule_id_digest: String,
+    pub projected_capsule_binding_digest: String,
+    pub drift_state: CapsuleDriftState,
+    pub prebuild_reuse_state: PrebuildReuseState,
+    pub detector_summary: CapsuleBetaSupportDetectorSummary,
+    pub source_projections: Vec<CapsuleBetaSupportSourceProjection>,
+}
+
+/// Redaction-safe per-source drift row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapsuleBetaSupportDriftRowProjection {
+    pub source_class: CapsuleBetaSourceClass,
+    pub stored_content_digest: Option<CapsuleBetaSupportDigest>,
+    pub fresh_content_digest: Option<CapsuleBetaSupportDigest>,
+    pub stored_read_state: Option<CapsuleBetaSourceReadState>,
+    pub fresh_read_state: Option<CapsuleBetaSourceReadState>,
+}
+
+/// Bounded, redaction-safe drift evaluation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapsuleBetaSupportDriftEvaluationProjection {
+    pub core_record_kind: String,
+    pub core_schema_version: u32,
+    pub stored_source_set_digest: CapsuleBetaSupportDigest,
+    pub fresh_source_set_digest: CapsuleBetaSupportDigest,
+    pub outcome: CapsuleBetaDriftOutcome,
+    pub drift_row_count_observed: u64,
+    pub drift_row_count_exported: u64,
+    pub drift_row_count_omitted: u64,
+    pub drift_rows: Vec<CapsuleBetaSupportDriftRowProjection>,
+    pub added_source_count_observed: u64,
+    pub added_source_count_exported: u64,
+    pub added_source_count_omitted: u64,
+    pub added_sources: Vec<CapsuleBetaSourceClass>,
+    pub removed_source_count_observed: u64,
+    pub removed_source_count_exported: u64,
+    pub removed_source_count_omitted: u64,
+    pub removed_sources: Vec<CapsuleBetaSourceClass>,
+}
+
+/// Why a raw field is present or absent from the support projection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CapsuleBetaSupportFieldDispositionClass {
+    RecordedAndPresent,
+    NotRecordedByDesign,
+    OmittedByRedaction,
+    OmittedByExpiry,
+    OmittedByPolicy,
+    OmittedByLegalHold,
+    UnavailableSource,
+    OutsidePlatformScope,
+}
+
+/// One field-level privacy disposition.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapsuleBetaSupportFieldDisposition {
+    pub field_path: String,
+    pub disposition: CapsuleBetaSupportFieldDispositionClass,
+    pub evidence_window_ref: String,
+    pub redaction_profile_ref: Option<String>,
+    pub note: String,
+}
+
+/// Default interpretation for fields absent from the projection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapsuleBetaSupportAbsenceSummary {
+    pub missing_field_default: String,
+    pub requires_disposition_for_export: bool,
+    pub disposition_count: u64,
+}
+
+/// Default-redacted beta support packet.
+///
+/// This intentionally does not embed [`EnvironmentCapsuleBetaResolution`] or
+/// [`EnvironmentCapsuleBetaDriftEvaluation`]. Their path, detector, parsed
+/// string, and caller-token fields are private runtime evidence.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EnvironmentCapsuleBetaSupportExport {
-    /// Stable record kind.
     pub record_kind: String,
-    /// Schema version.
     pub schema_version: u32,
-    /// Manifest id.
-    pub manifest_id: String,
-    /// Generation timestamp.
+    pub manifest_id_digest: String,
     pub generated_at: String,
-    /// Coverage manifest at export time.
-    pub coverage_manifest: EnvironmentCapsuleBetaCoverageManifest,
-    /// Resolution being exported.
-    pub resolution: EnvironmentCapsuleBetaResolution,
-    /// Drift evaluations carried alongside the export.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub drift_evaluations: Vec<EnvironmentCapsuleBetaDriftEvaluation>,
+    pub purpose: String,
+    pub data_class: String,
+    pub redaction_class: String,
+    pub redaction_profile_ref: String,
+    pub export_posture: String,
+    pub raw_private_material_exported: bool,
+    pub coverage_projection: CapsuleBetaSupportCoverageProjection,
+    pub resolution_projection: CapsuleBetaSupportResolutionProjection,
+    pub drift_evaluation_count_observed: u64,
+    pub drift_evaluation_count_exported: u64,
+    pub drift_evaluation_count_omitted: u64,
+    pub drift_evaluations: Vec<CapsuleBetaSupportDriftEvaluationProjection>,
+    pub absence_summary: CapsuleBetaSupportAbsenceSummary,
+    pub field_dispositions: Vec<CapsuleBetaSupportFieldDisposition>,
 }
 
 impl EnvironmentCapsuleBetaSupportExport {
-    /// Builds the support-export packet.
+    /// Builds a bounded, default-redacted support packet from private runtime
+    /// evidence. The constructor re-derives all tokens and counts that cross
+    /// the support boundary.
     pub fn new(
         manifest_id: impl Into<String>,
         generated_at: impl Into<String>,
         resolution: EnvironmentCapsuleBetaResolution,
         drift_evaluations: Vec<EnvironmentCapsuleBetaDriftEvaluation>,
     ) -> Self {
-        let manifest_id_owned = manifest_id.into();
-        let generated_at_owned = generated_at.into();
+        let manifest_id = manifest_id.into();
+        let (generated_at, timestamp_valid) = normalize_support_timestamp(generated_at.into());
+        let resolution_projection = project_support_resolution(&resolution);
+        let drift_evaluation_count_observed = count_u64(drift_evaluations.len());
+        let drift_evaluations: Vec<_> = drift_evaluations
+            .iter()
+            .take(MAX_SUPPORT_DRIFT_EVALUATIONS)
+            .map(project_support_drift_evaluation)
+            .collect();
+        let drift_evaluation_count_exported = count_u64(drift_evaluations.len());
+        let drift_evaluation_count_omitted =
+            drift_evaluation_count_observed.saturating_sub(drift_evaluation_count_exported);
+        let bounded_tail_omitted = resolution_projection.source_count_omitted > 0
+            || drift_evaluation_count_omitted > 0
+            || drift_evaluations.iter().any(|drift| {
+                drift.drift_row_count_omitted > 0
+                    || drift.added_source_count_omitted > 0
+                    || drift.removed_source_count_omitted > 0
+            });
+        let field_dispositions = support_field_dispositions(timestamp_valid, bounded_tail_omitted);
+        let absence_summary = CapsuleBetaSupportAbsenceSummary {
+            missing_field_default: "unknown_until_field_disposition_present".to_owned(),
+            requires_disposition_for_export: true,
+            disposition_count: count_u64(field_dispositions.len()),
+        };
+
         Self {
             record_kind: ENVIRONMENT_CAPSULE_BETA_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
-            schema_version: ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION,
-            manifest_id: manifest_id_owned.clone(),
-            generated_at: generated_at_owned.clone(),
-            coverage_manifest: EnvironmentCapsuleBetaCoverageManifest::canonical(
-                manifest_id_owned,
-                generated_at_owned,
-            ),
-            resolution,
+            schema_version: ENVIRONMENT_CAPSULE_BETA_SUPPORT_EXPORT_SCHEMA_VERSION,
+            manifest_id_digest: profile_scoped_digest("manifest_id", &manifest_id),
+            generated_at,
+            purpose: "environment_capsule_resolution_support".to_owned(),
+            data_class: "environment_adjacent".to_owned(),
+            redaction_class: "metadata_safe_default".to_owned(),
+            redaction_profile_ref: ENVIRONMENT_CAPSULE_BETA_SUPPORT_REDACTION_PROFILE_REF
+                .to_owned(),
+            export_posture: "included_metadata_only".to_owned(),
+            raw_private_material_exported: false,
+            coverage_projection: canonical_support_coverage(),
+            resolution_projection,
+            drift_evaluation_count_observed,
+            drift_evaluation_count_exported,
+            drift_evaluation_count_omitted,
             drift_evaluations,
+            absence_summary,
+            field_dispositions,
         }
     }
+}
+
+fn canonical_support_coverage() -> CapsuleBetaSupportCoverageProjection {
+    CapsuleBetaSupportCoverageProjection {
+        record_kind: "environment_capsule_beta_support_coverage_projection".to_owned(),
+        core_schema_version: ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION,
+        source_class_count: count_u64(CapsuleBetaSourceClass::ALL.len()),
+        source_classes: CapsuleBetaSourceClass::ALL
+            .into_iter()
+            .map(|source_class| CapsuleBetaSupportCoverageRow {
+                source_class,
+                precedence_rank: source_class.precedence_rank(),
+                default_confidence: source_class.default_confidence(),
+            })
+            .collect(),
+    }
+}
+
+fn project_support_resolution(
+    resolution: &EnvironmentCapsuleBetaResolution,
+) -> CapsuleBetaSupportResolutionProjection {
+    let source_count_observed = count_u64(resolution.sources.len());
+    let mut unique_sources = BTreeMap::new();
+    for source in &resolution.sources {
+        unique_sources.entry(source.source_class).or_insert(source);
+        if unique_sources.len() == MAX_SUPPORT_SOURCES {
+            break;
+        }
+    }
+    let source_projections: Vec<_> = unique_sources
+        .into_values()
+        .take(MAX_SUPPORT_SOURCES)
+        .map(|source| project_support_source(source, resolution.primary_source))
+        .collect();
+    let source_count_exported = count_u64(source_projections.len());
+    let source_count_omitted = source_count_observed.saturating_sub(source_count_exported);
+    let projected_source_set_digest = digest_safe_projection(
+        b"environment_capsule_beta_support_source_set_v1",
+        &source_projections,
+    );
+    let capsule_id_digest =
+        profile_scoped_digest("capsule_id", &resolution.environment_capsule_ref.capsule_id);
+    let projected_capsule_binding_digest = sha256_framed_token(&[
+        ENVIRONMENT_CAPSULE_BETA_SUPPORT_REDACTION_PROFILE_REF.as_bytes(),
+        b"environment_capsule_beta_support_binding_v1",
+        projected_source_set_digest.as_bytes(),
+        capsule_id_digest.as_bytes(),
+        resolution.drift_state.as_str().as_bytes(),
+        resolution.prebuild_reuse_state.as_str().as_bytes(),
+    ]);
+    let mut conflict_notes: Vec<_> = resolution
+        .conflict_notes
+        .iter()
+        .copied()
+        .take(MAX_SUPPORT_SOURCE_NOTES)
+        .collect();
+    conflict_notes.sort();
+    conflict_notes.dedup();
+    conflict_notes.truncate(MAX_SUPPORT_SOURCE_NOTES);
+
+    CapsuleBetaSupportResolutionProjection {
+        core_record_kind: ENVIRONMENT_CAPSULE_BETA_RESOLUTION_RECORD_KIND.to_owned(),
+        core_schema_version: ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION,
+        resolver_version_digest: profile_scoped_digest(
+            "resolver_version",
+            &resolution.resolver_version,
+        ),
+        resolver_is_current: resolution.record_kind
+            == ENVIRONMENT_CAPSULE_BETA_RESOLUTION_RECORD_KIND
+            && resolution.schema_version == ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION
+            && resolution.resolver_version == ENVIRONMENT_CAPSULE_BETA_RESOLVER_VERSION,
+        archetype_hint: resolution.archetype_hint,
+        capsule_hint: resolution.alpha_resolution.capsule_hint,
+        primary_source: resolution.primary_source.filter(|primary| {
+            source_projections
+                .iter()
+                .any(|source| source.source_class == *primary)
+        }),
+        source_count_observed,
+        source_count_exported,
+        source_count_omitted,
+        conflict_notes,
+        projected_source_set_digest,
+        capsule_id_digest,
+        projected_capsule_binding_digest,
+        drift_state: resolution.drift_state,
+        prebuild_reuse_state: resolution.prebuild_reuse_state,
+        detector_summary: project_detector_summary(&resolution.alpha_resolution),
+        source_projections,
+    }
+}
+
+fn project_support_source(
+    source: &CapsuleBetaSourceParse,
+    primary_source: Option<CapsuleBetaSourceClass>,
+) -> CapsuleBetaSupportSourceProjection {
+    let valid_complete_digest = source.read_state == CapsuleBetaSourceReadState::Complete
+        && source
+            .content_digest
+            .as_deref()
+            .is_some_and(is_sha256_token);
+    let read_state =
+        if source.read_state == CapsuleBetaSourceReadState::Complete && !valid_complete_digest {
+            CapsuleBetaSourceReadState::Unavailable
+        } else {
+            source.read_state
+        };
+    let content_digest = if valid_complete_digest {
+        source.content_digest.as_deref().map(project_support_digest)
+    } else {
+        None
+    };
+    let mut notes: Vec<_> = source
+        .notes
+        .iter()
+        .copied()
+        .take(MAX_SUPPORT_SOURCE_NOTES)
+        .collect();
+    if source.read_state == CapsuleBetaSourceReadState::Complete && !valid_complete_digest {
+        notes.push(CapsuleBetaSourceNote::SourceReadUnavailable);
+    }
+    notes.sort();
+    notes.dedup();
+    notes.truncate(MAX_SUPPORT_SOURCE_NOTES);
+
+    CapsuleBetaSupportSourceProjection {
+        source_class: source.source_class,
+        precedence_rank: source.source_class.precedence_rank(),
+        primary: primary_source == Some(source.source_class),
+        source_ref_digest: profile_scoped_digest("source_ref", &source.source_ref),
+        content_digest,
+        read_state,
+        confidence: source.confidence,
+        notes,
+        parsed_summary: project_parsed_summary(source),
+    }
+}
+
+fn project_parsed_summary(source: &CapsuleBetaSourceParse) -> CapsuleBetaSupportParsedSummary {
+    match (source.source_class, &source.parsed_fields) {
+        (CapsuleBetaSourceClass::Devcontainer, CapsuleBetaParsedFields::Devcontainer(parsed)) => {
+            CapsuleBetaSupportParsedSummary::Devcontainer {
+                image_declared: parsed.image_ref.is_some(),
+                dockerfile_declared: parsed.dockerfile_ref.is_some(),
+                compose_file_declared: parsed.compose_file_ref.is_some(),
+                compose_service_declared: parsed.compose_service.is_some(),
+                feature_count: count_u64(parsed.feature_keys.len()),
+                lifecycle_hook_count: count_u64(parsed.lifecycle_hook_keys.len()),
+            }
+        }
+        (CapsuleBetaSourceClass::DockerCompose, CapsuleBetaParsedFields::DockerCompose(parsed)) => {
+            CapsuleBetaSupportParsedSummary::DockerCompose {
+                service_count: count_u64(parsed.service_keys.len()),
+                has_image_service: parsed.has_image_service,
+                has_build_service: parsed.has_build_service,
+            }
+        }
+        (
+            CapsuleBetaSourceClass::NixFlake
+            | CapsuleBetaSourceClass::NixShell
+            | CapsuleBetaSourceClass::NixDefault,
+            CapsuleBetaParsedFields::Nix(_),
+        ) => CapsuleBetaSupportParsedSummary::NixMetadataOnly,
+        (CapsuleBetaSourceClass::NodeManifest, CapsuleBetaParsedFields::NodeManifest(parsed)) => {
+            CapsuleBetaSupportParsedSummary::NodeManifest {
+                has_package_json: parsed.has_package_json,
+                lockfile_count: count_u64(parsed.lockfile_refs.len()),
+            }
+        }
+        (
+            CapsuleBetaSourceClass::PythonManifest,
+            CapsuleBetaParsedFields::PythonManifest(parsed),
+        ) => CapsuleBetaSupportParsedSummary::PythonManifest {
+            has_pyproject: parsed.has_pyproject,
+            has_python_version: parsed.has_python_version,
+            lockfile_count: count_u64(parsed.lockfile_refs.len()),
+        },
+        _ => CapsuleBetaSupportParsedSummary::ShapeMismatch,
+    }
+}
+
+fn project_detector_summary(
+    resolution: &EnvironmentCapsuleResolution,
+) -> CapsuleBetaSupportDetectorSummary {
+    let node = resolution.node_toolchain_detection.as_ref();
+    let python = resolution.python_environment_detection.as_ref();
+    CapsuleBetaSupportDetectorSummary {
+        alpha_schema_version: ENVIRONMENT_CAPSULE_RESOLUTION_SCHEMA_VERSION,
+        node_detection_present: node.is_some(),
+        node_detector_failure: node.is_some_and(|report| report.has_detector_failure()),
+        node_has_fallback: node.is_some_and(|report| report.has_fallback()),
+        node_unresolved_ambiguity_count: node.map_or(0, |report| {
+            let count = count_u64(report.unresolved_ambiguities.len());
+            if report.has_unresolved_ambiguity() {
+                count.max(1)
+            } else {
+                0
+            }
+        }),
+        python_detection_present: python.is_some(),
+        python_detector_failure: python.is_some_and(|report| report.has_detector_failure()),
+        python_has_fallback: python.is_some_and(|report| report.has_fallback()),
+        python_unresolved_ambiguity_count: python.map_or(0, |report| {
+            let count = count_u64(report.unresolved_ambiguities.len());
+            if report.has_unresolved_ambiguity() {
+                count.max(1)
+            } else {
+                0
+            }
+        }),
+    }
+}
+
+fn project_support_drift_evaluation(
+    drift: &EnvironmentCapsuleBetaDriftEvaluation,
+) -> CapsuleBetaSupportDriftEvaluationProjection {
+    let drift_row_count_observed = count_u64(drift.drift_rows.len());
+    let mut unique_rows = BTreeMap::new();
+    for row in &drift.drift_rows {
+        unique_rows.entry(row.source_class).or_insert(row);
+        if unique_rows.len() == MAX_SUPPORT_SOURCES {
+            break;
+        }
+    }
+    let drift_rows: Vec<_> = unique_rows
+        .into_values()
+        .take(MAX_SUPPORT_SOURCES)
+        .map(|row| CapsuleBetaSupportDriftRowProjection {
+            source_class: row.source_class,
+            stored_content_digest: row
+                .stored_content_digest
+                .as_deref()
+                .map(project_support_digest),
+            fresh_content_digest: row
+                .fresh_content_digest
+                .as_deref()
+                .map(project_support_digest),
+            stored_read_state: row.stored_read_state,
+            fresh_read_state: row.fresh_read_state,
+        })
+        .collect();
+    let drift_row_count_exported = count_u64(drift_rows.len());
+
+    let added_source_count_observed = count_u64(drift.added_sources.len());
+    let mut added_sources: Vec<_> = drift
+        .added_sources
+        .iter()
+        .copied()
+        .take(MAX_SUPPORT_SOURCES)
+        .collect();
+    added_sources.sort();
+    added_sources.dedup();
+    added_sources.truncate(MAX_SUPPORT_SOURCES);
+    let added_source_count_exported = count_u64(added_sources.len());
+
+    let removed_source_count_observed = count_u64(drift.removed_sources.len());
+    let mut removed_sources: Vec<_> = drift
+        .removed_sources
+        .iter()
+        .copied()
+        .take(MAX_SUPPORT_SOURCES)
+        .collect();
+    removed_sources.sort();
+    removed_sources.dedup();
+    removed_sources.truncate(MAX_SUPPORT_SOURCES);
+    let removed_source_count_exported = count_u64(removed_sources.len());
+
+    CapsuleBetaSupportDriftEvaluationProjection {
+        core_record_kind: ENVIRONMENT_CAPSULE_BETA_DRIFT_RECORD_KIND.to_owned(),
+        core_schema_version: ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION,
+        stored_source_set_digest: project_support_digest(&drift.stored_source_set_digest),
+        fresh_source_set_digest: project_support_digest(&drift.fresh_source_set_digest),
+        outcome: drift.outcome,
+        drift_row_count_observed,
+        drift_row_count_exported,
+        drift_row_count_omitted: drift_row_count_observed.saturating_sub(drift_row_count_exported),
+        drift_rows,
+        added_source_count_observed,
+        added_source_count_exported,
+        added_source_count_omitted: added_source_count_observed
+            .saturating_sub(added_source_count_exported),
+        added_sources,
+        removed_source_count_observed,
+        removed_source_count_exported,
+        removed_source_count_omitted: removed_source_count_observed
+            .saturating_sub(removed_source_count_exported),
+        removed_sources,
+    }
+}
+
+fn project_support_digest(value: &str) -> CapsuleBetaSupportDigest {
+    if is_sha256_token(value) {
+        CapsuleBetaSupportDigest {
+            value: value.to_owned(),
+            projection_class: CapsuleBetaSupportDigestProjectionClass::ValidatedSha256,
+        }
+    } else {
+        CapsuleBetaSupportDigest {
+            value: profile_scoped_digest("invalid_digest_claim", value),
+            projection_class: CapsuleBetaSupportDigestProjectionClass::RedactedInvalidInputRehash,
+        }
+    }
+}
+
+fn is_sha256_token(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value.as_bytes()[7..]
+            .iter()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+}
+
+fn profile_scoped_digest(field: &str, value: &str) -> String {
+    let value_bytes = value.as_bytes();
+    let retained = &value_bytes[..value_bytes.len().min(MAX_SUPPORT_HASH_INPUT_BYTES)];
+    let observed_len = count_u64(value_bytes.len()).to_be_bytes();
+    sha256_framed_token(&[
+        ENVIRONMENT_CAPSULE_BETA_SUPPORT_REDACTION_PROFILE_REF.as_bytes(),
+        field.as_bytes(),
+        &observed_len,
+        retained,
+    ])
+}
+
+fn digest_safe_projection<T: Serialize>(domain: &[u8], value: &T) -> String {
+    let encoded = serde_json::to_vec(value)
+        .unwrap_or_else(|_| b"support_projection_serialization_unavailable".to_vec());
+    sha256_framed_token(&[
+        ENVIRONMENT_CAPSULE_BETA_SUPPORT_REDACTION_PROFILE_REF.as_bytes(),
+        domain,
+        &encoded,
+    ])
+}
+
+fn count_u64(value: usize) -> u64 {
+    u64::try_from(value).unwrap_or(u64::MAX)
+}
+
+fn normalize_support_timestamp(value: String) -> (String, bool) {
+    if is_strict_utc_timestamp(&value) {
+        (value, true)
+    } else {
+        ("1970-01-01T00:00:00Z".to_owned(), false)
+    }
+}
+
+fn is_strict_utc_timestamp(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 20
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes[10] != b'T'
+        || bytes[13] != b':'
+        || bytes[16] != b':'
+        || bytes[19] != b'Z'
+        || bytes.iter().enumerate().any(|(index, byte)| {
+            !matches!(index, 4 | 7 | 10 | 13 | 16 | 19) && !byte.is_ascii_digit()
+        })
+    {
+        return false;
+    }
+    let number = |start: usize, width: usize| -> u32 {
+        bytes[start..start + width]
+            .iter()
+            .fold(0_u32, |value, byte| value * 10 + u32::from(*byte - b'0'))
+    };
+    let year = number(0, 4);
+    let month = number(5, 2);
+    let day = number(8, 2);
+    let hour = number(11, 2);
+    let minute = number(14, 2);
+    let second = number(17, 2);
+    let leap_year = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let max_day = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap_year => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=max_day).contains(&day) && hour < 24 && minute < 60 && second < 60
+}
+
+fn support_field_dispositions(
+    timestamp_valid: bool,
+    bounded_tail_omitted: bool,
+) -> Vec<CapsuleBetaSupportFieldDisposition> {
+    use CapsuleBetaSupportFieldDispositionClass::{
+        OmittedByRedaction, RecordedAndPresent, UnavailableSource,
+    };
+
+    let redaction_profile =
+        || Some(ENVIRONMENT_CAPSULE_BETA_SUPPORT_REDACTION_PROFILE_REF.to_owned());
+    let row = |field_path: &str,
+               disposition: CapsuleBetaSupportFieldDispositionClass,
+               redaction_profile_ref: Option<String>,
+               note: &str| CapsuleBetaSupportFieldDisposition {
+        field_path: field_path.to_owned(),
+        disposition,
+        evidence_window_ref: "support.evidence_window.current_export".to_owned(),
+        redaction_profile_ref,
+        note: note.to_owned(),
+    };
+
+    vec![
+        row(
+            "coverage_projection",
+            RecordedAndPresent,
+            None,
+            "The canonical seven-class coverage projection is present.",
+        ),
+        row(
+            "resolution_projection.metadata",
+            RecordedAndPresent,
+            None,
+            "Closed-vocabulary resolution metadata is present.",
+        ),
+        row(
+            "drift_evaluations.projection",
+            RecordedAndPresent,
+            None,
+            "Bounded metadata-only drift evidence is present.",
+        ),
+        row(
+            "input.manifest_id",
+            OmittedByRedaction,
+            redaction_profile(),
+            "The caller manifest id is replaced by a profile-scoped SHA-256 digest.",
+        ),
+        row(
+            "input.generated_at",
+            if timestamp_valid {
+                RecordedAndPresent
+            } else {
+                UnavailableSource
+            },
+            None,
+            if timestamp_valid {
+                "The timestamp matched the strict UTC export shape."
+            } else {
+                "The input timestamp was invalid; the export uses the fixed epoch sentinel."
+            },
+        ),
+        row(
+            "resolution.workspace_root_ref",
+            OmittedByRedaction,
+            redaction_profile(),
+            "Raw workspace paths never cross the support boundary.",
+        ),
+        row(
+            "resolution.alpha_resolution.raw_payload",
+            OmittedByRedaction,
+            redaction_profile(),
+            "Alpha detector paths, requirements, candidates, values, and summaries become counts and booleans.",
+        ),
+        row(
+            "resolution.sources[].source_ref",
+            OmittedByRedaction,
+            redaction_profile(),
+            "Each source ref is replaced by a profile-scoped SHA-256 digest.",
+        ),
+        row(
+            "resolution.sources[].parsed_fields.devcontainer_strings_and_forward_ports",
+            OmittedByRedaction,
+            redaction_profile(),
+            "Private devcontainer strings and forward-port values are omitted; presence and bounded counts remain.",
+        ),
+        row(
+            "resolution.sources[].parsed_fields.docker_compose.service_keys",
+            OmittedByRedaction,
+            redaction_profile(),
+            "Compose service keys are replaced by a re-derived count.",
+        ),
+        row(
+            "resolution.sources[].parsed_fields.nix.variant_token",
+            OmittedByRedaction,
+            redaction_profile(),
+            "The raw variant token is withheld because the closed source class already identifies the Nix variant.",
+        ),
+        row(
+            "resolution.sources[].parsed_fields.node_manifest.lockfile_refs",
+            OmittedByRedaction,
+            redaction_profile(),
+            "Node lockfile refs are replaced by a re-derived count.",
+        ),
+        row(
+            "resolution.sources[].parsed_fields.python_manifest.lockfile_refs",
+            OmittedByRedaction,
+            redaction_profile(),
+            "Python lockfile refs are replaced by a re-derived count.",
+        ),
+        row(
+            "resolution.precedence_and_tokens",
+            OmittedByRedaction,
+            redaction_profile(),
+            "Caller-provided ranks, primary state, and tokens are withheld and regenerated from enums.",
+        ),
+        row(
+            "resolution.raw_digest_and_capsule_claims",
+            OmittedByRedaction,
+            redaction_profile(),
+            "Unvalidated digest, capsule, and resolver claims are not copied; safe digests are validated or re-derived.",
+        ),
+        row(
+            "bounded_collection_tails",
+            if bounded_tail_omitted {
+                OmittedByRedaction
+            } else {
+                RecordedAndPresent
+            },
+            if bounded_tail_omitted {
+                redaction_profile()
+            } else {
+                None
+            },
+            if bounded_tail_omitted {
+                "Collection tails are withheld by the bounded redaction profile; observed, exported, and omitted counts disclose truncation."
+            } else {
+                "Observed, exported, and omitted counts show that no bounded collection tail was omitted."
+            },
+        ),
+    ]
 }
 
 /// Caller-provided configuration for [`EnvironmentCapsuleBetaResolver`].
@@ -2061,6 +2819,86 @@ mod tests {
             round.record_kind,
             ENVIRONMENT_CAPSULE_BETA_SUPPORT_EXPORT_RECORD_KIND
         );
+        assert_eq!(
+            round.schema_version,
+            ENVIRONMENT_CAPSULE_BETA_SUPPORT_EXPORT_SCHEMA_VERSION
+        );
+        assert!(!round.raw_private_material_exported);
+        assert_eq!(round.resolution_projection.source_count_observed, 1);
+        assert_eq!(round.resolution_projection.source_count_exported, 1);
+        assert_eq!(round.resolution_projection.source_count_omitted, 0);
+        let serialized = serde_json::to_string(&round).expect("serialize projection");
+        assert!(!serialized.contains(root.to_string_lossy().as_ref()));
+        assert!(!serialized.contains("ghcr.io/example/runtime:1"));
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn support_export_redacts_private_fields_and_bounds_untrusted_collections() {
+        let root = temp_workspace("support-redaction");
+        fs::write(
+            root.join("devcontainer.json"),
+            r#"{
+                "image": "registry.example/private/team/runtime:secret",
+                "features": {"private.example/feature": {}},
+                "postCreateCommand": "printenv PRIVATE_TOKEN"
+            }"#,
+        )
+        .expect("write");
+        let mut resolution = EnvironmentCapsuleBetaResolver::default_read_only()
+            .resolve_workspace(&root, ProjectArchetypeHint::BackendService);
+        resolution.sources[0].content_digest = Some("private-invalid-digest".to_owned());
+        let duplicate_source = resolution.sources[0].clone();
+        for _ in 0..10 {
+            resolution.sources.push(duplicate_source.clone());
+        }
+        let manifest_id = "manifest:/private/operator/name";
+        let packet = EnvironmentCapsuleBetaSupportExport::new(
+            manifest_id,
+            "invalid timestamp and private note",
+            resolution,
+            Vec::new(),
+        );
+        let json = serde_json::to_string(&packet).expect("serialize");
+
+        assert_eq!(packet.generated_at, "1970-01-01T00:00:00Z");
+        assert_ne!(packet.manifest_id_digest, manifest_id);
+        assert!(!json.contains(manifest_id));
+        assert!(!json.contains(root.to_string_lossy().as_ref()));
+        assert!(!json.contains("registry.example"));
+        assert!(!json.contains("private.example"));
+        assert!(!json.contains("PRIVATE_TOKEN"));
+        assert!(!json.contains("private-invalid-digest"));
+        assert!(!json.contains("\"workspace_root_ref\":"));
+        assert!(!json.contains("\"source_ref\":"));
+        assert!(!json.contains("\"alpha_resolution\":"));
+        assert_eq!(
+            packet.resolution_projection.source_projections[0].read_state,
+            CapsuleBetaSourceReadState::Unavailable
+        );
+        assert_eq!(packet.resolution_projection.source_count_observed, 11);
+        assert_eq!(packet.resolution_projection.source_count_exported, 1);
+        assert_eq!(packet.resolution_projection.source_count_omitted, 10);
+        assert!(packet.resolution_projection.source_projections[0]
+            .content_digest
+            .is_none());
+        assert!(packet.field_dispositions.iter().any(|row| {
+            row.field_path == "input.generated_at"
+                && row.disposition == CapsuleBetaSupportFieldDispositionClass::UnavailableSource
+        }));
+        assert!(packet.field_dispositions.iter().any(|row| {
+            row.field_path == "bounded_collection_tails"
+                && row.disposition == CapsuleBetaSupportFieldDispositionClass::OmittedByRedaction
+                && row.redaction_profile_ref.as_deref()
+                    == Some(ENVIRONMENT_CAPSULE_BETA_SUPPORT_REDACTION_PROFILE_REF)
+        }));
+        assert!(packet.field_dispositions.iter().all(|row| {
+            !matches!(
+                row.disposition,
+                CapsuleBetaSupportFieldDispositionClass::NotRecordedByDesign
+                    | CapsuleBetaSupportFieldDispositionClass::OmittedByPolicy
+            )
+        }));
         fs::remove_dir_all(root).ok();
     }
 

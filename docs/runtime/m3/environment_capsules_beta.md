@@ -43,9 +43,13 @@ The beta promise:
   remain safe even when the source set has drifted.
 - **Exportable evidence.** The
   [`EnvironmentCapsuleBetaSupportExport`](../../../crates/aureline-runtime/src/capsule_resolver/beta.rs)
-  packet projects the canonical coverage manifest, the resolved beta
-  resolution, and any drift evaluations the support flow attached. Raw
-  bodies, raw command lines, and raw secrets are out of scope.
+  packet is an independently versioned, default-redacted support projection.
+  It re-derives bounded source, capsule, detector, parsed-shape, and drift
+  metadata instead of embedding the beta resolution. Raw bodies, workspace
+  paths, source refs, detector payloads, parsed private strings, command
+  lines, secrets, and the caller's manifest id are out of scope. Every
+  included, transformed, omitted, or unavailable field family has an
+  explicit disposition.
 
 ## Source vocabulary and precedence
 
@@ -131,6 +135,68 @@ and the source-set digest:
   [ticket-drift evaluator](execution_context_beta.md) to invalidate any
   stored binding.
 
+## Support-export privacy projection
+
+The core beta resolution, drift, and coverage records remain schema version
+2. The support-export record advances independently to schema version 3
+because its boundary is intentionally narrower than the runtime record it
+summarizes. A support packet is suitable for local preview under
+`support.redaction.local_first_default`; it is never a hidden telemetry
+upload and still requires a person or an explicitly governed workflow to
+share it.
+
+Every v3 packet pins these governance fields:
+
+| Field | Required value |
+| --- | --- |
+| `purpose` | `environment_capsule_resolution_support` |
+| `data_class` | `environment_adjacent` |
+| `redaction_class` | `metadata_safe_default` |
+| `redaction_profile_ref` | `support.redaction.local_first_default` |
+| `export_posture` | `included_metadata_only` |
+| `raw_private_material_exported` | `false` |
+
+The constructor does not trust caller-provided tokens, digests, or counts.
+It rebuilds source-class and precedence tokens from enums, de-duplicates and
+bounds source rows to the seven-class vocabulary, re-derives all collection
+counts, validates SHA-256 tokens before retaining them, and replaces malformed
+digest claims with an explicitly classified redacted rehash where drift
+comparison still needs an opaque token. A claimed `complete` source without a
+valid SHA-256 content digest is downgraded to unavailable in the projection.
+The projected source-set and capsule-binding digests are built from the
+sanitized projection; the raw resolution's claimed source-set digest,
+capsule id, and capsule hash are never copied.
+
+The safe source projection includes only:
+
+- source class, precedence rank, primary-source flag, read state, confidence,
+  and bounded closed-vocabulary notes;
+- a profile-scoped digest of the source ref, never the source ref itself;
+- a validated content digest when complete bounded-read evidence exists;
+- booleans and re-derived collection counts for recognized parsed shapes.
+
+For devcontainers this means presence booleans plus feature and lifecycle-hook
+counts, not image, Dockerfile, Compose, service, feature, or hook strings.
+Compose exports a service count plus image/build booleans, never service keys.
+Node and Python rows export lockfile counts, never lockfile refs. Nix exports
+only its metadata-only shape; the raw variant token is unnecessary because
+the source class already identifies the variant. Alpha Node/Python detector
+reports become presence, fallback, failure, and ambiguity-count summaries;
+their paths, provenance cards, requirements, candidates, values, summaries,
+interpreter refs, and environment refs are omitted.
+
+Support collections are bounded to seven projected sources, seven rows per
+drift evaluation, and 32 drift evaluations per packet. Observed, exported,
+and omitted counts make truncation visible. `absence_summary` uses
+`unknown_until_field_disposition_present`, and `field_dispositions` follows
+the security contract's closed vocabulary. In particular,
+`omitted_by_redaction` is distinct from `not_recorded_by_design`, while an
+unreadable source uses `unavailable_source`. The ledger covers the raw
+manifest id, timestamps that fail the strict UTC shape, workspace and source
+paths, the alpha/detector body, every parsed private-string group, raw
+precedence/token fields, unvalidated digest/capsule claims, and truncated
+collection tails.
+
 ## Failure-drill fixtures
 
 Reviewer fixtures live under
@@ -157,6 +223,10 @@ and exercise these scenarios:
   `manually_diverged` with the new source listed under added_sources.
 - `beta_source_coverage.json` — canonical coverage manifest the runtime
   emits.
+- `redacted_support_export_v3.json` — schema-valid support projection with
+  bounded drift evidence, the governed privacy posture, and explicit field
+  dispositions; it contains no raw resolution, path, source-ref, detector, or
+  parsed-private-string fields.
 
 The integration test that replays these fixtures lives at
 [`/crates/aureline-runtime/tests/capsule_resolver_beta.rs`](../../../crates/aureline-runtime/tests/capsule_resolver_beta.rs).
@@ -181,6 +251,19 @@ with v2 baselines: callers must resolve a fresh baseline rather than comparing
 or reusing a v1 digest. The alpha resolver likewise advances its implementation
 token to `environment_capsule_resolver.alpha.v2`; its record schema remains v1
 because no alpha fields or vocabularies changed.
+
+## Support-export version 3 migration
+
+Support-export v3 replaces the v2 packet that embedded
+`EnvironmentCapsuleBetaResolution` and raw drift records. Consumers must now
+read `coverage_projection`, `resolution_projection`, and the bounded safe
+`drift_evaluations` projection. `manifest_id` becomes `manifest_id_digest`;
+the export declares its data class, redaction class/profile, export posture,
+and raw-private-material posture; and absence is explained through
+`absence_summary` plus `field_dispositions`. Resolution, drift, and coverage
+records themselves do not change version. A consumer that requires raw local
+resolution details must inspect the local v2 runtime record and must not
+reinterpret the v3 support packet as an opt-in raw export.
 
 ## How to verify
 

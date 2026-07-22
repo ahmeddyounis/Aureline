@@ -329,15 +329,26 @@ fn conflict_drill_support_export_round_trips_with_drift_evaluations() {
         round.record_kind,
         ENVIRONMENT_CAPSULE_BETA_SUPPORT_EXPORT_RECORD_KIND
     );
-    assert!(round.coverage_manifest.covers_every_source_class());
-    assert!(round.drift_evaluations.iter().any(|eval| eval.is_drifted()));
+    assert_eq!(round.coverage_projection.source_class_count, 7);
+    assert_eq!(round.coverage_projection.source_classes.len(), 7);
+    assert!(round
+        .drift_evaluations
+        .iter()
+        .any(|eval| eval.outcome != aureline_runtime::CapsuleBetaDriftOutcome::InSync));
     assert_eq!(
-        round.resolution.primary_source_token.as_deref(),
-        Some("devcontainer")
+        round.resolution_projection.primary_source,
+        Some(aureline_runtime::CapsuleBetaSourceClass::Devcontainer)
     );
     assert!(round
-        .resolution
+        .resolution_projection
         .conflict_notes
         .iter()
         .any(|note| note.as_str() == "overridden_by_higher_precedence"));
+    assert!(!round.raw_private_material_exported);
+    assert_eq!(round.drift_evaluation_count_observed, 1);
+    assert_eq!(round.drift_evaluation_count_exported, 1);
+    assert_eq!(round.drift_evaluation_count_omitted, 0);
+    assert!(!json.contains(fresh_workspace.to_string_lossy().as_ref()));
+    assert!(!json.contains("\"workspace_root_ref\":"));
+    assert!(!json.contains("\"alpha_resolution\":"));
 }

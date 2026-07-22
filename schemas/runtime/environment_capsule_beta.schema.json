@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/runtime/environment_capsule_beta.schema.json",
   "title": "Aureline environment-capsule beta resolution, drift, support-export, and coverage-manifest records",
-  "description": "Boundary schema for the beta environment-capsule resolver projected by crates/aureline-runtime/src/capsule_resolver/beta.rs. The beta resolver extends the alpha capsule resolver with devcontainer.json, docker-compose.yml, flake.nix / shell.nix / default.nix body parsing under a closed precedence ladder (devcontainer > docker_compose > nix_flake > nix_shell > nix_default > node_manifest > python_manifest). Every parsed source is stamped with one of three confidence labels — imported (clean structured parse), heuristic (partial / fallback parse), unsupported (file class the contract does not parse) — and one bounded-read state. Present sources that fail containment, no-redirect (including Windows junction/reparse-point descendants), identity, or byte-budget checks remain visible with null content_digest and a typed failure note; they are not omitted or hashed as empty bodies. Complete content digests and length-framed aggregate digests are actual SHA-256. Conflicting sources MUST be labelled overridden_by_higher_precedence rather than silently merged. Drift detection projects onto a closed outcome vocabulary (in_sync, stale_inputs, manually_diverged, unknown_lineage). Raw devcontainer.json / docker-compose / Nix bodies, raw command lines, and raw secret values do not cross this boundary; only opaque content digests, source/read/confidence tokens, failure notes, and structured-token parsed fields do. Adding a new source class, read state, confidence label, source note, or drift outcome is additive-minor and bumps environment_capsule_beta_schema_version; repurposing an existing field is breaking.",
+  "description": "Boundary schema for the beta environment-capsule resolver projected by crates/aureline-runtime/src/capsule_resolver/beta.rs. Resolution, drift, and coverage records remain schema v2. The independently versioned support-export record is v3 and is a bounded, default-redacted projection: it never embeds the raw beta resolution, alpha detector reports, workspace paths, source refs, parsed private strings, or caller manifest id. It carries only closed-vocabulary metadata, validated or explicitly transformed SHA-256 tokens, re-derived counts and capsule/source-set bindings, bounded drift evidence, and an explicit field-disposition ledger. The beta resolver itself extends the alpha capsule resolver with devcontainer.json, docker-compose.yml, flake.nix / shell.nix / default.nix body parsing under a closed precedence ladder (devcontainer > docker_compose > nix_flake > nix_shell > nix_default > node_manifest > python_manifest). Present sources that fail containment, no-redirect (including Windows junction/reparse-point descendants), identity, or byte-budget checks remain visible with null content_digest and a typed failure note; they are not omitted or hashed as empty bodies. Complete content digests and length-framed aggregate digests are actual SHA-256. Conflicting sources MUST be labelled overridden_by_higher_precedence rather than silently merged. Drift detection projects onto a closed outcome vocabulary (in_sync, stale_inputs, manually_diverged, unknown_lineage). Adding a new core source class, read state, confidence label, source note, or drift outcome bumps environment_capsule_beta_schema_version; changing the support projection or its redaction semantics bumps environment_capsule_beta_support_export_schema_version; repurposing an existing field is breaking.",
   "type": "object",
   "oneOf": [
     { "$ref": "#/$defs/environment_capsule_beta_resolution_record" },
@@ -14,12 +14,43 @@
     "environment_capsule_beta_schema_version": {
       "type": "integer",
       "const": 2,
-      "description": "Integer schema version for this beta capsule resolver vocabulary."
+      "description": "Integer schema version for beta resolution, drift, and coverage records."
+    },
+    "environment_capsule_beta_support_export_schema_version": {
+      "type": "integer",
+      "const": 3,
+      "description": "Independent schema version for the default-redacted support projection."
     },
     "opaque_digest": {
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$",
       "description": "Actual SHA-256 digest token minted over exact source bytes or an explicitly length-framed ordered source set. Raw file bodies are not embedded."
+    },
+    "support_digest_projection_class": {
+      "type": "string",
+      "enum": ["validated_sha256", "redacted_invalid_input_rehash"]
+    },
+    "support_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "projection_class"],
+      "properties": {
+        "value": { "$ref": "#/$defs/opaque_digest" },
+        "projection_class": { "$ref": "#/$defs/support_digest_projection_class" }
+      }
+    },
+    "field_disposition": {
+      "type": "string",
+      "enum": [
+        "recorded_and_present",
+        "not_recorded_by_design",
+        "omitted_by_redaction",
+        "omitted_by_expiry",
+        "omitted_by_policy",
+        "omitted_by_legal_hold",
+        "unavailable_source",
+        "outside_platform_scope"
+      ]
     },
     "source_class": {
       "type": "string",
@@ -347,27 +378,419 @@
         }
       }
     },
+    "project_archetype_hint": {
+      "type": "string",
+      "enum": [
+        "web_application",
+        "web_frontend_library",
+        "backend_service",
+        "cli_tool",
+        "library_or_sdk",
+        "data_or_ml_workbench",
+        "mobile_application",
+        "embedded_or_firmware",
+        "monorepo_root_with_workspaces",
+        "monorepo_member_workspace",
+        "documentation_site",
+        "infrastructure_or_pipeline",
+        "extension_or_plugin",
+        "archetype_class_unknown_requires_review"
+      ]
+    },
+    "capsule_hint": {
+      "type": "string",
+      "enum": ["node", "python", "polyglot", "no_signal"]
+    },
+    "support_parsed_summary": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "image_declared",
+            "dockerfile_declared",
+            "compose_file_declared",
+            "compose_service_declared",
+            "feature_count",
+            "lifecycle_hook_count"
+          ],
+          "properties": {
+            "kind": { "const": "devcontainer" },
+            "image_declared": { "type": "boolean" },
+            "dockerfile_declared": { "type": "boolean" },
+            "compose_file_declared": { "type": "boolean" },
+            "compose_service_declared": { "type": "boolean" },
+            "feature_count": { "type": "integer", "minimum": 0 },
+            "lifecycle_hook_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "service_count", "has_image_service", "has_build_service"],
+          "properties": {
+            "kind": { "const": "docker_compose" },
+            "service_count": { "type": "integer", "minimum": 0 },
+            "has_image_service": { "type": "boolean" },
+            "has_build_service": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "nix_metadata_only" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "has_package_json", "lockfile_count"],
+          "properties": {
+            "kind": { "const": "node_manifest" },
+            "has_package_json": { "type": "boolean" },
+            "lockfile_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "has_pyproject", "has_python_version", "lockfile_count"],
+          "properties": {
+            "kind": { "const": "python_manifest" },
+            "has_pyproject": { "type": "boolean" },
+            "has_python_version": { "type": "boolean" },
+            "lockfile_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "shape_mismatch" }
+          }
+        }
+      ]
+    },
+    "support_source_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "precedence_rank",
+        "primary",
+        "source_ref_digest",
+        "content_digest",
+        "read_state",
+        "confidence",
+        "notes",
+        "parsed_summary"
+      ],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "precedence_rank": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "primary": { "type": "boolean" },
+        "source_ref_digest": { "$ref": "#/$defs/opaque_digest" },
+        "content_digest": {
+          "anyOf": [{ "$ref": "#/$defs/support_digest" }, { "type": "null" }]
+        },
+        "read_state": { "$ref": "#/$defs/source_read_state" },
+        "confidence": { "$ref": "#/$defs/source_confidence" },
+        "notes": {
+          "type": "array",
+          "maxItems": 9,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/source_note" }
+        },
+        "parsed_summary": { "$ref": "#/$defs/support_parsed_summary" }
+      }
+    },
+    "support_detector_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alpha_schema_version",
+        "node_detection_present",
+        "node_detector_failure",
+        "node_has_fallback",
+        "node_unresolved_ambiguity_count",
+        "python_detection_present",
+        "python_detector_failure",
+        "python_has_fallback",
+        "python_unresolved_ambiguity_count"
+      ],
+      "properties": {
+        "alpha_schema_version": { "type": "integer", "const": 1 },
+        "node_detection_present": { "type": "boolean" },
+        "node_detector_failure": { "type": "boolean" },
+        "node_has_fallback": { "type": "boolean" },
+        "node_unresolved_ambiguity_count": { "type": "integer", "minimum": 0 },
+        "python_detection_present": { "type": "boolean" },
+        "python_detector_failure": { "type": "boolean" },
+        "python_has_fallback": { "type": "boolean" },
+        "python_unresolved_ambiguity_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "support_coverage_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "core_schema_version", "source_class_count", "source_classes"],
+      "properties": {
+        "record_kind": { "const": "environment_capsule_beta_support_coverage_projection" },
+        "core_schema_version": { "$ref": "#/$defs/environment_capsule_beta_schema_version" },
+        "source_class_count": { "type": "integer", "const": 7 },
+        "source_classes": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_class", "precedence_rank", "default_confidence"],
+            "properties": {
+              "source_class": { "$ref": "#/$defs/source_class" },
+              "precedence_rank": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "default_confidence": { "$ref": "#/$defs/source_confidence" }
+            }
+          }
+        }
+      }
+    },
+    "support_resolution_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_record_kind",
+        "core_schema_version",
+        "resolver_version_digest",
+        "resolver_is_current",
+        "archetype_hint",
+        "capsule_hint",
+        "primary_source",
+        "source_count_observed",
+        "source_count_exported",
+        "source_count_omitted",
+        "conflict_notes",
+        "projected_source_set_digest",
+        "capsule_id_digest",
+        "projected_capsule_binding_digest",
+        "drift_state",
+        "prebuild_reuse_state",
+        "detector_summary",
+        "source_projections"
+      ],
+      "properties": {
+        "core_record_kind": { "const": "environment_capsule_beta_resolution_record" },
+        "core_schema_version": { "$ref": "#/$defs/environment_capsule_beta_schema_version" },
+        "resolver_version_digest": { "$ref": "#/$defs/opaque_digest" },
+        "resolver_is_current": { "type": "boolean" },
+        "archetype_hint": { "$ref": "#/$defs/project_archetype_hint" },
+        "capsule_hint": { "$ref": "#/$defs/capsule_hint" },
+        "primary_source": {
+          "anyOf": [{ "$ref": "#/$defs/source_class" }, { "type": "null" }]
+        },
+        "source_count_observed": { "type": "integer", "minimum": 0 },
+        "source_count_exported": { "type": "integer", "minimum": 0, "maximum": 7 },
+        "source_count_omitted": { "type": "integer", "minimum": 0 },
+        "conflict_notes": {
+          "type": "array",
+          "maxItems": 9,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/source_note" }
+        },
+        "projected_source_set_digest": { "$ref": "#/$defs/opaque_digest" },
+        "capsule_id_digest": { "$ref": "#/$defs/opaque_digest" },
+        "projected_capsule_binding_digest": { "$ref": "#/$defs/opaque_digest" },
+        "drift_state": { "$ref": "#/$defs/capsule_drift_state" },
+        "prebuild_reuse_state": { "$ref": "#/$defs/prebuild_reuse_state" },
+        "detector_summary": { "$ref": "#/$defs/support_detector_summary" },
+        "source_projections": {
+          "type": "array",
+          "maxItems": 7,
+          "items": { "$ref": "#/$defs/support_source_projection" }
+        }
+      }
+    },
+    "support_drift_row_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "stored_content_digest",
+        "fresh_content_digest",
+        "stored_read_state",
+        "fresh_read_state"
+      ],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "stored_content_digest": {
+          "anyOf": [{ "$ref": "#/$defs/support_digest" }, { "type": "null" }]
+        },
+        "fresh_content_digest": {
+          "anyOf": [{ "$ref": "#/$defs/support_digest" }, { "type": "null" }]
+        },
+        "stored_read_state": {
+          "anyOf": [{ "$ref": "#/$defs/source_read_state" }, { "type": "null" }]
+        },
+        "fresh_read_state": {
+          "anyOf": [{ "$ref": "#/$defs/source_read_state" }, { "type": "null" }]
+        }
+      }
+    },
+    "support_drift_evaluation_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_record_kind",
+        "core_schema_version",
+        "stored_source_set_digest",
+        "fresh_source_set_digest",
+        "outcome",
+        "drift_row_count_observed",
+        "drift_row_count_exported",
+        "drift_row_count_omitted",
+        "drift_rows",
+        "added_source_count_observed",
+        "added_source_count_exported",
+        "added_source_count_omitted",
+        "added_sources",
+        "removed_source_count_observed",
+        "removed_source_count_exported",
+        "removed_source_count_omitted",
+        "removed_sources"
+      ],
+      "properties": {
+        "core_record_kind": { "const": "environment_capsule_beta_drift_record" },
+        "core_schema_version": { "$ref": "#/$defs/environment_capsule_beta_schema_version" },
+        "stored_source_set_digest": { "$ref": "#/$defs/support_digest" },
+        "fresh_source_set_digest": { "$ref": "#/$defs/support_digest" },
+        "outcome": { "$ref": "#/$defs/drift_outcome" },
+        "drift_row_count_observed": { "type": "integer", "minimum": 0 },
+        "drift_row_count_exported": { "type": "integer", "minimum": 0, "maximum": 7 },
+        "drift_row_count_omitted": { "type": "integer", "minimum": 0 },
+        "drift_rows": {
+          "type": "array",
+          "maxItems": 7,
+          "items": { "$ref": "#/$defs/support_drift_row_projection" }
+        },
+        "added_source_count_observed": { "type": "integer", "minimum": 0 },
+        "added_source_count_exported": { "type": "integer", "minimum": 0, "maximum": 7 },
+        "added_source_count_omitted": { "type": "integer", "minimum": 0 },
+        "added_sources": {
+          "type": "array",
+          "maxItems": 7,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/source_class" }
+        },
+        "removed_source_count_observed": { "type": "integer", "minimum": 0 },
+        "removed_source_count_exported": { "type": "integer", "minimum": 0, "maximum": 7 },
+        "removed_source_count_omitted": { "type": "integer", "minimum": 0 },
+        "removed_sources": {
+          "type": "array",
+          "maxItems": 7,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/source_class" }
+        }
+      }
+    },
+    "support_absence_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missing_field_default",
+        "requires_disposition_for_export",
+        "disposition_count"
+      ],
+      "properties": {
+        "missing_field_default": { "const": "unknown_until_field_disposition_present" },
+        "requires_disposition_for_export": { "const": true },
+        "disposition_count": { "type": "integer", "minimum": 1, "maximum": 24 }
+      }
+    },
+    "support_field_disposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_path",
+        "disposition",
+        "evidence_window_ref",
+        "redaction_profile_ref",
+        "note"
+      ],
+      "properties": {
+        "field_path": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "disposition": { "$ref": "#/$defs/field_disposition" },
+        "evidence_window_ref": { "type": "string", "minLength": 1, "maxLength": 96 },
+        "redaction_profile_ref": {
+          "anyOf": [
+            { "const": "support.redaction.local_first_default" },
+            { "type": "null" }
+          ]
+        },
+        "note": { "type": "string", "minLength": 1, "maxLength": 320 }
+      }
+    },
     "environment_capsule_beta_support_export_record": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "record_kind",
         "schema_version",
-        "manifest_id",
+        "manifest_id_digest",
         "generated_at",
-        "coverage_manifest",
-        "resolution"
+        "purpose",
+        "data_class",
+        "redaction_class",
+        "redaction_profile_ref",
+        "export_posture",
+        "raw_private_material_exported",
+        "coverage_projection",
+        "resolution_projection",
+        "drift_evaluation_count_observed",
+        "drift_evaluation_count_exported",
+        "drift_evaluation_count_omitted",
+        "drift_evaluations",
+        "absence_summary",
+        "field_dispositions"
       ],
       "properties": {
         "record_kind": { "const": "environment_capsule_beta_support_export_record" },
-        "schema_version": { "$ref": "#/$defs/environment_capsule_beta_schema_version" },
-        "manifest_id": { "type": "string", "minLength": 1 },
-        "generated_at": { "type": "string", "minLength": 1 },
-        "coverage_manifest": { "$ref": "#/$defs/environment_capsule_beta_coverage_manifest_record" },
-        "resolution": { "$ref": "#/$defs/environment_capsule_beta_resolution_record" },
+        "schema_version": { "$ref": "#/$defs/environment_capsule_beta_support_export_schema_version" },
+        "manifest_id_digest": { "$ref": "#/$defs/opaque_digest" },
+        "generated_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        },
+        "purpose": { "const": "environment_capsule_resolution_support" },
+        "data_class": { "const": "environment_adjacent" },
+        "redaction_class": { "const": "metadata_safe_default" },
+        "redaction_profile_ref": { "const": "support.redaction.local_first_default" },
+        "export_posture": { "const": "included_metadata_only" },
+        "raw_private_material_exported": { "const": false },
+        "coverage_projection": { "$ref": "#/$defs/support_coverage_projection" },
+        "resolution_projection": { "$ref": "#/$defs/support_resolution_projection" },
+        "drift_evaluation_count_observed": { "type": "integer", "minimum": 0 },
+        "drift_evaluation_count_exported": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "drift_evaluation_count_omitted": { "type": "integer", "minimum": 0 },
         "drift_evaluations": {
           "type": "array",
-          "items": { "$ref": "#/$defs/environment_capsule_beta_drift_record" }
+          "maxItems": 32,
+          "items": { "$ref": "#/$defs/support_drift_evaluation_projection" }
+        },
+        "absence_summary": { "$ref": "#/$defs/support_absence_summary" },
+        "field_dispositions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 24,
+          "items": { "$ref": "#/$defs/support_field_disposition" }
         }
       }
     },
