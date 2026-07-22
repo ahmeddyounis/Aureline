@@ -1,5 +1,7 @@
 //! Protected tests for the alpha protected fitness packet consumer.
 
+use std::fs::File;
+
 use aureline_support::fitness::{
     current_fitness_packet_alpha, FitnessPacketAlpha, FitnessPacketAlphaError,
     PROTECTED_FITNESS_PACKET_ALPHA_RECORD_KIND,
@@ -138,4 +140,116 @@ fn regression_history_must_track_result_source() {
         &packet_yaml,
         "protected_function_rows.regression_history.history_source_ref",
     );
+}
+
+#[test]
+fn in_memory_fitness_documents_are_size_bounded() {
+    let oversized = " ".repeat(4 * 1024 * 1024 + 1);
+
+    let error = FitnessPacketAlpha::from_yaml_documents(&oversized, CATALOG_YAML, STATE_ROWS_YAML)
+        .expect_err("oversized packet must fail");
+
+    assert!(matches!(
+        error,
+        FitnessPacketAlphaError::ResourceLimitExceeded {
+            resource: "input bytes",
+            ..
+        }
+    ));
+}
+
+#[test]
+fn in_memory_fitness_documents_bound_parsed_shape_before_typed_projection() {
+    let oversized_sequence = format!("rows:\n{}", "  - value\n".repeat(4_097));
+    let error =
+        FitnessPacketAlpha::from_yaml_documents(&oversized_sequence, CATALOG_YAML, STATE_ROWS_YAML)
+            .expect_err("oversized sequence must fail");
+    assert!(matches!(
+        error,
+        FitnessPacketAlphaError::ResourceLimitExceeded {
+            resource: "sequence entries",
+            ..
+        }
+    ));
+
+    let oversized_scalar = format!("value: {}\n", "x".repeat(256 * 1024 + 1));
+    let error =
+        FitnessPacketAlpha::from_yaml_documents(&oversized_scalar, CATALOG_YAML, STATE_ROWS_YAML)
+            .expect_err("oversized scalar must fail");
+    assert!(matches!(
+        error,
+        FitnessPacketAlphaError::ResourceLimitExceeded {
+            resource: "scalar bytes",
+            ..
+        }
+    ));
+}
+
+#[test]
+fn malformed_yaml_does_not_echo_private_scalar_values() {
+    let private_value = "private-customer-value-must-not-escape";
+    let malformed = format!("schema_version: {private_value}\n");
+
+    let error = FitnessPacketAlpha::from_yaml_documents(&malformed, CATALOG_YAML, STATE_ROWS_YAML)
+        .expect_err("malformed packet must fail");
+
+    assert!(matches!(error, FitnessPacketAlphaError::PacketYaml(_)));
+    assert!(!error.to_string().contains(private_value));
+}
+
+#[test]
+fn file_load_errors_do_not_disclose_host_paths() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let missing = directory
+        .path()
+        .join("private-customer-fitness-packet.yaml");
+    let missing_text = missing.to_string_lossy().into_owned();
+
+    let error = FitnessPacketAlpha::from_paths(&missing, &missing, &missing)
+        .expect_err("missing input must fail");
+
+    assert!(matches!(error, FitnessPacketAlphaError::Io { .. }));
+    assert!(!error.to_string().contains(&missing_text));
+    assert!(!error.to_string().contains("private-customer"));
+}
+
+#[test]
+fn oversized_file_inputs_fail_before_yaml_parsing() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let packet_path = directory.path().join("packet.yaml");
+    let packet_file = File::create(&packet_path).expect("create sparse packet");
+    packet_file
+        .set_len(4 * 1024 * 1024 + 1)
+        .expect("extend sparse packet");
+
+    let error = FitnessPacketAlpha::from_paths(&packet_path, &packet_path, &packet_path)
+        .expect_err("oversized input must fail");
+
+    assert!(matches!(
+        error,
+        FitnessPacketAlphaError::ResourceLimitExceeded {
+            resource: "input bytes",
+            ..
+        }
+    ));
+}
+
+#[cfg(unix)]
+#[test]
+fn symbolic_link_inputs_fail_closed() {
+    use std::os::unix::fs::symlink;
+
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let target = directory.path().join("target.yaml");
+    let link = directory.path().join("packet.yaml");
+    std::fs::write(&target, PACKET_YAML).expect("write target");
+    symlink(&target, &link).expect("create symlink");
+
+    let error = FitnessPacketAlpha::from_paths(&link, &target, &target)
+        .expect_err("symbolic link must fail");
+
+    assert!(matches!(
+        error,
+        FitnessPacketAlphaError::UnsafeFileType { .. }
+    ));
 }

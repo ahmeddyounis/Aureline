@@ -2,8 +2,8 @@
 
 use aureline_support::fitness::{
     current_fitness_packet_beta, FitnessFunctionCatalog, FitnessPacketAlphaViolation,
-    FitnessPacketBeta, FitnessStateRows, PROTECTED_FITNESS_PACKET_BETA_RECORD_KIND,
-    PROTECTED_FITNESS_PACKET_BETA_SCHEMA_VERSION,
+    FitnessPacketBeta, FitnessPacketBetaError, FitnessStateRows,
+    PROTECTED_FITNESS_PACKET_BETA_RECORD_KIND, PROTECTED_FITNESS_PACKET_BETA_SCHEMA_VERSION,
 };
 
 const BETA_YAML: &str = include_str!(concat!(
@@ -228,4 +228,33 @@ fn unknown_comparator_is_rejected() {
 
     let violations = validate(&packet);
     assert_has_check(&violations, "release_candidate_thresholds.comparator");
+}
+
+#[test]
+fn beta_yaml_uses_the_same_resource_and_redaction_envelope() {
+    let oversized = " ".repeat(4 * 1024 * 1024 + 1);
+    assert!(matches!(
+        FitnessPacketBeta::from_yaml_documents(
+            &oversized,
+            BASE_YAML,
+            CATALOG_YAML,
+            STATE_ROWS_YAML,
+        ),
+        Err(FitnessPacketBetaError::ResourceLimitExceeded {
+            resource: "input bytes",
+            ..
+        })
+    ));
+
+    let private_value = "private-beta-value-must-not-escape";
+    let malformed = format!("schema_version: [{private_value}");
+    let error = FitnessPacketBeta::from_yaml_documents(
+        &malformed,
+        BASE_YAML,
+        CATALOG_YAML,
+        STATE_ROWS_YAML,
+    )
+    .expect_err("malformed beta YAML must fail");
+    assert!(matches!(error, FitnessPacketBetaError::PacketYaml(_)));
+    assert!(!error.to_string().contains(private_value));
 }

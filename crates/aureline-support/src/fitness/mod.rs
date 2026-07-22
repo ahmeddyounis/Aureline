@@ -8,9 +8,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
-use std::fs;
+use std::fs::{self, File, Metadata};
+use std::io::Read;
 use std::path::Path;
 
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
@@ -88,6 +90,12 @@ const REQUIRED_FIXTURE_STATES: [&str; 4] = [
     "expired_waiver_degrades",
 ];
 
+const MAX_FITNESS_YAML_DOCUMENT_BYTES: u64 = 4 * 1024 * 1024;
+const MAX_FITNESS_COLLECTION_ENTRIES: usize = 4_096;
+const MAX_FITNESS_PARSED_NODES: usize = 65_536;
+const MAX_FITNESS_YAML_DEPTH: usize = 128;
+const MAX_FITNESS_SCALAR_BYTES: usize = 256 * 1024;
+
 /// Loads and validates the checked-in protected fitness packet.
 ///
 /// # Errors
@@ -153,10 +161,34 @@ pub enum FitnessPacketAlphaError {
     StateRowsYaml(String),
     /// A filesystem read failed while loading explicit paths.
     Io {
-        /// Path that failed to read.
-        path: String,
+        /// Stable input class that failed to read. Never a host path.
+        document: String,
         /// Redaction-safe I/O error detail.
         detail: String,
+    },
+    /// A selected input was not a stable regular file.
+    UnsafeFileType {
+        /// Stable input class. Never a host path.
+        document: String,
+    },
+    /// A selected input changed identity or metadata while it was read.
+    FileChangedDuringRead {
+        /// Stable input class. Never a host path.
+        document: String,
+    },
+    /// A YAML input was not valid UTF-8.
+    InvalidUtf8 {
+        /// Stable input class. Never a host path.
+        document: String,
+    },
+    /// An input byte or collection bound was exceeded.
+    ResourceLimitExceeded {
+        /// Stable input class. Never a host path.
+        document: String,
+        /// Stable bounded resource name.
+        resource: &'static str,
+        /// Maximum admitted bytes or entries.
+        limit: usize,
     },
     /// The packet parsed but failed one or more trust checks.
     Invalid(Vec<FitnessPacketAlphaViolation>),
@@ -177,14 +209,29 @@ impl fmt::Display for FitnessPacketAlphaError {
             Self::StateRowsYaml(detail) => {
                 write!(f, "failed to parse fitness state-row YAML: {detail}")
             }
-            Self::Io { path, detail } => write!(f, "failed to read {path}: {detail}"),
+            Self::Io { document, detail } => {
+                write!(f, "failed to read {document}: {detail}")
+            }
+            Self::UnsafeFileType { document } => {
+                write!(f, "{document} is not a stable regular file")
+            }
+            Self::FileChangedDuringRead { document } => {
+                write!(f, "{document} changed while it was being read")
+            }
+            Self::InvalidUtf8 { document } => {
+                write!(f, "{document} is not valid UTF-8")
+            }
+            Self::ResourceLimitExceeded {
+                document,
+                resource,
+                limit,
+            } => write!(
+                f,
+                "{document} {resource} exceeds the configured limit of {limit}"
+            ),
             Self::Invalid(violations) => {
                 if let Some(first) = violations.first() {
-                    write!(
-                        f,
-                        "invalid protected fitness packet: {} at {}",
-                        first.check_id, first.reference
-                    )
+                    write!(f, "invalid protected fitness packet: {}", first.check_id)
                 } else {
                     write!(f, "invalid protected fitness packet")
                 }
@@ -360,12 +407,26 @@ impl FitnessPacketAlpha {
         catalog_yaml: &str,
         state_rows_yaml: &str,
     ) -> Result<Self, FitnessPacketAlphaError> {
-        let packet = serde_yaml::from_str::<Self>(packet_yaml)
-            .map_err(|err| FitnessPacketAlphaError::PacketYaml(err.to_string()))?;
-        let catalog = serde_yaml::from_str::<FitnessFunctionCatalog>(catalog_yaml)
-            .map_err(|err| FitnessPacketAlphaError::CatalogYaml(err.to_string()))?;
-        let state_rows = serde_yaml::from_str::<FitnessStateRows>(state_rows_yaml)
-            .map_err(|err| FitnessPacketAlphaError::StateRowsYaml(err.to_string()))?;
+        validate_alpha_document_size("protected fitness packet", packet_yaml)?;
+        validate_alpha_document_size("protected fitness catalog", catalog_yaml)?;
+        validate_alpha_document_size("fitness state-row register", state_rows_yaml)?;
+        let packet = parse_alpha_yaml_document(
+            packet_yaml,
+            "protected fitness packet",
+            FitnessPacketAlphaError::PacketYaml,
+        )?;
+        let catalog = parse_alpha_yaml_document(
+            catalog_yaml,
+            "protected fitness catalog",
+            FitnessPacketAlphaError::CatalogYaml,
+        )?;
+        let state_rows = parse_alpha_yaml_document(
+            state_rows_yaml,
+            "fitness state-row register",
+            FitnessPacketAlphaError::StateRowsYaml,
+        )?;
+
+        validate_alpha_collection_limits(&packet, &catalog, &state_rows)?;
 
         let violations = packet.validate_with_catalogs(&catalog, &state_rows);
         if violations.is_empty() {
@@ -389,9 +450,9 @@ impl FitnessPacketAlpha {
         let catalog_path = catalog_path.as_ref();
         let state_rows_path = state_rows_path.as_ref();
 
-        let packet_yaml = read_to_string(packet_path)?;
-        let catalog_yaml = read_to_string(catalog_path)?;
-        let state_rows_yaml = read_to_string(state_rows_path)?;
+        let packet_yaml = read_to_string(packet_path, "protected fitness packet")?;
+        let catalog_yaml = read_to_string(catalog_path, "protected fitness catalog")?;
+        let state_rows_yaml = read_to_string(state_rows_path, "fitness state-row register")?;
 
         Self::from_yaml_documents(&packet_yaml, &catalog_yaml, &state_rows_yaml)
     }
@@ -1425,10 +1486,34 @@ pub enum FitnessPacketBetaError {
     StateRowsYaml(String),
     /// A filesystem read failed while loading explicit paths.
     Io {
-        /// Path that failed to read.
-        path: String,
+        /// Stable input class that failed to read. Never a host path.
+        document: String,
         /// Redaction-safe I/O error detail.
         detail: String,
+    },
+    /// A selected input was not a stable regular file.
+    UnsafeFileType {
+        /// Stable input class. Never a host path.
+        document: String,
+    },
+    /// A selected input changed identity or metadata while it was read.
+    FileChangedDuringRead {
+        /// Stable input class. Never a host path.
+        document: String,
+    },
+    /// A YAML input was not valid UTF-8.
+    InvalidUtf8 {
+        /// Stable input class. Never a host path.
+        document: String,
+    },
+    /// An input byte or collection bound was exceeded.
+    ResourceLimitExceeded {
+        /// Stable input class. Never a host path.
+        document: String,
+        /// Stable bounded resource name.
+        resource: &'static str,
+        /// Maximum admitted bytes or entries.
+        limit: usize,
     },
     /// The packet parsed but failed one or more trust checks. Reuses the
     /// alpha violation row so support/release consumers read one shape.
@@ -1459,13 +1544,32 @@ impl fmt::Display for FitnessPacketBetaError {
             Self::StateRowsYaml(detail) => {
                 write!(f, "failed to parse fitness state-row YAML: {detail}")
             }
-            Self::Io { path, detail } => write!(f, "failed to read {path}: {detail}"),
+            Self::Io { document, detail } => {
+                write!(f, "failed to read {document}: {detail}")
+            }
+            Self::UnsafeFileType { document } => {
+                write!(f, "{document} is not a stable regular file")
+            }
+            Self::FileChangedDuringRead { document } => {
+                write!(f, "{document} changed while it was being read")
+            }
+            Self::InvalidUtf8 { document } => {
+                write!(f, "{document} is not valid UTF-8")
+            }
+            Self::ResourceLimitExceeded {
+                document,
+                resource,
+                limit,
+            } => write!(
+                f,
+                "{document} {resource} exceeds the configured limit of {limit}"
+            ),
             Self::Invalid(violations) => {
                 if let Some(first) = violations.first() {
                     write!(
                         f,
-                        "invalid beta release-candidate packet: {} at {}",
-                        first.check_id, first.reference
+                        "invalid beta release-candidate packet: {}",
+                        first.check_id
                     )
                 } else {
                     write!(f, "invalid beta release-candidate packet")
@@ -1568,14 +1672,32 @@ impl FitnessPacketBeta {
         catalog_yaml: &str,
         state_rows_yaml: &str,
     ) -> Result<Self, FitnessPacketBetaError> {
-        let mut packet = serde_yaml::from_str::<Self>(beta_yaml)
-            .map_err(|err| FitnessPacketBetaError::PacketYaml(err.to_string()))?;
-        packet.base = serde_yaml::from_str::<FitnessPacketAlpha>(base_packet_yaml)
-            .map_err(|err| FitnessPacketBetaError::BasePacketYaml(err.to_string()))?;
-        let catalog = serde_yaml::from_str::<FitnessFunctionCatalog>(catalog_yaml)
-            .map_err(|err| FitnessPacketBetaError::CatalogYaml(err.to_string()))?;
-        let state_rows = serde_yaml::from_str::<FitnessStateRows>(state_rows_yaml)
-            .map_err(|err| FitnessPacketBetaError::StateRowsYaml(err.to_string()))?;
+        validate_beta_document_size("beta protected fitness packet", beta_yaml)?;
+        validate_beta_document_size("base protected fitness packet", base_packet_yaml)?;
+        validate_beta_document_size("protected fitness catalog", catalog_yaml)?;
+        validate_beta_document_size("fitness state-row register", state_rows_yaml)?;
+        let mut packet: Self = parse_beta_yaml_document(
+            beta_yaml,
+            "beta protected fitness packet",
+            FitnessPacketBetaError::PacketYaml,
+        )?;
+        packet.base = parse_beta_yaml_document(
+            base_packet_yaml,
+            "base protected fitness packet",
+            FitnessPacketBetaError::BasePacketYaml,
+        )?;
+        let catalog: FitnessFunctionCatalog = parse_beta_yaml_document(
+            catalog_yaml,
+            "protected fitness catalog",
+            FitnessPacketBetaError::CatalogYaml,
+        )?;
+        let state_rows: FitnessStateRows = parse_beta_yaml_document(
+            state_rows_yaml,
+            "fitness state-row register",
+            FitnessPacketBetaError::StateRowsYaml,
+        )?;
+
+        validate_beta_collection_limits(&packet, &catalog, &state_rows)?;
 
         let violations = packet.validate_with_catalogs(&catalog, &state_rows);
         if violations.is_empty() {
@@ -1596,11 +1718,15 @@ impl FitnessPacketBeta {
         catalog_path: impl AsRef<Path>,
         state_rows_path: impl AsRef<Path>,
     ) -> Result<Self, FitnessPacketBetaError> {
-        let beta_yaml = read_to_string(beta_packet_path.as_ref()).map_err(beta_io_from_alpha_io)?;
-        let base_yaml = read_to_string(base_packet_path.as_ref()).map_err(beta_io_from_alpha_io)?;
-        let catalog_yaml = read_to_string(catalog_path.as_ref()).map_err(beta_io_from_alpha_io)?;
+        let beta_yaml = read_to_string(beta_packet_path.as_ref(), "beta protected fitness packet")
+            .map_err(beta_io_from_alpha_io)?;
+        let base_yaml = read_to_string(base_packet_path.as_ref(), "base protected fitness packet")
+            .map_err(beta_io_from_alpha_io)?;
+        let catalog_yaml = read_to_string(catalog_path.as_ref(), "protected fitness catalog")
+            .map_err(beta_io_from_alpha_io)?;
         let state_rows_yaml =
-            read_to_string(state_rows_path.as_ref()).map_err(beta_io_from_alpha_io)?;
+            read_to_string(state_rows_path.as_ref(), "fitness state-row register")
+                .map_err(beta_io_from_alpha_io)?;
 
         Self::from_yaml_documents(&beta_yaml, &base_yaml, &catalog_yaml, &state_rows_yaml)
     }
@@ -1930,16 +2056,429 @@ pub struct FitnessReleaseCandidateSummary {
 
 fn beta_io_from_alpha_io(err: FitnessPacketAlphaError) -> FitnessPacketBetaError {
     match err {
-        FitnessPacketAlphaError::Io { path, detail } => FitnessPacketBetaError::Io { path, detail },
+        FitnessPacketAlphaError::Io { document, detail } => {
+            FitnessPacketBetaError::Io { document, detail }
+        }
+        FitnessPacketAlphaError::UnsafeFileType { document } => {
+            FitnessPacketBetaError::UnsafeFileType { document }
+        }
+        FitnessPacketAlphaError::FileChangedDuringRead { document } => {
+            FitnessPacketBetaError::FileChangedDuringRead { document }
+        }
+        FitnessPacketAlphaError::InvalidUtf8 { document } => {
+            FitnessPacketBetaError::InvalidUtf8 { document }
+        }
+        FitnessPacketAlphaError::ResourceLimitExceeded {
+            document,
+            resource,
+            limit,
+        } => FitnessPacketBetaError::ResourceLimitExceeded {
+            document,
+            resource,
+            limit,
+        },
         other => FitnessPacketBetaError::PacketYaml(other.to_string()),
     }
 }
 
-fn read_to_string(path: &Path) -> Result<String, FitnessPacketAlphaError> {
-    fs::read_to_string(path).map_err(|err| FitnessPacketAlphaError::Io {
-        path: path.display().to_string(),
-        detail: err.to_string(),
+fn validate_alpha_document_size(document: &str, yaml: &str) -> Result<(), FitnessPacketAlphaError> {
+    if yaml.len() as u64 > MAX_FITNESS_YAML_DOCUMENT_BYTES {
+        return Err(FitnessPacketAlphaError::ResourceLimitExceeded {
+            document: document.to_string(),
+            resource: "input bytes",
+            limit: MAX_FITNESS_YAML_DOCUMENT_BYTES as usize,
+        });
+    }
+    Ok(())
+}
+
+fn validate_beta_document_size(document: &str, yaml: &str) -> Result<(), FitnessPacketBetaError> {
+    if yaml.len() as u64 > MAX_FITNESS_YAML_DOCUMENT_BYTES {
+        return Err(FitnessPacketBetaError::ResourceLimitExceeded {
+            document: document.to_string(),
+            resource: "input bytes",
+            limit: MAX_FITNESS_YAML_DOCUMENT_BYTES as usize,
+        });
+    }
+    Ok(())
+}
+
+fn parse_alpha_yaml_document<T, F>(
+    yaml: &str,
+    document: &str,
+    parse_error: F,
+) -> Result<T, FitnessPacketAlphaError>
+where
+    T: DeserializeOwned,
+    F: Fn(String) -> FitnessPacketAlphaError,
+{
+    let value = serde_yaml::from_str::<serde_yaml::Value>(yaml)
+        .map_err(|error| parse_error(yaml_error_detail(&error)))?;
+    validate_fitness_yaml_shape(&value).map_err(|limit| {
+        FitnessPacketAlphaError::ResourceLimitExceeded {
+            document: document.to_string(),
+            resource: limit.resource,
+            limit: limit.limit,
+        }
+    })?;
+    serde_yaml::from_value(value).map_err(|error| parse_error(yaml_error_detail(&error)))
+}
+
+fn parse_beta_yaml_document<T, F>(
+    yaml: &str,
+    document: &str,
+    parse_error: F,
+) -> Result<T, FitnessPacketBetaError>
+where
+    T: DeserializeOwned,
+    F: Fn(String) -> FitnessPacketBetaError,
+{
+    let value = serde_yaml::from_str::<serde_yaml::Value>(yaml)
+        .map_err(|error| parse_error(yaml_error_detail(&error)))?;
+    validate_fitness_yaml_shape(&value).map_err(|limit| {
+        FitnessPacketBetaError::ResourceLimitExceeded {
+            document: document.to_string(),
+            resource: limit.resource,
+            limit: limit.limit,
+        }
+    })?;
+    serde_yaml::from_value(value).map_err(|error| parse_error(yaml_error_detail(&error)))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FitnessYamlResourceLimit {
+    resource: &'static str,
+    limit: usize,
+}
+
+fn validate_fitness_yaml_shape(root: &serde_yaml::Value) -> Result<(), FitnessYamlResourceLimit> {
+    let mut node_count = 0_usize;
+    let mut pending = vec![(root, 0_usize)];
+    while let Some((value, depth)) = pending.pop() {
+        if depth > MAX_FITNESS_YAML_DEPTH {
+            return Err(FitnessYamlResourceLimit {
+                resource: "nesting depth",
+                limit: MAX_FITNESS_YAML_DEPTH,
+            });
+        }
+        node_count = node_count.saturating_add(1);
+        if node_count > MAX_FITNESS_PARSED_NODES {
+            return Err(FitnessYamlResourceLimit {
+                resource: "parsed nodes",
+                limit: MAX_FITNESS_PARSED_NODES,
+            });
+        }
+
+        match value {
+            serde_yaml::Value::String(value) if value.len() > MAX_FITNESS_SCALAR_BYTES => {
+                return Err(FitnessYamlResourceLimit {
+                    resource: "scalar bytes",
+                    limit: MAX_FITNESS_SCALAR_BYTES,
+                });
+            }
+            serde_yaml::Value::Sequence(values) => {
+                if values.len() > MAX_FITNESS_COLLECTION_ENTRIES {
+                    return Err(FitnessYamlResourceLimit {
+                        resource: "sequence entries",
+                        limit: MAX_FITNESS_COLLECTION_ENTRIES,
+                    });
+                }
+                pending.extend(values.iter().map(|value| (value, depth + 1)));
+            }
+            serde_yaml::Value::Mapping(values) => {
+                if values.len() > MAX_FITNESS_COLLECTION_ENTRIES {
+                    return Err(FitnessYamlResourceLimit {
+                        resource: "mapping entries",
+                        limit: MAX_FITNESS_COLLECTION_ENTRIES,
+                    });
+                }
+                for (key, value) in values {
+                    pending.push((key, depth + 1));
+                    pending.push((value, depth + 1));
+                }
+            }
+            serde_yaml::Value::Tagged(value) => {
+                if value.tag.to_string().len() > MAX_FITNESS_SCALAR_BYTES {
+                    return Err(FitnessYamlResourceLimit {
+                        resource: "tag bytes",
+                        limit: MAX_FITNESS_SCALAR_BYTES,
+                    });
+                }
+                pending.push((&value.value, depth + 1));
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn validate_alpha_collection_limits(
+    packet: &FitnessPacketAlpha,
+    catalog: &FitnessFunctionCatalog,
+    state_rows: &FitnessStateRows,
+) -> Result<(), FitnessPacketAlphaError> {
+    for (observed, resource) in [
+        (
+            packet.source_contract_refs.len(),
+            "source_contract_refs entries",
+        ),
+        (
+            packet.generation.generated_from_checked_in_outputs.len(),
+            "generation input entries",
+        ),
+        (
+            packet.review_context.deployment_context.len(),
+            "deployment context entries",
+        ),
+        (
+            packet.review_context.review_forum_refs.len(),
+            "review forum entries",
+        ),
+        (
+            packet.review_context.release_output_refs.len(),
+            "release output entries",
+        ),
+        (
+            packet.review_context.promotion_gate_refs.len(),
+            "promotion gate entries",
+        ),
+        (
+            packet.result_state_vocabulary.len(),
+            "result-state vocabulary entries",
+        ),
+        (
+            packet.waiver_state_vocabulary.len(),
+            "waiver-state vocabulary entries",
+        ),
+        (packet.degrade_rules.len(), "degrade-rule entries"),
+        (
+            packet.protected_function_rows.len(),
+            "protected-function entries",
+        ),
+        (
+            packet.protected_fixture_coverage.len(),
+            "fixture coverage entries",
+        ),
+        (catalog.threshold_modes.len(), "catalog threshold modes"),
+        (
+            catalog.waiver_authorities.len(),
+            "catalog waiver authorities",
+        ),
+        (catalog.rows.len(), "catalog rows"),
+        (state_rows.tile_states.len(), "tile-state rows"),
+        (
+            state_rows.evidence_freshness_classes.len(),
+            "evidence-freshness rows",
+        ),
+        (
+            state_rows.waiver_authority_classes.len(),
+            "waiver-authority rows",
+        ),
+    ] {
+        ensure_alpha_collection_limit(observed, resource)?;
+    }
+    for row in &packet.protected_function_rows {
+        ensure_alpha_collection_limit(
+            row.result_source.gate_row_refs.len(),
+            "result-source gate refs",
+        )?;
+        ensure_alpha_collection_limit(
+            row.regression_history.status_counts.len(),
+            "regression status entries",
+        )?;
+    }
+    Ok(())
+}
+
+fn ensure_alpha_collection_limit(
+    observed: usize,
+    resource: &'static str,
+) -> Result<(), FitnessPacketAlphaError> {
+    if observed > MAX_FITNESS_COLLECTION_ENTRIES {
+        return Err(FitnessPacketAlphaError::ResourceLimitExceeded {
+            document: "parsed protected fitness inputs".to_string(),
+            resource,
+            limit: MAX_FITNESS_COLLECTION_ENTRIES,
+        });
+    }
+    Ok(())
+}
+
+fn validate_beta_collection_limits(
+    packet: &FitnessPacketBeta,
+    catalog: &FitnessFunctionCatalog,
+    state_rows: &FitnessStateRows,
+) -> Result<(), FitnessPacketBetaError> {
+    validate_alpha_collection_limits(&packet.base, catalog, state_rows)
+        .map_err(beta_io_from_alpha_io)?;
+    if packet.release_candidate_thresholds.len() > MAX_FITNESS_COLLECTION_ENTRIES {
+        return Err(FitnessPacketBetaError::ResourceLimitExceeded {
+            document: "parsed beta protected fitness inputs".to_string(),
+            resource: "release-candidate threshold entries",
+            limit: MAX_FITNESS_COLLECTION_ENTRIES,
+        });
+    }
+    Ok(())
+}
+
+fn read_to_string(path: &Path, document: &str) -> Result<String, FitnessPacketAlphaError> {
+    let before = fs::symlink_metadata(path).map_err(|error| FitnessPacketAlphaError::Io {
+        document: document.to_string(),
+        detail: io_error_class(&error).to_string(),
+    })?;
+    if metadata_is_redirect(&before) || !before.is_file() {
+        return Err(FitnessPacketAlphaError::UnsafeFileType {
+            document: document.to_string(),
+        });
+    }
+    if before.len() > MAX_FITNESS_YAML_DOCUMENT_BYTES {
+        return Err(FitnessPacketAlphaError::ResourceLimitExceeded {
+            document: document.to_string(),
+            resource: "input bytes",
+            limit: MAX_FITNESS_YAML_DOCUMENT_BYTES as usize,
+        });
+    }
+
+    let mut file = File::open(path).map_err(|error| FitnessPacketAlphaError::Io {
+        document: document.to_string(),
+        detail: io_error_class(&error).to_string(),
+    })?;
+    let opened = file
+        .metadata()
+        .map_err(|error| FitnessPacketAlphaError::Io {
+            document: document.to_string(),
+            detail: io_error_class(&error).to_string(),
+        })?;
+    if !stable_file_metadata(&before, &opened) {
+        return Err(FitnessPacketAlphaError::FileChangedDuringRead {
+            document: document.to_string(),
+        });
+    }
+
+    let mut bytes = Vec::with_capacity(opened.len() as usize);
+    (&mut file)
+        .take(MAX_FITNESS_YAML_DOCUMENT_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| FitnessPacketAlphaError::Io {
+            document: document.to_string(),
+            detail: io_error_class(&error).to_string(),
+        })?;
+    if bytes.len() as u64 > MAX_FITNESS_YAML_DOCUMENT_BYTES {
+        return Err(FitnessPacketAlphaError::ResourceLimitExceeded {
+            document: document.to_string(),
+            resource: "input bytes",
+            limit: MAX_FITNESS_YAML_DOCUMENT_BYTES as usize,
+        });
+    }
+
+    let descriptor_after = file
+        .metadata()
+        .map_err(|error| FitnessPacketAlphaError::Io {
+            document: document.to_string(),
+            detail: io_error_class(&error).to_string(),
+        })?;
+    let path_after = fs::symlink_metadata(path).map_err(|error| FitnessPacketAlphaError::Io {
+        document: document.to_string(),
+        detail: io_error_class(&error).to_string(),
+    })?;
+    if !stable_file_metadata(&opened, &descriptor_after)
+        || !stable_file_metadata(&descriptor_after, &path_after)
+    {
+        return Err(FitnessPacketAlphaError::FileChangedDuringRead {
+            document: document.to_string(),
+        });
+    }
+
+    String::from_utf8(bytes).map_err(|_| FitnessPacketAlphaError::InvalidUtf8 {
+        document: document.to_string(),
     })
+}
+
+#[cfg(unix)]
+fn same_file_identity(left: &Metadata, right: &Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    left.dev() == right.dev()
+        && left.ino() == right.ino()
+        && left.mode() == right.mode()
+        && left.mtime() == right.mtime()
+        && left.mtime_nsec() == right.mtime_nsec()
+        && left.ctime() == right.ctime()
+        && left.ctime_nsec() == right.ctime_nsec()
+}
+
+#[cfg(windows)]
+fn same_file_identity(left: &Metadata, right: &Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+
+    // Stable Rust 1.75 does not expose Windows volume/file-index identity.
+    // Compare every stable, non-access-time metadata field available here and
+    // separately reject reparse points before accepting the path/descriptor
+    // pair. This is deliberately narrower than the Unix device/inode proof.
+    left.creation_time() == right.creation_time()
+        && left.last_write_time() == right.last_write_time()
+        && left.file_size() == right.file_size()
+        && left.file_attributes() == right.file_attributes()
+}
+
+#[cfg(not(any(unix, windows)))]
+fn same_file_identity(left: &Metadata, right: &Metadata) -> bool {
+    left.file_type() == right.file_type()
+        && left.created().ok() == right.created().ok()
+        && left.modified().ok() == right.modified().ok()
+}
+
+fn metadata_is_redirect(metadata: &Metadata) -> bool {
+    metadata.file_type().is_symlink() || metadata_is_platform_redirect(metadata)
+}
+
+#[cfg(windows)]
+fn metadata_is_platform_redirect(metadata: &Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+    metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+#[cfg(not(windows))]
+fn metadata_is_platform_redirect(_metadata: &Metadata) -> bool {
+    false
+}
+
+fn stable_file_metadata(left: &Metadata, right: &Metadata) -> bool {
+    left.is_file()
+        && right.is_file()
+        && !metadata_is_redirect(left)
+        && !metadata_is_redirect(right)
+        && left.len() == right.len()
+        && matches!(
+            (left.modified(), right.modified()),
+            (Ok(left_modified), Ok(right_modified)) if left_modified == right_modified
+        )
+        && same_file_identity(left, right)
+}
+
+fn io_error_class(error: &std::io::Error) -> &'static str {
+    match error.kind() {
+        std::io::ErrorKind::NotFound => "not_found",
+        std::io::ErrorKind::PermissionDenied => "permission_denied",
+        std::io::ErrorKind::Interrupted => "interrupted",
+        std::io::ErrorKind::InvalidData => "invalid_data",
+        _ => "io_failure",
+    }
+}
+
+fn yaml_error_detail(error: &serde_yaml::Error) -> String {
+    error.location().map_or_else(
+        || "invalid YAML structure".to_string(),
+        |location| {
+            format!(
+                "invalid structure at line {}, column {}",
+                location.line(),
+                location.column()
+            )
+        },
+    )
 }
 
 fn push_violation(

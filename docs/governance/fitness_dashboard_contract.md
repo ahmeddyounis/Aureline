@@ -50,6 +50,27 @@ If this contract disagrees with those sources, those sources win and this
 contract, schema, fixtures, and state-rows artifact update in the same
 change.
 
+## Consumer input safety envelope
+
+The support/release consumer applies the same fail-closed envelope to alpha
+and beta packets, their base packet, the protected-function catalog, and the
+state-row register. Every YAML document is limited to 4 MiB whether supplied
+in memory or by path; parsed collections are limited to 4,096 entries before
+validation or projection. A parsed document is additionally limited to 65,536
+nodes, 128 levels, and 256 KiB per scalar. File inputs must be stable regular
+files rather than symbolic-link or Windows reparse-point targets. Unix
+consumers recheck descriptor/path device and inode identity plus metadata;
+Windows consumers recheck the stable Rust 1.75 metadata surface because that
+toolchain does not expose a stable volume/file-index identity API. Inputs that
+grow, change identity or checked metadata, exceed a limit, or contain invalid
+UTF-8 are rejected without a partial projection.
+
+Normal error rendering carries only a stable document class, bounded resource
+name, I/O class, and optional parser line/column. It never emits the selected
+host path, malformed scalar value, or YAML body. These consumer limits do not
+alter the protected packet record kinds, schema versions, or closed fitness
+vocabularies.
+
 ## Why a fitness-dashboard contract exists
 
 1. The protected fitness-function catalog freezes the metric identities,
