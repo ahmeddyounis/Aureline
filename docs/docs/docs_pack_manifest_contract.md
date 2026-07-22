@@ -79,6 +79,22 @@ Out of scope until a superseding decision row opens:
 - AI explanation infrastructure beyond the citation posture the
   manifest declares.
 
+## Local ingestion safety envelope
+
+The local alpha pack loader validates the extension before opening a file,
+accepts only stable regular files (not symbolic-link targets), and rechecks
+file identity and metadata after reading. File-backed and in-memory pack
+inputs share an 8 MiB limit. Parsed packs are additionally limited to 4,096
+nodes, 512 citation anchors per node, 4 KiB identity/reference values, 16 KiB
+labels and notes, and 4 MiB per Markdown body. Exceeding a limit fails closed;
+the loader does not return a silently truncated pack.
+
+Loader errors omit selected host paths, untrusted scalar values, and invalid
+document bodies. Parse failures may disclose only a line and column so normal
+support logging does not turn a malformed pack into a private-content or path
+exfiltration channel. These ingestion limits narrow implementation behavior;
+they do not change the manifest record kind or schema version.
+
 ## Canonical ownership (re-export from ADR 0013)
 
 Each docs-pack source class has exactly one canonical owner; surfaces
