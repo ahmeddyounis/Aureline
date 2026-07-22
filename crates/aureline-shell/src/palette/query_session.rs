@@ -33,6 +33,14 @@ use serde::{Deserialize, Serialize};
 
 static PALETTE_SESSION_SEQ: AtomicUsize = AtomicUsize::new(1);
 
+const MAX_WORKSPACE_INDEX_FILES: usize = 20_000;
+const MAX_WORKSPACE_INDEX_ENTRIES: usize = 100_000;
+const MAX_WORKSPACE_INDEX_DIRECTORIES: usize = 20_000;
+const MAX_WORKSPACE_INDEX_RELATIVE_PATH_BYTES: usize = 4_096;
+const MAX_WORKSPACE_WATCH_EVENTS_PER_TICK: usize = 4_096;
+const MAX_RETAINED_WORKSPACE_WATCH_EVENTS: usize = 4_096;
+const MAX_WORKSPACE_WATCH_URI_BYTES: usize = 8_192;
+
 fn next_session_seq() -> usize {
     PALETTE_SESSION_SEQ.fetch_add(1, Ordering::Relaxed)
 }
@@ -1235,6 +1243,7 @@ struct FileIndexWorker {
     file_paths: Vec<String>,
     last_progress_at: Instant,
     complete: bool,
+    truncated: bool,
     root: PathBuf,
     watcher: Option<WatcherService>,
     watcher_health: WatcherHealth,
@@ -1255,7 +1264,7 @@ pub struct WorkspaceFileIndexReadiness {
 #[derive(Debug)]
 enum FileIndexMessage {
     Chunk(Vec<String>),
-    Complete,
+    Complete { truncated: bool },
 }
 
 pub(crate) fn is_workspace_file_index_ignored_dir(name: &str) -> bool {
@@ -1269,8 +1278,24 @@ pub(crate) fn is_workspace_file_index_ignored_dir(name: &str) -> bool {
 }
 
 fn spawn_file_index_worker(root: PathBuf) -> FileIndexWorker {
-    let root = root.canonicalize().unwrap_or(root);
     let (tx, rx) = std::sync::mpsc::channel::<FileIndexMessage>();
+    let Some(root) = canonical_workspace_root(&root) else {
+        let _ = tx.send(FileIndexMessage::Complete { truncated: true });
+        return FileIndexWorker {
+            rx,
+            state: PaletteProviderStateClass::Unavailable,
+            file_paths: Vec::new(),
+            last_progress_at: Instant::now(),
+            complete: false,
+            truncated: true,
+            root,
+            watcher: None,
+            watcher_health: WatcherHealth::Unavailable,
+            watcher_source: None,
+            needs_rescan: false,
+            last_watcher_events: Vec::new(),
+        };
+    };
     let worker_root = root.clone();
     std::thread::Builder::new()
         .name("aureline_file_index".to_string())
@@ -1291,6 +1316,7 @@ fn spawn_file_index_worker(root: PathBuf) -> FileIndexWorker {
         file_paths: Vec::new(),
         last_progress_at: Instant::now(),
         complete: false,
+        truncated: false,
         root,
         watcher,
         watcher_health,
@@ -1313,6 +1339,7 @@ fn restart_file_index_scan(worker: &mut FileIndexWorker, now: Instant) {
         worker.file_paths.clear();
         worker.last_progress_at = now;
         worker.complete = false;
+        worker.truncated = false;
         worker.needs_rescan = false;
         worker.state = PaletteProviderStateClass::Warming;
     } else {
@@ -1320,47 +1347,141 @@ fn restart_file_index_scan(worker: &mut FileIndexWorker, now: Instant) {
     }
 }
 
+fn finish_file_index_scan(worker: &mut FileIndexWorker, truncated: bool) {
+    worker.complete = true;
+    worker.truncated |= truncated;
+    worker.state = state_for_watch(
+        worker.state,
+        worker.complete,
+        worker.needs_rescan,
+        worker.truncated,
+        worker.watcher_health,
+    );
+}
+
 fn scan_files(root: PathBuf, tx: std::sync::mpsc::Sender<FileIndexMessage>) {
+    scan_files_with_limits(
+        root,
+        tx,
+        MAX_WORKSPACE_INDEX_FILES,
+        MAX_WORKSPACE_INDEX_ENTRIES,
+        MAX_WORKSPACE_INDEX_DIRECTORIES,
+    );
+}
+
+fn scan_files_with_limits(
+    root: PathBuf,
+    tx: std::sync::mpsc::Sender<FileIndexMessage>,
+    max_files: usize,
+    max_entries: usize,
+    max_directories: usize,
+) {
+    let Some(root) = canonical_workspace_root(&root) else {
+        let _ = tx.send(FileIndexMessage::Complete { truncated: true });
+        return;
+    };
+    if max_files == 0 || max_entries == 0 || max_directories == 0 {
+        let _ = tx.send(FileIndexMessage::Complete { truncated: true });
+        return;
+    }
     let mut queue: VecDeque<PathBuf> = VecDeque::new();
     queue.push_back(root.clone());
 
     let mut chunk: Vec<String> = Vec::with_capacity(256);
-    let mut scanned = 0usize;
+    let mut indexed_files = 0usize;
+    let mut scanned_entries = 0usize;
+    let mut discovered_directories = 1usize;
+    let mut truncated = false;
 
-    while let Some(dir) = queue.pop_front() {
-        if scanned > 20_000 {
+    'walk: while let Some(dir) = queue.pop_front() {
+        let canonical_dir = match stable_workspace_directory(&dir, &root) {
+            Some(path) => path,
+            None => {
+                truncated = true;
+                continue;
+            }
+        };
+        if scanned_entries >= max_entries {
+            truncated = true;
             break;
         }
-        let read_dir = match std::fs::read_dir(&dir) {
+        let read_dir = match std::fs::read_dir(&canonical_dir) {
             Ok(v) => v,
-            Err(_) => continue,
+            Err(_) => {
+                truncated = true;
+                continue;
+            }
         };
-        for entry in read_dir.flatten() {
+        let remaining_entries = max_entries.saturating_sub(scanned_entries);
+        let mut entries = Vec::with_capacity(remaining_entries.min(1_024));
+        for (index, entry) in read_dir
+            .take(remaining_entries.saturating_add(1))
+            .enumerate()
+        {
+            if index == remaining_entries {
+                truncated = true;
+                break;
+            }
+            scanned_entries += 1;
+            match entry {
+                Ok(entry) => entries.push((entry.file_name(), entry)),
+                Err(_) => {
+                    truncated = true;
+                }
+            }
+        }
+        entries.sort_by(|left, right| left.0.cmp(&right.0));
+        for (_, entry) in entries {
             let path = entry.path();
             let file_type = match entry.file_type() {
                 Ok(v) => v,
-                Err(_) => continue,
+                Err(_) => {
+                    truncated = true;
+                    continue;
+                }
             };
             if file_type.is_dir() {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if is_workspace_file_index_ignored_dir(name) {
-                        continue;
-                    }
+                let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+                    truncated = true;
+                    continue;
+                };
+                if is_workspace_file_index_ignored_dir(name) {
+                    continue;
                 }
-                queue.push_back(path);
+                if workspace_relative_index_path(&root, &path).is_none() {
+                    truncated = true;
+                    continue;
+                }
+                if discovered_directories >= max_directories {
+                    truncated = true;
+                } else {
+                    discovered_directories += 1;
+                    queue.push_back(path);
+                }
                 continue;
             }
             if !file_type.is_file() {
+                truncated = true;
                 continue;
             }
+            if indexed_files >= max_files {
+                truncated = true;
+                break 'walk;
+            }
 
-            let relative = path
-                .strip_prefix(&root)
-                .unwrap_or(&path)
-                .to_string_lossy()
-                .replace('\\', "/");
+            let canonical_path = match stable_workspace_regular_file(&path, &root) {
+                Some(canonical) => canonical,
+                None => {
+                    truncated = true;
+                    continue;
+                }
+            };
+            let Some(relative) = workspace_relative_index_path(&root, &canonical_path) else {
+                truncated = true;
+                continue;
+            };
             chunk.push(relative);
-            scanned += 1;
+            indexed_files += 1;
             if chunk.len() >= 256 {
                 let send = std::mem::take(&mut chunk);
                 if tx.send(FileIndexMessage::Chunk(send)).is_err() {
@@ -1368,12 +1489,16 @@ fn scan_files(root: PathBuf, tx: std::sync::mpsc::Sender<FileIndexMessage>) {
                 }
             }
         }
+        if scanned_entries >= max_entries && !queue.is_empty() {
+            truncated = true;
+            break 'walk;
+        }
     }
 
     if !chunk.is_empty() {
         let _ = tx.send(FileIndexMessage::Chunk(chunk));
     }
-    let _ = tx.send(FileIndexMessage::Complete);
+    let _ = tx.send(FileIndexMessage::Complete { truncated });
 }
 
 fn apply_watcher_event(worker: &mut FileIndexWorker, event: WatcherEvent) {
@@ -1385,6 +1510,7 @@ fn apply_watcher_event(worker: &mut FileIndexWorker, event: WatcherEvent) {
                 worker.state,
                 worker.complete,
                 worker.needs_rescan,
+                worker.truncated,
                 frame.watcher_health,
             );
         }
@@ -1394,9 +1520,13 @@ fn apply_watcher_event(worker: &mut FileIndexWorker, event: WatcherEvent) {
             }
             match change.kind {
                 VfsChangeKind::Created { uri } => {
-                    if let Some(relative) = relative_path_for_uri(&worker.root, &uri) {
+                    if let Some(relative) = indexable_relative_path_for_uri(&worker.root, &uri) {
                         if !worker.file_paths.iter().any(|p| p == &relative) {
-                            worker.file_paths.push(relative);
+                            if worker.file_paths.len() < MAX_WORKSPACE_INDEX_FILES {
+                                worker.file_paths.push(relative);
+                            } else {
+                                worker.truncated = true;
+                            }
                         }
                     } else {
                         worker.needs_rescan = true;
@@ -1411,12 +1541,16 @@ fn apply_watcher_event(worker: &mut FileIndexWorker, event: WatcherEvent) {
                 }
                 VfsChangeKind::Renamed { from, to } => {
                     let from_rel = relative_path_for_uri(&worker.root, &from);
-                    let to_rel = relative_path_for_uri(&worker.root, &to);
+                    let to_rel = indexable_relative_path_for_uri(&worker.root, &to);
                     match (from_rel, to_rel) {
                         (Some(from_rel), Some(to_rel)) => {
                             worker.file_paths.retain(|p| p != &from_rel);
                             if !worker.file_paths.iter().any(|p| p == &to_rel) {
-                                worker.file_paths.push(to_rel);
+                                if worker.file_paths.len() < MAX_WORKSPACE_INDEX_FILES {
+                                    worker.file_paths.push(to_rel);
+                                } else {
+                                    worker.truncated = true;
+                                }
                             }
                         }
                         _ => {
@@ -1433,6 +1567,7 @@ fn apply_watcher_event(worker: &mut FileIndexWorker, event: WatcherEvent) {
                 worker.state,
                 worker.complete,
                 worker.needs_rescan,
+                worker.truncated,
                 worker.watcher_health,
             );
         }
@@ -1443,6 +1578,7 @@ fn state_for_watch(
     current: PaletteProviderStateClass,
     complete: bool,
     needs_rescan: bool,
+    truncated: bool,
     health: WatcherHealth,
 ) -> PaletteProviderStateClass {
     if needs_rescan {
@@ -1452,19 +1588,168 @@ fn state_for_watch(
         return current;
     }
     match health {
+        WatcherHealth::Unavailable => PaletteProviderStateClass::Unavailable,
+        _ if truncated => PaletteProviderStateClass::Partial,
         WatcherHealth::Healthy => PaletteProviderStateClass::Complete,
         WatcherHealth::Warming => PaletteProviderStateClass::Partial,
         WatcherHealth::Degraded | WatcherHealth::FallbackPolling => {
             PaletteProviderStateClass::Partial
         }
-        WatcherHealth::Unavailable => PaletteProviderStateClass::Unavailable,
     }
 }
 
-fn relative_path_for_uri(root: &PathBuf, uri: &aureline_vfs::VfsUri) -> Option<String> {
-    let path = uri.file_path()?;
+fn canonical_workspace_root(root: &Path) -> Option<PathBuf> {
+    let canonical = root.canonicalize().ok()?;
+    stable_workspace_directory(&canonical, &canonical)
+}
+
+fn stable_workspace_directory(path: &Path, root: &Path) -> Option<PathBuf> {
+    let before = std::fs::symlink_metadata(path).ok()?;
+    if before.file_type().is_symlink() || !before.is_dir() {
+        return None;
+    }
+    let canonical = path.canonicalize().ok()?;
+    if !canonical.starts_with(root) {
+        return None;
+    }
+    let canonical_metadata = std::fs::symlink_metadata(&canonical).ok()?;
+    let after = std::fs::symlink_metadata(path).ok()?;
+    if canonical_metadata.file_type().is_symlink()
+        || !canonical_metadata.is_dir()
+        || after.file_type().is_symlink()
+        || !after.is_dir()
+        || !same_file_identity(&before, &canonical_metadata)
+        || !same_file_identity(&before, &after)
+    {
+        return None;
+    }
+    Some(canonical)
+}
+
+fn stable_workspace_regular_file(path: &Path, root: &Path) -> Option<PathBuf> {
+    let before = std::fs::symlink_metadata(path).ok()?;
+    if before.file_type().is_symlink() || !before.is_file() {
+        return None;
+    }
+    let canonical = path.canonicalize().ok()?;
+    if !canonical.starts_with(root) {
+        return None;
+    }
+    let canonical_metadata = std::fs::symlink_metadata(&canonical).ok()?;
+    let after = std::fs::symlink_metadata(path).ok()?;
+    if canonical_metadata.file_type().is_symlink()
+        || !canonical_metadata.is_file()
+        || after.file_type().is_symlink()
+        || !after.is_file()
+        || !same_file_identity(&before, &canonical_metadata)
+        || !same_file_identity(&before, &after)
+    {
+        return None;
+    }
+    Some(canonical)
+}
+
+#[cfg(unix)]
+fn same_file_identity(before: &std::fs::Metadata, after: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    before.dev() == after.dev()
+        && before.ino() == after.ino()
+        && before.mode() == after.mode()
+        && before.len() == after.len()
+        && before.mtime() == after.mtime()
+        && before.mtime_nsec() == after.mtime_nsec()
+        && before.ctime() == after.ctime()
+        && before.ctime_nsec() == after.ctime_nsec()
+}
+
+#[cfg(not(unix))]
+fn same_file_identity(before: &std::fs::Metadata, after: &std::fs::Metadata) -> bool {
+    before.is_file() == after.is_file()
+        && before.is_dir() == after.is_dir()
+        && before.file_type().is_symlink() == after.file_type().is_symlink()
+        && before.len() == after.len()
+        && before.modified().ok() == after.modified().ok()
+        && before.permissions().readonly() == after.permissions().readonly()
+}
+
+fn workspace_relative_index_path(root: &Path, path: &Path) -> Option<String> {
     let relative = path.strip_prefix(root).ok()?;
-    Some(relative.to_string_lossy().replace('\\', "/"))
+    let mut normalized = String::new();
+    for component in relative.components() {
+        let std::path::Component::Normal(component) = component else {
+            return None;
+        };
+        let component = component.to_str()?;
+        if component.is_empty() || !is_safe_workspace_index_text(component) {
+            return None;
+        }
+        if !normalized.is_empty() {
+            normalized.push('/');
+        }
+        normalized.push_str(component);
+        if normalized.len() > MAX_WORKSPACE_INDEX_RELATIVE_PATH_BYTES {
+            return None;
+        }
+    }
+    if normalized.is_empty() {
+        return None;
+    }
+    Some(normalized)
+}
+
+fn is_safe_workspace_index_text(value: &str) -> bool {
+    value.chars().all(|character| {
+        !character.is_control()
+            && !matches!(
+                character,
+                '\u{061c}'
+                    | '\u{200b}'
+                    | '\u{200e}'
+                    | '\u{200f}'
+                    | '\u{202a}'
+                    | '\u{202b}'
+                    | '\u{202c}'
+                    | '\u{202d}'
+                    | '\u{202e}'
+                    | '\u{2060}'
+                    | '\u{2066}'
+                    | '\u{2067}'
+                    | '\u{2068}'
+                    | '\u{2069}'
+                    | '\u{feff}'
+            )
+    })
+}
+
+fn watcher_event_is_bounded(event: &WatcherEvent) -> bool {
+    fn uri_is_bounded(uri: &aureline_vfs::VfsUri) -> bool {
+        uri.as_str().len() <= MAX_WORKSPACE_WATCH_URI_BYTES
+            && is_safe_workspace_index_text(uri.as_str())
+    }
+
+    match event {
+        WatcherEvent::Health(_) => true,
+        WatcherEvent::Change(change) if change.root_id == "root-local" => match &change.kind {
+            VfsChangeKind::Created { uri }
+            | VfsChangeKind::Modified { uri }
+            | VfsChangeKind::Deleted { uri } => uri_is_bounded(uri),
+            VfsChangeKind::Renamed { from, to } => uri_is_bounded(from) && uri_is_bounded(to),
+            VfsChangeKind::Rescan => true,
+        },
+        WatcherEvent::Change(_) => false,
+    }
+}
+
+fn relative_path_for_uri(root: &Path, uri: &aureline_vfs::VfsUri) -> Option<String> {
+    let path = uri.file_path()?;
+    workspace_relative_index_path(root, &path)
+}
+
+fn indexable_relative_path_for_uri(root: &Path, uri: &aureline_vfs::VfsUri) -> Option<String> {
+    let path = uri.file_path()?;
+    let canonical = stable_workspace_regular_file(&path, root)?;
+    workspace_relative_index_path(root, &canonical)
 }
 
 /// Runtime command-palette state that owns query text, provider readiness, and
@@ -1600,34 +1885,15 @@ impl CommandPaletteState {
 
     /// Ensures the file index worker is tracking `root`.
     pub fn set_workspace_root(&mut self, root: PathBuf) {
-        let now = Instant::now();
-        let root = root.canonicalize().unwrap_or(root);
-        match self.file_index.as_mut() {
-            None => {
-                self.file_index = Some(spawn_file_index_worker(root));
-            }
-            Some(worker) => {
-                if worker.root == root {
-                    return;
-                }
-                worker.root = root.clone();
-                worker.watcher = WatcherService::spawn_local(
-                    "root-local",
-                    root.clone(),
-                    WatcherServiceOptions::default(),
-                )
-                .ok();
-                worker.watcher_health = worker
-                    .watcher
-                    .as_ref()
-                    .map(|w| w.latest_health())
-                    .unwrap_or(WatcherHealth::Unavailable);
-                worker.watcher_source = None;
-                worker.needs_rescan = false;
-                worker.last_watcher_events.clear();
-                restart_file_index_scan(worker, now);
-            }
+        let canonical_root = canonical_workspace_root(&root);
+        if canonical_root.as_ref().is_some_and(|candidate| {
+            self.file_index
+                .as_ref()
+                .is_some_and(|worker| worker.root == *candidate)
+        }) {
+            return;
         }
+        self.file_index = Some(spawn_file_index_worker(canonical_root.unwrap_or(root)));
     }
 
     /// Takes watcher events observed since the last tick so sibling views can
@@ -1644,7 +1910,7 @@ impl CommandPaletteState {
         let worker = self.file_index.as_ref()?;
         Some(WorkspaceFileIndexReadiness {
             watcher_health: worker.watcher_health,
-            hot_index_ready: worker.complete,
+            hot_index_ready: worker.complete && !worker.truncated,
         })
     }
 
@@ -1946,11 +2212,16 @@ impl CommandPaletteState {
                         match msg {
                             FileIndexMessage::Chunk(mut chunk) => {
                                 file_index.state = PaletteProviderStateClass::Streaming;
+                                let remaining = MAX_WORKSPACE_INDEX_FILES
+                                    .saturating_sub(file_index.file_paths.len());
+                                if chunk.len() > remaining {
+                                    chunk.truncate(remaining);
+                                    file_index.truncated = true;
+                                }
                                 file_index.file_paths.append(&mut chunk);
                             }
-                            FileIndexMessage::Complete => {
-                                file_index.state = PaletteProviderStateClass::Complete;
-                                file_index.complete = true;
+                            FileIndexMessage::Complete { truncated } => {
+                                finish_file_index_scan(file_index, truncated);
                                 break;
                             }
                         }
@@ -1966,15 +2237,39 @@ impl CommandPaletteState {
             }
 
             if let Some(watcher) = file_index.watcher.as_ref() {
-                let mut pending: Vec<WatcherEvent> = Vec::new();
-                while let Some(event) = watcher.try_recv() {
+                let mut pending: Vec<WatcherEvent> =
+                    Vec::with_capacity(MAX_WORKSPACE_WATCH_EVENTS_PER_TICK);
+                while pending.len() < MAX_WORKSPACE_WATCH_EVENTS_PER_TICK {
+                    let Some(event) = watcher.try_recv() else {
+                        break;
+                    };
                     pending.push(event);
+                }
+                let overflowed = pending.len() == MAX_WORKSPACE_WATCH_EVENTS_PER_TICK
+                    && watcher.try_recv().is_some();
+                if overflowed {
+                    file_index.needs_rescan = true;
+                    file_index.state = PaletteProviderStateClass::Stale;
+                    changed = true;
                 }
                 if !pending.is_empty() {
                     changed = true;
+                    let original_len = pending.len();
+                    pending.retain(watcher_event_is_bounded);
+                    if pending.len() != original_len {
+                        file_index.needs_rescan = true;
+                        file_index.state = PaletteProviderStateClass::Stale;
+                    }
                     file_index
                         .last_watcher_events
                         .extend(pending.iter().cloned());
+                    let excess = file_index
+                        .last_watcher_events
+                        .len()
+                        .saturating_sub(MAX_RETAINED_WORKSPACE_WATCH_EVENTS);
+                    if excess > 0 {
+                        file_index.last_watcher_events.drain(..excess);
+                    }
                     for event in pending {
                         apply_watcher_event(file_index, event);
                     }
@@ -2379,6 +2674,197 @@ mod tests {
     use super::*;
 
     use aureline_commands::registry::seeded_registry;
+
+    fn bounded_scan_result(
+        root: &Path,
+        max_files: usize,
+        max_entries: usize,
+        max_directories: usize,
+    ) -> (Vec<String>, bool) {
+        let (tx, rx) = std::sync::mpsc::channel();
+        scan_files_with_limits(
+            root.to_path_buf(),
+            tx,
+            max_files,
+            max_entries,
+            max_directories,
+        );
+        let mut paths = Vec::new();
+        let mut truncated = None;
+        for message in rx.try_iter() {
+            match message {
+                FileIndexMessage::Chunk(mut chunk) => paths.append(&mut chunk),
+                FileIndexMessage::Complete {
+                    truncated: was_truncated,
+                } => truncated = Some(was_truncated),
+            }
+        }
+        (paths, truncated.expect("scan completion"))
+    }
+
+    #[test]
+    fn workspace_file_scan_fails_closed_when_root_cannot_be_canonicalized() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let missing = temp.path().join("missing-root");
+
+        let (paths, truncated) = bounded_scan_result(&missing, 10, 10, 10);
+
+        assert!(paths.is_empty());
+        assert!(truncated);
+    }
+
+    #[test]
+    fn workspace_file_scan_omits_unsafe_path_labels() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        std::fs::write(temp.path().join("safe.txt"), b"safe").expect("safe file");
+        std::fs::write(temp.path().join("unsafe-\u{202e}.txt"), b"unsafe")
+            .expect("unsafe-label file");
+
+        let (paths, truncated) = bounded_scan_result(temp.path(), 10, 10, 10);
+
+        assert_eq!(paths, vec!["safe.txt"]);
+        assert!(truncated);
+    }
+
+    #[test]
+    fn completed_scan_preserves_an_earlier_truncation_signal() {
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let mut worker = FileIndexWorker {
+            rx,
+            state: PaletteProviderStateClass::Streaming,
+            file_paths: Vec::new(),
+            last_progress_at: Instant::now(),
+            complete: false,
+            truncated: true,
+            root: PathBuf::from("/workspace"),
+            watcher: None,
+            watcher_health: WatcherHealth::Healthy,
+            watcher_source: None,
+            needs_rescan: false,
+            last_watcher_events: Vec::new(),
+        };
+
+        finish_file_index_scan(&mut worker, false);
+
+        assert!(worker.complete);
+        assert!(worker.truncated);
+        assert_eq!(worker.state, PaletteProviderStateClass::Partial);
+    }
+
+    #[test]
+    fn workspace_file_scan_stops_at_file_and_entry_limits() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        for index in 0..5 {
+            std::fs::write(temp.path().join(format!("file-{index}.txt")), b"bounded")
+                .expect("seed file");
+        }
+
+        let (paths, truncated) = bounded_scan_result(temp.path(), 3, 4, 10);
+
+        assert!(truncated);
+        assert!(paths.len() <= 3);
+        assert!(paths.iter().all(|path| !path.starts_with('/')));
+    }
+
+    #[test]
+    fn workspace_file_scan_applies_limits_in_stable_name_order() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        for name in ["zeta.txt", "alpha.txt", "middle.txt"] {
+            std::fs::write(temp.path().join(name), b"bounded").expect("seed file");
+        }
+
+        let (paths, truncated) = bounded_scan_result(temp.path(), 2, 10, 10);
+
+        assert_eq!(paths, vec!["alpha.txt", "middle.txt"]);
+        assert!(truncated);
+    }
+
+    #[test]
+    fn workspace_file_scan_bounds_the_directory_queue() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        for name in ["alpha", "beta", "gamma"] {
+            let directory = temp.path().join(name);
+            std::fs::create_dir(&directory).expect("seed directory");
+            std::fs::write(directory.join("source.rs"), b"bounded").expect("seed file");
+        }
+
+        let (paths, truncated) = bounded_scan_result(temp.path(), 10, 20, 2);
+
+        assert!(truncated);
+        assert!(paths.len() <= 1);
+    }
+
+    #[test]
+    fn watcher_paths_reject_parent_traversal_and_directories() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        let directory = root.join("nested");
+        std::fs::create_dir(&directory).expect("nested directory");
+        let directory_uri =
+            aureline_vfs::VfsUri::file_url_for_path(&directory).expect("directory file URI");
+        assert!(indexable_relative_path_for_uri(&root, &directory_uri).is_none());
+
+        let traversal = root.join("nested/../../outside.txt");
+        let traversal_uri =
+            aureline_vfs::VfsUri::file_url_for_path_lossy(&traversal).expect("traversal file URI");
+        assert!(relative_path_for_uri(&root, &traversal_uri).is_none());
+
+        let unsafe_path = root.join("unsafe-\u{2067}.txt");
+        let unsafe_uri = aureline_vfs::VfsUri::file_url_for_path_lossy(&unsafe_path)
+            .expect("unsafe-label file URI");
+        assert!(relative_path_for_uri(&root, &unsafe_uri).is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn workspace_file_scan_preserves_literal_backslashes_in_unix_names() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        std::fs::write(temp.path().join("literal\\name.txt"), b"bounded")
+            .expect("backslash filename");
+
+        let (paths, truncated) = bounded_scan_result(temp.path(), 10, 10, 10);
+
+        assert_eq!(paths, vec!["literal\\name.txt"]);
+        assert!(!truncated);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn watcher_paths_reject_symlinks_that_escape_the_workspace() {
+        use std::os::unix::fs::symlink;
+
+        let workspace = tempfile::tempdir().expect("workspace");
+        let outside = tempfile::tempdir().expect("outside");
+        let root = workspace.path().canonicalize().expect("canonical root");
+        let outside_file = outside.path().join("private.txt");
+        std::fs::write(&outside_file, b"private").expect("outside file");
+        let link = root.join("linked.txt");
+        symlink(outside_file, &link).expect("outside symlink");
+        let uri = aureline_vfs::VfsUri::file_url_for_path(&link).expect("symlink file URI");
+
+        assert!(indexable_relative_path_for_uri(&root, &uri).is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn workspace_file_scan_marks_omitted_symlinks_partial() {
+        use std::os::unix::fs::symlink;
+
+        let workspace = tempfile::tempdir().expect("workspace");
+        let outside = tempfile::tempdir().expect("outside");
+        std::fs::write(outside.path().join("private.txt"), b"private")
+            .expect("outside file");
+        symlink(
+            outside.path().join("private.txt"),
+            workspace.path().join("linked.txt"),
+        )
+        .expect("outside symlink");
+
+        let (paths, truncated) = bounded_scan_result(workspace.path(), 10, 10, 10);
+
+        assert!(paths.is_empty());
+        assert!(truncated);
+    }
 
     #[test]
     fn command_id_search_matches() {

@@ -136,6 +136,27 @@ Required behavior:
 - Ranking reasons exported outside the product are reason classes or redacted
   refs, not private numeric weights.
 
+The built-in workspace-file provider also has an explicit resource boundary.
+One scan indexes at most 20,000 files while inspecting at most 100,000 directory
+entries and queuing at most 20,000 directories. Workspace-relative path values
+larger than 4,096 bytes, non-Unicode path values, unreadable entries, and
+entries that resolve outside the canonical workspace root are omitted. Hitting
+any of these boundaries terminates or narrows the scan as appropriate and
+leaves the provider in `partial`; it must not report a hot, complete index.
+Directory entries are traversed in stable component-name order so a bounded
+scan selects the same prefix instead of depending on filesystem enumeration.
+Root canonicalization failure fails closed, and file/directory metadata is
+checked before and after canonicalization so symlinks and observable
+replacement races do not become indexed paths. Path components are normalized
+without rewriting legal filename characters. Control, bidi-override,
+directional-isolate, zero-width, and byte-order-mark characters are not admitted
+into index or watcher path labels.
+Watcher updates retain the same file and path bounds, reject traversal,
+directories, and symlink escapes before adding a result, process at most 4,096
+events per UI tick, and retain at most 4,096 events for sibling consumers. An
+event burst beyond that per-tick envelope marks the index partial and requests
+a bounded rescan.
+
 This lets the palette show immediate recent/lexical results while still
 admitting richer semantic results later with no hidden state transition.
 

@@ -43,6 +43,17 @@ Every row must carry:
 Rows remain durable until resolved or archived. Completion, failure,
 partial completion, cancellation, and supersession remain distinct states.
 
+File-backed alpha history uses the shell's bounded artifact lane: 10,000 rows
+and 8 MiB maximum per store. Load rejects duplicate stable row IDs,
+non-regular files, final-component symlinks, identity changes during read, and
+oversized input. Persistence is transactional in memory and on disk: bounded
+serialization and compare-before-write complete before a same-directory
+synced temporary file atomically replaces the prior object; newly created Unix
+files use owner-only permissions. When persistence
+fails, the attempted row mutation is rolled back and the prior durable file
+is retained. Reload also rejects wrong record kinds, unsupported row-schema
+versions, and empty stable activity/job/event identities.
+
 ## Proof Path
 
 The protected fixture shows:

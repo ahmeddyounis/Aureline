@@ -58,6 +58,7 @@ pub mod background_work_status;
 pub mod badge_aggregate_stable;
 pub mod badges;
 pub mod bootstrap;
+mod bounded_artifact_io;
 pub mod breadcrumbs;
 pub mod build_intelligence_beta;
 pub mod certify_docs_pane_header_embedded_origin_bar_boundary_fact_grid_auth_handoff_card_open_in_browser_handoff_row_and_embedded_state_panel_component_truth_on_every_claimed_m5_embedded_boundary_surface;

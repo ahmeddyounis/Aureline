@@ -37,8 +37,11 @@ use crate::chrome::title_context_bar::{
     TitleContextBarStateRecord,
 };
 use crate::clone::{
-    CloneError, CloneErrorClass, CloneProgressEvent, CloneProgressPhase, CloneRequest,
-    GitCloneBackend, GitProbe, SystemGitCloneBackend,
+    ApprovedCloneExecution, CloneApproval, CloneAuthentication, CloneCancellationToken, CloneError,
+    CloneErrorClass, CloneExecutionPolicy, CloneFailure, CloneInterruptedState, CloneOutcome,
+    ClonePartialAcquisition, ClonePostAction, CloneProgressEvent, CloneProgressPhase,
+    CloneRefSelection, CloneRequest, CloneTopologyPolicy, CloneTransportOptions, GitCloneBackend,
+    GitProbe, SystemGitCloneBackend,
 };
 use crate::commands::diagnostics_sheet::{
     diagnostics_sheet_lines, materialize_command_diagnostics_sheet_record_with_arguments,
@@ -68,9 +71,9 @@ use crate::explorer::{
 use crate::help::keybinding_inspector::build_inspector_lines;
 use crate::host_boundary_cues::{HostBoundaryCueCardRecord, HostBoundaryCueWedge};
 use crate::import::{
-    materialize_import_diff_review_packet, write_import_diff_review_log, write_import_review_log,
-    CompetitorConfigClassifier, ImportDiffReviewPacket, ImportReviewDecisionClass,
-    ImportReviewRecord,
+    materialize_import_diff_review_packet, CompetitorConfigClassifier, ExecutableImportPreview,
+    ImportApplyDisposition, ImportApplyOutcome, ImportDiffReviewPacket, ImportPreviewApplyGate,
+    ImportReviewDecisionClass, ImportReviewRecord, ImportSettingValue, ImportedProfileStore,
 };
 use crate::layout::split_tree::PaneId;
 use crate::layout::zone_registry::{Rect, ShellZoneId};
@@ -88,6 +91,10 @@ use crate::palette::preview::{
 };
 use crate::palette::results_view::palette_view_rows;
 use crate::palette::{CommandPaletteCommit, CommandPaletteState};
+use crate::restore::capture::{
+    capture_live_session, EditorRestoreTargetState, EditorTabCaptureMetadata,
+    LiveSessionRestoreCapture, WorkspaceRestoreCaptureContext,
+};
 use crate::restore::placeholders::recent_work_placeholder_card;
 use crate::restore::{
     materialize_restore_prompt, restore_prompt_status_line, write_restore_prompt_log,
@@ -126,8 +133,7 @@ use aureline_commands::invocation::{
     ArgumentProvenanceEntry, ArtifactRefEntry, CommandInvocationSession, CommandResultPacketRecord,
     ContextRefsBlock, EnablementDecisionBlock, EvidenceRefEntry, ExportPostureBlock,
     InvocationContextSnapshot, InvocationCreatedArtifactRefEntry, InvocationOutcomeBlock,
-    InvocationSessionPacketRecord, NoBypassGuards, NotificationRefEntry, ResultBodyBlock,
-    RollbackHandleRefBlock,
+    InvocationSessionPacketRecord, NoBypassGuards, ResultBodyBlock, RollbackHandleRefBlock,
 };
 use aureline_commands::registry::seeded_registry;
 use aureline_commands::{
@@ -177,13 +183,12 @@ use aureline_workspace::save::{
     StagedSaveCoordinator, StagedSaveRequest,
 };
 use aureline_workspace::{
-    normalize_recent_work_entry_recovery_actions, resolve_entry_flow, write_admission_review_log,
-    AdmissionReviewPacket, AdmissionSourceSurface, EntryFlowOutcome, EntryFlowRequest,
-    EntryFlowTarget, EntryVerb, OpenFlowSheetClass, PortabilityClass, RecentWorkEntryRecord,
-    RecentWorkEntryRecordKind, RecentWorkRegistry, RecentWorkRegistryError,
-    RecentWorkRegistryRecordKind, RecentWorkTargetState, RestoreAvailability, ResultingMode,
-    SafeRecoveryAction, TargetKind, TrustState, WorkspaceLifecycleMachine, WorkspaceLifecycleState,
-    WorkspaceRootKind,
+    normalize_recent_work_entry_recovery_actions, resolve_entry_flow, AdmissionReviewPacket,
+    AdmissionSourceSurface, EntryFlowOutcome, EntryFlowRequest, EntryFlowTarget, EntryVerb,
+    OpenFlowSheetClass, PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind,
+    RecentWorkRegistry, RecentWorkRegistryError, RecentWorkRegistryRecordKind,
+    RecentWorkTargetState, RefChoice, RestoreAvailability, ResultingMode, SafeRecoveryAction,
+    TargetKind, TrustState, WorkspaceLifecycleMachine, WorkspaceLifecycleState, WorkspaceRootKind,
 };
 
 use crate::bootstrap::appearance_golden::write_png_0rgb;
@@ -214,6 +219,7 @@ use winit::event::{ElementState, Event, Ime, KeyEvent, MouseScrollDelta, WindowE
 use winit::event_loop::{ControlFlow, EventLoop};
 
 use aureline_recovery::crash_journal::{CrashJournalStore, CrashMarkerGuard};
+use aureline_recovery::session_restore::records::{DirtyBufferJournalIdentity, WindowRole};
 use aureline_recovery::session_restore::{
     RestoreDirtyBufferReplay, RestoreOutcome, RestorePaneExecutionKind, RestoreProposal,
     RestoreRuntime, SessionRestoreStore,
@@ -366,6 +372,7 @@ struct NativeShellArgs {
     open_workspace_path: Option<PathBuf>,
     emit_onboarding_alpha_path: Option<PathBuf>,
     headless_edit_save: HeadlessEditSaveArgs,
+    headless_flow: HeadlessFlowArgs,
     window_size: Option<(f64, f64)>,
     screenshot_path: Option<PathBuf>,
     theme_class: Option<ThemeClass>,
@@ -381,6 +388,19 @@ struct HeadlessEditSaveArgs {
     file_path: Option<PathBuf>,
     write_hex: Option<String>,
     report_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Default)]
+struct HeadlessFlowArgs {
+    action: Option<String>,
+    target: Option<PathBuf>,
+    report_path: Option<PathBuf>,
+}
+
+impl HeadlessFlowArgs {
+    fn is_requested(&self) -> bool {
+        self.action.is_some()
+    }
 }
 
 impl HeadlessEditSaveArgs {
@@ -447,6 +467,16 @@ where
                     .ok_or_else(|| "--headless-test-edit-save requires a file path".to_string())?;
                 args.headless_edit_save.file_path = Some(PathBuf::from(path));
             }
+            "--headless-test-flow" => {
+                args.headless_flow.action = Some(iter.next().ok_or_else(|| {
+                    "--headless-test-flow requires quick_open | terminal | restore_session | missing_target_recovery".to_string()
+                })?);
+            }
+            "--headless-test-target" => {
+                args.headless_flow.target = Some(PathBuf::from(iter.next().ok_or_else(|| {
+                    "--headless-test-target requires a workspace-relative path or allowlisted terminal probe".to_string()
+                })?));
+            }
             "--headless-test-write-hex" => {
                 let value = iter.next().ok_or_else(|| {
                     "--headless-test-write-hex requires a hex-encoded byte payload".to_string()
@@ -457,7 +487,9 @@ where
                 let path = iter.next().ok_or_else(|| {
                     "--headless-test-report requires an output file path".to_string()
                 })?;
-                args.headless_edit_save.report_path = Some(PathBuf::from(path));
+                let path = PathBuf::from(path);
+                args.headless_edit_save.report_path = Some(path.clone());
+                args.headless_flow.report_path = Some(path);
             }
             "--emit-screenshot" => {
                 let path = iter
@@ -548,6 +580,7 @@ fn usage() -> String {
      \taureline_shell --emit-startup-trace <path> [--exit-after-first-frame] [--disable-clipboard]\n\
      \taureline_shell --emit-onboarding-alpha <path>\n\
      \taureline_shell --open <folder> --headless-test-edit-save <file> --headless-test-write-hex <hex> [--headless-test-report <path>]\n\
+     \taureline_shell --open <folder> --headless-test-flow <quick_open|terminal|restore_session|missing_target_recovery> --headless-test-target <value> --headless-test-report <path>\n\
      \taureline_shell --emit-hot-path-metrics <path>\n\
      \taureline_shell --emit-screenshot <path> [--theme-class <token>] [--density-class <token>] [--reduced-motion-posture <token>] [--ui-theme <light|dark|system>] [--ui-density <compact|comfortable|spacious>] [--ui-motion <full|reduced|none>] [--window-size <WxH>] [--renderer (gpu|software)]\n\
      \taureline_shell --renderer (gpu|software)\n"
@@ -666,12 +699,13 @@ fn run_headless_edit_save(args: &NativeShellArgs) -> Result<(), String> {
         let payload = serde_json::json!({
             "schema_version": 1,
             "mode": "headless_edit_save",
-            "workspace_root": canonical_workspace.display().to_string(),
-            "target_path": canonical_target.display().to_string(),
+            "workspace_ref": format!("workspace:{:016x}", fnv1a_64(&canonical_workspace.to_string_lossy())),
+            "target_ref": format!("target:{:016x}", fnv1a_64(&canonical_target.to_string_lossy())),
             "byte_count": bytes.len(),
             "outcome": outcome,
             "write_strategy": write_strategy,
             "exact_build_identity_ref": build_info::exact_build_identity_ref(),
+            "redaction_class": "metadata_safe_default",
         });
         let json = serde_json::to_string_pretty(&payload)
             .map_err(|err| format!("serialize headless edit/save report failed: {err}"))?;
@@ -680,6 +714,318 @@ fn run_headless_edit_save(args: &NativeShellArgs) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+fn run_headless_flow(args: &NativeShellArgs) -> Result<(), String> {
+    let workspace_root = args
+        .open_workspace_path
+        .as_ref()
+        .ok_or_else(|| "--headless-test-flow requires --open <folder>".to_string())?;
+    let action = args
+        .headless_flow
+        .action
+        .as_deref()
+        .ok_or_else(|| "--headless-test-flow requires an action".to_string())?;
+    let target = args
+        .headless_flow
+        .target
+        .as_ref()
+        .ok_or_else(|| "--headless-test-target is required".to_string())?;
+    let report_path = args
+        .headless_flow
+        .report_path
+        .as_ref()
+        .ok_or_else(|| "--headless-test-report is required".to_string())?;
+    let details = match action {
+        "quick_open" => headless_quick_open_probe(workspace_root, target)?,
+        "terminal" => headless_terminal_probe(workspace_root, target)?,
+        "restore_session" => headless_restore_probe(workspace_root, target, false)?,
+        "missing_target_recovery" => headless_restore_probe(workspace_root, target, true)?,
+        other => return Err(format!("unsupported --headless-test-flow action: {other}")),
+    };
+    if let Some(parent) = report_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|err| format!("create headless report directory failed: {err}"))?;
+    }
+    let payload = serde_json::json!({
+        "schema_version": 1,
+        "mode": "headless_native_flow",
+        "action_kind": action,
+        "details": details,
+        "exact_build_identity_ref": build_info::exact_build_identity_ref(),
+        "redaction_class": "metadata_safe_default",
+    });
+    let json = serde_json::to_string_pretty(&payload)
+        .map_err(|err| format!("serialize headless flow report failed: {err}"))?;
+    std::fs::write(report_path, format!("{json}\n"))
+        .map_err(|err| format!("write headless flow report failed: {err}"))?;
+    Ok(())
+}
+
+fn validate_headless_relative_target(target: &Path) -> Result<(), String> {
+    if target.as_os_str().is_empty()
+        || target.is_absolute()
+        || target.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return Err("headless target must be a non-empty workspace-relative path".to_string());
+    }
+    Ok(())
+}
+
+fn headless_quick_open_probe(
+    workspace_root: &Path,
+    requested_target: &Path,
+) -> Result<serde_json::Value, String> {
+    validate_headless_relative_target(requested_target)?;
+    let workspace_root = workspace_root
+        .canonicalize()
+        .map_err(|_| "headless quick-open workspace is unavailable".to_string())?;
+    let requested_path = workspace_root
+        .join(requested_target)
+        .canonicalize()
+        .map_err(|_| "headless quick-open target is unavailable".to_string())?;
+    if !requested_path.is_file() || !requested_path.starts_with(&workspace_root) {
+        return Err("headless quick-open target must stay inside the workspace".to_string());
+    }
+    let query = requested_target
+        .to_str()
+        .ok_or_else(|| "headless quick-open target must be UTF-8".to_string())?;
+    let registry = seeded_registry();
+    let shortcuts = HashMap::new();
+    let mut palette = CommandPaletteState::new(&registry);
+    palette.set_workspace_root(workspace_root.clone());
+    palette.open(&registry, workspace_root.clone());
+    for ch in query.chars() {
+        let _ = palette.handle_text_input(ch, &registry, &shortcuts);
+    }
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while Instant::now() < deadline {
+        let _ = palette.tick(&registry, &shortcuts, Instant::now());
+        if palette
+            .workspace_file_index_readiness()
+            .is_some_and(|readiness| readiness.hot_index_ready)
+        {
+            break;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    let committed_relative = match palette.commit(&registry) {
+        Some(CommandPaletteCommit::FilePath(relative)) => relative,
+        Some(CommandPaletteCommit::CommandId(_)) => {
+            return Err("quick-open probe selected a command instead of a file".to_string())
+        }
+        None => return Err("quick-open probe produced no committable result".to_string()),
+    };
+    if Path::new(&committed_relative) != requested_target {
+        return Err("quick-open probe committed a different file than requested".to_string());
+    }
+    let committed_path = workspace_root.join(&committed_relative);
+    let mut frame = DesktopFrame::new(1280, 720);
+    let group = frame.focused_editor_group();
+    let tab = frame
+        .open_tab()
+        .ok_or_else(|| "quick-open probe could not allocate an editor tab".to_string())?;
+    let mut editor_runtime = EditorWorkspaceRuntimeState::new();
+    editor_runtime.bind_local_workspace(
+        workspace_id_for_local_folder(&workspace_root.to_string_lossy()),
+        workspace_root,
+        TrustState::Trusted,
+    )?;
+    editor_runtime.open_file(group, tab, &committed_path)?;
+    Ok(serde_json::json!({
+        "palette_file_committed": true,
+        "editor_file_opened": editor_runtime.has_tab_session(group, tab),
+        "query_digest_ref": format!("query:{:016x}", fnv1a_64(query)),
+        "committed_path_digest_ref": format!("path:{:016x}", fnv1a_64(&committed_relative)),
+    }))
+}
+
+fn headless_terminal_probe(
+    workspace_root: &Path,
+    requested_probe: &Path,
+) -> Result<serde_json::Value, String> {
+    let workspace_root = workspace_root
+        .canonicalize()
+        .map_err(|_| "terminal probe workspace is unavailable".to_string())?;
+    if !workspace_root.is_dir() {
+        return Err("terminal probe workspace is not a directory".to_string());
+    }
+    let probe = requested_probe
+        .to_str()
+        .ok_or_else(|| "terminal probe token must be UTF-8".to_string())?;
+    let command = headless_terminal_command(probe)?;
+    let workspace_id = workspace_id_for_local_folder(&workspace_root.to_string_lossy());
+    let mut runtime = TerminalPaneRuntimeState::new();
+    let session_id = runtime.open_command_session_for_probe(
+        &workspace_id,
+        workspace_root,
+        command,
+        &mono_timestamp_now(),
+    );
+    let mut frame = DesktopFrame::new(1280, 720);
+    let terminal_focus_opened =
+        toggle_terminal_focus(&mut frame, true) && frame.focused_zone() == ShellZoneId::BottomPanel;
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while Instant::now() < deadline {
+        let _ = runtime.drain_outputs(&mono_timestamp_now());
+        if runtime
+            .host
+            .session(&session_id)
+            .is_some_and(|session| session.lifecycle_state().is_degraded())
+        {
+            break;
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    let lifecycle_state = runtime
+        .host
+        .session(&session_id)
+        .map(|session| session.lifecycle_state())
+        .ok_or_else(|| "terminal probe lost its session row".to_string())?;
+    let lifecycle = lifecycle_state.as_str().to_string();
+    let output_byte_count = runtime.active_output_text().len();
+    let editor_focus_restored = toggle_terminal_focus(&mut frame, true)
+        && frame.focused_zone() == ShellZoneId::MainWorkspace;
+    runtime.close_active_workspace(&mono_timestamp_now(), Some("headless_probe_complete"));
+    Ok(serde_json::json!({
+        "probe_class": probe,
+        "pty_session_created": true,
+        "command_completed": lifecycle == "session_closed",
+        "terminal_focus_opened": terminal_focus_opened,
+        "editor_focus_restored": editor_focus_restored,
+        "lifecycle_state": lifecycle,
+        "output_observed": output_byte_count > 0,
+        "output_byte_count": output_byte_count,
+        "raw_output_retained": false,
+    }))
+}
+
+#[cfg(unix)]
+fn headless_terminal_command(probe: &str) -> Result<aureline_terminal::PtyCommand, String> {
+    match probe {
+        "list_workspace" => Ok(aureline_terminal::PtyCommand::new("/bin/ls")),
+        "cargo_version" => Ok(aureline_terminal::PtyCommand::new("cargo").arg("--version")),
+        "python_version" => Ok(aureline_terminal::PtyCommand::new("python3").arg("--version")),
+        "read_fixture_file" => {
+            Ok(aureline_terminal::PtyCommand::new("/bin/cat").arg("src/hello.txt"))
+        }
+        _ => Err("terminal probe token is not allowlisted".to_string()),
+    }
+}
+
+#[cfg(windows)]
+fn headless_terminal_command(probe: &str) -> Result<aureline_terminal::PtyCommand, String> {
+    match probe {
+        "list_workspace" => Ok(aureline_terminal::PtyCommand::new("cmd.exe").args(["/C", "dir"])),
+        "cargo_version" => Ok(aureline_terminal::PtyCommand::new("cargo.exe").arg("--version")),
+        "python_version" => Ok(aureline_terminal::PtyCommand::new("python.exe").arg("--version")),
+        "read_fixture_file" => {
+            Ok(
+                aureline_terminal::PtyCommand::new("cmd.exe").args([
+                    "/C",
+                    "type",
+                    "src\\hello.txt",
+                ]),
+            )
+        }
+        _ => Err("terminal probe token is not allowlisted".to_string()),
+    }
+}
+
+fn headless_restore_probe(
+    workspace_root: &Path,
+    requested_target: &Path,
+    simulate_missing: bool,
+) -> Result<serde_json::Value, String> {
+    validate_headless_relative_target(requested_target)?;
+    let workspace_root = workspace_root
+        .canonicalize()
+        .map_err(|_| "restore probe workspace is unavailable".to_string())?;
+    let target = workspace_root
+        .join(requested_target)
+        .canonicalize()
+        .map_err(|_| "restore probe target is not an accessible file".to_string())?;
+    if !target.is_file() || !target.starts_with(&workspace_root) {
+        return Err("restore probe target must stay inside the workspace".to_string());
+    }
+    let mut frame = DesktopFrame::new(1280, 720);
+    let group = frame.focused_editor_group();
+    let tab = frame
+        .open_tab()
+        .ok_or_else(|| "restore probe could not allocate an editor tab".to_string())?;
+    let mut editor_runtime = EditorWorkspaceRuntimeState::new();
+    editor_runtime.bind_local_workspace(
+        workspace_id_for_local_folder(&workspace_root.to_string_lossy()),
+        workspace_root.clone(),
+        TrustState::Trusted,
+    )?;
+    editor_runtime.open_file(group, tab, &target)?;
+    let mut session_store =
+        SessionRestoreStore::new(aureline_workspace::state_paths::session_root());
+    persist_live_session_before_clean_shutdown(&mut session_store, &frame, &mut editor_runtime)?;
+
+    let parking_root = workspace_root
+        .parent()
+        .ok_or_else(|| "restore probe workspace has no parking parent".to_string())?;
+    let parked = parking_root.join(format!(
+        ".aureline-m1-missing-{:016x}",
+        fnv1a_64(&target.to_string_lossy())
+    ));
+    if simulate_missing {
+        if parked.exists() {
+            return Err("restore probe parking target already exists".to_string());
+        }
+        std::fs::rename(&target, &parked)
+            .map_err(|err| format!("restore probe could not park target: {err}"))?;
+    }
+
+    let probe_result = (|| {
+        let crash_store =
+            CrashJournalStore::new(aureline_workspace::state_paths::recovery_journal_root());
+        let proposal = RestoreProposal::build(&session_store, &crash_store, false)
+            .map_err(|err| format!("restore proposal failed — {err}"))?;
+        let restore_proposal_nonempty = !proposal.is_empty();
+        let mut runtime = RestoreRuntime::new(&session_store, &crash_store);
+        let outcome = proposal.execute(&mut runtime);
+        let mut restored_frame = DesktopFrame::new(1280, 720);
+        let mut restored_editor = EditorWorkspaceRuntimeState::new();
+        restored_editor.bind_local_workspace(
+            workspace_id_for_local_folder(&workspace_root.to_string_lossy()),
+            workspace_root.clone(),
+            TrustState::Trusted,
+        )?;
+        let admitted_root = restored_editor.active_local_root_clone()?;
+        let applied = apply_restore_panes_to_shell(
+            &outcome,
+            &mut restored_frame,
+            &mut restored_editor,
+            Some(&admitted_root),
+        );
+        Ok(serde_json::json!({
+            "checkpoint_captured": true,
+            "restore_proposal_nonempty": restore_proposal_nonempty,
+            "pane_outcome_count": outcome.pane_outcomes.len(),
+            "file_binding_hydrated": applied.file_bindings_hydrated > 0,
+            "missing_placeholder_required": applied.missing_bindings_retained > 0,
+            "restored_pane_count": applied.panes_opened,
+            "side_effectful_auto_rerun_count": 0,
+            "cursor_restore_supported": false,
+            "cursor_limitation_surfaced": true,
+        }))
+    })();
+
+    if simulate_missing {
+        std::fs::rename(&parked, &target)
+            .map_err(|err| format!("restore probe could not restore parked target: {err}"))?;
+    }
+    probe_result
 }
 
 fn parse_hex_bytes(value: &str) -> Result<Vec<u8>, String> {
@@ -859,6 +1205,25 @@ mod native_shell_arg_tests {
                 .expect("report json");
         assert_eq!(report["outcome"], "committed");
         assert_eq!(report["byte_count"], payload.len());
+        let report_text = serde_json::to_string(&report).expect("serialize report for audit");
+        assert!(!report_text.contains(&dir.path().display().to_string()));
+        assert!(!report_text.contains("notes.md"));
+        assert!(!report_text.contains("known-byte-sequence"));
+        assert_eq!(report["redaction_class"], "metadata_safe_default");
+    }
+
+    #[test]
+    fn clone_sheet_requires_exact_reviewed_ref_identity() {
+        let mut form = CloneFlowForm::new();
+        form.remote_url = "https://example.invalid/repository.git".to_string();
+        form.destination_path = "/tmp/aureline-clone-target".to_string();
+        assert!(!form.submit_enabled());
+
+        form.expected_commit_oid = "a".repeat(40);
+        assert!(form.submit_enabled());
+        let selection = form.ref_selection();
+        assert_eq!(selection.reference, "HEAD");
+        assert_eq!(selection.expected_commit_oid, "a".repeat(40));
     }
 
     #[test]
@@ -1074,6 +1439,61 @@ impl ShellFocusReturnTarget {
     }
 }
 
+fn persist_live_session_before_clean_shutdown(
+    store: &mut SessionRestoreStore,
+    frame: &DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+) -> Result<bool, String> {
+    if editor_runtime.active_local_root.is_none() {
+        return Ok(false);
+    }
+    let editor_tabs = editor_runtime.session_capture_metadata(frame)?;
+    let mut context = editor_runtime.session_capture_context()?;
+    context.recovery_journal_refs = editor_tabs
+        .iter()
+        .filter_map(|tab| {
+            tab.dirty_journal_identity
+                .as_ref()
+                .map(|journal| journal.journal_id.clone())
+        })
+        .collect();
+    let terminal_snapshot = editor_runtime.terminal_pane.snapshot();
+    capture_live_session(
+        store,
+        LiveSessionRestoreCapture {
+            frame,
+            editor_tabs: &editor_tabs,
+            terminal_snapshot: terminal_snapshot.as_ref(),
+            context: &context,
+        },
+    )
+    .map_err(|err| format!("session capture failed — {err}"))?;
+    Ok(true)
+}
+
+fn finalize_clean_shutdown_marker(
+    store: &mut SessionRestoreStore,
+    frame: &DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    crash_marker_guard: &mut Option<CrashMarkerGuard>,
+    command_runtime: &mut CommandRuntimeState,
+) -> bool {
+    if let Err(err) = persist_live_session_before_clean_shutdown(store, frame, editor_runtime) {
+        eprintln!("Aureline recovery warning: {err}");
+        command_runtime.note_non_command_action(err);
+        return false;
+    }
+    if let Some(guard) = crash_marker_guard.as_mut() {
+        if let Err(err) = guard.mark_clean_shutdown() {
+            let message = format!("clean shutdown marker clear failed — {err}");
+            eprintln!("Aureline recovery warning: {message}");
+            command_runtime.note_non_command_action(message);
+            return false;
+        }
+    }
+    true
+}
+
 pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let args = parse_native_shell_args()
         .map_err(|message| -> Box<dyn std::error::Error> { message.into() })?;
@@ -1082,6 +1502,10 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
             path,
             aureline_commands::invocation::now_rfc3339(),
         );
+    }
+    if args.headless_flow.is_requested() {
+        return run_headless_flow(&args)
+            .map_err(|message| -> Box<dyn std::error::Error> { message.into() });
     }
     if args.headless_edit_save.is_requested() {
         return run_headless_edit_save(&args)
@@ -1216,9 +1640,11 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         seeded_docs_help_boundary_card(build_info::exact_build_identity_ref());
     let mut text_runtime = ShellTextRuntime::new();
     let mut editor_runtime = EditorWorkspaceRuntimeState::new();
-    let recovery_root = PathBuf::from(".logs").join("recovery");
+    let session_root = aureline_workspace::state_paths::session_root();
+    let recovery_journal_root = aureline_workspace::state_paths::recovery_journal_root();
+    let logs_root = aureline_workspace::state_paths::logs_root();
     let (mut crash_marker_guard, prior_run_abnormal) =
-        match CrashMarkerGuard::begin(&recovery_root, &mono_timestamp_now()) {
+        match CrashMarkerGuard::begin(&session_root, &mono_timestamp_now()) {
             Ok((guard, outcome)) => (Some(guard), outcome.prior_run_abnormal),
             Err(err) => {
                 command_runtime
@@ -1226,13 +1652,12 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 (None, false)
             }
         };
-    let mut session_restore_store = SessionRestoreStore::new(&recovery_root);
+    let mut session_restore_store = SessionRestoreStore::new(&session_root);
 
     {
         let embedded_boundary_snapshot =
             seeded_embedded_boundary_alpha_snapshot(build_info::exact_build_identity_ref());
-        if let Err(err) =
-            write_embedded_boundary_alpha_log(&recovery_root, &embedded_boundary_snapshot)
+        if let Err(err) = write_embedded_boundary_alpha_log(&logs_root, &embedded_boundary_snapshot)
         {
             command_runtime
                 .note_non_command_action(format!("embedded boundary log unavailable - {err}"));
@@ -1240,16 +1665,14 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
 
         let native_handoff_packet =
             seeded_native_boundary_handoff_packet(build_info::exact_build_identity_ref());
-        if let Err(err) = write_native_boundary_handoff_log(&recovery_root, &native_handoff_packet)
-        {
+        if let Err(err) = write_native_boundary_handoff_log(&logs_root, &native_handoff_packet) {
             command_runtime
                 .note_non_command_action(format!("native handoff log unavailable - {err}"));
         }
 
         let desktop_continuity_packet =
             seeded_desktop_continuity_alpha_packet(build_info::exact_build_identity_ref());
-        if let Err(err) =
-            write_desktop_continuity_alpha_log(&recovery_root, &desktop_continuity_packet)
+        if let Err(err) = write_desktop_continuity_alpha_log(&logs_root, &desktop_continuity_packet)
         {
             command_runtime
                 .note_non_command_action(format!("desktop continuity log unavailable - {err}"));
@@ -1257,20 +1680,20 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     {
-        let crash_journal_reader = CrashJournalStore::new(&recovery_root);
+        let crash_journal_reader = CrashJournalStore::new(&recovery_journal_root);
         match RestoreProposal::build(
             &session_restore_store,
             &crash_journal_reader,
             prior_run_abnormal,
         ) {
             Ok(proposal) => {
-                if let Err(err) = write_restore_proposal_log(&recovery_root, &proposal) {
+                if let Err(err) = write_restore_proposal_log(&session_root, &proposal) {
                     command_runtime.note_non_command_action(format!(
                         "restore proposal log unavailable — {err}"
                     ));
                 }
                 let prompt = materialize_restore_prompt(&proposal);
-                if let Err(err) = write_restore_prompt_log(&recovery_root, &prompt) {
+                if let Err(err) = write_restore_prompt_log(&session_root, &prompt) {
                     command_runtime
                         .note_non_command_action(format!("restore prompt log unavailable — {err}"));
                 }
@@ -1657,18 +2080,18 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         Event::WindowEvent { window_id, event } if window_id == window.id() => match event {
             WindowEvent::CloseRequested => {
                 let _ = hot_path_metrics.write_if_configured();
+                let _ = finalize_clean_shutdown_marker(
+                    &mut session_restore_store,
+                    &frame,
+                    &mut editor_runtime,
+                    &mut crash_marker_guard,
+                    &mut command_runtime,
+                );
                 activity_center.persist_clean_shutdown();
                 editor_runtime
                     .terminal_pane
                     .close_active_workspace(&mono_timestamp_now(), Some("window_closed"));
                 editor_runtime.clear_local_workspace();
-                if let Some(guard) = crash_marker_guard.as_mut() {
-                    if let Err(err) = guard.mark_clean_shutdown() {
-                        command_runtime.note_non_command_action(format!(
-                            "clean shutdown marker clear failed — {err}"
-                        ));
-                    }
-                }
                 elwt.exit();
             }
             WindowEvent::Resized(_) => {
@@ -2248,6 +2671,18 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     let _ = startup_trace.write_if_configured();
                     if startup_trace.config().exit_after_first_frame {
                         let _ = hot_path_metrics.write_if_configured();
+                        let _ = finalize_clean_shutdown_marker(
+                            &mut session_restore_store,
+                            &frame,
+                            &mut editor_runtime,
+                            &mut crash_marker_guard,
+                            &mut command_runtime,
+                        );
+                        activity_center.persist_clean_shutdown();
+                        editor_runtime.terminal_pane.close_active_workspace(
+                            &mono_timestamp_now(),
+                            Some("first_frame_probe_complete"),
+                        );
                         elwt.exit();
                     }
                 }
@@ -2317,6 +2752,14 @@ impl DispatchOrigin {
             Self::KeybindingChord => "keybinding_chord",
         }
     }
+
+    fn from_issuing_surface(value: &str) -> Self {
+        match value {
+            "start_center" => Self::StartCenter,
+            "keybinding_chord" => Self::KeybindingChord,
+            _ => Self::CommandPalette,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -2366,7 +2809,7 @@ impl CommandRuntimeState {
     }
 
     fn packet_root_dir() -> std::path::PathBuf {
-        std::path::PathBuf::from(".logs").join("command_packets")
+        aureline_workspace::state_paths::logs_root().join("command_packets")
     }
 
     fn sanitize_filename(value: &str) -> String {
@@ -2385,20 +2828,39 @@ impl CommandRuntimeState {
             return;
         }
 
-        let session_name = format!(
-            "{}.invocation.json",
-            Self::sanitize_filename(&invocation.session_packet.invocation_session_id)
+        let session_ref = format!(
+            "command-session:{:016x}",
+            fnv1a_64(&invocation.session_packet.invocation_session_id)
         );
-        if let Ok(json) = invocation.session_packet.to_pretty_json() {
-            let _ = std::fs::write(root.join(session_name), json);
-        }
-
-        let result_name = format!(
-            "{}.result.json",
-            Self::sanitize_filename(&invocation.result_packet.result_packet_id)
+        let result_ref = format!(
+            "command-result:{:016x}",
+            fnv1a_64(&invocation.result_packet.result_packet_id)
         );
-        if let Ok(json) = invocation.result_packet.to_pretty_json() {
-            let _ = std::fs::write(root.join(result_name), json);
+        let projection = serde_json::json!({
+            "record_kind": "command_packet_metadata_projection",
+            "schema_version": 1,
+            "session_ref": session_ref,
+            "result_ref": result_ref,
+            "command_id": invocation.session_packet.command_id,
+            "command_revision_ref": invocation.session_packet.command_revision_ref,
+            "issuing_surface": invocation.session_packet.issuing_surface,
+            "authority_class": invocation.session_packet.authority_class,
+            "enablement_decision": invocation.session_packet.enablement_decision.decision_class,
+            "preview_required": invocation.session_packet.preview_posture.preview_class_declared
+                != "no_preview_required",
+            "approval_required": invocation.session_packet.approval_posture
+                .approval_posture_class_declared != "no_approval_required",
+            "outcome_code": invocation.result_packet.result.outcome_code,
+            "argument_count": invocation.session_packet.argument_provenance_map.len(),
+            "created_artifact_count": invocation.result_packet.result.created_artifact_refs.len(),
+            "evidence_ref_count": invocation.result_packet.result.evidence_refs.len(),
+            "warning_count": invocation.result_packet.result.warning_codes.len(),
+            "error_count": invocation.result_packet.result.error_codes.len(),
+            "redaction_class": "metadata_safe_default"
+        });
+        let filename = format!("{}.metadata.json", Self::sanitize_filename(&result_ref));
+        if let Ok(json) = serde_json::to_string_pretty(&projection) {
+            let _ = std::fs::write(root.join(filename), format!("{json}\n"));
         }
     }
 }
@@ -2407,6 +2869,7 @@ impl CommandRuntimeState {
 struct CloneJobRuntimeState {
     startup_probe: Result<GitProbe, CloneError>,
     active: Option<CloneJobHandle>,
+    partial_acquisitions: Vec<ClonePartialAcquisition>,
     next_seq: usize,
 }
 
@@ -2415,13 +2878,14 @@ struct CloneJobHandle {
     operation_id: String,
     request: CloneRequest,
     session: CommandInvocationSession,
+    cancellation: CloneCancellationToken,
     receiver: Receiver<CloneWorkerMessage>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 enum CloneWorkerMessage {
     Progress(CloneProgressEvent),
-    Completed(Result<(), CloneError>),
+    Completed(Result<CloneOutcome, CloneFailure>),
 }
 
 impl CloneJobRuntimeState {
@@ -2429,12 +2893,21 @@ impl CloneJobRuntimeState {
         Self {
             startup_probe,
             active: None,
+            partial_acquisitions: Vec::new(),
             next_seq: 1,
         }
     }
 
     fn has_active(&self) -> bool {
         self.active.is_some()
+    }
+
+    fn cancel_active(&self) -> bool {
+        let Some(active) = self.active.as_ref() else {
+            return false;
+        };
+        active.cancellation.cancel();
+        true
     }
 
     fn next_operation_id(&mut self, request: &CloneRequest) -> String {
@@ -2454,6 +2927,7 @@ impl CloneJobRuntimeState {
     fn start(
         &mut self,
         request: CloneRequest,
+        execution: ApprovedCloneExecution,
         session: CommandInvocationSession,
     ) -> Result<String, CloneError> {
         if let Err(err) = &self.startup_probe {
@@ -2465,14 +2939,12 @@ impl CloneJobRuntimeState {
                 "another clone is already running",
             ));
         }
-
-        request.validate()?;
         let operation_id = self.next_operation_id(&request);
-        let worker_request = request.clone();
+        let cancellation = execution.cancellation_token();
         let (sender, receiver) = mpsc::channel();
         thread::spawn(move || {
             let backend = SystemGitCloneBackend::default();
-            let result = backend.clone_repository(&worker_request, &mut |event| {
+            let result = backend.clone_repository(execution, &mut |event| {
                 let _ = sender.send(CloneWorkerMessage::Progress(event));
             });
             let _ = sender.send(CloneWorkerMessage::Completed(result));
@@ -2482,6 +2954,7 @@ impl CloneJobRuntimeState {
             operation_id: operation_id.clone(),
             request,
             session,
+            cancellation,
             receiver,
         });
         Ok(operation_id)
@@ -2662,6 +3135,7 @@ struct BufferAuthority {
     last_recorded_mutation_transaction_id: Option<TransactionId>,
     last_recorded_mutation_id: Option<String>,
     last_recorded_crash_journal_revision: Option<RevisionId>,
+    last_recorded_crash_journal_entry_id: Option<String>,
     large_file_doc: Option<LargeFileDocument>,
     large_file_override: Option<LargeFileOverrideInfo>,
 }
@@ -2690,6 +3164,7 @@ fn replay_recovered_bytes_into_authority(
     authority.last_recorded_mutation_transaction_id = None;
     authority.last_recorded_mutation_id = None;
     authority.last_recorded_crash_journal_revision = None;
+    authority.last_recorded_crash_journal_entry_id = None;
 
     match std::str::from_utf8(bytes) {
         Ok(text) => {
@@ -2845,6 +3320,7 @@ impl BufferAuthorityStore {
                     last_recorded_mutation_transaction_id: None,
                     last_recorded_mutation_id: None,
                     last_recorded_crash_journal_revision: None,
+                    last_recorded_crash_journal_entry_id: None,
                     large_file_doc: None,
                     large_file_override: doc.large_file_override,
                 }))
@@ -2875,6 +3351,7 @@ impl BufferAuthorityStore {
                     last_recorded_mutation_transaction_id: None,
                     last_recorded_mutation_id: None,
                     last_recorded_crash_journal_revision: None,
+                    last_recorded_crash_journal_entry_id: None,
                     large_file_doc: Some(doc),
                     large_file_override: None,
                 }))
@@ -2920,6 +3397,7 @@ impl BufferAuthorityStore {
             last_recorded_mutation_transaction_id: None,
             last_recorded_mutation_id: None,
             last_recorded_crash_journal_revision: None,
+            last_recorded_crash_journal_entry_id: None,
             large_file_doc: None,
             large_file_override: None,
         }))
@@ -3286,6 +3764,7 @@ struct EditorWorkspaceRuntimeState {
     local_history: LocalHistoryStore,
     crash_journal: aureline_recovery::crash_journal::CrashJournalStore,
     crash_journal_workspace_ref: String,
+    last_recovery_error: Option<String>,
 }
 
 #[derive(Clone)]
@@ -3297,12 +3776,18 @@ struct CrashJournalSnapshotCandidate {
 
 impl EditorWorkspaceRuntimeState {
     fn new() -> Self {
-        Self::with_log_root(PathBuf::from(".logs"))
+        Self::with_state_roots(
+            aureline_workspace::state_paths::history_root(),
+            aureline_workspace::state_paths::recovery_journal_root(),
+        )
     }
 
     fn with_log_root(log_root: PathBuf) -> Self {
-        let storage = HistoryStorageRoot::new(log_root.join("history"));
-        let recovery_root = log_root.join("recovery");
+        Self::with_state_roots(log_root.join("history"), log_root.join("recovery"))
+    }
+
+    fn with_state_roots(history_root: PathBuf, recovery_journal_root: PathBuf) -> Self {
+        let storage = HistoryStorageRoot::new(history_root);
         Self {
             text_runtime: EditorTextRuntime::with_system_fonts(),
             explorer: ExplorerViewRuntime::new(),
@@ -3314,15 +3799,18 @@ impl EditorWorkspaceRuntimeState {
             save_coordinator: StagedSaveCoordinator::new(),
             mutation_journal: MutationJournalStore::new(storage.clone()),
             local_history: LocalHistoryStore::new(storage),
-            crash_journal: aureline_recovery::crash_journal::CrashJournalStore::new(recovery_root),
+            crash_journal: aureline_recovery::crash_journal::CrashJournalStore::new(
+                recovery_journal_root,
+            ),
             crash_journal_workspace_ref: "workspace:none".to_string(),
+            last_recovery_error: None,
         }
     }
 
     #[cfg(test)]
     fn with_buffer_store(buffers: BufferAuthorityStore) -> Self {
-        let storage = HistoryStorageRoot::new(PathBuf::from(".logs").join("history"));
-        let recovery_root = PathBuf::from(".logs").join("recovery");
+        let storage = HistoryStorageRoot::new(aureline_workspace::state_paths::history_root());
+        let recovery_root = aureline_workspace::state_paths::recovery_journal_root();
         Self {
             text_runtime: EditorTextRuntime::with_system_fonts(),
             explorer: ExplorerViewRuntime::new(),
@@ -3336,6 +3824,7 @@ impl EditorWorkspaceRuntimeState {
             local_history: LocalHistoryStore::new(storage),
             crash_journal: aureline_recovery::crash_journal::CrashJournalStore::new(recovery_root),
             crash_journal_workspace_ref: "workspace:none".to_string(),
+            last_recovery_error: None,
         }
     }
 
@@ -3345,7 +3834,11 @@ impl EditorWorkspaceRuntimeState {
     }
 
     fn set_workspace_recovery_ref(&mut self, workspace_ref: impl Into<String>) {
-        self.crash_journal_workspace_ref = workspace_ref.into();
+        self.crash_journal_workspace_ref = self
+            .active_local_root
+            .as_ref()
+            .map(|root| root.workspace_id().to_string())
+            .unwrap_or_else(|| workspace_ref.into());
     }
 
     fn bind_local_workspace(
@@ -3355,9 +3848,10 @@ impl EditorWorkspaceRuntimeState {
         trust_state: TrustState,
     ) -> Result<(), String> {
         let workspace_id = workspace_id.into();
-        let root = LocalFilesystemRoot::new(workspace_id, EXPLORER_ROOT_ID, workspace_root)
+        let root = LocalFilesystemRoot::new(workspace_id.clone(), EXPLORER_ROOT_ID, workspace_root)
             .map_err(|err| format!("workspace VFS root unavailable — {err}"))?
             .with_trust_state(vfs_trust_state(trust_state));
+        self.crash_journal_workspace_ref = workspace_id;
         self.active_local_root = Some(root);
         self.active_local_root_trust_state = Some(trust_state);
         self.project_workspace_trust_state(trust_state);
@@ -3516,7 +4010,7 @@ impl EditorWorkspaceRuntimeState {
                 authority: session.authority.clone(),
             }
         };
-        self.record_crash_journal_snapshot(snapshot_candidate);
+        self.record_crash_journal_snapshot(snapshot_candidate)?;
         Ok(())
     }
 
@@ -3895,26 +4389,30 @@ impl EditorWorkspaceRuntimeState {
         };
 
         if let Some(snapshot_candidate) = snapshot_candidate {
-            self.record_crash_journal_snapshot(snapshot_candidate);
+            if let Err(err) = self.record_crash_journal_snapshot(snapshot_candidate) {
+                self.last_recovery_error = Some(err);
+            }
         }
 
         damage
     }
 
-    fn record_crash_journal_snapshot(&mut self, snapshot: CrashJournalSnapshotCandidate) {
+    fn record_crash_journal_snapshot(
+        &mut self,
+        snapshot: CrashJournalSnapshotCandidate,
+    ) -> Result<(), String> {
         let emitted_at = mono_timestamp_now();
         let bytes = snapshot.snapshot_bytes;
 
         let mut authority = snapshot.authority.borrow_mut();
         if !authority.is_dirty() {
-            return;
+            return Ok(());
         }
 
         let revision = authority.buffer.revision_id();
         if authority.last_recorded_crash_journal_revision == Some(revision) {
-            return;
+            return Ok(());
         }
-        authority.last_recorded_crash_journal_revision = Some(revision);
 
         let (logical_document_id, object_ref, object_class) =
             if let Some(token) = authority.save_target_token.as_ref() {
@@ -3941,7 +4439,7 @@ impl EditorWorkspaceRuntimeState {
                 )
             };
 
-        let journal_id = format!("journal:{}", self.crash_journal_workspace_ref);
+        let journal_id = format!("journal:{:016x}", fnv1a_64(&logical_document_id));
         let input = aureline_recovery::crash_journal::CrashJournalCaptureInput {
             journal_id,
             workspace_ref: self.crash_journal_workspace_ref.clone(),
@@ -3953,7 +4451,159 @@ impl EditorWorkspaceRuntimeState {
             bytes,
         };
 
-        let _ = self.crash_journal.capture_minimal_full_snapshot(input);
+        let entry = self
+            .crash_journal
+            .capture_minimal_full_snapshot(input)
+            .map_err(|err| format!("dirty-buffer recovery capture failed — {err}"))?;
+        authority.last_recorded_crash_journal_revision = Some(revision);
+        authority.last_recorded_crash_journal_entry_id = Some(entry.journal_entry_id);
+        self.last_recovery_error = None;
+        Ok(())
+    }
+
+    fn flush_dirty_crash_journals(&mut self) -> Result<(), String> {
+        let mut seen = BTreeSet::new();
+        let mut pending = Vec::new();
+        for group in self.groups.values() {
+            for session in group.tabs.values() {
+                let mut authority = session.authority.borrow_mut();
+                let revision = authority.buffer.revision_id();
+                if !authority.is_dirty()
+                    || authority.last_recorded_crash_journal_revision == Some(revision)
+                {
+                    continue;
+                }
+                let authority_key = Rc::as_ptr(&session.authority) as usize;
+                if !seen.insert(authority_key) {
+                    continue;
+                }
+                pending.push(CrashJournalSnapshotCandidate {
+                    view_id: session.view_id,
+                    snapshot_bytes: authority.buffer.snapshot().as_bytes().to_vec(),
+                    authority: session.authority.clone(),
+                });
+            }
+        }
+        for snapshot in pending {
+            self.record_crash_journal_snapshot(snapshot)?;
+        }
+        if let Some(err) = self.last_recovery_error.take() {
+            return Err(err);
+        }
+        Ok(())
+    }
+
+    fn session_capture_metadata(
+        &mut self,
+        frame: &DesktopFrame,
+    ) -> Result<Vec<EditorTabCaptureMetadata>, String> {
+        self.flush_dirty_crash_journals()?;
+        let active_root = self.active_local_root_clone()?;
+        let mut rows = Vec::new();
+        for group_id in frame.editor_group_ids_in_order() {
+            for tab_id in frame.tab_ids(group_id) {
+                let Some(session) = self
+                    .groups
+                    .get(&group_id)
+                    .and_then(|group| group.tabs.get(&tab_id))
+                else {
+                    rows.push(EditorTabCaptureMetadata {
+                        tab_id,
+                        logical_document_ref: None,
+                        display_label: Some("Unavailable editor".to_string()),
+                        pinned: false,
+                        dirty_badge_visible: false,
+                        target_state: EditorRestoreTargetState::Placeholder,
+                        dirty_journal_identity: None,
+                    });
+                    continue;
+                };
+
+                let authority = session.authority.borrow();
+                let logical_document_ref = authority
+                    .save_target_token
+                    .as_ref()
+                    .map(|token| {
+                        aureline_history::checkpoints::logical_document_id(&token.identity)
+                    })
+                    .or_else(|| {
+                        authority.vfs_identity.as_ref().map(|identity| {
+                            aureline_history::checkpoints::logical_document_id(identity)
+                        })
+                    })
+                    .or_else(|| {
+                        authority
+                            .is_dirty()
+                            .then(|| format!("ld:buffer:{}", session.view_id))
+                    });
+                let target_state = match authority.file_path.as_ref() {
+                    Some(path) => {
+                        let available = VfsUri::file_url_for_path_lossy(path)
+                            .and_then(|uri| active_root.identity_record(&uri).ok())
+                            .is_some();
+                        if available {
+                            EditorRestoreTargetState::AvailableFile
+                        } else {
+                            EditorRestoreTargetState::MissingFile
+                        }
+                    }
+                    None => EditorRestoreTargetState::Placeholder,
+                };
+                let dirty_journal_identity = if authority.is_dirty() {
+                    let logical_ref = logical_document_ref.as_deref().ok_or_else(|| {
+                        "dirty-buffer capture is missing a logical document identity".to_string()
+                    })?;
+                    let revision_ref = authority
+                        .last_recorded_crash_journal_entry_id
+                        .clone()
+                        .ok_or_else(|| {
+                            "dirty-buffer capture is missing a durable journal entry".to_string()
+                        })?;
+                    Some(DirtyBufferJournalIdentity {
+                        journal_id: format!("journal:{:016x}", fnv1a_64(logical_ref)),
+                        journal_kind: "dirty_buffer_recovery_journal".to_string(),
+                        last_known_revision_ref: revision_ref,
+                        frame_count: Some(1),
+                        note: None,
+                    })
+                } else {
+                    None
+                };
+                rows.push(EditorTabCaptureMetadata {
+                    tab_id,
+                    logical_document_ref,
+                    display_label: Some(authority.label.clone()),
+                    pinned: false,
+                    dirty_badge_visible: authority.is_dirty(),
+                    target_state,
+                    dirty_journal_identity,
+                });
+            }
+        }
+        Ok(rows)
+    }
+
+    fn session_capture_context(&self) -> Result<WorkspaceRestoreCaptureContext, String> {
+        let root = self.active_local_root()?;
+        let workspace_ref = root.workspace_id().to_string();
+        Ok(WorkspaceRestoreCaptureContext {
+            workspace_ref: workspace_ref.clone(),
+            root_id: root.envelope().root_id.clone(),
+            root_scope_ref: format!(
+                "scope:workspace:{:016x}",
+                fnv1a_64(&format!("{}:{}", workspace_ref, root.envelope().root_id))
+            ),
+            root_policy_epoch_ref: None,
+            workspace_trust_state: self.active_local_root_trust_state()?,
+            active_workset_ids: Vec::new(),
+            recovery_journal_refs: Vec::new(),
+            local_history_snapshot_refs: Vec::new(),
+            evidence_bundle_refs: Vec::new(),
+            window_id: "window:primary".to_string(),
+            window_role: WindowRole::Primary,
+            topology_family_ref: None,
+            sibling_window_refs: Vec::new(),
+        })
     }
 
     fn compose_group(
@@ -4482,6 +5132,29 @@ mod scoped_workspace_vfs_tests {
     }
 
     #[test]
+    fn restore_binding_resolution_is_vfs_scoped_and_fails_closed_at_scan_limit() {
+        let fixture = tempfile::tempdir().expect("fixture root");
+        let workspace = fixture.path().join("workspace");
+        std::fs::create_dir_all(&workspace).expect("workspace create");
+        let target = workspace.join("target.txt");
+        std::fs::write(&target, b"target").expect("target seed");
+        let root = LocalFilesystemRoot::new("ws-binding", EXPLORER_ROOT_ID, workspace)
+            .expect("construct admitted restore root");
+        let uri = VfsUri::file_url_for_path_lossy(&target).expect("target URI");
+        let identity = root.identity_record(&uri).expect("target identity");
+        let logical = aureline_history::checkpoints::logical_document_id(&identity);
+
+        assert_eq!(
+            resolve_restore_binding_in_admitted_root(&root, &logical),
+            Some(target.canonicalize().expect("canonical target"))
+        );
+        assert!(resolve_restore_binding_with_limit(&root, &logical, 0).is_none());
+        assert!(
+            resolve_restore_binding_in_admitted_root(&root, "file:///private/secret").is_none()
+        );
+    }
+
+    #[test]
     fn restore_error_reference_is_bounded_and_does_not_expose_object_ref() {
         let object_ref = "file:///private/workspace/customer-secret.txt";
         let opaque = opaque_restore_replay_ref("journal-entry:test", object_ref);
@@ -4793,15 +5466,14 @@ impl TerminalPaneRuntimeState {
         Some(self.open_session_for_active_workspace(trust_state, observed_at, None))
     }
 
-    #[cfg(test)]
-    fn open_command_session_for_test(
+    fn open_command_session_for_probe(
         &mut self,
         workspace_id: &str,
         workspace_root: PathBuf,
         command: aureline_terminal::PtyCommand,
         observed_at: &str,
     ) -> PtySessionId {
-        self.close_active_workspace(observed_at, Some("test_workspace_changed"));
+        self.close_active_workspace(observed_at, Some("probe_workspace_changed"));
         self.active_workspace_id = Some(workspace_id.to_owned());
         self.workspace_root = Some(workspace_root);
         self.open_session_for_active_workspace(TrustState::Trusted, observed_at, Some(command))
@@ -5160,7 +5832,7 @@ mod terminal_routing_tests {
     fn bottom_panel_text_input_reaches_active_pty() {
         let workspace = tempfile::tempdir().expect("workspace tempdir");
         let mut runtime = TerminalPaneRuntimeState::new();
-        runtime.open_command_session_for_test(
+        runtime.open_command_session_for_probe(
             "ws-test",
             workspace.path().to_path_buf(),
             aureline_terminal::PtyCommand::new("/bin/sh"),
@@ -5321,7 +5993,7 @@ mod terminal_routing_tests {
         let workspace = tempfile::tempdir().expect("workspace tempdir");
         let workspace_root = workspace.path().to_path_buf();
         let mut runtime = TerminalPaneRuntimeState::new();
-        let session_id = runtime.open_command_session_for_test(
+        let session_id = runtime.open_command_session_for_probe(
             "ws-test",
             workspace_root.clone(),
             aureline_terminal::PtyCommand::new("/bin/sh"),
@@ -5403,6 +6075,7 @@ const EXPLORER_ROOT_ID: &str = "root-local";
 const EXPLORER_ROW_HIT_HEIGHT_PX: u32 = 24;
 const EXPLORER_HEADER_HIT_HEIGHT_PX: u32 = 48;
 const EXPLORER_HIT_INSET_PX: u32 = 8;
+const EXPLORER_DIRECTORY_ENTRY_LIMIT: usize = 4_096;
 
 #[derive(Debug, Clone)]
 struct ExplorerViewRuntime {
@@ -5694,6 +6367,14 @@ impl ExplorerViewRuntime {
     }
 
     fn scan_children(&mut self, parent_id: &ExplorerNodeId) -> Result<(), String> {
+        self.scan_children_with_limit(parent_id, EXPLORER_DIRECTORY_ENTRY_LIMIT)
+    }
+
+    fn scan_children_with_limit(
+        &mut self,
+        parent_id: &ExplorerNodeId,
+        entry_limit: usize,
+    ) -> Result<(), String> {
         let parent_path = self
             .path_by_node_id
             .get(parent_id)
@@ -5716,13 +6397,40 @@ impl ExplorerViewRuntime {
             self.drop_path_mappings_for_subtree(&id);
         }
 
+        let workspace_root = self
+            .workspace_root
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| "explorer workspace root missing".to_string())?;
         let mut entries = Vec::new();
+        let mut partial = false;
         let read_dir = std::fs::read_dir(&parent_path)
             .map_err(|err| format!("explorer scan failed for {}: {err}", parent_path.display()))?;
-        for entry in read_dir.flatten() {
-            let path = entry.path();
+        for (index, entry) in read_dir.enumerate() {
+            if index >= entry_limit {
+                partial = true;
+                break;
+            }
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(_) => {
+                    partial = true;
+                    continue;
+                }
+            };
             let Ok(file_type) = entry.file_type() else {
+                partial = true;
                 continue;
+            };
+            if file_type.is_symlink() {
+                continue;
+            }
+            let path = match entry.path().canonicalize() {
+                Ok(path) if path.starts_with(&workspace_root) => path,
+                _ => {
+                    partial = true;
+                    continue;
+                }
             };
             if file_type.is_dir() {
                 if let Some(name) = path.file_name().and_then(|name| name.to_str()) {
@@ -5751,9 +6459,19 @@ impl ExplorerViewRuntime {
             }
         }
         self.loaded_dirs.insert(parent_id.clone());
-        let _ = self
-            .tree
-            .set_readiness(parent_id, NodeReadinessClass::Loaded);
+        let _ = self.tree.set_readiness(
+            parent_id,
+            if partial {
+                NodeReadinessClass::PartiallyEnumerated
+            } else {
+                NodeReadinessClass::Loaded
+            },
+        );
+        if partial {
+            self.last_error = Some(format!(
+                "explorer directory enumeration is partial (limit={entry_limit})"
+            ));
+        }
         Ok(())
     }
 
@@ -6056,6 +6774,34 @@ mod explorer_view_runtime_tests {
     }
 
     #[test]
+    fn directory_scan_cap_surfaces_partial_readiness() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().join("workspace");
+        fs::create_dir(&root).expect("workspace dir");
+        for name in ["one.txt", "two.txt", "three.txt"] {
+            fs::write(root.join(name), name).expect("seed file");
+        }
+        let mut explorer = ExplorerViewRuntime::new();
+        explorer
+            .open_workspace(root, "workspace:test".to_string())
+            .expect("workspace scan");
+        let root_id = explorer.root_node_id.clone().expect("root node id");
+
+        explorer
+            .scan_children_with_limit(&root_id, 1)
+            .expect("bounded rescan");
+
+        assert_eq!(
+            explorer.tree.node(&root_id).expect("root node").readiness,
+            NodeReadinessClass::PartiallyEnumerated
+        );
+        assert!(explorer
+            .last_error
+            .as_deref()
+            .is_some_and(|message| message.contains("limit=1")));
+    }
+
+    #[test]
     fn watcher_created_file_event_updates_loaded_parent_without_rescan() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().join("workspace");
@@ -6137,7 +6883,9 @@ fn load_labs_wedge_inspector_enabled() -> bool {
     [
         PathBuf::from(".aureline").join("settings.json"),
         PathBuf::from(".aureline").join("settings.jsonc"),
-        PathBuf::from(".logs").join("settings").join("labs.json"),
+        aureline_workspace::state_paths::application_state_root()
+            .join("settings")
+            .join("labs.json"),
     ]
     .into_iter()
     .any(|path| {
@@ -6203,7 +6951,7 @@ struct WorkspaceLifecycleLogKey {
 
 impl WorkspaceLifecycleRuntimeState {
     fn new() -> Self {
-        let base = PathBuf::from(".logs").join("workspace");
+        let base = aureline_workspace::state_paths::application_state_root().join("workspace");
         Self {
             machine: None,
             last_logged: None,
@@ -6716,7 +7464,7 @@ impl ActivityCenterRuntimeState {
         let root = recent_work_store_path
             .parent()
             .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from(".logs").join("recent_work"));
+            .unwrap_or_else(aureline_workspace::state_paths::recent_work_root);
         let store_path = root.join("activity_center_rows.json");
         match ActivityCenterRuntime::file_backed(&store_path) {
             Ok(runtime) => Self {
@@ -6919,13 +7667,13 @@ impl ActivityCenterRuntimeState {
             operation_id,
             remote_url,
             destination_path,
-            "completed",
-            SeverityClass::Success,
+            "acquired_pending_trust",
+            SeverityClass::Warning,
             DurableJobObservation::completed(
-                format!("Cloned into {}", destination_path.display()),
+                "Repository bytes acquired; trust review and setup remain pending".to_string(),
                 Some(format!("obj:clone:{operation_id}")),
             ),
-            Some(FanoutSurfaceClass::Toast),
+            Some(FanoutSurfaceClass::ContextualBanner),
         );
     }
 
@@ -6960,10 +7708,9 @@ impl ActivityCenterRuntimeState {
             review.classification.display_label()
         );
         let detail = format!(
-            "{} for {} into {}",
+            "{} classified as {}; destination retained only in live review authority",
             review.discovered_item_count_label(),
-            review.source_path,
-            review.destination_workspace_target
+            review.classification.as_str()
         );
         let severity_class = match review.decision_class {
             ImportReviewDecisionClass::ApplyAfterPreview => SeverityClass::Success,
@@ -7008,6 +7755,9 @@ impl ActivityCenterRuntimeState {
         let source_event_ref = format!("workspace-clone:{operation_id}");
         let summary_label = match phase {
             "completed" => format!("Clone completed: {destination_label}"),
+            "acquired_pending_trust" => {
+                format!("Repository acquired; trust pending: {destination_label}")
+            }
             "failed" => format!("Clone failed: {destination_label}"),
             _ => format!("Clone running: {destination_label}"),
         };
@@ -7419,6 +8169,27 @@ impl AppearanceRuntimeState {
             install_session_overlay_if_needed(&mut resolver, &session);
         }
 
+        let imported_store =
+            ImportedProfileStore::new(aureline_workspace::state_paths::imports_root());
+        match imported_store.load_resolver_overlay_for_target(
+            "profile:default",
+            &SchemaRegistry::with_seed_catalog(),
+        ) {
+            Ok(Some(imported_overlay)) => {
+                if let Err(err) = resolver.set_overlay(imported_overlay) {
+                    resolver.clear_overlay(SettingScope::ImportedProfileDefault);
+                    last_error = Some(format!("imported profile activation failed: {err}"));
+                }
+            }
+            Ok(None) => {
+                resolver.clear_overlay(SettingScope::ImportedProfileDefault);
+            }
+            Err(err) => {
+                resolver.clear_overlay(SettingScope::ImportedProfileDefault);
+                last_error = Some(format!("imported profile load failed: {err}"));
+            }
+        }
+
         let mut state = Self {
             store_path,
             policy_path,
@@ -7707,7 +8478,7 @@ impl AppearanceRuntimeState {
 fn appearance_state_root() -> PathBuf {
     env::var_os("AURELINE_APPEARANCE_STATE_ROOT")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(".logs"))
+        .unwrap_or_else(aureline_workspace::state_paths::application_state_root)
 }
 
 fn appearance_settings_resolver_with_defaults() -> EffectiveSettingsResolver {
@@ -8178,7 +8949,6 @@ fn workspace_id_for_local_folder(identity_key: &str) -> String {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LocalFolderOpenSource {
     CliArgument,
-    CloneRepository,
     FolderPicker,
 }
 
@@ -8186,7 +8956,6 @@ impl LocalFolderOpenSource {
     const fn status_label(self) -> &'static str {
         match self {
             Self::CliArgument => "opened folder from CLI",
-            Self::CloneRepository => "opened cloned repository",
             Self::FolderPicker => "opened folder",
         }
     }
@@ -8263,12 +9032,12 @@ fn poll_clone_jobs(
     clone_jobs: &mut CloneJobRuntimeState,
     command_runtime: &mut CommandRuntimeState,
     frame: &mut DesktopFrame,
-    editor_runtime: &mut EditorWorkspaceRuntimeState,
-    palette: &mut CommandPaletteState,
+    _editor_runtime: &mut EditorWorkspaceRuntimeState,
+    _palette: &mut CommandPaletteState,
     overlay: &mut Option<ShellOverlayState>,
-    enablement_runtime: &CommandEnablementRuntimeState,
-    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
-    recent_work: &mut RecentWorkRuntimeState,
+    _enablement_runtime: &CommandEnablementRuntimeState,
+    _workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
+    _recent_work: &mut RecentWorkRuntimeState,
     activity_center: &mut ActivityCenterRuntimeState,
 ) -> bool {
     let Some(job) = clone_jobs.active.as_mut() else {
@@ -8276,8 +9045,17 @@ fn poll_clone_jobs(
     };
 
     let mut changed = false;
-    let mut completed: Option<Result<(), CloneError>> = None;
-    while let Ok(message) = job.receiver.try_recv() {
+    let mut disconnected = false;
+    let mut completed: Option<Result<CloneOutcome, CloneFailure>> = None;
+    loop {
+        let message = match job.receiver.try_recv() {
+            Ok(message) => message,
+            Err(mpsc::TryRecvError::Empty) => break,
+            Err(mpsc::TryRecvError::Disconnected) => {
+                disconnected = true;
+                break;
+            }
+        };
         changed = true;
         match message {
             CloneWorkerMessage::Progress(event) => {
@@ -8299,6 +9077,29 @@ fn poll_clone_jobs(
     }
 
     let Some(result) = completed else {
+        if disconnected {
+            let job = clone_jobs
+                .active
+                .take()
+                .expect("clone job exists after worker disconnect");
+            let err = CloneError::new(
+                CloneErrorClass::Io,
+                "clone worker stopped without a completion record",
+            );
+            activity_center.note_clone_failed(
+                &job.operation_id,
+                &job.request.remote_url,
+                &job.request.destination_path,
+                &err,
+            );
+            command_runtime.record(invocation_and_result_clone_failed(&job.session, &err));
+            set_clone_sheet_status(
+                overlay,
+                format!("{}: {}", err.class.as_str(), err.message),
+                false,
+            );
+            return true;
+        }
         return changed;
     };
 
@@ -8307,42 +9108,48 @@ fn poll_clone_jobs(
         .take()
         .expect("clone job exists after completed message");
     match result {
-        Ok(()) => {
+        Ok(outcome) => {
             activity_center.note_clone_completed(
                 &job.operation_id,
                 &job.request.remote_url,
-                &job.request.destination_path,
+                &outcome.destination_path,
             );
             command_runtime.record(invocation_and_result_clone_succeeded(
                 &job.session,
-                &job.request.destination_path,
+                &outcome,
             ));
-            set_clone_sheet_status(overlay, "clone completed".to_string(), false);
-            open_local_folder_workspace(
-                &job.request.destination_path,
-                LocalFolderOpenSource::CloneRepository,
-                command_runtime,
-                frame,
-                editor_runtime,
-                palette,
-                enablement_runtime,
-                workspace_lifecycle,
-                recent_work,
-                activity_center,
+            set_clone_sheet_status(
+                overlay,
+                "Repository acquired. Trust review and setup remain pending; use Open Folder to enter the normal admission flow."
+                    .to_string(),
+                false,
             );
-            if let Some(state) = overlay.as_mut() {
-                state.close(frame);
-            }
-            *overlay = None;
+            frame.focus_zone(ShellZoneId::TransientOverlay);
+            command_runtime
+                .note_non_command_action("clone materialized; trust and setup remain pending");
         }
-        Err(err) => {
+        Err(failure) => {
+            let interrupted_state = failure.interrupted_state();
+            let err = failure.error().clone();
+            let partial_recovery_ref = failure
+                .partial()
+                .is_some()
+                .then(|| format!("clone-partial-recovery:{}", job.operation_id));
+            if let Some(partial) = failure.into_partial() {
+                clone_jobs.partial_acquisitions.push(partial);
+            }
             activity_center.note_clone_failed(
                 &job.operation_id,
                 &job.request.remote_url,
                 &job.request.destination_path,
                 &err,
             );
-            command_runtime.record(invocation_and_result_clone_failed(&job.session, &err));
+            command_runtime.record(invocation_and_result_clone_failed_with_recovery(
+                &job.session,
+                &err,
+                Some(interrupted_state),
+                partial_recovery_ref.as_deref(),
+            ));
             command_runtime.note_non_command_action(format!(
                 "clone failed - {} ({})",
                 err.class.as_str(),
@@ -8350,7 +9157,12 @@ fn poll_clone_jobs(
             ));
             set_clone_sheet_status(
                 overlay,
-                format!("{}: {}", err.class.as_str(), err.message),
+                format!(
+                    "{}: {} (recovery: {})",
+                    err.class.as_str(),
+                    err.message,
+                    interrupted_state.as_str()
+                ),
                 false,
             );
         }
@@ -8361,6 +9173,7 @@ fn poll_clone_jobs(
 fn clone_progress_label(event: &CloneProgressEvent) -> String {
     match event.phase {
         CloneProgressPhase::Starting => "Starting clone".to_string(),
+        CloneProgressPhase::Verifying => "Verifying reviewed commit".to_string(),
         CloneProgressPhase::Completed => "Clone completed".to_string(),
         CloneProgressPhase::Progress => event.message.clone(),
     }
@@ -9224,6 +10037,60 @@ fn dispatch_command_id_with_arguments_and_io(
     )
 }
 
+fn open_import_profile_flow_sheet(
+    frame: &mut DesktopFrame,
+    overlay: &mut Option<ShellOverlayState>,
+    origin: DispatchOrigin,
+    argument_provenance_map: Vec<ArgumentProvenanceEntry>,
+) {
+    let outcome = resolve_entry_flow(EntryFlowRequest {
+        entry_verb: EntryVerb::Import,
+        target: EntryFlowTarget::ExplicitTargetKind(TargetKind::CompetitorConfigRoot),
+        preferred_resulting_mode: Some(ResultingMode::ExtractThenReview),
+    });
+    *overlay = Some(ShellOverlayState::entry_flow_sheet(
+        frame.focused_zone(),
+        frame.focused_editor_group(),
+        outcome,
+        "cmd:workspace.import_profile".to_string(),
+        origin,
+        argument_provenance_map,
+        None,
+        Some(
+            "Review builds an exact body-derived preview; apply checkpoints and activates admitted settings."
+                .to_string(),
+        ),
+    ));
+    frame.focus_zone(ShellZoneId::TransientOverlay);
+}
+
+fn open_clone_repository_flow_sheet(
+    frame: &mut DesktopFrame,
+    overlay: &mut Option<ShellOverlayState>,
+    origin: DispatchOrigin,
+    argument_provenance_map: Vec<ArgumentProvenanceEntry>,
+) {
+    let outcome = resolve_entry_flow(EntryFlowRequest {
+        entry_verb: EntryVerb::Clone,
+        target: EntryFlowTarget::ExplicitTargetKind(TargetKind::RemoteRepository),
+        preferred_resulting_mode: Some(ResultingMode::CloneThenReview),
+    });
+    *overlay = Some(ShellOverlayState::entry_flow_sheet(
+        frame.focused_zone(),
+        frame.focused_editor_group(),
+        outcome,
+        "cmd:workspace.clone_repository".to_string(),
+        origin,
+        argument_provenance_map,
+        None,
+        Some(
+            "Tab through remote, destination, reviewed ref, and full 40/64-hex commit OID; acquisition never grants trust or runs setup."
+                .to_string(),
+        ),
+    ));
+    frame.focus_zone(ShellZoneId::TransientOverlay);
+}
+
 fn dispatch_registry_entry(
     command_runtime: &mut CommandRuntimeState,
     registry: &CommandRegistry,
@@ -9277,50 +10144,23 @@ fn dispatch_registry_entry(
         approval_ticket_ref.clone(),
     );
 
-    if entry.descriptor.command_id == "cmd:workspace.clone_repository"
-        && clone_request_from_argument_map(&session.argument_provenance_map).is_err()
-    {
-        let outcome = resolve_entry_flow(EntryFlowRequest {
-            entry_verb: EntryVerb::Clone,
-            target: EntryFlowTarget::ExplicitTargetKind(TargetKind::RemoteRepository),
-            preferred_resulting_mode: Some(ResultingMode::CloneThenReview),
-        });
-        *overlay = Some(ShellOverlayState::entry_flow_sheet(
-            frame.focused_zone(),
-            frame.focused_editor_group(),
-            outcome,
-            entry.descriptor.command_id.clone(),
+    if entry.descriptor.command_id == "cmd:workspace.clone_repository" {
+        open_clone_repository_flow_sheet(
+            frame,
+            overlay,
             origin,
             session.argument_provenance_map.clone(),
-            None,
-            None,
-        ));
-        frame.focus_zone(ShellZoneId::TransientOverlay);
+        );
         return true;
     }
 
-    if entry.descriptor.command_id == "cmd:workspace.import_profile"
-        && import_source_path_from_argument_map(&session.argument_provenance_map).is_none()
-    {
-        let outcome = resolve_entry_flow(EntryFlowRequest {
-            entry_verb: EntryVerb::Import,
-            target: EntryFlowTarget::ExplicitTargetKind(TargetKind::CompetitorConfigRoot),
-            preferred_resulting_mode: Some(ResultingMode::ExtractThenReview),
-        });
-        *overlay = Some(ShellOverlayState::entry_flow_sheet(
-            frame.focused_zone(),
-            frame.focused_editor_group(),
-            outcome,
-            entry.descriptor.command_id.clone(),
+    if entry.descriptor.command_id == "cmd:workspace.import_profile" {
+        open_import_profile_flow_sheet(
+            frame,
+            overlay,
             origin,
             session.argument_provenance_map.clone(),
-            Some(DegradedStateToken::Labs),
-            Some(
-                "Review is available; apply records the import plan without changing settings."
-                    .to_string(),
-            ),
-        ));
-        frame.focus_zone(ShellZoneId::TransientOverlay);
+        );
         return true;
     }
 
@@ -9663,12 +10503,7 @@ fn dispatch_registry_entry(
                 .terminal_pane
                 .ensure_session_for_active_workspace(trust_state, &mono_timestamp_now())
                 .is_some();
-            if session_opened {
-                if frame.focused_zone() == ShellZoneId::BottomPanel {
-                    frame.focus_zone(ShellZoneId::MainWorkspace);
-                } else {
-                    frame.focus_zone(ShellZoneId::BottomPanel);
-                }
+            if toggle_terminal_focus(frame, session_opened) {
                 command_runtime.note_non_command_action("terminal toggled");
                 command_runtime.record(invocation_and_result_simple_success(&session, "succeeded"));
             } else {
@@ -9726,17 +10561,17 @@ fn dispatch_registry_entry(
             true
         }
         "cmd:workspace.clone_repository" => {
-            let err = CloneError::new(
-                CloneErrorClass::InvalidInput,
-                "clone requires the clone flow sheet",
+            open_clone_repository_flow_sheet(
+                frame,
+                overlay,
+                origin,
+                session.argument_provenance_map.clone(),
             );
-            command_runtime.record(invocation_and_result_clone_failed(&session, &err));
-            command_runtime.note_non_command_action("clone requires the clone flow sheet");
             true
         }
         "cmd:workspace.restore_from_checkpoint" => {
-            let recovery_root = PathBuf::from(".logs").join("recovery");
-            let mut direct_session_store = SessionRestoreStore::new(&recovery_root);
+            let mut direct_session_store =
+                SessionRestoreStore::new(aureline_workspace::state_paths::session_root());
             let changed = apply_restore_from_checkpoint(
                 command_runtime,
                 frame,
@@ -9756,8 +10591,12 @@ fn dispatch_registry_entry(
             true
         }
         "cmd:workspace.import_profile" => {
-            let review = import_review_from_argument_map(&session.argument_provenance_map);
-            record_import_review_stub(command_runtime, activity_center, &session, &review);
+            open_import_profile_flow_sheet(
+                frame,
+                overlay,
+                origin,
+                session.argument_provenance_map.clone(),
+            );
             true
         }
         _ => {
@@ -9766,6 +10605,18 @@ fn dispatch_registry_entry(
             true
         }
     }
+}
+
+fn toggle_terminal_focus(frame: &mut DesktopFrame, session_available: bool) -> bool {
+    if !session_available {
+        return false;
+    }
+    if frame.focused_zone() == ShellZoneId::BottomPanel {
+        frame.focus_zone(ShellZoneId::MainWorkspace);
+    } else {
+        frame.focus_zone(ShellZoneId::BottomPanel);
+    }
+    true
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10452,7 +11303,7 @@ fn invocation_and_result_open_folder_cancelled(
 
 fn invocation_and_result_clone_succeeded(
     session: &CommandInvocationSession,
-    destination_path: &Path,
+    clone: &CloneOutcome,
 ) -> RecordedCommandInvocation {
     let preview_ref = session
         .preview_posture
@@ -10462,12 +11313,40 @@ fn invocation_and_result_clone_succeeded(
     let journal_entry_ref = session
         .invocation_session_id
         .replacen("inv:", "journal-entry:", 1);
-    let artifact_ref = format!("workspace-root:{}", destination_path.display());
+    let artifact_ref = format!(
+        "workspace-root:{:016x}",
+        fnv1a_64(&clone.destination_path.display().to_string())
+    );
+    let commit_ref = format!("git-commit:{}", clone.materialized_commit_oid);
+    let mut acquisition_evidence = vec![
+        EvidenceRefEntry {
+            evidence_ref_class: "source_locator_record_ref".to_string(),
+            evidence_id: clone.source_locator_record_ref.clone(),
+        },
+        EvidenceRefEntry {
+            evidence_ref_class: "checkout_plan_record_ref".to_string(),
+            evidence_id: clone.checkout_plan_record_ref.clone(),
+        },
+        EvidenceRefEntry {
+            evidence_ref_class: "policy_decision_ref".to_string(),
+            evidence_id: clone.policy_decision_ref.clone(),
+        },
+        EvidenceRefEntry {
+            evidence_ref_class: "materialized_commit_ref".to_string(),
+            evidence_id: commit_ref.clone(),
+        },
+    ];
+    if let Some(transport_ref) = clone.transport_decision_ref.as_ref() {
+        acquisition_evidence.push(EvidenceRefEntry {
+            evidence_ref_class: "transport_decision_ref".to_string(),
+            evidence_id: transport_ref.clone(),
+        });
+    }
 
     let outcome = InvocationOutcomeBlock {
-        outcome_class: "succeeded".to_string(),
+        outcome_class: "succeeded_with_warnings".to_string(),
         disabled_reason_code: None,
-        warnings_summary_refs: Vec::new(),
+        warnings_summary_refs: vec!["trust_and_setup_pending".to_string()],
         partially_applied_artifact_refs: Vec::new(),
         unapplied_artifact_refs: Vec::new(),
     };
@@ -10483,21 +11362,25 @@ fn invocation_and_result_clone_succeeded(
                 artifact_ref: journal_entry_ref.clone(),
             },
         ],
-        vec![
-            EvidenceRefEntry {
-                evidence_ref_class: "preview_record_ref".to_string(),
-                evidence_id: preview_ref.clone(),
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "mutation_journal_entry_ref".to_string(),
-                evidence_id: journal_entry_ref.clone(),
-            },
-        ],
+        {
+            let mut evidence = vec![
+                EvidenceRefEntry {
+                    evidence_ref_class: "preview_record_ref".to_string(),
+                    evidence_id: preview_ref.clone(),
+                },
+                EvidenceRefEntry {
+                    evidence_ref_class: "mutation_journal_entry_ref".to_string(),
+                    evidence_id: journal_entry_ref.clone(),
+                },
+            ];
+            evidence.extend(acquisition_evidence.iter().cloned());
+            evidence
+        },
     );
 
     let result = ResultBodyBlock {
-        outcome_code: "succeeded".to_string(),
-        warning_codes: Vec::new(),
+        outcome_code: "succeeded_with_warnings".to_string(),
+        warning_codes: vec!["trust_and_setup_pending".to_string()],
         error_codes: Vec::new(),
         created_artifact_refs: vec![
             ArtifactRefEntry {
@@ -10515,6 +11398,11 @@ fn invocation_and_result_clone_succeeded(
                 artifact_ref,
                 artifact_role: "primary_result".to_string(),
             },
+            ArtifactRefEntry {
+                result_contract_class: "artifact_created_ref".to_string(),
+                artifact_ref: commit_ref,
+                artifact_role: "materialized_commit_identity".to_string(),
+            },
         ],
         notification_refs: Vec::new(),
         activity_refs: Vec::new(),
@@ -10523,10 +11411,14 @@ fn invocation_and_result_clone_succeeded(
             rollback_handle_id: None,
         },
         checkpoint_refs: Vec::new(),
-        evidence_refs: vec![EvidenceRefEntry {
-            evidence_ref_class: "mutation_journal_entry_ref".to_string(),
-            evidence_id: journal_entry_ref,
-        }],
+        evidence_refs: {
+            let mut evidence = vec![EvidenceRefEntry {
+                evidence_ref_class: "mutation_journal_entry_ref".to_string(),
+                evidence_id: journal_entry_ref,
+            }];
+            evidence.extend(acquisition_evidence);
+            evidence
+        },
         export_posture: ExportPostureBlock {
             export_posture_class: "exportable_with_redaction".to_string(),
             redaction_class: session.redaction_class.clone(),
@@ -10552,53 +11444,89 @@ fn invocation_and_result_clone_succeeded(
 
 fn invocation_and_result_clone_failed(
     session: &CommandInvocationSession,
-    _error: &CloneError,
+    error: &CloneError,
+) -> RecordedCommandInvocation {
+    invocation_and_result_clone_failed_with_recovery(session, error, None, None)
+}
+
+fn invocation_and_result_clone_failed_with_recovery(
+    session: &CommandInvocationSession,
+    error: &CloneError,
+    interrupted_state: Option<CloneInterruptedState>,
+    partial_recovery_ref: Option<&str>,
 ) -> RecordedCommandInvocation {
     let preview_ref = session
         .preview_posture
         .preview_record_ref
         .clone()
         .unwrap_or_else(|| mint_preview_record_ref(&session.canonical_verb));
+    let partial_artifacts = partial_recovery_ref
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    let recovery_warning = interrupted_state
+        .filter(|state| *state != CloneInterruptedState::NoPartialBytes)
+        .map(|state| format!("clone_{}", state.as_str()));
 
     let outcome = InvocationOutcomeBlock {
         outcome_class: "failed_with_typed_error".to_string(),
         disabled_reason_code: None,
-        warnings_summary_refs: Vec::new(),
-        partially_applied_artifact_refs: Vec::new(),
+        warnings_summary_refs: recovery_warning.iter().cloned().collect(),
+        partially_applied_artifact_refs: partial_artifacts.clone(),
         unapplied_artifact_refs: Vec::new(),
     };
-    let session_packet = session.invocation_session_packet(
-        outcome,
-        vec![InvocationCreatedArtifactRefEntry {
-            result_contract_class: "preview_record_emitted_ref".to_string(),
-            artifact_ref: preview_ref.clone(),
-        }],
-        vec![EvidenceRefEntry {
-            evidence_ref_class: "preview_record_ref".to_string(),
-            evidence_id: preview_ref.clone(),
-        }],
-    );
+    let mut invocation_artifacts = vec![InvocationCreatedArtifactRefEntry {
+        result_contract_class: "preview_record_emitted_ref".to_string(),
+        artifact_ref: preview_ref.clone(),
+    }];
+    if let Some(partial_ref) = partial_recovery_ref {
+        invocation_artifacts.push(InvocationCreatedArtifactRefEntry {
+            result_contract_class: "partially_applied_artifact_ref".to_string(),
+            artifact_ref: partial_ref.to_string(),
+        });
+    }
+    let mut evidence = vec![EvidenceRefEntry {
+        evidence_ref_class: "preview_record_ref".to_string(),
+        evidence_id: preview_ref.clone(),
+    }];
+    if let Some(partial_ref) = partial_recovery_ref {
+        evidence.push(EvidenceRefEntry {
+            evidence_ref_class: "partial_acquisition_recovery_ref".to_string(),
+            evidence_id: partial_ref.to_string(),
+        });
+    }
+    let session_packet =
+        session.invocation_session_packet(outcome, invocation_artifacts, evidence.clone());
 
+    let mut result_artifacts = vec![ArtifactRefEntry {
+        result_contract_class: "preview_record_emitted_ref".to_string(),
+        artifact_ref: preview_ref,
+        artifact_role: "preview_record".to_string(),
+    }];
+    if let Some(partial_ref) = partial_recovery_ref {
+        result_artifacts.push(ArtifactRefEntry {
+            result_contract_class: "partially_applied_artifact_ref".to_string(),
+            artifact_ref: partial_ref.to_string(),
+            artifact_role: "interrupted_acquisition_recovery".to_string(),
+        });
+    }
     let result = ResultBodyBlock {
         outcome_code: "failed_with_typed_error".to_string(),
-        warning_codes: Vec::new(),
-        error_codes: vec!["typed_runtime_failure".to_string()],
-        created_artifact_refs: vec![ArtifactRefEntry {
-            result_contract_class: "preview_record_emitted_ref".to_string(),
-            artifact_ref: preview_ref.clone(),
-            artifact_role: "preview_record".to_string(),
-        }],
+        warning_codes: recovery_warning.into_iter().collect(),
+        error_codes: vec![format!("clone_{}", error.class.as_str())],
+        created_artifact_refs: result_artifacts,
         notification_refs: Vec::new(),
         activity_refs: Vec::new(),
         rollback_handle_ref: RollbackHandleRefBlock {
-            rollback_handle_posture: "not_applicable_no_mutation".to_string(),
-            rollback_handle_id: None,
+            rollback_handle_posture: if partial_recovery_ref.is_some() {
+                "handle_available".to_string()
+            } else {
+                "not_applicable_no_mutation".to_string()
+            },
+            rollback_handle_id: partial_recovery_ref.map(str::to_string),
         },
         checkpoint_refs: Vec::new(),
-        evidence_refs: vec![EvidenceRefEntry {
-            evidence_ref_class: "preview_record_ref".to_string(),
-            evidence_id: preview_ref,
-        }],
+        evidence_refs: evidence,
         export_posture: ExportPostureBlock {
             export_posture_class: "exportable_with_redaction".to_string(),
             redaction_class: session.redaction_class.clone(),
@@ -10975,17 +11903,19 @@ fn finalize_command_overlay_decision(
             }
             match entry.descriptor.command_id.as_str() {
                 "cmd:workspace.import_profile" => {
-                    let review = import_review_from_argument_map(&session.argument_provenance_map);
-                    record_import_review_stub(command_runtime, activity_center, &session, &review);
+                    open_import_profile_flow_sheet(
+                        frame,
+                        overlay,
+                        DispatchOrigin::from_issuing_surface(&session.issuing_surface),
+                        session.argument_provenance_map.clone(),
+                    );
                 }
                 "cmd:workspace.clone_repository" => {
-                    let err = CloneError::new(
-                        CloneErrorClass::InvalidInput,
-                        "clone requires a remote URL and destination path",
-                    );
-                    command_runtime.record(invocation_and_result_clone_failed(&session, &err));
-                    command_runtime.note_non_command_action(
-                        "clone requires a remote URL and destination path",
+                    open_clone_repository_flow_sheet(
+                        frame,
+                        overlay,
+                        DispatchOrigin::from_issuing_surface(&session.issuing_surface),
+                        session.argument_provenance_map.clone(),
                     );
                 }
                 "cmd:workspace.restore_from_checkpoint" => {
@@ -11069,8 +11999,9 @@ fn apply_restore_from_checkpoint(
     activity_center: &mut ActivityCenterRuntimeState,
     session: &CommandInvocationSession,
 ) -> bool {
-    let recovery_root = PathBuf::from(".logs").join("recovery");
-    let crash_journal_reader = CrashJournalStore::new(&recovery_root);
+    let session_root = aureline_workspace::state_paths::session_root();
+    let crash_journal_reader =
+        CrashJournalStore::new(aureline_workspace::state_paths::recovery_journal_root());
     let proposal = match RestoreProposal::build(session_restore_store, &crash_journal_reader, false)
     {
         Ok(proposal) => proposal,
@@ -11091,7 +12022,7 @@ fn apply_restore_from_checkpoint(
         );
         let mut runtime = RestoreRuntime::new(session_restore_store, &crash_journal_reader);
         let outcome = proposal.execute(&mut runtime);
-        if let Err(err) = write_restore_outcome_log(&recovery_root, &outcome) {
+        if let Err(err) = write_restore_outcome_log(&session_root, &outcome) {
             command_runtime
                 .note_non_command_action(format!("restore outcome log unavailable — {err}"));
         }
@@ -11101,7 +12032,7 @@ fn apply_restore_from_checkpoint(
         return false;
     }
 
-    if let Err(err) = write_restore_proposal_log(&recovery_root, &proposal) {
+    if let Err(err) = write_restore_proposal_log(&session_root, &proposal) {
         command_runtime
             .note_non_command_action(format!("restore proposal log unavailable — {err}"));
     }
@@ -11109,7 +12040,7 @@ fn apply_restore_from_checkpoint(
     let workspace_authority_ref = proposal.artifact_refs.workspace_authority_ref.clone();
     let mut runtime = RestoreRuntime::new(session_restore_store, &crash_journal_reader);
     let outcome = proposal.execute(&mut runtime);
-    if let Err(err) = write_restore_outcome_log(&recovery_root, &outcome) {
+    if let Err(err) = write_restore_outcome_log(&session_root, &outcome) {
         command_runtime.note_non_command_action(format!("restore outcome log unavailable — {err}"));
     }
     let applied = apply_restore_outcome_to_shell(
@@ -11126,8 +12057,10 @@ fn apply_restore_from_checkpoint(
     );
 
     command_runtime.note_non_command_action(format!(
-        "restore applied (no auto-rerun) — panes={panes}; dirty_buffers={dirty}; blocked_side_effectful={blocked}; failures={failures} — {summary}",
+        "restore applied (no auto-rerun) — panes={panes}; hydrated={hydrated}; missing={missing}; dirty_buffers={dirty}; blocked_side_effectful={blocked}; failures={failures} — {summary}",
         panes = applied.panes_opened,
+        hydrated = applied.file_bindings_hydrated,
+        missing = applied.missing_bindings_retained,
         dirty = applied.dirty_buffers_replayed,
         blocked = outcome.blocked_side_effectful_count(),
         failures = outcome.dirty_buffer_failures.len(),
@@ -11143,6 +12076,8 @@ fn apply_restore_from_checkpoint(
 struct RestoreShellApplySummary {
     panes_opened: usize,
     dirty_buffers_replayed: usize,
+    file_bindings_hydrated: usize,
+    missing_bindings_retained: usize,
 }
 
 fn apply_restore_outcome_to_shell(
@@ -11157,7 +12092,6 @@ fn apply_restore_outcome_to_shell(
     activity_center: &mut ActivityCenterRuntimeState,
     command_runtime: &mut CommandRuntimeState,
 ) -> RestoreShellApplySummary {
-    let mut summary = RestoreShellApplySummary::default();
     let workspace_admission =
         restore_workspace_root_from_authority(workspace_authority_ref, editor_runtime, recent_work);
     let admitted_restore_root = if let Some(admission) = workspace_admission.as_ref() {
@@ -11178,6 +12112,43 @@ fn apply_restore_outcome_to_shell(
         None
     };
 
+    let mut summary = apply_restore_panes_to_shell(
+        outcome,
+        frame,
+        editor_runtime,
+        admitted_restore_root.as_ref(),
+    );
+
+    for replay in &outcome.dirty_buffer_replays {
+        let file_path =
+            restore_file_path_for_object_ref(&replay.object_ref, admitted_restore_root.as_ref());
+        let Some(tab) = frame.open_tab() else {
+            continue;
+        };
+        let group = frame.focused_editor_group();
+        match editor_runtime.open_recovered_dirty_buffer(group, tab, replay, file_path.as_deref()) {
+            Ok(()) => {
+                summary.dirty_buffers_replayed += 1;
+            }
+            Err(err) => {
+                command_runtime.note_non_command_action(format!(
+                    "dirty-buffer restore failed ({}) — {err}",
+                    opaque_restore_replay_ref(&replay.journal_entry_id, &replay.object_ref)
+                ));
+            }
+        }
+    }
+
+    summary
+}
+
+fn apply_restore_panes_to_shell(
+    outcome: &RestoreOutcome,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    admitted_restore_root: Option<&LocalFilesystemRoot>,
+) -> RestoreShellApplySummary {
+    let mut summary = RestoreShellApplySummary::default();
     for pane in &outcome.pane_outcomes {
         if pane.execution_kind == RestorePaneExecutionKind::EvidenceOnly {
             continue;
@@ -11198,31 +12169,101 @@ fn apply_restore_outcome_to_shell(
             .title_hint
             .clone()
             .unwrap_or_else(|| "Restored pane".to_string());
+        if pane.execution_kind == RestorePaneExecutionKind::Reopened {
+            if let (Some(root), Some(binding)) =
+                (admitted_restore_root, pane.surface_binding_ref.as_deref())
+            {
+                if let Some(path) = resolve_restore_binding_in_admitted_root(root, binding) {
+                    if editor_runtime.open_file(group, tab, &path).is_ok() {
+                        summary.panes_opened += 1;
+                        summary.file_bindings_hydrated += 1;
+                        continue;
+                    }
+                }
+            }
+            editor_runtime.open_restore_placeholder(
+                group,
+                tab,
+                label,
+                "The prior document identity could not be resolved inside the admitted workspace. Locate or reopen the file to repair this slot.",
+            );
+            summary.panes_opened += 1;
+            summary.missing_bindings_retained += 1;
+            continue;
+        }
         editor_runtime.open_restore_placeholder(group, tab, label, &pane.note);
         summary.panes_opened += 1;
     }
 
-    for replay in &outcome.dirty_buffer_replays {
-        let file_path =
-            restore_file_path_for_object_ref(&replay.object_ref, admitted_restore_root.as_ref());
-        let Some(tab) = frame.open_tab() else {
-            continue;
-        };
-        let group = frame.focused_editor_group();
-        match editor_runtime.open_recovered_dirty_buffer(group, tab, replay, file_path) {
-            Ok(()) => {
-                summary.dirty_buffers_replayed += 1;
+    summary
+}
+
+const RESTORE_BINDING_SCAN_LIMIT: usize = 20_000;
+
+fn resolve_restore_binding_in_admitted_root(
+    root: &LocalFilesystemRoot,
+    expected_logical_document_ref: &str,
+) -> Option<PathBuf> {
+    resolve_restore_binding_with_limit(
+        root,
+        expected_logical_document_ref,
+        RESTORE_BINDING_SCAN_LIMIT,
+    )
+}
+
+fn resolve_restore_binding_with_limit(
+    root: &LocalFilesystemRoot,
+    expected_logical_document_ref: &str,
+    scan_limit: usize,
+) -> Option<PathBuf> {
+    if !expected_logical_document_ref.starts_with("ld:") {
+        return None;
+    }
+    let mut pending = vec![root.mount_path().to_path_buf()];
+    let mut inspected = 0usize;
+    while let Some(directory) = pending.pop() {
+        let entries = std::fs::read_dir(directory).ok()?;
+        for entry in entries {
+            if inspected >= scan_limit {
+                return None;
             }
-            Err(err) => {
-                command_runtime.note_non_command_action(format!(
-                    "dirty-buffer restore failed ({}) — {err}",
-                    opaque_restore_replay_ref(&replay.journal_entry_id, &replay.object_ref)
-                ));
+            inspected += 1;
+            let entry = entry.ok()?;
+            let path = entry.path();
+            let metadata = match std::fs::symlink_metadata(&path) {
+                Ok(metadata) if !metadata.file_type().is_symlink() => metadata,
+                _ => continue,
+            };
+            let canonical = path.canonicalize().ok()?;
+            if !canonical.starts_with(root.mount_path()) {
+                return None;
+            }
+            if metadata.is_dir() {
+                if entry.file_name() != ".git" && entry.file_name() != "target" {
+                    pending.push(canonical);
+                }
+                continue;
+            }
+            if !metadata.is_file() {
+                continue;
+            }
+            let Some(uri) = VfsUri::file_url_for_path_lossy(&canonical) else {
+                continue;
+            };
+            let Ok(identity) = root.identity_record(&uri) else {
+                continue;
+            };
+            if aureline_history::checkpoints::logical_document_id(&identity)
+                == expected_logical_document_ref
+            {
+                return identity
+                    .canonical_filesystem_object
+                    .canonical_uri
+                    .file_path();
             }
         }
     }
-
-    summary
+    None
 }
 
 #[derive(Debug, Clone)]
@@ -11275,6 +12316,10 @@ fn recent_work_entry_matches_workspace_authority(
     expected_identity: &str,
 ) -> bool {
     entry.recent_work_id == expected_identity
+        || workspace_root_for_recent_work_entry(entry)
+            .map(|root| workspace_id_for_local_folder(&root.to_string_lossy()))
+            .as_deref()
+            == Some(expected_identity)
 }
 
 fn restore_workspace_admission_for_recent_entry(
@@ -12035,9 +13080,9 @@ fn start_center_flow_tuple(
             EntryVerb::Import,
             TargetKind::CompetitorConfigRoot,
             ResultingMode::ExtractThenReview,
-            Some(DegradedStateToken::Labs),
+            None,
             Some(
-                "Review is available; apply records the import plan without changing settings."
+                "Review builds an exact body-derived preview; apply checkpoints and activates admitted settings."
                     .to_string(),
             ),
         ),
@@ -12189,6 +13234,14 @@ fn submit_clone_from_entry_flow(
     activity_center: &mut ActivityCenterRuntimeState,
     decision: EntryFlowOverlayDecision,
 ) -> bool {
+    let Some(ref_selection) = decision.clone_ref_selection.clone() else {
+        set_clone_sheet_status(
+            overlay,
+            "clone review is missing an exact ref and commit OID".to_string(),
+            false,
+        );
+        return true;
+    };
     let Some(entry) = registry.get(&decision.command_id).cloned() else {
         set_clone_sheet_status(
             overlay,
@@ -12259,13 +13312,70 @@ fn submit_clone_from_entry_flow(
             return true;
         }
     };
-    let admission_packet = clone_form_admission_packet(
+    let mut admission_packet = clone_form_admission_packet(
         request.remote_url.as_str(),
         request.destination_path.display().to_string(),
     );
+    if let Some(review) = admission_packet.clone_review.as_mut() {
+        review.ref_choice = if ref_selection.reference == "HEAD" {
+            RefChoice::DefaultBranch
+        } else {
+            RefChoice::UserSelectedRef
+        };
+        review.route_note =
+            "Exact ref and full commit identity reviewed; submodules, LFS, setup, hooks, and trust remain deferred"
+                .to_string();
+    }
     record_admission_review_packet(command_runtime, &admission_packet);
 
-    match clone_jobs.start(request.clone(), session.clone()) {
+    let review_facts = match request.review_facts() {
+        Ok(facts) => facts,
+        Err(err) => {
+            command_runtime.record(invocation_and_result_clone_failed(&session, &err));
+            set_clone_sheet_status(
+                overlay,
+                format!("{}: {}", err.class.as_str(), err.message),
+                false,
+            );
+            return true;
+        }
+    };
+    let review_scope = admission_packet.admission_review_id.as_str();
+    let approval = CloneApproval {
+        review_record_ref: format!("clone-review:{review_scope}"),
+        source_locator_record_ref: format!("source-locator:{review_scope}"),
+        checkout_plan_record_ref: format!("checkout-plan:{review_scope}"),
+        policy_decision_ref: format!("policy-decision:clone-inert:{review_scope}"),
+        transport_decision_ref: review_facts
+            .canonical_local_source
+            .is_none()
+            .then(|| format!("transport-decision:vcs-network:{review_scope}")),
+        reviewed_transport: review_facts.transport,
+        reviewed_normalized_source: review_facts.normalized_source,
+        reviewed_destination_parent: review_facts.canonical_destination_parent,
+        reviewed_destination_leaf_name: review_facts.destination_leaf_name,
+        reviewed_local_source: review_facts.canonical_local_source,
+        reference: ref_selection,
+        topology: CloneTopologyPolicy::inert_full(),
+        authentication: CloneAuthentication::Anonymous,
+        transport_options: CloneTransportOptions::default(),
+        execution_policy: CloneExecutionPolicy::default(),
+        post_clone_action: ClonePostAction::ReviewTrustAndOpen,
+    };
+    let execution = match request.clone().approve(approval) {
+        Ok(execution) => execution,
+        Err(err) => {
+            command_runtime.record(invocation_and_result_clone_failed(&session, &err));
+            set_clone_sheet_status(
+                overlay,
+                format!("{}: {}", err.class.as_str(), err.message),
+                false,
+            );
+            return true;
+        }
+    };
+
+    match clone_jobs.start(request.clone(), execution, session.clone()) {
         Ok(operation_id) => {
             activity_center.note_clone_running(
                 &operation_id,
@@ -12310,6 +13420,7 @@ fn submit_import_from_entry_flow(
     overlay: &mut Option<ShellOverlayState>,
     enablement_runtime: &CommandEnablementRuntimeState,
     activity_center: &mut ActivityCenterRuntimeState,
+    appearance: &mut AppearanceRuntimeState,
     decision: EntryFlowOverlayDecision,
 ) -> bool {
     let Some(entry) = registry.get(&decision.command_id).cloned() else {
@@ -12383,47 +13494,96 @@ fn submit_import_from_entry_flow(
     {
         record_admission_review_packet(command_runtime, &admission_packet);
     }
-    record_import_review_stub(command_runtime, activity_center, &session, &review);
-    let status = match review.decision_class {
-        ImportReviewDecisionClass::ApplyAfterPreview => {
-            let packet = materialize_import_diff_review_packet(&review);
-            format!(
-                "diff preview and rollback checkpoint recorded: {} / {}",
-                packet.import_diff_preview_ref, packet.rollback_checkpoint.checkpoint_ref
-            )
-        }
-        ImportReviewDecisionClass::Decline => {
-            format!("import declined: {}", review.import_review_id)
-        }
-        ImportReviewDecisionClass::Defer => {
-            format!("import deferred: {}", review.status_line)
+    activity_center.note_import_review_recorded(&review);
+    let Some(preview) = decision.executable_import_preview.as_ref() else {
+        command_runtime.record(invocation_and_result_import_profile_cancelled(&session));
+        set_import_sheet_status(
+            overlay,
+            Some(review),
+            "import apply refused: exact live preview authority is missing; review again"
+                .to_string(),
+            false,
+        );
+        return true;
+    };
+    let store = ImportedProfileStore::new(aureline_workspace::state_paths::imports_root());
+    let outcome = match store.apply(
+        preview,
+        &session.invocation_session_id,
+        import_execution_policy_epoch(),
+    ) {
+        Ok(outcome) => outcome,
+        Err(err) => {
+            command_runtime.record(invocation_and_result_import_profile_failed(&session, &err));
+            set_import_sheet_status(
+                overlay,
+                Some(review),
+                format!("import apply refused — {err}"),
+                false,
+            );
+            return true;
         }
     };
+    let overlay_result = store
+        .load_resolver_overlay_for_target(
+            &review.destination_workspace_target,
+            &SchemaRegistry::with_seed_catalog(),
+        )
+        .and_then(|resolver_overlay| {
+            resolver_overlay.ok_or(
+                crate::import::ImportExecutionError::DurableStateUnavailable {
+                    reason_code: "profile_missing_after_apply",
+                },
+            )
+        });
+    let resolver_overlay = match overlay_result {
+        Ok(resolver_overlay) => resolver_overlay,
+        Err(err) => {
+            command_runtime.record(invocation_and_result_import_profile_activation_failed(
+                &session, preview, &outcome,
+            ));
+            set_import_sheet_status(
+                overlay,
+                Some(review),
+                format!(
+                    "import applied durably but effective activation failed — {err}; close and restart to reload the admitted profile"
+                ),
+                true,
+            );
+            return true;
+        }
+    };
+    if let Err(err) = appearance.resolver.set_overlay(resolver_overlay) {
+        command_runtime.record(invocation_and_result_import_profile_activation_failed(
+            &session, preview, &outcome,
+        ));
+        set_import_sheet_status(
+            overlay,
+            Some(review),
+            format!(
+                "import applied durably but resolver rejected activation — {err}; close and restart to reload the admitted profile"
+            ),
+            true,
+        );
+        return true;
+    }
+    appearance.sync_session_from_effective_settings();
+    appearance.persist();
+    command_runtime.record(invocation_and_result_import_profile_applied(
+        &session, preview, &outcome,
+    ));
+    let disposition = match outcome.disposition {
+        ImportApplyDisposition::Applied => "applied",
+        ImportApplyDisposition::AlreadyApplied => "already applied",
+        ImportApplyDisposition::NoChanges => "no changes",
+    };
+    let status = format!(
+        "import {disposition}: revision {}; rollback checkpoint {}",
+        outcome.revision,
+        outcome.checkpoint_ref.as_deref().unwrap_or("not required")
+    );
     set_import_sheet_status(overlay, Some(review), status, true);
     true
-}
-
-fn record_import_review_stub(
-    command_runtime: &mut CommandRuntimeState,
-    activity_center: &mut ActivityCenterRuntimeState,
-    session: &CommandInvocationSession,
-    review: &ImportReviewRecord,
-) {
-    write_import_review_log(review);
-    let diff_review = materialize_import_diff_review_packet(review);
-    write_import_diff_review_log(&diff_review);
-    command_runtime.record(invocation_and_result_import_profile_review_recorded(
-        session,
-        review,
-        &diff_review,
-    ));
-    activity_center.note_import_review_recorded(review);
-    command_runtime.note_non_command_action(format!(
-        "import diff review recorded - {} ({}) report={}",
-        review.classification.variant_name(),
-        review.decision_class.as_str(),
-        diff_review.retained_migration_report.migration_report_id
-    ));
 }
 
 fn record_admission_review_packet(
@@ -12434,10 +13594,41 @@ fn record_admission_review_packet(
         "{}.json",
         sanitize_activity_id_component(&packet.admission_review_id)
     );
-    let path = PathBuf::from(".logs")
+    let path = aureline_workspace::state_paths::logs_root()
         .join("admission_reviews")
         .join(filename);
-    match write_admission_review_log(packet, path) {
+    let projection = serde_json::json!({
+        "record_kind": "admission_review_metadata_projection",
+        "schema_version": 1,
+        "admission_review_id": packet.admission_review_id,
+        "source_surface": packet.source_surface.as_str(),
+        "entry_verb": packet.entry_verb.as_str(),
+        "target_kind": packet.target_kind.as_str(),
+        "resulting_mode": packet.resulting_mode.as_str(),
+        "target_identity_class": packet.normalized_target_identity.identity_class.as_str(),
+        "target_identity_ref": packet.normalized_target_identity.identity_ref,
+        "destination_disposition": packet.destination_review.disposition.as_str(),
+        "destination_review_required": packet.destination_review.review_required_before_write,
+        "write_scope_class": packet.write_scope.write_scope_class.as_str(),
+        "proposed_write_item_count": packet.write_scope.proposed_items.len(),
+        "no_silent_trust_grant": packet.trust_and_setup_review.no_silent_trust_grant,
+        "no_setup_execution": packet.trust_and_setup_review.no_setup_execution,
+        "no_task_or_hook_execution": packet.trust_and_setup_review.no_task_or_hook_execution,
+        "recovery_path_class": packet.recovery_posture.recovery_path_class.as_str(),
+        "collision_class": packet.collision_review.as_ref().map(|row| row.collision_class.as_str()),
+        "collision_action_count": packet.collision_review.as_ref().map_or(0, |row| row.safe_actions.len()),
+        "clone_ref_choice": packet.clone_review.as_ref().map(|row| row.ref_choice.as_str()),
+        "redaction_class": "metadata_safe_default"
+    });
+    let write_result = (|| -> Result<(), String> {
+        let parent = path
+            .parent()
+            .ok_or_else(|| "admission review log path has no parent".to_string())?;
+        std::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+        let json = serde_json::to_string_pretty(&projection).map_err(|err| err.to_string())?;
+        std::fs::write(path, format!("{json}\n")).map_err(|err| err.to_string())
+    })();
+    match write_result {
         Ok(()) => command_runtime.note_non_command_action(format!(
             "admission review recorded - {} {} {}",
             packet.entry_verb.as_str(),
@@ -12555,7 +13746,11 @@ fn set_import_sheet_status(
     {
         if let Some(form) = sheet.import_form.as_mut() {
             if let Some(review) = review {
-                form.diff_review_packet = Some(materialize_import_diff_review_packet(&review));
+                if form.executable_preview.is_none()
+                    && review.decision_class != ImportReviewDecisionClass::ApplyAfterPreview
+                {
+                    form.diff_review_packet = Some(materialize_import_diff_review_packet(&review));
+                }
                 form.review_record = Some(review);
             }
             form.status_line = Some(status_line);
@@ -12636,183 +13831,64 @@ fn invocation_and_result_import_profile_cancelled(
     }
 }
 
-fn invocation_and_result_import_profile_review_recorded(
-    session: &CommandInvocationSession,
-    review: &ImportReviewRecord,
-    diff_review: &ImportDiffReviewPacket,
-) -> RecordedCommandInvocation {
-    let preview_ref = session
-        .preview_posture
-        .preview_record_ref
-        .clone()
-        .unwrap_or_else(|| review.import_review_id.clone());
-    let import_review_ref = review.import_review_id.clone();
-    let import_diff_preview_ref = diff_review.import_diff_preview_ref.clone();
-    let checkpoint_ref = diff_review.rollback_checkpoint.checkpoint_ref.clone();
-    let migration_report_ref = diff_review
-        .retained_migration_report
-        .migration_report_id
-        .clone();
-    let shortcut_delta_ref = diff_review
-        .shortcut_delta_report
-        .shortcut_delta_report_id
-        .clone();
-    let activity_ref = format!("ux:event:import-review:{import_review_ref}");
-    let mut warning_codes = vec!["partial_evidence_retained".to_string()];
-    if review.decision_class == ImportReviewDecisionClass::Defer {
-        warning_codes.push("partial_evidence_retained".to_string());
-    }
-    if diff_review.apply_gate_class == "requires_manual_review" {
-        warning_codes.push("rollback_window_limited".to_string());
-    }
-    warning_codes.sort();
-    warning_codes.dedup();
+fn import_execution_error_code(error: &crate::import::ImportExecutionError) -> &'static str {
+    use crate::import::ImportExecutionError;
 
+    match error {
+        ImportExecutionError::InvalidRequest { .. } => "import_invalid_request",
+        ImportExecutionError::UnsupportedSource => "import_source_unsupported",
+        ImportExecutionError::SourceUnavailable { .. } => "import_source_unavailable",
+        ImportExecutionError::UnsafeSourceLayout { .. } => "import_source_layout_unsafe",
+        ImportExecutionError::InputTooLarge { .. } => "import_source_too_large",
+        ImportExecutionError::MalformedInput { .. } => "import_source_malformed",
+        ImportExecutionError::DurableStateUnavailable { .. } => "import_durable_state_unavailable",
+        ImportExecutionError::ResolverProjectionUnavailable { .. } => {
+            "import_resolver_projection_unavailable"
+        }
+        ImportExecutionError::PreviewAuthorityMissing => "import_preview_authority_missing",
+        ImportExecutionError::PreviewStale { .. } => "import_preview_stale",
+        ImportExecutionError::PolicyEpochChanged => "import_policy_epoch_changed",
+        ImportExecutionError::ApplyNotAllowed => "import_apply_not_allowed",
+        ImportExecutionError::IdempotencyConflict => "import_idempotency_conflict",
+        ImportExecutionError::ConcurrentMutation => "import_concurrent_mutation",
+        ImportExecutionError::CheckpointUnavailable => "import_checkpoint_unavailable",
+        ImportExecutionError::RollbackConflict => "import_rollback_conflict",
+    }
+}
+
+fn invocation_and_result_import_profile_failed(
+    session: &CommandInvocationSession,
+    error: &crate::import::ImportExecutionError,
+) -> RecordedCommandInvocation {
     let outcome = InvocationOutcomeBlock {
-        outcome_class: "succeeded_with_warnings".to_string(),
+        outcome_class: "failed_with_typed_error".to_string(),
         disabled_reason_code: None,
-        warnings_summary_refs: warning_codes.clone(),
+        warnings_summary_refs: Vec::new(),
         partially_applied_artifact_refs: Vec::new(),
         unapplied_artifact_refs: Vec::new(),
     };
-
-    let session_packet = session.invocation_session_packet(
-        outcome,
-        vec![
-            InvocationCreatedArtifactRefEntry {
-                result_contract_class: "journal_entry_appended_ref".to_string(),
-                artifact_ref: import_review_ref.clone(),
-            },
-            InvocationCreatedArtifactRefEntry {
-                result_contract_class: "preview_record_emitted_ref".to_string(),
-                artifact_ref: import_diff_preview_ref.clone(),
-            },
-            InvocationCreatedArtifactRefEntry {
-                result_contract_class: "artifact_created_ref".to_string(),
-                artifact_ref: migration_report_ref.clone(),
-            },
-            InvocationCreatedArtifactRefEntry {
-                result_contract_class: "artifact_created_ref".to_string(),
-                artifact_ref: shortcut_delta_ref.clone(),
-            },
-        ],
-        vec![
-            EvidenceRefEntry {
-                evidence_ref_class: "preview_record_ref".to_string(),
-                evidence_id: preview_ref.clone(),
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "mutation_journal_entry_ref".to_string(),
-                evidence_id: import_review_ref.clone(),
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "preview_record_ref".to_string(),
-                evidence_id: import_diff_preview_ref.clone(),
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "checkpoint_ref".to_string(),
-                evidence_id: checkpoint_ref.clone(),
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "support_export_row_ref".to_string(),
-                evidence_id: migration_report_ref.clone(),
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "support_export_row_ref".to_string(),
-                evidence_id: shortcut_delta_ref.clone(),
-            },
-        ],
-    );
-
+    let session_packet = session.invocation_session_packet(outcome, Vec::new(), Vec::new());
     let result = ResultBodyBlock {
-        outcome_code: "succeeded_with_warnings".to_string(),
-        warning_codes,
-        error_codes: Vec::new(),
-        created_artifact_refs: vec![
-            ArtifactRefEntry {
-                result_contract_class: "journal_entry_appended_ref".to_string(),
-                artifact_ref: import_review_ref.clone(),
-                artifact_role: "side_effect_record".to_string(),
-            },
-            ArtifactRefEntry {
-                result_contract_class: "preview_record_emitted_ref".to_string(),
-                artifact_ref: import_diff_preview_ref.clone(),
-                artifact_role: "preview_record".to_string(),
-            },
-            ArtifactRefEntry {
-                result_contract_class: "rollback_ticket_emitted_ref".to_string(),
-                artifact_ref: checkpoint_ref.clone(),
-                artifact_role: "rollback_ticket".to_string(),
-            },
-            ArtifactRefEntry {
-                result_contract_class: "artifact_created_ref".to_string(),
-                artifact_ref: migration_report_ref.clone(),
-                artifact_role: "support_export_row".to_string(),
-            },
-            ArtifactRefEntry {
-                result_contract_class: "artifact_created_ref".to_string(),
-                artifact_ref: shortcut_delta_ref.clone(),
-                artifact_role: "support_export_row".to_string(),
-            },
-        ],
-        notification_refs: vec![NotificationRefEntry {
-            notification_ref: format!("ux:notif-env:import-review:{import_review_ref}"),
-            delivery_posture: "delivered".to_string(),
-        }],
-        activity_refs: vec![ActivityRefEntry {
-            activity_ref,
-            activity_role: "history_row".to_string(),
-        }],
+        outcome_code: "failed_with_typed_error".to_string(),
+        warning_codes: Vec::new(),
+        error_codes: vec![import_execution_error_code(error).to_string()],
+        created_artifact_refs: Vec::new(),
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
         rollback_handle_ref: RollbackHandleRefBlock {
-            rollback_handle_posture: "handle_available".to_string(),
-            rollback_handle_id: Some(format!(
-                "rollback-handle:workspace.import_profile:{import_review_ref}"
-            )),
+            rollback_handle_posture: "not_available_no_committed_mutation".to_string(),
+            rollback_handle_id: None,
         },
-        checkpoint_refs: vec![aureline_commands::invocation::CheckpointRefEntry {
-            checkpoint_class: "migration_import_checkpoint".to_string(),
-            checkpoint_ref: Some(checkpoint_ref.clone()),
-        }],
-        evidence_refs: vec![
-            EvidenceRefEntry {
-                evidence_ref_class: "preview_record_ref".to_string(),
-                evidence_id: preview_ref,
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "mutation_journal_entry_ref".to_string(),
-                evidence_id: import_review_ref,
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "preview_record_ref".to_string(),
-                evidence_id: import_diff_preview_ref,
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "checkpoint_ref".to_string(),
-                evidence_id: checkpoint_ref,
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "support_export_row_ref".to_string(),
-                evidence_id: migration_report_ref,
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "support_export_row_ref".to_string(),
-                evidence_id: shortcut_delta_ref,
-            },
-        ],
+        checkpoint_refs: Vec::new(),
+        evidence_refs: Vec::new(),
         export_posture: ExportPostureBlock {
             export_posture_class: "exportable_with_redaction".to_string(),
             redaction_class: session.redaction_class.clone(),
-            export_review_ref: Some(
-                diff_review
-                    .retained_migration_report
-                    .migration_report_id
-                    .clone(),
-            ),
-            portable_profile_allowed: true,
+            export_review_ref: None,
+            portable_profile_allowed: false,
             support_bundle_allowed: true,
         },
     };
-
     let result_packet = session.command_result_packet(
         session.mint_attempt_id(),
         session.mint_result_packet_id(),
@@ -12820,7 +13896,250 @@ fn invocation_and_result_import_profile_review_recorded(
         "parity-expectation:workspace.import_profile:result-contract:01".to_string(),
         NoBypassGuards::strict(),
     );
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
 
+fn invocation_and_result_import_profile_activation_failed(
+    session: &CommandInvocationSession,
+    preview: &ExecutableImportPreview,
+    apply: &ImportApplyOutcome,
+) -> RecordedCommandInvocation {
+    let journal_ref = preview.import_review_ref.clone();
+    let mut created = vec![
+        InvocationCreatedArtifactRefEntry {
+            result_contract_class: "journal_entry_appended_ref".to_string(),
+            artifact_ref: journal_ref.clone(),
+        },
+        InvocationCreatedArtifactRefEntry {
+            result_contract_class: "preview_record_emitted_ref".to_string(),
+            artifact_ref: preview.preview_ref.clone(),
+        },
+        InvocationCreatedArtifactRefEntry {
+            result_contract_class: "artifact_created_ref".to_string(),
+            artifact_ref: apply.target_profile_ref.clone(),
+        },
+    ];
+    let mut evidence = vec![
+        EvidenceRefEntry {
+            evidence_ref_class: "preview_record_ref".to_string(),
+            evidence_id: preview.preview_ref.clone(),
+        },
+        EvidenceRefEntry {
+            evidence_ref_class: "mutation_journal_entry_ref".to_string(),
+            evidence_id: journal_ref.clone(),
+        },
+    ];
+    let mut result_artifacts = vec![
+        ArtifactRefEntry {
+            result_contract_class: "journal_entry_appended_ref".to_string(),
+            artifact_ref: journal_ref.clone(),
+            artifact_role: "side_effect_record".to_string(),
+        },
+        ArtifactRefEntry {
+            result_contract_class: "preview_record_emitted_ref".to_string(),
+            artifact_ref: preview.preview_ref.clone(),
+            artifact_role: "preview_record".to_string(),
+        },
+        ArtifactRefEntry {
+            result_contract_class: "artifact_created_ref".to_string(),
+            artifact_ref: apply.target_profile_ref.clone(),
+            artifact_role: "imported_profile_revision".to_string(),
+        },
+    ];
+    let mut checkpoint_refs = Vec::new();
+    if let Some(checkpoint_ref) = apply.checkpoint_ref.as_ref() {
+        created.push(InvocationCreatedArtifactRefEntry {
+            result_contract_class: "rollback_ticket_emitted_ref".to_string(),
+            artifact_ref: checkpoint_ref.clone(),
+        });
+        evidence.push(EvidenceRefEntry {
+            evidence_ref_class: "rollback_ticket_ref".to_string(),
+            evidence_id: checkpoint_ref.clone(),
+        });
+        result_artifacts.push(ArtifactRefEntry {
+            result_contract_class: "rollback_ticket_emitted_ref".to_string(),
+            artifact_ref: checkpoint_ref.clone(),
+            artifact_role: "rollback_ticket".to_string(),
+        });
+        checkpoint_refs.push(aureline_commands::invocation::CheckpointRefEntry {
+            checkpoint_class: "migration_import_checkpoint".to_string(),
+            checkpoint_ref: Some(checkpoint_ref.clone()),
+        });
+    }
+    let invocation_outcome = InvocationOutcomeBlock {
+        outcome_class: "failed_with_typed_error".to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: vec!["import_profile_committed_activation_pending".to_string()],
+        partially_applied_artifact_refs: vec![apply.target_profile_ref.clone()],
+        unapplied_artifact_refs: Vec::new(),
+    };
+    let session_packet =
+        session.invocation_session_packet(invocation_outcome, created, evidence.clone());
+    let result = ResultBodyBlock {
+        outcome_code: "failed_with_typed_error".to_string(),
+        warning_codes: vec!["import_profile_committed_activation_pending".to_string()],
+        error_codes: vec!["import_resolver_activation_failed".to_string()],
+        created_artifact_refs: result_artifacts,
+        notification_refs: Vec::new(),
+        activity_refs: vec![ActivityRefEntry {
+            activity_ref: format!("ux:event:import-review:{journal_ref}"),
+            activity_role: "history_row".to_string(),
+        }],
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: if apply.checkpoint_ref.is_some() {
+                "handle_available".to_string()
+            } else {
+                "not_applicable_no_mutation".to_string()
+            },
+            rollback_handle_id: apply.checkpoint_ref.clone(),
+        },
+        checkpoint_refs,
+        evidence_refs: evidence,
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: Some(preview.preview_ref.clone()),
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        "parity-expectation:workspace.import_profile:result-contract:01".to_string(),
+        NoBypassGuards::strict(),
+    );
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
+fn invocation_and_result_import_profile_applied(
+    session: &CommandInvocationSession,
+    preview: &ExecutableImportPreview,
+    apply: &ImportApplyOutcome,
+) -> RecordedCommandInvocation {
+    let warning_codes = match apply.disposition {
+        ImportApplyDisposition::Applied => Vec::new(),
+        ImportApplyDisposition::AlreadyApplied => vec!["idempotent_replay".to_string()],
+        ImportApplyDisposition::NoChanges => vec!["no_changes".to_string()],
+    };
+    let outcome_code = if warning_codes.is_empty() {
+        "succeeded"
+    } else {
+        "succeeded_with_warnings"
+    };
+    let journal_ref = preview.import_review_ref.clone();
+    let mut created = vec![
+        InvocationCreatedArtifactRefEntry {
+            result_contract_class: "journal_entry_appended_ref".to_string(),
+            artifact_ref: journal_ref.clone(),
+        },
+        InvocationCreatedArtifactRefEntry {
+            result_contract_class: "preview_record_emitted_ref".to_string(),
+            artifact_ref: preview.preview_ref.clone(),
+        },
+        InvocationCreatedArtifactRefEntry {
+            result_contract_class: "artifact_created_ref".to_string(),
+            artifact_ref: apply.target_profile_ref.clone(),
+        },
+    ];
+    let mut result_artifacts = vec![
+        ArtifactRefEntry {
+            result_contract_class: "journal_entry_appended_ref".to_string(),
+            artifact_ref: journal_ref.clone(),
+            artifact_role: "side_effect_record".to_string(),
+        },
+        ArtifactRefEntry {
+            result_contract_class: "preview_record_emitted_ref".to_string(),
+            artifact_ref: preview.preview_ref.clone(),
+            artifact_role: "preview_record".to_string(),
+        },
+        ArtifactRefEntry {
+            result_contract_class: "artifact_created_ref".to_string(),
+            artifact_ref: apply.target_profile_ref.clone(),
+            artifact_role: "imported_profile_revision".to_string(),
+        },
+    ];
+    let mut evidence = vec![
+        EvidenceRefEntry {
+            evidence_ref_class: "preview_record_ref".to_string(),
+            evidence_id: preview.preview_ref.clone(),
+        },
+        EvidenceRefEntry {
+            evidence_ref_class: "mutation_journal_entry_ref".to_string(),
+            evidence_id: journal_ref.clone(),
+        },
+    ];
+    let mut checkpoint_refs = Vec::new();
+    if let Some(checkpoint_ref) = apply.checkpoint_ref.as_ref() {
+        created.push(InvocationCreatedArtifactRefEntry {
+            result_contract_class: "rollback_ticket_emitted_ref".to_string(),
+            artifact_ref: checkpoint_ref.clone(),
+        });
+        result_artifacts.push(ArtifactRefEntry {
+            result_contract_class: "rollback_ticket_emitted_ref".to_string(),
+            artifact_ref: checkpoint_ref.clone(),
+            artifact_role: "rollback_ticket".to_string(),
+        });
+        evidence.push(EvidenceRefEntry {
+            evidence_ref_class: "rollback_ticket_ref".to_string(),
+            evidence_id: checkpoint_ref.clone(),
+        });
+        checkpoint_refs.push(aureline_commands::invocation::CheckpointRefEntry {
+            checkpoint_class: "migration_import_checkpoint".to_string(),
+            checkpoint_ref: Some(checkpoint_ref.clone()),
+        });
+    }
+    let invocation_outcome = InvocationOutcomeBlock {
+        outcome_class: outcome_code.to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: warning_codes.clone(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: Vec::new(),
+    };
+    let session_packet =
+        session.invocation_session_packet(invocation_outcome, created, evidence.clone());
+    let result = ResultBodyBlock {
+        outcome_code: outcome_code.to_string(),
+        warning_codes,
+        error_codes: Vec::new(),
+        created_artifact_refs: result_artifacts,
+        notification_refs: Vec::new(),
+        activity_refs: vec![ActivityRefEntry {
+            activity_ref: format!("ux:event:import-review:{journal_ref}"),
+            activity_role: "history_row".to_string(),
+        }],
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: if apply.checkpoint_ref.is_some() {
+                "handle_available".to_string()
+            } else {
+                "not_applicable_no_mutation".to_string()
+            },
+            rollback_handle_id: apply.checkpoint_ref.clone(),
+        },
+        checkpoint_refs,
+        evidence_refs: evidence,
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: Some(preview.preview_ref.clone()),
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        "parity-expectation:workspace.import_profile:result-contract:01".to_string(),
+        NoBypassGuards::strict(),
+    );
     RecordedCommandInvocation {
         session_packet,
         result_packet,
@@ -13106,6 +14425,22 @@ fn handle_key_event(
     }
 
     if overlay.is_some() {
+        let clone_running = overlay.as_ref().is_some_and(|state| {
+            matches!(
+                &state.kind,
+                ShellOverlayKind::EntryFlowSheet(sheet)
+                    if sheet.clone_form.as_ref().is_some_and(|form| form.running)
+            )
+        });
+        if code == KeyCode::Escape && clone_running && clone_jobs.cancel_active() {
+            set_clone_sheet_status(
+                overlay,
+                "clone cancellation requested; acquired partial state will be retained for recovery"
+                    .to_string(),
+                true,
+            );
+            return ShellDamageHint::FullWindow;
+        }
         let outcome = {
             let state = overlay.as_mut().expect("overlay checked to be Some");
             state.handle_key(
@@ -13178,6 +14513,7 @@ fn handle_key_event(
                         overlay,
                         enablement_runtime,
                         activity_center,
+                        appearance,
                         decision,
                     )
                 } else {
@@ -15078,11 +16414,12 @@ fn rasterize_shell(
         let recent_work_store = recent_work.store_path.display();
         let activity_snapshot = activity_center.snapshot();
         let activity_store = activity_center.store_path.display();
+        let command_packet_store = CommandRuntimeState::packet_root_dir();
         let status_item_label = title_context_bar
             .projection_label(SurfaceKind::WorkspaceStatusItem)
             .unwrap_or("Workspace ready");
         let text = format!(
-            "{}   theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   runtime_readiness: {}   watcher: {}   hot_index: {}   activity_rows: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   {} explorer   {} terminal   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}   activity: {}",
+            "{}   theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   runtime_readiness: {}   watcher: {}   hot_index: {}   activity_rows: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   {} explorer   {} terminal   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: {}   recents: {}   activity: {}",
             status_item_label,
             theme_label,
             density_label,
@@ -15104,6 +16441,7 @@ fn rasterize_shell(
             keybinding_runtime.shortcuts_label("cmd:explorer.toggle"),
             terminal_keys,
             docs_keys,
+            command_packet_store.display(),
             recent_work_store,
             activity_store
         );
@@ -16653,12 +17991,16 @@ struct EntryFlowSheetOverlay {
 enum CloneFlowField {
     RemoteUrl,
     DestinationPath,
+    Reference,
+    ExpectedCommitOid,
 }
 
 #[derive(Debug, Clone)]
 struct CloneFlowForm {
     remote_url: String,
     destination_path: String,
+    reference: String,
+    expected_commit_oid: String,
     focused_field: CloneFlowField,
     status_line: Option<String>,
     running: bool,
@@ -16669,25 +18011,62 @@ impl CloneFlowForm {
         Self {
             remote_url: String::new(),
             destination_path: String::new(),
+            reference: "HEAD".to_string(),
+            expected_commit_oid: String::new(),
             focused_field: CloneFlowField::RemoteUrl,
             status_line: None,
             running: false,
         }
     }
 
+    fn from_argument_map(argument_provenance_map: &[ArgumentProvenanceEntry]) -> Self {
+        let mut form = Self::new();
+        if let Some(remote_url) =
+            clone_argument_value(argument_provenance_map, "remote_repository_ref", "git-url:")
+        {
+            form.remote_url = remote_url;
+        }
+        if let Some(destination_path) =
+            clone_argument_value(argument_provenance_map, "destination_root_ref", "path:")
+        {
+            form.destination_path = destination_path;
+        }
+        if let Some(reference) =
+            clone_argument_value(argument_provenance_map, "clone_reference_ref", "git-ref:")
+        {
+            form.reference = reference;
+        }
+        if let Some(oid) = clone_argument_value(
+            argument_provenance_map,
+            "reviewed_commit_oid_ref",
+            "git-oid:",
+        ) {
+            form.expected_commit_oid = oid;
+        }
+        form
+    }
+
     fn submit_enabled(&self) -> bool {
         !self.running
             && !self.remote_url.trim().is_empty()
             && !self.destination_path.trim().is_empty()
+            && !self.reference.trim().is_empty()
+            && !self.expected_commit_oid.trim().is_empty()
     }
 
     fn request(&self) -> Result<CloneRequest, CloneError> {
         let packet = self.admission_review_packet().ok_or_else(|| {
             CloneError::new(
                 CloneErrorClass::InvalidInput,
-                "remote URL and destination path are required",
+                "remote URL, destination path, ref, and reviewed commit OID are required",
             )
         })?;
+        if self.reference.trim().is_empty() || self.expected_commit_oid.trim().is_empty() {
+            return Err(CloneError::new(
+                CloneErrorClass::InvalidInput,
+                "an exact ref and full reviewed commit OID are required",
+            ));
+        }
         if let Some(collision) = packet.collision_review.as_ref() {
             if collision.requires_explicit_choice {
                 let actions = collision
@@ -16713,16 +18092,30 @@ impl CloneFlowForm {
         Ok(request)
     }
 
+    fn ref_selection(&self) -> CloneRefSelection {
+        CloneRefSelection::new(self.reference.trim(), self.expected_commit_oid.trim())
+    }
+
     fn admission_review_packet(&self) -> Option<AdmissionReviewPacket> {
         if self.remote_url.trim().is_empty() || self.destination_path.trim().is_empty() {
             return None;
         }
-        Some(clone_form_admission_packet(
+        let mut packet = clone_form_admission_packet(
             self.remote_url.trim(),
             expand_tilde(self.destination_path.trim())
                 .display()
                 .to_string(),
-        ))
+        );
+        if let Some(review) = packet.clone_review.as_mut() {
+            review.ref_choice = if self.reference.trim() == "HEAD" {
+                RefChoice::DefaultBranch
+            } else if self.reference.trim().is_empty() {
+                RefChoice::UnresolvedUntilRemoteQuery
+            } else {
+                RefChoice::UserSelectedRef
+            };
+        }
+        Some(packet)
     }
 
     fn argument_provenance_map(&self) -> Vec<ArgumentProvenanceEntry> {
@@ -16754,6 +18147,8 @@ impl CloneFlowForm {
             match self.focused_field {
                 CloneFlowField::RemoteUrl => self.remote_url.push(ch),
                 CloneFlowField::DestinationPath => self.destination_path.push(ch),
+                CloneFlowField::Reference => self.reference.push(ch),
+                CloneFlowField::ExpectedCommitOid => self.expected_commit_oid.push(ch),
             }
             changed = true;
         }
@@ -16767,6 +18162,8 @@ impl CloneFlowForm {
         let changed = match self.focused_field {
             CloneFlowField::RemoteUrl => self.remote_url.pop().is_some(),
             CloneFlowField::DestinationPath => self.destination_path.pop().is_some(),
+            CloneFlowField::Reference => self.reference.pop().is_some(),
+            CloneFlowField::ExpectedCommitOid => self.expected_commit_oid.pop().is_some(),
         };
         if changed {
             self.status_line = None;
@@ -16777,7 +18174,9 @@ impl CloneFlowForm {
     fn toggle_field(&mut self) {
         self.focused_field = match self.focused_field {
             CloneFlowField::RemoteUrl => CloneFlowField::DestinationPath,
-            CloneFlowField::DestinationPath => CloneFlowField::RemoteUrl,
+            CloneFlowField::DestinationPath => CloneFlowField::Reference,
+            CloneFlowField::Reference => CloneFlowField::ExpectedCommitOid,
+            CloneFlowField::ExpectedCommitOid => CloneFlowField::RemoteUrl,
         };
     }
 }
@@ -16788,6 +18187,10 @@ enum ImportFlowField {
     DestinationWorkspaceTarget,
 }
 
+fn import_execution_policy_epoch() -> &'static str {
+    "policy:import-profile:desktop-v1"
+}
+
 #[derive(Debug, Clone)]
 struct ImportFlowForm {
     source_path: String,
@@ -16795,6 +18198,7 @@ struct ImportFlowForm {
     focused_field: ImportFlowField,
     review_record: Option<ImportReviewRecord>,
     diff_review_packet: Option<ImportDiffReviewPacket>,
+    executable_preview: Option<ExecutableImportPreview>,
     status_line: Option<String>,
     applied: bool,
 }
@@ -16807,6 +18211,7 @@ impl ImportFlowForm {
             focused_field: ImportFlowField::SourcePath,
             review_record: None,
             diff_review_packet: None,
+            executable_preview: None,
             status_line: None,
             applied: false,
         }
@@ -16818,8 +18223,9 @@ impl ImportFlowForm {
 
     fn apply_enabled(&self) -> bool {
         !self.applied
-            && self.review_record.as_ref().is_some_and(|record| {
-                record.decision_class == ImportReviewDecisionClass::ApplyAfterPreview
+            && self.executable_preview.as_ref().is_some_and(|preview| {
+                preview.carries_live_apply_authority()
+                    && preview.apply_gate != ImportPreviewApplyGate::BlockedNoSupportedSettings
             })
     }
 
@@ -16831,8 +18237,43 @@ impl ImportFlowForm {
         let source_path = expand_tilde(self.source_path.trim());
         let review = CompetitorConfigClassifier::new()
             .build_review(source_path, self.destination_workspace_target.trim());
-        self.status_line = Some(review.status_line.clone());
-        self.diff_review_packet = Some(materialize_import_diff_review_packet(&review));
+        self.diff_review_packet = (review.decision_class
+            != ImportReviewDecisionClass::ApplyAfterPreview)
+            .then(|| materialize_import_diff_review_packet(&review));
+        self.executable_preview = if review.decision_class
+            == ImportReviewDecisionClass::ApplyAfterPreview
+        {
+            let store = ImportedProfileStore::new(aureline_workspace::state_paths::imports_root());
+            match store.preview(&review, import_execution_policy_epoch()) {
+                Ok(preview) => {
+                    let next_action = match preview.apply_gate {
+                        ImportPreviewApplyGate::AllowedCheckpointRequired => {
+                            "press Enter to checkpoint and apply"
+                        }
+                        ImportPreviewApplyGate::NoChanges => {
+                            "no target changes; press Enter to confirm"
+                        }
+                        ImportPreviewApplyGate::BlockedNoSupportedSettings => {
+                            "apply unavailable because no supported settings were admitted"
+                        }
+                    };
+                    self.status_line = Some(format!(
+                        "Exact preview ready: {} rows, {} admitted, {} blocked; {next_action}",
+                        preview.rows.len(),
+                        preview.admitted_mutation_count(),
+                        preview.blocked_authority_count(),
+                    ));
+                    Some(preview)
+                }
+                Err(err) => {
+                    self.status_line = Some(format!("import preview unavailable — {err}"));
+                    None
+                }
+            }
+        } else {
+            self.status_line = Some(review.status_line.clone());
+            None
+        };
         self.review_record = Some(review);
         self.applied = false;
     }
@@ -16937,6 +18378,7 @@ impl ImportFlowForm {
     fn clear_review_after_edit(&mut self) {
         self.review_record = None;
         self.diff_review_packet = None;
+        self.executable_preview = None;
         self.status_line = None;
         self.applied = false;
     }
@@ -17121,6 +18563,8 @@ struct EntryFlowOverlayDecision {
     command_id: String,
     origin: DispatchOrigin,
     argument_provenance_map: Vec<ArgumentProvenanceEntry>,
+    clone_ref_selection: Option<CloneRefSelection>,
+    executable_import_preview: Option<ExecutableImportPreview>,
 }
 
 #[derive(Debug)]
@@ -17245,7 +18689,7 @@ impl ShellOverlayState {
             EntryFlowOutcome::Resolved(resolved)
                 if resolved.sheet_class == OpenFlowSheetClass::CloneRemoteTarget =>
             {
-                Some(CloneFlowForm::new())
+                Some(CloneFlowForm::from_argument_map(&argument_provenance_map))
             }
             _ => None,
         };
@@ -17447,10 +18891,8 @@ impl ShellOverlayState {
             (ShellOverlayKind::EntryFlowSheet(sheet), KeyCode::Escape) => {
                 if sheet.clone_form.as_ref().is_some_and(|form| form.running) {
                     if let Some(form) = sheet.clone_form.as_mut() {
-                        form.status_line = Some(
-                            "clone is running; this build does not support cancellation"
-                                .to_string(),
-                        );
+                        form.status_line =
+                            Some("clone cancellation is already pending".to_string());
                     }
                 } else if sheet.import_form.as_ref().is_some_and(|form| form.applied) {
                     self.close(frame);
@@ -17499,6 +18941,8 @@ impl ShellOverlayState {
                                 command_id: sheet.command_id.clone(),
                                 origin: sheet.origin,
                                 argument_provenance_map: form.argument_provenance_map(),
+                                clone_ref_selection: Some(form.ref_selection()),
+                                executable_import_preview: None,
                             });
                         }
                         Err(err) => {
@@ -17533,6 +18977,8 @@ impl ShellOverlayState {
                             command_id: sheet.command_id.clone(),
                             origin: sheet.origin,
                             argument_provenance_map: form.argument_provenance_map(),
+                            clone_ref_selection: None,
+                            executable_import_preview: form.executable_preview.clone(),
                         });
                     } else if let Some(review) = form.review_record.as_ref() {
                         form.status_line = Some(format!(
@@ -17547,6 +18993,8 @@ impl ShellOverlayState {
                             command_id: sheet.command_id.clone(),
                             origin: sheet.origin,
                             argument_provenance_map: sheet.argument_provenance_map.clone(),
+                            clone_ref_selection: None,
+                            executable_import_preview: None,
                         });
                     }
                     self.close(frame);
@@ -19110,7 +20558,10 @@ fn draw_shell_overlay(
                     .saturating_add(style.space_3)
                     .saturating_add(16),
                 1,
-                "Packets: .logs/command_packets",
+                &format!(
+                    "Packets: {}",
+                    CommandRuntimeState::packet_root_dir().display()
+                ),
                 fade(style.tokens.text_muted),
             );
 
@@ -19887,6 +21338,16 @@ fn draw_clone_form_lines(
             "destination_path",
             form.destination_path.as_str(),
         ),
+        (
+            CloneFlowField::Reference,
+            "reviewed_ref",
+            form.reference.as_str(),
+        ),
+        (
+            CloneFlowField::ExpectedCommitOid,
+            "reviewed_commit_oid",
+            form.expected_commit_oid.as_str(),
+        ),
     ];
 
     for (field, label, value) in rows {
@@ -20091,43 +21552,45 @@ fn draw_import_form_lines(
             y = y.saturating_add(16);
         }
 
-        for item in record.discovered_items.iter().take(5) {
-            if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
-                return y;
+        if form.executable_preview.is_none() {
+            for item in record.discovered_items.iter().take(5) {
+                if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
+                    return y;
+                }
+                let line = format!(
+                    "- {} [{}]",
+                    item.source_relative_path,
+                    item.item_kind.as_str()
+                );
+                draw_text_clamped(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    y,
+                    1,
+                    &line,
+                    style.tokens.text_secondary,
+                    max_x,
+                );
+                y = y.saturating_add(16);
             }
-            let line = format!(
-                "- {} [{}]",
-                item.source_relative_path,
-                item.item_kind.as_str()
-            );
-            draw_text_clamped(
-                buffer,
-                width,
-                height,
-                x,
-                y,
-                1,
-                &line,
-                style.tokens.text_secondary,
-                max_x,
-            );
-            y = y.saturating_add(16);
-        }
-        if record.discovered_items.len() > 5
-            && y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3)
-        {
-            draw_text_clamped(
-                buffer,
-                width,
-                height,
-                x,
-                y,
-                1,
-                &format!("+ {} more", record.discovered_items.len() - 5),
-                style.tokens.text_muted,
-                max_x,
-            );
-            y = y.saturating_add(16);
+            if record.discovered_items.len() > 5
+                && y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3)
+            {
+                draw_text_clamped(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    y,
+                    1,
+                    &format!("+ {} more", record.discovered_items.len() - 5),
+                    style.tokens.text_muted,
+                    max_x,
+                );
+                y = y.saturating_add(16);
+            }
         }
     } else if y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3) {
         let state = if form.review_enabled() {
@@ -20147,6 +21610,50 @@ fn draw_import_form_lines(
             max_x,
         );
         y = y.saturating_add(16);
+    }
+
+    if let Some(preview) = form.executable_preview.as_ref() {
+        for row in preview.rows.iter().take(6) {
+            if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
+                return y;
+            }
+            let target = row.target_setting_id.as_deref().unwrap_or("excluded");
+            let line = format!(
+                "{target}: {} -> {} [{} / {}]",
+                import_setting_value_label(row.before_value.as_ref()),
+                import_setting_value_label(row.after_value.as_ref()),
+                row.decision.as_str(),
+                row.reason_code,
+            );
+            draw_text_clamped(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                1,
+                &line,
+                style.tokens.text_secondary,
+                max_x,
+            );
+            y = y.saturating_add(16);
+        }
+        if preview.rows.len() > 6
+            && y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3)
+        {
+            draw_text_clamped(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                1,
+                &format!("+ {} exact preview rows", preview.rows.len() - 6),
+                style.tokens.text_muted,
+                max_x,
+            );
+            y = y.saturating_add(16);
+        }
     }
 
     if let Some(packet) = form.diff_review_packet.as_ref() {
@@ -20214,6 +21721,23 @@ fn draw_import_form_lines(
     }
 
     y
+}
+
+fn import_setting_value_label(value: Option<&ImportSettingValue>) -> String {
+    match value {
+        None => "(unset)".to_string(),
+        Some(ImportSettingValue::Boolean(value)) => value.to_string(),
+        Some(ImportSettingValue::Integer(value)) => value.to_string(),
+        Some(ImportSettingValue::Text(value)) => {
+            let mut chars = value.chars();
+            let prefix = chars.by_ref().take(32).collect::<String>();
+            if chars.next().is_some() {
+                format!("\"{prefix}...\"")
+            } else {
+                format!("\"{prefix}\"")
+            }
+        }
+    }
 }
 
 fn to_physical_rect(rect: Rect, scale_factor: f64) -> Rect {

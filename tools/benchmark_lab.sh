@@ -112,8 +112,11 @@ export TZ=UTC
 export LC_ALL=C
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
-  log "cargo build --locked --workspace --all-targets"
-  cargo build --locked --workspace --all-targets >/dev/null
+  log "building seeded benchmark binaries"
+  cargo build --locked \
+    --package aureline-shell-spike --bin shell_spike \
+    --package aureline-bench --bin bench_text_stack --bin bench_buffer \
+    >/dev/null
 fi
 
 PY_ARGS=(

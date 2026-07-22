@@ -30,6 +30,17 @@ Both surfaces read from
 freshness, provenance, or claim-posture truth of its own; refresh the
 manifest to update what users see in-product.
 
+Runtime path loading is deliberately narrower than build-time generation.
+The claim manifest and compatibility report must each be a regular,
+non-symlink file, remain identity-stable across the bounded read, fit within
+4 MiB, and contain no more than 10,000 top-level rows. An oversized, replaced,
+symlinked, or over-count artifact fails only the affected truth surface closed;
+it must never be partially parsed into a more optimistic badge. Loader errors
+use artifact-class wording and do not include payload bytes or private path
+content. These resource rules do not change either public record schema.
+The runtime additionally requires the checked-in `schema_version = 1` on both
+artifacts; an unknown version is unavailable truth, never a best-effort parse.
+
 Archetype support-class truth is capped upstream by the generated
 reference-workspace report at
 `artifacts/compat/m3/reference_workspace_report.json` and by the badge

@@ -8,10 +8,19 @@
 //! first-class activity rows.
 
 use std::collections::BTreeMap;
-use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
+
+use crate::bounded_artifact_io::{
+    prepare_durable_artifact_path, read_bounded_regular_file_with_identity, to_bounded_json_pretty,
+    write_atomic_regular_file, ArtifactIdentity,
+};
+
+const MAX_ACTIVITY_CENTER_ALPHA_STORE_BYTES: usize = 8 * 1024 * 1024;
+const MAX_ACTIVITY_CENTER_ALPHA_ROWS: usize = 10_000;
 
 use crate::notifications::envelope::{
     PrivacyClass, RedactionClass, ReopenTarget, ReopenTargetKind, SeverityClass, SourceSubsystem,
@@ -1028,10 +1037,25 @@ impl From<serde_json::Error> for ActivityCenterAlphaError {
 }
 
 /// Durable alpha row store, optionally file-backed.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ActivityCenterAlphaStore {
     rows_path: Option<PathBuf>,
     rows: BTreeMap<String, ActivityRow>,
+    rows_identity: Mutex<Option<ArtifactIdentity>>,
+}
+
+impl Clone for ActivityCenterAlphaStore {
+    fn clone(&self) -> Self {
+        let rows_identity = *self
+            .rows_identity
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        Self {
+            rows_path: self.rows_path.clone(),
+            rows: self.rows.clone(),
+            rows_identity: Mutex::new(rows_identity),
+        }
+    }
 }
 
 impl ActivityCenterAlphaStore {
@@ -1040,6 +1064,7 @@ impl ActivityCenterAlphaStore {
         Self {
             rows_path: None,
             rows: BTreeMap::new(),
+            rows_identity: Mutex::new(None),
         }
     }
 
@@ -1049,24 +1074,47 @@ impl ActivityCenterAlphaStore {
     ///
     /// Returns an error when the row file cannot be read or deserialized.
     pub fn file_backed(path: impl Into<PathBuf>) -> Result<Self, ActivityCenterAlphaError> {
-        let path = path.into();
-        let rows = if path.exists() {
-            let bytes = fs::read(&path)?;
-            if bytes.is_empty() {
-                BTreeMap::new()
-            } else {
-                let stored: Vec<ActivityRow> = serde_json::from_slice(&bytes)?;
-                stored
-                    .into_iter()
-                    .map(|row| (row.activity_row_id.clone(), row))
-                    .collect()
-            }
-        } else {
-            BTreeMap::new()
+        let path = prepare_durable_artifact_path(&path.into())?;
+        let (bytes, rows_identity) = match read_bounded_regular_file_with_identity(
+            &path,
+            MAX_ACTIVITY_CENTER_ALPHA_STORE_BYTES as u64,
+        ) {
+            Ok(read) => (read.bytes, Some(read.identity)),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => (Vec::new(), None),
+            Err(error) => return Err(error.into()),
         };
+        let stored: Vec<ActivityRow> = if bytes.is_empty() {
+            Vec::new()
+        } else {
+            serde_json::from_slice(&bytes)?
+        };
+        if stored.len() > MAX_ACTIVITY_CENTER_ALPHA_ROWS {
+            return Err(alpha_store_integrity_error(
+                "activity-center alpha row count exceeds retention limit",
+            ));
+        }
+        let mut rows = BTreeMap::new();
+        for row in stored {
+            if row.record_kind != ACTIVITY_ROW_RECORD_KIND
+                || row.schema_version != ACTIVITY_ROW_SCHEMA_VERSION
+                || row.activity_row_id.trim().is_empty()
+                || row.durable_job_id.trim().is_empty()
+                || row.canonical_event_id.trim().is_empty()
+            {
+                return Err(alpha_store_integrity_error(
+                    "activity-center alpha store contains an unsupported or invalid row",
+                ));
+            }
+            if rows.insert(row.activity_row_id.clone(), row).is_some() {
+                return Err(alpha_store_integrity_error(
+                    "activity-center alpha store contains duplicate row identities",
+                ));
+            }
+        }
         Ok(Self {
             rows_path: Some(path),
             rows,
+            rows_identity: Mutex::new(rows_identity),
         })
     }
 
@@ -1077,15 +1125,30 @@ impl ActivityCenterAlphaStore {
     /// Returns an error when the file-backed store cannot persist the
     /// updated row set.
     pub fn record_row(&mut self, mut row: ActivityRow) -> Result<(), ActivityCenterAlphaError> {
+        if !self.rows.contains_key(&row.activity_row_id)
+            && self.rows.len() >= MAX_ACTIVITY_CENTER_ALPHA_ROWS
+        {
+            return Err(alpha_store_integrity_error(
+                "activity-center alpha row retention limit reached",
+            ));
+        }
         if let Some(existing) = self.rows.get(&row.activity_row_id) {
             row.timeline.minted_at = existing.timeline.minted_at.clone();
             row.occurrence_count = existing
                 .occurrence_count
                 .saturating_add(row.occurrence_count.max(1));
         }
-        self.rows.insert(row.activity_row_id.clone(), row);
+        let row_id = row.activity_row_id.clone();
+        let previous = self.rows.insert(row_id.clone(), row);
         if let Some(path) = self.rows_path.clone() {
-            self.persist(&path)?;
+            if let Err(error) = self.persist(&path) {
+                if let Some(previous) = previous {
+                    self.rows.insert(row_id, previous);
+                } else {
+                    self.rows.remove(&row_id);
+                }
+                return Err(error);
+            }
         }
         Ok(())
     }
@@ -1123,16 +1186,33 @@ impl ActivityCenterAlphaStore {
     }
 
     fn persist(&self, path: &Path) -> Result<(), ActivityCenterAlphaError> {
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                fs::create_dir_all(parent)?;
-            }
+        if self.rows.len() > MAX_ACTIVITY_CENTER_ALPHA_ROWS {
+            return Err(alpha_store_integrity_error(
+                "activity-center alpha row retention limit reached",
+            ));
         }
         let snapshot = self.snapshot();
-        let bytes = serde_json::to_vec_pretty(&snapshot.rows)?;
-        fs::write(path, bytes)?;
+        let bytes = to_bounded_json_pretty(&snapshot.rows, MAX_ACTIVITY_CENTER_ALPHA_STORE_BYTES)?;
+        let expected_identity = *self
+            .rows_identity
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let new_identity = write_atomic_regular_file(
+            path,
+            &bytes,
+            MAX_ACTIVITY_CENTER_ALPHA_STORE_BYTES as u64,
+            expected_identity,
+        )?;
+        *self
+            .rows_identity
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(new_identity);
         Ok(())
     }
+}
+
+fn alpha_store_integrity_error(message: &'static str) -> ActivityCenterAlphaError {
+    ActivityCenterAlphaError::Io(io::Error::new(io::ErrorKind::InvalidData, message))
 }
 
 /// Runtime wrapper for alpha activity-center persistence and export.
@@ -1435,6 +1515,65 @@ mod tests {
         assert_eq!(reopened.state_class, ActivityRowStateClass::Completed);
         assert!(reopened.has_exact_reopen_identity());
         assert!(reopened.retained_until_resolved_or_archived);
+    }
+
+    #[test]
+    fn failed_alpha_rewrite_rolls_back_memory_and_preserves_disk() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity-alpha.json");
+        let mut store = ActivityCenterAlphaStore::file_backed(&path).expect("open");
+        let row = sample_rows().remove(0);
+        let row_id = row.activity_row_id.clone();
+        let baseline_summary = row.summary_label.clone();
+        store.record_row(row.clone()).expect("persist baseline");
+        let disk_before = std::fs::read(&path).expect("read baseline");
+
+        let mut oversized = row;
+        oversized.summary_label = "x".repeat(MAX_ACTIVITY_CENTER_ALPHA_STORE_BYTES);
+        store
+            .record_row(oversized)
+            .expect_err("oversized row must fail");
+
+        assert_eq!(
+            store.find_row(&row_id).expect("baseline row").summary_label,
+            baseline_summary
+        );
+        assert_eq!(
+            std::fs::read(&path).expect("read after failure"),
+            disk_before
+        );
+    }
+
+    #[test]
+    fn alpha_store_rejects_unsupported_row_schema() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity-alpha.json");
+        let mut row = sample_rows().remove(0);
+        row.schema_version = ACTIVITY_ROW_SCHEMA_VERSION + 1;
+        std::fs::write(
+            &path,
+            serde_json::to_vec(&vec![row]).expect("serialize fixture"),
+        )
+        .expect("write fixture");
+
+        let error = ActivityCenterAlphaStore::file_backed(&path).expect_err("must reject");
+        assert!(matches!(error, ActivityCenterAlphaError::Io(_)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn alpha_store_rejects_symlinked_history() {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir().expect("tempdir");
+        let target = directory.path().join("target.json");
+        let link = directory.path().join("activity-alpha.json");
+        std::fs::write(&target, b"[]").expect("write target");
+        symlink(&target, &link).expect("symlink");
+
+        let error = ActivityCenterAlphaStore::file_backed(&link).expect_err("must reject");
+        assert!(matches!(error, ActivityCenterAlphaError::Io(_)));
+        assert_eq!(std::fs::read(&target).expect("read target"), b"[]");
     }
 
     #[test]

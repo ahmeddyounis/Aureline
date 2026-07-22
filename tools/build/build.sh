@@ -42,7 +42,11 @@ export SOURCE_DATE_EPOCH
 export TZ=UTC
 export LC_ALL=C
 
-BUILD_ARGS=(--locked --workspace --all-targets)
+# Build the workspace's normal library and binary outputs. Examples, benches,
+# and test harnesses are compiled by their dedicated validation lanes; asking
+# this entry point for --all-targets links more than a thousand extra
+# executables and needlessly multiplies target/ usage.
+BUILD_ARGS=(--locked --workspace)
 if [[ "${PROFILE}" == "release" ]]; then
   BUILD_ARGS+=(--release)
 fi

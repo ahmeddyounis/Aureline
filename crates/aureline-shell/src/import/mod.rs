@@ -11,7 +11,7 @@ pub mod diff_review;
 pub mod execution;
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
@@ -528,6 +528,7 @@ fn fnv1a_64(value: &str) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn fixture_root(name: &str) -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))

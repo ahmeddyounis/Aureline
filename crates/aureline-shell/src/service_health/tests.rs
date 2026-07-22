@@ -293,7 +293,7 @@ fn day_arithmetic_is_consistent_for_known_iso_dates() {
 fn missing_required_record_kind_is_rejected() {
     let payload = r#"{
         "schema_version": 1,
-        "record_kind": "not_a_manifest",
+        "record_kind": "private-tenant-secret",
         "manifest_id": "claim_manifest:x",
         "manifest_revision": 1,
         "milestone_id": "m3",
@@ -309,10 +309,55 @@ fn missing_required_record_kind_is_rejected() {
     }"#;
     let err = M3ClaimManifestSnapshot::from_bytes(payload.as_bytes()).unwrap_err();
     assert!(matches!(
-        err,
+        &err,
         ManifestLoadError::SchemaMismatch {
             expected_record_kind: M3ClaimManifestSnapshot::EXPECTED_RECORD_KIND,
             ..
         }
     ));
+    assert!(!err.to_string().contains("private-tenant-secret"));
+}
+
+#[test]
+fn oversized_claim_manifest_is_rejected_before_parsing() {
+    let bytes = vec![b' '; MAX_M3_CLAIM_MANIFEST_BYTES + 1];
+    let error = M3ClaimManifestSnapshot::from_bytes(&bytes).expect_err("must reject");
+    assert!(matches!(error, ManifestLoadError::Io(_)));
+}
+
+#[test]
+fn unsupported_claim_manifest_schema_version_is_rejected() {
+    let payload = r#"{
+        "schema_version": 99,
+        "record_kind": "m3_claim_manifest",
+        "manifest_id": "claim_manifest:x",
+        "manifest_revision": 1,
+        "milestone_id": "m3",
+        "release_channel_scope": "beta",
+        "manifest_state": "draft",
+        "as_of": "2026-05-15",
+        "generated_at": "2026-05-15T00:00:00Z",
+        "owner": "@me",
+        "backup_owner": null,
+        "backup_waiver": null,
+        "consuming_surfaces": [],
+        "rows": []
+    }"#;
+    let error = M3ClaimManifestSnapshot::from_bytes(payload.as_bytes()).expect_err("must reject");
+    assert!(matches!(error, ManifestLoadError::Io(_)));
+}
+
+#[cfg(unix)]
+#[test]
+fn claim_manifest_path_loader_rejects_symlink() {
+    use std::os::unix::fs::symlink;
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let target = directory.path().join("claim-manifest.json");
+    let link = directory.path().join("claim-manifest-link.json");
+    std::fs::write(&target, b"{}").expect("write target");
+    symlink(&target, &link).expect("symlink");
+
+    let error = M3ClaimManifestSnapshot::load_from_path(&link).expect_err("must reject");
+    assert!(matches!(error, ManifestLoadError::Io(_)));
 }

@@ -59,6 +59,20 @@ the durable activity-center lane end-to-end:
    completed or failed row remains reviewable after a process
    restart.
 
+The durable file is a bounded journal rather than an unbounded JSON sink.
+The shell accepts at most 10,000 rows and an 8 MiB serialized file. It reads
+only a regular, non-symlink file and compares file identity before/open/after
+the bounded read. Rewrites serialize through an 8 MiB capped writer, compare
+the previous target identity, and use a same-directory temporary file plus
+sync and atomic rename. Newly created Unix history files start with owner-only
+permissions. A duplicate identity, oversized artifact, symlink, or
+stale target fails the activity-center feature closed; the live shell can
+continue with its existing in-memory fallback and an export-safe error rather
+than parsing or overwriting an ambiguous object.
+Rows with the wrong `record_kind`, an unsupported schema version, or an empty
+canonical event identity are rejected as corrupt/unsupported history instead
+of being projected through the current contract.
+
 Other long-running task classes (index warmup, build, support export)
 are explicitly reserved. The seed-scope notice on every snapshot says
 so verbatim so a reviewer can see the lane's shape without inferring

@@ -23,6 +23,13 @@ the compatibility report, marketplace/help metadata, and support export.
 Consumers must quote the generated packet instead of rewording the row
 locally.
 
+Shell consumers load this generated packet through a bounded artifact reader.
+The packet must be a regular, non-symlink file, remain the same filesystem
+object across open/read validation, fit within 4 MiB, and contain no more than
+4,096 product rows or 4,096 support-export rows. Exceeding any bound fails the
+consumer closed as unavailable/downgraded truth; diagnostics name the artifact
+class and limit without echoing a private local path.
+
 ## Current Rows
 
 | Surface | Lifecycle | Support | Client Scope | Handoff |

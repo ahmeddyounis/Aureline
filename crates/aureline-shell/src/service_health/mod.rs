@@ -105,6 +105,12 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::bounded_artifact_io::read_bounded_regular_file;
+
+const MAX_M3_CLAIM_MANIFEST_BYTES: usize = 4 * 1024 * 1024;
+const MAX_M3_CLAIM_MANIFEST_ROWS: usize = 10_000;
+const M3_CLAIM_MANIFEST_SCHEMA_VERSION: u32 = 1;
+
 pub mod aggregator;
 pub mod continuity_corpus;
 pub mod seed;
@@ -1479,19 +1485,37 @@ impl M3ClaimManifestSnapshot {
 
     /// Load and parse the manifest from a path on disk.
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, ManifestLoadError> {
-        let bytes = std::fs::read(path)?;
+        let bytes = read_bounded_regular_file(path.as_ref(), MAX_M3_CLAIM_MANIFEST_BYTES as u64)?;
         Self::from_bytes(&bytes)
     }
 
     /// Parse the manifest from raw JSON bytes. Validates the
     /// `record_kind` so the projection is never fed an unrelated record.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ManifestLoadError> {
+        if bytes.len() > MAX_M3_CLAIM_MANIFEST_BYTES {
+            return Err(ManifestLoadError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "m3 claim manifest exceeds configured byte limit",
+            )));
+        }
         let snapshot: Self = serde_json::from_slice(bytes)?;
         if snapshot.record_kind != Self::EXPECTED_RECORD_KIND {
             return Err(ManifestLoadError::SchemaMismatch {
                 expected_record_kind: Self::EXPECTED_RECORD_KIND,
-                actual_record_kind: snapshot.record_kind,
+                actual_record_kind: "invalid_or_unrecognized".to_owned(),
             });
+        }
+        if snapshot.schema_version != M3_CLAIM_MANIFEST_SCHEMA_VERSION {
+            return Err(ManifestLoadError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "m3 claim manifest uses an unsupported schema version",
+            )));
+        }
+        if snapshot.rows.len() > MAX_M3_CLAIM_MANIFEST_ROWS {
+            return Err(ManifestLoadError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "m3 claim manifest exceeds configured row limit",
+            )));
         }
         Ok(snapshot)
     }

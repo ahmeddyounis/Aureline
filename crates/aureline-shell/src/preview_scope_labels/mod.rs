@@ -13,6 +13,11 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::bounded_artifact_io::read_bounded_regular_file;
+
+const MAX_PREVIEW_SCOPE_PACKET_BYTES: usize = 4 * 1024 * 1024;
+const MAX_PREVIEW_SCOPE_PACKET_ROWS: usize = 4_096;
+
 /// Stable record-kind tag for [`PreviewScopeLabelRegister`].
 pub const PREVIEW_SCOPE_LABEL_REGISTER_RECORD_KIND: &str = "m3_qualified_preview_row_register";
 
@@ -75,18 +80,38 @@ impl PreviewScopeLabelRegister {
     /// Returns [`PreviewScopeLabelLoadError`] when JSON parsing fails or the
     /// packet record-kind/schema-version does not match this module.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, PreviewScopeLabelLoadError> {
+        if bytes.len() > MAX_PREVIEW_SCOPE_PACKET_BYTES {
+            return Err(PreviewScopeLabelLoadError::Io {
+                path: "preview-scope packet".to_owned(),
+                source: std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "preview scope packet exceeds configured byte limit",
+                ),
+            });
+        }
         let register: Self = serde_json::from_slice(bytes)
             .map_err(|source| PreviewScopeLabelLoadError::Json { source })?;
         if register.record_kind != PREVIEW_SCOPE_LABEL_REGISTER_RECORD_KIND {
             return Err(PreviewScopeLabelLoadError::SchemaMismatch {
                 expected_record_kind: PREVIEW_SCOPE_LABEL_REGISTER_RECORD_KIND,
-                actual_record_kind: register.record_kind,
+                actual_record_kind: "invalid_or_unrecognized".to_owned(),
             });
         }
         if register.schema_version != PREVIEW_SCOPE_LABEL_REGISTER_SCHEMA_VERSION {
             return Err(PreviewScopeLabelLoadError::SchemaVersionMismatch {
                 expected: PREVIEW_SCOPE_LABEL_REGISTER_SCHEMA_VERSION,
                 actual: register.schema_version,
+            });
+        }
+        if register.rows.len() > MAX_PREVIEW_SCOPE_PACKET_ROWS
+            || register.support_export_rows.len() > MAX_PREVIEW_SCOPE_PACKET_ROWS
+        {
+            return Err(PreviewScopeLabelLoadError::Io {
+                path: "preview-scope packet".to_owned(),
+                source: std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "preview scope packet exceeds configured row limit",
+                ),
             });
         }
         Ok(register)
@@ -99,10 +124,11 @@ impl PreviewScopeLabelRegister {
     /// Returns [`PreviewScopeLabelLoadError`] when reading or parsing fails.
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, PreviewScopeLabelLoadError> {
         let path = path.as_ref();
-        let bytes = std::fs::read(path).map_err(|source| PreviewScopeLabelLoadError::Io {
-            path: path.display().to_string(),
-            source,
-        })?;
+        let bytes = read_bounded_regular_file(path, MAX_PREVIEW_SCOPE_PACKET_BYTES as u64)
+            .map_err(|source| PreviewScopeLabelLoadError::Io {
+                path: "preview-scope packet".to_owned(),
+                source,
+            })?;
         Self::from_bytes(&bytes)
     }
 
@@ -650,3 +676,61 @@ impl fmt::Display for PreviewScopeLabelLoadError {
 }
 
 impl std::error::Error for PreviewScopeLabelLoadError {}
+
+#[cfg(test)]
+mod load_safety_tests {
+    use super::*;
+
+    #[test]
+    fn from_bytes_rejects_oversized_packet_before_parsing() {
+        let bytes = vec![b' '; MAX_PREVIEW_SCOPE_PACKET_BYTES + 1];
+        let error = PreviewScopeLabelRegister::from_bytes(&bytes).expect_err("must reject");
+        assert!(matches!(error, PreviewScopeLabelLoadError::Io { .. }));
+    }
+
+    #[test]
+    fn wrong_record_kind_is_not_echoed_in_diagnostics() {
+        let bytes = br#"{
+            "record_kind": "private-tenant-secret",
+            "schema_version": 1,
+            "packet_id": "packet",
+            "packet_ref": "packet",
+            "source_claimed_surface_register_ref": "source",
+            "docs_ref": "docs",
+            "fixture_dir_ref": "fixtures",
+            "as_of": "2026-05-15",
+            "generated_at": "2026-05-15T00:00:00Z",
+            "summary": {
+                "row_count": 0,
+                "support_export_row_count": 0,
+                "handoff_required_row_count": 0,
+                "preview_lifecycle_row_count": 0,
+                "beta_lifecycle_row_count": 0,
+                "required_surface_families": [],
+                "covered_surface_families": []
+            },
+            "rows": [],
+            "support_export_rows": [],
+            "raw_private_material_excluded": true,
+            "ambient_authority_excluded": true
+        }"#;
+        let error = PreviewScopeLabelRegister::from_bytes(bytes).expect_err("must reject");
+        assert!(!error.to_string().contains("private-tenant-secret"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn path_loader_rejects_symlink_without_echoing_target_path() {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir().expect("tempdir");
+        let target = directory.path().join("private-tenant-packet.json");
+        let link = directory.path().join("packet.json");
+        std::fs::write(&target, b"{}").expect("write target");
+        symlink(&target, &link).expect("symlink");
+
+        let error = PreviewScopeLabelRegister::load_from_path(&link).expect_err("must reject");
+        assert!(matches!(error, PreviewScopeLabelLoadError::Io { .. }));
+        assert!(!error.to_string().contains("private-tenant-packet"));
+    }
+}

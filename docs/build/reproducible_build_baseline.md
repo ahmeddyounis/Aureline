@@ -58,7 +58,7 @@ is a deliberate act and must update this document in the same change.
 |--------------------------------------------------|---------------------------------------------------------------------------------------------|
 | [`rust-toolchain.toml`](../../rust-toolchain.toml) | Rust channel, profile, components (`rustfmt`, `clippy`, `rust-src`), and target matrix.     |
 | [`.cargo/config.toml`](../../.cargo/config.toml)   | Workspace-level rustflags, net retry/fetch behavior, future-incompatibility reporting, and MSRV-aware resolver policy. |
-| [`Cargo.toml`](../../Cargo.toml)                   | Workspace topology, `rust-version` (MSRV), lint profile, and release profile settings.      |
+| [`Cargo.toml`](../../Cargo.toml)                   | Workspace topology, `rust-version` (MSRV), lint settings, and disk-bounded dev, test, and release profile settings. |
 | [`Cargo.lock`](../../Cargo.lock)                   | Resolved dependency graph. Always committed; builds run `--locked` and must not regenerate it. |
 
 Format and lint tool versions are pinned transitively: `rustfmt` and
@@ -118,11 +118,40 @@ Every invocation:
   wall-clock time. This matches the release-engineering rule in the PRD
   that build pipelines should record `SOURCE_DATE_EPOCH`-style timestamp
   normalization as part of provenance.
-- Builds the workspace with `cargo build --locked --workspace --all-targets`
-  so the lockfile is authoritative; a missing or stale `Cargo.lock` fails
-  the build rather than silently regenerating it.
+- Builds the workspace's normal library and binary outputs with
+  `cargo build --locked --workspace` so the lockfile is authoritative; a
+  missing or stale `Cargo.lock` fails the build rather than silently
+  regenerating it. Examples, benches, and test harnesses remain covered by
+  their dedicated check, test, and benchmark lanes instead of being linked a
+  second time by the baseline build.
 - Writes `target/{debug|release}/build_identity.json` conforming to
   [`schemas/build/build_identity.schema.json`](../../schemas/build/build_identity.schema.json).
+
+### Local target-directory footprint
+
+The workspace contains thousands of Cargo targets, many of them independent
+test executables. Full debug information and incremental compilation therefore
+make `target/` grow by several gigabytes after even a package-scoped test run.
+The checked-in profiles bound that routine footprint as follows:
+
+- the dev profile emits line tables (`debug = 1`) but disables incremental
+  caches;
+- the test profile disables both debug information and incremental caches;
+- the baseline build does not compile examples, benches, or test harnesses.
+
+These settings trade some incremental rebuild speed and local-variable debugger
+detail for a substantially smaller, stable build directory. When debugging a
+specific target, opt back into full debug information for that invocation:
+
+```sh
+CARGO_PROFILE_DEV_DEBUG=2 cargo build -p <package>
+CARGO_PROFILE_TEST_DEBUG=2 cargo test -p <package> <test-filter>
+```
+
+Use `CARGO_INCREMENTAL=1` on the same package-scoped invocation when the
+incremental speed/space tradeoff is useful. Existing artifacts produced under
+the old profiles are not removed automatically; `cargo clean` reclaims them
+once no build or test process is active.
 
 ## Build identity record
 

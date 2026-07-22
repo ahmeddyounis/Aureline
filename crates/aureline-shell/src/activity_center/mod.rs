@@ -51,11 +51,16 @@ pub mod git_review;
 pub mod restore_job;
 
 use std::collections::BTreeMap;
-use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 
+use crate::bounded_artifact_io::{
+    prepare_durable_artifact_path, read_bounded_regular_file_with_identity, to_bounded_json_pretty,
+    write_atomic_regular_file, ArtifactIdentity,
+};
 use crate::notifications::envelope::{
     NotificationEnvelope, PrivacyClass, RedactionClass, ReopenTarget, SeverityClass,
     SourceSubsystem, StableAction,
@@ -63,6 +68,9 @@ use crate::notifications::envelope::{
 use crate::notifications::router::{
     NotificationRouter, NotificationRoutingError, RoutedNotification,
 };
+
+const MAX_ACTIVITY_CENTER_STORE_BYTES: usize = 8 * 1024 * 1024;
+const MAX_ACTIVITY_CENTER_ROWS: usize = 10_000;
 
 /// Stable record-kind tag carried in serialized activity-center rows.
 pub const ACTIVITY_CENTER_ROW_RECORD_KIND: &str = "activity_center_row_record";
@@ -434,10 +442,25 @@ impl From<NotificationRoutingError> for ActivityCenterError {
 /// optionally backed by a single JSON file rewritten on every
 /// observation. Reopening the same path reads the prior rows back so a
 /// completed or failed row survives a process restart.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ActivityCenterStore {
     rows_path: Option<PathBuf>,
     rows: BTreeMap<String, ActivityCenterRow>,
+    rows_identity: Mutex<Option<ArtifactIdentity>>,
+}
+
+impl Clone for ActivityCenterStore {
+    fn clone(&self) -> Self {
+        let rows_identity = *self
+            .rows_identity
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        Self {
+            rows_path: self.rows_path.clone(),
+            rows: self.rows.clone(),
+            rows_identity: Mutex::new(rows_identity),
+        }
+    }
 }
 
 impl ActivityCenterStore {
@@ -447,6 +470,7 @@ impl ActivityCenterStore {
         Self {
             rows_path: None,
             rows: BTreeMap::new(),
+            rows_identity: Mutex::new(None),
         }
     }
 
@@ -454,24 +478,45 @@ impl ActivityCenterStore {
     /// path, its contents are loaded so prior rows are reopenable after
     /// a restart.
     pub fn file_backed(path: impl Into<PathBuf>) -> Result<Self, ActivityCenterError> {
-        let path = path.into();
-        let rows = if path.exists() {
-            let bytes = fs::read(&path)?;
-            if bytes.is_empty() {
-                BTreeMap::new()
-            } else {
-                let stored: Vec<ActivityCenterRow> = serde_json::from_slice(&bytes)?;
-                stored
-                    .into_iter()
-                    .map(|row| (row.canonical_event_id.clone(), row))
-                    .collect()
-            }
-        } else {
-            BTreeMap::new()
+        let path = prepare_durable_artifact_path(&path.into())?;
+        let (bytes, rows_identity) = match read_bounded_regular_file_with_identity(
+            &path,
+            MAX_ACTIVITY_CENTER_STORE_BYTES as u64,
+        ) {
+            Ok(read) => (read.bytes, Some(read.identity)),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => (Vec::new(), None),
+            Err(error) => return Err(error.into()),
         };
+        let stored: Vec<ActivityCenterRow> = if bytes.is_empty() {
+            Vec::new()
+        } else {
+            serde_json::from_slice(&bytes)?
+        };
+        if stored.len() > MAX_ACTIVITY_CENTER_ROWS {
+            return Err(store_integrity_error(
+                "activity-center row count exceeds retention limit",
+            ));
+        }
+        let mut rows = BTreeMap::new();
+        for row in stored {
+            if row.record_kind != ACTIVITY_CENTER_ROW_RECORD_KIND
+                || row.schema_version != ACTIVITY_CENTER_ROW_SCHEMA_VERSION
+                || row.canonical_event_id.trim().is_empty()
+            {
+                return Err(store_integrity_error(
+                    "activity-center store contains an unsupported or invalid row",
+                ));
+            }
+            if rows.insert(row.canonical_event_id.clone(), row).is_some() {
+                return Err(store_integrity_error(
+                    "activity-center store contains duplicate event identities",
+                ));
+            }
+        }
         Ok(Self {
             rows_path: Some(path),
             rows,
+            rows_identity: Mutex::new(rows_identity),
         })
     }
 
@@ -500,11 +545,23 @@ impl ActivityCenterStore {
         observation: &DurableJobObservation,
     ) -> Result<&ActivityCenterRow, ActivityCenterError> {
         let key = routed.canonical_event_id.clone();
+        if !self.rows.contains_key(&key) && self.rows.len() >= MAX_ACTIVITY_CENTER_ROWS {
+            return Err(store_integrity_error(
+                "activity-center row retention limit reached",
+            ));
+        }
         let existing_minted_at = self.rows.get(&key).map(|row| row.minted_at.clone());
         let row = ActivityCenterRow::project(routed, observation, existing_minted_at);
-        self.rows.insert(key.clone(), row);
+        let previous = self.rows.insert(key.clone(), row);
         if let Some(path) = self.rows_path.clone() {
-            self.persist(&path)?;
+            if let Err(error) = self.persist(&path) {
+                if let Some(previous) = previous {
+                    self.rows.insert(key.clone(), previous);
+                } else {
+                    self.rows.remove(&key);
+                }
+                return Err(error);
+            }
         }
         Ok(self
             .rows
@@ -538,10 +595,10 @@ impl ActivityCenterStore {
     }
 
     fn persist(&self, path: &Path) -> Result<(), ActivityCenterError> {
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                fs::create_dir_all(parent)?;
-            }
+        if self.rows.len() > MAX_ACTIVITY_CENTER_ROWS {
+            return Err(store_integrity_error(
+                "activity-center row retention limit reached",
+            ));
         }
         let mut rows: Vec<&ActivityCenterRow> = self.rows.values().collect();
         rows.sort_by(|a, b| {
@@ -549,10 +606,27 @@ impl ActivityCenterStore {
                 .cmp(&b.minted_at)
                 .then_with(|| a.canonical_event_id.cmp(&b.canonical_event_id))
         });
-        let bytes = serde_json::to_vec_pretty(&rows)?;
-        fs::write(path, bytes)?;
+        let bytes = to_bounded_json_pretty(&rows, MAX_ACTIVITY_CENTER_STORE_BYTES)?;
+        let expected_identity = *self
+            .rows_identity
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let new_identity = write_atomic_regular_file(
+            path,
+            &bytes,
+            MAX_ACTIVITY_CENTER_STORE_BYTES as u64,
+            expected_identity,
+        )?;
+        *self
+            .rows_identity
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(new_identity);
         Ok(())
     }
+}
+
+fn store_integrity_error(message: &'static str) -> ActivityCenterError {
+    ActivityCenterError::Io(io::Error::new(io::ErrorKind::InvalidData, message))
 }
 
 /// Live activity-center runtime used by the shell.
@@ -843,6 +917,133 @@ mod tests {
         assert!(row.is_terminal);
         assert_eq!(row.minted_at, "2026-05-10T12:00:00Z");
         assert_eq!(row.last_observed_at, "2026-05-10T12:00:08Z");
+    }
+
+    #[test]
+    fn file_backed_store_rejects_oversized_history_without_echoing_path() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("private-workspace-history.json");
+        std::fs::write(&path, vec![b' '; MAX_ACTIVITY_CENTER_STORE_BYTES + 1])
+            .expect("write oversized fixture");
+
+        let error = ActivityCenterStore::file_backed(&path).expect_err("must reject");
+        assert!(matches!(error, ActivityCenterError::Io(_)));
+        assert!(!error.to_string().contains("private-workspace-history"));
+    }
+
+    #[test]
+    fn file_backed_store_rejects_unsupported_row_schema() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity.json");
+        let mut router = NotificationRouter::new();
+        let mut store = ActivityCenterStore::in_memory();
+        let envelope = restore_envelope(
+            "ux:notif-env:restore:ws-test:run",
+            "Restore running",
+            "2026-05-10T12:00:00Z",
+        );
+        let routed = router.route(&envelope).expect("route");
+        store
+            .record_observation(
+                &routed,
+                &DurableJobObservation::in_flight(ActivityRowLifecycleClass::Running, None),
+            )
+            .expect("record");
+        let mut rows = store.snapshot().rows;
+        rows[0].schema_version = ACTIVITY_CENTER_ROW_SCHEMA_VERSION + 1;
+        std::fs::write(&path, serde_json::to_vec(&rows).expect("serialize"))
+            .expect("write fixture");
+
+        let error = ActivityCenterStore::file_backed(&path).expect_err("must reject");
+        assert!(matches!(error, ActivityCenterError::Io(_)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn file_backed_store_rejects_symlinked_history() {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir().expect("tempdir");
+        let target = directory.path().join("target.json");
+        let link = directory.path().join("activity.json");
+        std::fs::write(&target, b"[]").expect("write target");
+        symlink(&target, &link).expect("symlink");
+
+        let error = ActivityCenterStore::file_backed(&link).expect_err("must reject");
+        assert!(matches!(error, ActivityCenterError::Io(_)));
+        assert_eq!(std::fs::read(&target).expect("read target"), b"[]");
+    }
+
+    #[test]
+    fn failed_bounded_rewrite_rolls_back_memory_and_preserves_disk() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity.json");
+        let mut router = NotificationRouter::new();
+        let mut store = ActivityCenterStore::file_backed(&path).expect("open");
+        let envelope = restore_envelope(
+            "ux:notif-env:restore:ws-test:run",
+            "Restore running",
+            "2026-05-10T12:00:00Z",
+        );
+        let routed = router.route(&envelope).expect("route");
+        store
+            .record_observation(
+                &routed,
+                &DurableJobObservation::in_flight(ActivityRowLifecycleClass::Running, None),
+            )
+            .expect("persist baseline");
+        let disk_before = std::fs::read(&path).expect("read baseline");
+
+        let oversized = "x".repeat(MAX_ACTIVITY_CENTER_STORE_BYTES);
+        store
+            .record_observation(&routed, &DurableJobObservation::completed(oversized, None))
+            .expect_err("oversized row must fail");
+
+        let row = store
+            .find_by_canonical_event("ux:event:restore:ws-test")
+            .expect("baseline row restored");
+        assert_eq!(row.lifecycle_class, ActivityRowLifecycleClass::Running);
+        assert_eq!(
+            std::fs::read(&path).expect("read after failure"),
+            disk_before
+        );
+    }
+
+    #[test]
+    fn external_history_change_blocks_stale_rewrite() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("activity.json");
+        let mut router = NotificationRouter::new();
+        let mut store = ActivityCenterStore::file_backed(&path).expect("open");
+        let envelope = restore_envelope(
+            "ux:notif-env:restore:ws-test:run",
+            "Restore running",
+            "2026-05-10T12:00:00Z",
+        );
+        let routed = router.route(&envelope).expect("route");
+        store
+            .record_observation(
+                &routed,
+                &DurableJobObservation::in_flight(ActivityRowLifecycleClass::Running, None),
+            )
+            .expect("persist baseline");
+
+        std::fs::write(&path, b"[]").expect("external change");
+        store
+            .record_observation(
+                &routed,
+                &DurableJobObservation::completed("Completed", None),
+            )
+            .expect_err("stale rewrite must fail");
+
+        assert_eq!(std::fs::read(&path).expect("external file remains"), b"[]");
+        assert_eq!(
+            store
+                .find_by_canonical_event("ux:event:restore:ws-test")
+                .expect("baseline row restored")
+                .lifecycle_class,
+            ActivityRowLifecycleClass::Running
+        );
     }
 
     #[test]

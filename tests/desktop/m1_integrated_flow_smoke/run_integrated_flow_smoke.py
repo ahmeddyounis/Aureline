@@ -33,12 +33,15 @@ DEFAULT_REPORT_REL = (
 DEFAULT_BUILD_IDENTITY_REL = "artifacts/build/build_identity.json"
 DEFAULT_BINARY_REL = "target/debug/aureline_shell"
 
-SUPPORTED_ACTIONS = {"open", "quick_open", "edit_save"}
-PENDING_ACTIONS = {
-    "terminal": "pending_upstream: integrated terminal command execution is not yet claim-bearing",
-    "restore_session": "pending_upstream: restore-session execution is not yet claim-bearing",
-    "missing_target_recovery": "pending_upstream: missing-target restore recovery is not yet claim-bearing",
+SUPPORTED_ACTIONS = {
+    "open",
+    "quick_open",
+    "edit_save",
+    "terminal",
+    "restore_session",
+    "missing_target_recovery",
 }
+PENDING_ACTIONS: dict[str, str] = {}
 
 CHECK_ID_BINARY_BUILD_FAILED = "integrated_flow_smoke.binary.build_failed"
 CHECK_ID_BINARY_MISSING = "integrated_flow_smoke.binary.missing"
@@ -52,6 +55,7 @@ CHECK_ID_TRACE_PARSE_FAILED = "integrated_flow_smoke.trace.parse_failed"
 CHECK_ID_FIRST_FRAME_MISSING = "integrated_flow_smoke.trace.first_frame_missing"
 CHECK_ID_PROTECTED_BUDGETS_MISSING = "integrated_flow_smoke.trace.protected_budgets_missing"
 CHECK_ID_HEADLESS_EDIT_SAVE_FAILED = "integrated_flow_smoke.edit_save.headless_failed"
+CHECK_ID_HEADLESS_NATIVE_FLOW_FAILED = "integrated_flow_smoke.native_flow.headless_failed"
 CHECK_ID_ROUND_TRIP_MISMATCH = "integrated_flow_smoke.edit_save.round_trip_mismatch"
 CHECK_ID_FORCE_DRILL_EXPECTED_FAILURE = (
     "integrated_flow_smoke.force_drill.workspace_path_missing"
@@ -294,8 +298,12 @@ def run_shell_startup(
     binary: Path,
     fixture_root: Path,
     trace_path: Path,
+    state_root: Path,
     timeout_seconds: int,
 ) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["AURELINE_STATE"] = str(state_root)
+    env["AURELINE_APPEARANCE_STATE_ROOT"] = str(state_root / "appearance")
     return subprocess.run(
         [
             str(binary),
@@ -310,6 +318,7 @@ def run_shell_startup(
         capture_output=True,
         text=True,
         timeout=timeout_seconds,
+        env=env,
     )
 
 
@@ -457,12 +466,16 @@ def run_headless_edit_save(
     fixture_root: Path,
     target_rel: str,
     timeout_seconds: int,
+    state_root: Path,
 ) -> tuple[subprocess.CompletedProcess[str], bytes, Path, dict[str, Any] | None]:
     payload = (
         b"aureline-integrated-flow-smoke\n"
         b"known-byte-sequence: 617572656c696e65\n"
     )
     report_path = fixture_root.parent / "headless_edit_save_report.json"
+    env = os.environ.copy()
+    env["AURELINE_STATE"] = str(state_root)
+    env["AURELINE_APPEARANCE_STATE_ROOT"] = str(state_root / "appearance")
     result = subprocess.run(
         [
             str(binary),
@@ -478,6 +491,7 @@ def run_headless_edit_save(
         capture_output=True,
         text=True,
         timeout=timeout_seconds,
+        env=env,
     )
     report: dict[str, Any] | None = None
     if report_path.exists():
@@ -485,11 +499,127 @@ def run_headless_edit_save(
     return result, payload, fixture_root / target_rel, report
 
 
+def run_headless_native_flow(
+    *,
+    binary: Path,
+    fixture_root: Path,
+    action_kind: str,
+    target: str,
+    timeout_seconds: int,
+    state_root: Path,
+) -> tuple[subprocess.CompletedProcess[str], dict[str, Any] | None]:
+    report_path = fixture_root.parent / f"headless_{action_kind}_report.json"
+    env = os.environ.copy()
+    env["AURELINE_STATE"] = str(state_root)
+    env["AURELINE_APPEARANCE_STATE_ROOT"] = str(state_root / "appearance")
+    result = subprocess.run(
+        [
+            str(binary),
+            "--open",
+            str(fixture_root),
+            "--headless-test-flow",
+            action_kind,
+            "--headless-test-target",
+            target,
+            "--headless-test-report",
+            str(report_path),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=timeout_seconds,
+        env=env,
+    )
+    report: dict[str, Any] | None = None
+    if report_path.exists():
+        report = ensure_dict(json.loads(report_path.read_text(encoding="utf-8")), str(report_path))
+    return result, report
+
+
+def terminal_probe_for_row(fixture_row_id: str) -> str:
+    if fixture_row_id.endswith("plain_text_notes"):
+        return "list_workspace"
+    if fixture_row_id.endswith("nested_source_tree"):
+        return "cargo_version"
+    if fixture_row_id.endswith("path_and_encoding"):
+        return "python_version"
+    return "read_fixture_file"
+
+
 def copy_fixture_to_temp(fixture_root: Path, temp_root: Path) -> Path:
     copied = temp_root / fixture_root.name
     copied.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(fixture_root, copied)
     return copied
+
+
+def native_flow_semantic_error(
+    action_kind: str, report: dict[str, Any]
+) -> str | None:
+    if report.get("mode") != "headless_native_flow":
+        return "headless report mode did not identify the native flow contract"
+    if report.get("action_kind") != action_kind:
+        return "headless report action kind did not match the requested action"
+    details = report.get("details")
+    if not isinstance(details, dict):
+        return "headless report omitted its details object"
+
+    expected_flags: dict[str, bool]
+    if action_kind == "quick_open":
+        expected_flags = {
+            "palette_file_committed": True,
+            "editor_file_opened": True,
+        }
+    elif action_kind == "terminal":
+        expected_flags = {
+            "pty_session_created": True,
+            "command_completed": True,
+            "terminal_focus_opened": True,
+            "editor_focus_restored": True,
+            "output_observed": True,
+            "raw_output_retained": False,
+        }
+    elif action_kind == "restore_session":
+        expected_flags = {
+            "checkpoint_captured": True,
+            "restore_proposal_nonempty": True,
+            "file_binding_hydrated": True,
+            "missing_placeholder_required": False,
+            "cursor_limitation_surfaced": True,
+        }
+    elif action_kind == "missing_target_recovery":
+        expected_flags = {
+            "checkpoint_captured": True,
+            "restore_proposal_nonempty": True,
+            "file_binding_hydrated": False,
+            "missing_placeholder_required": True,
+            "cursor_limitation_surfaced": True,
+        }
+    else:
+        return None
+
+    mismatches = [
+        f"{key}={details.get(key)!r} (expected {expected!r})"
+        for key, expected in expected_flags.items()
+        if details.get(key) is not expected
+    ]
+    if action_kind in {"restore_session", "missing_target_recovery"}:
+        restored_pane_count = details.get("restored_pane_count")
+        if (
+            not isinstance(restored_pane_count, int)
+            or isinstance(restored_pane_count, bool)
+            or restored_pane_count < 1
+        ):
+            mismatches.append(
+                f"restored_pane_count={restored_pane_count!r} (expected positive integer)"
+            )
+        if details.get("side_effectful_auto_rerun_count") != 0:
+            mismatches.append(
+                "side_effectful_auto_rerun_count="
+                f"{details.get('side_effectful_auto_rerun_count')!r} (expected 0)"
+            )
+    if mismatches:
+        return "native flow semantic checks failed: " + ", ".join(mismatches)
+    return None
 
 
 def observe_action(
@@ -539,12 +669,16 @@ def observe_action(
         )
         return observation
 
+    action_temp = temp_root / fixture_row_id.replace(".", "_") / action_kind
+    fixture_copy = copy_fixture_to_temp(fixture_root, action_temp / "workspace")
+    state_root = action_temp / "state"
     trace_path = temp_root / f"{fixture_row_id.replace('.', '_')}_{action_kind}_startup_trace.json"
     try:
         result = run_shell_startup(
             binary=binary,
-            fixture_root=fixture_root,
+            fixture_root=fixture_copy,
             trace_path=trace_path,
+            state_root=state_root,
             timeout_seconds=timeout_seconds,
         )
     except subprocess.TimeoutExpired as exc:
@@ -590,6 +724,52 @@ def observe_action(
                     ref=fixture_root_ref,
                 )
             )
+        else:
+            try:
+                flow_result, headless_report = run_headless_native_flow(
+                    binary=binary,
+                    fixture_root=fixture_copy,
+                    action_kind=action_kind,
+                    target=target,
+                    timeout_seconds=timeout_seconds,
+                    state_root=state_root,
+                )
+            except subprocess.TimeoutExpired as exc:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id=CHECK_ID_HEADLESS_NATIVE_FLOW_FAILED,
+                        message=f"headless quick-open timed out after {timeout_seconds}s",
+                        remediation="Keep the native quick-open probe bounded and non-interactive.",
+                        row_id=row_id,
+                        details={"stderr_tail": (exc.stderr or "")[-2000:]},
+                    )
+                )
+            else:
+                observation.headless_report = headless_report
+                if flow_result.returncode != 0 or headless_report is None:
+                    findings.append(
+                        Finding(
+                            severity="error",
+                            check_id=CHECK_ID_HEADLESS_NATIVE_FLOW_FAILED,
+                            message=f"native quick-open probe exited {flow_result.returncode}",
+                            remediation="Keep the probe wired to palette commit and editor open.",
+                            row_id=row_id,
+                            details={"stderr_tail": flow_result.stderr[-2000:]},
+                        )
+                    )
+                elif semantic_error := native_flow_semantic_error(
+                    action_kind, headless_report
+                ):
+                    findings.append(
+                        Finding(
+                            severity="error",
+                            check_id=CHECK_ID_HEADLESS_NATIVE_FLOW_FAILED,
+                            message=semantic_error,
+                            remediation="Keep the probe wired to palette commit and editor open.",
+                            row_id=row_id,
+                        )
+                    )
 
     if action_kind == "edit_save":
         target = extract_edit_target(action)
@@ -606,13 +786,13 @@ def observe_action(
                 )
             )
         else:
-            fixture_copy = copy_fixture_to_temp(fixture_root, temp_root / "edit_save")
             try:
                 edit_result, payload, edited_path, headless_report = run_headless_edit_save(
                     binary=binary,
                     fixture_root=fixture_copy,
                     target_rel=target,
                     timeout_seconds=timeout_seconds,
+                    state_root=state_root,
                 )
             except subprocess.TimeoutExpired as exc:
                 findings.append(
@@ -645,6 +825,20 @@ def observe_action(
                         },
                     )
                 )
+            elif (
+                headless_report is None
+                or headless_report.get("mode") != "headless_edit_save"
+                or headless_report.get("outcome") != "committed"
+            ):
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id=CHECK_ID_HEADLESS_EDIT_SAVE_FAILED,
+                        message="headless edit/save report did not prove a committed save",
+                        remediation="Emit the metadata-safe committed-save report after persistence succeeds.",
+                        row_id=row_id,
+                    )
+                )
             elif edited_path.read_bytes() != payload:
                 findings.append(
                     Finding(
@@ -656,6 +850,70 @@ def observe_action(
                         ref=str(edited_path),
                     )
                 )
+
+    if action_kind in {"terminal", "restore_session", "missing_target_recovery"}:
+        edit_action = ensure_dict(actions.get("edit_save"), f"{fixture_row_id}.actions.edit_save")
+        target = (
+            terminal_probe_for_row(fixture_row_id)
+            if action_kind == "terminal"
+            else extract_edit_target(edit_action)
+        )
+        if not target:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id=CHECK_ID_MATRIX_SCHEMA,
+                    message=f"could not derive native probe target for {action_kind}",
+                    remediation="Keep edit-save targets and terminal probe rows explicit.",
+                    row_id=row_id,
+                )
+            )
+        else:
+            try:
+                flow_result, headless_report = run_headless_native_flow(
+                    binary=binary,
+                    fixture_root=fixture_copy,
+                    action_kind=action_kind,
+                    target=target,
+                    timeout_seconds=timeout_seconds,
+                    state_root=state_root,
+                )
+            except subprocess.TimeoutExpired as exc:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id=CHECK_ID_HEADLESS_NATIVE_FLOW_FAILED,
+                        message=f"headless {action_kind} timed out after {timeout_seconds}s",
+                        remediation="Keep the native flow probe bounded and non-interactive.",
+                        row_id=row_id,
+                        details={"stderr_tail": (exc.stderr or "")[-2000:]},
+                    )
+                )
+            else:
+                observation.headless_report = headless_report
+                if flow_result.returncode != 0 or headless_report is None:
+                    findings.append(
+                        Finding(
+                            severity="error",
+                            check_id=CHECK_ID_HEADLESS_NATIVE_FLOW_FAILED,
+                            message=f"native {action_kind} probe exited {flow_result.returncode}",
+                            remediation="Fix the corresponding native terminal/restore probe.",
+                            row_id=row_id,
+                            details={"stderr_tail": flow_result.stderr[-2000:]},
+                        )
+                    )
+                elif semantic_error := native_flow_semantic_error(
+                    action_kind, headless_report
+                ):
+                    findings.append(
+                        Finding(
+                            severity="error",
+                            check_id=CHECK_ID_HEADLESS_NATIVE_FLOW_FAILED,
+                            message=semantic_error,
+                            remediation="Fix the corresponding native terminal/restore probe.",
+                            row_id=row_id,
+                        )
+                    )
 
     row_error = any(f.severity == "error" and f.row_id == row_id for f in findings)
     observation.status = "passed" if not row_error else "failed"

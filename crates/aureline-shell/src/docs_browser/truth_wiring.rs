@@ -14,10 +14,15 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::bounded_artifact_io::read_bounded_regular_file;
 use crate::service_health::{
     ClaimPostureClass, M3ClaimManifestSnapshot, ManifestChannelId, ManifestLoadError,
     ServiceHealthBetaRow, ServiceHealthBetaSurface,
 };
+
+const MAX_COMPATIBILITY_REPORT_BYTES: usize = 4 * 1024 * 1024;
+const MAX_COMPATIBILITY_REPORT_ROWS: usize = 10_000;
+const COMPATIBILITY_REPORT_SCHEMA_VERSION: u32 = 1;
 
 /// Stable record-kind tag carried by the truth-wiring report.
 pub const TRUTH_WIRING_REPORT_RECORD_KIND: &str = "docs_truth_wiring_report_record";
@@ -275,6 +280,12 @@ pub struct CompatibilitySupportSnapshot {
     pub downgrade_triggers_fired: Vec<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct CompatibilityReportEnvelopeSnapshot {
+    record_kind: String,
+    schema_version: u32,
+}
+
 /// Errors raised while loading the compatibility report.
 #[derive(Debug)]
 pub enum CompatibilityReportLoadError {
@@ -327,18 +338,38 @@ impl CompatibilityReportSnapshot {
 
     /// Load and parse the report from disk.
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, CompatibilityReportLoadError> {
-        let bytes = std::fs::read(path)?;
+        let bytes =
+            read_bounded_regular_file(path.as_ref(), MAX_COMPATIBILITY_REPORT_BYTES as u64)?;
         Self::from_bytes(&bytes)
     }
 
     /// Parse the report from raw JSON bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, CompatibilityReportLoadError> {
-        let snapshot: Self = serde_json::from_slice(bytes)?;
-        if snapshot.record_kind != Self::EXPECTED_RECORD_KIND {
+        if bytes.len() > MAX_COMPATIBILITY_REPORT_BYTES {
+            return Err(CompatibilityReportLoadError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "compatibility report exceeds configured byte limit",
+            )));
+        }
+        let envelope: CompatibilityReportEnvelopeSnapshot = serde_json::from_slice(bytes)?;
+        if envelope.record_kind != Self::EXPECTED_RECORD_KIND {
             return Err(CompatibilityReportLoadError::SchemaMismatch {
                 expected_record_kind: Self::EXPECTED_RECORD_KIND,
-                actual_record_kind: snapshot.record_kind,
+                actual_record_kind: "invalid_or_unrecognized".to_owned(),
             });
+        }
+        if envelope.schema_version != COMPATIBILITY_REPORT_SCHEMA_VERSION {
+            return Err(CompatibilityReportLoadError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "compatibility report uses an unsupported schema version",
+            )));
+        }
+        let snapshot: Self = serde_json::from_slice(bytes)?;
+        if snapshot.rows.len() > MAX_COMPATIBILITY_REPORT_ROWS {
+            return Err(CompatibilityReportLoadError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "compatibility report exceeds configured row limit",
+            )));
         }
         Ok(snapshot)
     }
@@ -1167,6 +1198,7 @@ mod tests {
     #[test]
     fn compatibility_report_rejects_wrong_record_kind() {
         let payload = br#"{
+            "schema_version": 1,
             "record_kind": "not_compat",
             "report_id": "compat_report:x",
             "report_revision": 1,
@@ -1178,8 +1210,48 @@ mod tests {
         }"#;
         let err = CompatibilityReportSnapshot::from_bytes(payload).unwrap_err();
         assert!(matches!(
-            err,
+            &err,
             CompatibilityReportLoadError::SchemaMismatch { .. }
         ));
+        assert!(!err.to_string().contains("not_compat"));
+    }
+
+    #[test]
+    fn compatibility_report_rejects_unsupported_schema_version() {
+        let payload = br#"{
+            "schema_version": 99,
+            "record_kind": "compatibility_report",
+            "report_id": "compat_report:x",
+            "report_revision": 1,
+            "report_state": "draft",
+            "as_of": "2026-05-15",
+            "generated_at": "2026-05-15T00:00:00Z",
+            "owner": "@me",
+            "rows": []
+        }"#;
+        let error = CompatibilityReportSnapshot::from_bytes(payload).expect_err("must reject");
+        assert!(matches!(error, CompatibilityReportLoadError::Io(_)));
+    }
+
+    #[test]
+    fn compatibility_report_rejects_oversized_input_before_parsing() {
+        let bytes = vec![b' '; MAX_COMPATIBILITY_REPORT_BYTES + 1];
+        let error = CompatibilityReportSnapshot::from_bytes(&bytes).expect_err("must reject");
+        assert!(matches!(error, CompatibilityReportLoadError::Io(_)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn compatibility_report_path_loader_rejects_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir().expect("tempdir");
+        let target = directory.path().join("compatibility.json");
+        let link = directory.path().join("compatibility-link.json");
+        std::fs::write(&target, b"{}").expect("write target");
+        symlink(&target, &link).expect("symlink");
+
+        let error = CompatibilityReportSnapshot::load_from_path(&link).expect_err("must reject");
+        assert!(matches!(error, CompatibilityReportLoadError::Io(_)));
     }
 }

@@ -21,6 +21,14 @@ pub enum StatePathFamily {
     Logs,
     /// User-owned recent-work continuity metadata.
     RecentWork,
+    /// User-owned session topology and restore metadata.
+    Session,
+    /// User-owned dirty-buffer recovery journals.
+    RecoveryJournal,
+    /// User-owned local history and mutation lineage.
+    History,
+    /// Reviewed, reversible competitor-profile imports.
+    Imports,
 }
 
 impl StatePathFamily {
@@ -28,6 +36,10 @@ impl StatePathFamily {
         match self {
             Self::Logs => "logs",
             Self::RecentWork => "recent_work",
+            Self::Session => "session",
+            Self::RecoveryJournal => "history/recovery_journal",
+            Self::History => "history",
+            Self::Imports => "imports",
         }
     }
 
@@ -35,6 +47,9 @@ impl StatePathFamily {
         match self {
             Self::Logs => PathBuf::from(".logs"),
             Self::RecentWork => PathBuf::from(".logs").join("recent_work"),
+            Self::Session | Self::RecoveryJournal => PathBuf::from(".logs").join("recovery"),
+            Self::History => PathBuf::from(".logs").join("history"),
+            Self::Imports => PathBuf::from(".logs").join("imports"),
         }
     }
 }
@@ -60,6 +75,18 @@ pub fn state_family_root(family: StatePathFamily) -> PathBuf {
     resolve_state_family_root_from(configured.as_deref(), family)
 }
 
+/// Returns the configured application-state root itself.
+///
+/// Callers should prefer a named family whenever the state-map row is known.
+/// This base is retained for machine settings that have not yet gained a
+/// narrower public family selector.
+pub fn application_state_root() -> PathBuf {
+    std::env::var_os(AURELINE_STATE_ENV)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(".logs"))
+}
+
 /// Returns the configured logs root, or the legacy `.logs` root when unset.
 pub fn logs_root() -> PathBuf {
     state_family_root(StatePathFamily::Logs)
@@ -68,6 +95,26 @@ pub fn logs_root() -> PathBuf {
 /// Returns the configured recent-work root, or its legacy location when unset.
 pub fn recent_work_root() -> PathBuf {
     state_family_root(StatePathFamily::RecentWork)
+}
+
+/// Returns the session-restore state root.
+pub fn session_root() -> PathBuf {
+    state_family_root(StatePathFamily::Session)
+}
+
+/// Returns the dirty-buffer recovery-journal root.
+pub fn recovery_journal_root() -> PathBuf {
+    state_family_root(StatePathFamily::RecoveryJournal)
+}
+
+/// Returns the local-history and mutation-lineage root.
+pub fn history_root() -> PathBuf {
+    state_family_root(StatePathFamily::History)
+}
+
+/// Returns the reviewed import state root.
+pub fn imports_root() -> PathBuf {
+    state_family_root(StatePathFamily::Imports)
 }
 
 #[cfg(test)]
@@ -87,6 +134,24 @@ mod tests {
             resolve_state_family_root_from(Some(configured), StatePathFamily::RecentWork),
             Path::new("configured-state").join("recent_work")
         );
+        assert_eq!(
+            resolve_state_family_root_from(Some(configured), StatePathFamily::Session),
+            Path::new("configured-state").join("session")
+        );
+        assert_eq!(
+            resolve_state_family_root_from(Some(configured), StatePathFamily::RecoveryJournal),
+            Path::new("configured-state")
+                .join("history")
+                .join("recovery_journal")
+        );
+        assert_eq!(
+            resolve_state_family_root_from(Some(configured), StatePathFamily::History),
+            Path::new("configured-state").join("history")
+        );
+        assert_eq!(
+            resolve_state_family_root_from(Some(configured), StatePathFamily::Imports),
+            Path::new("configured-state").join("imports")
+        );
     }
 
     #[test]
@@ -98,6 +163,22 @@ mod tests {
         assert_eq!(
             resolve_state_family_root_from(Some(OsStr::new("")), StatePathFamily::RecentWork),
             PathBuf::from(".logs").join("recent_work")
+        );
+        assert_eq!(
+            resolve_state_family_root_from(None, StatePathFamily::Session),
+            PathBuf::from(".logs").join("recovery")
+        );
+        assert_eq!(
+            resolve_state_family_root_from(None, StatePathFamily::RecoveryJournal),
+            PathBuf::from(".logs").join("recovery")
+        );
+        assert_eq!(
+            resolve_state_family_root_from(None, StatePathFamily::History),
+            PathBuf::from(".logs").join("history")
+        );
+        assert_eq!(
+            resolve_state_family_root_from(None, StatePathFamily::Imports),
+            PathBuf::from(".logs").join("imports")
         );
     }
 }
