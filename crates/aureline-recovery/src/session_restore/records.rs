@@ -20,6 +20,7 @@ pub type PaneTreeSchemaVersion = u32;
 
 /// Producer build stamp carried on restore artifacts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProducerBuildStamp {
     pub producer_name: String,
     pub producer_version: String,
@@ -78,6 +79,7 @@ pub enum ExcludedLiveAuthorityClass {
 
 /// Trusted-root entry captured for a workspace checkpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TrustedRootRecord {
     pub root_id: String,
     pub trust_state: String,
@@ -90,6 +92,7 @@ pub struct TrustedRootRecord {
 
 /// Dirty-buffer journal identity carried on a workspace checkpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DirtyBufferJournalIdentity {
     pub journal_id: String,
     pub journal_kind: String,
@@ -102,8 +105,11 @@ pub struct DirtyBufferJournalIdentity {
 
 /// Downgrade trigger record included with restore artifacts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DowngradeTriggerRecord {
     pub trigger_class: DowngradeTriggerClass,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub affected_journal_ids: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub affected_root_refs: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -116,6 +122,7 @@ pub struct DowngradeTriggerRecord {
 
 /// Workspace-authority checkpoint record (schema/state).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WorkspaceAuthorityCheckpointRecord {
     #[serde(rename = "$schema", default, skip_serializing_if = "Option::is_none")]
     pub schema: Option<String>,
@@ -222,13 +229,14 @@ pub enum AvailabilityState {
     EvidenceOnly,
 }
 
-/// Metadata retained for a terminal pane during session restore.
+/// In-memory projection accepted from the terminal capture boundary.
 ///
-/// The fields mirror the terminal-owned restore metadata shape using string
-/// tokens so recovery can persist pane topology without depending on the live
-/// PTY host crate. Raw command lines, shell history, environment bodies, and
-/// PTY bytes are intentionally absent.
+/// Recovery uses this only to validate the no-rerun posture at capture time.
+/// It is not a substitute for the terminal-owned restore record and is never
+/// embedded in a topology packet or pane-tree body. Raw command lines, shell
+/// history, environment bodies, and PTY bytes are intentionally absent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TerminalPaneRestoreMetadata {
     /// Stable ref to the terminal restore metadata record.
     pub restore_metadata_ref: String,
@@ -253,8 +261,20 @@ pub struct TerminalPaneRestoreMetadata {
     pub raw_environment_body_present: bool,
 }
 
+fn reject_embedded_terminal_metadata<'de, D>(
+    _deserializer: D,
+) -> Result<Option<TerminalPaneRestoreMetadata>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Err(serde::de::Error::custom(
+        "embedded terminal restore metadata is not part of the recovery topology schema",
+    ))
+}
+
 /// Stable pane inventory entry included with topology packets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct StablePaneInventoryEntry {
     pub pane_id: String,
     pub surface_role: SurfaceRole,
@@ -267,12 +287,20 @@ pub struct StablePaneInventoryEntry {
     pub follow_anchor_candidate: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title_hint: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Legacy in-memory handoff from the shell capture boundary. Terminal
+    /// restore metadata is terminal-owned and must be persisted separately;
+    /// recovery neither writes nor accepts an embedded copy here.
+    #[serde(
+        default,
+        skip_serializing,
+        deserialize_with = "reject_embedded_terminal_metadata"
+    )]
     pub restore_metadata: Option<TerminalPaneRestoreMetadata>,
 }
 
 /// Tab-group topology summary entry included with topology packets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TabGroupInventoryEntry {
     pub group_id: String,
     pub ordered_tab_ids: Vec<String>,
@@ -313,6 +341,7 @@ pub enum DockPosition {
 
 /// Inspector inventory entry included with topology packets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct VisibleInspectorInventoryEntry {
     pub inspector_id: String,
     pub inspector_kind: InspectorKind,
@@ -335,6 +364,7 @@ pub enum FocusTargetKind {
 
 /// Focus chain entry included with topology packets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct FocusChainEntry {
     pub target_kind: FocusTargetKind,
     pub target_ref: String,
@@ -378,6 +408,7 @@ pub enum CollaborationBadge {
 
 /// Follow/presentation state captured with topology packets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct FollowPresentationState {
     pub follow_mode: FollowMode,
     pub presentation_mode: PresentationMode,
@@ -398,20 +429,57 @@ pub enum MonitorAffinityStrength {
     PreferSameRegion,
 }
 
+/// Best-effort display class used by monitor-affinity hints.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DisplayClass {
+    InternalPanel,
+    ExternalMonitor,
+    VirtualDisplay,
+    ProjectorOrPresentation,
+    Unknown,
+}
+
+/// Closed display scale bucket used by monitor-affinity hints.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ScaleBucket {
+    #[serde(rename = "1x")]
+    OneX,
+    #[serde(rename = "1_25x")]
+    OneAndQuarterX,
+    #[serde(rename = "1_5x")]
+    OneAndHalfX,
+    #[serde(rename = "2x")]
+    TwoX,
+    #[serde(rename = "other")]
+    Other,
+}
+
+/// Non-authoritative display bounds retained only as a remapping hint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BoundsHint {
+    pub x: i64,
+    pub y: i64,
+    pub width: u64,
+    pub height: u64,
+}
+
 /// Monitor affinity hint carried with topology packets and pane-tree bodies.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MonitorAffinityHint {
     pub affinity_strength: MonitorAffinityStrength,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub display_class: Option<String>,
+    pub display_class: Option<DisplayClass>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_known_display_ref: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_known_topology_hash: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub preferred_scale_bucket: Option<String>,
+    pub preferred_scale_bucket: Option<ScaleBucket>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub preferred_bounds_hint: Option<String>,
+    pub preferred_bounds_hint: Option<BoundsHint>,
     pub best_effort_only: bool,
 }
 
@@ -438,6 +506,7 @@ pub enum PlaceholderAction {
     InstallExtension,
     Reauthenticate,
     ReconnectRemote,
+    RecoverDraft,
     OpenWithout,
     OpenRestricted,
     RerunExplicitly,
@@ -452,6 +521,7 @@ pub enum PlaceholderAction {
 
 /// Placeholder behavior record included with topology packets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PlaceholderBehaviorRecord {
     pub pane_id: String,
     pub placeholder_reason: PlaceholderReasonClass,
@@ -478,6 +548,7 @@ pub enum TopologyAdjustmentClass {
 
 /// Topology adjustment record included with topology packets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TopologyAdjustmentRecord {
     pub adjustment_class: TopologyAdjustmentClass,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -488,6 +559,7 @@ pub struct TopologyAdjustmentRecord {
 
 /// Window-topology snapshot packet record (schema/state).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WindowTopologySnapshotRecord {
     #[serde(rename = "$schema", default, skip_serializing_if = "Option::is_none")]
     pub schema: Option<String>,
@@ -546,29 +618,51 @@ pub enum SplitOrientation {
 
 /// Placeholder-card payload attached to pane leaves (schema/workspace).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PlaceholderCard {
-    pub placeholder_class: String,
-    pub title: String,
+    pub placeholder_reason: PlaceholderReasonClass,
+    pub safe_actions: Vec<PlaceholderAction>,
+    pub evidence_retained: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub primary_action: Option<String>,
-    pub secondary_actions: Vec<String>,
-    pub note: String,
+    pub last_known_provenance_label: Option<String>,
+}
+
+/// Closed class for a remembered live surface. The value is descriptive and
+/// never carries a process, session, or capability handle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LiveSurfaceClass {
+    Terminal,
+    DebugSession,
+    Notebook,
+    RemoteShell,
+    TaskRunner,
+    PipelineView,
+    ExtensionView,
+    PreviewRuntime,
 }
 
 /// Surface payload attached to a leaf pane (schema/workspace).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PaneSurfaceDescriptor {
     pub surface_role: SurfaceRole,
     pub surface_class: SurfaceClass,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub live_surface_class: Option<String>,
+    pub live_surface_class: Option<LiveSurfaceClass>,
     pub hydration_behavior: HydrationBehavior,
     pub availability_state: AvailabilityState,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title_hint: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub surface_binding_ref: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Legacy in-memory handoff only; see
+    /// [`StablePaneInventoryEntry::restore_metadata`].
+    #[serde(
+        default,
+        skip_serializing,
+        deserialize_with = "reject_embedded_terminal_metadata"
+    )]
     pub restore_metadata: Option<TerminalPaneRestoreMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub follow_anchor_candidate: Option<bool>,
@@ -580,6 +674,7 @@ pub struct PaneSurfaceDescriptor {
 
 /// Leaf-pane node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PaneLeafNode {
     pub node_kind: String,
     pub pane_id: String,
@@ -588,6 +683,7 @@ pub struct PaneLeafNode {
 
 /// One tab in a tab group.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TabRecord {
     pub tab_id: String,
     pub tab_label: Option<String>,
@@ -600,7 +696,7 @@ pub struct TabRecord {
 
 /// Recursive pane-tree node (schema/workspace).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "node_kind", rename_all = "snake_case")]
+#[serde(tag = "node_kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PaneNode {
     Leaf {
         pane_id: String,
@@ -624,6 +720,7 @@ pub enum PaneNode {
 
 /// Pane-tree body (schema/workspace).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PaneTree {
     pub tree_revision: u32,
     pub root_node: PaneNode,
@@ -651,6 +748,7 @@ pub enum WindowState {
 
 /// Window chrome state (schema/workspace).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WindowChromeState {
     pub window_state: WindowState,
     pub zoom_percent: f64,
@@ -662,6 +760,7 @@ pub struct WindowChromeState {
 
 /// Visible inspector record (schema/workspace).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct VisibleInspectorRecord {
     pub inspector_id: String,
     pub inspector_kind: InspectorKind,
@@ -673,6 +772,7 @@ pub struct VisibleInspectorRecord {
 
 /// Workspace scope references carried on pane-tree bodies.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ScopeRefs {
     pub workspace_authority_ref: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -683,6 +783,7 @@ pub struct ScopeRefs {
 
 /// Canonical window-topology snapshot body (schema/workspace).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WindowTopologySnapshotBodyRecord {
     #[serde(rename = "$schema", default, skip_serializing_if = "Option::is_none")]
     pub schema: Option<String>,

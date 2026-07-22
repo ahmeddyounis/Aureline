@@ -93,9 +93,10 @@ is named, restore behavior becomes inspectable mechanically.
 
 ## Out of scope
 
-- The persistence engine, sync execution, checkpoint storage layout,
-  or restore runtime. The vocabulary freeze lands here; production
-  surfaces compose over it later.
+- Alternative persistence engines, sync transport, and platform-specific
+  storage layouts beyond the local publication and selection guarantees in
+  §1.1. Production surfaces may vary their mechanics but not those safety
+  outcomes.
 - Final UI copy. Display copy may render `Exact restore`,
   `Compatible restore`, `Layout only`, `Recovered drafts`, and
   `Evidence only`; the closed machine set is fixed.
@@ -138,6 +139,65 @@ Rules (frozen):
    that no longer fits current monitors MUST snap to safe bounds and
    record the adjustment under `topology_adjustments`; treating stale
    coordinates as authoritative is forbidden.
+6. Every field typed as `opaque_id` is 1–512 ASCII characters from
+   `[A-Za-z0-9:._#@|-]`, excluding `.` and `..`. A raw path, URI, whitespace,
+   control byte, credential, payload text, or live authority token is
+   non-conforming; this boundary is enforced by all three owning schemas.
+
+### 1.1 Local store publication and selection
+
+The local session-restore store publishes checkpoint, topology-packet, and
+pane-tree bodies as synchronized create-new records before it publishes the
+immutable versioned latest-index record. Capture success requires reopening
+and validating that exact checkpoint/snapshot/body/index join; an advisory
+`latest.json` pointer is never selection authority. Reads and directory
+inventories are byte- and entry-bounded, reject redirected ancestors and
+records, and pin file and parent identities around access.
+
+The successful create-new install is the publication commit point. A failure
+before the first installed body is an ordinary capture failure. Once any body
+has reached that point, a later sync, cleanup, publication, or final-validation
+failure is `commit_state_uncertain` and carries the minted checkpoint and
+snapshot refs. Callers must reopen and reconcile those refs; they must not
+claim capture success, scrub an installed inode through its staging handle, or
+retry as though no durable member can exist. Unix synchronizes file and parent
+directory handles. Rust 1.75 has no portable Windows parent-directory sync or
+cross-platform directory-handle-relative hard-link primitive, so Windows does
+not claim power-loss namespace durability and all platforms retain the named
+operation race limit documented by the implementation.
+
+Selection validates the exact supported schema versions and rejects unknown
+record fields before a candidate can become authority. When a newer immutable
+index or joined capture is corrupt but an older joined capture remains valid,
+the store MAY select the older capture only while returning typed
+`skipped_newer_candidates[]` evidence. Proposal surfaces carry that evidence
+as a manual-repair downgrade and redaction-safe note, and summary surfaces
+carry `skipped_newer_candidate_count`. Summaries reopen one exact joined
+checkpoint/snapshot/body/index set rather than independently reading fields
+from paths that can change between reads; silent fallback or record splicing
+is non-conforming. Any unresolved durable, selection, or integrity downgrade
+narrows the executable proposal to `evidence_only` until explicit review; an
+available layout or draft body does not cancel that boundary. Authority-level
+and topology-level downgrade-trigger
+partitions must retain the same ordered trigger classes and redaction-safe
+notes. A proposal carries those durable classes forward, and execution
+rechecks them so deleting a review trigger cannot widen restore behavior.
+An evidence-bearing proposal is not treated as an empty first launch merely
+because every restorable count is zero.
+
+Execution reopens the exact immutable index/checkpoint/snapshot/body join named
+by the proposal. The proposal is review material, not a second authority body:
+pane outcomes are rebound from the durable topology, its restore class may
+narrow but never broaden the joined class, unknown proposal fields are
+rejected, and its dirty-journal rows must be a unique exact match for the
+checkpoint-admitted journal revisions. A serialized or in-memory edit cannot
+redirect a pane binding, suppress or duplicate a dirty-journal row, or
+substitute a journal revision.
+
+Recovered dirty-buffer bytes exist only in the in-memory replay handoff. The
+serialized restore outcome retains typed refs and posture, while debug output
+may expose only the byte length; both must omit the user payload. Outcome logs
+and support surfaces are never a second copy of recovered source content.
 
 ## 2. Workspace-authority checkpoint
 
@@ -160,7 +220,10 @@ Required fields (frozen):
 - `dirty_buffer_journal_identities[]` — one row per dirty-buffer or
   recovery-journal stream the checkpoint can rehydrate. Each row names
   a `journal_id`, `journal_kind`, and an opaque
-  `last_known_revision_ref`. Raw journal bodies never appear inline.
+  `last_known_revision_ref`. The revision ref is an exact replay boundary:
+  a restore may admit only the journal entry whose `journal_entry_id` equals
+  that ref, never an unlisted or newer entry merely because it shares the
+  workspace or journal id. Raw journal bodies never appear inline.
 - `trusted_root_refs[]` — one row per workspace root that carried a
   trust decision. Each row names a `root_id`, the ADR-0001
   `trust_state` reused without redefinition, and an opaque scope ref.
@@ -179,8 +242,10 @@ Required fields (frozen):
   workspace-memory-contract vocabulary verbatim so support and docs
   do not invent parallel labels.
 - `downgrade_triggers[]` — one row per typed reason that the resulting
-  fidelity narrowed (see §4). Empty when the checkpoint claims
-  `exact_restore`.
+  fidelity narrowed (see §4). Optional `affected_journal_ids[]`,
+  `affected_root_refs[]`, and `affected_workset_ids[]` scopes contain only
+  opaque authority-level refs. Window-local `affected_pane_ids[]` remain in
+  the topology packet. Empty when the checkpoint claims `exact_restore`.
 - `emitted_at` — producer-local monotonic timestamp.
 
 Rules (frozen):
@@ -258,6 +323,9 @@ Rules (frozen):
 2. Closing, floating, moving, pinning, or replacing a pane mutates the
    topology snapshot for that window only. Sibling windows pointed at
    the same `workspace_authority_checkpoint_ref` are unaffected.
+   A remembered pane id is derived from the stable tab/surface identity; it
+   MUST NOT include the snapshot id, group id, or ordinal, so a new capture or
+   a group move cannot silently mint a different pane identity.
 3. The packet MAY remember that a live pane existed, but it MUST NOT
    serialize live capability tickets, delegated approvals, kernel
    handles, or browser session tokens as topology fields. Live
@@ -282,9 +350,11 @@ labels shown below.
 | `Evidence only` | `evidence_only` | no live restore was attempted; only transcripts, snapshots, refs, and provenance survive | every live surface row in the topology packet carries an `evidence_only_placeholder` posture; the authority checkpoint records the excluded live-authority classes that prevented a higher class |
 | `No restore` | `no_restore` | the producer chose not to restore; only the inventory and provenance refs survive | both bodies record the typed reason under `downgrade_triggers[]` and exclude any pane/authority claim that would imply live restore |
 
-Producer build and source schema version are mandatory on every claim
-above `exact_restore`. The `downgrade_triggers[]` enum is closed and
-shared across both bodies:
+Producer build and source schema version are mandatory for every class. For
+authority narrowing, `recovered_drafts` is broader than `layout_only`: a
+topology may discard draft rehydration and retain layout, but it may never
+invent recovered-draft authority above a layout-only checkpoint. The
+`downgrade_triggers[]` enum is closed and shared across both bodies:
 
 - `schema_translation_required`
 - `schema_meaning_changed`
@@ -344,13 +414,19 @@ Rules (frozen):
    pane is non-conforming.
 2. `evidence_retained` is required on every row so support knows
    whether a transcript, snapshot, or metadata-only summary survived.
-3. The `safe_actions[]` set is closed and shared with the
-   workspace-shell pane-tree schema. Free-form action labels are
-   non-conforming.
+3. The `safe_actions[]` list is closed, uses the exact action sequence in the
+   table above, and is shared with the workspace-shell pane-tree schema.
+   Missing, duplicate, reordered, or additional actions and free-form action
+   labels are non-conforming.
 4. A live-surface placeholder row MUST be paired with a typed
    no-rerun guardrail recorded in the layout-restore provenance the
    workspace-shell schema validates. This packet records the
    placeholder; the per-window provenance records the guardrails.
+5. Every pane whose hydration posture is `placeholder_only` or
+   `evidence_only`, or whose availability state is `placeholder` or
+   `evidence_only`, has exactly one `placeholder_behaviors[]` row, and its
+   pane-tree leaf carries a `placeholder_card` with the same reason, actions,
+   evidence flag, and provenance label. Ready panes carry neither shape.
 
 ### 5.2 Topology adjustments
 
@@ -401,6 +477,11 @@ Rules (frozen):
    runtime actually survived; the workspace-shell pane-tree schema's
    `live_session_continued` posture is the only place that marker is
    admitted, and it MUST cite a surviving binding.
+4. Terminal session-restore metadata remains a terminal-owned record governed
+   by `schemas/terminal/session_restore_metadata.schema.json`. Neither the
+   topology packet nor pane-tree body embeds a private copy of that record;
+   they retain the terminal pane as a non-reentrant placeholder until a
+   separately governed ref can be joined.
 
 ## 7. Conformance checklist
 

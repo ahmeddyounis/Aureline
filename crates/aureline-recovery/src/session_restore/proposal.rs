@@ -24,7 +24,7 @@
 //!    actually available — never speculative. Missing or corrupt frames
 //!    downgrade the class and record the trigger.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -38,7 +38,10 @@ use super::records::{
     SurfaceClass, SurfaceRole, TerminalPaneRestoreMetadata, WindowTopologySnapshotBodyRecord,
     WindowTopologySnapshotRecord, WorkspaceAuthorityCheckpointRecord,
 };
-use super::store::{is_bounded_opaque_ref, SessionRestoreError, SessionRestoreStore};
+use super::store::{
+    is_bounded_opaque_ref, SessionRestoreError, SessionRestoreLatestRefs,
+    SessionRestoreSelectionWarning, SessionRestoreSelectionWarningClass, SessionRestoreStore,
+};
 
 /// Schema version for `RestoreProposalRecord`.
 pub type RestoreProposalSchemaVersion = u32;
@@ -59,6 +62,7 @@ pub enum RestoreProposalPlanKind {
 
 /// Counts captured from persisted artifacts before any rehydration runs.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct RestoreProposalCounts {
     pub windows: usize,
     pub tab_groups: usize,
@@ -72,6 +76,7 @@ pub struct RestoreProposalCounts {
 
 /// References to the persisted artifacts that back a proposal.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct RestoreProposalArtifactRefs {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub checkpoint_id: Option<String>,
@@ -85,6 +90,7 @@ pub struct RestoreProposalArtifactRefs {
 
 /// Per-pane plan describing how the surface returns after restore.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RestoreProposalPanePlan {
     pub pane_id: String,
     pub surface_role: SurfaceRole,
@@ -103,6 +109,7 @@ pub struct RestoreProposalPanePlan {
 
 /// Per-buffer dirty-draft entry surfaced for review.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RestoreProposalDirtyBufferEntry {
     pub journal_entry_id: String,
     pub journal_id: String,
@@ -116,6 +123,7 @@ pub struct RestoreProposalDirtyBufferEntry {
 
 /// Pre-rehydration restore proposal: the canonical summary surface.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RestoreProposal {
     pub record_kind: String,
     pub restore_proposal_schema_version: RestoreProposalSchemaVersion,
@@ -167,7 +175,8 @@ pub enum RestorePaneExecutionKind {
 }
 
 /// Result of executing a single pane plan.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RestorePaneOutcome {
     pub pane_id: String,
     pub surface_role: SurfaceRole,
@@ -183,8 +192,24 @@ pub struct RestorePaneOutcome {
     pub note: String,
 }
 
+impl std::fmt::Debug for RestorePaneOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RestorePaneOutcome")
+            .field("pane_id", &self.pane_id)
+            .field("surface_role", &self.surface_role)
+            .field("surface_class", &self.surface_class)
+            .field("execution_kind", &self.execution_kind)
+            .field("title_hint_present", &self.title_hint.is_some())
+            .field("surface_binding_ref", &self.surface_binding_ref)
+            .field("restore_metadata_present", &self.restore_metadata.is_some())
+            .field("note", &self.note)
+            .finish()
+    }
+}
+
 /// Dirty-buffer body resolved from the crash journal for live replay.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RestoreDirtyBufferReplay {
     pub journal_entry_id: String,
     pub journal_id: String,
@@ -192,10 +217,32 @@ pub struct RestoreDirtyBufferReplay {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub presentation_hint: Option<String>,
     pub body_object_ref: String,
+    /// Recovered user bytes are runtime-only. Outcome logs and support-facing
+    /// serialization must never persist or export the private payload.
+    #[serde(skip)]
     pub bytes: Vec<u8>,
     pub replay_posture: ReplayPostureClass,
     pub frame_integrity: FrameIntegrityState,
     pub recommended_choice: GuidedChoiceClass,
+}
+
+impl std::fmt::Debug for RestoreDirtyBufferReplay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RestoreDirtyBufferReplay")
+            .field("journal_entry_id", &self.journal_entry_id)
+            .field("journal_id", &self.journal_id)
+            .field("object_ref", &self.object_ref)
+            .field(
+                "presentation_hint_present",
+                &self.presentation_hint.is_some(),
+            )
+            .field("body_object_ref", &self.body_object_ref)
+            .field("byte_len", &self.bytes.len())
+            .field("replay_posture", &self.replay_posture)
+            .field("frame_integrity", &self.frame_integrity)
+            .field("recommended_choice", &self.recommended_choice)
+            .finish()
+    }
 }
 
 /// Typed reason a dirty-buffer entry could not be replayed automatically.
@@ -216,6 +263,7 @@ pub enum RestoreDirtyBufferFailureKind {
 
 /// Dirty-buffer entry retained for review because replay was not safe.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RestoreDirtyBufferFailure {
     pub journal_entry_id: String,
     pub journal_id: String,
@@ -226,6 +274,7 @@ pub struct RestoreDirtyBufferFailure {
 
 /// Outcome produced by [`RestoreProposal::execute`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RestoreOutcome {
     pub record_kind: String,
     pub restore_class: RestoreClass,
@@ -276,7 +325,12 @@ impl RestoreProposal {
         let mut pane_plans: Vec<RestoreProposalPanePlan> = Vec::new();
         let mut counts = RestoreProposalCounts::default();
 
-        let latest_refs = session_store.latest_refs()?;
+        let selection = session_store.latest_selection()?;
+        let selection_warnings = selection.skipped_newer_candidates;
+        if !selection_warnings.is_empty() {
+            push_manual_repair_once(&mut downgrade_triggers);
+        }
+        let latest_refs = selection.latest_refs;
         let mut checkpoint: Option<WorkspaceAuthorityCheckpointRecord> = None;
         let mut snapshot: Option<WindowTopologySnapshotRecord> = None;
         let mut joined_workspace_ref: Option<String> = None;
@@ -285,106 +339,124 @@ impl RestoreProposal {
             artifact_refs.checkpoint_id = Some(latest.checkpoint_id.clone());
             artifact_refs.snapshot_id = Some(latest.snapshot_id.clone());
 
-            match session_store.load_checkpoint(&latest.checkpoint_id) {
-                Ok(record) => {
+            match session_store.load_reconciled_capture(latest) {
+                Ok(Some(joined)) => {
+                    let record = joined.checkpoint;
+                    let topology = joined.topology;
+                    let body = joined.pane_tree_body;
+                    for trigger in record
+                        .downgrade_triggers
+                        .iter()
+                        .chain(&topology.downgrade_triggers)
+                    {
+                        push_downgrade_once(&mut downgrade_triggers, trigger.trigger_class);
+                    }
                     artifact_refs.workspace_authority_ref =
                         Some(record.workspace_authority_ref.clone());
+                    artifact_refs.window_id = Some(topology.window_id.clone());
                     counts.evidence_packets = record.evidence_bundle_refs.len();
                     counts.recovery_packets = record.recovery_journal_refs.len();
-                    checkpoint = Some(record);
-                }
-                Err(_) => {
-                    downgrade_triggers.push(DowngradeTriggerClass::ManualRepairRequired);
-                }
-            }
-
-            match session_store.load_window_topology_snapshot(&latest.snapshot_id) {
-                Ok(record) => {
-                    artifact_refs.window_id = Some(record.window_id.clone());
-                    counts.windows = 1 + record.sibling_window_refs.len();
-                    counts.tab_groups = record.tab_group_topology.len();
-                    counts.tabs = record
+                    counts.windows = 1 + topology.sibling_window_refs.len();
+                    counts.tab_groups = topology.tab_group_topology.len();
+                    counts.tabs = topology
                         .tab_group_topology
                         .iter()
                         .map(|group| group.ordered_tab_ids.len())
                         .sum();
-                    counts.terminals = record
+                    counts.terminals = topology
                         .stable_pane_id_inventory
                         .iter()
                         .filter(|pane| is_terminal_like(pane.surface_role, pane.surface_class))
                         .count();
-                    counts.transient_tasks = record
+                    counts.transient_tasks = topology
                         .stable_pane_id_inventory
                         .iter()
                         .filter(|pane| is_transient_task(pane.surface_role, pane.surface_class))
                         .count();
-                    pane_plans = match session_store.load_pane_tree_body(&latest.snapshot_id) {
-                        Ok(body) => match checkpoint
-                            .as_ref()
-                            .ok_or("workspace checkpoint is unavailable")
-                            .and_then(|checkpoint| {
-                                joined_pane_surfaces(&record, &body, checkpoint).map(|surfaces| {
-                                    (
-                                        surfaces,
-                                        joined_workspace_ref_from_records(
-                                            checkpoint, &record, &body,
-                                        )
-                                        .map(str::to_string),
+                    pane_plans = match joined_pane_surfaces(&topology, &body, &record) {
+                        Ok(surfaces) => {
+                            joined_workspace_ref =
+                                joined_workspace_ref_from_records(&record, &topology, &body)
+                                    .map(str::to_string);
+                            if joined_workspace_ref.is_none() {
+                                push_manual_repair_once(&mut downgrade_triggers);
+                            }
+                            topology
+                                .stable_pane_id_inventory
+                                .iter()
+                                .map(|pane| {
+                                    materialize_pane_plan(
+                                        pane,
+                                        surfaces.get(&pane.pane_id).and_then(|surface| {
+                                            surface.surface_binding_ref.as_deref()
+                                        }),
+                                        joined_workspace_ref.is_some(),
                                     )
                                 })
-                            }) {
-                            Ok((surfaces, Some(workspace_ref))) => {
-                                joined_workspace_ref = Some(workspace_ref);
-                                record
-                                    .stable_pane_id_inventory
-                                    .iter()
-                                    .map(|pane| {
-                                        materialize_pane_plan(
-                                            pane,
-                                            surfaces.get(&pane.pane_id).and_then(|surface| {
-                                                surface.surface_binding_ref.as_deref()
-                                            }),
-                                            true,
-                                        )
-                                    })
-                                    .collect()
-                            }
-                            Ok((_, None)) | Err(_) => {
-                                push_manual_repair_once(&mut downgrade_triggers);
-                                record
-                                    .stable_pane_id_inventory
-                                    .iter()
-                                    .map(|pane| materialize_pane_plan(pane, None, false))
-                                    .collect()
-                            }
-                        },
+                                .collect()
+                        }
                         Err(_) => {
                             push_manual_repair_once(&mut downgrade_triggers);
-                            record
+                            topology
                                 .stable_pane_id_inventory
                                 .iter()
                                 .map(|pane| materialize_pane_plan(pane, None, false))
                                 .collect()
                         }
                     };
-                    snapshot = Some(record);
+                    checkpoint = Some(record);
+                    snapshot = Some(topology);
                 }
-                Err(_) => {
-                    downgrade_triggers.push(DowngradeTriggerClass::ManualRepairRequired);
+                Ok(None) | Err(_) => {
+                    push_manual_repair_once(&mut downgrade_triggers);
                 }
             }
         }
 
+        let admitted_dirty_journal_revisions = checkpoint
+            .as_ref()
+            .map(|record| {
+                record
+                    .dirty_buffer_journal_identities
+                    .iter()
+                    .filter(|journal| journal.journal_kind == "dirty_buffer_recovery_journal")
+                    .map(|journal| {
+                        (
+                            journal.journal_id.as_str(),
+                            journal.last_known_revision_ref.as_str(),
+                        )
+                    })
+                    .collect::<HashMap<_, _>>()
+            })
+            .unwrap_or_default();
+        let unsupported_journal_authority_present = checkpoint.as_ref().is_some_and(|record| {
+            record
+                .dirty_buffer_journal_identities
+                .iter()
+                .any(|journal| journal.journal_kind != "dirty_buffer_recovery_journal")
+        });
         let crash_entries = match joined_workspace_ref.as_deref() {
-            Some(workspace_ref) => crash_store
-                .load_entries_for_workspace(workspace_ref)
-                .map_err(|_| {
-                    SessionRestoreError::MissingRecord(
-                        "scoped crash journal unavailable".to_string(),
-                    )
-                })?,
+            Some(workspace_ref) => match crash_store.load_entries_for_workspace(workspace_ref) {
+                Ok(entries) => entries
+                    .into_iter()
+                    .filter(|entry| {
+                        admitted_dirty_journal_revisions
+                            .get(entry.journal_id.as_str())
+                            .is_some_and(|revision| *revision == entry.journal_entry_id.as_str())
+                    })
+                    .collect(),
+                Err(_) => {
+                    push_manual_repair_once(&mut downgrade_triggers);
+                    Vec::new()
+                }
+            },
             None => Vec::new(),
         };
+        if unsupported_journal_authority_present
+            || crash_entries.len() != admitted_dirty_journal_revisions.len()
+        {
+            push_manual_repair_once(&mut downgrade_triggers);
+        }
         let dirty_buffer_entries = collect_dirty_buffer_entries(&crash_entries);
         counts.dirty_buffer_journals = dirty_buffer_entries.len();
 
@@ -408,6 +480,7 @@ impl RestoreProposal {
             &restore_class,
             &counts,
             !downgrade_triggers.is_empty(),
+            &selection_warnings,
         );
 
         Ok(Self {
@@ -435,6 +508,13 @@ impl RestoreProposal {
             && self.counts.terminals == 0
             && self.counts.evidence_packets == 0
             && self.counts.recovery_packets == 0
+            && self.artifact_refs.checkpoint_id.is_none()
+            && self.artifact_refs.snapshot_id.is_none()
+            && self.artifact_refs.workspace_authority_ref.is_none()
+            && self.artifact_refs.window_id.is_none()
+            && self.pane_plans.is_empty()
+            && self.dirty_buffer_entries.is_empty()
+            && self.downgrade_triggers.is_empty()
     }
 
     /// True when the proposal carries dirty drafts that require user review.
@@ -444,20 +524,7 @@ impl RestoreProposal {
 
     /// One-line summary suitable for status surfaces and command-runtime notes.
     pub fn summary_line(&self) -> String {
-        format!(
-            "restore_class={class}; windows={windows}; tab_groups={groups}; tabs={tabs}; \
-             dirty_buffers={drafts}; transient_tasks={tasks}; terminals={terminals}; \
-             evidence_packets={evidence}; recovery_packets={recovery}",
-            class = restore_class_label(self.restore_class),
-            windows = self.counts.windows,
-            groups = self.counts.tab_groups,
-            tabs = self.counts.tabs,
-            drafts = self.counts.dirty_buffer_journals,
-            tasks = self.counts.transient_tasks,
-            terminals = self.counts.terminals,
-            evidence = self.counts.evidence_packets,
-            recovery = self.counts.recovery_packets,
-        )
+        format_restore_summary_line(self.restore_class, &self.counts)
     }
 
     /// Executes this proposal against the provided recovery runtime.
@@ -467,47 +534,118 @@ impl RestoreProposal {
     /// recovered bytes and never reruns side-effectful surfaces such as
     /// terminals, debuggers, notebooks, or AI panels.
     pub fn execute(self, runtime: &mut RestoreRuntime<'_>) -> RestoreOutcome {
-        let summary_line = self.summary_line();
+        let proposal_header_valid = self.record_kind == "restore_proposal_record"
+            && self.restore_proposal_schema_version == 1
+            && self.auto_rerun_forbidden;
+        let joined_authority =
+            resolve_joined_restore_authority(runtime.session_store, &self.artifact_refs);
+        let mut effective_restore_class = joined_authority
+            .as_ref()
+            .map(|authority| {
+                let joined = narrower_restore_class(self.restore_class, authority.restore_class);
+                if authority.downgrade_triggers.is_empty() && self.downgrade_triggers.is_empty() {
+                    joined
+                } else {
+                    narrower_restore_class(joined, RestoreClass::EvidenceOnly)
+                }
+            })
+            .unwrap_or_else(|| {
+                if self.is_empty() {
+                    RestoreClass::NoRestore
+                } else {
+                    RestoreClass::EvidenceOnly
+                }
+            });
+        let canonical_pane_plans = joined_authority
+            .as_ref()
+            .map(|authority| authority.pane_plans.clone())
+            .unwrap_or_default();
+        let pane_plans_match = self.pane_plans == canonical_pane_plans;
+        let canonical_counts = joined_authority
+            .as_ref()
+            .map(|authority| authority.counts.clone())
+            .unwrap_or_default();
+        let counts_match = self.counts == canonical_counts;
+        let durable_downgrades_preserved = joined_authority.as_ref().map_or(true, |authority| {
+            authority
+                .downgrade_triggers
+                .iter()
+                .all(|trigger| self.downgrade_triggers.contains(trigger))
+        });
+        let dirty_buffer_plan_matches = joined_authority.as_ref().map_or_else(
+            || self.dirty_buffer_entries.is_empty(),
+            |authority| {
+                let mut seen = HashSet::with_capacity(self.dirty_buffer_entries.len());
+                self.dirty_buffer_entries.len() == authority.admitted_dirty_revisions.len()
+                    && self.dirty_buffer_entries.iter().all(|entry| {
+                        seen.insert((entry.journal_id.as_str(), entry.journal_entry_id.as_str()))
+                            && authority
+                                .admitted_dirty_revisions
+                                .get(entry.journal_id.as_str())
+                                == Some(&entry.journal_entry_id)
+                    })
+            },
+        );
+        let scoped_crash_entries = joined_authority.as_ref().map(|authority| {
+            if self.dirty_buffer_entries.is_empty() {
+                Ok(Vec::new())
+            } else {
+                runtime
+                    .crash_store
+                    .load_entries_for_workspace(&authority.workspace_ref)
+                    .map_err(|_| ())
+            }
+        });
+        let dirty_buffer_rows_match =
+            match (scoped_crash_entries.as_ref(), joined_authority.as_ref()) {
+                (Some(Ok(records)), Some(authority)) => {
+                    dirty_buffer_rows_match_records(records, authority, &self.dirty_buffer_entries)
+                }
+                (Some(Err(())), Some(_)) => false,
+                (None, None) => self.dirty_buffer_entries.is_empty(),
+                _ => false,
+            };
+        if !proposal_header_valid
+            || !pane_plans_match
+            || !counts_match
+            || !durable_downgrades_preserved
+            || !dirty_buffer_plan_matches
+            || !dirty_buffer_rows_match
+        {
+            effective_restore_class =
+                narrower_restore_class(effective_restore_class, RestoreClass::EvidenceOnly);
+        }
+        let summary_line = format_restore_summary_line(effective_restore_class, &canonical_counts);
         let mut outcome = RestoreOutcome {
             record_kind: "restore_outcome_record".to_string(),
-            restore_class: self.restore_class,
+            restore_class: effective_restore_class,
             pane_outcomes: Vec::new(),
             dirty_buffer_replays: Vec::new(),
             dirty_buffer_failures: Vec::new(),
-            manual_repair_required: self
-                .downgrade_triggers
-                .contains(&DowngradeTriggerClass::ManualRepairRequired),
+            manual_repair_required: !proposal_header_valid
+                || !pane_plans_match
+                || !counts_match
+                || !durable_downgrades_preserved
+                || !dirty_buffer_plan_matches
+                || !dirty_buffer_rows_match
+                || !self.downgrade_triggers.is_empty()
+                || joined_authority
+                    .as_ref()
+                    .is_some_and(|authority| !authority.downgrade_triggers.is_empty()),
             auto_rerun_forbidden: true,
             summary_line,
         };
 
-        if self.is_empty() {
-            return outcome;
-        }
-
-        let joined_workspace_ref =
-            resolve_joined_workspace_ref(runtime.session_store, &self.artifact_refs);
-        if self.artifact_refs.snapshot_id.is_some() && joined_workspace_ref.is_none() {
+        if self.artifact_refs.snapshot_id.is_some() && joined_authority.is_none() {
             outcome.manual_repair_required = true;
         }
 
         let evidence_only_restore = matches!(
-            self.restore_class,
+            effective_restore_class,
             RestoreClass::EvidenceOnly | RestoreClass::NoRestore
         );
 
-        if self.pane_plans.iter().any(|plan| {
-            !pane_binding_is_admissible(plan)
-                || plan
-                    .restore_metadata
-                    .as_ref()
-                    .is_some_and(|metadata| !terminal_metadata_is_safe(metadata))
-        }) {
-            outcome.manual_repair_required = true;
-        }
-
-        outcome.pane_outcomes = self
-            .pane_plans
+        outcome.pane_outcomes = canonical_pane_plans
             .into_iter()
             .map(|plan| execute_pane_plan(plan, evidence_only_restore))
             .collect();
@@ -516,7 +654,7 @@ impl RestoreProposal {
             return outcome;
         }
 
-        let Some(workspace_ref) = joined_workspace_ref.as_deref() else {
+        let Some(authority) = joined_authority.as_ref() else {
             outcome.manual_repair_required = true;
             for entry in self.dirty_buffer_entries {
                 outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
@@ -527,13 +665,22 @@ impl RestoreProposal {
             }
             return outcome;
         };
+        let workspace_ref = authority.workspace_ref.as_str();
 
-        let crash_entries = match runtime
-            .crash_store
-            .load_entries_for_workspace(workspace_ref)
-        {
-            Ok(entries) => entries,
-            Err(_) => {
+        if !dirty_buffer_plan_matches {
+            for entry in self.dirty_buffer_entries {
+                outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
+                    &entry,
+                    RestoreDirtyBufferFailureKind::ManualRepairRequired,
+                    "proposal dirty-buffer plan does not match checkpoint authority".to_string(),
+                ));
+            }
+            return outcome;
+        }
+
+        let crash_entries = match scoped_crash_entries {
+            Some(Ok(entries)) => entries,
+            Some(Err(())) | None => {
                 outcome.manual_repair_required = true;
                 for entry in self.dirty_buffer_entries {
                     outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
@@ -545,6 +692,16 @@ impl RestoreProposal {
                 return outcome;
             }
         };
+        if !dirty_buffer_rows_match {
+            for entry in self.dirty_buffer_entries {
+                outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
+                    &entry,
+                    RestoreDirtyBufferFailureKind::ManualRepairRequired,
+                    "proposal dirty-buffer rows do not match scoped journal records".to_string(),
+                ));
+            }
+            return outcome;
+        }
         let crash_entries_by_id: HashMap<&str, &AutosaveJournalEntryRecord> = crash_entries
             .iter()
             .map(|entry| (entry.journal_entry_id.as_str(), entry))
@@ -559,6 +716,20 @@ impl RestoreProposal {
                     &entry,
                     RestoreDirtyBufferFailureKind::ManualRepairRequired,
                     "dirty-buffer frame requires manual repair".to_string(),
+                ));
+                continue;
+            }
+
+            if authority
+                .admitted_dirty_revisions
+                .get(entry.journal_id.as_str())
+                != Some(&entry.journal_entry_id)
+            {
+                outcome.manual_repair_required = true;
+                outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
+                    &entry,
+                    RestoreDirtyBufferFailureKind::ManualRepairRequired,
+                    "proposal journal revision is outside checkpoint authority".to_string(),
                 ));
                 continue;
             }
@@ -610,11 +781,11 @@ impl RestoreProposal {
 
             let bytes = match runtime.crash_store.read_body_object(body_object_ref) {
                 Ok(bytes) => bytes,
-                Err(err) => {
+                Err(_) => {
                     outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
                         &entry,
                         RestoreDirtyBufferFailureKind::MissingJournalBody,
-                        err.to_string(),
+                        "journal body is unavailable or failed integrity validation".to_string(),
                     ));
                     continue;
                 }
@@ -753,29 +924,134 @@ fn collect_dirty_buffer_entries(
     out
 }
 
+fn dirty_buffer_rows_match_records(
+    records: &[AutosaveJournalEntryRecord],
+    authority: &JoinedRestoreAuthority,
+    rows: &[RestoreProposalDirtyBufferEntry],
+) -> bool {
+    let mut records_by_id = HashMap::with_capacity(records.len());
+    for record in records {
+        if records_by_id
+            .insert(record.journal_entry_id.as_str(), record)
+            .is_some()
+        {
+            return false;
+        }
+    }
+
+    rows.iter().all(|row| {
+        authority
+            .admitted_dirty_revisions
+            .get(row.journal_id.as_str())
+            == Some(&row.journal_entry_id)
+            && records_by_id
+                .get(row.journal_entry_id.as_str())
+                .is_some_and(|record| {
+                    record.workspace_ref == authority.workspace_ref
+                        && record.journal_id == row.journal_id
+                        && record.object_identity.object_ref == row.object_ref
+                        && record.object_identity.presentation_hint == row.presentation_hint
+                        && record.replay_posture.object_class_replay_posture == row.replay_posture
+                        && record.integrity.frame_integrity_state == row.frame_integrity
+                        && record.replay_posture.recommended_choice_class == row.recommended_choice
+                })
+    })
+}
+
 const MAX_JOINED_PANE_NODES: usize = 2_048;
 const MAX_JOINED_PANES: usize = 1_024;
 const MAX_JOINED_TABS_PER_GROUP: usize = 256;
 
-fn resolve_joined_workspace_ref(
+struct JoinedRestoreAuthority {
+    workspace_ref: String,
+    restore_class: RestoreClass,
+    downgrade_triggers: Vec<DowngradeTriggerClass>,
+    counts: RestoreProposalCounts,
+    pane_plans: Vec<RestoreProposalPanePlan>,
+    admitted_dirty_revisions: HashMap<String, String>,
+}
+
+fn resolve_joined_restore_authority(
     session_store: &SessionRestoreStore,
     artifact_refs: &RestoreProposalArtifactRefs,
-) -> Option<String> {
+) -> Option<JoinedRestoreAuthority> {
     let checkpoint_id = artifact_refs.checkpoint_id.as_deref()?;
     let snapshot_id = artifact_refs.snapshot_id.as_deref()?;
-    let checkpoint = session_store.load_checkpoint(checkpoint_id).ok()?;
-    let snapshot = session_store
-        .load_window_topology_snapshot(snapshot_id)
-        .ok()?;
-    let body = session_store.load_pane_tree_body(snapshot_id).ok()?;
+    let exact_refs = SessionRestoreLatestRefs {
+        checkpoint_id: checkpoint_id.to_string(),
+        snapshot_id: snapshot_id.to_string(),
+    };
+    let joined = session_store.load_reconciled_capture(&exact_refs).ok()??;
+    let checkpoint = joined.checkpoint;
+    let snapshot = joined.topology;
+    let body = joined.pane_tree_body;
+    let surfaces = joined_pane_surfaces(&snapshot, &body, &checkpoint).ok()?;
     if artifact_refs.workspace_authority_ref.as_deref()
         != Some(checkpoint.workspace_authority_ref.as_str())
         || artifact_refs.window_id.as_deref() != Some(snapshot.window_id.as_str())
-        || joined_pane_surfaces(&snapshot, &body, &checkpoint).is_err()
     {
         return None;
     }
-    joined_workspace_ref_from_records(&checkpoint, &snapshot, &body).map(str::to_string)
+    let workspace_ref =
+        joined_workspace_ref_from_records(&checkpoint, &snapshot, &body)?.to_string();
+    let pane_plans = snapshot
+        .stable_pane_id_inventory
+        .iter()
+        .map(|pane| {
+            materialize_pane_plan(
+                pane,
+                surfaces
+                    .get(&pane.pane_id)
+                    .and_then(|surface| surface.surface_binding_ref.as_deref()),
+                true,
+            )
+        })
+        .collect();
+    let admitted_dirty_revisions: HashMap<String, String> = checkpoint
+        .dirty_buffer_journal_identities
+        .iter()
+        .filter(|journal| journal.journal_kind == "dirty_buffer_recovery_journal")
+        .map(|journal| {
+            (
+                journal.journal_id.clone(),
+                journal.last_known_revision_ref.clone(),
+            )
+        })
+        .collect();
+    let mut downgrade_triggers = Vec::new();
+    for trigger in &checkpoint.downgrade_triggers {
+        push_downgrade_once(&mut downgrade_triggers, trigger.trigger_class);
+    }
+    let counts = RestoreProposalCounts {
+        windows: 1 + snapshot.sibling_window_refs.len(),
+        tab_groups: snapshot.tab_group_topology.len(),
+        tabs: snapshot
+            .tab_group_topology
+            .iter()
+            .map(|group| group.ordered_tab_ids.len())
+            .sum(),
+        dirty_buffer_journals: admitted_dirty_revisions.len(),
+        transient_tasks: snapshot
+            .stable_pane_id_inventory
+            .iter()
+            .filter(|pane| is_transient_task(pane.surface_role, pane.surface_class))
+            .count(),
+        terminals: snapshot
+            .stable_pane_id_inventory
+            .iter()
+            .filter(|pane| is_terminal_like(pane.surface_role, pane.surface_class))
+            .count(),
+        evidence_packets: checkpoint.evidence_bundle_refs.len(),
+        recovery_packets: checkpoint.recovery_journal_refs.len(),
+    };
+    Some(JoinedRestoreAuthority {
+        workspace_ref,
+        restore_class: snapshot.restore_class,
+        downgrade_triggers,
+        counts,
+        pane_plans,
+        admitted_dirty_revisions,
+    })
 }
 
 fn joined_workspace_ref_from_records<'a>(
@@ -911,17 +1187,19 @@ fn insert_joined_surface(
 }
 
 fn push_manual_repair_once(downgrade_triggers: &mut Vec<DowngradeTriggerClass>) {
-    if !downgrade_triggers.contains(&DowngradeTriggerClass::ManualRepairRequired) {
-        downgrade_triggers.push(DowngradeTriggerClass::ManualRepairRequired);
-    }
+    push_downgrade_once(
+        downgrade_triggers,
+        DowngradeTriggerClass::ManualRepairRequired,
+    );
 }
 
-fn pane_binding_is_admissible(plan: &RestoreProposalPanePlan) -> bool {
-    plan.surface_binding_ref.as_ref().map_or(true, |binding| {
-        is_bounded_opaque_ref(binding)
-            && !is_terminal_like(plan.surface_role, plan.surface_class)
-            && !is_transient_task(plan.surface_role, plan.surface_class)
-    })
+fn push_downgrade_once(
+    downgrade_triggers: &mut Vec<DowngradeTriggerClass>,
+    trigger: DowngradeTriggerClass,
+) {
+    if !downgrade_triggers.contains(&trigger) {
+        downgrade_triggers.push(trigger);
+    }
 }
 
 fn terminal_metadata_is_safe(metadata: &TerminalPaneRestoreMetadata) -> bool {
@@ -1023,24 +1301,50 @@ fn classify_restore_class(
     dirty_entries: &[RestoreProposalDirtyBufferEntry],
     downgraded: bool,
 ) -> RestoreClass {
-    if downgraded
-        && dirty_entries
-            .iter()
-            .all(|entry| !matches!(entry.frame_integrity, FrameIntegrityState::Verified))
-        && !dirty_entries.is_empty()
-    {
-        return RestoreClass::EvidenceOnly;
-    }
-
     let has_layout = snapshot.is_some();
     let has_dirty = !dirty_entries.is_empty();
 
-    match (has_layout, has_dirty, checkpoint) {
-        (true, true, _) => RestoreClass::RecoveredDrafts,
-        (true, false, _) => RestoreClass::LayoutOnly,
-        (false, true, _) => RestoreClass::RecoveredDrafts,
-        (false, false, Some(_)) => RestoreClass::LayoutOnly,
-        (false, false, None) => RestoreClass::NoRestore,
+    // A typed downgrade means some part of the joined authority, evidence, or
+    // integrity boundary is unresolved. The proposal remains reviewable, but
+    // it must not claim live layout or draft rehydration until that trigger is
+    // resolved explicitly.
+    let derived = if downgraded {
+        RestoreClass::EvidenceOnly
+    } else {
+        match (has_layout, has_dirty, checkpoint) {
+            (true, true, _) => RestoreClass::RecoveredDrafts,
+            (true, false, _) => RestoreClass::LayoutOnly,
+            (false, true, _) => RestoreClass::RecoveredDrafts,
+            (false, false, Some(_)) => RestoreClass::LayoutOnly,
+            (false, false, None) => RestoreClass::NoRestore,
+        }
+    };
+
+    [
+        checkpoint.map(|record| record.restore_class),
+        snapshot.map(|record| record.restore_class),
+    ]
+    .into_iter()
+    .flatten()
+    .fold(derived, narrower_restore_class)
+}
+
+fn narrower_restore_class(left: RestoreClass, right: RestoreClass) -> RestoreClass {
+    if restore_class_fidelity(left) <= restore_class_fidelity(right) {
+        left
+    } else {
+        right
+    }
+}
+
+fn restore_class_fidelity(class: RestoreClass) -> u8 {
+    match class {
+        RestoreClass::ExactRestore => 5,
+        RestoreClass::CompatibleRestore => 4,
+        RestoreClass::RecoveredDrafts => 3,
+        RestoreClass::LayoutOnly => 2,
+        RestoreClass::EvidenceOnly => 1,
+        RestoreClass::NoRestore => 0,
     }
 }
 
@@ -1055,11 +1359,29 @@ fn restore_class_label(class: RestoreClass) -> &'static str {
     }
 }
 
+fn format_restore_summary_line(class: RestoreClass, counts: &RestoreProposalCounts) -> String {
+    format!(
+        "restore_class={class}; windows={windows}; tab_groups={groups}; tabs={tabs}; \
+         dirty_buffers={drafts}; transient_tasks={tasks}; terminals={terminals}; \
+         evidence_packets={evidence}; recovery_packets={recovery}",
+        class = restore_class_label(class),
+        windows = counts.windows,
+        groups = counts.tab_groups,
+        tabs = counts.tabs,
+        drafts = counts.dirty_buffer_journals,
+        tasks = counts.transient_tasks,
+        terminals = counts.terminals,
+        evidence = counts.evidence_packets,
+        recovery = counts.recovery_packets,
+    )
+}
+
 fn build_notes(
     prior_run_abnormal: bool,
     class: &RestoreClass,
     counts: &RestoreProposalCounts,
     downgraded: bool,
+    selection_warnings: &[SessionRestoreSelectionWarning],
 ) -> String {
     let header = if prior_run_abnormal {
         "prior run terminated abnormally"
@@ -1071,20 +1393,52 @@ fn build_notes(
     } else {
         ""
     };
-    format!(
+    let mut note = format!(
         "{header}; class={class}; windows={windows}, tabs={tabs}, drafts={drafts}{suffix}",
         class = restore_class_label(*class),
         windows = counts.windows,
         tabs = counts.tabs,
         drafts = counts.dirty_buffer_journals,
-    )
+    );
+    if !selection_warnings.is_empty() {
+        const MAX_SELECTION_WARNINGS_IN_NOTE: usize = 16;
+        let evidence = selection_warnings
+            .iter()
+            .take(MAX_SELECTION_WARNINGS_IN_NOTE)
+            .map(|warning| {
+                format!(
+                    "{}:{}",
+                    warning.snapshot_id,
+                    selection_warning_label(warning.warning_class)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        note.push_str(&format!(
+            "; skipped_newer_restore_candidates_count={}",
+            selection_warnings.len()
+        ));
+        note.push_str("; skipped_newer_restore_candidates=");
+        note.push_str(&evidence);
+    }
+    note
+}
+
+fn selection_warning_label(class: SessionRestoreSelectionWarningClass) -> &'static str {
+    match class {
+        SessionRestoreSelectionWarningClass::CorruptIndex => "corrupt_index",
+        SessionRestoreSelectionWarningClass::InvalidIndexReference => "invalid_index_reference",
+        SessionRestoreSelectionWarningClass::InvalidJoinedCapture => "invalid_joined_capture",
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::crash_journal::{CrashJournalCaptureInput, ObjectClass};
-    use crate::session_restore::records::{ProducerBuildStamp, WindowRole};
+    use crate::crash_journal::{AutosaveJournalEntryRecord, CrashJournalCaptureInput, ObjectClass};
+    use crate::session_restore::records::{
+        DirtyBufferJournalIdentity, DowngradeTriggerRecord, ProducerBuildStamp, WindowRole,
+    };
     use crate::session_restore::store::{
         SessionRestoreCaptureInput, TabGroupCaptureInput, TabItemCaptureInput,
     };
@@ -1099,7 +1453,20 @@ mod tests {
         }
     }
 
-    fn capture_one_layout(store: &mut SessionRestoreStore, with_terminal: bool) {
+    fn capture_one_layout(
+        store: &mut SessionRestoreStore,
+        with_terminal: bool,
+        admitted_dirty_revision: Option<&str>,
+    ) {
+        capture_layout_with_triggers(store, with_terminal, admitted_dirty_revision, Vec::new());
+    }
+
+    fn capture_layout_with_triggers(
+        store: &mut SessionRestoreStore,
+        with_terminal: bool,
+        admitted_dirty_revision: Option<&str>,
+        downgrade_triggers: Vec<DowngradeTriggerRecord>,
+    ) {
         let mut tabs = vec![TabItemCaptureInput {
             tab_id: "tab-edit-router".to_string(),
             tab_label: Some("router.ts".to_string()),
@@ -1128,12 +1495,21 @@ mod tests {
             source_schema_version: "1".to_string(),
             trusted_root_refs: Vec::new(),
             active_workset_ids: Vec::new(),
-            dirty_buffer_journal_identities: Vec::new(),
+            dirty_buffer_journal_identities: admitted_dirty_revision
+                .map(|revision| DirtyBufferJournalIdentity {
+                    journal_id: "journal:ws-test".to_string(),
+                    journal_kind: "dirty_buffer_recovery_journal".to_string(),
+                    last_known_revision_ref: revision.to_string(),
+                    frame_count: None,
+                    note: None,
+                })
+                .into_iter()
+                .collect(),
             recovery_journal_refs: vec!["rec-packet-001".to_string()],
             local_history_snapshot_refs: Vec::new(),
             evidence_bundle_refs: vec!["evidence-001".to_string()],
             excluded_live_authority_classes: Vec::new(),
-            downgrade_triggers: Vec::new(),
+            downgrade_triggers,
             window_id: "win-primary".to_string(),
             window_role: WindowRole::Primary,
             topology_family_ref: None,
@@ -1151,8 +1527,8 @@ mod tests {
         store.capture(input).expect("capture");
     }
 
-    fn capture_one_dirty_buffer(store: &mut CrashJournalStore) {
-        capture_dirty_buffer_for_workspace(store, "ws-test", "router", "mono:test:00002");
+    fn capture_one_dirty_buffer(store: &mut CrashJournalStore) -> AutosaveJournalEntryRecord {
+        capture_dirty_buffer_for_workspace(store, "ws-test", "router", "mono:test:00002")
     }
 
     fn capture_dirty_buffer_for_workspace(
@@ -1160,7 +1536,7 @@ mod tests {
         workspace_ref: &str,
         document: &str,
         emitted_at: &str,
-    ) {
+    ) -> AutosaveJournalEntryRecord {
         let input = CrashJournalCaptureInput {
             journal_id: format!("journal:{workspace_ref}"),
             workspace_ref: workspace_ref.to_string(),
@@ -1173,7 +1549,7 @@ mod tests {
         };
         store
             .capture_minimal_full_snapshot(input)
-            .expect("capture journal");
+            .expect("capture journal")
     }
 
     #[test]
@@ -1195,7 +1571,7 @@ mod tests {
         let mut session_store = SessionRestoreStore::new(dir.path());
         let crash_store = CrashJournalStore::new(dir.path());
 
-        capture_one_layout(&mut session_store, false);
+        capture_one_layout(&mut session_store, false, None);
 
         let proposal = RestoreProposal::build(&session_store, &crash_store, true).expect("build");
         assert_eq!(proposal.restore_class, RestoreClass::LayoutOnly);
@@ -1211,13 +1587,51 @@ mod tests {
     }
 
     #[test]
+    fn durable_downgrade_triggers_cannot_be_removed_to_widen_execution() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut session_store = SessionRestoreStore::new(dir.path());
+        let crash_store = CrashJournalStore::new(dir.path());
+        capture_layout_with_triggers(
+            &mut session_store,
+            false,
+            None,
+            vec![DowngradeTriggerRecord {
+                trigger_class: DowngradeTriggerClass::PolicyNarrowing,
+                affected_journal_ids: None,
+                affected_root_refs: None,
+                affected_workset_ids: None,
+                affected_pane_ids: None,
+                note: Some("restore authority requires policy review".to_string()),
+            }],
+        );
+
+        let mut proposal =
+            RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
+        assert_eq!(proposal.restore_class, RestoreClass::EvidenceOnly);
+        assert!(proposal
+            .downgrade_triggers
+            .contains(&DowngradeTriggerClass::PolicyNarrowing));
+
+        proposal.restore_class = RestoreClass::LayoutOnly;
+        proposal.downgrade_triggers.clear();
+        let mut runtime = RestoreRuntime::new(&session_store, &crash_store);
+        let outcome = proposal.execute(&mut runtime);
+        assert_eq!(outcome.restore_class, RestoreClass::EvidenceOnly);
+        assert!(outcome.manual_repair_required);
+        assert!(outcome
+            .pane_outcomes
+            .iter()
+            .all(|pane| pane.execution_kind == RestorePaneExecutionKind::EvidenceOnly));
+    }
+
+    #[test]
     fn recovered_drafts_when_dirty_buffers_present() {
         let dir = tempfile::tempdir().expect("tempdir");
         let mut session_store = SessionRestoreStore::new(dir.path());
         let mut crash_store = CrashJournalStore::new(dir.path());
 
-        capture_one_layout(&mut session_store, false);
-        capture_one_dirty_buffer(&mut crash_store);
+        let dirty = capture_one_dirty_buffer(&mut crash_store);
+        capture_one_layout(&mut session_store, false, Some(&dirty.journal_entry_id));
 
         let proposal = RestoreProposal::build(&session_store, &crash_store, true).expect("build");
         assert_eq!(proposal.restore_class, RestoreClass::RecoveredDrafts);
@@ -1232,19 +1646,19 @@ mod tests {
         let mut session_store = SessionRestoreStore::new(dir.path());
         let mut crash_store = CrashJournalStore::new(dir.path());
 
-        capture_one_layout(&mut session_store, false);
         capture_dirty_buffer_for_workspace(
             &mut crash_store,
             "ws-foreign",
             "foreign-secret",
             "mono:test:00001",
         );
-        capture_dirty_buffer_for_workspace(
+        let dirty = capture_dirty_buffer_for_workspace(
             &mut crash_store,
             "ws-test",
             "router",
             "mono:test:00002",
         );
+        capture_one_layout(&mut session_store, false, Some(&dirty.journal_entry_id));
 
         let proposal =
             RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
@@ -1258,12 +1672,105 @@ mod tests {
     }
 
     #[test]
+    fn unlisted_same_workspace_journal_is_not_restore_authority() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut session_store = SessionRestoreStore::new(dir.path());
+        let mut crash_store = CrashJournalStore::new(dir.path());
+
+        capture_one_layout(&mut session_store, false, None);
+        capture_one_dirty_buffer(&mut crash_store);
+
+        let proposal =
+            RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
+        assert_eq!(proposal.restore_class, RestoreClass::LayoutOnly);
+        assert_eq!(proposal.counts.dirty_buffer_journals, 0);
+        assert!(proposal.dirty_buffer_entries.is_empty());
+    }
+
+    #[test]
+    fn checkpoint_revision_excludes_newer_frame_from_same_journal() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut session_store = SessionRestoreStore::new(dir.path());
+        let mut crash_store = CrashJournalStore::new(dir.path());
+
+        let admitted = capture_dirty_buffer_for_workspace(
+            &mut crash_store,
+            "ws-test",
+            "router",
+            "mono:test:00001",
+        );
+        capture_one_layout(&mut session_store, false, Some(&admitted.journal_entry_id));
+        let newer = capture_dirty_buffer_for_workspace(
+            &mut crash_store,
+            "ws-test",
+            "router",
+            "mono:test:00003",
+        );
+
+        let proposal =
+            RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
+        assert_eq!(proposal.dirty_buffer_entries.len(), 1);
+        assert_eq!(
+            proposal.dirty_buffer_entries[0].journal_entry_id,
+            admitted.journal_entry_id
+        );
+        assert_ne!(
+            proposal.dirty_buffer_entries[0].journal_entry_id,
+            newer.journal_entry_id
+        );
+    }
+
+    #[test]
+    fn missing_checkpoint_revision_does_not_admit_a_journal_frame() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut session_store = SessionRestoreStore::new(dir.path());
+        let mut crash_store = CrashJournalStore::new(dir.path());
+
+        capture_one_dirty_buffer(&mut crash_store);
+        capture_one_layout(&mut session_store, false, Some("j:missing-revision"));
+
+        let proposal =
+            RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
+        assert_eq!(proposal.restore_class, RestoreClass::EvidenceOnly);
+        assert!(proposal.dirty_buffer_entries.is_empty());
+        assert!(proposal
+            .downgrade_triggers
+            .contains(&DowngradeTriggerClass::ManualRepairRequired));
+    }
+
+    #[test]
+    fn corrupt_scoped_crash_journal_degrades_to_reviewable_evidence() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut session_store = SessionRestoreStore::new(dir.path());
+        let mut crash_store = CrashJournalStore::new(dir.path());
+
+        let dirty = capture_one_dirty_buffer(&mut crash_store);
+        capture_one_layout(&mut session_store, false, Some(&dirty.journal_entry_id));
+        std::fs::write(
+            crash_store
+                .root_path()
+                .join("entries")
+                .join(format!("{}.json", dirty.journal_entry_id)),
+            b"{not-json",
+        )
+        .expect("corrupt scoped journal entry");
+
+        let proposal = RestoreProposal::build(&session_store, &crash_store, true)
+            .expect("corrupt journal must degrade instead of aborting restore review");
+        assert_eq!(proposal.restore_class, RestoreClass::EvidenceOnly);
+        assert!(proposal.dirty_buffer_entries.is_empty());
+        assert!(proposal
+            .downgrade_triggers
+            .contains(&DowngradeTriggerClass::ManualRepairRequired));
+    }
+
+    #[test]
     fn terminals_classified_as_blocked_side_effectful() {
         let dir = tempfile::tempdir().expect("tempdir");
         let mut session_store = SessionRestoreStore::new(dir.path());
         let crash_store = CrashJournalStore::new(dir.path());
 
-        capture_one_layout(&mut session_store, true);
+        capture_one_layout(&mut session_store, true, None);
 
         let proposal = RestoreProposal::build(&session_store, &crash_store, false).expect("build");
         assert_eq!(proposal.counts.terminals, 1);
@@ -1276,6 +1783,73 @@ mod tests {
             terminal_plan.plan_kind,
             RestoreProposalPlanKind::BlockedSideEffectful
         );
+    }
+
+    #[test]
+    fn corrupt_newer_capture_is_visible_in_proposal_evidence() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut session_store = SessionRestoreStore::new(dir.path());
+        let crash_store = CrashJournalStore::new(dir.path());
+        capture_one_layout(&mut session_store, false, None);
+        let first = session_store
+            .latest_refs()
+            .expect("first selection")
+            .expect("first refs");
+        capture_one_layout(&mut session_store, false, None);
+        let second = session_store
+            .latest_refs()
+            .expect("second selection")
+            .expect("second refs");
+        std::fs::write(
+            session_store
+                .root_path()
+                .join("latest_indices")
+                .join(format!("{}.json", second.snapshot_id)),
+            b"{not-json",
+        )
+        .expect("corrupt newest index");
+
+        let proposal =
+            RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
+        assert_eq!(
+            proposal.artifact_refs.snapshot_id.as_deref(),
+            Some(first.snapshot_id.as_str())
+        );
+        assert!(proposal
+            .downgrade_triggers
+            .contains(&DowngradeTriggerClass::ManualRepairRequired));
+        let notes = proposal.notes.as_deref().expect("proposal notes");
+        assert!(notes.contains("skipped_newer_restore_candidates="));
+        assert!(notes.contains(&second.snapshot_id));
+        assert!(notes.contains("corrupt_index"));
+    }
+
+    #[test]
+    fn corrupt_only_capture_is_reviewable_evidence_not_an_empty_first_launch() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut session_store = SessionRestoreStore::new(dir.path());
+        let crash_store = CrashJournalStore::new(dir.path());
+        capture_one_layout(&mut session_store, false, None);
+        let refs = session_store
+            .latest_refs()
+            .expect("selection")
+            .expect("latest refs");
+        std::fs::write(
+            session_store
+                .root_path()
+                .join("latest_indices")
+                .join(format!("{}.json", refs.snapshot_id)),
+            b"{not-json",
+        )
+        .expect("corrupt only index");
+
+        let proposal =
+            RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
+        assert_eq!(proposal.restore_class, RestoreClass::EvidenceOnly);
+        assert!(!proposal.is_empty());
+        assert!(proposal
+            .downgrade_triggers
+            .contains(&DowngradeTriggerClass::ManualRepairRequired));
     }
 
     #[test]
@@ -1317,8 +1891,14 @@ mod tests {
             let path = fixtures_dir.join(case);
             let bytes = std::fs::read(&path)
                 .unwrap_or_else(|err| panic!("read fixture {}: {err}", path.display()));
-            let proposal: RestoreProposal = serde_json::from_slice(&bytes)
+            let mut fixture: serde_json::Value = serde_json::from_slice(&bytes)
                 .unwrap_or_else(|err| panic!("parse fixture {}: {err}", path.display()));
+            fixture
+                .as_object_mut()
+                .expect("restore fixture must be a JSON object")
+                .remove("__fixture__");
+            let proposal: RestoreProposal = serde_json::from_value(fixture)
+                .unwrap_or_else(|err| panic!("parse proposal {}: {err}", path.display()));
 
             assert!(
                 proposal.auto_rerun_forbidden,
@@ -1359,5 +1939,22 @@ mod tests {
                 required
             );
         }
+    }
+
+    #[test]
+    fn proposal_deserialization_rejects_unknown_top_level_and_nested_fields() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let session_store = SessionRestoreStore::new(dir.path());
+        let crash_store = CrashJournalStore::new(dir.path());
+        let proposal =
+            RestoreProposal::build(&session_store, &crash_store, false).expect("build proposal");
+
+        let mut top_level = serde_json::to_value(&proposal).expect("serialize proposal");
+        top_level["future_authority_hint"] = serde_json::json!("must-not-be-ignored");
+        assert!(serde_json::from_value::<RestoreProposal>(top_level).is_err());
+
+        let mut nested = serde_json::to_value(&proposal).expect("serialize proposal");
+        nested["counts"]["future_live_surfaces"] = serde_json::json!(1);
+        assert!(serde_json::from_value::<RestoreProposal>(nested).is_err());
     }
 }

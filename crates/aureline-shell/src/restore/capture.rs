@@ -18,7 +18,7 @@ use aureline_build_info as build_info;
 use aureline_recovery::session_restore::records::{
     DirtyBufferJournalIdentity, DowngradeTriggerClass, DowngradeTriggerRecord,
     ExcludedLiveAuthorityClass, ProducerBuildStamp, SplitOrientation, SurfaceClass, SurfaceRole,
-    TerminalPaneRestoreMetadata, TrustedRootRecord, WindowRole,
+    TrustedRootRecord, WindowRole,
 };
 use aureline_recovery::session_restore::{
     SessionRestoreCaptureInput, SessionRestoreError, SessionRestoreLatestRefs, SessionRestoreStore,
@@ -110,6 +110,9 @@ pub enum LiveSessionCaptureError {
     ForbiddenTerminalPayloadFlag,
     /// Terminal metadata belonged to a different workspace.
     TerminalWorkspaceMismatch,
+    /// At least one immutable capture member may be installed. The exact refs
+    /// must be reconciled from a freshly opened store before retry or success.
+    CommitStateUncertain(SessionRestoreLatestRefs),
     /// The recovery store could not persist the validated capture.
     Persistence(SessionRestoreError),
 }
@@ -137,6 +140,9 @@ impl std::fmt::Display for LiveSessionCaptureError {
             Self::TerminalWorkspaceMismatch => {
                 "session capture rejected cross-workspace terminal metadata"
             }
+            Self::CommitStateUncertain(_) => {
+                "session restore commit state is uncertain; exact refs require reconciliation"
+            }
             Self::Persistence(_) => "session restore persistence failed",
         };
         f.write_str(message)
@@ -154,7 +160,10 @@ impl std::error::Error for LiveSessionCaptureError {
 
 impl From<SessionRestoreError> for LiveSessionCaptureError {
     fn from(value: SessionRestoreError) -> Self {
-        Self::Persistence(value)
+        match value {
+            SessionRestoreError::CommitStateUncertain(refs) => Self::CommitStateUncertain(refs),
+            error => Self::Persistence(error),
+        }
     }
 }
 
@@ -285,6 +294,7 @@ pub fn materialize_live_session_capture(
     if missing_target_present {
         downgrade_triggers.push(DowngradeTriggerRecord {
             trigger_class: DowngradeTriggerClass::ManualRepairRequired,
+            affected_journal_ids: None,
             affected_root_refs: Some(vec![live.context.root_id.clone()]),
             affected_workset_ids: None,
             affected_pane_ids: None,
@@ -298,6 +308,7 @@ pub fn materialize_live_session_capture(
     if live.context.workspace_trust_state != TrustState::Trusted {
         downgrade_triggers.push(DowngradeTriggerRecord {
             trigger_class: DowngradeTriggerClass::PolicyNarrowing,
+            affected_journal_ids: None,
             affected_root_refs: Some(vec![live.context.root_id.clone()]),
             affected_workset_ids: None,
             affected_pane_ids: None,
@@ -319,6 +330,7 @@ pub fn materialize_live_session_capture(
             terminal_group_added = true;
             downgrade_triggers.push(DowngradeTriggerRecord {
                 trigger_class: DowngradeTriggerClass::ExcludedLiveHandle,
+                affected_journal_ids: None,
                 affected_root_refs: Some(vec![live.context.root_id.clone()]),
                 affected_workset_ids: None,
                 affected_pane_ids: None,
@@ -521,10 +533,10 @@ fn terminal_capture_group(
         let source = &terminal.restore_metadata;
         ordered_tabs.push(TabItemCaptureInput {
             tab_id,
-            tab_label: Some(
-                safe_display_label(Some(terminal.display_title.as_str()))
-                    .unwrap_or_else(|| "Terminal".to_string()),
-            ),
+            // Terminal titles are mutable, process-controlled strings and can
+            // contain command output or private user content. Persist only the
+            // closed shell-family token as a presentation hint.
+            tab_label: Some(source.shell_family.as_str().to_string()),
             // A live terminal session id or execution-context ref is not a
             // restorable binding and must not cross this boundary.
             surface_binding_ref: None,
@@ -532,18 +544,9 @@ fn terminal_capture_group(
             dirty_badge_visible: false,
             surface_role: SurfaceRole::Terminal,
             surface_class: SurfaceClass::TerminalView,
-            restore_metadata: Some(TerminalPaneRestoreMetadata {
-                restore_metadata_ref: format!("terminal-metadata:{window_id}:{idx}"),
-                working_directory: safe_display_label(source.working_directory.as_deref()),
-                environment_scope_token: source.environment_scope.as_str().to_string(),
-                shell_identity: safe_display_label(Some(source.shell_identity.as_str()))
-                    .unwrap_or_else(|| "shell".to_string()),
-                shell_family_token: source.shell_family.as_str().to_string(),
-                last_command_class_token: source.last_command_class.as_str().to_string(),
-                auto_rerun_forbidden: true,
-                raw_command_body_present: false,
-                raw_environment_body_present: false,
-            }),
+            // The terminal subsystem persists its own governed metadata
+            // record. Recovery topology retains only a placeholder posture.
+            restore_metadata: None,
         });
     }
 
@@ -973,15 +976,11 @@ mod tests {
             .iter()
             .find(|pane| pane.surface_role == SurfaceRole::Terminal)
             .expect("terminal pane");
-        let restore = terminal
-            .restore_metadata
-            .as_ref()
-            .expect("restore metadata");
-        assert_eq!(restore.working_directory.as_deref(), Some("service"));
-        assert_eq!(restore.shell_identity, "zsh");
-        assert!(restore.auto_rerun_forbidden);
-        assert!(!restore.raw_command_body_present);
-        assert!(!restore.raw_environment_body_present);
+        assert!(
+            terminal.restore_metadata.is_none(),
+            "terminal-owned metadata must not be embedded in recovery topology"
+        );
+        assert_eq!(terminal.title_hint.as_deref(), Some("zsh"));
 
         let checkpoint = store
             .load_checkpoint(&refs.checkpoint_id)
@@ -1000,6 +999,8 @@ mod tests {
         assert!(!persisted_json.contains(session_id.as_str()));
         assert!(!persisted_json.contains("execution:secret-context"));
         assert!(!persisted_json.contains("/Users/alice"));
+        assert!(!persisted_json.contains("/usr/bin/zsh"));
+        assert!(!persisted_json.contains("restore_metadata"));
 
         let crash_store = CrashJournalStore::new(dir.path());
         let proposal =
@@ -1042,6 +1043,22 @@ mod tests {
         assert!(matches!(
             err,
             LiveSessionCaptureError::ForbiddenTerminalPayloadFlag
+        ));
+    }
+
+    #[test]
+    fn persistence_uncertainty_preserves_exact_refs_for_reconciliation() {
+        let refs = SessionRestoreLatestRefs {
+            checkpoint_id: "checkpoint:uncertain".to_string(),
+            snapshot_id: "snapshot:uncertain".to_string(),
+        };
+
+        let error =
+            LiveSessionCaptureError::from(SessionRestoreError::CommitStateUncertain(refs.clone()));
+
+        assert!(matches!(
+            error,
+            LiveSessionCaptureError::CommitStateUncertain(observed) if observed == refs
         ));
     }
 }

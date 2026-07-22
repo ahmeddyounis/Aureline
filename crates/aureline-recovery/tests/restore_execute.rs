@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Aureline contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use aureline_recovery::crash_journal::{CrashJournalCaptureInput, CrashJournalStore, ObjectClass};
+use aureline_recovery::crash_journal::{
+    AutosaveJournalEntryRecord, CrashJournalCaptureInput, CrashJournalStore, ObjectClass,
+};
 use aureline_recovery::session_restore::records::{
-    DowngradeTriggerClass, ProducerBuildStamp, RestoreClass, SurfaceClass, SurfaceRole,
-    TerminalPaneRestoreMetadata, WindowRole,
+    DirtyBufferJournalIdentity, DowngradeTriggerClass, ProducerBuildStamp, RestoreClass,
+    SurfaceClass, SurfaceRole, TerminalPaneRestoreMetadata, WindowRole,
 };
 use aureline_recovery::session_restore::{
     RestorePaneExecutionKind, RestoreProposal, RestoreRuntime, SessionRestoreCaptureInput,
@@ -21,7 +23,11 @@ fn producer() -> ProducerBuildStamp {
     }
 }
 
-fn capture_layout(store: &mut SessionRestoreStore, with_terminal: bool) {
+fn capture_layout(
+    store: &mut SessionRestoreStore,
+    with_terminal: bool,
+    admitted_dirty_revision: Option<&str>,
+) {
     let mut tabs = vec![TabItemCaptureInput {
         tab_id: "tab-edit-router".to_string(),
         tab_label: Some("router.ts".to_string()),
@@ -62,7 +68,16 @@ fn capture_layout(store: &mut SessionRestoreStore, with_terminal: bool) {
             source_schema_version: "1".to_string(),
             trusted_root_refs: Vec::new(),
             active_workset_ids: Vec::new(),
-            dirty_buffer_journal_identities: Vec::new(),
+            dirty_buffer_journal_identities: admitted_dirty_revision
+                .map(|revision| DirtyBufferJournalIdentity {
+                    journal_id: "journal:ws-restore-execute".to_string(),
+                    journal_kind: "dirty_buffer_recovery_journal".to_string(),
+                    last_known_revision_ref: revision.to_string(),
+                    frame_count: None,
+                    note: None,
+                })
+                .into_iter()
+                .collect(),
             recovery_journal_refs: vec!["recovery:packet:1".to_string()],
             local_history_snapshot_refs: Vec::new(),
             evidence_bundle_refs: vec!["evidence:packet:1".to_string()],
@@ -85,8 +100,8 @@ fn capture_layout(store: &mut SessionRestoreStore, with_terminal: bool) {
         .expect("capture layout");
 }
 
-fn capture_dirty_buffer(store: &mut CrashJournalStore, bytes: &[u8]) {
-    capture_dirty_buffer_for_workspace(store, "ws-restore-execute", "router", bytes);
+fn capture_dirty_buffer(store: &mut CrashJournalStore, bytes: &[u8]) -> AutosaveJournalEntryRecord {
+    capture_dirty_buffer_for_workspace(store, "ws-restore-execute", "router", bytes)
 }
 
 fn capture_dirty_buffer_for_workspace(
@@ -94,7 +109,7 @@ fn capture_dirty_buffer_for_workspace(
     workspace_ref: &str,
     document: &str,
     bytes: &[u8],
-) {
+) -> AutosaveJournalEntryRecord {
     store
         .capture_minimal_full_snapshot(CrashJournalCaptureInput {
             journal_id: format!("journal:{workspace_ref}"),
@@ -106,16 +121,16 @@ fn capture_dirty_buffer_for_workspace(
             emitted_at: "mono:test:00002".to_string(),
             bytes: bytes.to_vec(),
         })
-        .expect("capture dirty buffer");
+        .expect("capture dirty buffer")
 }
 
 #[test]
-fn exact_restore_reopens_panes_and_replays_verified_dirty_buffer() {
+fn recovered_draft_restore_reopens_panes_and_replays_verified_dirty_buffer() {
     let dir = tempfile::tempdir().expect("tempdir");
     let mut session_store = SessionRestoreStore::new(dir.path());
     let mut crash_store = CrashJournalStore::new(dir.path());
-    capture_layout(&mut session_store, false);
-    capture_dirty_buffer(&mut crash_store, b"restored bytes\n");
+    let dirty = capture_dirty_buffer(&mut crash_store, b"restored bytes\n");
+    capture_layout(&mut session_store, false, Some(&dirty.journal_entry_id));
     capture_dirty_buffer_for_workspace(
         &mut crash_store,
         "ws-foreign",
@@ -123,9 +138,8 @@ fn exact_restore_reopens_panes_and_replays_verified_dirty_buffer() {
         b"foreign bytes must never cross scope\n",
     );
 
-    let mut proposal =
+    let proposal =
         RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
-    proposal.restore_class = RestoreClass::ExactRestore;
     assert_eq!(
         proposal.pane_plans[0].surface_binding_ref.as_deref(),
         Some("document:router"),
@@ -135,7 +149,7 @@ fn exact_restore_reopens_panes_and_replays_verified_dirty_buffer() {
     let outcome = proposal.execute(&mut runtime);
 
     assert!(outcome.succeeded_without_failures());
-    assert_eq!(outcome.restore_class, RestoreClass::ExactRestore);
+    assert_eq!(outcome.restore_class, RestoreClass::RecoveredDrafts);
     assert_eq!(outcome.pane_outcomes.len(), 1);
     assert_eq!(
         outcome.pane_outcomes[0].execution_kind,
@@ -148,6 +162,13 @@ fn exact_restore_reopens_panes_and_replays_verified_dirty_buffer() {
     );
     assert_eq!(outcome.dirty_buffer_replays.len(), 1);
     assert_eq!(outcome.dirty_buffer_replays[0].bytes, b"restored bytes\n");
+    let serialized = serde_json::to_string(&outcome).expect("serialize redacted restore outcome");
+    assert!(!serialized.contains("restored bytes"));
+    assert!(!serialized.contains("\"bytes\""));
+    let debug = format!("{outcome:?}");
+    assert!(!debug.contains("restored bytes"));
+    assert!(!debug.contains("router.ts"));
+    assert!(debug.contains("byte_len: 15"));
     assert_eq!(
         outcome.dirty_buffer_replays[0].object_ref,
         "document:router"
@@ -163,11 +184,106 @@ fn exact_restore_reopens_panes_and_replays_verified_dirty_buffer() {
 }
 
 #[test]
+fn execution_rebinds_panes_to_durable_topology_and_refuses_fidelity_broadening() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mut session_store = SessionRestoreStore::new(dir.path());
+    let mut crash_store = CrashJournalStore::new(dir.path());
+    let dirty = capture_dirty_buffer(&mut crash_store, b"restored bytes\n");
+    capture_layout(&mut session_store, false, Some(&dirty.journal_entry_id));
+
+    let mut proposal =
+        RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
+    proposal.restore_class = RestoreClass::ExactRestore;
+    proposal.pane_plans[0].surface_binding_ref = Some("document:redirected".to_string());
+
+    let mut runtime = RestoreRuntime::new(&session_store, &crash_store);
+    let outcome = proposal.execute(&mut runtime);
+
+    assert_eq!(outcome.restore_class, RestoreClass::EvidenceOnly);
+    assert!(outcome.manual_repair_required);
+    assert_eq!(
+        outcome.pane_outcomes[0].execution_kind,
+        RestorePaneExecutionKind::EvidenceOnly
+    );
+    assert_eq!(
+        outcome.pane_outcomes[0].surface_binding_ref.as_deref(),
+        Some("document:router")
+    );
+}
+
+#[test]
+fn execution_rejects_a_newer_uncheckpointed_journal_revision() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mut session_store = SessionRestoreStore::new(dir.path());
+    let mut crash_store = CrashJournalStore::new(dir.path());
+    let admitted = capture_dirty_buffer(&mut crash_store, b"checkpointed bytes\n");
+    capture_layout(&mut session_store, false, Some(&admitted.journal_entry_id));
+    let newer = capture_dirty_buffer(&mut crash_store, b"newer uncheckpointed bytes\n");
+
+    let mut proposal =
+        RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
+    proposal.dirty_buffer_entries[0].journal_entry_id = newer.journal_entry_id;
+
+    let mut runtime = RestoreRuntime::new(&session_store, &crash_store);
+    let outcome = proposal.execute(&mut runtime);
+
+    assert!(outcome.manual_repair_required);
+    assert!(outcome.dirty_buffer_replays.is_empty());
+    assert_eq!(outcome.dirty_buffer_failures.len(), 1);
+    assert_eq!(
+        outcome.dirty_buffer_failures[0].failure_kind,
+        aureline_recovery::session_restore::RestoreDirtyBufferFailureKind::ManualRepairRequired
+    );
+}
+
+#[test]
+fn execution_rejects_a_suppressed_checkpointed_dirty_row() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mut session_store = SessionRestoreStore::new(dir.path());
+    let mut crash_store = CrashJournalStore::new(dir.path());
+    let admitted = capture_dirty_buffer(&mut crash_store, b"checkpointed bytes\n");
+    capture_layout(&mut session_store, false, Some(&admitted.journal_entry_id));
+
+    let mut proposal =
+        RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
+    proposal.dirty_buffer_entries.clear();
+
+    let mut runtime = RestoreRuntime::new(&session_store, &crash_store);
+    let outcome = proposal.execute(&mut runtime);
+
+    assert_eq!(outcome.restore_class, RestoreClass::EvidenceOnly);
+    assert!(outcome.manual_repair_required);
+    assert!(outcome.dirty_buffer_replays.is_empty());
+}
+
+#[test]
+fn execution_rejects_a_duplicated_checkpointed_dirty_row() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mut session_store = SessionRestoreStore::new(dir.path());
+    let mut crash_store = CrashJournalStore::new(dir.path());
+    let admitted = capture_dirty_buffer(&mut crash_store, b"checkpointed bytes\n");
+    capture_layout(&mut session_store, false, Some(&admitted.journal_entry_id));
+
+    let mut proposal =
+        RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
+    proposal
+        .dirty_buffer_entries
+        .push(proposal.dirty_buffer_entries[0].clone());
+
+    let mut runtime = RestoreRuntime::new(&session_store, &crash_store);
+    let outcome = proposal.execute(&mut runtime);
+
+    assert_eq!(outcome.restore_class, RestoreClass::EvidenceOnly);
+    assert!(outcome.manual_repair_required);
+    assert!(outcome.dirty_buffer_replays.is_empty());
+}
+
+#[test]
 fn layout_only_reopens_layout_without_dirty_buffer_replay() {
     let dir = tempfile::tempdir().expect("tempdir");
     let mut session_store = SessionRestoreStore::new(dir.path());
     let crash_store = CrashJournalStore::new(dir.path());
-    capture_layout(&mut session_store, false);
+    capture_layout(&mut session_store, false, None);
 
     let proposal =
         RestoreProposal::build(&session_store, &crash_store, false).expect("build proposal");
@@ -189,8 +305,8 @@ fn manual_repair_required_keeps_corrupt_dirty_buffer_out_of_replay() {
     let dir = tempfile::tempdir().expect("tempdir");
     let mut session_store = SessionRestoreStore::new(dir.path());
     let mut crash_store = CrashJournalStore::new(dir.path());
-    capture_layout(&mut session_store, false);
-    capture_dirty_buffer(&mut crash_store, b"unsafe bytes\n");
+    let dirty = capture_dirty_buffer(&mut crash_store, b"unsafe bytes\n");
+    capture_layout(&mut session_store, false, Some(&dirty.journal_entry_id));
 
     let mut proposal =
         RestoreProposal::build(&session_store, &crash_store, true).expect("build proposal");
@@ -211,7 +327,7 @@ fn side_effectful_terminal_surface_stays_blocked_and_inactive() {
     let dir = tempfile::tempdir().expect("tempdir");
     let mut session_store = SessionRestoreStore::new(dir.path());
     let crash_store = CrashJournalStore::new(dir.path());
-    capture_layout(&mut session_store, true);
+    capture_layout(&mut session_store, true, None);
 
     let proposal =
         RestoreProposal::build(&session_store, &crash_store, false).expect("build proposal");
@@ -235,19 +351,23 @@ fn side_effectful_terminal_surface_stays_blocked_and_inactive() {
         RestorePaneExecutionKind::BlockedSideEffectful
     );
     assert!(terminal.surface_binding_ref.is_none());
-    let metadata = terminal
-        .restore_metadata
-        .as_ref()
-        .expect("terminal restore metadata survives restore outcome");
-    assert_eq!(
-        metadata.working_directory.as_deref(),
-        Some("/workspace/service")
+    assert!(
+        terminal.restore_metadata.is_none(),
+        "terminal-owned metadata must not be embedded in recovery topology or outcomes"
     );
-    assert_eq!(metadata.shell_identity, "zsh");
-    assert_eq!(metadata.shell_family_token, "zsh");
-    assert_eq!(metadata.environment_scope_token, "workspace");
-    assert_eq!(metadata.last_command_class_token, "build");
-    assert!(metadata.auto_rerun_forbidden);
-    assert!(!metadata.raw_command_body_present);
-    assert!(!metadata.raw_environment_body_present);
+    let persisted_snapshot = std::fs::read_to_string(
+        session_store
+            .root_path()
+            .join("window_topology_snapshots")
+            .join(format!(
+                "{}.json",
+                session_store
+                    .latest_refs()
+                    .expect("latest selection")
+                    .expect("latest refs")
+                    .snapshot_id
+            )),
+    )
+    .expect("read persisted snapshot");
+    assert!(!persisted_snapshot.contains("restore_metadata"));
 }
