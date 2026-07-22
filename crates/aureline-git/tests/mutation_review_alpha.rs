@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use aureline_git::{
     GitMutationBackend, GitMutationBackendError, GitMutationCommandOutput,
     GitMutationOperationKind, GitMutationOutcomeState, GitMutationPreviewState, GitMutationRequest,
-    GitMutationService, SystemGitMutationBackend,
+    GitMutationService, GitMutationSupportExportRecord, SystemGitMutationBackend,
 };
 use aureline_history::ActorLineageClass;
 use serde::Deserialize;
@@ -321,6 +321,11 @@ fn run_fixture(path: &Path) {
         );
         assert_eq!(reverted.support_export.phase, "revert");
         assert!(reverted.attribution_is_exportable());
+        assert!(
+            !reverted.rollback_available,
+            "{}: a completed restore must not re-advertise the consumed patch as another restore",
+            fixture.case_name
+        );
         assert_status(
             dir.path(),
             &fixture.paths[0],
@@ -342,6 +347,41 @@ fn protected_mutation_review_fixtures_match_git_service_contract() {
 
     for path in fixtures {
         run_fixture(&path);
+    }
+}
+
+#[test]
+fn mutation_support_export_v2_fixture_and_projection_omit_raw_identity() {
+    let fixture = fs::read_to_string(fixtures_dir().join("support_export_redacted_v2.json"))
+        .expect("read mutation support fixture");
+    let fixture: GitMutationSupportExportRecord =
+        serde_json::from_str(&fixture).expect("parse mutation support fixture");
+    assert_eq!(fixture.schema_version, 2);
+    assert!(!fixture.raw_path_export_allowed);
+    assert!(!fixture.raw_actor_export_allowed);
+
+    let dir = build_case_root("unstaged_modified");
+    let request = GitMutationRequest::with_observed_at(
+        "workspace.private-customer-name",
+        dir.path(),
+        GitMutationOperationKind::Stage,
+        ["src/lib.rs"],
+        "2026-05-13T00:00:00Z",
+    );
+    let preview = GitMutationService::default().preview(&request);
+    assert!(preview.ready_to_apply());
+    let export = serde_json::to_string(&preview.support_export).expect("serialize support export");
+
+    assert_eq!(preview.support_export.schema_version, 2);
+    let private_root = dir.path().to_string_lossy().into_owned();
+    for private in [
+        "workspace.private-customer-name",
+        "src/lib.rs",
+        private_root.as_str(),
+        preview.preview_ref.as_str(),
+        preview.scope.scope_ref.as_str(),
+    ] {
+        assert!(!export.contains(private), "support export leaked {private}");
     }
 }
 
@@ -379,6 +419,35 @@ fn changed_worktree_blocks_a_stale_stage_preview() {
         Path::new("src/lib.rs"),
         Some(".M"),
         "stale stage must not change the index",
+    );
+}
+
+#[test]
+fn absolute_selected_path_is_bound_to_the_canonical_repository_root() {
+    let dir = build_case_root("unstaged_modified");
+    let service = GitMutationService::default();
+    let request = GitMutationRequest::with_observed_at(
+        "workspace.fixture.absolute-stage",
+        dir.path(),
+        GitMutationOperationKind::Stage,
+        [dir.path().join("src/lib.rs")],
+        "2026-05-13T00:00:00Z",
+    );
+
+    let preview = service.preview(&request);
+
+    assert!(preview.ready_to_apply(), "{preview:#?}");
+    assert_eq!(
+        preview.scope.targets[0].repo_relative_path,
+        Path::new("src/lib.rs")
+    );
+    let result = service.apply(&preview, "2026-05-13T00:00:01Z");
+    assert_eq!(result.outcome_state, GitMutationOutcomeState::Applied);
+    assert_status(
+        dir.path(),
+        Path::new("src/lib.rs"),
+        Some("M."),
+        "absolute selection stages the reviewed path",
     );
 }
 
@@ -525,11 +594,92 @@ fn serialized_preview_is_not_portable_apply_authority() {
     );
 }
 
+#[test]
+fn modified_preview_cannot_reattribute_an_apply() {
+    let dir = build_case_root("unstaged_modified");
+    let service = GitMutationService::default();
+    let request = GitMutationRequest::with_observed_at(
+        "workspace.fixture.actor-bound-preview",
+        dir.path(),
+        GitMutationOperationKind::Stage,
+        ["src/lib.rs"],
+        "2026-05-13T00:00:00Z",
+    );
+    let mut preview = service.preview(&request);
+    assert!(preview.ready_to_apply());
+
+    preview.actor.display_label = "Different actor".to_string();
+    let result = service.apply(&preview, "2026-05-13T00:00:01Z");
+
+    assert_eq!(
+        result.outcome_state,
+        GitMutationOutcomeState::BlockedNoChangesMade
+    );
+    assert_status(
+        dir.path(),
+        Path::new("src/lib.rs"),
+        Some(".M"),
+        "changed attribution must invalidate apply authority",
+    );
+}
+
+#[test]
+fn modified_result_cannot_redirect_checkpoint_restore() {
+    let source = build_case_root("unstaged_modified");
+    let other = build_case_root("unstaged_modified");
+    let service = GitMutationService::default();
+    let request = GitMutationRequest::with_observed_at(
+        "workspace.fixture.repository-bound-checkpoint",
+        source.path(),
+        GitMutationOperationKind::Stage,
+        ["src/lib.rs"],
+        "2026-05-13T00:00:00Z",
+    );
+    let mut result = service.apply(&service.preview(&request), "2026-05-13T00:00:01Z");
+    assert_eq!(result.outcome_state, GitMutationOutcomeState::Applied);
+
+    result.repo_root = other.path().to_path_buf();
+    let restore = service.preview_revert(&result, "2026-05-13T00:00:02Z");
+
+    assert!(!restore.ready_to_apply());
+    assert_status(
+        other.path(),
+        Path::new("src/lib.rs"),
+        Some(".M"),
+        "checkpoint restore must remain bound to its source repository",
+    );
+}
+
 struct WorktreeRaceBackend {
     inner: SystemGitMutationBackend,
     path: PathBuf,
     replacement: &'static [u8],
     changed: AtomicBool,
+}
+
+struct PrivateApplyFailureBackend {
+    inner: SystemGitMutationBackend,
+}
+
+impl GitMutationBackend for PrivateApplyFailureBackend {
+    fn run_git(
+        &self,
+        root: &Path,
+        args: &[String],
+    ) -> Result<GitMutationCommandOutput, GitMutationBackendError> {
+        self.inner.run_git(root, args)
+    }
+
+    fn run_git_with_stdin(
+        &self,
+        _root: &Path,
+        _args: &[String],
+        _stdin: &[u8],
+    ) -> Result<GitMutationCommandOutput, GitMutationBackendError> {
+        Err(GitMutationBackendError {
+            message: "/private/customer/token-value".to_string(),
+        })
+    }
 }
 
 impl GitMutationBackend for WorktreeRaceBackend {
@@ -593,4 +743,32 @@ fn stage_consumes_reviewed_patch_instead_of_racing_worktree_bytes() {
         Some("MM"),
         "the reviewed index and newer worktree must remain distinct",
     );
+}
+
+#[test]
+fn backend_private_failure_detail_is_not_projected_into_mutation_results() {
+    let dir = build_case_root("unstaged_modified");
+    let service = GitMutationService::new(PrivateApplyFailureBackend {
+        inner: SystemGitMutationBackend::default(),
+    });
+    let request = GitMutationRequest::with_observed_at(
+        "workspace.fixture.private-backend-error",
+        dir.path(),
+        GitMutationOperationKind::Stage,
+        ["src/lib.rs"],
+        "2026-05-13T00:00:00Z",
+    );
+    let preview = service.preview(&request);
+    assert!(preview.ready_to_apply());
+
+    let result = service.apply(&preview, "2026-05-13T00:00:01Z");
+
+    assert_eq!(result.outcome_state, GitMutationOutcomeState::Failed);
+    assert_eq!(
+        result.failure_reason.as_deref(),
+        Some("Git mutation command could not be completed safely")
+    );
+    let json = serde_json::to_string(&result).expect("serialize failure result");
+    assert!(!json.contains("private/customer"));
+    assert!(!json.contains("token-value"));
 }

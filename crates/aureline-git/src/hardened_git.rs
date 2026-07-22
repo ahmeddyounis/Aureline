@@ -4,7 +4,7 @@
 //! Shared fail-closed subprocess posture for Git review and apply lanes.
 
 use std::ffi::OsStr;
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::mpsc;
@@ -12,6 +12,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 const MAX_CAPTURED_STREAM_BYTES: usize = 16 * 1024 * 1024;
+const MAX_STDIN_BYTES: usize = 16 * 1024 * 1024;
 const GIT_COMMAND_TIMEOUT: Duration = Duration::from_secs(60);
 const SUPERVISOR_POLL_INTERVAL: Duration = Duration::from_millis(5);
 
@@ -22,10 +23,30 @@ pub(crate) struct HardenedGitOutput {
     pub(crate) stderr: Vec<u8>,
 }
 
+/// Single transport family admitted by a reviewed publish preview.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PublishTransportPosture {
+    /// Absolute/relative local paths and `file://` URLs.
+    File,
+    /// HTTPS without ambient credential helpers.
+    Https,
+    /// SSH through the exact reviewed agent socket.
+    Ssh,
+}
+
 /// Builds a local-only Git command without ambient config, authentication,
-/// prompt, pager, hook, monitor, credential-helper, submodule, or
-/// external-diff execution authority.
+/// network transport, prompt, pager, hook, monitor, credential-helper,
+/// submodule, or external-diff execution authority.
 pub(crate) fn command(git_binary: &Path, root: &Path, args: &[String]) -> Command {
+    command_with_transport_posture(git_binary, root, args, None)
+}
+
+fn command_with_transport_posture(
+    git_binary: &Path,
+    root: &Path,
+    args: &[String],
+    publish_transport: Option<PublishTransportPosture>,
+) -> Command {
     let mut command = Command::new(git_binary);
     command.env_clear();
     if let Some(path) = std::env::var_os("PATH") {
@@ -80,11 +101,27 @@ pub(crate) fn command(git_binary: &Path, root: &Path, args: &[String]) -> Comman
         .arg("-c")
         .arg("protocol.allow=never")
         .arg("-c")
-        .arg("protocol.file.allow=always")
+        .arg(
+            if publish_transport == Some(PublishTransportPosture::File) {
+                "protocol.file.allow=always"
+            } else {
+                "protocol.file.allow=never"
+            },
+        )
         .arg("-c")
-        .arg("protocol.https.allow=always")
+        .arg(
+            if publish_transport == Some(PublishTransportPosture::Https) {
+                "protocol.https.allow=always"
+            } else {
+                "protocol.https.allow=never"
+            },
+        )
         .arg("-c")
-        .arg("protocol.ssh.allow=always")
+        .arg(if publish_transport == Some(PublishTransportPosture::Ssh) {
+            "protocol.ssh.allow=always"
+        } else {
+            "protocol.ssh.allow=never"
+        })
         .arg("-c")
         .arg("protocol.ext.allow=never")
         .arg("-C")
@@ -98,16 +135,18 @@ pub(crate) fn command(git_binary: &Path, root: &Path, args: &[String]) -> Comman
     command
 }
 
-/// Builds the only Git command posture allowed to inherit a reviewed SSH
-/// agent socket. Callers must pass the exact socket retained by an admitted
-/// SSH publish preview; this function never reads ambient auth itself.
+/// Builds the reviewed publish posture. This is the only runner that admits
+/// file, HTTPS, or SSH transports and the only one allowed to inherit a
+/// reviewed SSH agent socket. Callers pass the exact socket retained by an
+/// admitted SSH preview; this function never reads ambient auth itself.
 pub(crate) fn command_for_publish(
     git_binary: &Path,
     root: &Path,
     args: &[String],
+    transport: PublishTransportPosture,
     ssh_auth_sock: Option<&OsStr>,
 ) -> Command {
-    let mut command = command(git_binary, root, args);
+    let mut command = command_with_transport_posture(git_binary, root, args, Some(transport));
     if let Some(ssh_auth_sock) = ssh_auth_sock {
         command.env("SSH_AUTH_SOCK", ssh_auth_sock);
     }
@@ -123,13 +162,57 @@ pub(crate) fn run(mut command: Command) -> io::Result<HardenedGitOutput> {
     run_with_limits(&mut command, MAX_CAPTURED_STREAM_BYTES, GIT_COMMAND_TIMEOUT)
 }
 
+/// Runs a configured command with a bounded, supervised stdin body.
+///
+/// The writer is supervised alongside the process and both output readers, so
+/// a child that stops reading stdin cannot pin the caller indefinitely. Input,
+/// stdout, and stderr each fail closed at the published evidence bound.
+pub(crate) fn run_with_stdin(mut command: Command, stdin: &[u8]) -> io::Result<HardenedGitOutput> {
+    run_with_input_limits(
+        &mut command,
+        stdin,
+        MAX_STDIN_BYTES,
+        MAX_CAPTURED_STREAM_BYTES,
+        GIT_COMMAND_TIMEOUT,
+    )
+}
+
 fn run_with_limits(
     command: &mut Command,
     max_stream_bytes: usize,
     timeout: Duration,
 ) -> io::Result<HardenedGitOutput> {
+    supervise(command, None, max_stream_bytes, timeout)
+}
+
+fn run_with_input_limits(
+    command: &mut Command,
+    stdin: &[u8],
+    max_stdin_bytes: usize,
+    max_stream_bytes: usize,
+    timeout: Duration,
+) -> io::Result<HardenedGitOutput> {
+    if stdin.len() > max_stdin_bytes {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Git input exceeded the safe transfer limit",
+        ));
+    }
+    supervise(command, Some(stdin.to_vec()), max_stream_bytes, timeout)
+}
+
+fn supervise(
+    command: &mut Command,
+    stdin: Option<Vec<u8>>,
+    max_stream_bytes: usize,
+    timeout: Duration,
+) -> io::Result<HardenedGitOutput> {
     let mut child = command
-        .stdin(Stdio::null())
+        .stdin(if stdin.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
@@ -147,31 +230,68 @@ fn run_with_limits(
             "Git stderr unavailable",
         ));
     };
-    let (sender, receiver) = mpsc::channel();
+    let (sender, receiver) = mpsc::channel::<SupervisorEvent>();
     let stdout_sender = sender.clone();
     let _stdout_reader = thread::spawn(move || {
-        let _ = stdout_sender.send((StreamKind::Stdout, drain_bounded(stdout, max_stream_bytes)));
+        let _ = stdout_sender.send(SupervisorEvent::Stream(
+            StreamKind::Stdout,
+            drain_bounded(stdout, max_stream_bytes),
+        ));
     });
+    let stderr_sender = sender.clone();
     let _stderr_reader = thread::spawn(move || {
-        let _ = sender.send((StreamKind::Stderr, drain_bounded(stderr, max_stream_bytes)));
+        let _ = stderr_sender.send(SupervisorEvent::Stream(
+            StreamKind::Stderr,
+            drain_bounded(stderr, max_stream_bytes),
+        ));
     });
+    let mut stdin_complete = stdin.is_none();
+    if let Some(stdin) = stdin {
+        let Some(mut child_stdin) = child.stdin.take() else {
+            terminate_child_tree(&mut child);
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "Git stdin unavailable",
+            ));
+        };
+        let stdin_sender = sender.clone();
+        let _stdin_writer = thread::spawn(move || {
+            let result = child_stdin
+                .write_all(&stdin)
+                .and_then(|()| child_stdin.flush());
+            drop(child_stdin);
+            let _ = stdin_sender.send(SupervisorEvent::Stdin(result));
+        });
+    }
+    drop(sender);
 
     let started_at = Instant::now();
     let mut status = None;
     let mut stdout = None;
     let mut stderr = None;
     loop {
-        while let Ok((stream, result)) = receiver.try_recv() {
-            let bytes = match result {
-                Ok(bytes) => bytes,
-                Err(error) => {
-                    terminate_child_tree(&mut child);
-                    return Err(error);
+        while let Ok(event) = receiver.try_recv() {
+            match event {
+                SupervisorEvent::Stream(stream, result) => {
+                    let bytes = match result {
+                        Ok(bytes) => bytes,
+                        Err(error) => {
+                            terminate_child_tree(&mut child);
+                            return Err(error);
+                        }
+                    };
+                    match stream {
+                        StreamKind::Stdout => stdout = Some(bytes),
+                        StreamKind::Stderr => stderr = Some(bytes),
+                    }
                 }
-            };
-            match stream {
-                StreamKind::Stdout => stdout = Some(bytes),
-                StreamKind::Stderr => stderr = Some(bytes),
+                SupervisorEvent::Stdin(result) => match result {
+                    Ok(()) => stdin_complete = true,
+                    Err(error) => {
+                        terminate_child_tree(&mut child);
+                        return Err(error);
+                    }
+                },
             }
         }
         if status.is_none() {
@@ -183,18 +303,19 @@ fn run_with_limits(
                 }
             };
         }
-        match (status.take(), stdout.take(), stderr.take()) {
-            (Some(status), Some(stdout), Some(stderr)) => {
+        match (status.take(), stdout.take(), stderr.take(), stdin_complete) {
+            (Some(status), Some(stdout), Some(stderr), true) => {
                 return Ok(HardenedGitOutput {
                     status,
                     stdout,
                     stderr,
                 });
             }
-            (pending_status, pending_stdout, pending_stderr) => {
+            (pending_status, pending_stdout, pending_stderr, pending_stdin) => {
                 status = pending_status;
                 stdout = pending_stdout;
                 stderr = pending_stderr;
+                stdin_complete = pending_stdin;
             }
         }
         if started_at.elapsed() >= timeout {
@@ -212,6 +333,12 @@ fn run_with_limits(
 enum StreamKind {
     Stdout,
     Stderr,
+}
+
+#[derive(Debug)]
+enum SupervisorEvent {
+    Stream(StreamKind, io::Result<Vec<u8>>),
+    Stdin(io::Result<()>),
 }
 
 fn drain_bounded(mut stream: impl Read, max_bytes: usize) -> io::Result<Vec<u8>> {
@@ -246,6 +373,17 @@ fn terminate_child_tree(child: &mut std::process::Child) {
         let _ = Command::new("/bin/kill")
             .env_clear()
             .args(["-KILL", "--", process_group.as_str()])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    #[cfg(windows)]
+    {
+        let process_id = child.id().to_string();
+        let _ = Command::new("taskkill")
+            .env_clear()
+            .args(["/F", "/T", "/PID", process_id.as_str()])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -335,11 +473,23 @@ mod tests {
                 "unset"
             ]
         );
+        for denied_protocol in [
+            "protocol.file.allow=never",
+            "protocol.https.allow=never",
+            "protocol.ssh.allow=never",
+            "protocol.ext.allow=never",
+        ] {
+            assert!(
+                local_text.contains(denied_protocol),
+                "local Git command admitted transport: {denied_protocol}"
+            );
+        }
 
         let publish_output = run(command_for_publish(
             &probe,
             temp.path(),
             &["push".to_string()],
+            PublishTransportPosture::Ssh,
             Some(OsStr::new(TEST_SOCKET)),
         ))
         .expect("publish probe runs");
@@ -363,8 +513,8 @@ mod tests {
             "credential.helper=",
             "credential.interactive=never",
             "protocol.allow=never",
-            "protocol.file.allow=always",
-            "protocol.https.allow=always",
+            "protocol.file.allow=never",
+            "protocol.https.allow=never",
             "protocol.ssh.allow=always",
             "protocol.ext.allow=never",
         ] {
@@ -380,6 +530,32 @@ mod tests {
             "-oStrictHostKeyChecking=yes",
         ] {
             assert!(publish_environment[5].contains(required));
+        }
+
+        for (transport, admitted, denied) in [
+            (
+                PublishTransportPosture::Https,
+                "protocol.https.allow=always",
+                ["protocol.file.allow=never", "protocol.ssh.allow=never"],
+            ),
+            (
+                PublishTransportPosture::File,
+                "protocol.file.allow=always",
+                ["protocol.https.allow=never", "protocol.ssh.allow=never"],
+            ),
+        ] {
+            let output = run(command_for_publish(
+                &probe,
+                temp.path(),
+                &["push".to_string()],
+                transport,
+                None,
+            ))
+            .expect("non-SSH publish probe runs");
+            let text = String::from_utf8(output.stdout).expect("utf8 publish probe output");
+            assert!(text.contains(admitted));
+            assert!(denied.iter().all(|setting| text.contains(setting)));
+            assert_eq!(text.lines().nth(2), Some("unset"));
         }
     }
 
@@ -400,7 +576,9 @@ mod tests {
             "#!/bin/sh\nif IFS= read -r value; then printf 'stdin-open'; else printf 'stdin-closed'; fi\n",
         )
         .expect("write stdin probe");
-        for probe in [&output_probe, &timeout_probe, &stdin_probe] {
+        let input_probe = temp.path().join("input-probe");
+        fs::write(&input_probe, "#!/bin/sh\nwc -c | tr -d ' '\n").expect("write input probe");
+        for probe in [&output_probe, &timeout_probe, &stdin_probe, &input_probe] {
             let mut permissions = fs::metadata(probe).expect("probe metadata").permissions();
             permissions.set_mode(0o700);
             fs::set_permissions(probe, permissions).expect("make probe executable");
@@ -433,5 +611,37 @@ mod tests {
         )
         .expect("stdin probe runs");
         assert_eq!(stdin_output.stdout, b"stdin-closed");
+
+        let input_output = run_with_input_limits(
+            &mut command(&input_probe, temp.path(), &[]),
+            b"reviewed patch bytes",
+            1024,
+            1024,
+            Duration::from_secs(2),
+        )
+        .expect("bounded stdin is delivered");
+        assert_eq!(input_output.stdout, b"20\n");
+
+        let oversized_input = run_with_input_limits(
+            &mut command(&input_probe, temp.path(), &[]),
+            &[0_u8; 1025],
+            1024,
+            1024,
+            Duration::from_secs(2),
+        )
+        .expect_err("oversized stdin fails before launch");
+        assert_eq!(oversized_input.kind(), io::ErrorKind::InvalidInput);
+
+        let started_at = Instant::now();
+        let blocked_writer = run_with_input_limits(
+            &mut command(&timeout_probe, temp.path(), &[]),
+            &[0_u8; 1024 * 1024],
+            1024 * 1024,
+            1024,
+            Duration::from_millis(100),
+        )
+        .expect_err("a child that does not read stdin is terminated");
+        assert_eq!(blocked_writer.kind(), io::ErrorKind::TimedOut);
+        assert!(started_at.elapsed() < Duration::from_secs(2));
     }
 }

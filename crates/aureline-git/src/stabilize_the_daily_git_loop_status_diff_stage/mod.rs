@@ -8,15 +8,25 @@
 //! ambiguously. Consumers subscribe to canonical records instead of
 //! invoking Git independently.
 //!
-//! The companion schema lives at
-//! `schemas/git/daily_loop_snapshot.schema.json`.
+//! The redacted support-export boundary schema lives at
+//! `schemas/git/daily_loop_support_export.schema.json`.
 //! Canonical fixtures live under `fixtures/git/m4/daily_loop_beta/`.
 
+use std::collections::HashSet;
 use std::fmt;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+
+use crate::commit::{
+    GitCommitActorRef, GitCommitMode, GitCommitOutcomeState, GitCommitPreview,
+    GitCommitPreviewState, GitCommitRequest, GitCommitService,
+};
+use crate::mutations::{
+    GitMutationActorRef, GitMutationOperationKind, GitMutationOutcomeState, GitMutationPreview,
+    GitMutationPreviewState, GitMutationRequest, GitMutationService,
+};
+use crate::{digest, hardened_git};
 
 // ---------------------------------------------------------------------------
 // Record-kind constants
@@ -57,11 +67,17 @@ const DAILY_LOOP_SNAPSHOT_SCHEMA_VERSION: u32 = 1;
 const DAILY_LOOP_PREVIEW_SCHEMA_VERSION: u32 = 1;
 const DAILY_LOOP_RESULT_SCHEMA_VERSION: u32 = 1;
 const DAILY_LOOP_ACTIVITY_SCHEMA_VERSION: u32 = 1;
-const DAILY_LOOP_SUPPORT_EXPORT_SCHEMA_VERSION: u32 = 1;
+const DAILY_LOOP_SUPPORT_EXPORT_SCHEMA_VERSION: u32 = 2;
 const DAILY_LOOP_JOURNAL_SCHEMA_VERSION: u32 = 1;
 const STASH_SHELF_ENTRY_SCHEMA_VERSION: u32 = 1;
 const BLAME_LINE_SCHEMA_VERSION: u32 = 1;
 const HISTORY_COMMIT_SCHEMA_VERSION: u32 = 1;
+
+const MAX_DAILY_LOOP_PATHS: usize = 4096;
+const MAX_DAILY_LOOP_PATH_BYTES: usize = 4096;
+const MAX_DAILY_LOOP_SCOPE_BYTES: usize = 1024 * 1024;
+const MAX_DAILY_LOOP_REF_BYTES: usize = 512;
+const MAX_DAILY_LOOP_ROWS: usize = 4096;
 
 // ---------------------------------------------------------------------------
 // Closed vocabularies
@@ -395,7 +411,8 @@ impl DailyLoopRequest {
         kind: DailyLoopOperationKind,
         path_scope: Vec<PathBuf>,
     ) -> Self {
-        let worktree_root = worktree_root.into();
+        let requested_root = worktree_root.into();
+        let worktree_root = std::fs::canonicalize(&requested_root).unwrap_or(requested_root);
         let repo_root = worktree_root.clone();
         let repo_ref = repo_root.to_string_lossy().into_owned();
         let worktree_ref = worktree_root.to_string_lossy().into_owned();
@@ -906,6 +923,50 @@ pub struct DailyLoopPreview {
     pub recovery_checkpoint_ref: Option<String>,
     /// Observed at timestamp.
     pub observed_at: String,
+    /// In-memory, single-process apply authority. It is never serialized into
+    /// preview, support, or handoff records.
+    #[serde(skip)]
+    apply_authority: DailyLoopApplyAuthority,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct DailyLoopApplyAuthority {
+    projection_digest: Option<String>,
+    actor_ref: Option<String>,
+    mutation_preview: Option<GitMutationPreview>,
+    commit_preview: Option<GitCommitPreview>,
+}
+
+impl DailyLoopPreview {
+    fn seal(mut self) -> Self {
+        self.apply_authority.projection_digest = serde_json::to_vec(&self)
+            .ok()
+            .filter(|bytes| bytes.len() <= MAX_DAILY_LOOP_SCOPE_BYTES * 2)
+            .map(|bytes| digest::sha256_token(&bytes));
+        if self.state == DailyLoopPreviewState::Ready
+            && self.apply_authority.projection_digest.is_none()
+        {
+            self.state = DailyLoopPreviewState::Blocked;
+            self.blocked_reason =
+                Some("daily-loop preview exceeds the in-process authority boundary".to_string());
+            self.apply_authority.actor_ref = None;
+            self.apply_authority.mutation_preview = None;
+            self.apply_authority.commit_preview = None;
+        }
+        self
+    }
+
+    fn projection_matches_authority(&self) -> bool {
+        let Some(expected) = self.apply_authority.projection_digest.as_deref() else {
+            return false;
+        };
+        serde_json::to_vec(self)
+            .ok()
+            .filter(|bytes| bytes.len() <= MAX_DAILY_LOOP_SCOPE_BYTES * 2)
+            .map(|bytes| digest::sha256_token(&bytes))
+            .as_deref()
+            == Some(expected)
+    }
 }
 
 /// Commit-specific preview details.
@@ -984,6 +1045,25 @@ pub struct DailyLoopActivityRecord {
     pub observed_at: String,
 }
 
+/// Redacted target identity carried by daily-loop support exports.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DailyLoopSupportTargetProjection {
+    /// Domain-separated digest of the caller's workspace ref.
+    pub workspace_ref_digest: String,
+    /// Domain-separated digest of the repository ref.
+    pub repo_ref_digest: String,
+    /// Domain-separated digest of the worktree ref.
+    pub worktree_ref_digest: String,
+    /// Repository topology class without any filesystem location.
+    pub repository_class: String,
+    /// Whether the repository is shallow.
+    pub is_shallow: bool,
+    /// Whether this is a linked worktree.
+    pub is_linked_worktree: bool,
+    /// Attached/detached/unavailable HEAD class without a branch name.
+    pub head_state_class: String,
+}
+
 /// Support-export record for the daily loop.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DailyLoopSupportExportRecord {
@@ -991,16 +1071,26 @@ pub struct DailyLoopSupportExportRecord {
     pub record_kind: String,
     /// Schema version.
     pub schema_version: u32,
-    /// Target that produced this record.
-    pub target: DailyLoopTarget,
+    /// Redacted target projection. Raw target paths and display refs are never
+    /// embedded in this record family.
+    pub target: DailyLoopSupportTargetProjection,
     /// Operation kind.
     pub kind: DailyLoopOperationKind,
     /// Outcome state.
     pub outcome: DailyLoopOutcomeState,
     /// Redaction class.
     pub redaction_class: String,
+    /// Redaction profile applied to target and path fields.
+    pub redaction_profile_ref: String,
     /// True when raw paths are allowed in export (always false for daily loop).
     pub raw_path_export_allowed: bool,
+    /// True when raw branch/ref labels are allowed (always false).
+    pub raw_ref_name_export_allowed: bool,
+    /// Number of affected path rows represented without their path bodies.
+    pub affected_path_count: usize,
+    /// Explicitly omitted field families so absence cannot look like missing
+    /// collection.
+    pub omitted_fields: Vec<String>,
     /// Observed at timestamp.
     pub observed_at: String,
 }
@@ -1049,12 +1139,56 @@ impl DailyLoopSupportExportRecord {
         Self {
             record_kind: DAILY_LOOP_SUPPORT_EXPORT_RECORD_KIND.to_string(),
             schema_version: DAILY_LOOP_SUPPORT_EXPORT_SCHEMA_VERSION,
-            target: result.target.clone(),
+            target: DailyLoopSupportTargetProjection::from_target(&result.target),
             kind: result.kind,
             outcome: result.outcome,
-            redaction_class: "daily_loop_beta".to_string(),
+            redaction_class: "metadata_safe_default".to_string(),
+            redaction_profile_ref: "support.redaction.local_first_default".to_string(),
             raw_path_export_allowed: false,
-            observed_at: result.observed_at.clone(),
+            raw_ref_name_export_allowed: false,
+            affected_path_count: result.affected_paths.len(),
+            omitted_fields: vec![
+                "target.workspace_ref".to_string(),
+                "target.repo.repo_ref".to_string(),
+                "target.repo.repo_root".to_string(),
+                "target.repo.git_dir".to_string(),
+                "target.repo.display_label".to_string(),
+                "target.worktree.repo_ref".to_string(),
+                "target.worktree.worktree_ref".to_string(),
+                "target.worktree.worktree_root".to_string(),
+                "target.worktree.head_label".to_string(),
+                "target.worktree.display_label".to_string(),
+                "affected_paths".to_string(),
+                "outcome_reason".to_string(),
+            ],
+            observed_at: support_safe_timestamp(&result.observed_at),
+        }
+    }
+}
+
+impl DailyLoopSupportTargetProjection {
+    fn from_target(target: &DailyLoopTarget) -> Self {
+        Self {
+            workspace_ref_digest: redacted_support_digest("workspace_ref", &target.workspace_ref),
+            repo_ref_digest: redacted_support_digest("repo_ref", &target.repo.repo_ref),
+            worktree_ref_digest: redacted_support_digest(
+                "worktree_ref",
+                &target.worktree.worktree_ref,
+            ),
+            repository_class: if target.repo.is_bare {
+                "bare_repository"
+            } else {
+                "worktree_repository"
+            }
+            .to_string(),
+            is_shallow: target.repo.is_shallow,
+            is_linked_worktree: target.worktree.is_linked,
+            head_state_class: match target.worktree.head_label.as_str() {
+                "unknown" | "" => "unavailable",
+                "HEAD" => "detached",
+                _ => "attached",
+            }
+            .to_string(),
         }
     }
 }
@@ -1113,43 +1247,50 @@ pub trait DailyLoopBackend {
     /// Returns [`DailyLoopBackendError`] when the root is not a repository or
     /// Git is unavailable.
     fn read_repo_metadata(&self, root: &Path) -> Result<RepoTarget, DailyLoopBackendError> {
-        let output = self.run_git(root, &["rev-parse", "--git-dir"])?;
+        let output = self.run_git(root, &["rev-parse", "--absolute-git-dir"])?;
         if !output.success {
             return Err(DailyLoopBackendError::new(
                 DailyLoopBackendErrorClass::NotARepository,
-                "git rev-parse --git-dir failed",
+                "git repository identity could not be resolved",
             ));
         }
-        let git_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        let git_dir_path = if Path::new(&git_dir).is_absolute() {
-            PathBuf::from(&git_dir)
+        let git_dir_path = parse_absolute_git_path(&output.stdout).ok_or_else(|| {
+            DailyLoopBackendError::new(
+                DailyLoopBackendErrorClass::NotARepository,
+                "git directory identity was not an absolute path",
+            )
+        })?;
+
+        let is_bare = read_git_bool(self, root, &["rev-parse", "--is-bare-repository"])?;
+        let is_shallow = read_git_bool(self, root, &["rev-parse", "--is-shallow-repository"])?;
+
+        let repo_root = if is_bare {
+            root.to_path_buf()
         } else {
-            root.join(&git_dir)
+            let output = self.run_git(root, &["rev-parse", "--show-toplevel"])?;
+            if !output.success {
+                return Err(DailyLoopBackendError::new(
+                    DailyLoopBackendErrorClass::NotARepository,
+                    "git worktree root could not be resolved",
+                ));
+            }
+            parse_absolute_git_path(&output.stdout).ok_or_else(|| {
+                DailyLoopBackendError::new(
+                    DailyLoopBackendErrorClass::NotARepository,
+                    "git worktree root was not an absolute path",
+                )
+            })?
         };
-
-        let is_bare = self
-            .run_git(root, &["rev-parse", "--is-bare-repository"])
-            .ok()
-            .filter(|o| o.success)
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "true")
-            .unwrap_or(false);
-
-        let is_shallow = self
-            .run_git(root, &["rev-parse", "--is-shallow-repository"])
-            .ok()
-            .filter(|o| o.success)
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "true")
-            .unwrap_or(false);
-
-        let repo_ref = root.to_string_lossy().into_owned();
+        let repo_ref = repo_root.to_string_lossy().into_owned();
+        let display_label = repo_root.display().to_string();
 
         Ok(RepoTarget {
-            repo_ref: repo_ref.clone(),
-            repo_root: root.to_path_buf(),
+            repo_ref,
+            repo_root,
             git_dir: git_dir_path,
             is_bare,
             is_shallow,
-            display_label: repo_ref,
+            display_label,
         })
     }
 
@@ -1165,30 +1306,53 @@ pub trait DailyLoopBackend {
     ) -> Result<WorktreeTarget, DailyLoopBackendError> {
         let output = self.run_git(root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
         let head_label = if output.success {
-            String::from_utf8_lossy(&output.stdout).trim().to_string()
+            parse_bounded_git_label(&output.stdout).unwrap_or_else(|| "unknown".to_string())
         } else {
             "unknown".to_string()
         };
 
-        let is_linked = self
-            .run_git(root, &["rev-parse", "--git-path", "HEAD"])
-            .ok()
-            .filter(|o| o.success)
-            .map(|o| {
-                let git_path = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                !git_path.starts_with("..")
-            })
-            .unwrap_or(false);
-
-        let worktree_ref = root.to_string_lossy().into_owned();
+        let output = self.run_git(root, &["rev-parse", "--show-toplevel"])?;
+        if !output.success {
+            return Err(DailyLoopBackendError::new(
+                DailyLoopBackendErrorClass::WorktreeNotFound,
+                "git worktree root could not be resolved",
+            ));
+        }
+        let worktree_root = parse_absolute_git_path(&output.stdout).ok_or_else(|| {
+            DailyLoopBackendError::new(
+                DailyLoopBackendErrorClass::WorktreeNotFound,
+                "git worktree root was not an absolute path",
+            )
+        })?;
+        let common_dir = self.run_git(
+            root,
+            &["rev-parse", "--path-format=absolute", "--git-common-dir"],
+        )?;
+        if !common_dir.success {
+            return Err(DailyLoopBackendError::new(
+                DailyLoopBackendErrorClass::WorktreeNotFound,
+                "git common repository identity could not be resolved",
+            ));
+        }
+        let common_dir = parse_absolute_git_path(&common_dir.stdout).ok_or_else(|| {
+            DailyLoopBackendError::new(
+                DailyLoopBackendErrorClass::WorktreeNotFound,
+                "git common repository identity was not an absolute path",
+            )
+        })?;
+        let git_dir = std::fs::canonicalize(&repo.git_dir).unwrap_or_else(|_| repo.git_dir.clone());
+        let common_dir = std::fs::canonicalize(&common_dir).unwrap_or(common_dir);
+        let is_linked = git_dir != common_dir;
+        let worktree_ref = worktree_root.to_string_lossy().into_owned();
+        let display_label = worktree_root.display().to_string();
 
         Ok(WorktreeTarget {
-            worktree_ref: worktree_ref.clone(),
+            worktree_ref,
             repo_ref: repo.repo_ref.clone(),
-            worktree_root: root.to_path_buf(),
+            worktree_root,
             is_linked,
             head_label,
-            display_label: worktree_ref,
+            display_label,
         })
     }
 }
@@ -1222,11 +1386,11 @@ impl DailyLoopBackend for SystemDailyLoopBackend {
         root: &Path,
         args: &[&str],
     ) -> Result<DailyLoopCommandOutput, DailyLoopBackendError> {
-        let output = Command::new(&self.git_binary)
-            .arg("-C")
-            .arg(root)
-            .args(args)
-            .output()
+        let args = args
+            .iter()
+            .map(|arg| (*arg).to_string())
+            .collect::<Vec<_>>();
+        let output = hardened_git::run(hardened_git::command(&self.git_binary, root, &args))
             .map_err(|err| {
                 if err.kind() == std::io::ErrorKind::NotFound {
                     DailyLoopBackendError::new(
@@ -1236,12 +1400,12 @@ impl DailyLoopBackend for SystemDailyLoopBackend {
                 } else if err.kind() == std::io::ErrorKind::PermissionDenied {
                     DailyLoopBackendError::new(
                         DailyLoopBackendErrorClass::PermissionDenied,
-                        format!("git could not be launched: {err}"),
+                        "git binary could not be launched under the safe execution profile",
                     )
                 } else {
                     DailyLoopBackendError::new(
                         DailyLoopBackendErrorClass::Io,
-                        format!("git process launch failed: {err}"),
+                        "git command exceeded a safe process, time, input, or output boundary",
                     )
                 }
             })?;
@@ -1262,12 +1426,14 @@ impl DailyLoopBackend for SystemDailyLoopBackend {
 #[derive(Debug, Clone)]
 pub struct DailyLoopService<B = SystemDailyLoopBackend> {
     backend: B,
+    commit_service: GitCommitService,
 }
 
 impl Default for DailyLoopService<SystemDailyLoopBackend> {
     fn default() -> Self {
         Self {
             backend: SystemDailyLoopBackend::default(),
+            commit_service: GitCommitService::default(),
         }
     }
 }
@@ -1275,7 +1441,10 @@ impl Default for DailyLoopService<SystemDailyLoopBackend> {
 impl<B> DailyLoopService<B> {
     /// Builds a service around a custom backend.
     pub fn new(backend: B) -> Self {
-        Self { backend }
+        Self {
+            backend,
+            commit_service: GitCommitService::default(),
+        }
     }
 }
 
@@ -1286,6 +1455,13 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
     ///
     /// Never returns `Err`; degraded states are encoded in the snapshot.
     pub fn snapshot(&self, request: &DailyLoopRequest) -> DailyLoopSnapshot {
+        if let Err(reason) = validate_daily_request(request) {
+            return DailyLoopSnapshot::degraded(
+                request,
+                DailyLoopSnapshotState::RefreshFailed,
+                reason,
+            );
+        }
         let target = match self.resolve_target(&request.target) {
             Ok(t) => t,
             Err(err) => {
@@ -1298,7 +1474,7 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
                     }
                     _ => DailyLoopSnapshotState::GitUnavailable,
                 };
-                return DailyLoopSnapshot::degraded(request, state, err.message);
+                return DailyLoopSnapshot::degraded(request, state, backend_failure_reason(&err));
             }
         };
 
@@ -1334,12 +1510,15 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
     ///
     /// Never returns `Err`; blocked states are encoded in the preview.
     pub fn preview(&self, request: &DailyLoopRequest) -> DailyLoopPreview {
+        if let Err(reason) = validate_daily_request(request) {
+            return DailyLoopPreview::blocked(request, reason);
+        }
         let target = match self.resolve_target(&request.target) {
             Ok(t) => t,
             Err(err) => {
                 return DailyLoopPreview::degraded(
                     request,
-                    format!("target resolution failed: {}", err.message),
+                    format!("target resolution failed: {}", backend_failure_reason(&err)),
                 )
             }
         };
@@ -1385,6 +1564,20 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
                 preview.blocked_reason.clone().unwrap_or_default(),
             );
         }
+        if !preview.projection_matches_authority() {
+            return DailyLoopResult::blocked(
+                &preview.target,
+                preview.kind,
+                "preview authority is unavailable or changed; reopen review",
+            );
+        }
+        if preview.apply_authority.actor_ref.as_deref() != Some(actor_ref.as_str()) {
+            return DailyLoopResult::blocked(
+                &preview.target,
+                preview.kind,
+                "apply actor does not match the reviewed preview actor; reopen review",
+            );
+        }
 
         match preview.kind {
             DailyLoopOperationKind::Stage | DailyLoopOperationKind::Unstage => {
@@ -1397,9 +1590,11 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             | DailyLoopOperationKind::StashApply
             | DailyLoopOperationKind::StashPop
             | DailyLoopOperationKind::StashDrop
-            | DailyLoopOperationKind::StashBranchFrom => {
-                self.apply_stash_operation(preview, &actor_ref)
-            }
+            | DailyLoopOperationKind::StashBranchFrom => DailyLoopResult::blocked(
+                &preview.target,
+                preview.kind,
+                "stash mutation remains inspect-only in the daily-loop adapter",
+            ),
             _ => DailyLoopResult::failed(
                 &preview.target,
                 preview.kind,
@@ -1416,16 +1611,48 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
         &self,
         target: &DailyLoopTarget,
     ) -> Result<DailyLoopTarget, DailyLoopBackendError> {
-        let repo = self.backend.read_repo_metadata(&target.repo.repo_root)?;
-        let worktree = self
+        let declared_common_git_dir = self.common_git_dir(&target.repo.repo_root)?;
+        let worktree_common_git_dir = self.common_git_dir(&target.worktree.worktree_root)?;
+        if declared_common_git_dir != worktree_common_git_dir {
+            return Err(DailyLoopBackendError::new(
+                DailyLoopBackendErrorClass::WorktreeNotFound,
+                "declared repository and worktree identities do not match",
+            ));
+        }
+        let declared_repo = self.backend.read_repo_metadata(&target.repo.repo_root)?;
+        let worktree_repo = self
             .backend
-            .read_worktree_metadata(&target.worktree.worktree_root, &repo)?;
+            .read_repo_metadata(&target.worktree.worktree_root)?;
+        let mut worktree = self
+            .backend
+            .read_worktree_metadata(&target.worktree.worktree_root, &worktree_repo)?;
+        worktree.repo_ref.clone_from(&declared_repo.repo_ref);
         Ok(DailyLoopTarget {
-            repo,
+            repo: declared_repo,
             worktree,
             workspace_ref: target.workspace_ref.clone(),
             observed_at: target.observed_at.clone(),
         })
+    }
+
+    fn common_git_dir(&self, root: &Path) -> Result<PathBuf, DailyLoopBackendError> {
+        let output = self.backend.run_git(
+            root,
+            &["rev-parse", "--path-format=absolute", "--git-common-dir"],
+        )?;
+        if !output.success {
+            return Err(DailyLoopBackendError::new(
+                DailyLoopBackendErrorClass::NotARepository,
+                "git common repository identity could not be resolved",
+            ));
+        }
+        let common_git_dir = parse_absolute_git_path(&output.stdout).ok_or_else(|| {
+            DailyLoopBackendError::new(
+                DailyLoopBackendErrorClass::NotARepository,
+                "git common repository identity was not an absolute path",
+            )
+        })?;
+        Ok(std::fs::canonicalize(&common_git_dir).unwrap_or(common_git_dir))
     }
 
     // -----------------------------------------------------------------------
@@ -1437,22 +1664,30 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
         request: &DailyLoopRequest,
         target: &DailyLoopTarget,
     ) -> DailyLoopSnapshot {
-        let output = match self.backend.run_git(
-            &target.worktree.worktree_root,
-            &[
-                "-c",
-                "status.relativePaths=true",
-                "status",
-                "--porcelain=v1",
-                "--untracked-files=all",
-            ],
-        ) {
+        let mut args = vec![
+            "-c",
+            "status.relativePaths=true",
+            "status",
+            "--porcelain=v1",
+            "-z",
+            "--untracked-files=all",
+        ];
+        let scoped_paths = request
+            .path_scope
+            .iter()
+            .filter_map(|path| path.to_str())
+            .collect::<Vec<_>>();
+        if !scoped_paths.is_empty() {
+            args.push("--");
+            args.extend(scoped_paths);
+        }
+        let output = match self.backend.run_git(&target.worktree.worktree_root, &args) {
             Ok(o) => o,
             Err(err) => {
                 return DailyLoopSnapshot::degraded(
                     request,
                     DailyLoopSnapshotState::GitUnavailable,
-                    err.message,
+                    backend_failure_reason(&err),
                 )
             }
         };
@@ -1461,38 +1696,20 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             return DailyLoopSnapshot::degraded(
                 request,
                 DailyLoopSnapshotState::RefreshFailed,
-                String::from_utf8_lossy(&output.stderr).to_string(),
+                daily_loop_failure_reason(&output),
             );
         }
 
-        let mut path_statuses = Vec::new();
-        for line in String::from_utf8_lossy(&output.stdout).lines() {
-            if line.len() < 3 {
-                continue;
+        let path_statuses = match parse_porcelain_status(&output.stdout) {
+            Ok(rows) => rows,
+            Err(reason) => {
+                return DailyLoopSnapshot::degraded(
+                    request,
+                    DailyLoopSnapshotState::PartialOmitted,
+                    reason,
+                )
             }
-            let (status, path) = line.split_at(2);
-            let path = path.trim_start();
-            let (index_status, worktree_status) = status.split_at(1);
-            let is_staged = index_status != " " && index_status != "?";
-            let is_unstaged = worktree_status != " ";
-            let is_untracked = index_status == "?";
-            let is_conflicted = index_status == "U" || worktree_status == "U";
-            let change_kind = parse_status_char(if is_staged {
-                index_status
-            } else {
-                worktree_status
-            });
-            path_statuses.push(DailyLoopPathStatus {
-                path: path.to_string(),
-                change_kind,
-                is_staged,
-                is_unstaged,
-                is_untracked,
-                is_conflicted,
-                is_submodule: false,
-                content_availability: "available".to_string(),
-            });
-        }
+        };
 
         DailyLoopSnapshot {
             record_kind: DAILY_LOOP_SNAPSHOT_RECORD_KIND.to_string(),
@@ -1516,7 +1733,7 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
         request: &DailyLoopRequest,
         target: &DailyLoopTarget,
     ) -> DailyLoopSnapshot {
-        let mut args = vec!["diff"];
+        let mut args = vec!["diff", "--quiet", "--no-ext-diff", "--no-textconv"];
         if let Some(commit_ref) = &request.commit_ref {
             args.push(commit_ref);
         }
@@ -1536,25 +1753,25 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
                 return DailyLoopSnapshot::degraded(
                     request,
                     DailyLoopSnapshotState::GitUnavailable,
-                    err.message,
+                    backend_failure_reason(&err),
                 )
             }
         };
 
-        let mut diff_files = Vec::new();
-        if output.success {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            // Simplified: emit one placeholder diff file when there is any output.
-            if !stdout.is_empty() {
-                diff_files.push(DailyLoopDiffFile {
-                    old_path: Some("old".to_string()),
-                    new_path: Some("new".to_string()),
-                    change_kind: DailyLoopFileChangeKind::Modified,
-                    content_availability: "available".to_string(),
-                    hunks: Vec::new(),
-                });
-            }
-        }
+        let (state, degraded_reason) = match (output.success, output.status_code) {
+            (true, _) => (DailyLoopSnapshotState::Current, None),
+            (false, Some(1)) => (
+                DailyLoopSnapshotState::PartialOmitted,
+                Some(
+                    "diff exists, but structured file/hunk rows are unavailable in this bounded adapter"
+                        .to_string(),
+                ),
+            ),
+            (false, _) => (
+                DailyLoopSnapshotState::RefreshFailed,
+                Some(daily_loop_failure_reason(&output)),
+            ),
+        };
 
         DailyLoopSnapshot {
             record_kind: DAILY_LOOP_SNAPSHOT_RECORD_KIND.to_string(),
@@ -1562,18 +1779,10 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             service_ref: "aureline-git.daily_loop".to_string(),
             target: target.clone(),
             kind: request.kind,
-            state: if output.success {
-                DailyLoopSnapshotState::Current
-            } else {
-                DailyLoopSnapshotState::RefreshFailed
-            },
-            degraded_reason: if output.success {
-                None
-            } else {
-                Some(String::from_utf8_lossy(&output.stderr).to_string())
-            },
+            state,
+            degraded_reason,
             path_statuses: Vec::new(),
-            diff_files,
+            diff_files: Vec::new(),
             blame_lines: Vec::new(),
             history_commits: Vec::new(),
             stash_entries: Vec::new(),
@@ -1586,6 +1795,13 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
         request: &DailyLoopRequest,
         target: &DailyLoopTarget,
     ) -> DailyLoopSnapshot {
+        if request.path_scope.len() != 1 {
+            return DailyLoopSnapshot::degraded(
+                request,
+                DailyLoopSnapshotState::RefreshFailed,
+                "blame requires exactly one path",
+            );
+        }
         let path = match request.path_scope.first() {
             Some(p) => p,
             None => {
@@ -1607,10 +1823,16 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             }
         };
 
-        let mut args = vec!["blame", "--porcelain", "--", path_str];
-        if let Some(commit_ref) = &request.commit_ref {
-            args.insert(1, commit_ref);
+        let mut args = vec!["blame", "--line-porcelain"];
+        if let Some(line_range) = &request.line_range {
+            args.extend(["-L", line_range]);
+        } else {
+            args.extend(["-L", "1,4097"]);
         }
+        if let Some(commit_ref) = &request.commit_ref {
+            args.push(commit_ref);
+        }
+        args.extend(["--", path_str]);
 
         let output = match self.backend.run_git(&target.worktree.worktree_root, &args) {
             Ok(o) => o,
@@ -1618,49 +1840,104 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
                 return DailyLoopSnapshot::degraded(
                     request,
                     DailyLoopSnapshotState::GitUnavailable,
-                    err.message,
+                    backend_failure_reason(&err),
                 )
             }
         };
 
         let mut blame_lines = Vec::new();
+        let mut rows_omitted = false;
         if output.success {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let mut current_hash = String::new();
-            let mut current_author = String::new();
-            let mut current_email = String::new();
-            let mut current_time = String::new();
-            let mut current_summary = String::new();
+            let Some(stdout) = std::str::from_utf8(&output.stdout).ok() else {
+                return DailyLoopSnapshot::degraded(
+                    request,
+                    DailyLoopSnapshotState::PartialOmitted,
+                    "blame output is not valid UTF-8 for this adapter",
+                );
+            };
+            let mut current_hash: Option<String> = None;
+            let mut current_author = None;
+            let mut current_email = None;
+            let mut current_time = None;
+            let mut current_summary = None;
             let mut line_number = 1u32;
             for line in stdout.lines() {
                 if let Some(rest) = line.strip_prefix("author ") {
-                    current_author = rest.to_string();
+                    if !bounded_record_text(rest, MAX_DAILY_LOOP_REF_BYTES) {
+                        rows_omitted = true;
+                        break;
+                    }
+                    current_author = Some(rest.to_string());
                 } else if let Some(rest) = line.strip_prefix("author-mail ") {
-                    current_email = rest
-                        .trim_start_matches('<')
-                        .trim_end_matches('>')
-                        .to_string();
+                    let email = rest.trim_start_matches('<').trim_end_matches('>');
+                    if !bounded_record_text(email, MAX_DAILY_LOOP_REF_BYTES) {
+                        rows_omitted = true;
+                        break;
+                    }
+                    current_email = Some(email.to_string());
                 } else if let Some(rest) = line.strip_prefix("author-time ") {
-                    current_time = rest.to_string();
+                    if !valid_git_epoch(rest) {
+                        rows_omitted = true;
+                        break;
+                    }
+                    current_time = Some(rest.to_string());
                 } else if let Some(rest) = line.strip_prefix("summary ") {
-                    current_summary = rest.to_string();
+                    if !bounded_record_text(rest, MAX_DAILY_LOOP_PATH_BYTES) {
+                        rows_omitted = true;
+                        break;
+                    }
+                    current_summary = Some(rest.to_string());
                 } else if line.starts_with('\t') {
+                    if blame_lines.len() >= MAX_DAILY_LOOP_ROWS {
+                        rows_omitted = true;
+                        break;
+                    }
+                    let (
+                        Some(commit_hash),
+                        Some(author_name),
+                        Some(author_email),
+                        Some(author_time),
+                        Some(summary),
+                    ) = (
+                        current_hash.as_ref(),
+                        current_author.as_ref(),
+                        current_email.as_ref(),
+                        current_time.as_ref(),
+                        current_summary.as_ref(),
+                    )
+                    else {
+                        rows_omitted = true;
+                        break;
+                    };
                     blame_lines.push(BlameLineRecord {
                         record_kind: BLAME_LINE_RECORD_KIND.to_string(),
                         schema_version: BLAME_LINE_SCHEMA_VERSION,
                         line_number,
-                        commit_hash: current_hash.clone(),
-                        author_name: current_author.clone(),
-                        author_email: current_email.clone(),
-                        author_timestamp: current_time.clone(),
-                        commit_summary: current_summary.clone(),
+                        commit_hash: commit_hash.clone(),
+                        author_name: author_name.clone(),
+                        author_email: author_email.clone(),
+                        author_timestamp: author_time.clone(),
+                        commit_summary: summary.clone(),
                         content_availability: "available".to_string(),
                         commit_available_locally: true,
                     });
-                    line_number += 1;
-                } else if !line.starts_with(' ') && !line.contains(' ') {
-                    // Likely a commit hash line starting a new block.
-                    current_hash = line.split_whitespace().next().unwrap_or("").to_string();
+                    let Some(next_line_number) = line_number.checked_add(1) else {
+                        rows_omitted = true;
+                        break;
+                    };
+                    line_number = next_line_number;
+                    current_hash = None;
+                    current_author = None;
+                    current_email = None;
+                    current_time = None;
+                    current_summary = None;
+                } else if let Some((hash, final_line)) = blame_header(line) {
+                    current_hash = Some(hash.to_string());
+                    current_author = None;
+                    current_email = None;
+                    current_time = None;
+                    current_summary = None;
+                    line_number = final_line;
                 }
             }
         }
@@ -1671,15 +1948,19 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             service_ref: "aureline-git.daily_loop".to_string(),
             target: target.clone(),
             kind: request.kind,
-            state: if output.success {
+            state: if output.success && rows_omitted {
+                DailyLoopSnapshotState::PartialOmitted
+            } else if output.success {
                 DailyLoopSnapshotState::Current
             } else {
                 DailyLoopSnapshotState::RefreshFailed
             },
-            degraded_reason: if output.success {
+            degraded_reason: if rows_omitted {
+                Some("blame rows were malformed or exceeded the bounded adapter window".to_string())
+            } else if output.success {
                 None
             } else {
-                Some(String::from_utf8_lossy(&output.stderr).to_string())
+                Some(daily_loop_failure_reason(&output))
             },
             path_statuses: Vec::new(),
             diff_files: Vec::new(),
@@ -1697,10 +1978,20 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
     ) -> DailyLoopSnapshot {
         let mut args = vec![
             "log",
+            "--max-count=4097",
             "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%cn%x00%ce%x00%ct%x00%s",
         ];
         if let Some(commit_ref) = &request.commit_ref {
             args.push(commit_ref);
+        }
+        let scoped_paths = request
+            .path_scope
+            .iter()
+            .filter_map(|path| path.to_str())
+            .collect::<Vec<_>>();
+        if !scoped_paths.is_empty() {
+            args.push("--");
+            args.extend(scoped_paths);
         }
         let output = match self.backend.run_git(&target.worktree.worktree_root, &args) {
             Ok(o) => o,
@@ -1708,33 +1999,64 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
                 return DailyLoopSnapshot::degraded(
                     request,
                     DailyLoopSnapshotState::GitUnavailable,
-                    err.message,
+                    backend_failure_reason(&err),
                 )
             }
         };
 
         let mut history_commits = Vec::new();
+        let mut rows_omitted = false;
         if output.success {
-            let stdout = String::from_utf8_lossy(&output.stdout);
+            let Some(stdout) = std::str::from_utf8(&output.stdout).ok() else {
+                return DailyLoopSnapshot::degraded(
+                    request,
+                    DailyLoopSnapshotState::PartialOmitted,
+                    "history output is not valid UTF-8 for this adapter",
+                );
+            };
             for record in stdout.split('\n') {
-                let parts: Vec<&str> = record.split('\0').collect();
-                if parts.len() >= 9 {
-                    history_commits.push(HistoryCommitRecord {
-                        record_kind: HISTORY_COMMIT_RECORD_KIND.to_string(),
-                        schema_version: HISTORY_COMMIT_SCHEMA_VERSION,
-                        commit_hash: parts[0].to_string(),
-                        parent_hashes: parts[1].split_whitespace().map(|s| s.to_string()).collect(),
-                        author_name: parts[2].to_string(),
-                        author_email: parts[3].to_string(),
-                        author_timestamp: parts[4].to_string(),
-                        committer_name: parts[5].to_string(),
-                        committer_email: parts[6].to_string(),
-                        committer_timestamp: parts[7].to_string(),
-                        summary: parts[8].to_string(),
-                        content_availability: "available".to_string(),
-                        commit_available_locally: true,
-                    });
+                if record.is_empty() {
+                    continue;
                 }
+                let parts = record.splitn(10, '\0').collect::<Vec<_>>();
+                if parts.len() != 9 {
+                    rows_omitted = true;
+                    continue;
+                }
+                let parents = parts[1].split_whitespace().take(33).collect::<Vec<_>>();
+                let valid = valid_git_oid(parts[0])
+                    && parents.len() <= 32
+                    && parents.iter().all(|parent| valid_git_oid(parent))
+                    && bounded_record_text(parts[2], MAX_DAILY_LOOP_REF_BYTES)
+                    && bounded_record_text(parts[3], MAX_DAILY_LOOP_REF_BYTES)
+                    && valid_git_epoch(parts[4])
+                    && bounded_record_text(parts[5], MAX_DAILY_LOOP_REF_BYTES)
+                    && bounded_record_text(parts[6], MAX_DAILY_LOOP_REF_BYTES)
+                    && valid_git_epoch(parts[7])
+                    && bounded_record_text(parts[8], MAX_DAILY_LOOP_PATH_BYTES);
+                if !valid {
+                    rows_omitted = true;
+                    continue;
+                }
+                if history_commits.len() >= MAX_DAILY_LOOP_ROWS {
+                    rows_omitted = true;
+                    break;
+                }
+                history_commits.push(HistoryCommitRecord {
+                    record_kind: HISTORY_COMMIT_RECORD_KIND.to_string(),
+                    schema_version: HISTORY_COMMIT_SCHEMA_VERSION,
+                    commit_hash: parts[0].to_string(),
+                    parent_hashes: parents.iter().map(|parent| (*parent).to_string()).collect(),
+                    author_name: parts[2].to_string(),
+                    author_email: parts[3].to_string(),
+                    author_timestamp: parts[4].to_string(),
+                    committer_name: parts[5].to_string(),
+                    committer_email: parts[6].to_string(),
+                    committer_timestamp: parts[7].to_string(),
+                    summary: parts[8].to_string(),
+                    content_availability: "available".to_string(),
+                    commit_available_locally: true,
+                });
             }
         }
 
@@ -1744,15 +2066,22 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             service_ref: "aureline-git.daily_loop".to_string(),
             target: target.clone(),
             kind: request.kind,
-            state: if output.success {
+            state: if output.success && rows_omitted {
+                DailyLoopSnapshotState::PartialOmitted
+            } else if output.success {
                 DailyLoopSnapshotState::Current
             } else {
                 DailyLoopSnapshotState::RefreshFailed
             },
-            degraded_reason: if output.success {
+            degraded_reason: if rows_omitted {
+                Some(
+                    "history rows were malformed or exceeded the bounded adapter window"
+                        .to_string(),
+                )
+            } else if output.success {
                 None
             } else {
-                Some(String::from_utf8_lossy(&output.stderr).to_string())
+                Some(daily_loop_failure_reason(&output))
             },
             path_statuses: Vec::new(),
             diff_files: Vec::new(),
@@ -1770,32 +2099,61 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
     ) -> DailyLoopSnapshot {
         let output = match self.backend.run_git(
             &target.worktree.worktree_root,
-            &["stash", "list", "--format=%gd%x00%H%x00%s"],
+            &[
+                "stash",
+                "list",
+                "--max-count=4097",
+                "--format=%gd%x00%H%x00%ct%x00%s",
+            ],
         ) {
             Ok(o) => o,
             Err(err) => {
                 return DailyLoopSnapshot::degraded(
                     request,
                     DailyLoopSnapshotState::GitUnavailable,
-                    err.message,
+                    backend_failure_reason(&err),
                 )
             }
         };
 
         let mut stash_entries = Vec::new();
+        let mut rows_omitted = false;
         if output.success {
-            let stdout = String::from_utf8_lossy(&output.stdout);
+            let Some(stdout) = std::str::from_utf8(&output.stdout).ok() else {
+                return DailyLoopSnapshot::degraded(
+                    request,
+                    DailyLoopSnapshotState::PartialOmitted,
+                    "stash output is not valid UTF-8 for this adapter",
+                );
+            };
             for record in stdout.lines() {
-                let parts: Vec<&str> = record.split('\0').collect();
-                if parts.len() >= 3 {
-                    stash_entries.push(StashShelfEntry::new(
-                        parts[0].to_string(),
-                        "actor:git:stash".to_string(),
-                        target.repo.clone(),
-                        target.worktree.clone(),
-                        parts[2].to_string(),
-                    ));
+                let parts = record.splitn(5, '\0').collect::<Vec<_>>();
+                if parts.len() != 4 {
+                    rows_omitted = true;
+                    continue;
                 }
+                if !valid_git_ref_input(parts[0])
+                    || !valid_git_oid(parts[1])
+                    || !valid_git_epoch(parts[2])
+                    || !bounded_record_text(parts[3], 64 * 1024)
+                {
+                    rows_omitted = true;
+                    continue;
+                }
+                if stash_entries.len() >= MAX_DAILY_LOOP_ROWS {
+                    rows_omitted = true;
+                    break;
+                }
+                let mut entry = StashShelfEntry::new(
+                    format!("git.stash.object.{}", parts[1]),
+                    "actor:git:stash".to_string(),
+                    target.repo.clone(),
+                    target.worktree.clone(),
+                    parts[3].to_string(),
+                );
+                entry.minted_at = format!("{}Z", parts[2]);
+                entry.updated_at.clone_from(&entry.minted_at);
+                stash_entries.push(entry);
             }
         }
 
@@ -1805,15 +2163,19 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             service_ref: "aureline-git.daily_loop".to_string(),
             target: target.clone(),
             kind: request.kind,
-            state: if output.success {
+            state: if output.success && rows_omitted {
+                DailyLoopSnapshotState::PartialOmitted
+            } else if output.success {
                 DailyLoopSnapshotState::Current
             } else {
                 DailyLoopSnapshotState::RefreshFailed
             },
-            degraded_reason: if output.success {
+            degraded_reason: if rows_omitted {
+                Some("stash rows were malformed or exceeded the bounded adapter window".to_string())
+            } else if output.success {
                 None
             } else {
-                Some(String::from_utf8_lossy(&output.stderr).to_string())
+                Some(daily_loop_failure_reason(&output))
             },
             path_statuses: Vec::new(),
             diff_files: Vec::new(),
@@ -1833,28 +2195,73 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
         request: &DailyLoopRequest,
         target: &DailyLoopTarget,
     ) -> DailyLoopPreview {
-        let affected_paths: Vec<String> = request
-            .path_scope
-            .iter()
-            .filter_map(|p| p.to_str().map(|s| s.to_string()))
-            .collect();
-        if affected_paths.is_empty() {
+        if request.path_scope.is_empty() {
             return DailyLoopPreview::blocked(request, "no paths provided");
         }
-        DailyLoopPreview {
+        let operation = if request.kind == DailyLoopOperationKind::Stage {
+            GitMutationOperationKind::Stage
+        } else {
+            GitMutationOperationKind::Unstage
+        };
+        let mut mutation_request = GitMutationRequest::with_observed_at(
+            request.target.workspace_ref.clone(),
+            target.worktree.worktree_root.clone(),
+            operation,
+            request.path_scope.clone(),
+            request.target.observed_at.clone(),
+        )
+        .with_launch_source_ref(request.caller_command_id.clone());
+        mutation_request.actor = GitMutationActorRef {
+            actor_class: "local_user".to_string(),
+            display_label: "Local Git actor".to_string(),
+            stable_id: Some(request.actor_ref.clone()),
+        };
+        let mutation_preview = GitMutationService::default().preview(&mutation_request);
+        let state = match mutation_preview.preview_state {
+            GitMutationPreviewState::ReadyToApply => DailyLoopPreviewState::Ready,
+            GitMutationPreviewState::Blocked => DailyLoopPreviewState::Blocked,
+            GitMutationPreviewState::Degraded => DailyLoopPreviewState::Degraded,
+        };
+        let affected_paths = mutation_preview
+            .scope
+            .targets
+            .iter()
+            .map(|row| row.repo_relative_path.to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+        let blocked_reason = if state == DailyLoopPreviewState::Ready {
+            None
+        } else {
+            mutation_preview
+                .scope
+                .targets
+                .iter()
+                .find_map(|row| row.blocked_reason.clone())
+                .or_else(|| Some("Git mutation preview is not ready".to_string()))
+        };
+        let recovery_checkpoint_ref = mutation_preview
+            .checkpoint
+            .checkpoint_captured
+            .then(|| mutation_preview.checkpoint.checkpoint_ref.clone());
+        let mut preview = DailyLoopPreview {
             record_kind: DAILY_LOOP_PREVIEW_RECORD_KIND.to_string(),
             schema_version: DAILY_LOOP_PREVIEW_SCHEMA_VERSION,
             service_ref: "aureline-git.daily_loop".to_string(),
             target: target.clone(),
             kind: request.kind,
-            state: DailyLoopPreviewState::Ready,
-            blocked_reason: None,
+            state,
+            blocked_reason,
             affected_paths,
             stash_entry: None,
             commit_preview: None,
-            recovery_checkpoint_ref: Some(format!("checkpoint:{}:preview", request.kind.as_str())),
+            recovery_checkpoint_ref,
             observed_at: request.target.observed_at.clone(),
+            apply_authority: DailyLoopApplyAuthority::default(),
+        };
+        if state == DailyLoopPreviewState::Ready {
+            preview.apply_authority.actor_ref = Some(request.actor_ref.clone());
+            preview.apply_authority.mutation_preview = Some(mutation_preview);
         }
+        preview.seal()
     }
 
     fn preview_commit_amend(
@@ -1863,91 +2270,80 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
         target: &DailyLoopTarget,
     ) -> DailyLoopPreview {
         let message = request.message.clone().unwrap_or_default();
-        if message.is_empty() && request.kind == DailyLoopOperationKind::Commit {
-            return DailyLoopPreview::blocked(request, "commit message is required");
-        }
-        let output = match self.backend.run_git(
-            &target.worktree.worktree_root,
-            &["diff", "--cached", "--stat"],
-        ) {
-            Ok(o) => o,
-            Err(err) => {
-                return DailyLoopPreview::degraded(
-                    request,
-                    format!("git diff --cached failed: {}", err.message),
-                )
-            }
-        };
-        let staged_file_count = if output.success {
-            String::from_utf8_lossy(&output.stdout).lines().count() as u32
+        let mode = if request.kind == DailyLoopOperationKind::Amend {
+            GitCommitMode::Amend
         } else {
-            0
+            GitCommitMode::Normal
         };
-        if staged_file_count == 0 && request.kind == DailyLoopOperationKind::Commit {
-            return DailyLoopPreview::blocked(request, "no staged changes to commit");
+        let mut commit_request = GitCommitRequest::with_observed_at(
+            request.target.workspace_ref.clone(),
+            target.worktree.worktree_root.clone(),
+            mode,
+            message.clone(),
+            request.target.observed_at.clone(),
+        )
+        .with_actor(GitCommitActorRef {
+            actor_class: "local_user".to_string(),
+            display_label: "Local Git actor".to_string(),
+            stable_id: Some(request.actor_ref.clone()),
+        })
+        .with_launch_source_ref(request.caller_command_id.clone());
+        if mode == GitCommitMode::Amend {
+            commit_request = commit_request.acknowledge_history_guardrail();
         }
-        DailyLoopPreview {
+        let canonical = self.commit_service.preview(&commit_request);
+        let state = match canonical.preview_state {
+            GitCommitPreviewState::ReadyToCommit => DailyLoopPreviewState::Ready,
+            GitCommitPreviewState::Blocked => DailyLoopPreviewState::Blocked,
+            GitCommitPreviewState::Degraded => DailyLoopPreviewState::Degraded,
+        };
+        let blocked_reason = if state == DailyLoopPreviewState::Ready {
+            None
+        } else {
+            Some(if canonical.blocked_reasons.is_empty() {
+                "Git commit preview is not ready".to_string()
+            } else {
+                canonical.blocked_reasons.join("; ")
+            })
+        };
+        let mut preview = DailyLoopPreview {
             record_kind: DAILY_LOOP_PREVIEW_RECORD_KIND.to_string(),
             schema_version: DAILY_LOOP_PREVIEW_SCHEMA_VERSION,
             service_ref: "aureline-git.daily_loop".to_string(),
             target: target.clone(),
             kind: request.kind,
-            state: DailyLoopPreviewState::Ready,
-            blocked_reason: None,
+            state,
+            blocked_reason,
             affected_paths: Vec::new(),
             stash_entry: None,
             commit_preview: Some(DailyLoopCommitPreview {
                 message,
-                staged_file_count,
+                staged_file_count: u32::try_from(canonical.scope.staged_count).unwrap_or(u32::MAX),
                 lines_added: 0,
                 lines_deleted: 0,
                 is_amend: request.kind == DailyLoopOperationKind::Amend,
-                original_head: None,
+                original_head: canonical.history_guardrail.preflight_head_oid.clone(),
             }),
-            recovery_checkpoint_ref: Some("checkpoint:commit:preview".to_string()),
+            recovery_checkpoint_ref: canonical.history_guardrail.recovery_ref.clone(),
             observed_at: request.target.observed_at.clone(),
+            apply_authority: DailyLoopApplyAuthority::default(),
+        };
+        if state == DailyLoopPreviewState::Ready {
+            preview.apply_authority.actor_ref = Some(request.actor_ref.clone());
+            preview.apply_authority.commit_preview = Some(canonical);
         }
+        preview.seal()
     }
 
     fn preview_stash_operation(
         &self,
         request: &DailyLoopRequest,
-        target: &DailyLoopTarget,
+        _target: &DailyLoopTarget,
     ) -> DailyLoopPreview {
-        let affected_paths: Vec<String> = request
-            .path_scope
-            .iter()
-            .filter_map(|p| p.to_str().map(|s| s.to_string()))
-            .collect();
-
-        let stash_entry = request.stash_entry_ref.as_ref().map(|ref_id| {
-            // Simplified: construct a minimal entry from the ref.
-            StashShelfEntry::new(
-                ref_id.clone(),
-                "actor:git:stash".to_string(),
-                target.repo.clone(),
-                target.worktree.clone(),
-                request.message.clone().unwrap_or_default(),
-            )
-        });
-
-        DailyLoopPreview {
-            record_kind: DAILY_LOOP_PREVIEW_RECORD_KIND.to_string(),
-            schema_version: DAILY_LOOP_PREVIEW_SCHEMA_VERSION,
-            service_ref: "aureline-git.daily_loop".to_string(),
-            target: target.clone(),
-            kind: request.kind,
-            state: DailyLoopPreviewState::Ready,
-            blocked_reason: None,
-            affected_paths,
-            stash_entry,
-            commit_preview: None,
-            recovery_checkpoint_ref: Some(format!(
-                "checkpoint:stash:{}:preview",
-                request.kind.as_str()
-            )),
-            observed_at: request.target.observed_at.clone(),
-        }
+        DailyLoopPreview::blocked(
+            request,
+            "stash mutation is inspect-only until exact checkpoint and stale-evidence authority is available",
+        )
     }
 
     // -----------------------------------------------------------------------
@@ -1955,63 +2351,52 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
     // -----------------------------------------------------------------------
 
     fn apply_stage_unstage(&self, preview: &DailyLoopPreview, _actor_ref: &str) -> DailyLoopResult {
-        let mut args = vec!["add"];
-        if preview.kind == DailyLoopOperationKind::Unstage {
-            args = vec!["reset", "HEAD"];
-        }
-        if !preview.affected_paths.is_empty() {
-            args.push("--");
-            args.extend(preview.affected_paths.iter().map(String::as_str));
-        }
-        let output = match self
-            .backend
-            .run_git(&preview.target.worktree.worktree_root, &args)
-        {
-            Ok(o) => o,
-            Err(err) => return DailyLoopResult::failed(&preview.target, preview.kind, err.message),
+        let Some(canonical) = preview.apply_authority.mutation_preview.as_ref() else {
+            return DailyLoopResult::blocked(
+                &preview.target,
+                preview.kind,
+                "mutation preview authority is unavailable; reopen review",
+            );
         };
-        if output.success {
-            DailyLoopResult::completed(
+        let result = GitMutationService::default().apply(canonical, observed_at_now());
+        match result.outcome_state {
+            GitMutationOutcomeState::Applied | GitMutationOutcomeState::Reverted => {
+                let mut daily = DailyLoopResult::completed(
+                    &preview.target,
+                    preview.kind,
+                    preview.affected_paths.clone(),
+                );
+                daily.recovery_checkpoint_ref = Some(result.checkpoint.checkpoint_ref);
+                daily
+            }
+            GitMutationOutcomeState::BlockedNoChangesMade => DailyLoopResult::blocked(
                 &preview.target,
                 preview.kind,
-                preview.affected_paths.clone(),
-            )
-        } else {
-            DailyLoopResult::failed(
+                result
+                    .failure_reason
+                    .unwrap_or_else(|| "mutation evidence became stale; reopen review".to_string()),
+            ),
+            GitMutationOutcomeState::Failed => DailyLoopResult::failed(
                 &preview.target,
                 preview.kind,
-                String::from_utf8_lossy(&output.stderr).to_string(),
-            )
+                result
+                    .failure_reason
+                    .unwrap_or_else(|| "Git mutation failed safely".to_string()),
+            ),
         }
     }
 
     fn apply_commit_amend(&self, preview: &DailyLoopPreview, _actor_ref: &str) -> DailyLoopResult {
-        let message = preview
-            .commit_preview
-            .as_ref()
-            .map(|p| p.message.clone())
-            .unwrap_or_default();
-        let mut args = vec!["commit", "-m", &message];
-        if preview.kind == DailyLoopOperationKind::Amend {
-            args.push("--amend");
-        }
-        let output = match self
-            .backend
-            .run_git(&preview.target.worktree.worktree_root, &args)
-        {
-            Ok(o) => o,
-            Err(err) => return DailyLoopResult::failed(&preview.target, preview.kind, err.message),
-        };
-        if output.success {
-            let hash_output = self.backend.run_git(
-                &preview.target.worktree.worktree_root,
-                &["rev-parse", "HEAD"],
+        let Some(canonical) = preview.apply_authority.commit_preview.as_ref() else {
+            return DailyLoopResult::blocked(
+                &preview.target,
+                preview.kind,
+                "commit preview authority is unavailable; reopen review",
             );
-            let commit_hash = hash_output
-                .ok()
-                .filter(|o| o.success)
-                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
-            DailyLoopResult {
+        };
+        let result = self.commit_service.apply(canonical, observed_at_now());
+        match result.outcome_state {
+            GitCommitOutcomeState::Committed => DailyLoopResult {
                 record_kind: DAILY_LOOP_RESULT_RECORD_KIND.to_string(),
                 schema_version: DAILY_LOOP_RESULT_SCHEMA_VERSION,
                 service_ref: "aureline-git.daily_loop".to_string(),
@@ -2019,115 +2404,30 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
                 kind: preview.kind,
                 outcome: DailyLoopOutcomeState::Completed,
                 outcome_reason: None,
-                affected_paths: Vec::new(),
-                commit_hash,
+                affected_paths: result
+                    .committed_targets
+                    .iter()
+                    .map(|target| target.repo_relative_path.to_string_lossy().to_string())
+                    .collect(),
+                commit_hash: result.commit_oid,
                 created_stash_entry: None,
                 recovery_checkpoint_ref: preview.recovery_checkpoint_ref.clone(),
                 observed_at: preview.observed_at.clone(),
-            }
-        } else {
-            DailyLoopResult::failed(
-                &preview.target,
-                preview.kind,
-                String::from_utf8_lossy(&output.stderr).to_string(),
-            )
-        }
-    }
-
-    fn apply_stash_operation(
-        &self,
-        preview: &DailyLoopPreview,
-        _actor_ref: &str,
-    ) -> DailyLoopResult {
-        let output = match preview.kind {
-            DailyLoopOperationKind::StashCapture => {
-                let mut args: Vec<&str> = vec!["stash", "push"];
-                if preview.target.workspace_ref.contains("untracked") {
-                    args.push("-u");
-                }
-                let msg_storage = preview
-                    .commit_preview
-                    .as_ref()
-                    .map(|p| p.message.clone())
-                    .filter(|m| !m.is_empty());
-                if let Some(ref msg) = msg_storage {
-                    args.push("-m");
-                    args.push(msg);
-                }
-                if !preview.affected_paths.is_empty() {
-                    args.push("--");
-                    args.extend(preview.affected_paths.iter().map(String::as_str));
-                }
-                self.backend
-                    .run_git(&preview.target.worktree.worktree_root, &args)
-            }
-            DailyLoopOperationKind::StashApply => {
-                let mut args = vec!["stash", "apply"];
-                if let Some(ref entry) = preview.stash_entry {
-                    args.push(&entry.stash_entry_id);
-                }
-                self.backend
-                    .run_git(&preview.target.worktree.worktree_root, &args)
-            }
-            DailyLoopOperationKind::StashPop => {
-                let mut args = vec!["stash", "pop"];
-                if let Some(ref entry) = preview.stash_entry {
-                    args.push(&entry.stash_entry_id);
-                }
-                self.backend
-                    .run_git(&preview.target.worktree.worktree_root, &args)
-            }
-            DailyLoopOperationKind::StashDrop => {
-                let mut args = vec!["stash", "drop"];
-                if let Some(ref entry) = preview.stash_entry {
-                    args.push(&entry.stash_entry_id);
-                }
-                self.backend
-                    .run_git(&preview.target.worktree.worktree_root, &args)
-            }
-            DailyLoopOperationKind::StashBranchFrom => {
-                let branch_name = preview
-                    .commit_preview
-                    .as_ref()
-                    .map(|p| p.message.clone())
-                    .unwrap_or_else(|| "stash-branch".to_string());
-                let mut args = vec!["stash", "branch", &branch_name];
-                if let Some(ref entry) = preview.stash_entry {
-                    args.push(&entry.stash_entry_id);
-                }
-                self.backend
-                    .run_git(&preview.target.worktree.worktree_root, &args)
-            }
-            _ => {
-                return DailyLoopResult::failed(
-                    &preview.target,
-                    preview.kind,
-                    "unsupported stash operation",
-                )
-            }
-        };
-
-        match output {
-            Ok(o) if o.success => DailyLoopResult {
-                record_kind: DAILY_LOOP_RESULT_RECORD_KIND.to_string(),
-                schema_version: DAILY_LOOP_RESULT_SCHEMA_VERSION,
-                service_ref: "aureline-git.daily_loop".to_string(),
-                target: preview.target.clone(),
-                kind: preview.kind,
-                outcome: DailyLoopOutcomeState::Completed,
-                outcome_reason: None,
-                affected_paths: preview.affected_paths.clone(),
-                commit_hash: None,
-                created_stash_entry: preview.stash_entry.clone(),
-                recovery_checkpoint_ref: preview.recovery_checkpoint_ref.clone(),
-                observed_at: preview.observed_at.clone(),
             },
-            Ok(o) => DailyLoopResult::failed(
+            GitCommitOutcomeState::BlockedNoChangesMade => DailyLoopResult::blocked(
                 &preview.target,
                 preview.kind,
-                String::from_utf8_lossy(&o.stderr).to_string(),
+                result.failure_reason.unwrap_or_else(|| {
+                    "commit evidence became stale; reopen commit review".to_string()
+                }),
             ),
-            Err(err) => DailyLoopResult::failed(&preview.target, preview.kind, err.message),
+            GitCommitOutcomeState::Failed => DailyLoopResult::failed(
+                &preview.target,
+                preview.kind,
+                result
+                    .failure_reason
+                    .unwrap_or_else(|| "Git commit failed safely".to_string()),
+            ),
         }
     }
 }
@@ -2181,6 +2481,7 @@ impl DailyLoopPreview {
             commit_preview: None,
             recovery_checkpoint_ref: None,
             observed_at: request.target.observed_at.clone(),
+            apply_authority: DailyLoopApplyAuthority::default(),
         }
     }
 
@@ -2199,6 +2500,7 @@ impl DailyLoopPreview {
             commit_preview: None,
             recovery_checkpoint_ref: None,
             observed_at: request.target.observed_at.clone(),
+            apply_authority: DailyLoopApplyAuthority::default(),
         }
     }
 }
@@ -2279,6 +2581,354 @@ impl DailyLoopResult {
 // Helpers
 // ---------------------------------------------------------------------------
 
+fn validate_daily_request(request: &DailyLoopRequest) -> Result<(), &'static str> {
+    if request.caller_command_id != request.kind.command_id() {
+        return Err("caller command id does not match the requested Git operation");
+    }
+    if !request.target.repo.repo_root.is_absolute()
+        || !request.target.worktree.worktree_root.is_absolute()
+    {
+        return Err("daily-loop repository and worktree roots must be absolute");
+    }
+    bounded_daily_paths(&request.path_scope)?;
+    if request
+        .commit_ref
+        .as_deref()
+        .is_some_and(|value| !valid_git_ref_input(value))
+    {
+        return Err("commit/ref input is not safe for this Git adapter");
+    }
+    if request
+        .stash_entry_ref
+        .as_deref()
+        .is_some_and(|value| !valid_git_ref_input(value))
+    {
+        return Err("stash entry ref is not safe for this Git adapter");
+    }
+    if request
+        .line_range
+        .as_deref()
+        .is_some_and(|value| !valid_blame_line_range(value))
+    {
+        return Err("blame line range is not a bounded start,end pair");
+    }
+    if request.message.as_deref().is_some_and(|message| {
+        message.len() > 64 * 1024
+            || message
+                .chars()
+                .any(|ch| (ch.is_control() && !matches!(ch, '\n' | '\t')) || ch == '\u{7f}')
+    }) {
+        return Err("Git message exceeds the review boundary or contains control bytes");
+    }
+    if !valid_identity_metadata(&request.actor_ref)
+        || !valid_identity_metadata(&request.caller_command_id)
+        || !valid_identity_metadata(&request.target.workspace_ref)
+    {
+        return Err("daily-loop identity metadata is outside the review boundary");
+    }
+    if !valid_observed_timestamp(&request.target.observed_at) {
+        return Err("daily-loop observation timestamp is invalid");
+    }
+    Ok(())
+}
+
+fn bounded_daily_paths(paths: &[PathBuf]) -> Result<(), &'static str> {
+    if paths.len() > MAX_DAILY_LOOP_PATHS {
+        return Err("daily-loop path count exceeds the review limit");
+    }
+    let mut total_bytes = 0usize;
+    let mut seen = HashSet::with_capacity(paths.len());
+    for path in paths {
+        if path.as_os_str().is_empty()
+            || path.is_absolute()
+            || path
+                .components()
+                .any(|component| !matches!(component, Component::Normal(_)))
+        {
+            return Err("daily-loop paths must be normalized repository-relative paths");
+        }
+        let Some(path) = path.to_str() else {
+            return Err("daily-loop path is not valid UTF-8 for this adapter");
+        };
+        if !normalized_repo_path_text(path) {
+            return Err("daily-loop paths must be normalized repository-relative paths");
+        }
+        if path.len() > MAX_DAILY_LOOP_PATH_BYTES {
+            return Err("daily-loop path exceeds the per-path review limit");
+        }
+        total_bytes = total_bytes
+            .checked_add(path.len())
+            .and_then(|value| value.checked_add(1))
+            .ok_or("daily-loop path scope exceeds the review limit")?;
+        if total_bytes > MAX_DAILY_LOOP_SCOPE_BYTES {
+            return Err("daily-loop path scope exceeds the review limit");
+        }
+        if !seen.insert(path) {
+            return Err("daily-loop path scope contains a duplicate path");
+        }
+    }
+    Ok(())
+}
+
+fn normalized_repo_path_text(value: &str) -> bool {
+    let is_normal = |segment: &str| !segment.is_empty() && !matches!(segment, "." | "..");
+    #[cfg(windows)]
+    {
+        value.split(|ch| matches!(ch, '/' | '\\')).all(is_normal)
+    }
+    #[cfg(not(windows))]
+    {
+        value.split('/').all(is_normal)
+    }
+}
+
+fn valid_git_ref_input(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= MAX_DAILY_LOOP_REF_BYTES
+        && !value.starts_with('-')
+        && value
+            .chars()
+            .all(|ch| !ch.is_control() && !ch.is_whitespace())
+}
+
+fn valid_identity_metadata(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= MAX_DAILY_LOOP_REF_BYTES
+        && value.chars().all(|ch| !ch.is_control() && ch != '\u{7f}')
+}
+
+fn valid_observed_timestamp(value: &str) -> bool {
+    let Some(timestamp) = value.strip_suffix('Z') else {
+        return false;
+    };
+    if timestamp.is_empty() || value.len() > 64 {
+        return false;
+    }
+    let (seconds, fraction) = timestamp
+        .split_once('.')
+        .map_or((timestamp, None), |(seconds, fraction)| {
+            (seconds, Some(fraction))
+        });
+    let valid_fraction = match fraction {
+        Some(fraction) => {
+            !fraction.is_empty()
+                && fraction.len() <= 9
+                && fraction.bytes().all(|byte| byte.is_ascii_digit())
+        }
+        None => true,
+    };
+    !seconds.is_empty() && seconds.bytes().all(|byte| byte.is_ascii_digit()) && valid_fraction
+}
+
+fn support_safe_timestamp(value: &str) -> String {
+    if valid_observed_timestamp(value) {
+        value.to_string()
+    } else {
+        "unavailable".to_string()
+    }
+}
+
+fn valid_blame_line_range(value: &str) -> bool {
+    let Some((start, end)) = value.split_once(',') else {
+        return false;
+    };
+    if value.len() > 64 || start.is_empty() || end.is_empty() || end.contains(',') {
+        return false;
+    }
+    let (Ok(start), Ok(end)) = (start.parse::<u32>(), end.parse::<u32>()) else {
+        return false;
+    };
+    start > 0 && end >= start && end - start < MAX_DAILY_LOOP_ROWS as u32
+}
+
+fn parse_absolute_git_path(bytes: &[u8]) -> Option<PathBuf> {
+    let text = std::str::from_utf8(bytes)
+        .ok()?
+        .trim_end_matches(['\n', '\r']);
+    if text.is_empty() || text.len() > 32 * 1024 || text.chars().any(char::is_control) {
+        return None;
+    }
+    let path = PathBuf::from(text);
+    path.is_absolute().then_some(path)
+}
+
+fn parse_bounded_git_label(bytes: &[u8]) -> Option<String> {
+    let label = std::str::from_utf8(bytes)
+        .ok()?
+        .trim_end_matches(['\n', '\r']);
+    if label.is_empty()
+        || label.len() > MAX_DAILY_LOOP_REF_BYTES
+        || label.chars().any(|ch| ch.is_control() || ch == '\u{7f}')
+    {
+        return None;
+    }
+    Some(label.to_string())
+}
+
+fn read_git_bool<B: DailyLoopBackend + ?Sized>(
+    backend: &B,
+    root: &Path,
+    args: &[&str],
+) -> Result<bool, DailyLoopBackendError> {
+    let output = backend.run_git(root, args)?;
+    if !output.success {
+        return Err(DailyLoopBackendError::new(
+            DailyLoopBackendErrorClass::Io,
+            "git repository metadata could not be read safely",
+        ));
+    }
+    match output.stdout.as_slice() {
+        b"true\n" | b"true\r\n" => Ok(true),
+        b"false\n" | b"false\r\n" => Ok(false),
+        _ => Err(DailyLoopBackendError::new(
+            DailyLoopBackendErrorClass::Io,
+            "git repository metadata returned an invalid boolean",
+        )),
+    }
+}
+
+fn redacted_support_digest(field: &str, value: &str) -> String {
+    let bytes = value.as_bytes();
+    digest::sha256_framed_token(&[
+        b"support.redaction.local_first_default",
+        b"git_daily_loop_support_export_record.v2",
+        field.as_bytes(),
+        bytes,
+    ])
+}
+
+fn backend_failure_reason(error: &DailyLoopBackendError) -> String {
+    format!("Git backend unavailable ({})", error.class.as_str())
+}
+
+fn daily_loop_failure_reason(output: &DailyLoopCommandOutput) -> String {
+    output
+        .status_code
+        .map(|code| format!("Git command failed with exit status {code}"))
+        .unwrap_or_else(|| "Git command failed without an exit status".to_string())
+}
+
+fn bounded_record_text(value: &str, max_bytes: usize) -> bool {
+    value.len() <= max_bytes && value.chars().all(|ch| !ch.is_control() && ch != '\u{7f}')
+}
+
+fn valid_git_oid(value: &str) -> bool {
+    matches!(value.len(), 40 | 64) && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn valid_git_epoch(value: &str) -> bool {
+    let digits = value.strip_prefix('-').unwrap_or(value);
+    !digits.is_empty() && value.len() <= 32 && digits.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+fn blame_header(line: &str) -> Option<(&str, u32)> {
+    let mut fields = line.split_whitespace();
+    let hash = fields.next()?;
+    let original_line = fields.next()?;
+    let final_line = fields.next()?;
+    let final_line = final_line.parse::<u32>().ok()?;
+    if !valid_git_oid(hash) || original_line.parse::<u32>().is_err() {
+        return None;
+    }
+    Some((hash, final_line))
+}
+
+fn parse_porcelain_status(bytes: &[u8]) -> Result<Vec<DailyLoopPathStatus>, &'static str> {
+    let mut fields = bytes.split(|byte| *byte == 0);
+    let mut rows = Vec::new();
+    let mut total_path_bytes = 0usize;
+    while let Some(record) = fields.next() {
+        if record.is_empty() {
+            continue;
+        }
+        if record.len() < 4 || record[2] != b' ' {
+            return Err("Git status returned an unsupported porcelain record");
+        }
+        let index = record[0];
+        let worktree = record[1];
+        let path = std::str::from_utf8(&record[3..])
+            .map_err(|_| "Git status contains a non-UTF-8 path omitted by this adapter")?;
+        if path.is_empty()
+            || path.len() > MAX_DAILY_LOOP_PATH_BYTES
+            || !normalized_repo_path_text(path)
+        {
+            return Err("Git status contains a path exceeding the adapter limit");
+        }
+        if Path::new(path)
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+        {
+            return Err("Git status contains a non-normalized path");
+        }
+        total_path_bytes = total_path_bytes
+            .checked_add(path.len())
+            .and_then(|value| value.checked_add(1))
+            .ok_or("Git status path evidence exceeds the adapter limit")?;
+        if rows.len() >= MAX_DAILY_LOOP_ROWS || total_path_bytes > MAX_DAILY_LOOP_SCOPE_BYTES {
+            return Err("Git status path evidence exceeds the adapter limit");
+        }
+        let is_rename_or_copy = matches!(index, b'R' | b'C') || matches!(worktree, b'R' | b'C');
+        if is_rename_or_copy {
+            let old_path = fields
+                .next()
+                .ok_or("Git status rename record is incomplete")?;
+            let old_path = std::str::from_utf8(old_path)
+                .map_err(|_| "Git status rename source is not valid UTF-8")?;
+            if old_path.is_empty()
+                || old_path.len() > MAX_DAILY_LOOP_PATH_BYTES
+                || !normalized_repo_path_text(old_path)
+                || Path::new(old_path)
+                    .components()
+                    .any(|component| !matches!(component, Component::Normal(_)))
+            {
+                return Err("Git status rename source exceeds the adapter boundary");
+            }
+            total_path_bytes = total_path_bytes
+                .checked_add(old_path.len())
+                .and_then(|value| value.checked_add(1))
+                .ok_or("Git status path evidence exceeds the adapter limit")?;
+            if total_path_bytes > MAX_DAILY_LOOP_SCOPE_BYTES {
+                return Err("Git status path evidence exceeds the adapter limit");
+            }
+        }
+        let is_untracked = index == b'?' && worktree == b'?';
+        let is_conflicted = matches!(
+            (index, worktree),
+            (b'D', b'D')
+                | (b'A', b'U')
+                | (b'U', b'D')
+                | (b'U', b'A')
+                | (b'D', b'U')
+                | (b'A', b'A')
+                | (b'U', b'U')
+        );
+        let is_staged = index != b' ' && index != b'?' && !is_conflicted;
+        let is_unstaged = worktree != b' ' && worktree != b'?' && !is_conflicted;
+        let change = if is_conflicted {
+            b'U'
+        } else if is_untracked {
+            b'?'
+        } else if is_staged {
+            index
+        } else {
+            worktree
+        };
+        let change_kind =
+            parse_status_char(change).ok_or("Git status returned an unknown porcelain state")?;
+        rows.push(DailyLoopPathStatus {
+            path: path.to_string(),
+            change_kind,
+            is_staged,
+            is_unstaged,
+            is_untracked,
+            is_conflicted,
+            is_submodule: false,
+            content_availability: "available".to_string(),
+        });
+    }
+    Ok(rows)
+}
+
 fn observed_at_now() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let dur = SystemTime::now()
@@ -2287,17 +2937,41 @@ fn observed_at_now() -> String {
     format!("{}.{:03}Z", dur.as_secs(), dur.subsec_millis())
 }
 
-fn parse_status_char(c: &str) -> DailyLoopPathChangeKind {
-    match c {
-        "M" => DailyLoopPathChangeKind::Modified,
-        "A" => DailyLoopPathChangeKind::Added,
-        "D" => DailyLoopPathChangeKind::Deleted,
-        "R" => DailyLoopPathChangeKind::Renamed,
-        "C" => DailyLoopPathChangeKind::Copied,
-        "T" => DailyLoopPathChangeKind::TypeChanged,
-        "U" => DailyLoopPathChangeKind::Conflict,
-        "?" => DailyLoopPathChangeKind::Untracked,
-        "!" => DailyLoopPathChangeKind::Ignored,
-        _ => DailyLoopPathChangeKind::Modified,
+fn parse_status_char(c: u8) -> Option<DailyLoopPathChangeKind> {
+    Some(match c {
+        b'M' => DailyLoopPathChangeKind::Modified,
+        b'A' => DailyLoopPathChangeKind::Added,
+        b'D' => DailyLoopPathChangeKind::Deleted,
+        b'R' => DailyLoopPathChangeKind::Renamed,
+        b'C' => DailyLoopPathChangeKind::Copied,
+        b'T' => DailyLoopPathChangeKind::TypeChanged,
+        b'U' => DailyLoopPathChangeKind::Conflict,
+        b'?' => DailyLoopPathChangeKind::Untracked,
+        b'!' => DailyLoopPathChangeKind::Ignored,
+        _ => return None,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_unmerged_porcelain_pair_projects_as_conflict() {
+        for pair in ["DD", "AU", "UD", "UA", "DU", "AA", "UU"] {
+            let record = format!("{pair} conflicted.txt\0");
+            let rows = parse_porcelain_status(record.as_bytes()).expect("parse conflict row");
+            assert_eq!(rows.len(), 1);
+            assert!(rows[0].is_conflicted, "{pair} must be conflicted");
+            assert_eq!(rows[0].change_kind, DailyLoopPathChangeKind::Conflict);
+        }
+    }
+
+    #[test]
+    fn unknown_porcelain_states_do_not_fabricate_modified_rows() {
+        assert_eq!(
+            parse_porcelain_status(b"X  unexpected.txt\0"),
+            Err("Git status returned an unknown porcelain state")
+        );
     }
 }

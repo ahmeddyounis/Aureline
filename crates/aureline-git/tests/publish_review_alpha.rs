@@ -552,6 +552,53 @@ fn unsupported_remote_helpers_are_blocked_before_publish() {
 }
 
 #[test]
+fn chained_url_rewrites_are_blocked_before_publish() {
+    let dir = build_case_root("explicit_remote_new_branch");
+    run_git(
+        dir.path(),
+        &[
+            "remote",
+            "set-url",
+            "origin",
+            "https://one.invalid/team/repo.git",
+        ],
+    );
+    run_git(
+        dir.path(),
+        &[
+            "config",
+            "url.https://two.invalid/.insteadOf",
+            "https://one.invalid/",
+        ],
+    );
+    run_git(
+        dir.path(),
+        &[
+            "config",
+            "url.https://three.invalid/.insteadOf",
+            "https://two.invalid/",
+        ],
+    );
+
+    let preview = GitPublishService::default().preview(
+        &GitPublishRequest::with_observed_at(
+            "workspace.fixture.chained-url-rewrite",
+            dir.path(),
+            "2026-05-13T00:36:30Z",
+        )
+        .with_remote_name("origin")
+        .with_local_branch("main")
+        .with_target_branch("main"),
+    );
+
+    assert_ne!(
+        preview.preview_state,
+        GitPublishPreviewState::ReadyToPublish
+    );
+    assert!(!preview.ready_to_publish());
+}
+
+#[test]
 fn repository_config_drift_blocks_before_remote_mutation() {
     let dir = build_case_root("upstream_one_ahead");
     let service = GitPublishService::default();

@@ -15,6 +15,7 @@ pub mod certify_m5_git_topology_history_recovery_and_provider_parity_rows;
 pub mod change_objects;
 pub mod commit;
 pub mod conflicts;
+mod digest;
 pub mod finalize_sequence_edit_conflict_session_stash_entry_and_ref_update_truth;
 pub mod freeze_the_m5_git_history_sequence_component_matrix;
 pub mod freeze_the_m5_repository_topology_worktree_scope_history_surgery_and_checkpoint_recovery_matrix;
@@ -284,8 +285,9 @@ pub use stabilize_the_daily_git_loop_status_diff_stage::{
     DailyLoopDiffLine, DailyLoopDiffLineKind, DailyLoopFileChangeKind, DailyLoopJournalRecord,
     DailyLoopOperationKind, DailyLoopOutcomeState, DailyLoopPathChangeKind, DailyLoopPathStatus,
     DailyLoopPreview, DailyLoopPreviewState, DailyLoopRequest, DailyLoopResult, DailyLoopService,
-    DailyLoopSnapshot, DailyLoopSnapshotState, DailyLoopSupportExportRecord, DailyLoopTarget,
-    HistoryCommitRecord, RepoTarget, StashShelfEntry, SystemDailyLoopBackend, WorktreeTarget,
+    DailyLoopSnapshot, DailyLoopSnapshotState, DailyLoopSupportExportRecord,
+    DailyLoopSupportTargetProjection, DailyLoopTarget, HistoryCommitRecord, RepoTarget,
+    StashShelfEntry, SystemDailyLoopBackend, WorktreeTarget,
     BLAME_LINE_RECORD_KIND, CONTENT_AVAILABILITY_CLASSES, DAILY_LOOP_ACTIVITY_RECORD_KIND,
     DAILY_LOOP_JOURNAL_RECORD_KIND, DAILY_LOOP_OPERATION_KINDS, DAILY_LOOP_OUTCOME_STATES,
     DAILY_LOOP_PREVIEW_RECORD_KIND, DAILY_LOOP_PREVIEW_STATES, DAILY_LOOP_RESULT_RECORD_KIND,

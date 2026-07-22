@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/git/mutation_support_export.schema.json",
+  "title": "Aureline Git mutation support export v2",
+  "description": "Strict metadata-only support projection. Raw workspace, repository, path, actor, command, patch, backend, and failure-detail values are forbidden.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "support_export_ref",
+    "redaction_mode",
+    "redaction_profile_ref",
+    "retention_class",
+    "operation_kind",
+    "phase",
+    "workspace_ref_digest",
+    "scope_ref_digest",
+    "preview_ref_digest",
+    "checkpoint_ref_digests",
+    "evidence_ref_digests",
+    "raw_path_export_allowed",
+    "raw_actor_export_allowed",
+    "omitted_fields"
+  ],
+  "properties": {
+    "record_kind": { "const": "git_mutation_support_export_record" },
+    "schema_version": { "const": 2 },
+    "support_export_ref": {
+      "type": "string",
+      "pattern": "^git\\.mutation\\.support_export\\.[0-9a-f]{64}$"
+    },
+    "redaction_mode": { "const": "metadata_safe_default" },
+    "redaction_profile_ref": { "const": "support.redaction.local_first_default" },
+    "retention_class": { "const": "local_recovery_audit" },
+    "operation_kind": {
+      "enum": ["stage", "unstage", "discard", "revert_checkpoint"]
+    },
+    "phase": { "enum": ["preview", "apply", "revert"] },
+    "workspace_ref_digest": { "$ref": "#/$defs/digest" },
+    "scope_ref_digest": { "$ref": "#/$defs/digest" },
+    "preview_ref_digest": { "$ref": "#/$defs/digest" },
+    "result_ref_digest": { "$ref": "#/$defs/digest" },
+    "mutation_journal_ref_digest": { "$ref": "#/$defs/digest" },
+    "checkpoint_ref_digests": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/digest" }
+    },
+    "evidence_ref_digests": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/digest" }
+    },
+    "raw_path_export_allowed": { "const": false },
+    "raw_actor_export_allowed": { "const": false },
+    "omitted_fields": {
+      "type": "array",
+      "minItems": 14,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "workspace_ref",
+          "repo_root",
+          "target_paths",
+          "scope_ref",
+          "preview_ref",
+          "result_ref",
+          "mutation_journal_ref",
+          "checkpoint_refs",
+          "evidence_refs",
+          "raw_patch_body",
+          "raw_command_line",
+          "raw_actor_value",
+          "backend_output",
+          "failure_detail"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "phase": { "const": "preview" } } },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "required": ["result_ref_digest"] },
+            { "required": ["mutation_journal_ref_digest"] }
+          ]
+        }
+      },
+      "else": {
+        "required": ["result_ref_digest", "mutation_journal_ref_digest"]
+      }
+    }
+  ]
+}

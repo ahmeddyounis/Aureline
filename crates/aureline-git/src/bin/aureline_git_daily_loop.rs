@@ -76,6 +76,7 @@ fn main() {
         request = request.with_commit_ref(cref);
     }
     request.preview_only = preview_only;
+    request.actor_ref = "cli:git:daily_loop".to_string();
 
     let service = DailyLoopService::default();
 
@@ -85,7 +86,7 @@ fn main() {
             std::process::exit(2);
         }
         let preview = service.preview(&request);
-        let result = service.apply(&preview, "cli:git:daily_loop");
+        let result = service.apply(&preview, &request.actor_ref);
         DailyLoopPacket {
             snapshot: None,
             preview: Some(preview),

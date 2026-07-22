@@ -2,7 +2,7 @@
 
 ## Scope
 
-This artifact covers the stabilized daily Git loop for Aureline M4, implementing explicit repo/worktree targeting across status, diff, stage, commit, amend, stash, blame, and history operations.
+This artifact covers the bounded M4 daily-loop adapter: explicit repo/worktree targeting for status, diff, stage, commit, amend, blame, and history, plus inspect-only stash vocabulary. It is not a claim that every listed operation is mutation-qualified.
 
 ## Implementation location
 
@@ -20,16 +20,18 @@ Every request carries [`RepoTarget`] and [`WorktreeTarget`] so that:
 
 ### Operations covered
 - `status` — canonical snapshot with path statuses.
-- `diff` — worktree diff with file/hunk/line granularity.
-- `stage` / `unstage` — preview-first path mutations.
-- `commit` / `amend` — preview-first commit creation with message guardrails.
-- `stash_capture` / `stash_apply` / `stash_pop` / `stash_drop` / `stash_branch_from` — stash/shelf lifecycle.
+- `diff` — bounded worktree-diff presence observation. A non-empty diff is `partial_omitted`; file/hunk/line rows are not synthesized while parsing is unqualified.
+- `stage` / `unstage` — exact-patch, stale-evidence-checked path mutations through the canonical mutation service.
+- `commit` / `amend` — single-process-authority commit previews with message and history guardrails through the canonical commit service.
+- `stash_capture` / `stash_apply` / `stash_pop` / `stash_drop` / `stash_branch_from` — inspect-only stash/shelf vocabulary. Mutation previews are blocked until exact checkpoint and stale-evidence authority exists.
 - `blame` — per-line blame with content-availability labels.
 - `history` — commit history with content-availability labels.
 
 ### Stash/shelf entry objects
 [`StashShelfEntry`] provides stable objects with:
-- Entry ID, creator, source repo/worktree.
+- Object-ID-derived entry ID, creator, source repo/worktree, and stash-commit
+  timestamp. The moving `stash@{n}` selector and observation time are never
+  used as durable stash identity or creation time.
 - Included path scope (tokens, not raw paths).
 - Untracked-state posture.
 - Message, checkpoint refs.
@@ -57,16 +59,19 @@ History, blame, and diff rows label content as:
 
 Run tests:
 ```bash
-cargo test -p aureline-git daily_loop_beta
+cargo test --locked -p aureline-git --test daily_loop_beta
 ```
 
 Run CLI snapshot:
 ```bash
-cargo run -p aureline-git --bin aureline_git_daily_loop -- --kind status --root .
+cargo run --locked -p aureline-git --bin aureline_git_daily_loop -- --kind status --root .
 ```
 
 ## Known limits
 
-- Diff parsing is simplified (placeholder hunk parsing); full unified-diff parser is planned for M5.
-- Blame parsing covers porcelain blame but does not yet correlate shallow/unfetched commit availability (always reports `available` in the simplified path).
-- Submodule boundary detection in status relies on path inspection; explicit `.gitmodules` correlation is planned for M5.
+- Structured diff parsing is unavailable; non-empty diffs are labeled `partial_omitted` with no fabricated file or hunk rows. A bounded unified-diff parser is planned for M5.
+- Blame uses line-porcelain records so every emitted line repeats and validates its own commit provenance, but it does not yet correlate shallow/unfetched commit availability (locally returned commits report `available`).
+- Status does not yet qualify submodule membership and keeps the field false; explicit index-mode correlation is planned for M5.
+- Stash mutation verbs are intentionally inspect-only. The adapter does not invoke `stash push`, `apply`, `pop`, `drop`, or `branch` from a daily-loop preview.
+- Support-export schema v2 is the only exportable daily-loop support shape. V1 embedded a full target object and must not be forwarded; migration is documented in `docs/migration/git/daily_loop_support_export_v1_to_v2.md`.
+- The system backend uses the shared hardened Git runner. Request path scope, Git output, retained patch evidence, and stdin are bounded; private stderr and backend error text are not projected into result/support reasons. Local observation and mutation commands deny network/file transports; only the separately reviewed publish posture admits its explicit local/file, SSH, or HTTPS destination.

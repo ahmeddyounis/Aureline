@@ -31,8 +31,10 @@ retain a reopenable review packet and local recovery path.
   overrides, proxy routing, and custom receive-pack configuration are blocked.
 - Push invokes the reviewed URL directly, never the mutable remote name. Its
   refspec uses the reviewed immutable local object id, not a mutable local ref,
-  and fixes `--receive-pack=git-receive-pack`; protocol defaults deny any
-  unlisted helper even if URL parsing is bypassed.
+  and fixes `--receive-pack=git-receive-pack`. A second resolution check blocks
+  chained URL rewrites, and the publish subprocess admits only the reviewed
+  transport family (`file`, HTTPS, or SSH); every other protocol remains denied
+  even if URL parsing is bypassed.
 - Git subprocesses clear ambient environment and retain only `PATH`, explicit
   locale/hardening variables, required Windows runtime variables, and
   `SSH_AUTH_SOCK` only for a preview-admitted SSH transport. Branch, commit,

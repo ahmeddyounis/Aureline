@@ -902,11 +902,39 @@ impl GitPublishBackend for SystemGitPublishBackend {
         args: &[String],
         ssh_auth_sock: Option<&OsStr>,
     ) -> Result<GitPublishCommandOutput, GitPublishBackendError> {
-        let command = if ssh_auth_sock.is_some() {
-            hardened_git::command_for_publish(&self.git_binary, root, args, ssh_auth_sock)
-        } else {
-            hardened_git::command(&self.git_binary, root, args)
+        let separator =
+            args.iter()
+                .position(|arg| arg == "--")
+                .ok_or_else(|| GitPublishBackendError {
+                    message: "Git publish command is outside the reviewed boundary".to_string(),
+                })?;
+        let push_url = args
+            .get(separator + 1)
+            .ok_or_else(|| GitPublishBackendError {
+                message: "Git publish destination is unavailable".to_string(),
+            })?;
+        let admitted = admit_remote_url(push_url).ok_or_else(|| GitPublishBackendError {
+            message: "Git publish destination is outside the reviewed boundary".to_string(),
+        })?;
+        let transport = match admitted.transport {
+            GitRemoteTransport::LocalPath | GitRemoteTransport::File => {
+                hardened_git::PublishTransportPosture::File
+            }
+            GitRemoteTransport::Https => hardened_git::PublishTransportPosture::Https,
+            GitRemoteTransport::Ssh => hardened_git::PublishTransportPosture::Ssh,
         };
+        if admitted.transport.uses_ssh() != ssh_auth_sock.is_some() {
+            return Err(GitPublishBackendError {
+                message: "Git publish authentication does not match the reviewed route".to_string(),
+            });
+        }
+        let command = hardened_git::command_for_publish(
+            &self.git_binary,
+            root,
+            args,
+            transport,
+            ssh_auth_sock,
+        );
         let output = hardened_git::run(command).map_err(|_| GitPublishBackendError {
             message: "Git publish command could not be completed safely".to_string(),
         })?;
@@ -1054,6 +1082,10 @@ impl<B: GitPublishBackend> GitPublishService<B> {
             [url] => admit_remote_url(url),
             _ => None,
         };
+        let push_url_is_stable = match push_urls.as_slice() {
+            [url] => self.publish_url_has_no_additional_rewrite(&repo_root, url),
+            _ => false,
+        };
         let ssh_auth_sock = admitted_route
             .filter(|route| route.transport.uses_ssh())
             .and_then(|_| std::env::var_os("SSH_AUTH_SOCK"));
@@ -1073,6 +1105,11 @@ impl<B: GitPublishBackend> GitPublishService<B> {
         } else if admitted_route.is_none() {
             blocked_reasons.push(
                 "publish URL protocol is not admitted for direct local Git publication".to_string(),
+            );
+        } else if !push_url_is_stable {
+            blocked_reasons.push(
+                "publish URL has an additional configuration rewrite; use one explicit final destination"
+                    .to_string(),
             );
         }
         if repository_config_evidence.is_none() {
@@ -1639,6 +1676,20 @@ impl<B: GitPublishBackend> GitPublishService<B> {
             return None;
         }
         (!values.is_empty()).then_some(values)
+    }
+
+    fn publish_url_has_no_additional_rewrite(&self, repo_root: &Path, url: &str) -> bool {
+        let args = vec![
+            "ls-remote".to_string(),
+            "--get-url".to_string(),
+            "--".to_string(),
+            url.to_string(),
+        ];
+        let output = match self.backend.run_git(repo_root, &args) {
+            Ok(output) if output.success => output,
+            _ => return false,
+        };
+        String::from_utf8(output.stdout).is_ok_and(|resolved| resolved.trim_end() == url)
     }
 
     fn resolve_commit_oid(&self, repo_root: &Path, target: &str) -> Option<String> {

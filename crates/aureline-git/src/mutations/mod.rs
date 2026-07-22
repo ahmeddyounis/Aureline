@@ -9,10 +9,10 @@
 //! then apply the preview through the same service so activity and support
 //! records can quote one lineage.
 
+use std::collections::HashSet;
 use std::ffi::OsStr;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::path::{Component, Path, PathBuf};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
@@ -20,6 +20,7 @@ use crate::status::{
     ChangeKind, ConsumerProjectionBundle, GitChange, GitServiceState, GitStatusRequest,
     GitStatusService, GitStatusSnapshot,
 };
+use crate::{digest, hardened_git};
 
 /// Stable record-kind tag for [`GitMutationPreview`].
 pub const GIT_MUTATION_PREVIEW_RECORD_KIND: &str = "git_mutation_preview";
@@ -39,8 +40,15 @@ pub const GIT_MUTATION_JOURNAL_RECORD_KIND: &str = "git_mutation_journal_record"
 const GIT_MUTATION_PREVIEW_SCHEMA_VERSION: u32 = 1;
 const GIT_MUTATION_RESULT_SCHEMA_VERSION: u32 = 1;
 const GIT_MUTATION_ACTIVITY_SCHEMA_VERSION: u32 = 1;
-const GIT_MUTATION_SUPPORT_EXPORT_SCHEMA_VERSION: u32 = 1;
+const GIT_MUTATION_SUPPORT_EXPORT_SCHEMA_VERSION: u32 = 2;
 const GIT_MUTATION_JOURNAL_SCHEMA_VERSION: u32 = 1;
+
+const MAX_GIT_MUTATION_PATHS: usize = 4096;
+const MAX_GIT_MUTATION_PATH_BYTES: usize = 4096;
+const MAX_GIT_MUTATION_SCOPE_BYTES: usize = 1024 * 1024;
+const MAX_GIT_MUTATION_EVIDENCE_BYTES: usize = 16 * 1024 * 1024;
+const MAX_GIT_MUTATION_RECORD_BYTES: usize = 16 * 1024 * 1024;
+const MAX_GIT_MUTATION_METADATA_BYTES: usize = 4096;
 
 /// Path-level Git operation reviewed by the mutation lane.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -416,9 +424,32 @@ pub struct GitMutationPreview {
     basis_state: PreviewPatch,
     #[serde(skip)]
     rollback_material: GitRollbackMaterial,
+    /// Digest of the public projection that was bound to the in-process
+    /// evidence. A serialized or modified preview has no apply authority.
+    #[serde(skip)]
+    projection_digest: Option<String>,
 }
 
 impl GitMutationPreview {
+    fn seal(mut self) -> Self {
+        self.projection_digest = bounded_projection_digest(&self);
+        if self.preview_state == GitMutationPreviewState::ReadyToApply
+            && self.projection_digest.is_none()
+        {
+            self.preview_state = GitMutationPreviewState::Blocked;
+            self.basis_state = PreviewPatch::default();
+            self.rollback_material = GitRollbackMaterial::default();
+        }
+        self
+    }
+
+    fn projection_matches_authority(&self) -> bool {
+        let Some(expected) = self.projection_digest.as_deref() else {
+            return false;
+        };
+        bounded_projection_digest(self).as_deref() == Some(expected)
+    }
+
     /// Returns true when apply may proceed without recomputing scope.
     pub fn ready_to_apply(&self) -> bool {
         self.preview_state == GitMutationPreviewState::ReadyToApply
@@ -428,6 +459,7 @@ impl GitMutationPreview {
             && self.checkpoint.satisfies_required_recovery()
             && self.basis_state.has_evidence()
             && self.rollback_material.supports(self.operation)
+            && self.projection_matches_authority()
     }
 
     /// Returns true when destructive previews carry an explicit checkpoint.
@@ -479,28 +511,34 @@ pub struct GitMutationSupportExportRecord {
     pub support_export_ref: String,
     /// Redaction mode for this export row.
     pub redaction_mode: String,
+    /// Redaction profile governing opaque identity projections.
+    pub redaction_profile_ref: String,
     /// Retention class for this export row.
     pub retention_class: String,
     /// Operation token.
     pub operation_kind: String,
     /// Phase token for preview, apply, or restore.
     pub phase: String,
-    /// Workspace identity copied from the preview.
-    pub workspace_ref: String,
-    /// Scope ref copied from the preview.
-    pub scope_ref: String,
-    /// Preview ref copied from the preview.
-    pub preview_ref: String,
-    /// Result ref when a mutation completed or failed.
+    /// Domain-separated digest of the workspace identity.
+    pub workspace_ref_digest: String,
+    /// Domain-separated digest of the reviewed scope ref.
+    pub scope_ref_digest: String,
+    /// Domain-separated digest of the preview ref.
+    pub preview_ref_digest: String,
+    /// Result-ref digest when a mutation completed or failed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub result_ref: Option<String>,
-    /// Mutation journal ref when a mutation completed or failed.
+    pub result_ref_digest: Option<String>,
+    /// Mutation-journal-ref digest when a mutation completed or failed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mutation_journal_ref: Option<String>,
-    /// Checkpoint refs available to support and recovery surfaces.
-    pub checkpoint_refs: Vec<String>,
-    /// Evidence refs included without raw patch bodies.
-    pub evidence_refs: Vec<String>,
+    pub mutation_journal_ref_digest: Option<String>,
+    /// Digests of checkpoint refs available to support and recovery surfaces.
+    pub checkpoint_ref_digests: Vec<String>,
+    /// Digests of evidence refs included without raw patch bodies.
+    pub evidence_ref_digests: Vec<String>,
+    /// Raw filesystem paths are never exportable in this record family.
+    pub raw_path_export_allowed: bool,
+    /// Raw actor values are never exportable in this record family.
+    pub raw_actor_export_allowed: bool,
     /// Fields deliberately omitted from export.
     pub omitted_fields: Vec<String>,
 }
@@ -582,18 +620,47 @@ pub struct GitMutationResult {
     pub failure_reason: Option<String>,
     #[serde(skip)]
     rollback_material: GitRollbackMaterial,
+    /// Digest binding the public result projection to its in-process restore
+    /// material. Serialized or modified results cannot mint restore authority.
+    #[serde(skip)]
+    projection_digest: Option<String>,
 }
 
 impl GitMutationResult {
+    fn seal(mut self) -> Self {
+        self.projection_digest = bounded_projection_digest(&self);
+        if self.rollback_available && self.projection_digest.is_none() {
+            self.rollback_available = false;
+            self.rollback_material = GitRollbackMaterial::default();
+        }
+        self
+    }
+
+    fn projection_matches_authority(&self) -> bool {
+        let Some(expected) = self.projection_digest.as_deref() else {
+            return false;
+        };
+        bounded_projection_digest(self).as_deref() == Some(expected)
+    }
+
     /// Returns true when activity and support rows cite the journal record.
     pub fn attribution_is_exportable(&self) -> bool {
         self.activity.mutation_id.as_deref() == Some(self.mutation_journal.mutation_id.as_str())
-            && self.support_export.mutation_journal_ref.as_deref()
-                == Some(self.mutation_journal.mutation_id.as_str())
+            && self.support_export.mutation_journal_ref_digest.as_deref()
+                == Some(
+                    mutation_support_digest(
+                        "mutation_journal_ref",
+                        &self.mutation_journal.mutation_id,
+                    )
+                    .as_str(),
+                )
             && self
                 .support_export
-                .checkpoint_refs
-                .contains(&self.checkpoint.checkpoint_ref)
+                .checkpoint_ref_digests
+                .contains(&mutation_support_digest(
+                    "checkpoint_ref",
+                    &self.checkpoint.checkpoint_ref,
+                ))
     }
 
     /// Projects this Git result into the shared local-history actor-lineage row.
@@ -697,51 +764,6 @@ impl SystemGitMutationBackend {
             git_binary: git_binary.into(),
         }
     }
-
-    fn command(&self, root: &Path, args: &[String]) -> Command {
-        let mut command = Command::new(&self.git_binary);
-        command.env_clear();
-        if let Some(path) = std::env::var_os("PATH") {
-            command.env("PATH", path);
-        }
-        #[cfg(windows)]
-        {
-            if let Some(system_root) = std::env::var_os("SystemRoot") {
-                command.env("SystemRoot", system_root);
-            }
-            if let Some(path_ext) = std::env::var_os("PATHEXT") {
-                command.env("PATHEXT", path_ext);
-            }
-        }
-        command
-            .env("LC_ALL", "C")
-            .env("LANG", "C")
-            .env("GIT_CONFIG_NOSYSTEM", "1")
-            .env("GIT_CONFIG_GLOBAL", null_device_path())
-            .env("GIT_ATTR_NOSYSTEM", "1")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_PAGER", "")
-            .env("GIT_ASKPASS", "")
-            .env("SSH_ASKPASS", "")
-            .arg("-c")
-            .arg("core.fsmonitor=false")
-            .arg("-c")
-            .arg("core.untrackedCache=false")
-            .arg("-c")
-            .arg("submodule.recurse=false")
-            .arg("-c")
-            .arg(format!("core.attributesFile={}", null_device_path()))
-            .arg("-c")
-            .arg("diff.external=")
-            .arg("-c")
-            .arg("credential.helper=")
-            .arg("-c")
-            .arg("credential.interactive=never")
-            .arg("-C")
-            .arg(root)
-            .args(args);
-        command
-    }
 }
 
 impl GitMutationBackend for SystemGitMutationBackend {
@@ -750,11 +772,9 @@ impl GitMutationBackend for SystemGitMutationBackend {
         root: &Path,
         args: &[String],
     ) -> Result<GitMutationCommandOutput, GitMutationBackendError> {
-        let output = self
-            .command(root, args)
-            .output()
+        let output = hardened_git::run(hardened_git::command(&self.git_binary, root, args))
             .map_err(|_| GitMutationBackendError {
-                message: "Git mutation command could not be launched".to_string(),
+                message: "Git mutation command could not be completed safely".to_string(),
             })?;
         Ok(GitMutationCommandOutput {
             success: output.status.success(),
@@ -770,41 +790,19 @@ impl GitMutationBackend for SystemGitMutationBackend {
         args: &[String],
         stdin: &[u8],
     ) -> Result<GitMutationCommandOutput, GitMutationBackendError> {
-        let mut child = self
-            .command(root, args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|_| GitMutationBackendError {
-                message: "Git mutation command could not be launched".to_string(),
-            })?;
-        if let Some(mut child_stdin) = child.stdin.take() {
-            child_stdin
-                .write_all(stdin)
-                .map_err(|_| GitMutationBackendError {
-                    message: "Git mutation input could not be written".to_string(),
-                })?;
-        }
-        let output = child
-            .wait_with_output()
-            .map_err(|_| GitMutationBackendError {
-                message: "Git mutation command could not be completed".to_string(),
-            })?;
+        let output = hardened_git::run_with_stdin(
+            hardened_git::command(&self.git_binary, root, args),
+            stdin,
+        )
+        .map_err(|_| GitMutationBackendError {
+            message: "Git mutation command could not be completed safely".to_string(),
+        })?;
         Ok(GitMutationCommandOutput {
             success: output.status.success(),
             status_code: output.status.code(),
             stdout: output.stdout,
             stderr: output.stderr,
         })
-    }
-}
-
-const fn null_device_path() -> &'static str {
-    if cfg!(windows) {
-        "NUL"
-    } else {
-        "/dev/null"
     }
 }
 
@@ -828,6 +826,22 @@ impl<B: GitMutationBackend> GitMutationService<B> {
 
     /// Builds a reviewable preview without mutating Git state.
     pub fn preview(&self, request: &GitMutationRequest) -> GitMutationPreview {
+        if let Err(reason) = validate_mutation_request_metadata(request) {
+            return self.degraded_preview(
+                request,
+                request.root_path.clone(),
+                "git.status.unavailable.invalid-metadata".to_string(),
+                reason,
+            );
+        }
+        if let Err(reason) = bounded_requested_path_shape(&request.paths) {
+            return self.degraded_preview(
+                request,
+                request.root_path.clone(),
+                "git.status.unavailable.invalid-scope".to_string(),
+                reason,
+            );
+        }
         let status_request = GitStatusRequest::with_observed_at(
             request.workspace_ref.clone(),
             request.root_path.clone(),
@@ -852,11 +866,16 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             );
         }
 
-        let repo_paths = request
-            .paths
-            .iter()
-            .map(|path| normalize_requested_path(path, &repo_root))
-            .collect::<Vec<_>>();
+        let repo_paths = match bounded_normalized_request_paths(
+            &request.paths,
+            &request.root_path,
+            &repo_root,
+        ) {
+            Ok(paths) => paths,
+            Err(reason) => {
+                return self.degraded_preview(request, repo_root, truth_source_ref, reason)
+            }
+        };
         let preview_ref = preview_ref(&request.workspace_ref, request.operation, &repo_paths);
         let preview_diff_ref = format!("{}.diff", preview_ref);
         let checkpoint_ref = format!("{}.checkpoint", preview_ref);
@@ -940,7 +959,9 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             support_export,
             basis_state,
             rollback_material,
+            projection_digest: None,
         }
+        .seal()
     }
 
     /// Applies an admitted preview and returns an attributable result packet.
@@ -950,6 +971,14 @@ impl<B: GitMutationBackend> GitMutationService<B> {
         resolved_at: impl Into<String>,
     ) -> GitMutationResult {
         let resolved_at = resolved_at.into();
+        if !valid_mutation_metadata(&resolved_at) {
+            return result_for_preview(
+                preview,
+                "unavailable",
+                GitMutationOutcomeState::BlockedNoChangesMade,
+                Some("apply metadata is outside the review boundary".to_string()),
+            );
+        }
         if !preview.ready_to_apply() {
             return result_for_blocked_preview(preview, &resolved_at);
         }
@@ -978,7 +1007,10 @@ impl<B: GitMutationBackend> GitMutationService<B> {
                 GitMutationOutcomeState::Failed,
                 Some(git_mutation_failure_reason(&output)),
             ),
-            Err(err) => (GitMutationOutcomeState::Failed, Some(err.message)),
+            Err(_) => (
+                GitMutationOutcomeState::Failed,
+                Some("Git mutation command could not be completed safely".to_string()),
+            ),
         };
         result_for_preview(preview, &resolved_at, outcome_state, failure_reason)
     }
@@ -989,12 +1021,44 @@ impl<B: GitMutationBackend> GitMutationService<B> {
         result: &GitMutationResult,
         requested_at: impl Into<String>,
     ) -> GitMutationPreview {
-        let requested_at = requested_at.into();
-        let repo_paths = result
+        let mut requested_at = requested_at.into();
+        if !valid_mutation_metadata(&requested_at) {
+            requested_at = "unavailable".to_string();
+            return self.degraded_revert_preview(
+                result,
+                requested_at,
+                "checkpoint review metadata is outside the review boundary",
+            );
+        }
+        if !result.projection_matches_authority() {
+            return self.degraded_revert_preview(
+                result,
+                requested_at,
+                "checkpoint authority is unavailable or changed",
+            );
+        }
+        if result.applied_targets.len() > MAX_GIT_MUTATION_PATHS {
+            return self.degraded_revert_preview(
+                result,
+                requested_at,
+                "checkpoint path count exceeds the review limit",
+            );
+        }
+        let candidate_paths = result
             .applied_targets
             .iter()
             .map(|target| target.repo_relative_path.clone())
             .collect::<Vec<_>>();
+        let repo_paths = match bounded_normalized_paths(&candidate_paths, &result.repo_root) {
+            Ok(paths) if paths == candidate_paths => paths,
+            _ => {
+                return self.degraded_revert_preview(
+                    result,
+                    requested_at,
+                    "checkpoint path scope is outside the review boundary",
+                )
+            }
+        };
         let status_request = GitStatusRequest::with_observed_at(
             result.workspace_ref.clone(),
             result.repo_root.clone(),
@@ -1020,20 +1084,21 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             &repo_paths,
         );
         let preview_diff_ref = format!("{}.diff", preview_ref);
-        let mut targets = result.applied_targets.clone();
-        for target in &mut targets {
-            let change = snapshot
-                .changes
-                .iter()
-                .find(|change| change.path == target.repo_relative_path);
-            target.status_code = change.map(|change| change.status_code.clone());
-            target.file_state_token = change.map(file_state_token);
-            target.preview_diff_ref = preview_diff_ref.clone();
-            target.checkpoint_ref = Some(result.checkpoint.checkpoint_ref.clone());
-            target.included_in_apply = true;
-            target.blocked_reason = None;
-            target.protected_review_required = true;
-        }
+        let targets = repo_paths
+            .iter()
+            .map(|path| {
+                let change = snapshot.changes.iter().find(|change| change.path == *path);
+                included_target(
+                    &result.workspace_ref,
+                    path,
+                    change.map(|change| change.status_code.clone()),
+                    change.map(file_state_token),
+                    &preview_diff_ref,
+                    &result.checkpoint.checkpoint_ref,
+                    true,
+                )
+            })
+            .collect::<Vec<_>>();
         let scope = GitMutationScopeReview {
             scope_ref: format!("{}.scope", preview_ref),
             requested_count: targets.len(),
@@ -1046,6 +1111,9 @@ impl<B: GitMutationBackend> GitMutationService<B> {
         let rollback_material = result.rollback_material.clone();
         let rollback_is_available = result.rollback_available
             && rollback_material.supports(GitMutationOperationKind::RevertCheckpoint)
+            && rollback_material.repo_root == result.repo_root
+            && basis_state.repo_root == rollback_material.repo_root
+            && rollback_material.paths == repo_paths
             && basis_state.has_evidence();
         let checkpoint = GitMutationCheckpointRecord {
             checkpoint_ref: result.checkpoint.checkpoint_ref.clone(),
@@ -1113,7 +1181,32 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             support_export,
             basis_state,
             rollback_material,
+            projection_digest: None,
         }
+        .seal()
+    }
+
+    fn degraded_revert_preview(
+        &self,
+        result: &GitMutationResult,
+        requested_at: String,
+        reason: &str,
+    ) -> GitMutationPreview {
+        let mut request = GitMutationRequest::with_observed_at(
+            result.workspace_ref.clone(),
+            result.repo_root.clone(),
+            GitMutationOperationKind::RevertCheckpoint,
+            Vec::<PathBuf>::new(),
+            requested_at,
+        )
+        .with_launch_source_ref(result.result_ref.clone());
+        request.actor = result.mutation_journal.actor.clone();
+        self.degraded_preview(
+            &request,
+            result.repo_root.clone(),
+            result.truth_source_ref.clone(),
+            reason,
+        )
     }
 
     /// Restores a prior mutation result through its checkpoint preview.
@@ -1134,17 +1227,30 @@ impl<B: GitMutationBackend> GitMutationService<B> {
         truth_source_ref: String,
         reason: &str,
     ) -> GitMutationPreview {
-        let preview_ref = preview_ref(&request.workspace_ref, request.operation, &request.paths);
+        let workspace_ref = valid_mutation_metadata(&request.workspace_ref)
+            .then(|| request.workspace_ref.clone())
+            .unwrap_or_else(|| "workspace.unavailable".to_string());
+        let generated_at = valid_mutation_metadata(&request.requested_at)
+            .then(|| request.requested_at.clone())
+            .unwrap_or_else(|| "unavailable".to_string());
+        let actor = valid_mutation_actor(&request.actor)
+            .then(|| request.actor.clone())
+            .unwrap_or_default();
+        let launch_source_ref = request
+            .launch_source_ref
+            .as_ref()
+            .filter(|value| valid_mutation_metadata(value))
+            .cloned();
+        let safe_paths = bounded_normalized_paths(&request.paths, &repo_root).unwrap_or_default();
+        let preview_ref = preview_ref(&workspace_ref, request.operation, &safe_paths);
         let preview_diff_ref = format!("{}.diff", preview_ref);
         let checkpoint_ref = format!("{}.checkpoint", preview_ref);
-        let targets = request
-            .paths
+        let targets = safe_paths
             .iter()
             .map(|path| {
-                let repo_path = normalize_requested_path(path, &repo_root);
                 blocked_target(
-                    &request.workspace_ref,
-                    &repo_path,
+                    &workspace_ref,
+                    path,
                     None,
                     None,
                     &preview_diff_ref,
@@ -1181,7 +1287,7 @@ impl<B: GitMutationBackend> GitMutationService<B> {
         let support_export = support_export_for_preview(
             &preview_ref,
             request.operation,
-            &request.workspace_ref,
+            &workspace_ref,
             &scope.scope_ref,
             &checkpoint,
         );
@@ -1196,8 +1302,8 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             record_kind: GIT_MUTATION_PREVIEW_RECORD_KIND.to_string(),
             schema_version: GIT_MUTATION_PREVIEW_SCHEMA_VERSION,
             preview_ref,
-            generated_at: request.requested_at.clone(),
-            workspace_ref: request.workspace_ref.clone(),
+            generated_at,
+            workspace_ref,
             repo_root,
             truth_source_ref,
             operation: request.operation,
@@ -1206,8 +1312,8 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             preview_state: GitMutationPreviewState::Degraded,
             consequence_class: request.operation.consequence_class().to_string(),
             destructive_review_required: request.operation.is_destructive(),
-            actor: request.actor.clone(),
-            launch_source_ref: request.launch_source_ref.clone(),
+            actor,
+            launch_source_ref,
             scope,
             diff_preview,
             checkpoint,
@@ -1215,7 +1321,9 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             support_export,
             basis_state: PreviewPatch::default(),
             rollback_material,
+            projection_digest: None,
         }
+        .seal()
     }
 
     fn capture_path_state(
@@ -1240,6 +1348,11 @@ impl<B: GitMutationBackend> GitMutationService<B> {
         else {
             return PreviewPatch::default();
         };
+        if combined_evidence_len(&before_index_patch, &worktree_patch)
+            > MAX_GIT_MUTATION_EVIDENCE_BYTES
+        {
+            return PreviewPatch::default();
+        }
         for path in paths.iter().filter(|path| {
             changes
                 .iter()
@@ -1250,22 +1363,31 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             else {
                 return PreviewPatch::default();
             };
-            worktree_patch.extend_from_slice(&untracked_patch);
+            if !append_evidence_bounded(&before_index_patch, &mut worktree_patch, &untracked_patch)
+            {
+                return PreviewPatch::default();
+            }
         }
         PreviewPatch {
             captured: true,
+            repo_root: repository.repo_root.clone(),
             repository_ref: repository.repo_ref.clone(),
             worktree_ref: repository.worktree_ref.clone(),
             head_oid: snapshot.head.head_oid.clone(),
             branch_ref: snapshot.head.branch_ref.clone(),
-            before_index_patch,
-            worktree_patch,
+            before_index_patch: before_index_patch.into(),
+            worktree_patch: worktree_patch.into(),
         }
     }
 
     fn run_git_diff_bytes(&self, repo_root: &Path, args: Vec<String>) -> Option<Vec<u8>> {
         match self.backend.run_git(repo_root, &args) {
-            Ok(output) if output.success || output.status_code == Some(1) => Some(output.stdout),
+            Ok(output)
+                if (output.success || output.status_code == Some(1))
+                    && output.stdout.len() <= MAX_GIT_MUTATION_EVIDENCE_BYTES =>
+            {
+                Some(output.stdout)
+            }
             _ => None,
         }
     }
@@ -1281,6 +1403,10 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             .iter()
             .map(|target| target.repo_relative_path.clone())
             .collect::<Vec<_>>();
+        match bounded_normalized_paths(&paths, &preview.repo_root) {
+            Ok(normalized) if normalized == paths => {}
+            _ => return Err(()),
+        }
         let expected_preview_ref = preview_ref(&preview.workspace_ref, preview.operation, &paths);
         let expected_diff_ref = format!("{expected_preview_ref}.diff");
         let expected_checkpoint_ref = format!("{expected_preview_ref}.checkpoint");
@@ -1303,6 +1429,7 @@ impl<B: GitMutationBackend> GitMutationService<B> {
                 .targets
                 .iter()
                 .any(|target| !target.included_in_apply || target.blocked_reason.is_some())
+            || preview.rollback_material.repo_root != preview.repo_root
             || preview.rollback_material.paths != paths
             || !preview.rollback_material.supports(preview.operation)
         {
@@ -1377,17 +1504,17 @@ impl<B: GitMutationBackend> GitMutationService<B> {
             GitMutationOperationKind::Stage => self.backend.run_git_with_stdin(
                 &preview.repo_root,
                 &git_apply_args(&["--cached"]),
-                &preview.basis_state.worktree_patch,
+                preview.basis_state.worktree_patch.as_ref(),
             ),
             GitMutationOperationKind::Unstage => self.backend.run_git_with_stdin(
                 &preview.repo_root,
                 &git_apply_args(&["--cached", "--reverse"]),
-                &preview.basis_state.before_index_patch,
+                preview.basis_state.before_index_patch.as_ref(),
             ),
             GitMutationOperationKind::Discard => self.backend.run_git_with_stdin(
                 &preview.repo_root,
                 &git_apply_args(&["--reverse"]),
-                &preview.basis_state.worktree_patch,
+                preview.basis_state.worktree_patch.as_ref(),
             ),
             GitMutationOperationKind::RevertCheckpoint => {
                 self.restore_checkpoint(&preview.repo_root, &preview.rollback_material)
@@ -1400,6 +1527,11 @@ impl<B: GitMutationBackend> GitMutationService<B> {
         repo_root: &Path,
         material: &GitRollbackMaterial,
     ) -> Result<GitMutationCommandOutput, GitMutationBackendError> {
+        if material.repo_root != repo_root {
+            return Err(GitMutationBackendError {
+                message: "checkpoint target does not match the reviewed repository".to_string(),
+            });
+        }
         match material.action {
             GitRollbackAction::None => Ok(GitMutationCommandOutput {
                 success: true,
@@ -1407,23 +1539,16 @@ impl<B: GitMutationBackend> GitMutationService<B> {
                 stdout: Vec::new(),
                 stderr: Vec::new(),
             }),
-            GitRollbackAction::RestoreIndexFromPatch => {
-                let reset = self.backend.run_git(
-                    repo_root,
-                    &path_args("restore", &["--staged"], &material.paths),
-                )?;
-                if !reset.success || material.before_index_patch.is_empty() {
-                    return Ok(reset);
-                }
-                self.backend.run_git_with_stdin(
-                    repo_root,
-                    &["apply", "--cached", "--whitespace=nowarn", "-"]
-                        .into_iter()
-                        .map(str::to_string)
-                        .collect::<Vec<_>>(),
-                    &material.before_index_patch,
-                )
-            }
+            GitRollbackAction::ReverseReviewedPatchInIndex => self.backend.run_git_with_stdin(
+                repo_root,
+                &git_apply_args(&["--cached", "--reverse"]),
+                material.worktree_patch.as_ref(),
+            ),
+            GitRollbackAction::ApplyCapturedIndexPatch => self.backend.run_git_with_stdin(
+                repo_root,
+                &git_apply_args(&["--cached"]),
+                material.before_index_patch.as_ref(),
+            ),
             GitRollbackAction::ApplyWorktreePatch => {
                 if material.worktree_patch.is_empty() {
                     return Ok(GitMutationCommandOutput {
@@ -1439,44 +1564,49 @@ impl<B: GitMutationBackend> GitMutationService<B> {
                         .into_iter()
                         .map(str::to_string)
                         .collect::<Vec<_>>(),
-                    &material.worktree_patch,
+                    material.worktree_patch.as_ref(),
                 )
             }
         }
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct PreviewPatch {
     captured: bool,
+    repo_root: PathBuf,
     repository_ref: String,
     worktree_ref: String,
     head_oid: Option<String>,
     branch_ref: Option<String>,
-    before_index_patch: Vec<u8>,
-    worktree_patch: Vec<u8>,
+    before_index_patch: Arc<[u8]>,
+    worktree_patch: Arc<[u8]>,
 }
 
 impl PreviewPatch {
     fn has_evidence(&self) -> bool {
-        self.captured && !self.repository_ref.is_empty() && !self.worktree_ref.is_empty()
+        self.captured
+            && self.repo_root.is_absolute()
+            && !self.repository_ref.is_empty()
+            && !self.worktree_ref.is_empty()
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 enum GitRollbackAction {
     #[default]
     None,
-    RestoreIndexFromPatch,
+    ReverseReviewedPatchInIndex,
+    ApplyCapturedIndexPatch,
     ApplyWorktreePatch,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct GitRollbackMaterial {
     action: GitRollbackAction,
-    before_index_patch: Vec<u8>,
-    worktree_patch: Vec<u8>,
+    repo_root: PathBuf,
+    before_index_patch: Arc<[u8]>,
+    worktree_patch: Arc<[u8]>,
     paths: Vec<PathBuf>,
 }
 
@@ -1485,13 +1615,16 @@ impl GitRollbackMaterial {
         if self.paths.is_empty() {
             return false;
         }
+        if !self.repo_root.is_absolute() {
+            return false;
+        }
         match operation {
             GitMutationOperationKind::Stage => {
-                self.action == GitRollbackAction::RestoreIndexFromPatch
+                self.action == GitRollbackAction::ReverseReviewedPatchInIndex
                     && !self.worktree_patch.is_empty()
             }
             GitMutationOperationKind::Unstage => {
-                self.action == GitRollbackAction::RestoreIndexFromPatch
+                self.action == GitRollbackAction::ApplyCapturedIndexPatch
                     && !self.before_index_patch.is_empty()
             }
             GitMutationOperationKind::Discard => {
@@ -1509,14 +1642,14 @@ fn rollback_material_for(
     patch: PreviewPatch,
 ) -> GitRollbackMaterial {
     let action = match operation {
-        GitMutationOperationKind::Stage | GitMutationOperationKind::Unstage => {
-            GitRollbackAction::RestoreIndexFromPatch
-        }
+        GitMutationOperationKind::Stage => GitRollbackAction::ReverseReviewedPatchInIndex,
+        GitMutationOperationKind::Unstage => GitRollbackAction::ApplyCapturedIndexPatch,
         GitMutationOperationKind::Discard => GitRollbackAction::ApplyWorktreePatch,
         GitMutationOperationKind::RevertCheckpoint => GitRollbackAction::None,
     };
     GitRollbackMaterial {
         action,
+        repo_root: patch.repo_root,
         before_index_patch: patch.before_index_patch,
         worktree_patch: patch.worktree_patch,
         paths,
@@ -1639,11 +1772,17 @@ fn included_target(
     protected_review_required: bool,
 ) -> GitMutationTargetReview {
     let path_label = path.to_string_lossy().to_string();
-    let path_id = sanitize_id(&path_label);
-    let workspace_id = sanitize_id(workspace_ref);
+    let target_ref = opaque_mutation_ref(
+        "git.mutation.target",
+        &[workspace_ref.as_bytes(), path_label.as_bytes()],
+    );
+    let path_truth_ref = opaque_mutation_ref(
+        "path.truth.git.mutation",
+        &[workspace_ref.as_bytes(), path_label.as_bytes()],
+    );
     GitMutationTargetReview {
-        target_ref: format!("git.mutation.target.{workspace_id}.{path_id}"),
-        path_truth_ref: format!("path.truth.git.mutation.{workspace_id}.{path_id}"),
+        target_ref,
+        path_truth_ref,
         repo_relative_path: path.to_path_buf(),
         path_label,
         status_code,
@@ -1668,11 +1807,17 @@ fn blocked_target(
     protected_review_required: bool,
 ) -> GitMutationTargetReview {
     let path_label = path.to_string_lossy().to_string();
-    let path_id = sanitize_id(&path_label);
-    let workspace_id = sanitize_id(workspace_ref);
+    let target_ref = opaque_mutation_ref(
+        "git.mutation.target",
+        &[workspace_ref.as_bytes(), path_label.as_bytes()],
+    );
+    let path_truth_ref = opaque_mutation_ref(
+        "path.truth.git.mutation",
+        &[workspace_ref.as_bytes(), path_label.as_bytes()],
+    );
     GitMutationTargetReview {
-        target_ref: format!("git.mutation.target.{workspace_id}.{path_id}"),
-        path_truth_ref: format!("path.truth.git.mutation.{workspace_id}.{path_id}"),
+        target_ref,
+        path_truth_ref,
         repo_relative_path: path.to_path_buf(),
         path_label,
         status_code,
@@ -1690,15 +1835,15 @@ fn diff_preview_for(
     preview_diff_ref: &str,
     material: &GitRollbackMaterial,
 ) -> GitMutationDiffPreview {
-    let bytes = match operation {
-        GitMutationOperationKind::Stage => &material.worktree_patch,
-        GitMutationOperationKind::Unstage => &material.before_index_patch,
-        GitMutationOperationKind::Discard => &material.worktree_patch,
+    let bytes: &[u8] = match operation {
+        GitMutationOperationKind::Stage => material.worktree_patch.as_ref(),
+        GitMutationOperationKind::Unstage => material.before_index_patch.as_ref(),
+        GitMutationOperationKind::Discard => material.worktree_patch.as_ref(),
         GitMutationOperationKind::RevertCheckpoint => {
             if material.before_index_patch.is_empty() {
-                &material.worktree_patch
+                material.worktree_patch.as_ref()
             } else {
-                &material.before_index_patch
+                material.before_index_patch.as_ref()
             }
         }
     };
@@ -1869,23 +2014,31 @@ fn support_export_for_preview(
     GitMutationSupportExportRecord {
         record_kind: GIT_MUTATION_SUPPORT_EXPORT_RECORD_KIND.to_string(),
         schema_version: GIT_MUTATION_SUPPORT_EXPORT_SCHEMA_VERSION,
-        support_export_ref: format!("support.export.{}", sanitize_id(preview_ref)),
+        support_export_ref: opaque_mutation_ref(
+            "git.mutation.support_export",
+            &[preview_ref.as_bytes()],
+        ),
         redaction_mode: "metadata_safe_default".to_string(),
+        redaction_profile_ref: "support.redaction.local_first_default".to_string(),
         retention_class: "local_recovery_audit".to_string(),
         operation_kind: operation.as_str().to_string(),
         phase: "preview".to_string(),
-        workspace_ref: workspace_ref.to_string(),
-        scope_ref: scope_ref.to_string(),
-        preview_ref: preview_ref.to_string(),
-        result_ref: None,
-        mutation_journal_ref: None,
-        checkpoint_refs: vec![checkpoint.checkpoint_ref.clone()],
-        evidence_refs: vec![scope_ref.to_string(), checkpoint.checkpoint_ref.clone()],
-        omitted_fields: vec![
-            "raw_patch_body".to_string(),
-            "raw_command_line".to_string(),
-            "raw_actor_secret".to_string(),
+        workspace_ref_digest: mutation_support_digest("workspace_ref", workspace_ref),
+        scope_ref_digest: mutation_support_digest("scope_ref", scope_ref),
+        preview_ref_digest: mutation_support_digest("preview_ref", preview_ref),
+        result_ref_digest: None,
+        mutation_journal_ref_digest: None,
+        checkpoint_ref_digests: vec![mutation_support_digest(
+            "checkpoint_ref",
+            &checkpoint.checkpoint_ref,
+        )],
+        evidence_ref_digests: vec![
+            mutation_support_digest("evidence_ref", scope_ref),
+            mutation_support_digest("evidence_ref", &checkpoint.checkpoint_ref),
         ],
+        raw_path_export_allowed: false,
+        raw_actor_export_allowed: false,
+        omitted_fields: mutation_support_omitted_fields(),
     }
 }
 
@@ -1897,8 +2050,12 @@ fn support_export_for_result(
     GitMutationSupportExportRecord {
         record_kind: GIT_MUTATION_SUPPORT_EXPORT_RECORD_KIND.to_string(),
         schema_version: GIT_MUTATION_SUPPORT_EXPORT_SCHEMA_VERSION,
-        support_export_ref: format!("support.export.{}", sanitize_id(result_ref)),
+        support_export_ref: opaque_mutation_ref(
+            "git.mutation.support_export",
+            &[result_ref.as_bytes()],
+        ),
         redaction_mode: "metadata_safe_default".to_string(),
+        redaction_profile_ref: "support.redaction.local_first_default".to_string(),
         retention_class: "local_recovery_audit".to_string(),
         operation_kind: preview.operation.as_str().to_string(),
         phase: if preview.operation == GitMutationOperationKind::RevertCheckpoint {
@@ -1907,23 +2064,27 @@ fn support_export_for_result(
             "apply"
         }
         .to_string(),
-        workspace_ref: preview.workspace_ref.clone(),
-        scope_ref: preview.scope.scope_ref.clone(),
-        preview_ref: preview.preview_ref.clone(),
-        result_ref: Some(result_ref.to_string()),
-        mutation_journal_ref: Some(mutation_id.to_string()),
-        checkpoint_refs: vec![preview.checkpoint.checkpoint_ref.clone()],
-        evidence_refs: vec![
-            preview.scope.scope_ref.clone(),
-            preview.diff_preview.preview_diff_ref.clone(),
-            preview.checkpoint.checkpoint_ref.clone(),
-            mutation_id.to_string(),
+        workspace_ref_digest: mutation_support_digest("workspace_ref", &preview.workspace_ref),
+        scope_ref_digest: mutation_support_digest("scope_ref", &preview.scope.scope_ref),
+        preview_ref_digest: mutation_support_digest("preview_ref", &preview.preview_ref),
+        result_ref_digest: Some(mutation_support_digest("result_ref", result_ref)),
+        mutation_journal_ref_digest: Some(mutation_support_digest(
+            "mutation_journal_ref",
+            mutation_id,
+        )),
+        checkpoint_ref_digests: vec![mutation_support_digest(
+            "checkpoint_ref",
+            &preview.checkpoint.checkpoint_ref,
+        )],
+        evidence_ref_digests: vec![
+            mutation_support_digest("evidence_ref", &preview.scope.scope_ref),
+            mutation_support_digest("evidence_ref", &preview.diff_preview.preview_diff_ref),
+            mutation_support_digest("evidence_ref", &preview.checkpoint.checkpoint_ref),
+            mutation_support_digest("evidence_ref", mutation_id),
         ],
-        omitted_fields: vec![
-            "raw_patch_body".to_string(),
-            "raw_command_line".to_string(),
-            "raw_actor_secret".to_string(),
-        ],
+        raw_path_export_allowed: false,
+        raw_actor_export_allowed: false,
+        omitted_fields: mutation_support_omitted_fields(),
     }
 }
 
@@ -2005,16 +2166,16 @@ fn result_for_preview(
         mutation_journal,
         activity,
         support_export,
-        rollback_available: matches!(
-            outcome_state,
-            GitMutationOutcomeState::Applied | GitMutationOutcomeState::Reverted
-        ) && preview.checkpoint.satisfies_required_recovery(),
+        rollback_available: outcome_state == GitMutationOutcomeState::Applied
+            && preview.checkpoint.satisfies_required_recovery(),
         revert_command_id: GitMutationOperationKind::RevertCheckpoint
             .command_id()
             .to_string(),
         failure_reason,
         rollback_material: preview.rollback_material.clone(),
+        projection_digest: None,
     }
+    .seal()
 }
 
 fn result_for_blocked_preview(
@@ -2029,14 +2190,200 @@ fn result_for_blocked_preview(
     )
 }
 
-fn normalize_requested_path(path: &Path, repo_root: &Path) -> PathBuf {
-    if path.is_absolute() {
-        path.strip_prefix(repo_root)
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|_| path.to_path_buf())
-    } else {
-        path.to_path_buf()
+fn bounded_projection_digest(value: &impl Serialize) -> Option<String> {
+    serde_json::to_vec(value)
+        .ok()
+        .filter(|bytes| bytes.len() <= MAX_GIT_MUTATION_RECORD_BYTES)
+        .map(|bytes| digest::sha256_token(&bytes))
+}
+
+fn valid_mutation_metadata(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= MAX_GIT_MUTATION_METADATA_BYTES
+        && value.chars().all(|character| !character.is_control())
+}
+
+fn valid_mutation_actor(actor: &GitMutationActorRef) -> bool {
+    valid_mutation_metadata(&actor.actor_class)
+        && valid_mutation_metadata(&actor.display_label)
+        && actor
+            .stable_id
+            .as_deref()
+            .map_or(true, valid_mutation_metadata)
+}
+
+fn validate_mutation_request_metadata(request: &GitMutationRequest) -> Result<(), &'static str> {
+    if !valid_mutation_metadata(&request.workspace_ref) {
+        return Err("workspace identity is outside the review boundary");
     }
+    if !valid_mutation_metadata(&request.requested_at) {
+        return Err("preview timestamp is outside the review boundary");
+    }
+    if !valid_mutation_actor(&request.actor) {
+        return Err("actor identity is outside the review boundary");
+    }
+    if request
+        .launch_source_ref
+        .as_deref()
+        .is_some_and(|value| !valid_mutation_metadata(value))
+    {
+        return Err("launch source identity is outside the review boundary");
+    }
+    Ok(())
+}
+
+fn bounded_requested_path_shape(paths: &[PathBuf]) -> Result<(), &'static str> {
+    if paths.len() > MAX_GIT_MUTATION_PATHS {
+        return Err("selected Git path count exceeds the review limit");
+    }
+    let mut total_bytes = 0usize;
+    let mut seen = HashSet::with_capacity(paths.len());
+    for path in paths {
+        if path.as_os_str().is_empty()
+            || path.components().any(|component| {
+                !matches!(
+                    component,
+                    Component::Prefix(_) | Component::RootDir | Component::Normal(_)
+                )
+            })
+        {
+            return Err("selected Git path is not normalized");
+        }
+        let Some(path_text) = path.to_str() else {
+            return Err("selected Git path is not valid UTF-8 for this adapter");
+        };
+        if path_text.len() > MAX_GIT_MUTATION_PATH_BYTES {
+            return Err("selected Git path exceeds the per-path review limit");
+        }
+        total_bytes = total_bytes
+            .checked_add(path_text.len())
+            .and_then(|value| value.checked_add(1))
+            .ok_or("selected Git path scope exceeds the review limit")?;
+        if total_bytes > MAX_GIT_MUTATION_SCOPE_BYTES {
+            return Err("selected Git path scope exceeds the review limit");
+        }
+        if !seen.insert(path) {
+            return Err("selected Git path scope contains a duplicate path");
+        }
+    }
+    Ok(())
+}
+
+fn bounded_normalized_paths(
+    paths: &[PathBuf],
+    repo_root: &Path,
+) -> Result<Vec<PathBuf>, &'static str> {
+    if paths.len() > MAX_GIT_MUTATION_PATHS {
+        return Err("selected Git path count exceeds the review limit");
+    }
+    let mut total_bytes = 0usize;
+    let mut seen = HashSet::with_capacity(paths.len());
+    let mut normalized = Vec::with_capacity(paths.len());
+    for path in paths {
+        let relative = if path.is_absolute() {
+            path.strip_prefix(repo_root)
+                .map_err(|_| "selected Git path is outside the reviewed root")?
+        } else {
+            path.as_path()
+        };
+        if relative.as_os_str().is_empty()
+            || relative
+                .components()
+                .any(|component| !matches!(component, Component::Normal(_)))
+        {
+            return Err("selected Git path is not a normalized repository-relative path");
+        }
+        let Some(relative_text) = relative.to_str() else {
+            return Err("selected Git path is not valid UTF-8 for this adapter");
+        };
+        if !normalized_repo_path_text(relative_text) {
+            return Err("selected Git path is not a normalized repository-relative path");
+        }
+        if relative_text.len() > MAX_GIT_MUTATION_PATH_BYTES {
+            return Err("selected Git path exceeds the per-path review limit");
+        }
+        total_bytes = total_bytes
+            .checked_add(relative_text.len())
+            .and_then(|value| value.checked_add(1))
+            .ok_or("selected Git path scope exceeds the review limit")?;
+        if total_bytes > MAX_GIT_MUTATION_SCOPE_BYTES {
+            return Err("selected Git path scope exceeds the review limit");
+        }
+        let relative = relative.to_path_buf();
+        if !seen.insert(relative.clone()) {
+            return Err("selected Git path scope contains a duplicate path");
+        }
+        normalized.push(relative);
+    }
+    Ok(normalized)
+}
+
+fn bounded_normalized_request_paths(
+    paths: &[PathBuf],
+    requested_root: &Path,
+    repo_root: &Path,
+) -> Result<Vec<PathBuf>, &'static str> {
+    let has_unmatched_absolute_path = paths
+        .iter()
+        .any(|path| path.is_absolute() && !path.starts_with(repo_root));
+    if !has_unmatched_absolute_path {
+        return bounded_normalized_paths(paths, repo_root);
+    }
+
+    let canonical_requested_root = std::fs::canonicalize(requested_root)
+        .map_err(|_| "requested Git root could not be resolved safely")?;
+    let requested_root_offset = canonical_requested_root
+        .strip_prefix(repo_root)
+        .map_err(|_| "requested Git root is outside the reviewed repository")?;
+    let mut mapped = Vec::with_capacity(paths.len());
+    for path in paths {
+        if !path.is_absolute() || path.starts_with(repo_root) {
+            mapped.push(path.clone());
+            continue;
+        }
+        if let Ok(suffix) = path.strip_prefix(requested_root) {
+            mapped.push(repo_root.join(requested_root_offset).join(suffix));
+            continue;
+        }
+        let canonical_path = std::fs::canonicalize(path)
+            .map_err(|_| "selected Git path is outside the requested root")?;
+        if !canonical_path.starts_with(&canonical_requested_root) {
+            return Err("selected Git path is outside the requested root");
+        }
+        mapped.push(canonical_path);
+    }
+    bounded_normalized_paths(&mapped, repo_root)
+}
+
+fn normalized_repo_path_text(value: &str) -> bool {
+    let is_normal = |segment: &str| !segment.is_empty() && !matches!(segment, "." | "..");
+    #[cfg(windows)]
+    {
+        value.split(|ch| matches!(ch, '/' | '\\')).all(is_normal)
+    }
+    #[cfg(not(windows))]
+    {
+        value.split('/').all(is_normal)
+    }
+}
+
+fn combined_evidence_len(first: &[u8], second: &[u8]) -> usize {
+    first.len().saturating_add(second.len())
+}
+
+fn append_evidence_bounded(existing: &[u8], target: &mut Vec<u8>, additional: &[u8]) -> bool {
+    let Some(total) = existing
+        .len()
+        .checked_add(target.len())
+        .and_then(|value| value.checked_add(additional.len()))
+    else {
+        return false;
+    };
+    if total > MAX_GIT_MUTATION_EVIDENCE_BYTES {
+        return false;
+    }
+    target.extend_from_slice(additional);
+    true
 }
 
 fn file_state_token(change: &GitChange) -> String {
@@ -2052,29 +2399,58 @@ fn preview_ref(
     operation: GitMutationOperationKind,
     paths: &[PathBuf],
 ) -> String {
-    let mut path_part = paths
+    let path_text = paths
         .iter()
-        .map(|path| sanitize_id(&path.to_string_lossy()))
-        .collect::<Vec<_>>()
-        .join(".");
-    if path_part.is_empty() {
-        path_part = "empty".to_string();
+        .map(|path| path.to_string_lossy())
+        .collect::<Vec<_>>();
+    let mut parts = Vec::with_capacity(path_text.len() + 2);
+    parts.push(workspace_ref.as_bytes());
+    parts.push(operation.as_str().as_bytes());
+    for path in &path_text {
+        parts.push(path.as_bytes());
     }
+    opaque_mutation_ref("git.mutation.preview", &parts)
+}
+
+fn opaque_mutation_ref(prefix: &str, parts: &[&[u8]]) -> String {
+    let digest = digest::sha256_framed_token(parts);
     format!(
-        "git.mutation.preview.{}.{}.{}",
-        sanitize_id(workspace_ref),
-        operation.as_str(),
-        path_part
+        "{prefix}.{}",
+        digest
+            .strip_prefix("sha256:")
+            .expect("SHA-256 helper always returns a prefixed token")
     )
 }
 
-fn path_args(command: &str, flags: &[&str], paths: &[PathBuf]) -> Vec<String> {
-    let mut args = Vec::with_capacity(flags.len() + paths.len() + 2);
-    args.push(command.to_string());
-    args.extend(flags.iter().map(|flag| (*flag).to_string()));
-    args.push("--".to_string());
-    args.extend(paths.iter().map(|path| path.to_string_lossy().to_string()));
-    args
+fn mutation_support_digest(field: &str, value: &str) -> String {
+    digest::sha256_framed_token(&[
+        b"support.redaction.local_first_default",
+        b"git_mutation_support_export_record.v2",
+        field.as_bytes(),
+        value.as_bytes(),
+    ])
+}
+
+fn mutation_support_omitted_fields() -> Vec<String> {
+    [
+        "workspace_ref",
+        "repo_root",
+        "target_paths",
+        "scope_ref",
+        "preview_ref",
+        "result_ref",
+        "mutation_journal_ref",
+        "checkpoint_refs",
+        "evidence_refs",
+        "raw_patch_body",
+        "raw_command_line",
+        "raw_actor_value",
+        "backend_output",
+        "failure_detail",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect()
 }
 
 fn diff_cached_args(paths: &[PathBuf]) -> Vec<String> {
@@ -2110,7 +2486,7 @@ fn diff_untracked_args(path: &Path) -> Vec<String> {
         "--no-ext-diff".to_string(),
         "--no-textconv".to_string(),
         "--".to_string(),
-        null_device_path().to_string(),
+        hardened_git::null_device_path().to_string(),
         path.to_string_lossy().to_string(),
     ]
 }
@@ -2162,7 +2538,7 @@ fn sanitize_id(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{git_mutation_failure_reason, GitMutationCommandOutput};
+    use super::*;
 
     #[test]
     fn mutation_failure_reason_never_exports_git_stderr() {
@@ -2178,5 +2554,83 @@ mod tests {
         assert_eq!(reason, "Git mutation failed (status 128)");
         assert!(!reason.contains("secret-value"));
         assert!(!reason.contains('\u{1b}'));
+    }
+
+    #[test]
+    fn mutation_scope_and_evidence_aggregation_are_bounded() {
+        let too_many = (0..=MAX_GIT_MUTATION_PATHS)
+            .map(|index| PathBuf::from(format!("src/{index}.rs")))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            bounded_normalized_paths(&too_many, Path::new("/repo")),
+            Err("selected Git path count exceeds the review limit")
+        );
+
+        let oversized = vec![PathBuf::from("x".repeat(MAX_GIT_MUTATION_PATH_BYTES + 1))];
+        assert_eq!(
+            bounded_normalized_paths(&oversized, Path::new("/repo")),
+            Err("selected Git path exceeds the per-path review limit")
+        );
+        assert!(
+            bounded_normalized_paths(&[PathBuf::from("../outside.txt")], Path::new("/repo"))
+                .is_err()
+        );
+        assert!(
+            bounded_normalized_paths(&[PathBuf::from("src/./same.rs")], Path::new("/repo"))
+                .is_err()
+        );
+        assert!(
+            bounded_normalized_paths(&[PathBuf::from("src//same.rs")], Path::new("/repo")).is_err()
+        );
+
+        let mut retained = vec![0_u8; MAX_GIT_MUTATION_EVIDENCE_BYTES - 1];
+        assert!(!append_evidence_bounded(
+            &[0_u8; 1],
+            &mut retained,
+            &[0_u8; 1]
+        ));
+    }
+
+    #[test]
+    fn oversized_request_blocks_without_materializing_target_rows() {
+        let request = GitMutationRequest::with_observed_at(
+            "workspace.private",
+            "/repo",
+            GitMutationOperationKind::Stage,
+            (0..=MAX_GIT_MUTATION_PATHS).map(|index| format!("src/{index}.rs")),
+            "2026-07-22T00:00:00Z",
+        );
+        let preview = GitMutationService::default().preview(&request);
+
+        assert_eq!(preview.preview_state, GitMutationPreviewState::Degraded);
+        assert!(preview.scope.targets.is_empty());
+        assert_eq!(preview.scope.requested_count, MAX_GIT_MUTATION_PATHS + 1);
+    }
+
+    #[test]
+    fn invalid_request_metadata_is_bounded_and_not_reflected() {
+        let private_value = format!("private-{}", "x".repeat(MAX_GIT_MUTATION_METADATA_BYTES));
+        let mut request = GitMutationRequest::with_observed_at(
+            private_value.clone(),
+            "/repo",
+            GitMutationOperationKind::Stage,
+            ["src/lib.rs"],
+            "2026-07-22T00:00:00Z",
+        )
+        .with_launch_source_ref(private_value.clone());
+        request.actor = GitMutationActorRef {
+            actor_class: private_value.clone(),
+            display_label: private_value.clone(),
+            stable_id: Some(private_value.clone()),
+        };
+
+        let preview = GitMutationService::default().preview(&request);
+
+        assert_eq!(preview.preview_state, GitMutationPreviewState::Degraded);
+        assert_eq!(preview.workspace_ref, "workspace.unavailable");
+        assert_eq!(preview.actor, GitMutationActorRef::default());
+        assert_eq!(preview.launch_source_ref, None);
+        let json = serde_json::to_string(&preview).expect("serialize degraded preview");
+        assert!(!json.contains(&private_value));
     }
 }
