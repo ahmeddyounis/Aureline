@@ -6,7 +6,9 @@
 //! visible in both editor and source-control surfaces.
 
 use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::fs::{self, File, Metadata};
+use std::io::{self, Read};
+use std::path::{Component, Path, PathBuf};
 
 use aureline_vfs::{ExternalChangeCompareRecord, ExternalChangeResolutionAction, SaveOutcome};
 use serde::{Deserialize, Serialize};
@@ -28,6 +30,9 @@ pub const GIT_CONFLICT_SUPPORT_EXPORT_RECORD_KIND: &str = "git_conflict_support_
 const GIT_CONFLICT_HANDOFF_SCHEMA_VERSION: u32 = 1;
 const GIT_CONFLICT_SURFACE_SCHEMA_VERSION: u32 = 1;
 const GIT_CONFLICT_SUPPORT_EXPORT_SCHEMA_VERSION: u32 = 1;
+const MAX_CONFLICT_MARKER_SCAN_BYTES: u64 = 8 * 1024 * 1024;
+const CONFLICT_MARKER_READ_BUFFER_BYTES: usize = 16 * 1024;
+const INVALID_REQUEST_PATH_LABEL: &str = "[invalid-repository-path]";
 
 /// Source that made the editor/Git handoff necessary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -742,7 +747,10 @@ impl<B: GitStatusBackend> GitConflictHandoffService<B> {
             .as_ref()
             .map(|repo| repo.repo_root.clone())
             .unwrap_or_else(|| request.root_path.clone());
-        let repo_path = normalize_requested_path(&request.path, &repo_root);
+        let normalized_repo_path = normalize_requested_path(&request.path, &repo_root);
+        let request_path_valid = normalized_repo_path.is_some();
+        let repo_path =
+            normalized_repo_path.unwrap_or_else(|| PathBuf::from(INVALID_REQUEST_PATH_LABEL));
         let change = snapshot
             .changes
             .iter()
@@ -768,8 +776,13 @@ impl<B: GitStatusBackend> GitConflictHandoffService<B> {
             request.rollback_checkpoint_ref.clone(),
             git_conflict_reported,
         );
+        let marker_scan = if git_conflict_reported {
+            inspect_conflict_markers(&repo_root, &repo_path)
+        } else {
+            ConflictMarkerScan::complete(0)
+        };
         let unresolved_count = if git_conflict_reported {
-            count_conflict_markers(&repo_root.join(&repo_path)).max(1)
+            marker_scan.count.max(1)
         } else {
             0
         };
@@ -793,15 +806,26 @@ impl<B: GitStatusBackend> GitConflictHandoffService<B> {
             current_revision_ref: git_conflict_reported.then(|| "git.stage.current".to_string()),
             incoming_revision_ref: git_conflict_reported.then(|| "git.stage.incoming".to_string()),
         };
-        let state_class = if snapshot.service_state != GitServiceState::Current {
-            GitConflictSurfaceState::Degraded
-        } else if git_conflict_reported {
-            GitConflictSurfaceState::ConflictVisible
-        } else {
-            GitConflictSurfaceState::NoConflict
-        };
+        let state_class =
+            if snapshot.service_state != GitServiceState::Current || !request_path_valid {
+                GitConflictSurfaceState::Degraded
+            } else if git_conflict_reported {
+                GitConflictSurfaceState::ConflictVisible
+            } else {
+                GitConflictSurfaceState::NoConflict
+            };
         let safe_actions = git_safe_actions(git_conflict_reported, &rollback_checkpoint);
-        let source_detail = if git_conflict_reported {
+        let source_detail = if !request_path_valid {
+            "Conflict inspection denied because the requested path was not contained in the repository."
+                .to_string()
+        } else if git_conflict_reported && !marker_scan.complete {
+            format!(
+                "{}; status {}; unresolved count at least {}; marker inspection was bounded or the file identity changed",
+                source.label(),
+                git_state.status_code.as_deref().unwrap_or("unknown"),
+                unresolved_count
+            )
+        } else if git_conflict_reported {
             format!(
                 "{}; status {}; unresolved count {}",
                 source.label(),
@@ -1105,23 +1129,190 @@ fn detect_history_operation_ref(repository: &RepositoryIdentity) -> Option<Strin
         .map(|(_, operation)| (*operation).to_string())
 }
 
-fn count_conflict_markers(path: &Path) -> u32 {
-    let Ok(text) = std::fs::read_to_string(path) else {
-        return 0;
-    };
-    text.lines()
-        .filter(|line| line.starts_with("<<<<<<< "))
-        .count() as u32
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ConflictMarkerScan {
+    count: u32,
+    complete: bool,
 }
 
-fn normalize_requested_path(path: &Path, repo_root: &Path) -> PathBuf {
-    if path.is_absolute() {
-        path.strip_prefix(repo_root)
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|_| path.to_path_buf())
-    } else {
-        path.to_path_buf()
+impl ConflictMarkerScan {
+    const fn complete(count: u32) -> Self {
+        Self {
+            count,
+            complete: true,
+        }
     }
+
+    const fn incomplete(count: u32) -> Self {
+        Self {
+            count,
+            complete: false,
+        }
+    }
+}
+
+fn inspect_conflict_markers(repo_root: &Path, repo_path: &Path) -> ConflictMarkerScan {
+    let Ok(canonical_root) = fs::canonicalize(repo_root) else {
+        return ConflictMarkerScan::incomplete(0);
+    };
+    let Ok(root_before) = fs::metadata(&canonical_root) else {
+        return ConflictMarkerScan::incomplete(0);
+    };
+    if !root_before.is_dir() {
+        return ConflictMarkerScan::incomplete(0);
+    }
+
+    let candidate = canonical_root.join(repo_path);
+    let Ok(candidate_link_metadata) = fs::symlink_metadata(&candidate) else {
+        return ConflictMarkerScan::incomplete(0);
+    };
+    if candidate_link_metadata.file_type().is_symlink() || !candidate_link_metadata.is_file() {
+        return ConflictMarkerScan::incomplete(0);
+    }
+
+    let Ok(canonical_candidate) = fs::canonicalize(&candidate) else {
+        return ConflictMarkerScan::incomplete(0);
+    };
+    if !canonical_candidate.starts_with(&canonical_root) {
+        return ConflictMarkerScan::incomplete(0);
+    }
+    let Ok(path_before) = fs::metadata(&canonical_candidate) else {
+        return ConflictMarkerScan::incomplete(0);
+    };
+    if !same_file_identity(&candidate_link_metadata, &path_before) {
+        return ConflictMarkerScan::incomplete(0);
+    }
+
+    let Ok(mut file) = File::open(&canonical_candidate) else {
+        return ConflictMarkerScan::incomplete(0);
+    };
+    let Ok(descriptor_before) = file.metadata() else {
+        return ConflictMarkerScan::incomplete(0);
+    };
+    if !same_file_identity(&path_before, &descriptor_before) {
+        return ConflictMarkerScan::incomplete(0);
+    }
+
+    let mut scan = scan_conflict_marker_reader(&mut file, MAX_CONFLICT_MARKER_SCAN_BYTES)
+        .unwrap_or_else(|_| ConflictMarkerScan::incomplete(0));
+    let path_still_stable = file
+        .metadata()
+        .is_ok_and(|descriptor_after| stable_file_metadata(&descriptor_before, &descriptor_after))
+        && fs::metadata(&canonical_candidate)
+            .is_ok_and(|path_after| same_file_identity(&descriptor_before, &path_after))
+        && fs::canonicalize(&candidate)
+            .is_ok_and(|resolved_after| resolved_after == canonical_candidate)
+        && fs::metadata(&canonical_root)
+            .is_ok_and(|root_after| same_file_identity(&root_before, &root_after));
+    if !path_still_stable {
+        scan.complete = false;
+    }
+    scan
+}
+
+fn scan_conflict_marker_reader(
+    reader: &mut impl Read,
+    max_bytes: u64,
+) -> io::Result<ConflictMarkerScan> {
+    const MARKER: &[u8] = b"<<<<<<< ";
+
+    let mut buffer = [0_u8; CONFLICT_MARKER_READ_BUFFER_BYTES];
+    let mut remaining = max_bytes;
+    let mut count = 0_u32;
+    let mut at_line_start = true;
+    let mut matched = 0_usize;
+
+    while remaining > 0 {
+        let allowed = usize::try_from(remaining.min(buffer.len() as u64))
+            .expect("read allowance fits in the fixed buffer");
+        let read = reader.read(&mut buffer[..allowed])?;
+        if read == 0 {
+            return Ok(ConflictMarkerScan::complete(count));
+        }
+        remaining -= read as u64;
+
+        for byte in &buffer[..read] {
+            if at_line_start {
+                if *byte == MARKER[matched] {
+                    matched += 1;
+                    if matched == MARKER.len() {
+                        count = count.saturating_add(1);
+                        at_line_start = false;
+                        matched = 0;
+                    }
+                } else if *byte == b'\n' {
+                    matched = 0;
+                } else {
+                    at_line_start = false;
+                    matched = 0;
+                }
+            } else if *byte == b'\n' {
+                at_line_start = true;
+                matched = 0;
+            }
+        }
+    }
+
+    let mut probe = [0_u8; 1];
+    if reader.read(&mut probe)? == 0 {
+        Ok(ConflictMarkerScan::complete(count))
+    } else {
+        Ok(ConflictMarkerScan::incomplete(count))
+    }
+}
+
+#[cfg(unix)]
+fn same_file_identity(left: &Metadata, right: &Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    left.dev() == right.dev() && left.ino() == right.ino()
+}
+
+#[cfg(not(unix))]
+fn same_file_identity(left: &Metadata, right: &Metadata) -> bool {
+    stable_file_metadata(left, right)
+}
+
+fn stable_file_metadata(left: &Metadata, right: &Metadata) -> bool {
+    same_file_kind(left, right)
+        && left.len() == right.len()
+        && matches!(
+            (left.modified(), right.modified()),
+            (Ok(left_modified), Ok(right_modified)) if left_modified == right_modified
+        )
+        && same_file_identity_without_recursion(left, right)
+}
+
+fn same_file_kind(left: &Metadata, right: &Metadata) -> bool {
+    left.is_file() == right.is_file()
+        && left.is_dir() == right.is_dir()
+        && left.file_type().is_symlink() == right.file_type().is_symlink()
+}
+
+#[cfg(unix)]
+fn same_file_identity_without_recursion(left: &Metadata, right: &Metadata) -> bool {
+    same_file_identity(left, right)
+}
+
+#[cfg(not(unix))]
+fn same_file_identity_without_recursion(_left: &Metadata, _right: &Metadata) -> bool {
+    true
+}
+
+fn normalize_requested_path(path: &Path, repo_root: &Path) -> Option<PathBuf> {
+    let relative = if path.is_absolute() {
+        path.strip_prefix(repo_root).ok()?
+    } else {
+        path
+    };
+    if relative.as_os_str().is_empty()
+        || relative
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return None;
+    }
+    Some(relative.to_path_buf())
 }
 
 fn handoff_ref(workspace_ref: &str, source: GitConflictDivergenceSource, path: &Path) -> String {
@@ -1153,4 +1344,69 @@ fn sanitize_id(value: &str) -> String {
         out.pop();
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+
+    use super::*;
+
+    #[test]
+    fn conflict_marker_scan_is_binary_safe_and_crosses_read_boundaries() {
+        let prefix_len = CONFLICT_MARKER_READ_BUFFER_BYTES - 4;
+        let mut body = vec![b'x'; prefix_len];
+        body.extend_from_slice(b"\n<<<<<<< ours\n\xff\xfe\n<<<<<<< theirs\n");
+
+        let scan = scan_conflict_marker_reader(&mut Cursor::new(body), u64::MAX)
+            .expect("in-memory scan succeeds");
+
+        assert_eq!(scan, ConflictMarkerScan::complete(2));
+    }
+
+    #[test]
+    fn conflict_marker_scan_reports_a_lower_bound_at_its_byte_limit() {
+        let body = b"<<<<<<< first\nordinary\n<<<<<<< beyond\n";
+        let limit = b"<<<<<<< first\nordinary\n".len() as u64;
+
+        let scan = scan_conflict_marker_reader(&mut Cursor::new(body), limit)
+            .expect("in-memory scan succeeds");
+
+        assert_eq!(scan, ConflictMarkerScan::incomplete(1));
+    }
+
+    #[test]
+    fn requested_paths_must_be_contained_component_paths() {
+        let repo = tempfile::tempdir().expect("repo tempdir");
+        let root = repo.path();
+
+        assert_eq!(
+            normalize_requested_path(Path::new("src/lib.rs"), root),
+            Some(PathBuf::from("src/lib.rs"))
+        );
+        assert_eq!(
+            normalize_requested_path(&root.join("src/lib.rs"), root),
+            Some(PathBuf::from("src/lib.rs"))
+        );
+        assert_eq!(normalize_requested_path(Path::new("../secret"), root), None);
+        let outside = tempfile::tempdir().expect("outside tempdir");
+        assert_eq!(normalize_requested_path(outside.path(), root), None);
+        assert_eq!(normalize_requested_path(Path::new("."), root), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn conflict_marker_inspection_rejects_symlink_targets() {
+        use std::os::unix::fs::symlink;
+
+        let repo = tempfile::tempdir().expect("repo tempdir");
+        let outside = tempfile::NamedTempFile::new().expect("outside temp file");
+        fs::write(outside.path(), b"<<<<<<< outside\n").expect("write outside file");
+        symlink(outside.path(), repo.path().join("conflicted.txt")).expect("create symlink");
+
+        assert_eq!(
+            inspect_conflict_markers(repo.path(), Path::new("conflicted.txt")),
+            ConflictMarkerScan::incomplete(0)
+        );
+    }
 }

@@ -16,6 +16,11 @@ visible across editor and Git surfaces.
 - Git conflicts preserve repo-relative path identity, conflict class,
   unresolved count, detected history operation, and an abort/reflog recovery
   path when available.
+- Conflict-marker inspection accepts only contained component paths, rejects
+  symbolic-link targets and canonical escapes, reads binary content through a
+  fixed buffer, and stops after 8 MiB. When the bound is reached or file
+  identity changes during inspection, the visible source detail labels the
+  count as a lower bound instead of claiming an exact result.
 - Support exports omit raw patch bodies, raw file bodies, and raw absolute
   paths while retaining source, identity refs, status/compare outcome, safe
   action tokens, and checkpoint refs.
