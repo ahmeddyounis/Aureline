@@ -691,17 +691,21 @@ impl GitReviewEventRecord {
             command_id: activity.open_details_command_id.clone(),
             source_record_ref: activity.preview_ref.clone(),
             preview_ref: Some(activity.preview_ref.clone()),
-            result_ref: support.result_ref.clone(),
-            journal_ref: support.mutation_journal_ref.clone(),
+            // The v2 support row intentionally exposes only result digests.
+            // Exact local reopening remains anchored by the activity record's
+            // preview and mutation ids rather than reintroducing raw refs into
+            // the redacted export contract.
+            result_ref: support.result_ref_digest.clone(),
+            journal_ref: activity.mutation_id.clone(),
             recovery_ref: activity.checkpoint_refs.first().cloned(),
             side_effect_class: support.operation_kind.clone(),
             reissues_original_side_effect: false,
         };
         let target = GitReviewTargetIdentity {
-            canonical_target_ref: support.scope_ref.clone(),
+            canonical_target_ref: support.scope_ref_digest.clone(),
             target_kind: GitReviewTargetKind::PathScope,
             target_label: "Selected Git paths".to_string(),
-            scope_ref: Some(support.scope_ref.clone()),
+            scope_ref: Some(support.scope_ref_digest.clone()),
             target_refs: Vec::new(),
             review_workspace_ref: None,
             route_ref: None,
@@ -1617,5 +1621,57 @@ mod tests {
             export.rows[0].exact_reopen_links[0].target_identity_ref,
             "git.publish.preview.fixture"
         );
+    }
+
+    #[test]
+    fn mutation_projection_uses_redacted_support_digests_and_local_reopen_ids() {
+        let activity = GitMutationActivityRecord {
+            record_kind: "git_mutation_activity_record".to_string(),
+            schema_version: 1,
+            activity_row_id: "activity.git.mutation.fixture".to_string(),
+            job_family: "git_mutation".to_string(),
+            state_class: "completed".to_string(),
+            partition: "completed".to_string(),
+            summary_label: "stage applied".to_string(),
+            detail_label: "one reviewed path".to_string(),
+            preview_ref: "git.mutation.preview.local".to_string(),
+            mutation_id: Some("git.mutation.local-journal".to_string()),
+            checkpoint_refs: vec!["git.checkpoint.local".to_string()],
+            open_details_command_id: "cmd:git.mutation.open_details".to_string(),
+            support_export_ref: "git.mutation.support.fixture".to_string(),
+        };
+        let support = GitMutationSupportExportRecord {
+            record_kind: "git_mutation_support_export_record".to_string(),
+            schema_version: 2,
+            support_export_ref: "git.mutation.support.fixture".to_string(),
+            redaction_mode: "metadata_safe_default".to_string(),
+            redaction_profile_ref: "support.redaction.local_first_default".to_string(),
+            retention_class: "local_recovery_audit".to_string(),
+            operation_kind: "stage".to_string(),
+            phase: "apply".to_string(),
+            workspace_ref_digest: "sha256:workspace".to_string(),
+            scope_ref_digest: "sha256:scope".to_string(),
+            preview_ref_digest: "sha256:preview".to_string(),
+            result_ref_digest: Some("sha256:result".to_string()),
+            mutation_journal_ref_digest: Some("sha256:journal".to_string()),
+            checkpoint_ref_digests: vec!["sha256:checkpoint".to_string()],
+            evidence_ref_digests: vec!["sha256:evidence".to_string()],
+            raw_path_export_allowed: false,
+            raw_actor_export_allowed: false,
+            omitted_fields: vec!["scope_ref".to_string(), "result_ref".to_string()],
+        };
+
+        let event = GitReviewEventRecord::from_git_mutation_records(
+            "2026-07-22T00:00:00Z",
+            "workspace.local",
+            branch(),
+            &activity,
+            &support,
+        );
+
+        assert_eq!(event.target.canonical_target_ref, support.scope_ref_digest);
+        assert_eq!(event.action.result_ref, support.result_ref_digest);
+        assert_eq!(event.action.journal_ref, activity.mutation_id);
+        assert!(!event.target.canonical_target_ref.contains('/'));
     }
 }
