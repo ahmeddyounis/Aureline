@@ -20,6 +20,11 @@ pub const SAVE_PARTICIPANT_RISK_SCHEMA_REF: &str =
 /// Stable record-kind tag for a save-participant risk review.
 pub const SAVE_PARTICIPANT_RISK_REVIEW_RECORD_KIND: &str = "save_participant_risk_review_record";
 
+/// Finite changed-byte ceiling used by the convenience single-file
+/// declaration. Participants with a narrower limit should use
+/// [`FileEffectSummary::safe_single_file_with_byte_ceiling`].
+pub const DEFAULT_SAFE_LOCAL_CHANGED_BYTES_CEILING: u64 = 1024 * 1024;
+
 /// Save participant family.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -366,11 +371,17 @@ impl FileEffectSummary {
 
     /// Returns a safe single-file local edit declaration.
     pub const fn safe_single_file() -> Self {
+        Self::safe_single_file_with_byte_ceiling(DEFAULT_SAFE_LOCAL_CHANGED_BYTES_CEILING)
+    }
+
+    /// Returns a single-file local edit declaration with an explicit byte
+    /// ceiling. A zero ceiling admits only a no-op result.
+    pub const fn safe_single_file_with_byte_ceiling(changed_bytes: u64) -> Self {
         Self {
             files_touched: 1,
             files_created: 0,
             files_deleted: 0,
-            changed_bytes: u64::MAX,
+            changed_bytes,
             whole_file_rewrite: false,
             generated_artifacts_touched: 0,
             protected_paths_touched: 0,
@@ -390,6 +401,38 @@ impl FileEffectSummary {
             protected_paths_touched: 0,
             may_touch_outside_visible_file: false,
         }
+    }
+
+    /// Returns every dimension where this actual effect exceeds a declared
+    /// ceiling. Boolean capabilities are ceilings too: an actual `true` may
+    /// not widen a declared `false`.
+    pub fn ceiling_violations(&self, declared: &Self) -> Vec<&'static str> {
+        let mut violations = Vec::new();
+        if self.files_touched > declared.files_touched {
+            violations.push("files_touched");
+        }
+        if self.files_created > declared.files_created {
+            violations.push("files_created");
+        }
+        if self.files_deleted > declared.files_deleted {
+            violations.push("files_deleted");
+        }
+        if self.changed_bytes > declared.changed_bytes {
+            violations.push("changed_bytes");
+        }
+        if self.whole_file_rewrite && !declared.whole_file_rewrite {
+            violations.push("whole_file_rewrite");
+        }
+        if self.generated_artifacts_touched > declared.generated_artifacts_touched {
+            violations.push("generated_artifacts_touched");
+        }
+        if self.protected_paths_touched > declared.protected_paths_touched {
+            violations.push("protected_paths_touched");
+        }
+        if self.may_touch_outside_visible_file && !declared.may_touch_outside_visible_file {
+            violations.push("may_touch_outside_visible_file");
+        }
+        violations
     }
 }
 
@@ -419,6 +462,27 @@ pub struct SaveParticipantRiskDeclaration {
 }
 
 impl SaveParticipantRiskDeclaration {
+    /// Returns a fail-closed declaration for an unclassified participant.
+    /// Merely implementing the participant trait never grants a safe local
+    /// mutation posture.
+    pub fn unknown_requires_review(participant_id: impl Into<String>) -> Self {
+        let participant_id = participant_id.into();
+        Self {
+            participant_id: participant_id.clone(),
+            participant_class: SaveParticipantClass::ParticipantUnknownRequiresReview,
+            output_origin_class: SaveParticipantOutputOrigin::OriginUnknownRequiresReview,
+            fix_safety_class: SaveParticipantFixSafetyClass::FixSafetyUnknownRequiresReview,
+            declared_file_effect_summary: FileEffectSummary::no_write(),
+            source_fidelity_rewrite_class: SourceFidelityRewriteClass::BlockedNoWrite,
+            review_trigger_classes: vec![SaveParticipantReviewTriggerClass::UnknownRequiresReview],
+            checkpoint_policy_class: SaveParticipantCheckpointPolicyClass::CheckpointBlockedNoWrite,
+            reviewed_ticket_ref: None,
+            visible_disclosure: format!(
+                "{participant_id} has no admitted save-participant execution declaration."
+            ),
+        }
+    }
+
     /// Returns a safe local declaration for legacy or simple participants.
     pub fn safe_local(participant_id: impl Into<String>) -> Self {
         let participant_id = participant_id.into();
@@ -462,9 +526,6 @@ impl SaveParticipantRiskDeclaration {
     pub fn requires_review_before_run(&self) -> bool {
         if self.fix_safety_class == SaveParticipantFixSafetyClass::PolicyBlocked {
             return true;
-        }
-        if self.reviewed_ticket_ref.is_some() {
-            return false;
         }
         self.fix_safety_class.requires_review_or_block()
             || self.source_fidelity_rewrite_class.is_whole_file_rewrite()
@@ -520,6 +581,12 @@ pub struct SaveParticipantRiskEntry {
     pub checkpoint_policy_class: SaveParticipantCheckpointPolicyClass,
     /// Optional reviewed-ticket ref.
     pub reviewed_ticket_ref: Option<String>,
+    /// Runtime-only proof that the ticket was admitted by the coordinator for
+    /// this exact target, staged content, declaration, and expiry window.
+    /// The existing v1 risk schema intentionally continues to carry only the
+    /// opaque ticket ref.
+    #[serde(skip)]
+    pub review_admission_validated: bool,
     /// Human-readable disclosure.
     pub visible_disclosure: String,
 }
@@ -538,9 +605,25 @@ impl From<SaveParticipantRiskDeclaration> for SaveParticipantRiskEntry {
             review_trigger_classes: value.review_trigger_classes,
             checkpoint_policy_class: value.checkpoint_policy_class,
             reviewed_ticket_ref: value.reviewed_ticket_ref,
+            review_admission_validated: false,
             visible_disclosure: value.visible_disclosure,
         }
     }
+}
+
+/// Result of comparing a participant's observed staged-buffer effect with its
+/// declaration. This type intentionally is not `must_use` so older evidence
+/// builders that only populate review rows remain source-compatible; the save
+/// coordinator always handles every outcome.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SaveParticipantEffectRecordOutcome {
+    /// The participant id was present and every effect dimension remained
+    /// within its declared ceiling.
+    Accepted,
+    /// No declared participant row matched the supplied id.
+    UnknownParticipant,
+    /// One or more effect dimensions widened beyond the declaration.
+    CeilingExceeded { dimensions: Vec<&'static str> },
 }
 
 /// Save-participant risk review emitted with a staged save result.
@@ -580,7 +663,46 @@ impl SaveParticipantRiskReview {
         checkpoint_ref: Option<String>,
         declarations: Vec<SaveParticipantRiskDeclaration>,
     ) -> Self {
-        let participant_entries: Vec<_> = declarations.into_iter().map(Into::into).collect();
+        Self::open_with_validated_review_refs(
+            save_participant_risk_review_id,
+            save_packet_ref,
+            checkpoint_ref,
+            declarations,
+            &[],
+        )
+    }
+
+    /// Opens a review after the coordinator has validated opaque review refs
+    /// against the exact target, staged content, declaration, and expiry.
+    pub(super) fn open_with_validated_review_refs(
+        save_participant_risk_review_id: impl Into<String>,
+        save_packet_ref: impl Into<String>,
+        checkpoint_ref: Option<String>,
+        declarations: Vec<SaveParticipantRiskDeclaration>,
+        validated_review_refs: &[(String, String)],
+    ) -> Self {
+        let participant_entries: Vec<_> = declarations
+            .into_iter()
+            .map(|mut declaration| {
+                let validated = declaration
+                    .reviewed_ticket_ref
+                    .as_ref()
+                    .is_some_and(|ticket| {
+                        validated_review_refs
+                            .iter()
+                            .any(|(participant_id, admitted_ticket)| {
+                                participant_id == &declaration.participant_id
+                                    && admitted_ticket == ticket
+                            })
+                    });
+                if !validated {
+                    declaration.reviewed_ticket_ref = None;
+                }
+                let mut entry: SaveParticipantRiskEntry = declaration.into();
+                entry.review_admission_validated = validated;
+                entry
+            })
+            .collect();
         let mut review = Self {
             record_kind: SAVE_PARTICIPANT_RISK_REVIEW_RECORD_KIND.to_owned(),
             save_participant_risk_schema_version: SAVE_PARTICIPANT_RISK_SCHEMA_VERSION,
@@ -625,16 +747,46 @@ impl SaveParticipantRiskReview {
             "Save participant requires review before mutating staged content.".to_owned();
     }
 
-    /// Records actual staged effects for a participant.
-    pub fn record_actual_effect(&mut self, participant_id: &str, actual: FileEffectSummary) {
+    /// Invalidates a previously matched runtime review admission when the
+    /// participant's actual staged input no longer equals the reviewed bytes.
+    pub fn invalidate_review_admission(&mut self, participant_id: &str) {
         if let Some(entry) = self
             .participant_entries
             .iter_mut()
             .find(|entry| entry.participant_id == participant_id)
         {
-            entry.run_state_class = SaveParticipantRunStateClass::Ran;
-            entry.actual_file_effect_summary = Some(actual.clone());
-            if actual.whole_file_rewrite && !entry.declared_file_effect_summary.whole_file_rewrite {
+            entry.review_admission_validated = false;
+            entry.reviewed_ticket_ref = None;
+            entry.run_state_class = SaveParticipantRunStateClass::HeldForReview;
+        }
+        self.outcome_class = SaveParticipantRiskOutcomeClass::ReviewRequiredBeforeMutation;
+        self.summary =
+            "Reviewed participant admission no longer matches the staged input.".to_owned();
+    }
+
+    /// Records actual staged effects for a participant.
+    pub fn record_actual_effect(
+        &mut self,
+        participant_id: &str,
+        actual: FileEffectSummary,
+    ) -> SaveParticipantEffectRecordOutcome {
+        let Some(entry) = self
+            .participant_entries
+            .iter_mut()
+            .find(|entry| entry.participant_id == participant_id)
+        else {
+            self.outcome_class = SaveParticipantRiskOutcomeClass::BlockedNoWrite;
+            self.summary =
+                "Participant result did not match any declared participant; write blocked."
+                    .to_owned();
+            return SaveParticipantEffectRecordOutcome::UnknownParticipant;
+        };
+
+        entry.run_state_class = SaveParticipantRunStateClass::Ran;
+        entry.actual_file_effect_summary = Some(actual.clone());
+        let violations = actual.ceiling_violations(&entry.declared_file_effect_summary);
+        if !violations.is_empty() {
+            if violations.contains(&"whole_file_rewrite") {
                 entry.fix_safety_class = SaveParticipantFixSafetyClass::WholeFileRewriteDisclosed;
                 entry.source_fidelity_rewrite_class =
                     SourceFidelityRewriteClass::WholeFileRewriteFallback;
@@ -644,11 +796,26 @@ impl SaveParticipantRiskReview {
                 );
                 entry.visible_disclosure =
                     "Participant output rewrites the whole file and requires review.".to_owned();
-                self.outcome_class = SaveParticipantRiskOutcomeClass::ReviewRequiredBeforeCommit;
-                self.summary =
-                    "Participant output widened to a whole-file rewrite before commit.".to_owned();
+            } else {
+                entry.fix_safety_class =
+                    SaveParticipantFixSafetyClass::WorkspaceWidePreviewRequired;
+                add_unique(
+                    &mut entry.review_trigger_classes,
+                    SaveParticipantReviewTriggerClass::UnknownRequiresReview,
+                );
+                entry.visible_disclosure =
+                    "Participant output exceeded its declared effect ceiling and requires review."
+                        .to_owned();
             }
+            self.outcome_class = SaveParticipantRiskOutcomeClass::ReviewRequiredBeforeCommit;
+            self.summary =
+                "Participant output exceeded its declared effect ceiling before commit.".to_owned();
+            return SaveParticipantEffectRecordOutcome::CeilingExceeded {
+                dimensions: violations,
+            };
         }
+
+        SaveParticipantEffectRecordOutcome::Accepted
     }
 
     /// Records participant failure.
@@ -662,6 +829,30 @@ impl SaveParticipantRiskReview {
         }
         self.outcome_class = SaveParticipantRiskOutcomeClass::ParticipantFailed;
         self.summary = "Save participant failed before durable write.".to_owned();
+    }
+
+    /// Records a bounded timeout. The v1 editor-risk schema has no dedicated
+    /// timeout token, so the schema-compatible risk row uses `failed`; the
+    /// coordinator's typed effect receipt preserves `timed_out` exactly.
+    pub fn mark_participant_timed_out(&mut self, participant_id: &str) {
+        self.mark_participant_failed(participant_id);
+        self.summary = "Save participant timed out; durable write was aborted.".to_owned();
+    }
+
+    /// Records explicit attempt cancellation. As with timeout, the typed
+    /// effect receipt preserves the precise cancellation outcome.
+    pub fn mark_participant_cancelled(&mut self, participant_id: &str) {
+        self.mark_participant_failed(participant_id);
+        self.summary = "Save participant was cancelled; durable write was aborted.".to_owned();
+    }
+
+    /// Marks every participant that has not run as blocked before run.
+    pub fn mark_unrun_participants_blocked(&mut self) {
+        for entry in &mut self.participant_entries {
+            if entry.run_state_class == SaveParticipantRunStateClass::Planned {
+                entry.run_state_class = SaveParticipantRunStateClass::BlockedBeforeRun;
+            }
+        }
     }
 
     /// Records source-fidelity adjustments that require review before commit.
@@ -701,6 +892,15 @@ impl SaveParticipantRiskReview {
     /// Marks the review as blocked without a durable write.
     pub fn mark_blocked_no_write(&mut self, summary: impl Into<String>) {
         self.outcome_class = SaveParticipantRiskOutcomeClass::BlockedNoWrite;
+        self.summary = summary.into();
+    }
+
+    /// Records that the root crossed a commit point but could not prove the
+    /// final durability barrier. The existing review-required-before-commit
+    /// class is deliberately reused: callers must refresh root truth and keep
+    /// the buffer dirty rather than claiming either a clean commit or no write.
+    pub fn mark_commit_uncertain(&mut self, summary: impl Into<String>) {
+        self.outcome_class = SaveParticipantRiskOutcomeClass::ReviewRequiredBeforeCommit;
         self.summary = summary.into();
     }
 
@@ -778,7 +978,7 @@ fn entry_requires_review_before_run(entry: &SaveParticipantRiskEntry) -> bool {
     if entry.fix_safety_class == SaveParticipantFixSafetyClass::PolicyBlocked {
         return true;
     }
-    if entry.reviewed_ticket_ref.is_some() {
+    if entry.review_admission_validated {
         return false;
     }
     entry.fix_safety_class.requires_review_or_block()

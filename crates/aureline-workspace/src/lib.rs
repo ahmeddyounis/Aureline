@@ -587,8 +587,13 @@ pub use certify_launch_bundles_imported_user_handoff_bundles_and::{
 };
 
 pub use save::{
-    SaveParticipant, SaveParticipantError, SaveResult, StagedSaveCoordinator, StagedSaveRequest,
-    WriteStrategy,
+    SaveCancellationToken, SaveParticipant, SaveParticipantAdmissionError,
+    SaveParticipantEffectReceipt, SaveParticipantEffectRecordOutcome,
+    SaveParticipantEffectScopeClass, SaveParticipantError, SaveParticipantExecutionDeclaration,
+    SaveParticipantExecutionOutcomeClass, SaveParticipantPhaseClass, SaveParticipantRunControl,
+    SaveResult, StagedSaveCoordinator, StagedSaveRequest, WriteStrategy,
+    DEFAULT_SAFE_LOCAL_CHANGED_BYTES_CEILING, MAX_PARTICIPANT_PLAN_TIMEOUT_MS,
+    MAX_PARTICIPANT_STAGED_BYTES, MAX_PARTICIPANT_TIMEOUT_MS, MAX_SAVE_PARTICIPANTS,
 };
 
 pub use entry_hardening_lineage::{

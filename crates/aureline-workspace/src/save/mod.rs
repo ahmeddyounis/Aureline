@@ -20,15 +20,21 @@ pub mod source_fidelity;
 pub mod write_strategy;
 
 pub use coordinator::{
-    SaveParticipant, SaveParticipantError, SaveResult, StagedSaveCoordinator, StagedSaveRequest,
+    SaveCancellationToken, SaveParticipant, SaveParticipantAdmissionError,
+    SaveParticipantEffectReceipt, SaveParticipantEffectScopeClass, SaveParticipantError,
+    SaveParticipantExecutionDeclaration, SaveParticipantExecutionOutcomeClass,
+    SaveParticipantPhaseClass, SaveParticipantRunControl, SaveResult, StagedSaveCoordinator,
+    StagedSaveRequest, MAX_PARTICIPANT_PLAN_TIMEOUT_MS, MAX_PARTICIPANT_STAGED_BYTES,
+    MAX_PARTICIPANT_TIMEOUT_MS, MAX_SAVE_PARTICIPANTS,
 };
 pub use drift_detection::{detect_external_drift, ExternalDriftConflict};
 pub use risk::{
     summarize_staged_file_effect, FileEffectSummary, SaveParticipantCheckpointPolicyClass,
-    SaveParticipantClass, SaveParticipantFixSafetyClass, SaveParticipantOutputOrigin,
-    SaveParticipantReviewTriggerClass, SaveParticipantRiskDeclaration, SaveParticipantRiskEntry,
-    SaveParticipantRiskOutcomeClass, SaveParticipantRiskReview, SaveParticipantRunStateClass,
-    SourceFidelityRewriteClass, SAVE_PARTICIPANT_RISK_REVIEW_RECORD_KIND,
+    SaveParticipantClass, SaveParticipantEffectRecordOutcome, SaveParticipantFixSafetyClass,
+    SaveParticipantOutputOrigin, SaveParticipantReviewTriggerClass, SaveParticipantRiskDeclaration,
+    SaveParticipantRiskEntry, SaveParticipantRiskOutcomeClass, SaveParticipantRiskReview,
+    SaveParticipantRunStateClass, SourceFidelityRewriteClass,
+    DEFAULT_SAFE_LOCAL_CHANGED_BYTES_CEILING, SAVE_PARTICIPANT_RISK_REVIEW_RECORD_KIND,
     SAVE_PARTICIPANT_RISK_SCHEMA_REF, SAVE_PARTICIPANT_RISK_SCHEMA_VERSION,
 };
 pub use source_fidelity::{

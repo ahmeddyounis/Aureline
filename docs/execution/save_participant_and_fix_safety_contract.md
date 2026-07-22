@@ -110,6 +110,32 @@ Ordering rules:
    write or an explicitly recorded no-op save. It may refresh state but
    may not edit files.
 
+Execution-boundary rules:
+
+1. Participant identity, risk declaration, phase/effect declaration, and
+   runtime result are separate inputs and must agree. Missing, duplicate,
+   oversized, unknown, or mismatched participant IDs fail closed before
+   mutation.
+2. The in-process lane admits at most 32 participants and 16 MiB of staged
+   input/output. Descriptor discovery is bounded independently; per-participant
+   and aggregate execution budgets may not exceed two seconds. Timeout,
+   cancellation, panic, disconnected worker, and worker-capacity exhaustion all
+   produce explicit no-write receipts.
+3. Every numeric and boolean dimension of the actual effect is compared with
+   its declaration. A whole-file rewrite, created/deleted file, generated or
+   protected impact, outside-visible-file access, file count, or byte count may
+   not widen silently.
+4. In-process Rust participants retain any ambient authority their
+   implementation already owns. The staged-buffer lane therefore refuses
+   declared external filesystem, process, network, secret, or generated-output
+   effects until a supervised process or Wasm host can enforce those
+   capabilities. Timed-out cooperative workers are globally capped so detached
+   work cannot grow without bound.
+5. Participant-provided failure text is private tool output. Receipts,
+   manifests, logs, and support projections carry a controlled reason and may
+   carry a digest/reference through a separately governed diagnostic flow; they
+   do not copy arbitrary failure bodies.
+
 Checkpoint and rollback rules:
 
 1. A participant that can change bytes names a checkpoint posture before
@@ -226,6 +252,13 @@ Review records carry:
 - generated lineage, external-change, policy, diagnostic, or issue refs;
 - checkpoint and rollback refs; and
 - review surface or ticket refs.
+
+A ticket reference in a declaration is not authority by itself. The coordinator
+must admit a short-lived, single-use runtime receipt bound to the exact
+workspace/root save token, initial staged-content digest, complete declaration,
+participant ID, ticket ref, and monotonic expiry. Content, token, declaration,
+participant ordering, or expiry drift invalidates the receipt. Runtime receipts
+are count/byte bounded and store content bindings rather than raw staged bodies.
 
 ## 5. Safe-save and blocked-save distinctions
 

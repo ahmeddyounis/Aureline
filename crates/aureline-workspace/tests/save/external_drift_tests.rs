@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Aureline contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use std::cell::Cell;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use aureline_vfs::save::open_save_target;
@@ -17,7 +17,7 @@ use aureline_workspace::save::{
 };
 
 struct ParticipantRunProbe {
-    ran: Rc<Cell<bool>>,
+    ran: Arc<AtomicBool>,
 }
 
 impl SaveParticipant for ParticipantRunProbe {
@@ -26,7 +26,7 @@ impl SaveParticipant for ParticipantRunProbe {
     }
 
     fn run(&mut self, staged: &[u8]) -> Result<Vec<u8>, String> {
-        self.ran.set(true);
+        self.ran.store(true, Ordering::Release);
         Ok(staged.to_vec())
     }
 }
@@ -93,6 +93,7 @@ fn staged_save_refuses_when_presentation_path_no_longer_resolves() {
         source_fidelity: default_source_fidelity(),
         save_participant_group_id: None,
         checkpoint_ref: None,
+        reviewed_in_place_admission: None,
         committed_at: "mono:commit".to_owned(),
     };
     let mut participants = Vec::new();
@@ -136,7 +137,7 @@ fn staged_save_rejects_token_replay_across_overlapping_workspace_roots() {
     ];
 
     for mut replay_root in replay_roots {
-        let participant_ran = Rc::new(Cell::new(false));
+        let participant_ran = Arc::new(AtomicBool::new(false));
         let mut coordinator = StagedSaveCoordinator::new();
         let request = StagedSaveRequest {
             token: token.clone(),
@@ -144,6 +145,7 @@ fn staged_save_rejects_token_replay_across_overlapping_workspace_roots() {
             source_fidelity: default_source_fidelity(),
             save_participant_group_id: None,
             checkpoint_ref: None,
+            reviewed_in_place_admission: None,
             committed_at: "mono:cross-root-replay".to_owned(),
         };
         let mut participants: Vec<Box<dyn SaveParticipant>> = vec![Box::new(ParticipantRunProbe {
@@ -165,7 +167,7 @@ fn staged_save_rejects_token_replay_across_overlapping_workspace_roots() {
             "cross-root token replay must not write bytes"
         );
         assert!(
-            !participant_ran.get(),
+            !participant_ran.load(Ordering::Acquire),
             "cross-root token replay must be rejected before save participants run"
         );
     }
@@ -205,6 +207,7 @@ fn staged_save_refuses_when_symlink_target_drifts() {
         source_fidelity: default_source_fidelity(),
         save_participant_group_id: None,
         checkpoint_ref: None,
+        reviewed_in_place_admission: None,
         committed_at: "mono:commit".to_owned(),
     };
 
